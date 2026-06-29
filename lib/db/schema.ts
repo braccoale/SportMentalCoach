@@ -300,6 +300,30 @@ export const coachAvailability = pgTable(
   ]
 );
 
+// Internal chat messages tied to a booking. Phase 2 foundation — no realtime
+// yet (messages are server-rendered). Access is restricted in
+// `lib/core/messages` to the booking's participants and accepted bookings.
+export const messages = pgTable(
+  'messages',
+  {
+    id: serial('id').primaryKey(),
+    bookingId: integer('booking_id')
+      .notNull()
+      .references(() => bookings.id),
+    senderId: integer('sender_id')
+      .notNull()
+      .references(() => users.id),
+    body: text('body').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('messages_booking_id_created_at_idx').on(
+      table.bookingId,
+      table.createdAt
+    ),
+  ]
+);
+
 // --- Relations ---
 
 export const profilesRelations = relations(profiles, ({ one }) => ({
@@ -346,6 +370,17 @@ export const coachAvailabilityRelations = relations(
     }),
   })
 );
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  booking: one(bookings, {
+    fields: [messages.bookingId],
+    references: [bookings.id],
+  }),
+  sender: one(users, {
+    fields: [messages.senderId],
+    references: [users.id],
+  }),
+}));
 
 export const clientProfilesRelations = relations(clientProfiles, ({ one }) => ({
   user: one(users, {
@@ -401,6 +436,8 @@ export type Booking = typeof bookings.$inferSelect;
 export type NewBooking = typeof bookings.$inferInsert;
 export type CoachAvailability = typeof coachAvailability.$inferSelect;
 export type NewCoachAvailability = typeof coachAvailability.$inferInsert;
+export type Message = typeof messages.$inferSelect;
+export type NewMessage = typeof messages.$inferInsert;
 
 export const BOOKING_STATUSES = [
   'requested',

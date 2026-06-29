@@ -168,6 +168,24 @@ Cal.com. Added by migration `0003`.
 Unique constraint on `(provider_id, weekday, start_minute)`. Range validation
 (`end > start`, `0..1440`) is enforced in `lib/core/availability`.
 
+### `messages` (Phase 2 foundation)
+
+Internal chat messages tied to a booking. No realtime yet (server-rendered).
+Added by migration `0004`.
+
+| column     | type                  | notes                                     |
+|------------|-----------------------|-------------------------------------------|
+| id         | serial PK             |                                           |
+| booking_id | integer FK bookings.id| not null                                  |
+| sender_id  | integer FK users.id   | not null                                  |
+| body       | text                  | not null                                  |
+| created_at | timestamp             | defaultNow()                              |
+
+Index on `(booking_id, created_at)`. Access control lives in
+`lib/core/messages`: a chat is readable/writable **only** by the booking's
+participants (the athlete client and the coach behind the provider profile) and
+**only** for `accepted` bookings.
+
 ---
 
 ## Aliases & views
@@ -227,6 +245,7 @@ None of these happen in Phase 1.
 - Cal.com calendar integration (the `coach_availability` foundation now exists;
   Cal.com sync is still deferred).
 - Payments, payouts, invoices (Stripe Connect in Phase 2).
-- Messages / chat channels (Supabase Realtime in Phase 2).
+- Supabase Realtime for chat (the `messages` table + server-rendered chat now
+  exist; realtime delivery is still deferred).
 - Reviews and ratings (Phase 2).
 - AI artifacts: transcripts, embeddings, match scores (Phase 3).

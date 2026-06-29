@@ -90,6 +90,25 @@ Admin approves → coach public on /coaches
 - The onboarding card shows on `/dashboard/coach` while the profile is not yet
   `approved`; once approved it is hidden (the status banner remains).
 
+## Booking chat (Phase 2, implemented)
+
+```
+Booking accepted → both dashboards show an "Apri chat →" link
+  Athlete → /dashboard/athlete (Accettate)  → Apri chat
+  Coach   → /dashboard/coach (Storico, accepted) → Apri chat
+→ /dashboard/chat/[bookingId]
+  - server-rendered message list (mine right / theirs left)
+  - composer: write + Invia  → message stored, page revalidated
+  - "Aggiorna la pagina per vedere i nuovi messaggi" (no realtime yet)
+```
+
+- **Access is restricted to the two participants** (the booking's athlete and
+  the coach behind the provider profile) and **only for `accepted` bookings**.
+  Enforced server-side in `lib/core/messages` (`getChat` / `sendMessage`); a
+  non-participant or non-accepted booking gets `notFound()` (no info leak).
+- No Supabase Realtime, no LiveKit, no payments — messages are plain
+  server-rendered rows refreshed on send / page reload.
+
 ## Coach profile editing & submit-for-review (implemented)
 
 ```

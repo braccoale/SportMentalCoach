@@ -34,11 +34,21 @@ function BookingRow({ b }: { b: AthleteBooking }) {
           </p>
         )}
       </div>
-      <span
-        className={`rounded-full px-3 py-1 text-xs font-medium ${bookingStatusTone(b.status)}`}
-      >
-        {bookingStatusLabel(b.status)}
-      </span>
+      <div className="flex flex-col items-end gap-2">
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-medium ${bookingStatusTone(b.status)}`}
+        >
+          {bookingStatusLabel(b.status)}
+        </span>
+        {b.status === 'accepted' && (
+          <Link
+            href={`/dashboard/chat/${b.id}`}
+            className="text-sm font-medium text-orange-600 hover:text-orange-700"
+          >
+            Apri chat →
+          </Link>
+        )}
+      </div>
     </li>
   );
 }

@@ -179,8 +179,18 @@ export default async function CoachDashboardPage() {
                   {b.clientName || b.clientEmail} —{' '}
                   {b.serviceTitle ?? 'Richiesta generica'}
                 </span>
-                <span className="font-medium text-gray-500">
-                  {bookingStatusLabel(b.status)}
+                <span className="flex items-center gap-3">
+                  {b.status === 'accepted' && (
+                    <Link
+                      href={`/dashboard/chat/${b.id}`}
+                      className="font-medium text-orange-600 hover:text-orange-700"
+                    >
+                      Apri chat →
+                    </Link>
+                  )}
+                  <span className="font-medium text-gray-500">
+                    {bookingStatusLabel(b.status)}
+                  </span>
                 </span>
               </li>
             ))}
