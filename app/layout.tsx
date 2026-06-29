@@ -5,8 +5,9 @@ import { getUser, getTeamForUser } from '@/lib/db/queries';
 import { SWRConfig } from 'swr';
 
 export const metadata: Metadata = {
-  title: 'Next.js SaaS Starter',
-  description: 'Get started quickly with Next.js, Postgres, and Stripe.'
+  title: 'Kai Pai — Coaching mentale per atleti e squadre',
+  description:
+    'Kai Pai: trova il tuo mental coach e richiedi una sessione. Coaching mentale per atleti, coach e club.'
 };
 
 export const viewport: Viewport = {

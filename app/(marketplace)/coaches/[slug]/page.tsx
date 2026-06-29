@@ -7,6 +7,7 @@ import { getCoachBySlug } from '@/lib/core/listings';
 import { formatPrice } from '@/lib/core/format';
 import { getUser } from '@/lib/db/queries';
 import { hasRole } from '@/lib/core/auth';
+import { CoachAvatar, CertifiedBadge } from '@/components/coach-visuals';
 import { BookingRequest } from './booking-request';
 
 export const dynamic = 'force-dynamic';
@@ -39,19 +40,35 @@ export default async function CoachDetailPage({
         ← {t('listing.title', config)}
       </Link>
 
-      <header className="mt-4 flex flex-col gap-2">
-        <h1 className="text-3xl font-bold text-gray-900">
-          {coach.displayName ?? 'Coach'}
-        </h1>
-        {coach.headline && (
-          <p className="text-lg text-gray-600">{coach.headline}</p>
-        )}
-        {coach.hourlyRate != null && (
-          <p className="text-sm text-gray-500">
-            {t('provider.rate.label', config)}:{' '}
-            {formatPrice(coach.hourlyRate, coach.currency)} / h
-          </p>
-        )}
+      <header className="mt-4 flex items-start gap-5">
+        <CoachAvatar
+          name={coach.displayName}
+          src={coach.avatarUrl}
+          className="size-24"
+        />
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-bold text-gray-900">
+            {coach.displayName ?? 'Coach'}
+          </h1>
+          <CertifiedBadge
+            certified={coach.certified}
+            title={
+              coach.certified
+                ? t('coach.certified.yes', config)
+                : t('coach.certified.no', config)
+            }
+            withLabel
+          />
+          {coach.headline && (
+            <p className="text-lg text-gray-600">{coach.headline}</p>
+          )}
+          {coach.hourlyRate != null && (
+            <p className="text-sm text-gray-500">
+              {t('provider.rate.label', config)}:{' '}
+              {formatPrice(coach.hourlyRate, coach.currency)} / h
+            </p>
+          )}
+        </div>
       </header>
 
       {(coach.bio || coach.description) && (

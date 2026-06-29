@@ -1,7 +1,9 @@
 import { requireRole } from '@/lib/core/auth';
 import { getCoachBookings } from '@/lib/core/bookings';
+import { getAvatarUrl } from '@/lib/core/profiles';
 import { getVerticalConfig, t } from '@/lib/core/config';
 import { Button } from '@/components/ui/button';
+import { PhotoForm } from '../photo-form';
 import { acceptBookingAction, declineBookingAction } from './actions';
 
 function statusLabel(status: string): string {
@@ -18,7 +20,10 @@ function formatDate(d: Date): string {
 
 export default async function CoachDashboardPage() {
   const user = await requireRole('coach');
-  const all = await getCoachBookings(user.id);
+  const [all, avatarUrl] = await Promise.all([
+    getCoachBookings(user.id),
+    getAvatarUrl(user.id),
+  ]);
   const pending = all.filter((b) => b.status === 'requested');
   const history = all.filter((b) => b.status !== 'requested');
 
@@ -26,7 +31,11 @@ export default async function CoachDashboardPage() {
     <section className="p-6">
       <h1 className="text-2xl font-semibold text-gray-900">Coach dashboard</h1>
 
-      <h2 className="mt-6 text-lg font-medium text-gray-900">
+      <div className="mt-4">
+        <PhotoForm name={user.name} avatarUrl={avatarUrl} />
+      </div>
+
+      <h2 className="mt-8 text-lg font-medium text-gray-900">
         Richieste in attesa ({pending.length})
       </h2>
       {pending.length === 0 ? (

@@ -12,6 +12,7 @@ export type CoachListItem = {
   specialties: string[] | null;
   hourlyRate: number | null;
   currency: string;
+  certified: boolean;
 };
 
 export type CoachFilters = {
@@ -51,6 +52,7 @@ export async function getApprovedCoaches(
       specialties: providerProfiles.specialties,
       hourlyRate: providerProfiles.hourlyRate,
       currency: providerProfiles.currency,
+      certified: providerProfiles.isKaipaiCertified,
     })
     .from(providerProfiles)
     .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
@@ -92,6 +94,7 @@ export async function getCoachBySlug(slug: string): Promise<CoachDetail | null> 
       specialties: providerProfiles.specialties,
       hourlyRate: providerProfiles.hourlyRate,
       currency: providerProfiles.currency,
+      certified: providerProfiles.isKaipaiCertified,
     })
     .from(providerProfiles)
     .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))

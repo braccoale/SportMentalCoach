@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { requireRole } from '@/lib/core/auth';
 import { getAthleteBookings } from '@/lib/core/bookings';
+import { getAvatarUrl } from '@/lib/core/profiles';
 import { getVerticalConfig, t } from '@/lib/core/config';
+import { PhotoForm } from '../photo-form';
 
 function statusLabel(status: string): string {
   const config = getVerticalConfig();
@@ -31,13 +33,20 @@ function formatDate(d: Date): string {
 
 export default async function AthleteDashboardPage() {
   const user = await requireRole('athlete');
-  const requests = await getAthleteBookings(user.id);
+  const [requests, avatarUrl] = await Promise.all([
+    getAthleteBookings(user.id),
+    getAvatarUrl(user.id),
+  ]);
 
   return (
     <section className="p-6">
       <h1 className="text-2xl font-semibold text-gray-900">Athlete dashboard</h1>
 
-      <div className="mt-4 flex items-center justify-between">
+      <div className="mt-4">
+        <PhotoForm name={user.name} avatarUrl={avatarUrl} />
+      </div>
+
+      <div className="mt-6 flex items-center justify-between">
         <h2 className="text-lg font-medium text-gray-900">
           Le tue richieste ({requests.length})
         </h2>

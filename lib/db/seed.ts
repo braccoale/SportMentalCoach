@@ -27,6 +27,33 @@ async function seedRoles() {
   console.log('Roles seeded:', BASE_ROLES.map((r) => r.key).join(', '));
 }
 
+// Admin account for the approval queue (local/dev). Idempotent by email.
+async function seedAdmin() {
+  const email = 'admin@kaipai.com';
+  const existing = await db.query.users.findFirst({
+    where: eq(users.email, email),
+  });
+  if (existing) {
+    await db
+      .insert(userRoles)
+      .values({ userId: existing.id, roleKey: 'admin' })
+      .onConflictDoNothing();
+    console.log(`Admin ${email} already exists, ensured admin role.`);
+    return;
+  }
+
+  const passwordHash = await hashPassword('admin1234');
+  const [user] = await db
+    .insert(users)
+    .values({ name: 'Kai Pai Admin', email, passwordHash, role: 'owner' })
+    .returning();
+  await db
+    .insert(profiles)
+    .values({ userId: user.id, displayName: 'Kai Pai Admin' });
+  await db.insert(userRoles).values({ userId: user.id, roleKey: 'admin' });
+  console.log(`Admin seeded: ${email} (password: admin1234)`);
+}
+
 // --- Demo data: 3 approved coaches for local/dev testing of /coaches -------
 // Taxonomy keys must match lib/verticals/sport-mental-coach/taxonomies.ts.
 type DemoCoach = {
@@ -35,6 +62,9 @@ type DemoCoach = {
   slug: string;
   headline: string;
   description: string;
+  avatarUrl: string;
+  certified: boolean;
+  status?: 'draft' | 'pending' | 'approved' | 'rejected';
   categories: string[];
   specialties: string[];
   hourlyRate: number; // cents
@@ -49,6 +79,8 @@ const DEMO_COACHES: DemoCoach[] = [
     headline: 'Mental coach per atleti di squadra e individuali',
     description:
       'Aiuto gli atleti a gestire l’ansia da prestazione e a ritrovare lucidità nei momenti decisivi.',
+    avatarUrl: 'https://i.pravatar.cc/300?img=12',
+    certified: true,
     categories: ['football', 'tennis'],
     specialties: ['performance_anxiety', 'focus_concentration', 'pre_competition_routine'],
     hourlyRate: 6000,
@@ -74,6 +106,8 @@ const DEMO_COACHES: DemoCoach[] = [
     headline: 'Motivazione e resilienza per sport individuali',
     description:
       'Specializzata in nuoto e atletica: lavoro su motivazione, obiettivi e recupero dagli ostacoli.',
+    avatarUrl: 'https://i.pravatar.cc/300?img=5',
+    certified: true,
     categories: ['swimming', 'athletics'],
     specialties: ['motivation', 'goal_setting', 'resilience'],
     hourlyRate: 7000,
@@ -93,6 +127,8 @@ const DEMO_COACHES: DemoCoach[] = [
     headline: 'Dinamiche di squadra e fiducia per sport di gruppo',
     description:
       'Lavoro con squadre di basket e pallavolo su coesione, comunicazione e fiducia individuale.',
+    avatarUrl: 'https://i.pravatar.cc/300?img=13',
+    certified: false,
     categories: ['basketball', 'volleyball'],
     specialties: ['team_dynamics', 'confidence'],
     hourlyRate: 5500,
@@ -111,6 +147,28 @@ const DEMO_COACHES: DemoCoach[] = [
       },
     ],
   },
+  {
+    email: 'sara.neri@demo.smc',
+    displayName: 'Sara Neri',
+    slug: 'sara-neri',
+    headline: 'In attesa di approvazione — demo coda admin',
+    description:
+      'Profilo demo in stato "pending" per testare la coda di revisione admin.',
+    avatarUrl: 'https://i.pravatar.cc/300?img=32',
+    certified: false,
+    status: 'pending',
+    categories: ['tennis', 'golf'],
+    specialties: ['focus_concentration', 'confidence'],
+    hourlyRate: 6500,
+    services: [
+      {
+        title: 'Sessione individuale',
+        description: 'Lavoro su concentrazione e fiducia.',
+        durationMin: 60,
+        price: 6500,
+      },
+    ],
+  },
 ];
 
 async function seedDemoCoaches() {
@@ -121,7 +179,17 @@ async function seedDemoCoaches() {
       where: eq(users.email, demo.email),
     });
     if (existing) {
-      console.log(`Demo coach ${demo.email} already exists, skipping.`);
+      // Keep idempotent, but sync the visual fields onto existing rows so
+      // re-seeding applies new avatars / certification flags.
+      await db
+        .update(profiles)
+        .set({ avatarUrl: demo.avatarUrl })
+        .where(eq(profiles.userId, existing.id));
+      await db
+        .update(providerProfiles)
+        .set({ isKaipaiCertified: demo.certified })
+        .where(eq(providerProfiles.userId, existing.id));
+      console.log(`Demo coach ${demo.email} exists — synced photo & certification.`);
       continue;
     }
 
@@ -134,6 +202,7 @@ async function seedDemoCoaches() {
       userId: user.id,
       displayName: demo.displayName,
       bio: demo.description,
+      avatarUrl: demo.avatarUrl,
     });
 
     await db.insert(userRoles).values({ userId: user.id, roleKey: 'coach' });
@@ -148,7 +217,8 @@ async function seedDemoCoaches() {
         categories: demo.categories,
         specialties: demo.specialties,
         hourlyRate: demo.hourlyRate,
-        status: 'approved',
+        status: demo.status ?? 'approved',
+        isKaipaiCertified: demo.certified,
       })
       .returning();
 
@@ -244,6 +314,7 @@ async function seed() {
     });
   }
 
+  await seedAdmin();
   await seedDemoCoaches();
 
   if (BILLING_ENABLED) {

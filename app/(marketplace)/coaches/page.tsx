@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { getVerticalConfig, findTaxonomyItem, t } from '@/lib/core/config';
 import { getApprovedCoaches } from '@/lib/core/listings';
 import { formatPrice } from '@/lib/core/format';
+import { CoachAvatar, CertifiedBadge } from '@/components/coach-visuals';
 
 export const dynamic = 'force-dynamic';
 
@@ -95,14 +96,32 @@ export default async function CoachesPage({
           {coaches.map((coach) => (
             <Card key={coach.slug} className="flex flex-col">
               <CardHeader>
-                <CardTitle className="text-lg">
-                  {coach.displayName ?? 'Coach'}
-                </CardTitle>
-                {coach.headline && (
-                  <p className="text-sm text-muted-foreground">
-                    {coach.headline}
-                  </p>
-                )}
+                <div className="flex items-start gap-4">
+                  <CoachAvatar
+                    name={coach.displayName}
+                    src={coach.avatarUrl}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <CardTitle className="truncate text-lg">
+                        {coach.displayName ?? 'Coach'}
+                      </CardTitle>
+                      <CertifiedBadge
+                        certified={coach.certified}
+                        title={
+                          coach.certified
+                            ? t('coach.certified.yes', config)
+                            : t('coach.certified.no', config)
+                        }
+                      />
+                    </div>
+                    {coach.headline && (
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {coach.headline}
+                      </p>
+                    )}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="flex flex-1 flex-col gap-4">
                 {coach.categories && coach.categories.length > 0 && (

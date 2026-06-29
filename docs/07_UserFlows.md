@@ -46,6 +46,27 @@ Coach    → /dashboard/coach    → sees incoming requests
 - No payments, no calendar availability, no video/chat. The `accepted` state is
   terminal for Phase 1 (no `completed` transition wired in the UI yet).
 
+## Admin approval queue (implemented)
+
+```
+Admin → /dashboard/admin  (role-guarded by requireRole('admin'))
+      → "Coda di revisione": provider profiles in draft / pending
+      → Approva → status=approved  → coach now appears on /coaches
+        Rifiuta → status=rejected  → coach stays hidden publicly
+      → "Profili revisionati": approved / rejected (re-reviewable)
+```
+
+- Visibility rule (single source of truth in `lib/core/listings`): `/coaches`
+  and `/coaches/[slug]` only ever show `status = 'approved'`. Draft / pending /
+  rejected never appear publicly, so approving/rejecting directly controls
+  public visibility.
+- Each decision records `reviewed_by` (the admin) and `reviewed_at` on
+  `provider_profiles` (existing columns — no schema change). Enforcement and
+  audit live in `lib/core/admin` + `app/(dashboard)/dashboard/admin/actions.ts`;
+  the actions are guarded by `requireRole('admin')` and `revalidatePath` both
+  the queue and `/coaches`.
+- No payments, chat, video, or calendar in this step.
+
 ## Sign up & role routing (implemented earlier)
 
 ```
@@ -62,9 +83,9 @@ See `docs/03_Architecture.md` for the auth/onboarding detail.
 
 - **Booking completion**: coach marking an `accepted` booking as `completed`,
   and athlete/coach cancellation.
-- Coach onboarding wizard (rich profile capture before submitting for
-  approval), admin approval queue, payments, calendar availability, messaging,
-  reviews.
+- Coach onboarding wizard (rich profile capture + a coach-driven "submit for
+  review" transition draft→pending), payments, calendar availability,
+  messaging, reviews.
 
 ---
 
@@ -77,7 +98,11 @@ See `docs/03_Architecture.md` for the auth/onboarding detail.
 | Marco Rossi    | `marco-rossi`    | football, tennis       | performance_anxiety, focus_concentration, …   |
 | Giulia Bianchi | `giulia-bianchi` | swimming, athletics    | motivation, goal_setting, resilience          |
 | Luca Verdi     | `luca-verdi`     | basketball, volleyball | team_dynamics, confidence                     |
+| Sara Neri      | `sara-neri`      | tennis, golf           | focus_concentration, confidence (**pending**) |
 
-Each has a `profiles` row, an approved `provider_profiles` row, and 1–2
-`services`. Seeding is idempotent (skips by email). These are demo accounts and
-should not be seeded into production.
+Marco/Giulia are Kai Pai Academy certified; Luca is not. **Sara Neri** is
+seeded as `pending` to exercise the admin approval queue (hidden on `/coaches`
+until approved). Seeding also creates an **admin** account
+`admin@kaipai.com` / `admin1234` (role `admin`). Each has a `profiles` row, a
+`provider_profiles` row, and 1–2 `services`. Seeding is idempotent (skips by
+email). These are demo accounts and should not be seeded into production.

@@ -7,8 +7,12 @@
  */
 export const copyIt: Record<string, string> = {
   // Brand
-  'brand.name': 'SportMentalCoach',
+  'brand.name': 'Kai Pai',
   'brand.tagline': 'Coaching mentale per atleti e squadre',
+
+  // Certification
+  'coach.certified.yes': 'Certificato Kai Pai Academy',
+  'coach.certified.no': 'Coach non certificato Kai Pai Academy',
 
   // Roles (sentence-friendly variants of the role labels)
   'role.client.singular': 'Atleta',

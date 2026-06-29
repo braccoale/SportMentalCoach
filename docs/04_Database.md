@@ -83,6 +83,7 @@ One row per user that holds the `coach` role.
 | hourly_rate   | integer             | cents; nullable in Phase 1                     |
 | currency      | varchar(8)          | default `'EUR'`                                |
 | status        | varchar(20)         | `draft` / `pending` / `approved` / `rejected`; default `'draft'` |
+| is_kaipai_certified | boolean        | Kai Pai Academy certification; default `false` (migration `0002`) |
 | reviewed_by   | integer FK users.id | admin who last reviewed                        |
 | reviewed_at   | timestamp           |                                                |
 | created_at    | timestamp           | defaultNow()                                   |

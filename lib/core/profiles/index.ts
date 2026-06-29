@@ -19,6 +19,29 @@ export async function ensureProfile(userId: number, displayName?: string) {
     .onConflictDoNothing({ target: profiles.userId });
 }
 
+/**
+ * Sets (or clears) a user's avatar URL, creating the profile row if needed.
+ * Returns the stored value.
+ */
+export async function setAvatarUrl(userId: number, url: string | null) {
+  await ensureProfile(userId);
+  await db
+    .update(profiles)
+    .set({ avatarUrl: url, updatedAt: new Date() })
+    .where(eq(profiles.userId, userId));
+  return url;
+}
+
+/** Reads a user's avatar URL (null when unset / no profile). */
+export async function getAvatarUrl(userId: number): Promise<string | null> {
+  const [row] = await db
+    .select({ avatarUrl: profiles.avatarUrl })
+    .from(profiles)
+    .where(eq(profiles.userId, userId))
+    .limit(1);
+  return row?.avatarUrl ?? null;
+}
+
 /** Assigns a role to a user (idempotent on the (user_id, role_key) unique). */
 export async function assignRole(userId: number, roleKey: string) {
   await db

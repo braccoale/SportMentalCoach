@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { CircleIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Footer } from '@/components/footer';
 import { getVerticalConfig, t } from '@/lib/core/config';
 
 export default function MarketplaceLayout({
@@ -34,6 +35,7 @@ export default function MarketplaceLayout({
         </div>
       </header>
       {children}
+      <Footer />
     </section>
   );
 }
