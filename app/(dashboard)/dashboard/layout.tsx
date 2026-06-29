@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import {
-  Users,
+  Home,
   Settings,
   Shield,
   Activity,
@@ -15,8 +15,7 @@ import {
 } from 'lucide-react';
 import { ROLE_PRIORITY, ROLE_DASHBOARDS } from '@/lib/core/auth/role-routes';
 import { getRoleLabel } from '@/lib/core/config';
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { fetcher } from '@/lib/fetcher';
 
 export default function DashboardLayout({
   children
@@ -39,7 +38,7 @@ export default function DashboardLayout({
   );
 
   const settingsNavItems = [
-    { href: '/dashboard', icon: Users, label: 'Team' },
+    { href: '/dashboard', icon: Home, label: 'Dashboard' },
     { href: '/dashboard/general', icon: Settings, label: 'Generale' },
     { href: '/dashboard/activity', icon: Activity, label: 'Attività' },
     { href: '/dashboard/security', icon: Shield, label: 'Sicurezza' }
@@ -52,7 +51,7 @@ export default function DashboardLayout({
       {/* Mobile header */}
       <div className="lg:hidden flex items-center justify-between bg-white border-b border-gray-200 p-4">
         <div className="flex items-center">
-          <span className="font-medium">Settings</span>
+          <span className="font-medium">Dashboard</span>
         </div>
         <Button
           className="-mr-3"

@@ -16,9 +16,8 @@ import { useRouter } from 'next/navigation';
 import { User } from '@/lib/db/schema';
 import { BILLING_ENABLED } from '@/lib/core/flags';
 import { Footer } from '@/components/footer';
+import { fetcher } from '@/lib/fetcher';
 import useSWR, { mutate } from 'swr';
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 function UserMenu() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);

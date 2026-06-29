@@ -1,3 +1,11 @@
+/** Formats a date as a localized medium date + short time (default it-IT). */
+export function formatDateTime(d: Date, locale = 'it-IT'): string {
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(d);
+}
+
 /** Derives up to two uppercase initials from a name (fallback "?"). */
 export function initials(name?: string | null): string {
   if (!name) return '?';

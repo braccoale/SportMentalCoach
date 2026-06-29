@@ -1,13 +1,14 @@
 import Link from 'next/link';
 import { requireRole } from '@/lib/core/auth';
-import { getCoachBookings } from '@/lib/core/bookings';
+import { getCoachBookings, bookingStatusLabel } from '@/lib/core/bookings';
 import {
   getAvatarUrl,
   getProviderProfileByUser,
 } from '@/lib/core/profiles';
 import { getCoachServices } from '@/lib/core/services';
-import { getCoachOnboarding } from '@/lib/core/onboarding';
+import { computeCoachOnboarding } from '@/lib/core/onboarding';
 import { getVerticalConfig, t } from '@/lib/core/config';
+import { formatDateTime } from '@/lib/core/format';
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
 import { PhotoForm } from '../photo-form';
@@ -15,17 +16,6 @@ import { ProfileEditor } from './profile-editor';
 import { ServicesEditor } from './services-editor';
 import { OnboardingProgress } from './onboarding-progress';
 import { acceptBookingAction, declineBookingAction } from './actions';
-
-function statusLabel(status: string): string {
-  return t(`booking.status.${status}`, getVerticalConfig());
-}
-
-function formatDate(d: Date): string {
-  return new Intl.DateTimeFormat('it-IT', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(d);
-}
 
 function StatusBanner({ status }: { status: string }) {
   const config = getVerticalConfig();
@@ -61,14 +51,17 @@ export default async function CoachDashboardPage() {
   const user = await requireRole('coach');
   const config = getVerticalConfig();
 
-  const [provider, services, allBookings, avatarUrl, onboarding] =
-    await Promise.all([
-      getProviderProfileByUser(user.id),
-      getCoachServices(user.id),
-      getCoachBookings(user.id),
-      getAvatarUrl(user.id),
-      getCoachOnboarding(user.id),
-    ]);
+  const [provider, services, allBookings, avatarUrl] = await Promise.all([
+    getProviderProfileByUser(user.id),
+    getCoachServices(user.id),
+    getCoachBookings(user.id),
+    getAvatarUrl(user.id),
+  ]);
+
+  // Derive onboarding from already-loaded data (no extra queries).
+  const onboarding = provider
+    ? computeCoachOnboarding(provider, services.length)
+    : null;
 
   const pending = allBookings.filter((b) => b.status === 'requested');
   const history = allBookings.filter((b) => b.status !== 'requested');
@@ -133,7 +126,7 @@ export default async function CoachDashboardPage() {
                   </p>
                   <p className="text-sm text-gray-500">
                     {b.serviceTitle ?? 'Richiesta generica'} ·{' '}
-                    {formatDate(b.requestedAt)}
+                    {formatDateTime(b.requestedAt)}
                   </p>
                   {b.note && (
                     <p className="mt-1 text-sm text-gray-600">“{b.note}”</p>
@@ -177,7 +170,7 @@ export default async function CoachDashboardPage() {
                   {b.serviceTitle ?? 'Richiesta generica'}
                 </span>
                 <span className="font-medium text-gray-500">
-                  {statusLabel(b.status)}
+                  {bookingStatusLabel(b.status)}
                 </span>
               </li>
             ))}

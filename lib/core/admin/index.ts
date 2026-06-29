@@ -7,6 +7,7 @@ import {
   users,
   type ProviderStatus,
 } from '@/lib/db/schema';
+import type { Result } from '@/lib/core/result';
 
 export type ProviderReviewItem = {
   id: number;
@@ -48,10 +49,6 @@ export async function getProviderProfilesForReview(): Promise<
     .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
     .orderBy(desc(providerProfiles.createdAt));
 }
-
-type Result =
-  | { ok: true }
-  | { ok: false; error: string };
 
 /**
  * Admin decision on a provider profile. Records the reviewer and timestamp.

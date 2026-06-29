@@ -1,7 +1,11 @@
 import 'server-only';
 import { count, eq } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
-import { providerProfiles, services } from '@/lib/db/schema';
+import {
+  providerProfiles,
+  services,
+  type ProviderProfile,
+} from '@/lib/db/schema';
 
 export type OnboardingStep = {
   key: 'profile' | 'taxonomies' | 'services' | 'submit';
@@ -47,6 +51,18 @@ export async function getCoachOnboarding(
     .from(services)
     .where(eq(services.providerId, provider.id));
 
+  return computeCoachOnboarding(provider, serviceCount);
+}
+
+/**
+ * Pure onboarding computation from already-loaded data. Use this when the
+ * caller already has the provider row and service count (e.g. the coach
+ * dashboard) to avoid re-querying.
+ */
+export function computeCoachOnboarding(
+  provider: ProviderProfile,
+  serviceCount: number
+): CoachOnboarding {
   const profileDone =
     !!provider.headline?.trim() && !!provider.description?.trim();
   const taxonomiesDone =

@@ -1,35 +1,15 @@
 import Link from 'next/link';
 import { requireRole } from '@/lib/core/auth';
-import { getAthleteBookings, type AthleteBooking } from '@/lib/core/bookings';
+import {
+  getAthleteBookings,
+  bookingStatusLabel,
+  bookingStatusTone,
+  type AthleteBooking,
+} from '@/lib/core/bookings';
 import { getAvatarUrl } from '@/lib/core/profiles';
-import { getVerticalConfig, t } from '@/lib/core/config';
+import { formatDateTime } from '@/lib/core/format';
 import { Button } from '@/components/ui/button';
 import { PhotoForm } from '../photo-form';
-
-function statusLabel(status: string): string {
-  return t(`booking.status.${status}`, getVerticalConfig());
-}
-
-function statusClass(status: string): string {
-  switch (status) {
-    case 'accepted':
-      return 'bg-green-50 text-green-700';
-    case 'declined':
-    case 'cancelled':
-      return 'bg-red-50 text-red-700';
-    case 'completed':
-      return 'bg-blue-50 text-blue-700';
-    default:
-      return 'bg-amber-50 text-amber-700';
-  }
-}
-
-function formatDate(d: Date): string {
-  return new Intl.DateTimeFormat('it-IT', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(d);
-}
 
 function BookingRow({ b }: { b: AthleteBooking }) {
   return (
@@ -45,13 +25,14 @@ function BookingRow({ b }: { b: AthleteBooking }) {
           )}
         </p>
         <p className="text-sm text-gray-500">
-          {b.serviceTitle ?? 'Richiesta generica'} · {formatDate(b.requestedAt)}
+          {b.serviceTitle ?? 'Richiesta generica'} ·{' '}
+          {formatDateTime(b.requestedAt)}
         </p>
       </div>
       <span
-        className={`rounded-full px-3 py-1 text-xs font-medium ${statusClass(b.status)}`}
+        className={`rounded-full px-3 py-1 text-xs font-medium ${bookingStatusTone(b.status)}`}
       >
-        {statusLabel(b.status)}
+        {bookingStatusLabel(b.status)}
       </span>
     </li>
   );

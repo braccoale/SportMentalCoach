@@ -1,7 +1,11 @@
 'use client';
 
+import Link from 'next/link';
+import { useActionState, Suspense } from 'react';
+import useSWR from 'swr';
+import { Loader2, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Card,
   CardContent,
@@ -9,30 +13,52 @@ import {
   CardTitle,
   CardFooter
 } from '@/components/ui/card';
-import { customerPortalAction } from '@/lib/payments/actions';
-import { BILLING_ENABLED } from '@/lib/core/flags';
-import { useActionState } from 'react';
-import { TeamDataWithMembers, User } from '@/lib/db/schema';
-import { removeTeamMember, inviteTeamMember } from '@/app/(login)/actions';
-import useSWR from 'swr';
-import { Suspense } from 'react';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Loader2, PlusCircle } from 'lucide-react';
+import { customerPortalAction } from '@/lib/payments/actions';
+import { BILLING_ENABLED } from '@/lib/core/flags';
+import { TeamDataWithMembers, User } from '@/lib/db/schema';
+import { removeTeamMember, inviteTeamMember } from '@/app/(login)/actions';
+import { fetcher } from '@/lib/fetcher';
+import { ROLE_PRIORITY, ROLE_DASHBOARDS } from '@/lib/core/auth/role-routes';
+import { getRoleLabel } from '@/lib/core/config';
 
 type ActionState = {
   error?: string;
   success?: string;
 };
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+// Quick links to the dashboards of every role the user holds.
+function RoleLinks() {
+  const { data } = useSWR<{ roles: string[] }>('/api/user/roles', fetcher);
+  const roles = data?.roles ?? [];
+  const items = ROLE_PRIORITY.filter((r) => roles.includes(r));
+  if (items.length === 0) return null;
+
+  return (
+    <Card className="mb-8">
+      <CardHeader>
+        <CardTitle>I tuoi spazi</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap gap-3">
+          {items.map((r) => (
+            <Button asChild variant="outline" key={r} className="rounded-full">
+              <Link href={ROLE_DASHBOARDS[r]}>{getRoleLabel(r)}</Link>
+            </Button>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function SubscriptionSkeleton() {
   return (
     <Card className="mb-8 h-[140px]">
       <CardHeader>
-        <CardTitle>Team Subscription</CardTitle>
+        <CardTitle>Abbonamento</CardTitle>
       </CardHeader>
     </Card>
   );
@@ -44,26 +70,26 @@ function ManageSubscription() {
   return (
     <Card className="mb-8">
       <CardHeader>
-        <CardTitle>Team Subscription</CardTitle>
+        <CardTitle>Abbonamento</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
             <div className="mb-4 sm:mb-0">
               <p className="font-medium">
-                Current Plan: {teamData?.planName || 'Free'}
+                Piano attuale: {teamData?.planName || 'Free'}
               </p>
               <p className="text-sm text-muted-foreground">
                 {teamData?.subscriptionStatus === 'active'
-                  ? 'Billed monthly'
+                  ? 'Fatturazione mensile'
                   : teamData?.subscriptionStatus === 'trialing'
-                  ? 'Trial period'
-                  : 'No active subscription'}
+                  ? 'Periodo di prova'
+                  : 'Nessun abbonamento attivo'}
               </p>
             </div>
             <form action={customerPortalAction}>
               <Button type="submit" variant="outline">
-                Manage Subscription
+                Gestisci abbonamento
               </Button>
             </form>
           </div>
@@ -73,11 +99,11 @@ function ManageSubscription() {
   );
 }
 
-function TeamMembersSkeleton() {
+function OrganizationMembersSkeleton() {
   return (
     <Card className="mb-8 h-[140px]">
       <CardHeader>
-        <CardTitle>Team Members</CardTitle>
+        <CardTitle>Membri dell’organizzazione</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="animate-pulse space-y-4 mt-1">
@@ -94,7 +120,7 @@ function TeamMembersSkeleton() {
   );
 }
 
-function TeamMembers() {
+function OrganizationMembers() {
   const { data: teamData } = useSWR<TeamDataWithMembers>('/api/team', fetcher);
   const [removeState, removeAction, isRemovePending] = useActionState<
     ActionState,
@@ -102,17 +128,19 @@ function TeamMembers() {
   >(removeTeamMember, {});
 
   const getUserDisplayName = (user: Pick<User, 'id' | 'name' | 'email'>) => {
-    return user.name || user.email || 'Unknown User';
+    return user.name || user.email || 'Utente';
   };
 
   if (!teamData?.teamMembers?.length) {
     return (
       <Card className="mb-8">
         <CardHeader>
-          <CardTitle>Team Members</CardTitle>
+          <CardTitle>Membri dell’organizzazione</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">No team members yet.</p>
+          <p className="text-muted-foreground">
+            Nessun membro nell’organizzazione.
+          </p>
         </CardContent>
       </Card>
     );
@@ -121,7 +149,7 @@ function TeamMembers() {
   return (
     <Card className="mb-8">
       <CardHeader>
-        <CardTitle>Team Members</CardTitle>
+        <CardTitle>Membri dell’organizzazione</CardTitle>
       </CardHeader>
       <CardContent>
         <ul className="space-y-4">
@@ -129,15 +157,6 @@ function TeamMembers() {
             <li key={member.id} className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <Avatar>
-                  {/* 
-                    This app doesn't save profile images, but here
-                    is how you'd show them:
-
-                    <AvatarImage
-                      src={member.user.image || ''}
-                      alt={getUserDisplayName(member.user)}
-                    />
-                  */}
                   <AvatarFallback>
                     {getUserDisplayName(member.user)
                       .split(' ')
@@ -163,7 +182,7 @@ function TeamMembers() {
                     size="sm"
                     disabled={isRemovePending}
                   >
-                    {isRemovePending ? 'Removing...' : 'Remove'}
+                    {isRemovePending ? 'Rimozione...' : 'Rimuovi'}
                   </Button>
                 </form>
               ) : null}
@@ -178,17 +197,17 @@ function TeamMembers() {
   );
 }
 
-function InviteTeamMemberSkeleton() {
+function InviteMemberSkeleton() {
   return (
     <Card className="h-[260px]">
       <CardHeader>
-        <CardTitle>Invite Team Member</CardTitle>
+        <CardTitle>Invita un membro</CardTitle>
       </CardHeader>
     </Card>
   );
 }
 
-function InviteTeamMember() {
+function InviteMember() {
   const { data: user } = useSWR<User>('/api/user', fetcher);
   const isOwner = user?.role === 'owner';
   const [inviteState, inviteAction, isInvitePending] = useActionState<
@@ -199,7 +218,7 @@ function InviteTeamMember() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Invite Team Member</CardTitle>
+        <CardTitle>Invita un membro</CardTitle>
       </CardHeader>
       <CardContent>
         <form action={inviteAction} className="space-y-4">
@@ -211,13 +230,13 @@ function InviteTeamMember() {
               id="email"
               name="email"
               type="email"
-              placeholder="Enter email"
+              placeholder="Inserisci email"
               required
               disabled={!isOwner}
             />
           </div>
           <div>
-            <Label>Role</Label>
+            <Label>Ruolo</Label>
             <RadioGroup
               defaultValue="member"
               name="role"
@@ -226,11 +245,11 @@ function InviteTeamMember() {
             >
               <div className="flex items-center space-x-2 mt-2">
                 <RadioGroupItem value="member" id="member" />
-                <Label htmlFor="member">Member</Label>
+                <Label htmlFor="member">Membro</Label>
               </div>
               <div className="flex items-center space-x-2 mt-2">
                 <RadioGroupItem value="owner" id="owner" />
-                <Label htmlFor="owner">Owner</Label>
+                <Label htmlFor="owner">Proprietario</Label>
               </div>
             </RadioGroup>
           </div>
@@ -248,12 +267,12 @@ function InviteTeamMember() {
             {isInvitePending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Inviting...
+                Invio...
               </>
             ) : (
               <>
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Invite Member
+                Invita membro
               </>
             )}
           </Button>
@@ -262,7 +281,8 @@ function InviteTeamMember() {
       {!isOwner && (
         <CardFooter>
           <p className="text-sm text-muted-foreground">
-            You must be a team owner to invite new members.
+            Devi essere proprietario dell’organizzazione per invitare nuovi
+            membri.
           </p>
         </CardFooter>
       )}
@@ -270,20 +290,26 @@ function InviteTeamMember() {
   );
 }
 
-export default function SettingsPage() {
+export default function DashboardHomePage() {
   return (
     <section className="flex-1 p-4 lg:p-8">
-      <h1 className="text-lg lg:text-2xl font-medium mb-6">Team Settings</h1>
+      <h1 className="text-lg lg:text-2xl font-medium mb-1">Dashboard</h1>
+      <p className="mb-6 text-sm text-muted-foreground">
+        Benvenuto nella tua area personale.
+      </p>
+
+      <RoleLinks />
+
       {BILLING_ENABLED && (
         <Suspense fallback={<SubscriptionSkeleton />}>
           <ManageSubscription />
         </Suspense>
       )}
-      <Suspense fallback={<TeamMembersSkeleton />}>
-        <TeamMembers />
+      <Suspense fallback={<OrganizationMembersSkeleton />}>
+        <OrganizationMembers />
       </Suspense>
-      <Suspense fallback={<InviteTeamMemberSkeleton />}>
-        <InviteTeamMember />
+      <Suspense fallback={<InviteMemberSkeleton />}>
+        <InviteMember />
       </Suspense>
     </section>
   );

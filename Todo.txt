@@ -1,0 +1,39 @@
+
+
+- tutti atleti e coach deveono avere la possibilità di mettere foto e deve apparire bene nella card
+- nella card dei coach da scegliere deve esserci un'icona che identifica se il coach è certificato Kai Pai Accademi o no, quindi nel caso lo è sarà colorata altrimenti sara grigiato
+- filtro di ricerca coach deve essere piu smart
+- icona kai pai certified migliore e piu grande  ein alto a dx
+- per entrare nel coach devo clicare nella card non serve il button vedi profilo.
+- metti un'altra icona di kai pai
+- il filtro si deve applicare quando seleziono qualcosa nella drop dow e deve avere la X per cancellare il contenuto e il filtro deve essere allo stesso livello della header.
+- finestra di login deve avere l'occhio per vedere la psswor d e la x per cancellare
+- come caricare la foto profilo è da rivedere non va bene il campo di test deve essere il button carica.
+
+
+
+domande:
+	- nella card del coach serve mettere l'età? e il luogo di dove si trova?
+	- filtro per prezzo? in unobravo ogniuno mette il suo prezzo, noi invece avremmo degli abbonamenti ? giusto?
+
+
+da fare
+	- crare skill seo e altre
+	- webcam stanze e chat
+	- notifiche
+
+
+admin@kaipai.com/admin1234
+franceso.rossi@demo.com/Demo123456
+
+va creato:
+
+brand	
+dominio
+mail gmail
+mail ufficiale
+Google analytics
+google search console
+Instagram
+facebook
+linkedIn

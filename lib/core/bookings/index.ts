@@ -9,6 +9,28 @@ import {
   users,
   type BookingStatus,
 } from '@/lib/db/schema';
+import { getVerticalConfig, t } from '@/lib/core/config';
+import type { Result } from '@/lib/core/result';
+
+/** Localized label for a booking status (from the vertical copy). */
+export function bookingStatusLabel(status: string): string {
+  return t(`booking.status.${status}`, getVerticalConfig());
+}
+
+/** Tailwind tone classes for a booking status badge. */
+export function bookingStatusTone(status: string): string {
+  switch (status) {
+    case 'accepted':
+      return 'bg-green-50 text-green-700';
+    case 'declined':
+    case 'cancelled':
+      return 'bg-red-50 text-red-700';
+    case 'completed':
+      return 'bg-blue-50 text-blue-700';
+    default:
+      return 'bg-amber-50 text-amber-700';
+  }
+}
 
 /**
  * Allowed booking status transitions (enforced here, never in the UI).
@@ -25,10 +47,6 @@ export const BOOKING_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
 export function canTransition(from: BookingStatus, to: BookingStatus): boolean {
   return BOOKING_TRANSITIONS[from]?.includes(to) ?? false;
 }
-
-type Result<T = void> =
-  | (T extends void ? { ok: true } : { ok: true } & T)
-  | { ok: false; error: string };
 
 /**
  * Creates a `requested` booking from an athlete to an approved coach (by slug).

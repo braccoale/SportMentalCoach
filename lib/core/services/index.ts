@@ -2,10 +2,7 @@ import 'server-only';
 import { and, asc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { services, providerProfiles, type Service } from '@/lib/db/schema';
-
-type Result<T = void> =
-  | (T extends void ? { ok: true } : { ok: true } & T)
-  | { ok: false; error: string };
+import type { Result } from '@/lib/core/result';
 
 async function resolveProviderId(userId: number): Promise<number | null> {
   const [row] = await db
