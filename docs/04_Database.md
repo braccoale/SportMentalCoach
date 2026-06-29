@@ -50,8 +50,11 @@ Catalog of role keys. Seeded; not user-editable.
 
 | column | type           | notes                                                  |
 |--------|----------------|--------------------------------------------------------|
-| key    | varchar(40) PK | e.g. `athlete`, `coach`, `club_admin`, `admin`         |
+| key    | varchar(40) PK | seeded: `athlete`, `coach`, `club`, `admin`            |
 | label  | varchar(80)    | human label (vertical can override in UI)              |
+
+> Seeded role keys are `athlete`, `coach`, `club`, `admin` (see
+> `lib/db/seed.ts`). `club` is used instead of `club_admin` for Phase 1.
 
 ### `user_roles` (many-to-many)
 
@@ -79,7 +82,7 @@ One row per user that holds the `coach` role.
 | categories    | text[]              | e.g. sports (vertical taxonomy keys)           |
 | hourly_rate   | integer             | cents; nullable in Phase 1                     |
 | currency      | varchar(8)          | default `'EUR'`                                |
-| status        | varchar(20)         | `draft` / `pending` / `approved` / `rejected`  |
+| status        | varchar(20)         | `draft` / `pending` / `approved` / `rejected`; default `'draft'` |
 | reviewed_by   | integer FK users.id | admin who last reviewed                        |
 | reviewed_at   | timestamp           |                                                |
 | created_at    | timestamp           | defaultNow()                                   |
@@ -129,7 +132,7 @@ A booking request and its lifecycle. **No payment fields in Phase 1.**
 | client_id      | integer FK users.id             | the athlete                                                        |
 | provider_id    | integer FK provider_profiles.id | the coach                                                          |
 | service_id     | integer FK services.id          | nullable: a generic request without a service is allowed           |
-| status         | varchar(20)                     | `requested` / `accepted` / `declined` / `cancelled` / `completed`  |
+| status         | varchar(20)                     | `requested` / `accepted` / `declined` / `cancelled` / `completed`; default `'requested'`  |
 | note           | text                            | athlete's message                                                  |
 | requested_at   | timestamp                       | defaultNow()                                                       |
 | decided_at     | timestamp                       | set on accept/decline                                              |
@@ -165,16 +168,24 @@ Transitions allowed (enforced in `lib/core/bookings/`):
   user; SMC taxonomies are **not** seeded into the database — they live in
   `lib/verticals/sport-mental-coach/taxonomies.ts` and are referenced by key.
 
-Suggested migration sequence:
+Implemented: all seven Phase 1 tables are introduced by a single
+drizzle-kit–generated migration, `0001_uneven_talos.sql` (`pnpm db:generate`
+from the schema diff). It contains only `CREATE TABLE`, `ALTER TABLE … ADD
+CONSTRAINT`, and `CREATE INDEX` statements — additive and roll-forward only.
+The per-table sequence below was the original suggestion; it was consolidated
+into one generated migration to match the Drizzle workflow (`schema.ts` is the
+source of truth).
 
-1. `0001_roles_and_user_roles.sql` — `roles`, `user_roles`, seed role keys.
-2. `0002_profiles.sql` — `profiles`.
-3. `0003_provider_profiles.sql` — `provider_profiles` + slug unique index.
-4. `0004_client_profiles.sql` — `client_profiles`.
-5. `0005_services.sql` — `services`.
-6. `0006_bookings.sql` — `bookings` + composite indexes.
+Original suggested sequence (superseded):
 
-Each migration is reviewable in isolation and rolls forward only.
+1. `roles`, `user_roles`, seed role keys.
+2. `profiles`.
+3. `provider_profiles` + slug unique index.
+4. `client_profiles`.
+5. `services`.
+6. `bookings` + composite indexes.
+
+Role keys are seeded by `lib/db/seed.ts` (not inside the SQL migration).
 
 ---
 

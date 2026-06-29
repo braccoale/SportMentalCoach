@@ -162,18 +162,36 @@ requested ──accept──▶ accepted ──complete──▶ completed
 
 ## Stripe isolation
 
-- `lib/core/flags.ts` exports `BILLING_ENABLED = process.env.BILLING_ENABLED === 'true'`.
-- Server entrypoints check the flag and short-circuit:
-  - `app/api/stripe/*/route.ts` returns 404 when disabled.
-  - `app/(dashboard)/pricing/page.tsx` is not linked from the nav; route
-    renders a "billing disabled" placeholder or returns `notFound()` when
-    disabled.
-- `lib/payments/stripe.ts` is **not imported** from any non-Stripe module.
-  A lint rule (or simple grep in CI) can enforce this.
-- `teams.stripe*` columns are never read in Phase 1 code paths.
+Phase 1 default: `BILLING_ENABLED=false`. The app boots and runs locally
+without `STRIPE_SECRET_KEY`. Stripe code is preserved for future
+reactivation, never deleted.
 
-When `BILLING_ENABLED=false` (the Phase 1 default), the runtime makes zero
-calls to Stripe APIs and renders zero Stripe UI.
+Implementation:
+
+- `lib/core/flags.ts` exports `BILLING_ENABLED`. It is true when **either**
+  `BILLING_ENABLED=true` (server) **or** `NEXT_PUBLIC_BILLING_ENABLED=true`
+  (client) is set. Both must be set together in `.env` so server and client
+  agree.
+- `lib/payments/stripe.ts` no longer instantiates the Stripe client at module
+  load. The `stripe` export is a lazy `Proxy` that constructs the real client
+  on first property access and throws if `BILLING_ENABLED=false` or
+  `STRIPE_SECRET_KEY` is missing. This lets other modules import `stripe`
+  safely without crashing the app at boot.
+- `app/api/stripe/checkout/route.ts` and `app/api/stripe/webhook/route.ts`
+  return `404 Not found` immediately when `BILLING_ENABLED=false`. The
+  webhook also reads `STRIPE_WEBHOOK_SECRET` inside the handler instead of
+  at module scope.
+- `app/(dashboard)/pricing/page.tsx` calls `notFound()` when disabled.
+- `app/(dashboard)/layout.tsx` hides the **Pricing** nav link.
+- `app/(dashboard)/dashboard/page.tsx` hides the **Manage Subscription**
+  card.
+- `lib/db/seed.ts` skips `createStripeProducts()` when disabled.
+- `teams.stripe*` columns remain in the schema (no migration) and are not
+  read in any non-billing code path.
+
+When `BILLING_ENABLED=false`, the runtime makes zero calls to Stripe APIs
+and renders zero Stripe UI. To re-enable billing, set both flags to `true`
+and provide `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET`.
 
 ---
 

@@ -5,6 +5,9 @@ import {
   text,
   timestamp,
   integer,
+  boolean,
+  unique,
+  index,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -140,3 +143,235 @@ export enum ActivityType {
   INVITE_TEAM_MEMBER = 'INVITE_TEAM_MEMBER',
   ACCEPT_INVITATION = 'ACCEPT_INVITATION',
 }
+
+// ---------------------------------------------------------------------------
+// Marketplace (Phase 1) — additive tables only.
+// `teams` is preserved physically and re-exported below as `organizations`.
+// ---------------------------------------------------------------------------
+
+/**
+ * Drizzle alias over `teams`. Phase 1 application code imports
+ * `organizations`; the physical table name `teams` is preserved (no rename).
+ */
+export const organizations = teams;
+
+// Common, vertical-agnostic profile fields. One row per user.
+export const profiles = pgTable('profiles', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id')
+    .notNull()
+    .unique()
+    .references(() => users.id),
+  displayName: varchar('display_name', { length: 120 }),
+  avatarUrl: text('avatar_url'),
+  bio: text('bio'),
+  locale: varchar('locale', { length: 8 }).notNull().default('it'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Catalog of role keys. Seeded; not user-editable.
+export const roles = pgTable('roles', {
+  key: varchar('key', { length: 40 }).primaryKey(),
+  label: varchar('label', { length: 80 }),
+});
+
+// Many-to-many: which roles a user holds.
+export const userRoles = pgTable(
+  'user_roles',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id),
+    roleKey: varchar('role_key', { length: 40 })
+      .notNull()
+      .references(() => roles.key),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [unique('user_roles_user_id_role_key_unique').on(table.userId, table.roleKey)]
+);
+
+// Coach side. One row per user that holds the `coach` role.
+export const providerProfiles = pgTable('provider_profiles', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id')
+    .notNull()
+    .unique()
+    .references(() => users.id),
+  slug: varchar('slug', { length: 120 }).unique(),
+  headline: varchar('headline', { length: 160 }),
+  description: text('description'),
+  specialties: text('specialties').array(),
+  categories: text('categories').array(),
+  hourlyRate: integer('hourly_rate'),
+  currency: varchar('currency', { length: 8 }).notNull().default('EUR'),
+  status: varchar('status', { length: 20 }).notNull().default('draft'),
+  reviewedBy: integer('reviewed_by').references(() => users.id),
+  reviewedAt: timestamp('reviewed_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Athlete side. One row per user that holds the `athlete` role.
+export const clientProfiles = pgTable('client_profiles', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id')
+    .notNull()
+    .unique()
+    .references(() => users.id),
+  category: varchar('category', { length: 60 }),
+  level: varchar('level', { length: 40 }),
+  goals: text('goals'),
+  orgId: integer('org_id').references(() => teams.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Offerings created by a provider.
+export const services = pgTable('services', {
+  id: serial('id').primaryKey(),
+  providerId: integer('provider_id')
+    .notNull()
+    .references(() => providerProfiles.id),
+  title: varchar('title', { length: 160 }),
+  description: text('description'),
+  durationMin: integer('duration_min'),
+  price: integer('price'),
+  currency: varchar('currency', { length: 8 }).notNull().default('EUR'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// A booking request and its lifecycle. No payment fields in Phase 1.
+export const bookings = pgTable(
+  'bookings',
+  {
+    id: serial('id').primaryKey(),
+    clientId: integer('client_id')
+      .notNull()
+      .references(() => users.id),
+    providerId: integer('provider_id')
+      .notNull()
+      .references(() => providerProfiles.id),
+    serviceId: integer('service_id').references(() => services.id),
+    status: varchar('status', { length: 20 }).notNull().default('requested'),
+    note: text('note'),
+    requestedAt: timestamp('requested_at').notNull().defaultNow(),
+    decidedAt: timestamp('decided_at'),
+    completedAt: timestamp('completed_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('bookings_provider_id_status_idx').on(table.providerId, table.status),
+    index('bookings_client_id_status_idx').on(table.clientId, table.status),
+  ]
+);
+
+// --- Relations ---
+
+export const profilesRelations = relations(profiles, ({ one }) => ({
+  user: one(users, {
+    fields: [profiles.userId],
+    references: [users.id],
+  }),
+}));
+
+export const userRolesRelations = relations(userRoles, ({ one }) => ({
+  user: one(users, {
+    fields: [userRoles.userId],
+    references: [users.id],
+  }),
+  role: one(roles, {
+    fields: [userRoles.roleKey],
+    references: [roles.key],
+  }),
+}));
+
+export const rolesRelations = relations(roles, ({ many }) => ({
+  userRoles: many(userRoles),
+}));
+
+export const providerProfilesRelations = relations(
+  providerProfiles,
+  ({ one, many }) => ({
+    user: one(users, {
+      fields: [providerProfiles.userId],
+      references: [users.id],
+    }),
+    services: many(services),
+    bookings: many(bookings),
+  })
+);
+
+export const clientProfilesRelations = relations(clientProfiles, ({ one }) => ({
+  user: one(users, {
+    fields: [clientProfiles.userId],
+    references: [users.id],
+  }),
+  organization: one(teams, {
+    fields: [clientProfiles.orgId],
+    references: [teams.id],
+  }),
+}));
+
+export const servicesRelations = relations(services, ({ one, many }) => ({
+  provider: one(providerProfiles, {
+    fields: [services.providerId],
+    references: [providerProfiles.id],
+  }),
+  bookings: many(bookings),
+}));
+
+export const bookingsRelations = relations(bookings, ({ one }) => ({
+  client: one(users, {
+    fields: [bookings.clientId],
+    references: [users.id],
+  }),
+  provider: one(providerProfiles, {
+    fields: [bookings.providerId],
+    references: [providerProfiles.id],
+  }),
+  service: one(services, {
+    fields: [bookings.serviceId],
+    references: [services.id],
+  }),
+}));
+
+// --- Types ---
+
+export type Organization = Team;
+export type NewOrganization = NewTeam;
+export type Profile = typeof profiles.$inferSelect;
+export type NewProfile = typeof profiles.$inferInsert;
+export type Role = typeof roles.$inferSelect;
+export type NewRole = typeof roles.$inferInsert;
+export type UserRole = typeof userRoles.$inferSelect;
+export type NewUserRole = typeof userRoles.$inferInsert;
+export type ProviderProfile = typeof providerProfiles.$inferSelect;
+export type NewProviderProfile = typeof providerProfiles.$inferInsert;
+export type ClientProfile = typeof clientProfiles.$inferSelect;
+export type NewClientProfile = typeof clientProfiles.$inferInsert;
+export type Service = typeof services.$inferSelect;
+export type NewService = typeof services.$inferInsert;
+export type Booking = typeof bookings.$inferSelect;
+export type NewBooking = typeof bookings.$inferInsert;
+
+export const BOOKING_STATUSES = [
+  'requested',
+  'accepted',
+  'declined',
+  'cancelled',
+  'completed',
+] as const;
+export type BookingStatus = (typeof BOOKING_STATUSES)[number];
+
+export const PROVIDER_STATUSES = [
+  'draft',
+  'pending',
+  'approved',
+  'rejected',
+] as const;
+export type ProviderStatus = (typeof PROVIDER_STATUSES)[number];

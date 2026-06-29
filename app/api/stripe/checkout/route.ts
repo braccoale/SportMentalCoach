@@ -4,9 +4,14 @@ import { users, teams, teamMembers } from '@/lib/db/schema';
 import { setSession } from '@/lib/auth/session';
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/payments/stripe';
+import { BILLING_ENABLED } from '@/lib/core/flags';
 import Stripe from 'stripe';
 
 export async function GET(request: NextRequest) {
+  if (!BILLING_ENABLED) {
+    return new NextResponse('Not found', { status: 404 });
+  }
+
   const searchParams = request.nextUrl.searchParams;
   const sessionId = searchParams.get('session_id');
 

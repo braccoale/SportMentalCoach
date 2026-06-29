@@ -6,9 +6,35 @@ import {
   getUser,
   updateTeamSubscription
 } from '@/lib/db/queries';
+import { BILLING_ENABLED } from '@/lib/core/flags';
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-04-30.basil'
+let _stripe: Stripe | null = null;
+function getStripeClient(): Stripe {
+  if (!BILLING_ENABLED) {
+    throw new Error(
+      'Billing is disabled. Set BILLING_ENABLED=true and STRIPE_SECRET_KEY to use Stripe.'
+    );
+  }
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY is not set.');
+  }
+  if (!_stripe) {
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2025-04-30.basil'
+    });
+  }
+  return _stripe;
+}
+
+// Lazy proxy: importing this module never instantiates Stripe.
+// The client is constructed on first property access, and only when
+// BILLING_ENABLED=true with a valid STRIPE_SECRET_KEY.
+export const stripe: Stripe = new Proxy({} as Stripe, {
+  get(_target, prop, receiver) {
+    const client = getStripeClient();
+    const value = Reflect.get(client, prop, receiver);
+    return typeof value === 'function' ? value.bind(client) : value;
+  }
 });
 
 export async function createCheckoutSession({
