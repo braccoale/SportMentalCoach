@@ -3,8 +3,22 @@ import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { NewUser } from '@/lib/db/schema';
 
-const key = new TextEncoder().encode(process.env.AUTH_SECRET);
 const SALT_ROUNDS = 10;
+
+/**
+ * Returns the encoded signing key, validating AUTH_SECRET on first use. A
+ * missing/short secret otherwise produces an opaque "Zero-length key" crypto
+ * error that breaks every server action and auth flow — fail loudly instead.
+ */
+function getAuthKey(): Uint8Array {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret || secret.length < 16) {
+    throw new Error(
+      'AUTH_SECRET is missing or too short. Set AUTH_SECRET (32+ random chars, e.g. `openssl rand -hex 32`) in your environment; authentication cannot run without it.'
+    );
+  }
+  return new TextEncoder().encode(secret);
+}
 
 export async function hashPassword(password: string) {
   return hash(password, SALT_ROUNDS);
@@ -27,11 +41,11 @@ export async function signToken(payload: SessionData) {
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('1 day from now')
-    .sign(key);
+    .sign(getAuthKey());
 }
 
 export async function verifyToken(input: string) {
-  const { payload } = await jwtVerify(input, key, {
+  const { payload } = await jwtVerify(input, getAuthKey(), {
     algorithms: ['HS256'],
   });
   return payload as SessionData;

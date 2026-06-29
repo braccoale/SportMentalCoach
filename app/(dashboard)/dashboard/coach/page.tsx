@@ -9,6 +9,7 @@ import { getCoachServices } from '@/lib/core/services';
 import { getCoachOnboarding } from '@/lib/core/onboarding';
 import { getVerticalConfig, t } from '@/lib/core/config';
 import { Button } from '@/components/ui/button';
+import { ActionForm } from '@/components/action-form';
 import { PhotoForm } from '../photo-form';
 import { ProfileEditor } from './profile-editor';
 import { ServicesEditor } from './services-editor';
@@ -139,13 +140,13 @@ export default async function CoachDashboardPage() {
                   )}
                 </div>
                 <div className="flex gap-2">
-                  <form action={acceptBookingAction}>
+                  <ActionForm action={acceptBookingAction}>
                     <input type="hidden" name="bookingId" value={b.id} />
                     <Button type="submit" className="rounded-full">
                       Accetta
                     </Button>
-                  </form>
-                  <form action={declineBookingAction}>
+                  </ActionForm>
+                  <ActionForm action={declineBookingAction}>
                     <input type="hidden" name="bookingId" value={b.id} />
                     <Button
                       type="submit"
@@ -154,7 +155,7 @@ export default async function CoachDashboardPage() {
                     >
                       Rifiuta
                     </Button>
-                  </form>
+                  </ActionForm>
                 </div>
               </li>
             ))}

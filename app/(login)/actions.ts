@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { and, eq, sql } from 'drizzle-orm';
-import { db } from '@/lib/db/drizzle';
+import { db, type DbOrTx } from '@/lib/db/drizzle';
 import {
   User,
   users,
@@ -36,7 +36,7 @@ async function logActivity(
   teamId: number | null | undefined,
   userId: number,
   type: ActivityType,
-  ipAddress?: string
+  exec: DbOrTx = db
 ) {
   if (teamId === null || teamId === undefined) {
     return;
@@ -45,9 +45,9 @@ async function logActivity(
     teamId,
     userId,
     action: type,
-    ipAddress: ipAddress || ''
+    ipAddress: ''
   };
-  await db.insert(activityLogs).values(newActivity);
+  await exec.insert(activityLogs).values(newActivity);
 }
 
 const signInSchema = z.object({
@@ -132,31 +132,11 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
     };
   }
 
-  const passwordHash = await hashPassword(password);
-
-  const newUser: NewUser = {
-    email,
-    passwordHash,
-    role: 'owner' // Default role, will be overridden if there's an invitation
-  };
-
-  const [createdUser] = await db.insert(users).values(newUser).returning();
-
-  if (!createdUser) {
-    return {
-      error: 'Failed to create user. Please try again.',
-      email,
-      password
-    };
-  }
-
-  let teamId: number;
-  let userRole: string;
-  let createdTeam: typeof teams.$inferSelect | null = null;
-
+  // Validate any invitation up-front (read-only) so we never create a user for
+  // an invalid/expired invite.
+  let invitation: typeof invitations.$inferSelect | null = null;
   if (inviteId) {
-    // Check if there's a valid invitation
-    const [invitation] = await db
+    [invitation] = await db
       .select()
       .from(invitations)
       .where(
@@ -168,69 +148,86 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
       )
       .limit(1);
 
-    if (invitation) {
-      teamId = invitation.teamId;
-      userRole = invitation.role;
-
-      await db
-        .update(invitations)
-        .set({ status: 'accepted' })
-        .where(eq(invitations.id, invitation.id));
-
-      await logActivity(teamId, createdUser.id, ActivityType.ACCEPT_INVITATION);
-
-      [createdTeam] = await db
-        .select()
-        .from(teams)
-        .where(eq(teams.id, teamId))
-        .limit(1);
-    } else {
+    if (!invitation) {
       return { error: 'Invalid or expired invitation.', email, password };
     }
-  } else {
-    // Create a new team if there's no invitation
-    const newTeam: NewTeam = {
-      name: `${email}'s Team`
-    };
+  }
 
-    [createdTeam] = await db.insert(teams).values(newTeam).returning();
+  const passwordHash = await hashPassword(password);
 
-    if (!createdTeam) {
-      return {
-        error: 'Failed to create team. Please try again.',
-        email,
-        password
+  // Standard signups pick a marketplace role; invited members get a base
+  // profile only (their marketplace role is managed within the club).
+  const marketplaceRole: SignupRole | null = invitation ? null : role ?? 'athlete';
+
+  // All writes run in a single transaction so a partial failure never leaves
+  // orphaned user / team / profile rows behind.
+  const signupResult = await db
+    .transaction(async (tx) => {
+      const newUser: NewUser = { email, passwordHash, role: 'owner' };
+      const [createdUser] = await tx.insert(users).values(newUser).returning();
+
+      let teamId: number;
+      let userRole: string;
+      let team: typeof teams.$inferSelect;
+
+      if (invitation) {
+        teamId = invitation.teamId;
+        userRole = invitation.role;
+        await tx
+          .update(invitations)
+          .set({ status: 'accepted' })
+          .where(eq(invitations.id, invitation.id));
+        await logActivity(teamId, createdUser.id, ActivityType.ACCEPT_INVITATION, tx);
+        [team] = await tx
+          .select()
+          .from(teams)
+          .where(eq(teams.id, teamId))
+          .limit(1);
+      } else {
+        const newTeam: NewTeam = { name: `${email}'s Team` };
+        [team] = await tx.insert(teams).values(newTeam).returning();
+        teamId = team.id;
+        userRole = 'owner';
+        await logActivity(teamId, createdUser.id, ActivityType.CREATE_TEAM, tx);
+      }
+
+      const newTeamMember: NewTeamMember = {
+        userId: createdUser.id,
+        teamId,
+        role: userRole
       };
-    }
+      await tx.insert(teamMembers).values(newTeamMember);
+      await logActivity(teamId, createdUser.id, ActivityType.SIGN_UP, tx);
 
-    teamId = createdTeam.id;
-    userRole = 'owner';
+      if (marketplaceRole) {
+        await provisionMarketplaceRole(
+          createdUser.id,
+          marketplaceRole,
+          { email },
+          tx
+        );
+      } else {
+        await ensureProfile(createdUser.id, undefined, tx);
+      }
 
-    await logActivity(teamId, createdUser.id, ActivityType.CREATE_TEAM);
+      return { user: createdUser, team };
+    })
+    .catch((error) => {
+      console.error('Sign-up transaction failed:', error);
+      return null;
+    });
+
+  if (!signupResult) {
+    return {
+      error: 'Failed to create user. Please try again.',
+      email,
+      password
+    };
   }
 
-  const newTeamMember: NewTeamMember = {
-    userId: createdUser.id,
-    teamId: teamId,
-    role: userRole
-  };
+  const { user: createdUser, team: createdTeam } = signupResult;
 
-  await Promise.all([
-    db.insert(teamMembers).values(newTeamMember),
-    logActivity(teamId, createdUser.id, ActivityType.SIGN_UP),
-    setSession(createdUser)
-  ]);
-
-  // Marketplace provisioning (Phase 1). Standard signups pick a marketplace
-  // role and get the matching profile rows; invited members get a base profile
-  // only (their marketplace role is managed within the club).
-  let marketplaceRole: SignupRole | null = null;
-  if (inviteId) {
-    await ensureProfile(createdUser.id);
-  } else {
-    marketplaceRole = role ?? 'athlete';
-    await provisionMarketplaceRole(createdUser.id, marketplaceRole, { email });
-  }
+  await setSession(createdUser);
 
   const redirectTo = formData.get('redirect') as string | null;
   if (redirectTo === 'checkout') {

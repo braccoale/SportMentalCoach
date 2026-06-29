@@ -1,6 +1,6 @@
 import 'server-only';
 import { eq } from 'drizzle-orm';
-import { db } from '@/lib/db/drizzle';
+import { db, type DbOrTx } from '@/lib/db/drizzle';
 import {
   profiles,
   userRoles,
@@ -13,8 +13,12 @@ import {
 export type SignupRole = 'athlete' | 'coach' | 'club';
 
 /** Creates the common 1–1 profile row for a user if it does not exist yet. */
-export async function ensureProfile(userId: number, displayName?: string) {
-  await db
+export async function ensureProfile(
+  userId: number,
+  displayName?: string,
+  exec: DbOrTx = db
+) {
+  await exec
     .insert(profiles)
     .values({ userId, displayName: displayName ?? null })
     .onConflictDoNothing({ target: profiles.userId });
@@ -44,16 +48,20 @@ export async function getAvatarUrl(userId: number): Promise<string | null> {
 }
 
 /** Assigns a role to a user (idempotent on the (user_id, role_key) unique). */
-export async function assignRole(userId: number, roleKey: string) {
-  await db
+export async function assignRole(
+  userId: number,
+  roleKey: string,
+  exec: DbOrTx = db
+) {
+  await exec
     .insert(userRoles)
     .values({ userId, roleKey })
     .onConflictDoNothing();
 }
 
 /** Creates the athlete-side client profile if missing. */
-export async function ensureClientProfile(userId: number) {
-  await db
+export async function ensureClientProfile(userId: number, exec: DbOrTx = db) {
+  await exec
     .insert(clientProfiles)
     .values({ userId })
     .onConflictDoNothing({ target: clientProfiles.userId });
@@ -69,9 +77,13 @@ function slugify(input: string): string {
 }
 
 /** Picks a unique provider slug, falling back to a userId-suffixed variant. */
-async function uniqueSlug(base: string, userId: number): Promise<string> {
+async function uniqueSlug(
+  base: string,
+  userId: number,
+  exec: DbOrTx = db
+): Promise<string> {
   const candidate = slugify(base);
-  const existing = await db
+  const existing = await exec
     .select({ id: providerProfiles.id })
     .from(providerProfiles)
     .where(eq(providerProfiles.slug, candidate))
@@ -82,10 +94,11 @@ async function uniqueSlug(base: string, userId: number): Promise<string> {
 /** Creates the coach-side provider profile (status `draft`) if missing. */
 export async function ensureProviderProfile(
   userId: number,
-  slugBase: string
+  slugBase: string,
+  exec: DbOrTx = db
 ) {
-  const slug = await uniqueSlug(slugBase, userId);
-  await db
+  const slug = await uniqueSlug(slugBase, userId, exec);
+  await exec
     .insert(providerProfiles)
     .values({ userId, slug })
     .onConflictDoNothing({ target: providerProfiles.userId });
@@ -160,15 +173,16 @@ export async function submitProviderForReview(
 export async function provisionMarketplaceRole(
   userId: number,
   role: SignupRole,
-  opts: { email: string; displayName?: string }
+  opts: { email: string; displayName?: string },
+  exec: DbOrTx = db
 ) {
-  await ensureProfile(userId, opts.displayName);
-  await assignRole(userId, role);
+  await ensureProfile(userId, opts.displayName, exec);
+  await assignRole(userId, role, exec);
 
   if (role === 'athlete') {
-    await ensureClientProfile(userId);
+    await ensureClientProfile(userId, exec);
   } else if (role === 'coach') {
     const slugBase = opts.displayName || opts.email.split('@')[0];
-    await ensureProviderProfile(userId, slugBase);
+    await ensureProviderProfile(userId, slugBase, exec);
   }
 }

@@ -112,6 +112,33 @@ Implementation notes (Phase 1):
 
 ---
 
+## Robustness & validation invariants
+
+Hardening applied before Phase 2:
+
+- **Atomic signup.** `signUp` (`app/(login)/actions.ts`) runs all writes
+  (user, team, team membership, activity logs, profile + role + role-specific
+  profile) inside a single `db.transaction`. A partial failure rolls back, so no
+  orphaned rows. The invitation is validated read-only *before* the transaction,
+  so an invalid invite never creates a user. Domain provisioning helpers in
+  `lib/core/profiles` accept an optional `DbOrTx` executor to join the
+  transaction.
+- **AUTH_SECRET is validated at first use** (`lib/auth/session.ts`,
+  `getAuthKey()`): a missing/short secret throws a clear error instead of the
+  opaque `Zero-length key` crypto failure that otherwise breaks all auth.
+- **`getUser()` is cookie-tamper safe** (`lib/db/queries.ts`): a malformed or
+  invalid session token is caught and treated as logged-out (returns `null`)
+  rather than throwing.
+- **Server actions surface domain errors.** Form-action mutations
+  (booking accept/decline, provider approve/reject, service create/edit/delete)
+  return `ActionState` and are rendered through the `ActionForm`
+  (`components/action-form.tsx`) client wrapper, which shows inline
+  `error`/`success`. They no longer discard `{ ok: false }` results.
+- **Input validation.** Service create/edit validates with Zod (required title,
+  non-negative integer duration, non-negative price entered in euros → stored as
+  cents). Avatar URLs are restricted to `http(s)` within a length cap
+  (`photo-actions.ts`).
+
 ## Authentication & roles
 
 Phase 1 keeps the starter's JWT-cookie session (`lib/auth/session.ts`,

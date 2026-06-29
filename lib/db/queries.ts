@@ -10,7 +10,14 @@ export async function getUser() {
     return null;
   }
 
-  const sessionData = await verifyToken(sessionCookie.value);
+  let sessionData;
+  try {
+    sessionData = await verifyToken(sessionCookie.value);
+  } catch {
+    // Tampered, malformed, or expired-signature token: treat as logged out.
+    return null;
+  }
+
   if (
     !sessionData ||
     !sessionData.user ||

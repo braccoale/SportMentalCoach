@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { ActionForm } from '@/components/action-form';
 import type { Service } from '@/lib/db/schema';
 import {
   createServiceAction,
@@ -26,7 +27,10 @@ export function ServicesEditor({ services }: { services: Service[] }) {
         <ul className="mt-3 flex flex-col gap-3">
           {services.map((s) => (
             <li key={s.id} className="rounded-md border border-gray-100 p-3">
-              <form action={updateServiceAction} className="flex flex-col gap-2">
+              <ActionForm
+                action={updateServiceAction}
+                className="flex flex-col gap-2"
+              >
                 <input type="hidden" name="serviceId" value={s.id} />
                 <input
                   name="title"
@@ -61,26 +65,29 @@ export function ServicesEditor({ services }: { services: Service[] }) {
                   placeholder="Descrizione"
                   className={fieldCls}
                 />
-                <div className="flex gap-2">
+                <div>
                   <Button type="submit" className="rounded-md">
                     Salva
                   </Button>
-                  <Button
-                    type="submit"
-                    formAction={deleteServiceAction}
-                    variant="outline"
-                    className="rounded-md text-red-600 hover:text-red-700"
-                  >
-                    Elimina
-                  </Button>
                 </div>
-              </form>
+              </ActionForm>
+
+              <ActionForm action={deleteServiceAction} className="mt-2">
+                <input type="hidden" name="serviceId" value={s.id} />
+                <Button
+                  type="submit"
+                  variant="outline"
+                  className="rounded-md text-red-600 hover:text-red-700"
+                >
+                  Elimina
+                </Button>
+              </ActionForm>
             </li>
           ))}
         </ul>
       )}
 
-      <form
+      <ActionForm
         action={createServiceAction}
         className="mt-4 flex flex-col gap-2 border-t border-gray-100 pt-4"
       >
@@ -119,7 +126,7 @@ export function ServicesEditor({ services }: { services: Service[] }) {
             Aggiungi servizio
           </Button>
         </div>
-      </form>
+      </ActionForm>
     </div>
   );
 }

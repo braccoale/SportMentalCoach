@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/core/auth';
 import { getProviderProfilesForReview, type ProviderReviewItem } from '@/lib/core/admin';
 import { getVerticalConfig, findTaxonomyItem, t } from '@/lib/core/config';
 import { Button } from '@/components/ui/button';
+import { ActionForm } from '@/components/action-form';
 import { CoachAvatar } from '@/components/coach-visuals';
 import { approveProviderAction, rejectProviderAction } from './actions';
 
@@ -60,7 +61,7 @@ function ProviderRow({ p }: { p: ProviderReviewItem }) {
       </div>
 
       <div className="flex gap-2">
-        <form action={approveProviderAction}>
+        <ActionForm action={approveProviderAction}>
           <input type="hidden" name="providerId" value={p.id} />
           <Button
             type="submit"
@@ -69,8 +70,8 @@ function ProviderRow({ p }: { p: ProviderReviewItem }) {
           >
             Approva
           </Button>
-        </form>
-        <form action={rejectProviderAction}>
+        </ActionForm>
+        <ActionForm action={rejectProviderAction}>
           <input type="hidden" name="providerId" value={p.id} />
           <Button
             type="submit"
@@ -80,7 +81,7 @@ function ProviderRow({ p }: { p: ProviderReviewItem }) {
           >
             Rifiuta
           </Button>
-        </form>
+        </ActionForm>
       </div>
     </li>
   );
