@@ -3,8 +3,20 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
-import { Users, Settings, Shield, Activity, Menu } from 'lucide-react';
+import {
+  Users,
+  Settings,
+  Shield,
+  Activity,
+  Menu,
+  LayoutDashboard
+} from 'lucide-react';
+import { ROLE_PRIORITY, ROLE_DASHBOARDS } from '@/lib/core/auth/role-routes';
+import { getRoleLabel } from '@/lib/core/config';
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function DashboardLayout({
   children
@@ -14,12 +26,26 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const navItems = [
+  const { data } = useSWR<{ roles: string[] }>('/api/user/roles', fetcher);
+  const roles = data?.roles ?? [];
+
+  // Role dashboards the user can reach, highest-priority first.
+  const roleNavItems = ROLE_PRIORITY.filter((r) => roles.includes(r)).map(
+    (r) => ({
+      href: ROLE_DASHBOARDS[r],
+      icon: LayoutDashboard,
+      label: getRoleLabel(r)
+    })
+  );
+
+  const settingsNavItems = [
     { href: '/dashboard', icon: Users, label: 'Team' },
-    { href: '/dashboard/general', icon: Settings, label: 'General' },
-    { href: '/dashboard/activity', icon: Activity, label: 'Activity' },
-    { href: '/dashboard/security', icon: Shield, label: 'Security' }
+    { href: '/dashboard/general', icon: Settings, label: 'Generale' },
+    { href: '/dashboard/activity', icon: Activity, label: 'Attività' },
+    { href: '/dashboard/security', icon: Shield, label: 'Sicurezza' }
   ];
+
+  const navItems = [...roleNavItems, ...settingsNavItems];
 
   return (
     <div className="flex flex-col min-h-[calc(100dvh-68px)] max-w-7xl mx-auto w-full">

@@ -93,6 +93,12 @@ function Header() {
           </span>
         </Link>
         <div className="flex items-center space-x-4">
+          <Link
+            href="/coaches"
+            className="text-sm font-medium text-gray-700 hover:text-gray-900"
+          >
+            Trova un coach
+          </Link>
           <Suspense fallback={<div className="h-9" />}>
             <UserMenu />
           </Suspense>
