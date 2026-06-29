@@ -6,6 +6,7 @@ import {
   userRoles,
   clientProfiles,
   providerProfiles,
+  type ProviderProfile,
 } from '@/lib/db/schema';
 
 /** Marketplace roles a user can self-select at signup (never `admin`). */
@@ -88,6 +89,66 @@ export async function ensureProviderProfile(
     .insert(providerProfiles)
     .values({ userId, slug })
     .onConflictDoNothing({ target: providerProfiles.userId });
+}
+
+/** Returns the coach's provider profile (null if none). */
+export async function getProviderProfileByUser(
+  userId: number
+): Promise<ProviderProfile | null> {
+  const [row] = await db
+    .select()
+    .from(providerProfiles)
+    .where(eq(providerProfiles.userId, userId))
+    .limit(1);
+  return row ?? null;
+}
+
+/**
+ * Updates a coach's editable profile fields. Status is intentionally left
+ * unchanged: edits never auto-approve a profile, and never demote an already
+ * `approved` one. Status transitions go through `submitProviderForReview`
+ * (coach) and the admin approval queue.
+ */
+export async function updateProviderProfileFields(
+  userId: number,
+  fields: {
+    headline?: string | null;
+    description?: string | null;
+    categories?: string[];
+    specialties?: string[];
+  }
+) {
+  await db
+    .update(providerProfiles)
+    .set({
+      headline: fields.headline ?? null,
+      description: fields.description ?? null,
+      categories: fields.categories ?? [],
+      specialties: fields.specialties ?? [],
+      updatedAt: new Date(),
+    })
+    .where(eq(providerProfiles.userId, userId));
+}
+
+/**
+ * Coach-driven submission for admin review. Moves `draft` or `rejected`
+ * profiles to `pending`. `approved` / `pending` are left untouched (the admin
+ * approval queue still governs public visibility). Returns the resulting
+ * status, or null if no profile exists.
+ */
+export async function submitProviderForReview(
+  userId: number
+): Promise<string | null> {
+  const provider = await getProviderProfileByUser(userId);
+  if (!provider) return null;
+  if (provider.status === 'draft' || provider.status === 'rejected') {
+    await db
+      .update(providerProfiles)
+      .set({ status: 'pending', updatedAt: new Date() })
+      .where(eq(providerProfiles.userId, userId));
+    return 'pending';
+  }
+  return provider.status;
 }
 
 /**

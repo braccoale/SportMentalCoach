@@ -46,6 +46,28 @@ Coach    → /dashboard/coach    → sees incoming requests
 - No payments, no calendar availability, no video/chat. The `accepted` state is
   terminal for Phase 1 (no `completed` transition wired in the UI yet).
 
+## Coach profile editing & submit-for-review (implemented)
+
+```
+Coach → /dashboard/coach
+      → edit headline / bio / sports / specialties → Salva profilo
+        (status unchanged: approved stays approved; draft/pending/rejected stay)
+      → manage services (create / edit / delete)
+      → if draft or rejected: "Invia per la revisione" → status=pending
+Admin → approves → coach becomes public on /coaches
+```
+
+- **Edits never bypass approval.** `updateProviderProfileFields` only writes the
+  content fields; it does not touch `status`. So a non-approved coach cannot make
+  themselves visible by editing — only the admin queue sets `approved`. An
+  already-`approved` coach stays approved, so their edits go live immediately
+  (no re-review in Phase 1).
+- `submitProviderForReview` moves `draft`/`rejected` → `pending`; `approved`/
+  `pending` are left as-is.
+- Services CRUD (`lib/core/services`) is ownership-checked (each op resolves the
+  coach's `provider_profiles.id` from the session user and scopes the query to
+  it). Prices are entered in euros, persisted as cents.
+
 ## Admin approval queue (implemented)
 
 ```
