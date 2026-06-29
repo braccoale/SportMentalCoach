@@ -28,6 +28,11 @@ function BookingRow({ b }: { b: AthleteBooking }) {
           {b.serviceTitle ?? 'Richiesta generica'} ·{' '}
           {formatDateTime(b.requestedAt)}
         </p>
+        {b.scheduledFor && (
+          <p className="text-sm font-medium text-gray-700">
+            Preferito: {formatDateTime(b.scheduledFor)}
+          </p>
+        )}
       </div>
       <span
         className={`rounded-full px-3 py-1 text-xs font-medium ${bookingStatusTone(b.status)}`}

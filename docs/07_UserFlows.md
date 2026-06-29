@@ -18,20 +18,40 @@ Visitor → /coaches
 - The profile page lists the coach's active services and the booking section
   below.
 
+## Coach availability (Phase 2, implemented)
+
+```
+Coach → /dashboard/coach → "Disponibilità settimanale"
+      → add slot: giorno + inizio + fine  (HH:MM → minutes)
+      → remove slot
+Public → /coaches/[slug] shows the approved coach's weekly availability
+         (read-only) as guidance for the athlete.
+```
+
+- Weekly recurring slots live in `coach_availability` (`lib/core/availability`),
+  validated (`end > start`, unique start per weekday) and ownership-scoped.
+- Not integrated with Cal.com; no real calendar/booking-conflict logic yet.
+
 ## Booking request (implemented)
 
 ```
 On /coaches/[slug] booking section:
   not logged in   → "Richiedi sessione" links to /sign-in?redirect=/coaches/[slug]
-  logged in, athlete → service (optional) + note (optional) → Richiedi sessione
-                       → creates bookings row (status=requested)
+  logged in, athlete → service (optional) + preferred date/time (optional)
+                       + note (optional) → Richiedi sessione
+                       → creates bookings row (status=requested, scheduled_for set
+                         when a date/time was chosen)
                        → redirect /dashboard/athlete?requested=1
   logged in, not athlete → clear message: only athletes can request
 
-Athlete  → /dashboard/athlete  → sees their requests + status badges
-Coach    → /dashboard/coach    → sees incoming requests
+Athlete  → /dashboard/athlete  → sees their requests + preferred time + status
+Coach    → /dashboard/coach    → sees incoming requests + preferred time
          → Accetta / Rifiuta   → booking → accepted | declined
 ```
+
+- The preferred date/time (`scheduled_for`) is validated server-side (must be a
+  valid, future datetime) and shown on both dashboards. It is a *preference* —
+  the coach still accepts/declines; no automatic slot matching in this step.
 
 - Enforcement is server-side in the actions/domain, not just the UI:
   - `requestBooking` (`app/(marketplace)/coaches/[slug]/actions.ts`) redirects

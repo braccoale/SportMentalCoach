@@ -6,6 +6,7 @@ import {
   getProviderProfileByUser,
 } from '@/lib/core/profiles';
 import { getCoachServices } from '@/lib/core/services';
+import { getCoachAvailability } from '@/lib/core/availability';
 import { computeCoachOnboarding } from '@/lib/core/onboarding';
 import { getVerticalConfig, t } from '@/lib/core/config';
 import { formatDateTime } from '@/lib/core/format';
@@ -14,6 +15,7 @@ import { ActionForm } from '@/components/action-form';
 import { PhotoForm } from '../photo-form';
 import { ProfileEditor } from './profile-editor';
 import { ServicesEditor } from './services-editor';
+import { AvailabilityEditor } from './availability-editor';
 import { OnboardingProgress } from './onboarding-progress';
 import { acceptBookingAction, declineBookingAction } from './actions';
 
@@ -51,12 +53,14 @@ export default async function CoachDashboardPage() {
   const user = await requireRole('coach');
   const config = getVerticalConfig();
 
-  const [provider, services, allBookings, avatarUrl] = await Promise.all([
-    getProviderProfileByUser(user.id),
-    getCoachServices(user.id),
-    getCoachBookings(user.id),
-    getAvatarUrl(user.id),
-  ]);
+  const [provider, services, allBookings, avatarUrl, availability] =
+    await Promise.all([
+      getProviderProfileByUser(user.id),
+      getCoachServices(user.id),
+      getCoachBookings(user.id),
+      getAvatarUrl(user.id),
+      getCoachAvailability(user.id),
+    ]);
 
   // Derive onboarding from already-loaded data (no extra queries).
   const onboarding = provider
@@ -99,6 +103,7 @@ export default async function CoachDashboardPage() {
           <div id="onboarding-servizi">
             <ServicesEditor services={services} />
           </div>
+          <AvailabilityEditor slots={availability} />
         </>
       ) : (
         <p className="text-gray-500">
@@ -128,6 +133,11 @@ export default async function CoachDashboardPage() {
                     {b.serviceTitle ?? 'Richiesta generica'} ·{' '}
                     {formatDateTime(b.requestedAt)}
                   </p>
+                  {b.scheduledFor && (
+                    <p className="text-sm font-medium text-gray-700">
+                      Preferito: {formatDateTime(b.scheduledFor)}
+                    </p>
+                  )}
                   {b.note && (
                     <p className="mt-1 text-sm text-gray-600">“{b.note}”</p>
                   )}

@@ -1,3 +1,21 @@
+/** Italian weekday labels, indexed 0=Sunday … 6=Saturday (JS getDay). */
+export const WEEKDAY_LABELS = [
+  'Domenica',
+  'Lunedì',
+  'Martedì',
+  'Mercoledì',
+  'Giovedì',
+  'Venerdì',
+  'Sabato',
+] as const;
+
+/** Formats minutes-from-midnight as `HH:MM`. */
+export function formatMinutesOfDay(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
 /** Formats a date as a localized medium date + short time (default it-IT). */
 export function formatDateTime(d: Date, locale = 'it-IT'): string {
   return new Intl.DateTimeFormat(locale, {

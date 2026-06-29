@@ -10,6 +10,7 @@ import {
   userRoles,
   providerProfiles,
   services,
+  coachAvailability,
 } from './schema';
 import { hashPassword } from '@/lib/auth/session';
 import { BILLING_ENABLED } from '@/lib/core/flags';
@@ -272,6 +273,28 @@ async function createStripeProducts() {
   console.log('Stripe products and prices created successfully.');
 }
 
+// Weekly availability for the demo coaches (idempotent via the unique index).
+async function seedDemoAvailability() {
+  const slots = [
+    { weekday: 1, startMinute: 1020, endMinute: 1200 }, // Lun 17:00–20:00
+    { weekday: 3, startMinute: 1020, endMinute: 1200 }, // Mer 17:00–20:00
+    { weekday: 6, startMinute: 600, endMinute: 780 }, // Sab 10:00–13:00
+  ];
+  for (const demo of DEMO_COACHES) {
+    const [provider] = await db
+      .select({ id: providerProfiles.id })
+      .from(providerProfiles)
+      .where(eq(providerProfiles.slug, demo.slug))
+      .limit(1);
+    if (!provider) continue;
+    await db
+      .insert(coachAvailability)
+      .values(slots.map((s) => ({ providerId: provider.id, ...s })))
+      .onConflictDoNothing();
+  }
+  console.log('Demo availability seeded.');
+}
+
 async function seed() {
   await seedRoles();
 
@@ -316,6 +339,7 @@ async function seed() {
 
   await seedAdmin();
   await seedDemoCoaches();
+  await seedDemoAvailability();
 
   if (BILLING_ENABLED) {
     await createStripeProducts();

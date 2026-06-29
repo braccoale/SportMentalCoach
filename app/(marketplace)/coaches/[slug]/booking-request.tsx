@@ -48,6 +48,21 @@ export function BookingRequest({
       )}
 
       <div className="flex w-full max-w-sm flex-col">
+        <label
+          htmlFor="scheduledFor"
+          className="text-sm font-medium text-gray-700"
+        >
+          Data e ora preferita (opzionale)
+        </label>
+        <input
+          id="scheduledFor"
+          name="scheduledFor"
+          type="datetime-local"
+          className="mt-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+        />
+      </div>
+
+      <div className="flex w-full max-w-sm flex-col">
         <label htmlFor="note" className="text-sm font-medium text-gray-700">
           Messaggio per il coach (opzionale)
         </label>

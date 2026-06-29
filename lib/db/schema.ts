@@ -260,6 +260,9 @@ export const bookings = pgTable(
     serviceId: integer('service_id').references(() => services.id),
     status: varchar('status', { length: 20 }).notNull().default('requested'),
     note: text('note'),
+    // Athlete's preferred date/time for the session (nullable: a generic
+    // request without a specific time is still allowed).
+    scheduledFor: timestamp('scheduled_for'),
     requestedAt: timestamp('requested_at').notNull().defaultNow(),
     decidedAt: timestamp('decided_at'),
     completedAt: timestamp('completed_at'),
@@ -269,6 +272,31 @@ export const bookings = pgTable(
   (table) => [
     index('bookings_provider_id_status_idx').on(table.providerId, table.status),
     index('bookings_client_id_status_idx').on(table.clientId, table.status),
+  ]
+);
+
+// Weekly recurring availability slots a coach offers. Phase 2 foundation —
+// not yet integrated with Cal.com. `weekday` is 0=Sunday … 6=Saturday (matches
+// JS `Date.getDay()`); `start_minute`/`end_minute` are minutes from midnight.
+export const coachAvailability = pgTable(
+  'coach_availability',
+  {
+    id: serial('id').primaryKey(),
+    providerId: integer('provider_id')
+      .notNull()
+      .references(() => providerProfiles.id),
+    weekday: integer('weekday').notNull(),
+    startMinute: integer('start_minute').notNull(),
+    endMinute: integer('end_minute').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('coach_availability_provider_weekday_start_unique').on(
+      table.providerId,
+      table.weekday,
+      table.startMinute
+    ),
   ]
 );
 
@@ -305,6 +333,17 @@ export const providerProfilesRelations = relations(
     }),
     services: many(services),
     bookings: many(bookings),
+    availability: many(coachAvailability),
+  })
+);
+
+export const coachAvailabilityRelations = relations(
+  coachAvailability,
+  ({ one }) => ({
+    provider: one(providerProfiles, {
+      fields: [coachAvailability.providerId],
+      references: [providerProfiles.id],
+    }),
   })
 );
 
@@ -360,6 +399,8 @@ export type Service = typeof services.$inferSelect;
 export type NewService = typeof services.$inferInsert;
 export type Booking = typeof bookings.$inferSelect;
 export type NewBooking = typeof bookings.$inferInsert;
+export type CoachAvailability = typeof coachAvailability.$inferSelect;
+export type NewCoachAvailability = typeof coachAvailability.$inferInsert;
 
 export const BOOKING_STATUSES = [
   'requested',

@@ -4,7 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getVerticalConfig, findTaxonomyItem, t } from '@/lib/core/config';
 import { getCoachBySlug } from '@/lib/core/listings';
-import { formatPrice } from '@/lib/core/format';
+import { getApprovedCoachAvailabilityBySlug } from '@/lib/core/availability';
+import {
+  formatPrice,
+  formatMinutesOfDay,
+  WEEKDAY_LABELS,
+} from '@/lib/core/format';
 import { getUser } from '@/lib/db/queries';
 import { hasRole } from '@/lib/core/auth';
 import { CoachAvatar, CertifiedBadge } from '@/components/coach-visuals';
@@ -26,6 +31,7 @@ export default async function CoachDetailPage({
 
   const user = await getUser();
   const isAthlete = user ? await hasRole(user.id, 'athlete') : false;
+  const availability = await getApprovedCoachAvailabilityBySlug(slug);
   const config = getVerticalConfig();
   const { categories, specialties } = config.taxonomies;
   const labelFor = (items: typeof categories, key: string) =>
@@ -145,6 +151,24 @@ export default async function CoachDetailPage({
           </div>
         )}
       </section>
+
+      {availability.length > 0 && (
+        <section className="mt-8">
+          <h2 className="text-xl font-semibold text-gray-900">Disponibilità</h2>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {availability.map((slot) => (
+              <li
+                key={slot.id}
+                className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700"
+              >
+                {WEEKDAY_LABELS[slot.weekday]}{' '}
+                {formatMinutesOfDay(slot.startMinute)}–
+                {formatMinutesOfDay(slot.endMinute)}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Booking request — athletes only. */}
       <div className="mt-10 border-t border-gray-200 pt-6">

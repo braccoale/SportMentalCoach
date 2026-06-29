@@ -57,6 +57,7 @@ export async function createBookingRequest(params: {
   providerSlug: string;
   serviceId?: number | null;
   note?: string | null;
+  scheduledFor?: Date | null;
 }): Promise<Result<{ bookingId: number }>> {
   const [provider] = await db
     .select({ id: providerProfiles.id, userId: providerProfiles.userId })
@@ -103,6 +104,7 @@ export async function createBookingRequest(params: {
       serviceId,
       status: 'requested',
       note: params.note ?? null,
+      scheduledFor: params.scheduledFor ?? null,
     })
     .returning({ id: bookings.id });
 
@@ -113,6 +115,7 @@ export type AthleteBooking = {
   id: number;
   status: string;
   note: string | null;
+  scheduledFor: Date | null;
   requestedAt: Date;
   decidedAt: Date | null;
   coachName: string | null;
@@ -129,6 +132,7 @@ export async function getAthleteBookings(
       id: bookings.id,
       status: bookings.status,
       note: bookings.note,
+      scheduledFor: bookings.scheduledFor,
       requestedAt: bookings.requestedAt,
       decidedAt: bookings.decidedAt,
       coachName: profiles.displayName,
@@ -147,6 +151,7 @@ export type CoachBooking = {
   id: number;
   status: string;
   note: string | null;
+  scheduledFor: Date | null;
   requestedAt: Date;
   decidedAt: Date | null;
   clientName: string | null;
@@ -171,6 +176,7 @@ export async function getCoachBookings(
       id: bookings.id,
       status: bookings.status,
       note: bookings.note,
+      scheduledFor: bookings.scheduledFor,
       requestedAt: bookings.requestedAt,
       decidedAt: bookings.decidedAt,
       clientName: users.name,

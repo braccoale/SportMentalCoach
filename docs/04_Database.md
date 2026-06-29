@@ -135,6 +135,7 @@ A booking request and its lifecycle. **No payment fields in Phase 1.**
 | service_id     | integer FK services.id          | nullable: a generic request without a service is allowed           |
 | status         | varchar(20)                     | `requested` / `accepted` / `declined` / `cancelled` / `completed`; default `'requested'`  |
 | note           | text                            | athlete's message                                                  |
+| scheduled_for  | timestamp                       | athlete's preferred date/time; nullable (migration `0003`)         |
 | requested_at   | timestamp                       | defaultNow()                                                       |
 | decided_at     | timestamp                       | set on accept/decline                                              |
 | completed_at   | timestamp                       |                                                                    |
@@ -148,6 +149,24 @@ Transitions allowed (enforced in `lib/core/bookings/`):
 - `requested → accepted | declined | cancelled`
 - `accepted  → completed | cancelled`
 - terminal: `declined`, `cancelled`, `completed`
+
+### `coach_availability` (Phase 2 foundation)
+
+Weekly recurring availability slots a coach offers. Not yet integrated with
+Cal.com. Added by migration `0003`.
+
+| column        | type                            | notes                                          |
+|---------------|---------------------------------|------------------------------------------------|
+| id            | serial PK                       |                                                |
+| provider_id   | integer FK provider_profiles.id | not null                                       |
+| weekday       | integer                         | `0`=Sunday … `6`=Saturday (JS `getDay()`)      |
+| start_minute  | integer                         | minutes from midnight (e.g. `1020` = 17:00)    |
+| end_minute    | integer                         | minutes from midnight; must be > start_minute  |
+| created_at    | timestamp                       | defaultNow()                                   |
+| updated_at    | timestamp                       | defaultNow()                                   |
+
+Unique constraint on `(provider_id, weekday, start_minute)`. Range validation
+(`end > start`, `0..1440`) is enforced in `lib/core/availability`.
 
 ---
 
@@ -205,7 +224,8 @@ None of these happen in Phase 1.
 
 ## Phase 1 tables NOT introduced (intentionally deferred)
 
-- Availability / calendar slots (Cal.com in Phase 2).
+- Cal.com calendar integration (the `coach_availability` foundation now exists;
+  Cal.com sync is still deferred).
 - Payments, payouts, invoices (Stripe Connect in Phase 2).
 - Messages / chat channels (Supabase Realtime in Phase 2).
 - Reviews and ratings (Phase 2).
