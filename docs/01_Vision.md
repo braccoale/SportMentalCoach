@@ -57,7 +57,7 @@ Gestisce la piattaforma, approva coach, monitora prenotazioni, pagamenti e quali
 
 ### Fase 2
 
-- Pagamenti Stripe
+- Creazione pacchetti abbonamenti
 - Chat interna
 - Videochiamata LiveKit
 - Calendario disponibilità
@@ -67,9 +67,11 @@ Gestisce la piattaforma, approva coach, monitora prenotazioni, pagamenti e quali
 
 ### Fase 3
 
+- Pagamenti Stripe
 - AI assistant
 - Matching coach-atleta
 - Trascrizione sessioni
+- gestione recensioni coach
 - Report andamento atleta
 - Area società sportive
 - Mobile app

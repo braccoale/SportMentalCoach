@@ -25,6 +25,12 @@ import {
   validatedAction,
   validatedActionWithUser
 } from '@/lib/auth/middleware';
+import { dashboardPathForRoles, getUserRoles } from '@/lib/core/auth';
+import {
+  ensureProfile,
+  provisionMarketplaceRole,
+  type SignupRole
+} from '@/lib/core/profiles';
 
 async function logActivity(
   teamId: number | null | undefined,
@@ -97,17 +103,20 @@ export const signIn = validatedAction(signInSchema, async (data, formData) => {
     return createCheckoutSession({ team: foundTeam, priceId });
   }
 
-  redirect('/dashboard');
+  const roles = await getUserRoles(foundUser.id);
+  redirect(dashboardPathForRoles(roles));
 });
 
 const signUpSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
-  inviteId: z.string().optional()
+  inviteId: z.string().optional(),
+  // Public signup may only choose athlete / coach / club — never admin.
+  role: z.enum(['athlete', 'coach', 'club']).optional()
 });
 
 export const signUp = validatedAction(signUpSchema, async (data, formData) => {
-  const { email, password, inviteId } = data;
+  const { email, password, inviteId, role } = data;
 
   const existingUser = await db
     .select()
@@ -212,13 +221,26 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
     setSession(createdUser)
   ]);
 
+  // Marketplace provisioning (Phase 1). Standard signups pick a marketplace
+  // role and get the matching profile rows; invited members get a base profile
+  // only (their marketplace role is managed within the club).
+  let marketplaceRole: SignupRole | null = null;
+  if (inviteId) {
+    await ensureProfile(createdUser.id);
+  } else {
+    marketplaceRole = role ?? 'athlete';
+    await provisionMarketplaceRole(createdUser.id, marketplaceRole, { email });
+  }
+
   const redirectTo = formData.get('redirect') as string | null;
   if (redirectTo === 'checkout') {
     const priceId = formData.get('priceId') as string;
     return createCheckoutSession({ team: createdTeam, priceId });
   }
 
-  redirect('/dashboard');
+  redirect(
+    marketplaceRole ? dashboardPathForRoles([marketplaceRole]) : '/dashboard'
+  );
 });
 
 export async function signOut() {

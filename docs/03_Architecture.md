@@ -118,25 +118,54 @@ Phase 1 keeps the starter's JWT-cookie session (`lib/auth/session.ts`,
 `jose`). The single `users.role` column is **kept** for backwards
 compatibility but becomes deprecated in favor of:
 
-- `roles` — catalog of role keys (`athlete`, `coach`, `club_admin`, `admin`).
+- `roles` — catalog of role keys (`athlete`, `coach`, `club`, `admin`).
 - `user_roles` — many-to-many; a user can hold multiple roles.
 
-Helpers in `lib/core/auth`:
+Helpers in `lib/core/auth` (`roles.ts`, re-exported from `index.ts`):
 
-- `getSession()` — unchanged.
-- `getUserRoles(userId)` — reads `user_roles`.
-- `requireRole(role)` — server-side guard for actions and route handlers.
-- Middleware extends the existing `middleware.ts` to attach roles to the
-  request context.
+- `getSession()` / `getUser()` — re-exported, unchanged.
+- `getUserRoles(userId)` — reads `user_roles`, returns role keys.
+- `hasRole(userId, roleKey)` — boolean membership check.
+- `requireRole(roleKey | roleKey[])` — server-side guard for pages, route
+  handlers and actions. Redirects to `/sign-in` when unauthenticated, or to the
+  user's own dashboard when they lack every required role; returns the user.
+- `dashboardPathForRoles(roles)` — resolves the post-auth landing page using a
+  priority order (`admin` > `coach` > `club` > `athlete`).
+- Middleware (`middleware.ts`) is **unchanged** in this step; it still gates the
+  `/dashboard` prefix on session presence. Attaching roles to the request
+  context is deferred.
 
-Onboarding flow:
+Role-aware redirect after login & signup (`dashboardPathForRoles`):
+
+| role    | landing page          |
+|---------|-----------------------|
+| athlete | `/dashboard/athlete`  |
+| coach   | `/dashboard/coach`    |
+| club    | `/dashboard/club`     |
+| admin   | `/dashboard/admin`    |
+
+Each landing page is a placeholder server component guarded by
+`requireRole(...)`. Full role UI is deferred.
+
+Onboarding flow (Phase 1, implemented):
 
 1. Sign-up captures email + password + **initial role** (Athlete / Coach /
-   Club).
-2. A `user_roles` row is created.
-3. The user is redirected to the role-specific onboarding wizard, which
-   creates the corresponding `provider_profiles` / `client_profiles` /
-   organization record.
+   Club). The role selector is a radio group in the signup form. `admin` is not
+   selectable; the server schema (`z.enum(['athlete','coach','club'])`) rejects
+   any other value, so public admin signup is impossible.
+2. On submit (`app/(login)/actions.ts` → `signUp`), after the user + team rows
+   are created, `provisionMarketplaceRole()` (`lib/core/profiles`) creates:
+   - a `profiles` row (common 1–1 profile),
+   - a `user_roles` row for the chosen role,
+   - a `client_profiles` row if **athlete**,
+   - a `provider_profiles` row (status `draft`, unique slug) if **coach**.
+   `club` needs no extra per-user profile (the `teams` row is the organization).
+3. The user is redirected to their role dashboard. A dedicated onboarding
+   wizard (richer profile capture) is deferred to a later step.
+
+> Invited members (signup with `?inviteId=`) keep the existing team-join flow
+> and receive a base `profiles` row only; their marketplace role is managed
+> within the club.
 
 ---
 

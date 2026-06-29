@@ -85,6 +85,37 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
             </div>
           </div>
 
+          {mode === 'signup' && (
+            <div>
+              <Label className="block text-sm font-medium text-gray-700">
+                I am signing up as
+              </Label>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {(
+                  [
+                    ['athlete', 'Athlete'],
+                    ['coach', 'Coach'],
+                    ['club', 'Club']
+                  ] as const
+                ).map(([value, label]) => (
+                  <label
+                    key={value}
+                    className="flex items-center justify-center gap-2 rounded-full border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50 has-[:checked]:text-orange-700"
+                  >
+                    <input
+                      type="radio"
+                      name="role"
+                      value={value}
+                      defaultChecked={value === 'athlete'}
+                      className="accent-orange-600"
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
           {state?.error && (
             <div className="text-red-500 text-sm">{state.error}</div>
           )}
