@@ -109,6 +109,27 @@ Booking accepted → both dashboards show an "Apri chat →" link
 - No Supabase Realtime, no LiveKit, no payments — messages are plain
   server-rendered rows refreshed on send / page reload.
 
+## Booking video call (Phase 2, implemented — LiveKit foundation)
+
+```
+Booking accepted → both dashboards show "Apri videochiamata →"
+→ /dashboard/video/[bookingId]
+  - participant + accepted guard (else notFound)
+  - if LiveKit configured: server mints a LiveKit token → <LiveKitRoom> connects
+  - if NOT configured: clear "Videochiamata non configurata" setup message
+```
+
+- **Access**: only the booking's two participants, only for `accepted`
+  bookings. The token is minted **server-side** (`lib/core/video`, using
+  `livekit-server-sdk`); the browser only receives a short-lived token + the
+  public `NEXT_PUBLIC_LIVEKIT_URL`. Room name is `booking-<id>`.
+- **Optional / no-startup-requirement**: video is enabled only when
+  `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `NEXT_PUBLIC_LIVEKIT_URL` are all set
+  (checked lazily by `isVideoConfigured()`). With them unset the app runs
+  normally and the video page shows a setup message instead of crashing.
+- No payments, no Supabase Realtime, no Cal.com. Chat (Step 2) remains available
+  independently of video.
+
 ## Coach profile editing & submit-for-review (implemented)
 
 ```

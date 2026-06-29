@@ -181,12 +181,20 @@ export default async function CoachDashboardPage() {
                 </span>
                 <span className="flex items-center gap-3">
                   {b.status === 'accepted' && (
-                    <Link
-                      href={`/dashboard/chat/${b.id}`}
-                      className="font-medium text-orange-600 hover:text-orange-700"
-                    >
-                      Apri chat →
-                    </Link>
+                    <>
+                      <Link
+                        href={`/dashboard/chat/${b.id}`}
+                        className="font-medium text-orange-600 hover:text-orange-700"
+                      >
+                        Apri chat →
+                      </Link>
+                      <Link
+                        href={`/dashboard/video/${b.id}`}
+                        className="font-medium text-orange-600 hover:text-orange-700"
+                      >
+                        Apri videochiamata →
+                      </Link>
+                    </>
                   )}
                   <span className="font-medium text-gray-500">
                     {bookingStatusLabel(b.status)}

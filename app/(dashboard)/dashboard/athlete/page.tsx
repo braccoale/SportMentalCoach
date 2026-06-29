@@ -41,12 +41,20 @@ function BookingRow({ b }: { b: AthleteBooking }) {
           {bookingStatusLabel(b.status)}
         </span>
         {b.status === 'accepted' && (
-          <Link
-            href={`/dashboard/chat/${b.id}`}
-            className="text-sm font-medium text-orange-600 hover:text-orange-700"
-          >
-            Apri chat →
-          </Link>
+          <div className="flex flex-col items-end gap-1">
+            <Link
+              href={`/dashboard/chat/${b.id}`}
+              className="text-sm font-medium text-orange-600 hover:text-orange-700"
+            >
+              Apri chat →
+            </Link>
+            <Link
+              href={`/dashboard/video/${b.id}`}
+              className="text-sm font-medium text-orange-600 hover:text-orange-700"
+            >
+              Apri videochiamata →
+            </Link>
+          </div>
         )}
       </div>
     </li>

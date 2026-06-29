@@ -5,3 +5,14 @@
 export const BILLING_ENABLED =
   process.env.BILLING_ENABLED === 'true' ||
   process.env.NEXT_PUBLIC_BILLING_ENABLED === 'true';
+
+// Video (LiveKit) is optional. It is "configured" only when all three env vars
+// are present. Read lazily at call time so the app never requires LiveKit env
+// at startup when video is unused.
+export function isVideoConfigured(): boolean {
+  return !!(
+    process.env.LIVEKIT_API_KEY &&
+    process.env.LIVEKIT_API_SECRET &&
+    process.env.NEXT_PUBLIC_LIVEKIT_URL
+  );
+}
