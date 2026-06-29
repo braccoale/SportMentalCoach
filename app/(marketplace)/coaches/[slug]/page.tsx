@@ -5,6 +5,9 @@ import { Button } from '@/components/ui/button';
 import { getVerticalConfig, findTaxonomyItem, t } from '@/lib/core/config';
 import { getCoachBySlug } from '@/lib/core/listings';
 import { formatPrice } from '@/lib/core/format';
+import { getUser } from '@/lib/db/queries';
+import { hasRole } from '@/lib/core/auth';
+import { BookingRequest } from './booking-request';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +23,8 @@ export default async function CoachDetailPage({
     notFound();
   }
 
+  const user = await getUser();
+  const isAthlete = user ? await hasRole(user.id, 'athlete') : false;
   const config = getVerticalConfig();
   const { categories, specialties } = config.taxonomies;
   const labelFor = (items: typeof categories, key: string) =>
@@ -124,14 +129,35 @@ export default async function CoachDetailPage({
         )}
       </section>
 
-      {/* Placeholder CTA — booking is not implemented yet (Phase 1). */}
-      <div className="mt-10 flex flex-col items-start gap-2 border-t border-gray-200 pt-6">
-        <Button size="lg" className="rounded-full" disabled title="Coming soon">
+      {/* Booking request — athletes only. */}
+      <div className="mt-10 border-t border-gray-200 pt-6">
+        <h2 className="mb-4 text-xl font-semibold text-gray-900">
           {t('booking.cta', config)}
-        </Button>
-        <p className="text-xs text-gray-400">
-          La prenotazione sarà disponibile a breve.
-        </p>
+        </h2>
+
+        {!user ? (
+          <div className="flex flex-col items-start gap-2">
+            <p className="text-sm text-gray-600">
+              Accedi come atleta per richiedere una sessione.
+            </p>
+            <Button asChild size="lg" className="rounded-full">
+              <Link href={`/sign-in?redirect=/coaches/${slug}`}>
+                {t('booking.cta', config)}
+              </Link>
+            </Button>
+          </div>
+        ) : isAthlete ? (
+          <BookingRequest
+            slug={slug}
+            services={coach.services.map((s) => ({ id: s.id, title: s.title }))}
+            ctaLabel={t('booking.cta', config)}
+          />
+        ) : (
+          <p className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Solo gli atleti possono richiedere una sessione. Accedi con un
+            account atleta per prenotare.
+          </p>
+        )}
       </div>
     </main>
   );

@@ -15,6 +15,13 @@
       "when": 1782746910495,
       "tag": "0001_uneven_talos",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782750835870,
+      "tag": "0002_overconfident_sheva_callister",
+      "breakpoints": true
     }
   ]
 }

@@ -8,7 +8,6 @@
 Visitor → /coaches
         → (optional) pick sport / specialty → Filtra → /coaches?sport=…&specialty=…
         → click "Vedi profilo" → /coaches/[slug]
-        → click "Richiedi sessione"  [placeholder — disabled in Phase 1]
 ```
 
 - No authentication required.
@@ -16,9 +15,36 @@ Visitor → /coaches
   provider profiles never appear publicly.
 - Filtering is server-side via query params; results are array-contains matches
   on `provider_profiles.categories` (sport) and `.specialties` (specialty).
-- The profile page lists the coach's active services. The "Richiedi sessione"
-  CTA is a disabled placeholder; the booking flow is introduced in a later
-  step.
+- The profile page lists the coach's active services and the booking section
+  below.
+
+## Booking request (implemented)
+
+```
+On /coaches/[slug] booking section:
+  not logged in   → "Richiedi sessione" links to /sign-in?redirect=/coaches/[slug]
+  logged in, athlete → service (optional) + note (optional) → Richiedi sessione
+                       → creates bookings row (status=requested)
+                       → redirect /dashboard/athlete?requested=1
+  logged in, not athlete → clear message: only athletes can request
+
+Athlete  → /dashboard/athlete  → sees their requests + status badges
+Coach    → /dashboard/coach    → sees incoming requests
+         → Accetta / Rifiuta   → booking → accepted | declined
+```
+
+- Enforcement is server-side in the actions/domain, not just the UI:
+  - `requestBooking` (`app/(marketplace)/coaches/[slug]/actions.ts`) redirects
+    anonymous users to sign-in and rejects non-athletes.
+  - `createBookingRequest` (`lib/core/bookings`) resolves the coach by slug
+    (must be `approved`), validates the optional service belongs to that coach,
+    and blocks self-booking.
+  - `decideBooking` verifies the booking belongs to the acting coach and that it
+    is still `requested` before transitioning (state machine in
+    `BOOKING_TRANSITIONS`). Accept → `accepted`, decline → `declined`, with
+    `decided_at` set.
+- No payments, no calendar availability, no video/chat. The `accepted` state is
+  terminal for Phase 1 (no `completed` transition wired in the UI yet).
 
 ## Sign up & role routing (implemented earlier)
 
@@ -34,11 +60,11 @@ See `docs/03_Architecture.md` for the auth/onboarding detail.
 
 ## Deferred flows (later phases)
 
-- **Booking request**: athlete on `/coaches/[slug]` → "Richiedi sessione" →
-  creates a `bookings` row (`requested`) → coach accepts/declines. Not in this
-  step.
+- **Booking completion**: coach marking an `accepted` booking as `completed`,
+  and athlete/coach cancellation.
 - Coach onboarding wizard (rich profile capture before submitting for
-  approval), admin approval queue, payments, messaging, reviews.
+  approval), admin approval queue, payments, calendar availability, messaging,
+  reviews.
 
 ---
 

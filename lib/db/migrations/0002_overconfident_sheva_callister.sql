@@ -1,0 +1,1 @@
+ALTER TABLE "provider_profiles" ADD COLUMN "is_kaipai_certified" boolean DEFAULT false NOT NULL;

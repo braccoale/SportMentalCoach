@@ -207,6 +207,8 @@ export const providerProfiles = pgTable('provider_profiles', {
   hourlyRate: integer('hourly_rate'),
   currency: varchar('currency', { length: 8 }).notNull().default('EUR'),
   status: varchar('status', { length: 20 }).notNull().default('draft'),
+  // Whether the coach is certified by the Kai Pai Academy.
+  isKaipaiCertified: boolean('is_kaipai_certified').notNull().default(false),
   reviewedBy: integer('reviewed_by').references(() => users.id),
   reviewedAt: timestamp('reviewed_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
