@@ -6,13 +6,14 @@ import {
   getProviderProfileByUser,
 } from '@/lib/core/profiles';
 import { getCoachServices } from '@/lib/core/services';
+import { getCoachOnboarding } from '@/lib/core/onboarding';
 import { getVerticalConfig, t } from '@/lib/core/config';
 import { Button } from '@/components/ui/button';
 import { PhotoForm } from '../photo-form';
 import { ProfileEditor } from './profile-editor';
 import { ServicesEditor } from './services-editor';
+import { OnboardingProgress } from './onboarding-progress';
 import { acceptBookingAction, declineBookingAction } from './actions';
-import { submitForReviewAction } from './profile-actions';
 
 function statusLabel(status: string): string {
   return t(`booking.status.${status}`, getVerticalConfig());
@@ -28,7 +29,6 @@ function formatDate(d: Date): string {
 function StatusBanner({ status }: { status: string }) {
   const config = getVerticalConfig();
   const label = t(`provider.status.${status}`, config);
-  const canSubmit = status === 'draft' || status === 'rejected';
 
   const tone =
     status === 'approved'
@@ -46,21 +46,12 @@ function StatusBanner({ status }: { status: string }) {
         ? 'Il tuo profilo è in revisione. Sarà pubblicato dopo l’approvazione dell’admin.'
         : status === 'rejected'
           ? 'Il tuo profilo è stato rifiutato. Aggiorna i dati e invialo di nuovo per la revisione.'
-          : 'Il tuo profilo è in bozza e non è ancora visibile. Completalo e invialo per la revisione.';
+          : 'Il tuo profilo è in bozza e non è ancora visibile. Completa i passi qui sotto e invialo per la revisione.';
 
   return (
-    <div className={`flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between ${tone}`}>
-      <div>
-        <p className="text-sm font-semibold">Stato profilo: {label}</p>
-        <p className="text-sm">{message}</p>
-      </div>
-      {canSubmit && (
-        <form action={submitForReviewAction}>
-          <Button type="submit" className="rounded-full">
-            Invia per la revisione
-          </Button>
-        </form>
-      )}
+    <div className={`rounded-lg border p-4 ${tone}`}>
+      <p className="text-sm font-semibold">Stato profilo: {label}</p>
+      <p className="text-sm">{message}</p>
     </div>
   );
 }
@@ -69,12 +60,14 @@ export default async function CoachDashboardPage() {
   const user = await requireRole('coach');
   const config = getVerticalConfig();
 
-  const [provider, services, allBookings, avatarUrl] = await Promise.all([
-    getProviderProfileByUser(user.id),
-    getCoachServices(user.id),
-    getCoachBookings(user.id),
-    getAvatarUrl(user.id),
-  ]);
+  const [provider, services, allBookings, avatarUrl, onboarding] =
+    await Promise.all([
+      getProviderProfileByUser(user.id),
+      getCoachServices(user.id),
+      getCoachBookings(user.id),
+      getAvatarUrl(user.id),
+      getCoachOnboarding(user.id),
+    ]);
 
   const pending = allBookings.filter((b) => b.status === 'requested');
   const history = allBookings.filter((b) => b.status !== 'requested');
@@ -95,16 +88,23 @@ export default async function CoachDashboardPage() {
       {provider ? (
         <>
           <StatusBanner status={provider.status} />
+          {onboarding && provider.status !== 'approved' && (
+            <OnboardingProgress onboarding={onboarding} />
+          )}
           <PhotoForm name={user.name} avatarUrl={avatarUrl} />
-          <ProfileEditor
-            headline={provider.headline}
-            description={provider.description}
-            categories={provider.categories ?? []}
-            specialties={provider.specialties ?? []}
-            sportOptions={sportOptions}
-            specialtyOptions={specialtyOptions}
-          />
-          <ServicesEditor services={services} />
+          <div id="onboarding-profilo">
+            <ProfileEditor
+              headline={provider.headline}
+              description={provider.description}
+              categories={provider.categories ?? []}
+              specialties={provider.specialties ?? []}
+              sportOptions={sportOptions}
+              specialtyOptions={specialtyOptions}
+            />
+          </div>
+          <div id="onboarding-servizi">
+            <ServicesEditor services={services} />
+          </div>
         </>
       ) : (
         <p className="text-gray-500">

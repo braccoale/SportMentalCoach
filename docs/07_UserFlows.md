@@ -46,6 +46,30 @@ Coach    → /dashboard/coach    → sees incoming requests
 - No payments, no calendar availability, no video/chat. The `accepted` state is
   terminal for Phase 1 (no `completed` transition wired in the UI yet).
 
+## Guided coach onboarding (implemented)
+
+```
+Coach signs up → /dashboard/coach (status=draft)
+  Onboarding card "Completa il tuo profilo" (X/4):
+    1. Profilo base          → headline + bio
+    2. Sport e specializzazioni → ≥1 sport e ≥1 specializzazione
+    3. Servizi               → ≥1 servizio (titolo, durata, prezzo)
+    4. Invia per la revisione → status draft→pending
+  → "Prossimo passo" links (Vai →) to the relevant editor section
+  → Submit button enabled ONLY when steps 1–3 are complete
+Admin approves → coach public on /coaches
+```
+
+- Progress is **derived from existing data** (`lib/core/onboarding`,
+  `getCoachOnboarding`) — no new columns. Step completion: headline+description,
+  non-empty categories+specialties, ≥1 service, and `status !== 'draft'`.
+- **Approval is never bypassed.** Submitting only moves `draft|rejected →
+  pending`; the admin queue still sets `approved`. `submitForReviewAction`
+  re-checks completeness server-side, so an incomplete profile cannot be
+  submitted even by a crafted request.
+- The onboarding card shows on `/dashboard/coach` while the profile is not yet
+  `approved`; once approved it is hidden (the status banner remains).
+
 ## Coach profile editing & submit-for-review (implemented)
 
 ```

@@ -7,6 +7,7 @@ import {
   updateProviderProfileFields,
   submitProviderForReview,
 } from '@/lib/core/profiles';
+import { getCoachOnboarding } from '@/lib/core/onboarding';
 import type { ActionState } from '@/lib/auth/middleware';
 
 const profileSchema = z.object({
@@ -45,6 +46,12 @@ export async function updateProfileAction(
 
 export async function submitForReviewAction(_formData: FormData) {
   const user = await requireRole('coach');
-  await submitProviderForReview(user.id);
-  revalidatePath('/dashboard/coach');
+  // Do not allow submitting an incomplete profile (defense in depth — the UI
+  // also only enables the button when onboarding steps 1–3 are complete).
+  const onboarding = await getCoachOnboarding(user.id);
+  if (onboarding?.canSubmit) {
+    await submitProviderForReview(user.id);
+    revalidatePath('/dashboard/coach');
+    revalidatePath('/coaches');
+  }
 }
