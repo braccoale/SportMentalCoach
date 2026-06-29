@@ -71,13 +71,15 @@ lib/
 A vertical module exports a single object consumed by core at boot:
 
 ```ts
+// lib/core/config/types.ts (as implemented in Phase 1)
 type VerticalConfig = {
   id: string;                       // 'sport-mental-coach'
   locale: 'it' | 'en';
   roles: {
-    client: { key: 'athlete'; label: string };
-    provider: { key: 'coach'; label: string };
-    organization: { key: 'club'; label: string };
+    client: { key: string; label: string };        // SMC: 'athlete'
+    provider: { key: string; label: string };       // SMC: 'coach'
+    organization: { key: string; label: string };   // SMC: 'club'
+    admin: { key: string; label: string };           // SMC: 'admin'
   };
   taxonomies: {
     categories: TaxonomyItem[];     // e.g. sports
@@ -85,16 +87,28 @@ type VerticalConfig = {
     levels?: TaxonomyItem[];        // e.g. amateur/pro
   };
   copy: Record<string, string>;     // UI strings
-  validation: {
-    providerProfile: ZodSchema;     // extends core base schema
-    clientProfile: ZodSchema;
-    service: ZodSchema;
-  };
 };
 ```
 
 Core consumes `verticalConfig` for: label rendering, filter options on
-`/coaches`, validation in onboarding, and the role keys stored in `roles`.
+`/coaches`, and the role keys stored in `roles`.
+
+Implementation notes (Phase 1):
+
+- The contract lives in `lib/core/config/types.ts`; accessors
+  (`getVerticalConfig()`, `getRoleLabel()`, `getRoleList()`, `t()`,
+  `findTaxonomyItem()`) live in `lib/core/config/index.ts`. The single active
+  vertical is wired there, so core call sites never import a vertical directly.
+- Role keys are typed as `string` (not string literals) to keep the contract
+  reusable across verticals; the SMC keys map to the seeded `roles` rows.
+- The `admin` role is part of the contract (it is a seeded role and needs a
+  vertical-overridable label).
+- `validation` (per-entity Zod schemas) is **deferred**: it is introduced with
+  the onboarding flow, not in this step. It will be added as an optional field
+  on `VerticalConfig` at that point.
+- The SMC vertical is split into `config.ts` (implements the contract),
+  `taxonomies.ts` (`sports`, `specialties`, `levels`), and `copy.it.ts`
+  (Italian strings), re-exported from `index.ts`.
 
 ---
 

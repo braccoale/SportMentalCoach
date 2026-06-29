@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 import { stripe } from '../payments/stripe';
 import { db } from './drizzle';
 import { users, teams, teamMembers, roles } from './schema';
@@ -58,33 +59,42 @@ async function seed() {
 
   const email = 'test@test.com';
   const password = 'admin123';
-  const passwordHash = await hashPassword(password);
 
-  const [user] = await db
-    .insert(users)
-    .values([
-      {
-        email: email,
-        passwordHash: passwordHash,
-        role: "owner",
-      },
-    ])
-    .returning();
-
-  console.log('Initial user created.');
-
-  const [team] = await db
-    .insert(teams)
-    .values({
-      name: 'Test Team',
-    })
-    .returning();
-
-  await db.insert(teamMembers).values({
-    teamId: team.id,
-    userId: user.id,
-    role: 'owner',
+  const existingUser = await db.query.users.findFirst({
+    where: eq(users.email, email),
   });
+
+  if (existingUser) {
+    console.log(`User ${email} already exists, skipping user/team seed.`);
+  } else {
+    const passwordHash = await hashPassword(password);
+
+    const [user] = await db
+      .insert(users)
+      .values([
+        {
+          email: email,
+          passwordHash: passwordHash,
+          role: 'owner',
+        },
+      ])
+      .returning();
+
+    console.log('Initial user created.');
+
+    const [team] = await db
+      .insert(teams)
+      .values({
+        name: 'Test Team',
+      })
+      .returning();
+
+    await db.insert(teamMembers).values({
+      teamId: team.id,
+      userId: user.id,
+      role: 'owner',
+    });
+  }
 
   if (BILLING_ENABLED) {
     await createStripeProducts();
