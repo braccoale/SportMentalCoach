@@ -9,6 +9,7 @@ import {
   services,
   users,
 } from '@/lib/db/schema';
+import { notify } from '@/lib/core/notifications';
 import type { Result } from '@/lib/core/result';
 
 export type BookingChatContext = {
@@ -123,5 +124,14 @@ export async function sendMessage(
   }
 
   await db.insert(messages).values({ bookingId, senderId: userId, body: trimmed });
+
+  // Notify the other participant of the new message.
+  const isClient = userId === context.clientId;
+  const recipientId = isClient ? context.coachUserId : context.clientId;
+  const senderName = isClient
+    ? context.clientName ?? context.clientEmail
+    : context.coachName;
+  await notify('new_message', recipientId, { senderName, bookingId });
+
   return { ok: true };
 }

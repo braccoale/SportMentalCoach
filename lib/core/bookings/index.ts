@@ -10,6 +10,7 @@ import {
   type BookingStatus,
 } from '@/lib/db/schema';
 import { getVerticalConfig, t } from '@/lib/core/config';
+import { notify } from '@/lib/core/notifications';
 import type { Result } from '@/lib/core/result';
 
 /** Localized label for a booking status (from the vertical copy). */
@@ -79,9 +80,10 @@ export async function createBookingRequest(params: {
   }
 
   let serviceId: number | null = null;
+  let serviceTitle: string | null = null;
   if (params.serviceId != null) {
     const [svc] = await db
-      .select({ id: services.id })
+      .select({ id: services.id, title: services.title })
       .from(services)
       .where(
         and(
@@ -94,6 +96,7 @@ export async function createBookingRequest(params: {
       return { ok: false, error: 'Servizio non valido per questo coach.' };
     }
     serviceId = svc.id;
+    serviceTitle = svc.title;
   }
 
   const [created] = await db
@@ -107,6 +110,11 @@ export async function createBookingRequest(params: {
       scheduledFor: params.scheduledFor ?? null,
     })
     .returning({ id: bookings.id });
+
+  await notify('booking_requested', provider.userId, {
+    serviceTitle,
+    bookingId: created.id,
+  });
 
   return { ok: true, bookingId: created.id };
 }
@@ -210,7 +218,12 @@ export async function decideBooking(params: {
   }
 
   const [booking] = await db
-    .select({ id: bookings.id, providerId: bookings.providerId, status: bookings.status })
+    .select({
+      id: bookings.id,
+      providerId: bookings.providerId,
+      clientId: bookings.clientId,
+      status: bookings.status,
+    })
     .from(bookings)
     .where(eq(bookings.id, params.bookingId))
     .limit(1);
@@ -227,6 +240,12 @@ export async function decideBooking(params: {
     .update(bookings)
     .set({ status: params.decision, decidedAt: new Date(), updatedAt: new Date() })
     .where(eq(bookings.id, params.bookingId));
+
+  if (params.decision === 'accepted') {
+    await notify('booking_accepted', booking.clientId, {
+      bookingId: booking.id,
+    });
+  }
 
   return { ok: true };
 }
@@ -250,7 +269,12 @@ export async function completeBooking(params: {
   }
 
   const [booking] = await db
-    .select({ id: bookings.id, providerId: bookings.providerId, status: bookings.status })
+    .select({
+      id: bookings.id,
+      providerId: bookings.providerId,
+      clientId: bookings.clientId,
+      status: bookings.status,
+    })
     .from(bookings)
     .where(eq(bookings.id, params.bookingId))
     .limit(1);
@@ -267,6 +291,8 @@ export async function completeBooking(params: {
     .update(bookings)
     .set({ status: 'completed', completedAt: new Date(), updatedAt: new Date() })
     .where(eq(bookings.id, params.bookingId));
+
+  await notify('booking_completed', booking.clientId, { bookingId: booking.id });
 
   return { ok: true };
 }
@@ -303,6 +329,14 @@ export async function cancelBooking(params: {
     .update(bookings)
     .set({ status: 'cancelled', updatedAt: new Date() })
     .where(eq(bookings.id, params.bookingId));
+
+  // Notify the other participant.
+  const recipientId =
+    params.userId === row.clientId ? row.coachUserId : row.clientId;
+  await notify('booking_cancelled', recipientId, {
+    audience: recipientId === row.coachUserId ? 'coach' : 'athlete',
+    bookingId: row.id,
+  });
 
   return { ok: true };
 }

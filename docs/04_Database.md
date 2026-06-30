@@ -186,6 +186,26 @@ Index on `(booking_id, created_at)`. Access control lives in
 participants (the athlete client and the coach behind the provider profile) and
 **only** for `accepted` bookings.
 
+### `notifications` (Phase 2 — generic, framework-level)
+
+In-app notifications, reusable by any marketplace on this framework. Added by
+migration `0005`.
+
+| column     | type                | notes                                              |
+|------------|---------------------|----------------------------------------------------|
+| id         | serial PK           |                                                    |
+| user_id    | integer FK users.id | recipient; not null                                |
+| type       | varchar(50)         | stable key (e.g. `booking_accepted`, `new_message`)|
+| title      | varchar(200)        | pre-rendered; not null                             |
+| body       | text                | pre-rendered; nullable                             |
+| data       | jsonb               | arbitrary payload (e.g. `{ link, bookingId }`)     |
+| read_at    | timestamp           | null = unread                                      |
+| created_at | timestamp           | defaultNow()                                       |
+
+Indexes on `(user_id, created_at)` and `(user_id, read_at)` (unread counts).
+The table and CRUD (`lib/core/notifications`) are content-agnostic; the default
+marketplace copy lives in a single, swappable `buildContent` map.
+
 ---
 
 ## Aliases & views

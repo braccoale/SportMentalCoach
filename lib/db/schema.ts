@@ -8,6 +8,7 @@ import {
   boolean,
   unique,
   index,
+  jsonb,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -382,6 +383,39 @@ export const messagesRelations = relations(messages, ({ one }) => ({
   }),
 }));
 
+// Generic, framework-level notifications. Vertical-agnostic: `type` is a stable
+// key, `title`/`body` are pre-rendered strings, `data` carries arbitrary JSON
+// (e.g. a link/bookingId) for the UI. Reusable by any marketplace on this base.
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id),
+    type: varchar('type', { length: 50 }).notNull(),
+    title: varchar('title', { length: 200 }).notNull(),
+    body: text('body'),
+    data: jsonb('data'),
+    readAt: timestamp('read_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('notifications_user_id_created_at_idx').on(
+      table.userId,
+      table.createdAt
+    ),
+    index('notifications_user_id_read_at_idx').on(table.userId, table.readAt),
+  ]
+);
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+  }),
+}));
+
 export const clientProfilesRelations = relations(clientProfiles, ({ one }) => ({
   user: one(users, {
     fields: [clientProfiles.userId],
@@ -438,6 +472,8 @@ export type CoachAvailability = typeof coachAvailability.$inferSelect;
 export type NewCoachAvailability = typeof coachAvailability.$inferInsert;
 export type Message = typeof messages.$inferSelect;
 export type NewMessage = typeof messages.$inferInsert;
+export type Notification = typeof notifications.$inferSelect;
+export type NewNotification = typeof notifications.$inferInsert;
 
 export const BOOKING_STATUSES = [
   'requested',

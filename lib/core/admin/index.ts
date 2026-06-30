@@ -7,6 +7,7 @@ import {
   users,
   type ProviderStatus,
 } from '@/lib/db/schema';
+import { notify } from '@/lib/core/notifications';
 import type { Result } from '@/lib/core/result';
 
 export type ProviderReviewItem = {
@@ -72,11 +73,16 @@ export async function reviewProviderProfile(params: {
       updatedAt: new Date(),
     })
     .where(eq(providerProfiles.id, params.providerId))
-    .returning({ id: providerProfiles.id });
+    .returning({ id: providerProfiles.id, userId: providerProfiles.userId });
 
   if (!updated) {
     return { ok: false, error: 'Profilo non trovato.' };
   }
+
+  await notify(
+    params.decision === 'approved' ? 'provider_approved' : 'provider_rejected',
+    updated.userId
+  );
 
   return { ok: true };
 }

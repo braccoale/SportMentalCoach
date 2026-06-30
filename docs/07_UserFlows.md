@@ -53,6 +53,30 @@ Coach    → /dashboard/coach    → sees incoming requests + preferred time
   valid, future datetime) and shown on both dashboards. It is a *preference* —
   the coach still accepts/declines; no automatic slot matching in this step.
 
+## Notifications (Phase 2, implemented — generic foundation)
+
+```
+Domain event → lib/core/notifications.notify(type, recipientUserId, ctx)
+            → row in `notifications` (best-effort; never breaks the action)
+Header bell (every dashboard page): unread badge + dropdown (last 10)
+  → click item → marks read + navigates to data.link
+  → "Segna tutte come lette"
+/dashboard/notifications: full list + per-item / mark-all read
+```
+
+- Events wired (auto-generated): `booking_requested` → coach;
+  `booking_accepted` / `booking_completed` → athlete; `booking_cancelled` →
+  the other participant; `new_message` → the other participant;
+  `provider_approved` / `provider_rejected` → coach.
+- **Generic & reusable**: `lib/core/notifications` is the framework primitive —
+  a content-agnostic `createNotification` + CRUD (`getRecentWithCount`,
+  `getNotifications`, `markAsRead`, `markAllAsRead`) used by the bell
+  (`/api/notifications`) and page. Default copy lives in one swappable
+  `buildContent` map so a new vertical can override it.
+- **Security**: `read_at` updates are scoped to the owner (`markAsRead` /
+  `markAllAsRead` filter by `user_id`); `/api/notifications` returns only the
+  current user's rows. No email, no push yet.
+
 ## Session lifecycle completion (Phase 2, implemented)
 
 ```

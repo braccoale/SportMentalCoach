@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation';
 import { User } from '@/lib/db/schema';
 import { BILLING_ENABLED } from '@/lib/core/flags';
 import { Footer } from '@/components/footer';
+import { NotificationBell } from '@/components/notification-bell';
 import { fetcher } from '@/lib/fetcher';
 import useSWR, { mutate } from 'swr';
 
@@ -98,6 +99,7 @@ function Header() {
           >
             Trova un coach
           </Link>
+          <NotificationBell />
           <Suspense fallback={<div className="h-9" />}>
             <UserMenu />
           </Suspense>

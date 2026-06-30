@@ -36,6 +36,13 @@
       "when": 1782757272661,
       "tag": "0004_omniscient_lizard",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1782837867908,
+      "tag": "0005_breezy_magus",
+      "breakpoints": true
     }
   ]
 }
