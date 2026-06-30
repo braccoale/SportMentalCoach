@@ -67,6 +67,7 @@ Gestisce la piattaforma, approva coach, monitora prenotazioni, pagamenti e quali
 
 ### Fase 3
 
+- Sezione Academy
 - Pagamenti Stripe
 - AI assistant
 - Matching coach-atleta

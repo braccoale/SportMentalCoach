@@ -25,3 +25,14 @@ export function isRealtimeConfigured(): boolean {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
 }
+
+// Email notifications (Resend) are optional and OFF by default. Enabled only
+// when EMAIL_NOTIFICATIONS_ENABLED=true AND the Resend key + from-address are
+// present. Read lazily so Resend is never required at startup.
+export function isEmailEnabled(): boolean {
+  return (
+    process.env.EMAIL_NOTIFICATIONS_ENABLED === 'true' &&
+    !!process.env.RESEND_API_KEY &&
+    !!process.env.RESEND_FROM_EMAIL
+  );
+}

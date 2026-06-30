@@ -1,7 +1,9 @@
 import 'server-only';
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { db, type DbOrTx } from '@/lib/db/drizzle';
-import { notifications, type Notification } from '@/lib/db/schema';
+import { notifications, users, type Notification } from '@/lib/db/schema';
+import { isEmailEnabled } from '@/lib/core/flags';
+import { sendNotificationEmail } from '@/lib/core/email';
 
 /**
  * Stable notification type keys. Generic marketplace events — any vertical on
@@ -220,10 +222,35 @@ export async function notify(
   recipientUserId: number,
   ctx: NotifyContext = {}
 ): Promise<void> {
+  const { title, body, data } = buildContent(type, ctx);
+
+  // In-app notification: the source of truth.
   try {
-    const { title, body, data } = buildContent(type, ctx);
     await createNotification({ userId: recipientUserId, type, title, body, data });
   } catch (error) {
     console.error('notify failed:', type, error);
+  }
+
+  // Optional email mirror — best-effort; never breaks the action.
+  if (isEmailEnabled()) {
+    try {
+      const [recipient] = await db
+        .select({ email: users.email })
+        .from(users)
+        .where(eq(users.id, recipientUserId))
+        .limit(1);
+      if (recipient?.email) {
+        await sendNotificationEmail({
+          to: recipient.email,
+          title,
+          body,
+          link: data.link,
+        });
+      }
+    } catch (error) {
+      console.error('[email] notify-email failed:', type, error);
+    }
+  } else {
+    console.log(`[email] skipped (disabled): "${title}"`);
   }
 }

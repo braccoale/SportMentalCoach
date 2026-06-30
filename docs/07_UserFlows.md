@@ -75,7 +75,25 @@ Header bell (every dashboard page): unread badge + dropdown (last 10)
   `buildContent` map so a new vertical can override it.
 - **Security**: `read_at` updates are scoped to the owner (`markAsRead` /
   `markAllAsRead` filter by `user_id`); `/api/notifications` returns only the
-  current user's rows. No email, no push yet.
+  current user's rows. No push.
+
+### Email mirror (Resend — optional)
+
+Every `notify(...)` first writes the in-app notification (the **source of
+truth**), then — best-effort — emails the recipient when email is enabled:
+
+- Enabled only when `EMAIL_NOTIFICATIONS_ENABLED=true` **and** `RESEND_API_KEY`
+  + `RESEND_FROM_EMAIL` are set (`isEmailEnabled()`, read lazily). Otherwise the
+  send is **skipped** and logged; the app runs normally (Resend is never
+  required at startup).
+- Covers all 7 types (booking_requested / accepted / cancelled / completed,
+  new_message, provider_approved / rejected) since they all flow through
+  `notify`.
+- Transport is `lib/core/email` via the Resend REST API (`fetch`, no SDK). A
+  failed email **never breaks the action** (best-effort, fully caught).
+- **Clear logs**: `[email] skipped …`, `[email] sent to … "subject"`,
+  `[email] failed to … (status)`.
+- No push notifications.
 
 ## Session lifecycle completion (Phase 2, implemented)
 
