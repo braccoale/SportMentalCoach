@@ -130,8 +130,28 @@ Booking accepted → both dashboards show an "Apri chat →" link
   the coach behind the provider profile) and **only for `accepted` bookings**.
   Enforced server-side in `lib/core/messages` (`getChat` / `sendMessage`); a
   non-participant or non-accepted booking gets `notFound()` (no info leak).
-- No Supabase Realtime, no LiveKit, no payments — messages are plain
-  server-rendered rows refreshed on send / page reload.
+- Messages are server-rendered initially; the client `ChatPanel` re-fetches from
+  the participant-guarded `GET /api/chat/[bookingId]/messages` after each send.
+
+### Realtime (Supabase Broadcast — optional, security-preserving)
+
+When `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` are set, the
+chat becomes live:
+
+- Both participants' clients subscribe to a Supabase **Broadcast** channel
+  `chat-<bookingId>`. After a successful send, the sender's client emits a
+  **content-free** `new-message` signal; the peer's client receives it and
+  re-fetches via the guarded API route.
+- **Realtime never carries message content** — it is only a nudge. All reads go
+  through the server participant check, so a malicious anon subscriber learns
+  nothing beyond "a message happened" and cannot read messages. Realtime
+  enhances the UI; it does not replace server-side security.
+- **Graceful degradation**: with the Supabase vars unset (`isRealtimeConfigured`
+  false), the subscription is skipped and chat works exactly as before — live
+  for the sender (refetch on send) and via manual refresh for the peer. The
+  composer hint reflects which mode is active.
+- No payments, no Cal.com, no schema change (no realtime publication needed —
+  Broadcast does not read the DB).
 
 ## Booking video call (Phase 2, implemented — LiveKit foundation)
 

@@ -16,3 +16,12 @@ export function isVideoConfigured(): boolean {
     process.env.NEXT_PUBLIC_LIVEKIT_URL
   );
 }
+
+// Supabase Realtime is optional. When unset, chat still works with
+// server-rendered messages + refresh — realtime only enhances the UI.
+export function isRealtimeConfigured(): boolean {
+  return !!(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+}

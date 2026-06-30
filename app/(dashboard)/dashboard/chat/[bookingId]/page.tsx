@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { getUser } from '@/lib/db/queries';
 import { getChat } from '@/lib/core/messages';
 import { formatDateTime } from '@/lib/core/format';
-import { ChatComposer } from './chat-composer';
+import { ChatPanel, type SerializedMessage } from './chat-panel';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +32,16 @@ export default async function ChatPage({
     : context.clientName ?? context.clientEmail;
   const backHref = isClient ? '/dashboard/athlete' : '/dashboard/coach';
 
+  // Serialize for the client component (Date → ISO string).
+  const initialMessages: SerializedMessage[] = messages.map((m) => ({
+    id: m.id,
+    senderId: m.senderId,
+    senderName: m.senderName,
+    senderEmail: m.senderEmail,
+    body: m.body,
+    createdAt: m.createdAt.toISOString(),
+  }));
+
   return (
     <section className="mx-auto w-full max-w-2xl p-6">
       <Link
@@ -53,39 +63,11 @@ export default async function ChatPage({
         </p>
       </header>
 
-      <div className="mt-6 flex flex-col gap-3 rounded-lg border border-gray-200 p-4">
-        {messages.length === 0 ? (
-          <p className="text-sm text-gray-500">
-            Nessun messaggio. Inizia la conversazione.
-          </p>
-        ) : (
-          messages.map((m) => {
-            const mine = m.senderId === user.id;
-            return (
-              <div
-                key={m.id}
-                className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
-                  mine
-                    ? 'self-end bg-orange-500 text-white'
-                    : 'self-start bg-gray-100 text-gray-800'
-                }`}
-              >
-                <p className="whitespace-pre-line">{m.body}</p>
-                <p
-                  className={`mt-1 text-[11px] ${
-                    mine ? 'text-orange-100' : 'text-gray-400'
-                  }`}
-                >
-                  {mine ? 'Tu' : m.senderName ?? m.senderEmail} ·{' '}
-                  {formatDateTime(m.createdAt)}
-                </p>
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      <ChatComposer bookingId={id} />
+      <ChatPanel
+        bookingId={id}
+        currentUserId={user.id}
+        initialMessages={initialMessages}
+      />
     </section>
   );
 }
