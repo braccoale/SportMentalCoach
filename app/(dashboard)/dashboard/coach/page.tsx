@@ -17,7 +17,12 @@ import { ProfileEditor } from './profile-editor';
 import { ServicesEditor } from './services-editor';
 import { AvailabilityEditor } from './availability-editor';
 import { OnboardingProgress } from './onboarding-progress';
-import { acceptBookingAction, declineBookingAction } from './actions';
+import {
+  acceptBookingAction,
+  declineBookingAction,
+  completeBookingAction,
+  cancelBookingAction,
+} from './actions';
 
 function StatusBanner({ status }: { status: string }) {
   const config = getVerticalConfig();
@@ -68,7 +73,10 @@ export default async function CoachDashboardPage() {
     : null;
 
   const pending = allBookings.filter((b) => b.status === 'requested');
-  const history = allBookings.filter((b) => b.status !== 'requested');
+  const accepted = allBookings.filter((b) => b.status === 'accepted');
+  const archive = allBookings.filter((b) =>
+    ['declined', 'cancelled', 'completed'].includes(b.status)
+  );
 
   const sportOptions = config.taxonomies.categories.map((i) => ({
     key: i.key,
@@ -165,12 +173,71 @@ export default async function CoachDashboardPage() {
           </ul>
         )}
 
+        <h2 className="mt-8 text-lg font-medium text-gray-900">
+          Sessioni accettate ({accepted.length})
+        </h2>
+        {accepted.length === 0 ? (
+          <p className="mt-2 text-gray-500">Nessuna sessione accettata.</p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-3">
+            {accepted.map((b) => (
+              <li
+                key={b.id}
+                className="flex flex-col gap-3 rounded-lg border border-gray-200 p-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="font-medium text-gray-900">
+                    {b.clientName || b.clientEmail}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {b.serviceTitle ?? 'Richiesta generica'}
+                    {b.scheduledFor
+                      ? ` · ${formatDateTime(b.scheduledFor)}`
+                      : ''}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Link
+                    href={`/dashboard/chat/${b.id}`}
+                    className="text-sm font-medium text-orange-600 hover:text-orange-700"
+                  >
+                    Apri chat →
+                  </Link>
+                  <Link
+                    href={`/dashboard/video/${b.id}`}
+                    className="text-sm font-medium text-orange-600 hover:text-orange-700"
+                  >
+                    Apri videochiamata →
+                  </Link>
+                  <ActionForm action={completeBookingAction}>
+                    <input type="hidden" name="bookingId" value={b.id} />
+                    <Button type="submit" size="sm" className="rounded-full">
+                      Completa
+                    </Button>
+                  </ActionForm>
+                  <ActionForm action={cancelBookingAction}>
+                    <input type="hidden" name="bookingId" value={b.id} />
+                    <Button
+                      type="submit"
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full text-red-600 hover:text-red-700"
+                    >
+                      Annulla
+                    </Button>
+                  </ActionForm>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
         <h2 className="mt-8 text-lg font-medium text-gray-900">Storico</h2>
-        {history.length === 0 ? (
+        {archive.length === 0 ? (
           <p className="mt-2 text-gray-500">Nessuna richiesta passata.</p>
         ) : (
           <ul className="mt-3 flex flex-col gap-2">
-            {history.map((b) => (
+            {archive.map((b) => (
               <li
                 key={b.id}
                 className="flex items-center justify-between rounded-lg border border-gray-100 px-4 py-3 text-sm"
@@ -179,26 +246,8 @@ export default async function CoachDashboardPage() {
                   {b.clientName || b.clientEmail} —{' '}
                   {b.serviceTitle ?? 'Richiesta generica'}
                 </span>
-                <span className="flex items-center gap-3">
-                  {b.status === 'accepted' && (
-                    <>
-                      <Link
-                        href={`/dashboard/chat/${b.id}`}
-                        className="font-medium text-orange-600 hover:text-orange-700"
-                      >
-                        Apri chat →
-                      </Link>
-                      <Link
-                        href={`/dashboard/video/${b.id}`}
-                        className="font-medium text-orange-600 hover:text-orange-700"
-                      >
-                        Apri videochiamata →
-                      </Link>
-                    </>
-                  )}
-                  <span className="font-medium text-gray-500">
-                    {bookingStatusLabel(b.status)}
-                  </span>
+                <span className="font-medium text-gray-500">
+                  {bookingStatusLabel(b.status)}
                 </span>
               </li>
             ))}

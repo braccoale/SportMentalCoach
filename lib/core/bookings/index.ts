@@ -230,3 +230,79 @@ export async function decideBooking(params: {
 
   return { ok: true };
 }
+
+/**
+ * Coach marks an `accepted` booking as `completed`. Ownership + transition
+ * (`accepted → completed`) enforced.
+ */
+export async function completeBooking(params: {
+  bookingId: number;
+  coachUserId: number;
+}): Promise<Result> {
+  const [provider] = await db
+    .select({ id: providerProfiles.id })
+    .from(providerProfiles)
+    .where(eq(providerProfiles.userId, params.coachUserId))
+    .limit(1);
+
+  if (!provider) {
+    return { ok: false, error: 'Profilo coach non trovato.' };
+  }
+
+  const [booking] = await db
+    .select({ id: bookings.id, providerId: bookings.providerId, status: bookings.status })
+    .from(bookings)
+    .where(eq(bookings.id, params.bookingId))
+    .limit(1);
+
+  if (!booking || booking.providerId !== provider.id) {
+    return { ok: false, error: 'Richiesta non trovata.' };
+  }
+
+  if (!canTransition(booking.status as BookingStatus, 'completed')) {
+    return { ok: false, error: 'La sessione non può essere completata.' };
+  }
+
+  await db
+    .update(bookings)
+    .set({ status: 'completed', completedAt: new Date(), updatedAt: new Date() })
+    .where(eq(bookings.id, params.bookingId));
+
+  return { ok: true };
+}
+
+/**
+ * Either participant (the athlete client or the coach) cancels a booking that
+ * is still `requested` or `accepted`. Participation + transition enforced.
+ */
+export async function cancelBooking(params: {
+  bookingId: number;
+  userId: number;
+}): Promise<Result> {
+  const [row] = await db
+    .select({
+      id: bookings.id,
+      status: bookings.status,
+      clientId: bookings.clientId,
+      coachUserId: providerProfiles.userId,
+    })
+    .from(bookings)
+    .innerJoin(providerProfiles, eq(bookings.providerId, providerProfiles.id))
+    .where(eq(bookings.id, params.bookingId))
+    .limit(1);
+
+  if (!row || (params.userId !== row.clientId && params.userId !== row.coachUserId)) {
+    return { ok: false, error: 'Prenotazione non trovata.' };
+  }
+
+  if (!canTransition(row.status as BookingStatus, 'cancelled')) {
+    return { ok: false, error: 'La prenotazione non può essere annullata.' };
+  }
+
+  await db
+    .update(bookings)
+    .set({ status: 'cancelled', updatedAt: new Date() })
+    .where(eq(bookings.id, params.bookingId));
+
+  return { ok: true };
+}

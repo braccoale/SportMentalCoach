@@ -53,6 +53,30 @@ Coach    → /dashboard/coach    → sees incoming requests + preferred time
   valid, future datetime) and shown on both dashboards. It is a *preference* —
   the coach still accepts/declines; no automatic slot matching in this step.
 
+## Session lifecycle completion (Phase 2, implemented)
+
+```
+Accepted booking:
+  Coach   → "Completa"  → status=completed (sets completed_at)
+  Coach   → "Annulla"   → status=cancelled
+  Athlete → "Annulla"   → status=cancelled
+Requested booking:
+  Athlete → "Annulla"   → status=cancelled   (coach uses Accetta/Rifiuta)
+```
+
+- Transitions are enforced server-side by the state machine
+  (`BOOKING_TRANSITIONS` / `canTransition` in `lib/core/bookings`):
+  `accepted → completed | cancelled`, `requested → cancelled`; terminal states
+  (`declined`, `cancelled`, `completed`) reject further changes.
+- **Authorization**: `completeBooking` is coach-only (ownership-checked);
+  `cancelBooking` allows either participant (athlete client or the coach).
+- **Dashboards** group bookings into *In attesa / Accettate / Storico*
+  (athlete) and *Richieste in attesa / Sessioni accettate / Storico* (coach).
+  Completed and cancelled bookings appear in **Storico**.
+- **Chat & video are shown only for `accepted` bookings** (both the dashboard
+  buttons and the page-level guards in `lib/core/messages` / `lib/core/video`),
+  so a cancelled or completed booking exposes neither.
+
 - Enforcement is server-side in the actions/domain, not just the UI:
   - `requestBooking` (`app/(marketplace)/coaches/[slug]/actions.ts`) redirects
     anonymous users to sign-in and rejects non-athletes.

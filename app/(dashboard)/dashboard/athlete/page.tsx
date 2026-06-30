@@ -9,9 +9,12 @@ import {
 import { getAvatarUrl } from '@/lib/core/profiles';
 import { formatDateTime } from '@/lib/core/format';
 import { Button } from '@/components/ui/button';
+import { ActionForm } from '@/components/action-form';
 import { PhotoForm } from '../photo-form';
+import { cancelBookingAction } from './actions';
 
 function BookingRow({ b }: { b: AthleteBooking }) {
+  const canCancel = b.status === 'requested' || b.status === 'accepted';
   return (
     <li className="flex items-center justify-between rounded-lg border border-gray-200 p-4">
       <div>
@@ -40,6 +43,7 @@ function BookingRow({ b }: { b: AthleteBooking }) {
         >
           {bookingStatusLabel(b.status)}
         </span>
+        {/* chat/video only for accepted; never for cancelled */}
         {b.status === 'accepted' && (
           <div className="flex flex-col items-end gap-1">
             <Link
@@ -55,6 +59,19 @@ function BookingRow({ b }: { b: AthleteBooking }) {
               Apri videochiamata →
             </Link>
           </div>
+        )}
+        {canCancel && (
+          <ActionForm action={cancelBookingAction}>
+            <input type="hidden" name="bookingId" value={b.id} />
+            <Button
+              type="submit"
+              variant="outline"
+              size="sm"
+              className="rounded-full text-red-600 hover:text-red-700"
+            >
+              Annulla
+            </Button>
+          </ActionForm>
         )}
       </div>
     </li>

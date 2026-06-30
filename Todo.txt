@@ -15,6 +15,7 @@
 domande:
 	- nella card del coach serve mettere l'età? e il luogo di dove si trova?
 	- filtro per prezzo? in unobravo ogniuno mette il suo prezzo, noi invece avremmo degli abbonamenti ? giusto?
+	- la parte dell'accademy? che deve fare.. i coach si possono iscrivere? se si che cosa fa l'accademy per loro.. loro pagano per accedere e ricevere corsi come funziona?
 
 
 da fare
