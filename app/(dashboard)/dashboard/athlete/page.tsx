@@ -7,16 +7,30 @@ import {
   type AthleteBooking,
 } from '@/lib/core/bookings';
 import { getAvatarUrl } from '@/lib/core/profiles';
-import { formatDateTime } from '@/lib/core/format';
+import { getReviewedBookingIds } from '@/lib/core/reviews';
+import {
+  formatDate,
+  formatDateTime,
+  scheduledForLabel,
+} from '@/lib/core/format';
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
 import { PhotoForm } from '../photo-form';
+import { ReviewForm } from './review-form';
 import { cancelBookingAction } from './actions';
 
-function BookingRow({ b }: { b: AthleteBooking }) {
+function BookingRow({
+  b,
+  reviewedIds,
+}: {
+  b: AthleteBooking;
+  reviewedIds: Set<number>;
+}) {
   const canCancel = b.status === 'requested' || b.status === 'accepted';
+  const canReview = b.status === 'completed' && !reviewedIds.has(b.id);
   return (
-    <li className="flex items-center justify-between rounded-lg border border-gray-200 p-4">
+    <li className="flex flex-col gap-3 rounded-lg border border-gray-200 p-4">
+      <div className="flex items-start justify-between gap-3">
       <div>
         <p className="font-medium text-gray-900">
           {b.coachSlug ? (
@@ -28,12 +42,18 @@ function BookingRow({ b }: { b: AthleteBooking }) {
           )}
         </p>
         <p className="text-sm text-gray-500">
-          {b.serviceTitle ?? 'Richiesta generica'} ·{' '}
-          {formatDateTime(b.requestedAt)}
+          {b.serviceTitle ?? 'Richiesta generica'} · richiesta inviata il{' '}
+          {formatDate(b.requestedAt)}
         </p>
         {b.scheduledFor && (
-          <p className="text-sm font-medium text-gray-700">
-            Preferito: {formatDateTime(b.scheduledFor)}
+          <p
+            className={
+              b.status === 'accepted'
+                ? 'text-sm font-semibold text-gray-900'
+                : 'text-sm font-medium text-gray-700'
+            }
+          >
+            {scheduledForLabel(b.status)} {formatDateTime(b.scheduledFor)}
           </p>
         )}
       </div>
@@ -48,13 +68,13 @@ function BookingRow({ b }: { b: AthleteBooking }) {
           <div className="flex flex-col items-end gap-1">
             <Link
               href={`/dashboard/chat/${b.id}`}
-              className="text-sm font-medium text-orange-600 hover:text-orange-700"
+              className="text-sm font-medium text-red-600 hover:text-red-700"
             >
               Apri chat →
             </Link>
             <Link
               href={`/dashboard/video/${b.id}`}
-              className="text-sm font-medium text-orange-600 hover:text-orange-700"
+              className="text-sm font-medium text-red-600 hover:text-red-700"
             >
               Apri videochiamata →
             </Link>
@@ -74,6 +94,15 @@ function BookingRow({ b }: { b: AthleteBooking }) {
           </ActionForm>
         )}
       </div>
+      </div>
+      {canReview && (
+        <div className="border-t border-gray-100 pt-3">
+          <p className="text-sm font-medium text-gray-700">
+            Com&apos;è andata? Lascia una recensione
+          </p>
+          <ReviewForm bookingId={b.id} coachName={b.coachName ?? 'Coach'} />
+        </div>
+      )}
     </li>
   );
 }
@@ -81,9 +110,11 @@ function BookingRow({ b }: { b: AthleteBooking }) {
 function Section({
   title,
   items,
+  reviewedIds,
 }: {
   title: string;
   items: AthleteBooking[];
+  reviewedIds: Set<number>;
 }) {
   if (items.length === 0) return null;
   return (
@@ -93,7 +124,7 @@ function Section({
       </h2>
       <ul className="mt-3 flex flex-col gap-3">
         {items.map((b) => (
-          <BookingRow key={b.id} b={b} />
+          <BookingRow key={b.id} b={b} reviewedIds={reviewedIds} />
         ))}
       </ul>
     </div>
@@ -102,9 +133,10 @@ function Section({
 
 export default async function AthleteDashboardPage() {
   const user = await requireRole('athlete');
-  const [requests, avatarUrl] = await Promise.all([
+  const [requests, avatarUrl, reviewedIds] = await Promise.all([
     getAthleteBookings(user.id),
     getAvatarUrl(user.id),
+    getReviewedBookingIds(user.id),
   ]);
 
   const waiting = requests.filter((b) => b.status === 'requested');
@@ -116,18 +148,16 @@ export default async function AthleteDashboardPage() {
   return (
     <section className="flex flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">
-          Athlete dashboard
-        </h1>
+        <h2 className="text-lg font-medium text-gray-900">Le tue sessioni</h2>
         <Link
           href="/coaches"
-          className="text-sm font-medium text-orange-600 hover:text-orange-700"
+          className="text-sm font-medium text-red-600 hover:text-red-700"
         >
           Trova un coach →
         </Link>
       </div>
 
-      <PhotoForm name={user.name} avatarUrl={avatarUrl} />
+      <PhotoForm name={[user.name, user.lastName].filter(Boolean).join(' ') || null} avatarUrl={avatarUrl} />
 
       {requests.length === 0 ? (
         <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center">
@@ -143,9 +173,9 @@ export default async function AthleteDashboardPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-6">
-          <Section title="In attesa" items={waiting} />
-          <Section title="Accettate" items={accepted} />
-          <Section title="Storico" items={archive} />
+          <Section title="In attesa" items={waiting} reviewedIds={reviewedIds} />
+          <Section title="Accettate" items={accepted} reviewedIds={reviewedIds} />
+          <Section title="Storico" items={archive} reviewedIds={reviewedIds} />
         </div>
       )}
     </section>

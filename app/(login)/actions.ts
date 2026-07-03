@@ -1,7 +1,7 @@
 'use server';
 
 import { z } from 'zod';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db, type DbOrTx } from '@/lib/db/drizzle';
 import {
   User,
@@ -16,9 +16,12 @@ import {
   ActivityType,
   invitations
 } from '@/lib/db/schema';
-import { comparePasswords, hashPassword, setSession } from '@/lib/auth/session';
+import {
+  createSupabaseServer,
+  createSupabaseAdmin,
+} from '@/lib/auth/supabase';
+import { sendWelcomeEmail } from '@/lib/core/email';
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
 import { createCheckoutSession } from '@/lib/payments/stripe';
 import { getUser, getUserWithTeam } from '@/lib/db/queries';
 import {
@@ -58,49 +61,65 @@ const signInSchema = z.object({
 export const signIn = validatedAction(signInSchema, async (data, formData) => {
   const { email, password } = data;
 
-  const userWithTeam = await db
-    .select({
-      user: users,
-      team: teams
-    })
+  // Supabase Auth owns the credentials; a successful call also sets the
+  // session cookies for this response.
+  const supabase = await createSupabaseServer();
+  const { data: authData, error: authError } =
+    await supabase.auth.signInWithPassword({ email, password });
+
+  if (authError || !authData.user) {
+    return {
+      error: 'Email o password non corretti. Riprova.',
+      email,
+      password
+    };
+  }
+
+  // App profile row, linked by auth_id (self-heal legacy rows by email).
+  let [foundUser] = await db
+    .select()
     .from(users)
-    .leftJoin(teamMembers, eq(users.id, teamMembers.userId))
-    .leftJoin(teams, eq(teamMembers.teamId, teams.id))
-    .where(eq(users.email, email))
+    .where(and(eq(users.authId, authData.user.id), isNull(users.deletedAt)))
     .limit(1);
 
-  if (userWithTeam.length === 0) {
+  if (!foundUser) {
+    const [byEmail] = await db
+      .select()
+      .from(users)
+      .where(and(eq(users.email, email), isNull(users.deletedAt)))
+      .limit(1);
+    if (byEmail && !byEmail.authId) {
+      await db
+        .update(users)
+        .set({ authId: authData.user.id })
+        .where(eq(users.id, byEmail.id));
+      foundUser = { ...byEmail, authId: authData.user.id };
+    }
+  }
+
+  if (!foundUser) {
+    await supabase.auth.signOut();
     return {
-      error: 'Invalid email or password. Please try again.',
+      error: 'Account non trovato. Contatta il supporto.',
       email,
       password
     };
   }
 
-  const { user: foundUser, team: foundTeam } = userWithTeam[0];
-
-  const isPasswordValid = await comparePasswords(
-    password,
-    foundUser.passwordHash
-  );
-
-  if (!isPasswordValid) {
-    return {
-      error: 'Invalid email or password. Please try again.',
-      email,
-      password
-    };
-  }
-
-  await Promise.all([
-    setSession(foundUser),
-    logActivity(foundTeam?.id, foundUser.id, ActivityType.SIGN_IN)
-  ]);
+  const userWithTeam = await getUserWithTeam(foundUser.id);
+  await logActivity(userWithTeam?.teamId, foundUser.id, ActivityType.SIGN_IN);
 
   const redirectTo = formData.get('redirect') as string | null;
   if (redirectTo === 'checkout') {
     const priceId = formData.get('priceId') as string;
-    return createCheckoutSession({ team: foundTeam, priceId });
+    const [team] = userWithTeam?.teamId
+      ? await db
+          .select()
+          .from(teams)
+          .where(eq(teams.id, userWithTeam.teamId))
+          .limit(1)
+      : [null];
+    return createCheckoutSession({ team: team ?? null, priceId });
   }
 
   const roles = await getUserRoles(foundUser.id);
@@ -126,7 +145,8 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
 
   if (existingUser.length > 0) {
     return {
-      error: 'Failed to create user. Please try again.',
+      error:
+        'Esiste già un account con questa email. Accedi oppure usa un’altra email.',
       email,
       password
     };
@@ -149,11 +169,33 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
       .limit(1);
 
     if (!invitation) {
-      return { error: 'Invalid or expired invitation.', email, password };
+      return { error: 'Invito non valido o scaduto.', email, password };
     }
   }
 
-  const passwordHash = await hashPassword(password);
+  // 1) Identity in Supabase Auth. Created via the admin API with the email
+  //    marked confirmed (double-opt-in can be enabled later from the Supabase
+  //    dashboard without code changes).
+  const admin = createSupabaseAdmin();
+  const { data: createdAuth, error: authError } =
+    await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true
+    });
+
+  if (authError || !createdAuth.user) {
+    console.error('Supabase signUp failed:', authError);
+    const duplicate = authError?.message?.toLowerCase().includes('already');
+    return {
+      error: duplicate
+        ? 'Esiste già un account con questa email. Accedi oppure usa un’altra email.'
+        : 'Creazione account non riuscita. Riprova.',
+      email,
+      password
+    };
+  }
+  const authId = createdAuth.user.id;
 
   // Standard signups pick a marketplace role; invited members get a base
   // profile only (their marketplace role is managed within the club).
@@ -163,7 +205,7 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
   // orphaned user / team / profile rows behind.
   const signupResult = await db
     .transaction(async (tx) => {
-      const newUser: NewUser = { email, passwordHash, role: 'owner' };
+      const newUser: NewUser = { email, authId, role: 'owner' };
       const [createdUser] = await tx.insert(users).values(newUser).returning();
 
       let teamId: number;
@@ -218,16 +260,23 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
     });
 
   if (!signupResult) {
+    // Roll back the Auth identity so a retry with the same email works.
+    await admin.auth.admin.deleteUser(authId).catch(() => {});
     return {
-      error: 'Failed to create user. Please try again.',
+      error: 'Creazione account non riuscita. Riprova.',
       email,
       password
     };
   }
 
-  const { user: createdUser, team: createdTeam } = signupResult;
+  const { team: createdTeam } = signupResult;
 
-  await setSession(createdUser);
+  // 2) Session cookies for the freshly created identity.
+  const supabase = await createSupabaseServer();
+  await supabase.auth.signInWithPassword({ email, password });
+
+  // Welcome email (best-effort; never blocks the signup).
+  await sendWelcomeEmail({ to: email }).catch(() => {});
 
   const redirectTo = formData.get('redirect') as string | null;
   if (redirectTo === 'checkout') {
@@ -242,9 +291,12 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
 
 export async function signOut() {
   const user = (await getUser()) as User;
-  const userWithTeam = await getUserWithTeam(user.id);
-  await logActivity(userWithTeam?.teamId, user.id, ActivityType.SIGN_OUT);
-  (await cookies()).delete('session');
+  if (user) {
+    const userWithTeam = await getUserWithTeam(user.id);
+    await logActivity(userWithTeam?.teamId, user.id, ActivityType.SIGN_OUT);
+  }
+  const supabase = await createSupabaseServer();
+  await supabase.auth.signOut();
 }
 
 const updatePasswordSchema = z.object({
@@ -258,17 +310,19 @@ export const updatePassword = validatedActionWithUser(
   async (data, _, user) => {
     const { currentPassword, newPassword, confirmPassword } = data;
 
-    const isPasswordValid = await comparePasswords(
-      currentPassword,
-      user.passwordHash
-    );
+    // Verify the current password against Supabase Auth.
+    const supabase = await createSupabaseServer();
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword
+    });
 
-    if (!isPasswordValid) {
+    if (verifyError) {
       return {
         currentPassword,
         newPassword,
         confirmPassword,
-        error: 'Current password is incorrect.'
+        error: 'La password attuale non è corretta.'
       };
     }
 
@@ -277,7 +331,7 @@ export const updatePassword = validatedActionWithUser(
         currentPassword,
         newPassword,
         confirmPassword,
-        error: 'New password must be different from the current password.'
+        error: 'La nuova password deve essere diversa da quella attuale.'
       };
     }
 
@@ -286,23 +340,31 @@ export const updatePassword = validatedActionWithUser(
         currentPassword,
         newPassword,
         confirmPassword,
-        error: 'New password and confirmation password do not match.'
+        error: 'La nuova password e la conferma non coincidono.'
       };
     }
 
-    const newPasswordHash = await hashPassword(newPassword);
-    const userWithTeam = await getUserWithTeam(user.id);
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+    if (updateError) {
+      return {
+        currentPassword,
+        newPassword,
+        confirmPassword,
+        error: 'Aggiornamento password non riuscito. Riprova.'
+      };
+    }
 
-    await Promise.all([
-      db
-        .update(users)
-        .set({ passwordHash: newPasswordHash })
-        .where(eq(users.id, user.id)),
-      logActivity(userWithTeam?.teamId, user.id, ActivityType.UPDATE_PASSWORD)
-    ]);
+    const userWithTeam = await getUserWithTeam(user.id);
+    await logActivity(
+      userWithTeam?.teamId,
+      user.id,
+      ActivityType.UPDATE_PASSWORD
+    );
 
     return {
-      success: 'Password updated successfully.'
+      success: 'Password aggiornata.'
     };
   }
 );
@@ -316,11 +378,15 @@ export const deleteAccount = validatedActionWithUser(
   async (data, _, user) => {
     const { password } = data;
 
-    const isPasswordValid = await comparePasswords(password, user.passwordHash);
-    if (!isPasswordValid) {
+    const supabase = await createSupabaseServer();
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password
+    });
+    if (verifyError) {
       return {
         password,
-        error: 'Incorrect password. Account deletion failed.'
+        error: 'Password non corretta. Eliminazione annullata.'
       };
     }
 
@@ -352,28 +418,58 @@ export const deleteAccount = validatedActionWithUser(
         );
     }
 
-    (await cookies()).delete('session');
+    // Remove the Supabase Auth identity and end the session.
+    if (user.authId) {
+      await createSupabaseAdmin()
+        .auth.admin.deleteUser(user.authId)
+        .catch(() => {});
+    }
+    await supabase.auth.signOut();
     redirect('/sign-in');
   }
 );
 
 const updateAccountSchema = z.object({
-  name: z.string().min(1, 'Name is required').max(100),
-  email: z.string().email('Invalid email address')
+  name: z.string().min(1, 'Il nome è obbligatorio').max(100),
+  lastName: z.string().max(100).optional(),
+  email: z.string().email('Indirizzo email non valido')
 });
 
 export const updateAccount = validatedActionWithUser(
   updateAccountSchema,
   async (data, _, user) => {
-    const { name, email } = data;
+    const { name, lastName, email } = data;
     const userWithTeam = await getUserWithTeam(user.id);
 
+    // Keep the Supabase Auth identity in sync when the email changes.
+    if (email !== user.email && user.authId) {
+      const { error } = await createSupabaseAdmin().auth.admin.updateUserById(
+        user.authId,
+        { email, email_confirm: true }
+      );
+      if (error) {
+        return {
+          name,
+          lastName,
+          error: 'Email non aggiornabile (forse è già in uso).'
+        };
+      }
+    }
+
     await Promise.all([
-      db.update(users).set({ name, email }).where(eq(users.id, user.id)),
+      db
+        .update(users)
+        .set({
+          name,
+          lastName: lastName?.trim() || null,
+          email,
+          updatedBy: user.id
+        })
+        .where(eq(users.id, user.id)),
       logActivity(userWithTeam?.teamId, user.id, ActivityType.UPDATE_ACCOUNT)
     ]);
 
-    return { name, success: 'Account updated successfully.' };
+    return { name, lastName, success: 'Account aggiornato.' };
   }
 );
 
@@ -388,7 +484,7 @@ export const removeTeamMember = validatedActionWithUser(
     const userWithTeam = await getUserWithTeam(user.id);
 
     if (!userWithTeam?.teamId) {
-      return { error: 'User is not part of a team' };
+      return { error: 'L’utente non fa parte di un’organizzazione' };
     }
 
     await db
@@ -406,12 +502,12 @@ export const removeTeamMember = validatedActionWithUser(
       ActivityType.REMOVE_TEAM_MEMBER
     );
 
-    return { success: 'Team member removed successfully' };
+    return { success: 'Membro rimosso.' };
   }
 );
 
 const inviteTeamMemberSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z.string().email('Indirizzo email non valido'),
   role: z.enum(['member', 'owner'])
 });
 
@@ -422,7 +518,7 @@ export const inviteTeamMember = validatedActionWithUser(
     const userWithTeam = await getUserWithTeam(user.id);
 
     if (!userWithTeam?.teamId) {
-      return { error: 'User is not part of a team' };
+      return { error: 'L’utente non fa parte di un’organizzazione' };
     }
 
     const existingMember = await db
@@ -435,7 +531,7 @@ export const inviteTeamMember = validatedActionWithUser(
       .limit(1);
 
     if (existingMember.length > 0) {
-      return { error: 'User is already a member of this team' };
+      return { error: 'L’utente fa già parte dell’organizzazione' };
     }
 
     // Check if there's an existing invitation
@@ -452,7 +548,7 @@ export const inviteTeamMember = validatedActionWithUser(
       .limit(1);
 
     if (existingInvitation.length > 0) {
-      return { error: 'An invitation has already been sent to this email' };
+      return { error: 'Un invito è già stato inviato a questa email' };
     }
 
     // Create a new invitation

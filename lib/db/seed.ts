@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { count, eq } from 'drizzle-orm';
 import { stripe } from '../payments/stripe';
 import { db } from './drizzle';
 import {
@@ -11,6 +11,8 @@ import {
   providerProfiles,
   services,
   coachAvailability,
+  bookings,
+  reviews,
 } from './schema';
 import { hashPassword } from '@/lib/auth/session';
 import { BILLING_ENABLED } from '@/lib/core/flags';
@@ -66,6 +68,13 @@ type DemoCoach = {
   avatarUrl: string;
   certified: boolean;
   status?: 'draft' | 'pending' | 'approved' | 'rejected';
+  videoUrl?: string;
+  yearsExperience?: number;
+  languages?: string[];
+  certifications?: string[];
+  athleteLevels?: string[];
+  identityVerified?: boolean;
+  certificationsVerified?: boolean;
   categories: string[];
   specialties: string[];
   hourlyRate: number; // cents
@@ -82,6 +91,13 @@ const DEMO_COACHES: DemoCoach[] = [
       'Aiuto gli atleti a gestire l’ansia da prestazione e a ritrovare lucidità nei momenti decisivi.',
     avatarUrl: 'https://i.pravatar.cc/300?img=12',
     certified: true,
+    videoUrl: 'https://www.youtube.com/watch?v=ScMzIvxBSi4',
+    yearsExperience: 8,
+    languages: ['Italiano', 'Inglese'],
+    certifications: ['Albo Psicologi', 'Mental Coach certificato'],
+    athleteLevels: ['youth', 'semi_pro', 'pro'],
+    identityVerified: true,
+    certificationsVerified: true,
     categories: ['football', 'tennis'],
     specialties: ['performance_anxiety', 'focus_concentration', 'pre_competition_routine'],
     hourlyRate: 6000,
@@ -109,6 +125,13 @@ const DEMO_COACHES: DemoCoach[] = [
       'Specializzata in nuoto e atletica: lavoro su motivazione, obiettivi e recupero dagli ostacoli.',
     avatarUrl: 'https://i.pravatar.cc/300?img=5',
     certified: true,
+    videoUrl: 'https://www.youtube.com/watch?v=ScMzIvxBSi4',
+    yearsExperience: 6,
+    languages: ['Italiano'],
+    certifications: ['Coach federale FIN'],
+    athleteLevels: ['amateur', 'pro'],
+    identityVerified: true,
+    certificationsVerified: true,
     categories: ['swimming', 'athletics'],
     specialties: ['motivation', 'goal_setting', 'resilience'],
     hourlyRate: 7000,
@@ -130,6 +153,12 @@ const DEMO_COACHES: DemoCoach[] = [
       'Lavoro con squadre di basket e pallavolo su coesione, comunicazione e fiducia individuale.',
     avatarUrl: 'https://i.pravatar.cc/300?img=13',
     certified: false,
+    yearsExperience: 10,
+    languages: ['Italiano', 'Spagnolo'],
+    certifications: ['UEFA Mental Skills'],
+    athleteLevels: ['youth', 'pro'],
+    identityVerified: true,
+    certificationsVerified: false,
     categories: ['basketball', 'volleyball'],
     specialties: ['team_dynamics', 'confidence'],
     hourlyRate: 5500,
@@ -158,6 +187,9 @@ const DEMO_COACHES: DemoCoach[] = [
     avatarUrl: 'https://i.pravatar.cc/300?img=32',
     certified: false,
     status: 'pending',
+    yearsExperience: 4,
+    languages: ['Italiano', 'Inglese'],
+    athleteLevels: ['amateur', 'youth'],
     categories: ['tennis', 'golf'],
     specialties: ['focus_concentration', 'confidence'],
     hourlyRate: 6500,
@@ -188,9 +220,18 @@ async function seedDemoCoaches() {
         .where(eq(profiles.userId, existing.id));
       await db
         .update(providerProfiles)
-        .set({ isKaipaiCertified: demo.certified })
+        .set({
+          isKaipaiCertified: demo.certified,
+          videoUrl: demo.videoUrl ?? null,
+          yearsExperience: demo.yearsExperience ?? null,
+          languages: demo.languages ?? [],
+          certifications: demo.certifications ?? [],
+          athleteLevels: demo.athleteLevels ?? [],
+          identityVerified: demo.identityVerified ?? false,
+          certificationsVerified: demo.certificationsVerified ?? false,
+        })
         .where(eq(providerProfiles.userId, existing.id));
-      console.log(`Demo coach ${demo.email} exists — synced photo & certification.`);
+      console.log(`Demo coach ${demo.email} exists — synced profile fields.`);
       continue;
     }
 
@@ -220,6 +261,13 @@ async function seedDemoCoaches() {
         hourlyRate: demo.hourlyRate,
         status: demo.status ?? 'approved',
         isKaipaiCertified: demo.certified,
+        videoUrl: demo.videoUrl ?? null,
+        yearsExperience: demo.yearsExperience ?? null,
+        languages: demo.languages ?? [],
+        certifications: demo.certifications ?? [],
+        athleteLevels: demo.athleteLevels ?? [],
+        identityVerified: demo.identityVerified ?? false,
+        certificationsVerified: demo.certificationsVerified ?? false,
       })
       .returning();
 
@@ -295,6 +343,85 @@ async function seedDemoAvailability() {
   console.log('Demo availability seeded.');
 }
 
+// Verified demo reviews: each tied to a completed booking from a demo athlete.
+async function seedDemoReviews() {
+  const passwordHash = await hashPassword('demo1234');
+  const reviewers = [
+    { email: 'andrea@demo.smc', name: 'Andrea M.' },
+    { email: 'sara.reviewer@demo.smc', name: 'Sara T.' },
+  ];
+  const reviewerIds: number[] = [];
+  for (const r of reviewers) {
+    let row = await db.query.users.findFirst({ where: eq(users.email, r.email) });
+    if (!row) {
+      const [created] = await db
+        .insert(users)
+        .values({ name: r.name, email: r.email, passwordHash, role: 'member' })
+        .returning();
+      await db
+        .insert(profiles)
+        .values({ userId: created.id, displayName: r.name })
+        .onConflictDoNothing();
+      await db
+        .insert(userRoles)
+        .values({ userId: created.id, roleKey: 'athlete' })
+        .onConflictDoNothing();
+      row = created;
+    }
+    reviewerIds.push(row.id);
+  }
+
+  const texts = [
+    {
+      rating: 5,
+      body: 'Professionale ed empatico. Mi ha aiutato a gestire l’ansia pre-gara.',
+    },
+    {
+      rating: 5,
+      body: 'Sessioni concrete, ho visto risultati dopo poche settimane.',
+    },
+  ];
+
+  for (const demo of DEMO_COACHES) {
+    const [provider] = await db
+      .select({ id: providerProfiles.id })
+      .from(providerProfiles)
+      .where(eq(providerProfiles.slug, demo.slug))
+      .limit(1);
+    if (!provider) continue;
+
+    const [{ value: existing }] = await db
+      .select({ value: count() })
+      .from(reviews)
+      .where(eq(reviews.providerId, provider.id));
+    if (existing > 0) continue; // idempotent
+
+    for (let i = 0; i < reviewerIds.length; i++) {
+      const [bk] = await db
+        .insert(bookings)
+        .values({
+          clientId: reviewerIds[i],
+          providerId: provider.id,
+          status: 'completed',
+          decidedAt: new Date(),
+          completedAt: new Date(),
+        })
+        .returning({ id: bookings.id });
+      await db.insert(reviews).values({
+        providerId: provider.id,
+        bookingId: bk.id,
+        authorId: reviewerIds[i],
+        rating: texts[i].rating,
+        body: texts[i].body,
+        // Demo: the coach has replied to the first review.
+        reply: i === 0 ? 'Grazie! È stato un piacere lavorare insieme.' : null,
+        replyAt: i === 0 ? new Date() : null,
+      });
+    }
+  }
+  console.log('Demo reviews seeded.');
+}
+
 async function seed() {
   await seedRoles();
 
@@ -340,6 +467,7 @@ async function seed() {
   await seedAdmin();
   await seedDemoCoaches();
   await seedDemoAvailability();
+  await seedDemoReviews();
 
   if (BILLING_ENABLED) {
     await createStripeProducts();

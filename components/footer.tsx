@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import {
-  CircleIcon,
   Mail,
   Phone,
   MapPin,
@@ -24,44 +23,42 @@ export function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="mt-auto border-t border-gray-200 bg-white">
+    <footer className="mt-auto border-t border-kp-line bg-kp-ink2">
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-3 lg:px-8">
         <div>
-          <Link href="/" className="flex items-center">
-            <CircleIcon className="h-6 w-6 text-orange-500" />
-            <span className="ml-2 text-lg font-semibold text-gray-900">
-              {brand}
-            </span>
+          <Link href="/" className="flex items-center gap-2">
+            <img src="/logo.jpg" alt="Kai Pai" width={127} height={141} className="h-8 w-auto rounded-md" />
+            <span className="text-lg font-semibold text-kp-hi">{brand}</span>
           </Link>
-          <p className="mt-3 max-w-xs text-sm text-gray-500">
+          <p className="mt-3 max-w-xs text-sm text-kp-mid">
             {t('brand.tagline', config)}
           </p>
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold text-gray-900">Contatti</h3>
-          <ul className="mt-3 space-y-2 text-sm text-gray-500">
+          <h3 className="text-sm font-semibold text-kp-hi">Contatti</h3>
+          <ul className="mt-3 space-y-2 text-sm text-kp-mid">
             <li className="flex items-center gap-2">
-              <Mail className="h-4 w-4 text-gray-400" />
-              <a href="mailto:info@kaipai.com" className="hover:text-gray-900">
+              <Mail className="h-4 w-4 text-kp-low" />
+              <a href="mailto:info@kaipai.com" className="hover:text-kp-hi">
                 info@kaipai.com
               </a>
             </li>
             <li className="flex items-center gap-2">
-              <Phone className="h-4 w-4 text-gray-400" />
-              <a href="tel:+390212345678" className="hover:text-gray-900">
+              <Phone className="h-4 w-4 text-kp-low" />
+              <a href="tel:+390212345678" className="hover:text-kp-hi">
                 +39 02 1234 5678
               </a>
             </li>
             <li className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-gray-400" />
+              <MapPin className="h-4 w-4 text-kp-low" />
               <span>Milano, Italia</span>
             </li>
           </ul>
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold text-gray-900">Seguici</h3>
+          <h3 className="text-sm font-semibold text-kp-hi">Seguici</h3>
           <div className="mt-3 flex items-center gap-3">
             {SOCIALS.map(({ label, href, Icon }) => (
               <a
@@ -71,7 +68,7 @@ export function Footer() {
                 rel="noopener noreferrer"
                 aria-label={label}
                 title={label}
-                className="rounded-full border border-gray-200 p-2 text-gray-500 transition hover:border-orange-300 hover:text-orange-500"
+                className="rounded-full border border-kp-line p-2 text-kp-mid transition hover:border-kp-red/50 hover:text-kp-red"
               >
                 <Icon className="h-4 w-4" />
               </a>
@@ -80,8 +77,8 @@ export function Footer() {
         </div>
       </div>
 
-      <div className="border-t border-gray-100">
-        <div className="mx-auto max-w-7xl px-4 py-4 text-xs text-gray-400 sm:px-6 lg:px-8">
+      <div className="border-t border-kp-line">
+        <div className="mx-auto max-w-7xl px-4 py-4 text-xs text-kp-low sm:px-6 lg:px-8">
           © {year} {brand}. Tutti i diritti riservati.
         </div>
       </div>

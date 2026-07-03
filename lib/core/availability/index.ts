@@ -92,7 +92,7 @@ export async function addAvailabilitySlot(
 
   const [created] = await db
     .insert(coachAvailability)
-    .values({ providerId, weekday, startMinute, endMinute })
+    .values({ providerId, weekday, startMinute, endMinute, createdBy: userId })
     .onConflictDoNothing()
     .returning({ id: coachAvailability.id });
 
@@ -102,6 +102,45 @@ export async function addAvailabilitySlot(
       error: 'Esiste già una fascia con questo orario di inizio in quel giorno.',
     };
   }
+  return { ok: true };
+}
+
+/** Updates one of the coach's own slots (day/time). Ownership + range validated. */
+export async function updateAvailabilitySlot(
+  userId: number,
+  slotId: number,
+  input: AvailabilityInput
+): Promise<Result> {
+  const providerId = await resolveProviderId(userId);
+  if (!providerId) return { ok: false, error: 'Profilo coach non trovato.' };
+
+  const { weekday, startMinute, endMinute } = input;
+  if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
+    return { ok: false, error: 'Giorno non valido.' };
+  }
+  if (
+    ![startMinute, endMinute].every(
+      (n) => Number.isInteger(n) && n >= 0 && n <= 1440
+    )
+  ) {
+    return { ok: false, error: 'Orario non valido.' };
+  }
+  if (endMinute <= startMinute) {
+    return { ok: false, error: 'L’orario di fine deve essere dopo l’inizio.' };
+  }
+
+  const [updated] = await db
+    .update(coachAvailability)
+    .set({ weekday, startMinute, endMinute, updatedBy: userId })
+    .where(
+      and(
+        eq(coachAvailability.id, slotId),
+        eq(coachAvailability.providerId, providerId)
+      )
+    )
+    .returning({ id: coachAvailability.id });
+
+  if (!updated) return { ok: false, error: 'Fascia non trovata.' };
   return { ok: true };
 }
 

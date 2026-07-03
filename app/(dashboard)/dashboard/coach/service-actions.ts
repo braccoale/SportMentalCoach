@@ -67,7 +67,7 @@ function parseServiceId(formData: FormData): number | null {
 }
 
 function revalidate() {
-  revalidatePath('/dashboard/coach');
+  revalidatePath('/dashboard/coach/services');
   revalidatePath('/coaches');
 }
 

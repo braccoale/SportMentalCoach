@@ -1,21 +1,72 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import {
+  BadgeCheck,
+  Globe,
+  Award,
+  Briefcase,
+  Users,
+  Video,
+  Star,
+  CalendarClock,
+  CalendarCheck,
+  CalendarDays,
+  ShieldCheck,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getVerticalConfig, findTaxonomyItem, t } from '@/lib/core/config';
 import { getCoachBySlug } from '@/lib/core/listings';
 import { getApprovedCoachAvailabilityBySlug } from '@/lib/core/availability';
+import { getReviewSummary, getCoachReviews } from '@/lib/core/reviews';
+import { getCompletedSessionCount } from '@/lib/core/bookings';
 import {
   formatPrice,
   formatMinutesOfDay,
+  formatDateTime,
+  formatDate,
   WEEKDAY_LABELS,
 } from '@/lib/core/format';
 import { getUser } from '@/lib/db/queries';
+import { getAllSports, getAllSpecialties } from '@/lib/core/taxonomies';
 import { hasRole } from '@/lib/core/auth';
+import { SHOW_COACH_HOURLY_RATE } from '@/lib/core/flags';
 import { CoachAvatar, CertifiedBadge } from '@/components/coach-visuals';
+import { RatingStars } from '@/components/rating-stars';
+import {
+  TrustAndSafeguarding,
+  MarketplaceFaq,
+  CancellationPolicy,
+} from '@/components/trust-sections';
 import { BookingRequest } from './booking-request';
 
 export const dynamic = 'force-dynamic';
+
+/** Converts a YouTube/Vimeo URL to a safe embed URL, or null (link fallback). */
+function toEmbedUrl(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\.|^m\./, '');
+    if (host === 'youtu.be') {
+      const id = u.pathname.slice(1);
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    }
+    if (host === 'youtube.com') {
+      if (u.pathname.startsWith('/embed/')) return url;
+      const v = u.searchParams.get('v');
+      return v ? `https://www.youtube.com/embed/${v}` : null;
+    }
+    if (host === 'vimeo.com') {
+      const id = u.pathname.split('/').filter(Boolean)[0];
+      return id && /^\d+$/.test(id)
+        ? `https://player.vimeo.com/video/${id}`
+        : null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 export default async function CoachDetailPage({
   params,
@@ -24,21 +75,50 @@ export default async function CoachDetailPage({
 }) {
   const { slug } = await params;
   const coach = await getCoachBySlug(slug);
-
   if (!coach) {
     notFound();
   }
 
-  const user = await getUser();
+  const [user, availability, reviewSummary, reviews, completedSessions] =
+    await Promise.all([
+      getUser(),
+      getApprovedCoachAvailabilityBySlug(slug),
+      getReviewSummary(coach.providerId),
+      getCoachReviews(coach.providerId, 12),
+      getCompletedSessionCount(coach.providerId),
+    ]);
   const isAthlete = user ? await hasRole(user.id, 'athlete') : false;
-  const availability = await getApprovedCoachAvailabilityBySlug(slug);
+
   const config = getVerticalConfig();
-  const { categories, specialties } = config.taxonomies;
+  const { levels } = config.taxonomies;
+  // Labels resolve from ALL taxonomy rows (also inactive ones), so profiles
+  // referencing a deactivated key keep rendering correctly.
+  const [categories, specialties] = await Promise.all([
+    getAllSports(),
+    getAllSpecialties(),
+  ]);
   const labelFor = (items: typeof categories, key: string) =>
     findTaxonomyItem(items, key)?.label ?? key;
 
+  const embedUrl = coach.videoUrl ? toEmbedUrl(coach.videoUrl) : null;
+  // Uploaded video files (not YouTube/Vimeo) are played inline via <video>.
+  const uploadedVideo =
+    coach.videoUrl && !embedUrl &&
+    (coach.videoUrl.startsWith('/uploads/') ||
+      /\.(mp4|webm|mov|ogg)(\?|$)/i.test(coach.videoUrl))
+      ? coach.videoUrl
+      : null;
+  const name = coach.displayName ?? 'Coach';
+  const memberSince = new Intl.DateTimeFormat('it-IT', {
+    month: 'long',
+    year: 'numeric',
+  }).format(coach.memberSince);
+  const certTitle = coach.certified
+    ? t('coach.certified.yes', config)
+    : t('coach.certified.no', config);
+
   return (
-    <main className="max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10">
+    <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
       <Link
         href="/coaches"
         className="text-sm text-gray-500 hover:text-gray-900"
@@ -46,159 +126,480 @@ export default async function CoachDetailPage({
         ← {t('listing.title', config)}
       </Link>
 
-      <header className="mt-4 flex items-start gap-5">
-        <CoachAvatar
-          name={coach.displayName}
-          src={coach.avatarUrl}
-          className="size-24"
-        />
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold text-gray-900">
-            {coach.displayName ?? 'Coach'}
-          </h1>
-          <CertifiedBadge
-            certified={coach.certified}
-            title={
-              coach.certified
-                ? t('coach.certified.yes', config)
-                : t('coach.certified.no', config)
-            }
-            withLabel
-          />
+      {/* HERO — identity + proof + primary action */}
+      <header className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-start">
+        <CoachAvatar name={name} src={coach.avatarUrl} className="size-24" />
+        <div className="flex-1">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h1 className="text-3xl font-bold text-gray-900">{name}</h1>
+            <CertifiedBadge certified={coach.certified} title={certTitle} />
+          </div>
           {coach.headline && (
-            <p className="text-lg text-gray-600">{coach.headline}</p>
+            <p className="mt-1 text-lg text-gray-600">{coach.headline}</p>
           )}
-          {coach.hourlyRate != null && (
-            <p className="text-sm text-gray-500">
-              {t('provider.rate.label', config)}:{' '}
-              {formatPrice(coach.hourlyRate, coach.currency)} / h
-            </p>
-          )}
+
+          {/* rating / new */}
+          <div className="mt-2">
+            {reviewSummary.count > 0 ? (
+              <span className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <RatingStars value={reviewSummary.average ?? 0} />
+                <span className="font-medium">{reviewSummary.average}</span>
+                <span className="text-gray-500">
+                  ({reviewSummary.count}{' '}
+                  {reviewSummary.count === 1 ? 'recensione' : 'recensioni'})
+                </span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700">
+                <Star className="h-3.5 w-3.5" /> Nuovo su{' '}
+                {t('brand.name', config)}
+              </span>
+            )}
+          </div>
+
+          {/* key facts */}
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-gray-600">
+            {coach.identityVerified && (
+              <span className="inline-flex items-center gap-1.5 font-medium text-emerald-700">
+                <ShieldCheck className="h-4 w-4" /> Identità verificata
+              </span>
+            )}
+            {completedSessions > 0 && (
+              <span className="inline-flex items-center gap-1.5">
+                <CalendarCheck className="h-4 w-4 text-gray-400" />
+                {completedSessions} sessioni completate
+              </span>
+            )}
+            {coach.yearsExperience != null && (
+              <span className="inline-flex items-center gap-1.5">
+                <Briefcase className="h-4 w-4 text-gray-400" />
+                {coach.yearsExperience} anni di esperienza
+              </span>
+            )}
+            {coach.languages && coach.languages.length > 0 && (
+              <span className="inline-flex items-center gap-1.5">
+                <Globe className="h-4 w-4 text-gray-400" />
+                {coach.languages.join(', ')}
+              </span>
+            )}
+          </div>
+
+          {/* mobile CTA → scrolls to booking */}
+          <Button
+            asChild
+            size="lg"
+            className="mt-4 w-full rounded-full bg-red-600 text-white hover:bg-red-700 lg:hidden"
+          >
+            <a href="#prenota">{t('booking.cta', config)}</a>
+          </Button>
         </div>
       </header>
 
-      {(coach.bio || coach.description) && (
-        <p className="mt-6 whitespace-pre-line text-gray-700">
-          {coach.description ?? coach.bio}
-        </p>
-      )}
-
-      {coach.categories && coach.categories.length > 0 && (
-        <section className="mt-6">
-          <h2 className="text-sm font-medium text-gray-700">
-            {t('provider.sports.label', config)}
-          </h2>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {coach.categories.map((key) => (
-              <span
-                key={key}
-                className="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-medium text-orange-700"
-              >
-                {labelFor(categories, key)}
-              </span>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {coach.specialties && coach.specialties.length > 0 && (
-        <section className="mt-6">
-          <h2 className="text-sm font-medium text-gray-700">
-            {t('provider.specialties.label', config)}
-          </h2>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {coach.specialties.map((key) => (
-              <span
-                key={key}
-                className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600"
-              >
-                {labelFor(specialties, key)}
-              </span>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <section className="mt-8">
-        <h2 className="text-xl font-semibold text-gray-900">Servizi</h2>
-        {coach.services.length === 0 ? (
-          <p className="mt-2 text-gray-500">Nessun servizio disponibile.</p>
-        ) : (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            {coach.services.map((service) => (
-              <Card key={service.id}>
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    {service.title ?? 'Servizio'}
-                  </CardTitle>
+      <div className="mt-8 grid gap-8 lg:grid-cols-3">
+        {/* BOOKING — first on mobile, sticky right on desktop */}
+        <aside id="prenota" className="order-1 lg:order-2 lg:col-span-1">
+          <div className="lg:sticky lg:top-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">
+                  {t('booking.cta', config)}
+                </CardTitle>
+                {SHOW_COACH_HOURLY_RATE && coach.hourlyRate != null && (
                   <p className="text-sm text-muted-foreground">
-                    {service.durationMin ? `${service.durationMin} min` : ''}
-                    {service.durationMin && service.price != null ? ' · ' : ''}
-                    {service.price != null
-                      ? formatPrice(service.price, service.currency)
-                      : ''}
+                    a partire da{' '}
+                    <span className="font-semibold text-gray-900">
+                      {formatPrice(coach.hourlyRate, coach.currency)}
+                    </span>{' '}
+                    / h
                   </p>
-                </CardHeader>
-                {service.description && (
-                  <CardContent>
-                    <p className="text-sm text-gray-600">
-                      {service.description}
-                    </p>
-                  </CardContent>
                 )}
-              </Card>
-            ))}
-          </div>
-        )}
-      </section>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                {availability.length > 0 && (
+                  <div>
+                    <p className="flex items-center gap-1.5 text-xs font-medium text-gray-500">
+                      <CalendarClock className="h-4 w-4" /> Prossima
+                      disponibilità
+                    </p>
+                    <ul className="mt-2 flex flex-wrap gap-1.5">
+                      {availability.slice(0, 4).map((slot) => (
+                        <li
+                          key={slot.id}
+                          className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-700"
+                        >
+                          {WEEKDAY_LABELS[slot.weekday]}{' '}
+                          {formatMinutesOfDay(slot.startMinute)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
-      {availability.length > 0 && (
-        <section className="mt-8">
-          <h2 className="text-xl font-semibold text-gray-900">Disponibilità</h2>
-          <ul className="mt-3 flex flex-wrap gap-2">
-            {availability.map((slot) => (
-              <li
-                key={slot.id}
-                className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700"
-              >
-                {WEEKDAY_LABELS[slot.weekday]}{' '}
-                {formatMinutesOfDay(slot.startMinute)}–
-                {formatMinutesOfDay(slot.endMinute)}
+                {!user ? (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-sm text-gray-600">
+                      Accedi come atleta per richiedere una sessione.
+                    </p>
+                    <Button asChild size="lg" className="rounded-full bg-red-600 text-white hover:bg-red-700">
+                      <Link href={`/sign-in?redirect=/coaches/${slug}`}>
+                        {t('booking.cta', config)}
+                      </Link>
+                    </Button>
+                  </div>
+                ) : isAthlete ? (
+                  <BookingRequest
+                    slug={slug}
+                    services={coach.services.map((s) => ({
+                      id: s.id,
+                      title: s.title,
+                    }))}
+                    ctaLabel={t('booking.cta', config)}
+                  />
+                ) : (
+                  <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-800">
+                    Solo gli atleti possono richiedere una sessione.
+                  </p>
+                )}
+
+                <ul className="flex flex-col gap-1.5 border-t border-gray-100 pt-3 text-xs text-gray-500">
+                  {coach.identityVerified && (
+                    <li className="flex items-center gap-1.5 text-emerald-700">
+                      <ShieldCheck className="h-3.5 w-3.5" /> Coach con identità
+                      verificata
+                    </li>
+                  )}
+                  <li className="flex items-center gap-1.5">
+                    <BadgeCheck className="h-3.5 w-3.5 text-gray-400" /> Nessun
+                    addebito finché la sessione non è confermata
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <BadgeCheck className="h-3.5 w-3.5 text-gray-400" /> Puoi
+                    annullare dalla tua dashboard
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+          </div>
+        </aside>
+
+        {/* CONTENT */}
+        <div className="order-2 flex flex-col lg:order-1 lg:col-span-2">
+          {/* Intro video */}
+          {coach.videoUrl && (
+            <section>
+              <h2 className="flex items-center gap-2 text-xl font-semibold text-gray-900">
+                <Video className="h-5 w-5 text-red-600" /> Presentazione
+              </h2>
+              {embedUrl ? (
+                <div className="mt-3 aspect-video overflow-hidden rounded-lg border border-gray-200">
+                  <iframe
+                    src={embedUrl}
+                    title={`Video di presentazione di ${name}`}
+                    className="h-full w-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              ) : uploadedVideo ? (
+                <div className="mt-3 aspect-video overflow-hidden rounded-lg border border-gray-200 bg-black">
+                  <video
+                    src={uploadedVideo}
+                    controls
+                    preload="metadata"
+                    className="h-full w-full object-contain"
+                  />
+                </div>
+              ) : (
+                <Button asChild variant="outline" className="mt-3 rounded-full">
+                  <a href={coach.videoUrl} target="_blank" rel="noreferrer">
+                    Guarda il video di presentazione
+                  </a>
+                </Button>
+              )}
+            </section>
+          )}
+
+          {/* About + philosophy */}
+          {(coach.description || coach.bio) && (
+            <section className="mt-10">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Il mio approccio
+              </h2>
+              {coach.description && (
+                <p className="mt-2 whitespace-pre-line text-gray-700">
+                  {coach.description}
+                </p>
+              )}
+              {coach.bio && coach.bio !== coach.description && (
+                <p className="mt-3 whitespace-pre-line text-gray-600">
+                  {coach.bio}
+                </p>
+              )}
+            </section>
+          )}
+
+          {/* Credentials & verification — strongest, verified signals first */}
+          <section className="mt-10">
+            <h2 className="text-xl font-semibold text-gray-900">
+              Credenziali e verifica
+            </h2>
+            <ul className="mt-3 flex flex-col gap-2 text-sm text-gray-700">
+              {coach.identityVerified && (
+                <li className="flex items-center gap-2 font-medium text-emerald-700">
+                  <ShieldCheck className="h-4 w-4" /> Identità verificata dal
+                  team {t('brand.name', config)}
+                </li>
+              )}
+              {coach.certified && (
+                <li className="flex items-center gap-2">
+                  <Award className="h-4 w-4 text-red-600" /> {certTitle}
+                </li>
+              )}
+              {completedSessions > 0 && (
+                <li className="flex items-center gap-2">
+                  <CalendarCheck className="h-4 w-4 text-gray-400" />
+                  {completedSessions} sessioni completate su{' '}
+                  {t('brand.name', config)}
+                </li>
+              )}
+              <li className="flex items-center gap-2 text-gray-500">
+                <CalendarDays className="h-4 w-4 text-gray-400" /> Su{' '}
+                {t('brand.name', config)} da {memberSince}
               </li>
-            ))}
-          </ul>
-        </section>
-      )}
+            </ul>
 
-      {/* Booking request — athletes only. */}
-      <div className="mt-10 border-t border-gray-200 pt-6">
-        <h2 className="mb-4 text-xl font-semibold text-gray-900">
-          {t('booking.cta', config)}
-        </h2>
+            {coach.certifications && coach.certifications.length > 0 && (
+              <div className="mt-4">
+                <p className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  Certificazioni
+                  {coach.certificationsVerified && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                      <BadgeCheck className="h-3.5 w-3.5" /> verificate
+                    </span>
+                  )}
+                </p>
+                <ul className="mt-2 flex flex-col gap-1.5 text-sm text-gray-700">
+                  {coach.certifications.map((c) => (
+                    <li key={c} className="flex items-center gap-2">
+                      <BadgeCheck
+                        className={
+                          coach.certificationsVerified
+                            ? 'h-4 w-4 text-emerald-500'
+                            : 'h-4 w-4 text-gray-300'
+                        }
+                      />
+                      {c}
+                    </li>
+                  ))}
+                </ul>
+                {!coach.certificationsVerified && (
+                  <p className="mt-1 text-xs text-gray-400">
+                    Certificazioni dichiarate dal coach, in attesa di verifica.
+                  </p>
+                )}
+              </div>
+            )}
+          </section>
 
-        {!user ? (
-          <div className="flex flex-col items-start gap-2">
-            <p className="text-sm text-gray-600">
-              Accedi come atleta per richiedere una sessione.
-            </p>
-            <Button asChild size="lg" className="rounded-full">
-              <Link href={`/sign-in?redirect=/coaches/${slug}`}>
-                {t('booking.cta', config)}
-              </Link>
-            </Button>
-          </div>
-        ) : isAthlete ? (
-          <BookingRequest
-            slug={slug}
-            services={coach.services.map((s) => ({ id: s.id, title: s.title }))}
-            ctaLabel={t('booking.cta', config)}
-          />
-        ) : (
-          <p className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Solo gli atleti possono richiedere una sessione. Accedi con un
-            account atleta per prenotare.
-          </p>
-        )}
+          {/* Experience */}
+          {((coach.categories && coach.categories.length > 0) ||
+            (coach.athleteLevels && coach.athleteLevels.length > 0)) && (
+            <section className="mt-10">
+              <h2 className="text-xl font-semibold text-gray-900">Esperienza</h2>
+              {coach.categories && coach.categories.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-sm font-medium text-gray-700">
+                    {t('provider.sports.label', config)}
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {coach.categories.map((key) => (
+                      <span
+                        key={key}
+                        className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700"
+                      >
+                        {labelFor(categories, key)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {coach.athleteLevels && coach.athleteLevels.length > 0 && (
+                <div className="mt-4">
+                  <p className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
+                    <Users className="h-4 w-4 text-gray-400" /> Lavora con
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {coach.athleteLevels.map((key) => (
+                      <span
+                        key={key}
+                        className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600"
+                      >
+                        {labelFor(levels ?? [], key)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* Specializations */}
+          {coach.specialties && coach.specialties.length > 0 && (
+            <section className="mt-10">
+              <h2 className="text-xl font-semibold text-gray-900">
+                {t('provider.specialties.label', config)}
+              </h2>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {coach.specialties.map((key) => (
+                  <span
+                    key={key}
+                    className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600"
+                  >
+                    {labelFor(specialties, key)}
+                  </span>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Services */}
+          <section className="mt-10">
+            <h2 className="text-xl font-semibold text-gray-900">Servizi</h2>
+            {coach.services.length === 0 ? (
+              <p className="mt-2 text-gray-500">Nessun servizio disponibile.</p>
+            ) : (
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                {coach.services.map((service) => (
+                  <Card key={service.id}>
+                    <CardHeader>
+                      <CardTitle className="text-base">
+                        {service.title ?? 'Servizio'}
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        {service.durationMin ? `${service.durationMin} min` : ''}
+                        {service.durationMin && service.price != null
+                          ? ' · '
+                          : ''}
+                        {service.price != null
+                          ? formatPrice(service.price, service.currency)
+                          : ''}
+                      </p>
+                    </CardHeader>
+                    {service.description && (
+                      <CardContent>
+                        <p className="text-sm text-gray-600">
+                          {service.description}
+                        </p>
+                      </CardContent>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Availability */}
+          {availability.length > 0 && (
+            <section className="mt-10">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Disponibilità
+              </h2>
+              <ul className="mt-3 flex flex-wrap gap-2">
+                {availability.map((slot) => (
+                  <li
+                    key={slot.id}
+                    className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700"
+                  >
+                    {WEEKDAY_LABELS[slot.weekday]}{' '}
+                    {formatMinutesOfDay(slot.startMinute)}–
+                    {formatMinutesOfDay(slot.endMinute)}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {/* Reviews */}
+          <section className="mt-10">
+            <h2 className="text-xl font-semibold text-gray-900">Recensioni</h2>
+            {reviewSummary.count === 0 ? (
+              <div className="mt-3 rounded-lg border border-dashed border-gray-200 p-4">
+                <p className="text-sm text-gray-600">
+                  {name} non ha ancora recensioni verificate.
+                </p>
+                <ul className="mt-2 flex flex-col gap-1 text-sm text-gray-500">
+                  {coach.identityVerified && (
+                    <li className="flex items-center gap-1.5 text-emerald-700">
+                      <ShieldCheck className="h-4 w-4" /> Identità già verificata
+                      dal team {t('brand.name', config)}
+                    </li>
+                  )}
+                  <li className="flex items-center gap-1.5">
+                    <CalendarDays className="h-4 w-4 text-gray-400" /> Su{' '}
+                    {t('brand.name', config)} da {memberSince}
+                  </li>
+                </ul>
+                <p className="mt-2 text-sm text-gray-400">
+                  Le recensioni sono lasciate solo dagli atleti dopo una sessione
+                  completata.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="mt-2 flex items-center gap-2 text-sm text-gray-700">
+                  <RatingStars value={reviewSummary.average ?? 0} />
+                  <span className="font-medium">{reviewSummary.average}</span>
+                  <span className="text-gray-500">
+                    su {reviewSummary.count}{' '}
+                    {reviewSummary.count === 1
+                      ? 'recensione verificata'
+                      : 'recensioni verificate'}
+                  </span>
+                </div>
+                <ul className="mt-4 flex flex-col gap-4">
+                  {reviews.map((r) => (
+                    <li
+                      key={r.id}
+                      className="rounded-lg border border-gray-100 p-4"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-900">
+                          {r.authorName}
+                        </span>
+                        <RatingStars value={r.rating} size="sm" />
+                      </div>
+                      {r.body && (
+                        <p className="mt-1.5 text-sm text-gray-600">{r.body}</p>
+                      )}
+                      <p className="mt-1 flex items-center gap-1 text-xs text-gray-400">
+                        {r.verified && (
+                          <BadgeCheck className="h-3.5 w-3.5 text-red-600" />
+                        )}
+                        {r.verified ? 'Recensione verificata · ' : ''}
+                        {formatDate(r.createdAt)}
+                      </p>
+                      {r.reply && (
+                        <div className="mt-3 rounded-md border-l-2 border-red-200 bg-red-50/50 px-3 py-2">
+                          <p className="text-xs font-medium text-gray-700">
+                            Risposta di {name}
+                          </p>
+                          <p className="mt-0.5 text-sm text-gray-600">
+                            {r.reply}
+                          </p>
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </section>
+
+          {/* Trust / FAQ / Policy */}
+          <TrustAndSafeguarding />
+          <MarketplaceFaq />
+          <CancellationPolicy />
+        </div>
       </div>
     </main>
   );

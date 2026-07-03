@@ -15,7 +15,7 @@ export function CoachAvatar({
   return (
     <Avatar className={cn('size-16', className)}>
       {src ? <AvatarImage src={src} alt={name ?? 'Coach'} /> : null}
-      <AvatarFallback className="bg-orange-100 font-semibold text-orange-700">
+      <AvatarFallback className="bg-red-100 font-semibold text-red-700">
         {initials(name)}
       </AvatarFallback>
     </Avatar>
@@ -44,13 +44,13 @@ export function CertifiedBadge({
       className={cn('inline-flex items-center gap-1', className)}
     >
       <BadgeCheck
-        className={cn('h-5 w-5 shrink-0', certified ? 'text-orange-500' : 'text-gray-300')}
+        className={cn('h-5 w-5 shrink-0', certified ? 'text-red-600' : 'text-gray-300')}
       />
       {withLabel && (
         <span
           className={cn(
             'text-xs font-medium',
-            certified ? 'text-orange-600' : 'text-gray-400'
+            certified ? 'text-red-600' : 'text-gray-400'
           )}
         >
           {title}

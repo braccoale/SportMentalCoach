@@ -1,22 +1,24 @@
 import Link from 'next/link';
+import {
+  Clock,
+  CalendarCheck,
+  ListChecks,
+  Star,
+  type LucideIcon,
+} from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
 import { getCoachBookings, bookingStatusLabel } from '@/lib/core/bookings';
+import { getProviderProfileByUser } from '@/lib/core/profiles';
+import { getCoachReviews } from '@/lib/core/reviews';
 import {
-  getAvatarUrl,
-  getProviderProfileByUser,
-} from '@/lib/core/profiles';
-import { getCoachServices } from '@/lib/core/services';
-import { getCoachAvailability } from '@/lib/core/availability';
-import { computeCoachOnboarding } from '@/lib/core/onboarding';
-import { getVerticalConfig, t } from '@/lib/core/config';
-import { formatDateTime } from '@/lib/core/format';
+  formatDate,
+  formatDateTime,
+  scheduledForLabel,
+} from '@/lib/core/format';
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
-import { PhotoForm } from '../photo-form';
-import { ProfileEditor } from './profile-editor';
-import { ServicesEditor } from './services-editor';
-import { AvailabilityEditor } from './availability-editor';
-import { OnboardingProgress } from './onboarding-progress';
+import { RatingStars } from '@/components/rating-stars';
+import { replyToReviewAction } from './review-reply-actions';
 import {
   acceptBookingAction,
   declineBookingAction,
@@ -24,53 +26,43 @@ import {
   cancelBookingAction,
 } from './actions';
 
-function StatusBanner({ status }: { status: string }) {
-  const config = getVerticalConfig();
-  const label = t(`provider.status.${status}`, config);
-
-  const tone =
-    status === 'approved'
-      ? 'border-green-200 bg-green-50 text-green-800'
-      : status === 'rejected'
-        ? 'border-red-200 bg-red-50 text-red-800'
-        : status === 'pending'
-          ? 'border-amber-200 bg-amber-50 text-amber-800'
-          : 'border-gray-200 bg-gray-50 text-gray-700';
-
-  const message =
-    status === 'approved'
-      ? 'Il tuo profilo è approvato ed è visibile pubblicamente.'
-      : status === 'pending'
-        ? 'Il tuo profilo è in revisione. Sarà pubblicato dopo l’approvazione dell’admin.'
-        : status === 'rejected'
-          ? 'Il tuo profilo è stato rifiutato. Aggiorna i dati e invialo di nuovo per la revisione.'
-          : 'Il tuo profilo è in bozza e non è ancora visibile. Completa i passi qui sotto e invialo per la revisione.';
-
+function SummaryCard({
+  icon: Icon,
+  label,
+  value,
+  accent,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: number;
+  accent: string;
+}) {
   return (
-    <div className={`rounded-lg border p-4 ${tone}`}>
-      <p className="text-sm font-semibold">Stato profilo: {label}</p>
-      <p className="text-sm">{message}</p>
+    <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4">
+      <span
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${accent}`}
+      >
+        <Icon className="h-5 w-5" />
+      </span>
+      <div>
+        <p className="text-2xl font-semibold leading-none text-gray-900">
+          {value}
+        </p>
+        <p className="mt-1 text-sm text-gray-500">{label}</p>
+      </div>
     </div>
   );
 }
 
 export default async function CoachDashboardPage() {
   const user = await requireRole('coach');
-  const config = getVerticalConfig();
 
-  const [provider, services, allBookings, avatarUrl, availability] =
-    await Promise.all([
-      getProviderProfileByUser(user.id),
-      getCoachServices(user.id),
-      getCoachBookings(user.id),
-      getAvatarUrl(user.id),
-      getCoachAvailability(user.id),
-    ]);
+  const [provider, allBookings] = await Promise.all([
+    getProviderProfileByUser(user.id),
+    getCoachBookings(user.id),
+  ]);
 
-  // Derive onboarding from already-loaded data (no extra queries).
-  const onboarding = provider
-    ? computeCoachOnboarding(provider, services.length)
-    : null;
+  const reviews = provider ? await getCoachReviews(provider.id) : [];
 
   const pending = allBookings.filter((b) => b.status === 'requested');
   const accepted = allBookings.filter((b) => b.status === 'accepted');
@@ -78,46 +70,40 @@ export default async function CoachDashboardPage() {
     ['declined', 'cancelled', 'completed'].includes(b.status)
   );
 
-  const sportOptions = config.taxonomies.categories.map((i) => ({
-    key: i.key,
-    label: i.label,
-  }));
-  const specialtyOptions = config.taxonomies.specialties.map((i) => ({
-    key: i.key,
-    label: i.label,
-  }));
-
   return (
-    <section className="flex flex-col gap-6 p-6">
-      <h1 className="text-2xl font-semibold text-gray-900">Coach dashboard</h1>
-
-      {provider ? (
-        <>
-          <StatusBanner status={provider.status} />
-          {onboarding && provider.status !== 'approved' && (
-            <OnboardingProgress onboarding={onboarding} />
-          )}
-          <PhotoForm name={user.name} avatarUrl={avatarUrl} />
-          <div id="onboarding-profilo">
-            <ProfileEditor
-              headline={provider.headline}
-              description={provider.description}
-              categories={provider.categories ?? []}
-              specialties={provider.specialties ?? []}
-              sportOptions={sportOptions}
-              specialtyOptions={specialtyOptions}
-            />
-          </div>
-          <div id="onboarding-servizi">
-            <ServicesEditor services={services} />
-          </div>
-          <AvailabilityEditor slots={availability} />
-        </>
-      ) : (
-        <p className="text-gray-500">
-          Nessun profilo coach trovato per questo account.
-        </p>
-      )}
+    <section className="flex flex-col gap-8 p-6">
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {/* Orange when there is something waiting for the coach's action. */}
+        <SummaryCard
+          icon={Clock}
+          label="Richieste in attesa"
+          value={pending.length}
+          accent={
+            pending.length > 0
+              ? 'bg-orange-100 text-orange-600'
+              : 'bg-gray-100 text-gray-600'
+          }
+        />
+        <SummaryCard
+          icon={CalendarCheck}
+          label="Sessioni accettate"
+          value={accepted.length}
+          accent="bg-red-50 text-red-600"
+        />
+        <SummaryCard
+          icon={ListChecks}
+          label="Sessioni totali"
+          value={allBookings.length}
+          accent="bg-gray-900 text-white"
+        />
+        <SummaryCard
+          icon={Star}
+          label="Recensioni"
+          value={reviews.length}
+          accent="bg-red-50 text-red-600"
+        />
+      </div>
 
       {/* Booking requests */}
       <div>
@@ -138,12 +124,13 @@ export default async function CoachDashboardPage() {
                     {b.clientName || b.clientEmail}
                   </p>
                   <p className="text-sm text-gray-500">
-                    {b.serviceTitle ?? 'Richiesta generica'} ·{' '}
-                    {formatDateTime(b.requestedAt)}
+                    {b.serviceTitle ?? 'Richiesta generica'} · richiesta
+                    inviata il {formatDate(b.requestedAt)}
                   </p>
                   {b.scheduledFor && (
                     <p className="text-sm font-medium text-gray-700">
-                      Preferito: {formatDateTime(b.scheduledFor)}
+                      {scheduledForLabel(b.status)}{' '}
+                      {formatDateTime(b.scheduledFor)}
                     </p>
                   )}
                   {b.note && (
@@ -191,21 +178,23 @@ export default async function CoachDashboardPage() {
                   </p>
                   <p className="text-sm text-gray-500">
                     {b.serviceTitle ?? 'Richiesta generica'}
-                    {b.scheduledFor
-                      ? ` · ${formatDateTime(b.scheduledFor)}`
-                      : ''}
                   </p>
+                  {b.scheduledFor && (
+                    <p className="text-sm font-semibold text-gray-900">
+                      Sessione confermata: {formatDateTime(b.scheduledFor)}
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <Link
                     href={`/dashboard/chat/${b.id}`}
-                    className="text-sm font-medium text-orange-600 hover:text-orange-700"
+                    className="text-sm font-medium text-red-600 hover:text-red-700"
                   >
                     Apri chat →
                   </Link>
                   <Link
                     href={`/dashboard/video/${b.id}`}
-                    className="text-sm font-medium text-orange-600 hover:text-orange-700"
+                    className="text-sm font-medium text-red-600 hover:text-red-700"
                   >
                     Apri videochiamata →
                   </Link>
@@ -254,6 +243,72 @@ export default async function CoachDashboardPage() {
           </ul>
         )}
       </div>
+
+      {/* Reviews — coach can reply (accountability / responsiveness) */}
+      {provider && (
+        <div>
+          <h2 className="text-lg font-medium text-gray-900">
+            Le tue recensioni ({reviews.length})
+          </h2>
+          {reviews.length === 0 ? (
+            <p className="mt-2 text-gray-500">
+              Nessuna recensione. Le riceverai dagli atleti dopo le sessioni
+              completate.
+            </p>
+          ) : (
+            <ul className="mt-3 flex flex-col gap-3">
+              {reviews.map((r) => (
+                <li
+                  key={r.id}
+                  className="rounded-lg border border-gray-200 p-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-900">
+                      {r.authorName}
+                    </span>
+                    <RatingStars value={r.rating} size="sm" />
+                  </div>
+                  {r.body && (
+                    <p className="mt-1.5 text-sm text-gray-600">{r.body}</p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-400">
+                    {formatDate(r.createdAt)}
+                  </p>
+
+                  {r.reply ? (
+                    <div className="mt-3 rounded-md border-l-2 border-red-200 bg-red-50/50 px-3 py-2">
+                      <p className="text-xs font-medium text-gray-700">
+                        La tua risposta
+                      </p>
+                      <p className="mt-0.5 text-sm text-gray-600">{r.reply}</p>
+                    </div>
+                  ) : (
+                    <ActionForm
+                      action={replyToReviewAction}
+                      className="mt-3 flex flex-col gap-2"
+                    >
+                      <input type="hidden" name="reviewId" value={r.id} />
+                      <textarea
+                        name="reply"
+                        rows={2}
+                        maxLength={2000}
+                        required
+                        placeholder="Rispondi pubblicamente…"
+                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                      />
+                      <div>
+                        <Button type="submit" size="sm" className="rounded-full">
+                          Rispondi
+                        </Button>
+                      </div>
+                    </ActionForm>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </section>
   );
 }

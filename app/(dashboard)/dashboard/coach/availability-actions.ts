@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/core/auth';
 import {
   addAvailabilitySlot,
+  updateAvailabilitySlot,
   deleteAvailabilitySlot,
 } from '@/lib/core/availability';
 import type { ActionState } from '@/lib/auth/middleware';
@@ -39,8 +40,37 @@ export async function addAvailabilityAction(
   });
   if (!result.ok) return { error: result.error };
 
-  revalidatePath('/dashboard/coach');
+  revalidatePath('/dashboard/coach/services');
   return { success: 'Fascia aggiunta.' };
+}
+
+export async function updateAvailabilityAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const user = await requireRole('coach');
+
+  const slotId = Number(formData.get('slotId'));
+  const weekday = Number(formData.get('weekday'));
+  const startMinute = timeToMinutes((formData.get('start') as string) ?? '');
+  const endMinute = timeToMinutes((formData.get('end') as string) ?? '');
+
+  if (!Number.isInteger(slotId)) {
+    return { error: 'Fascia non valida.' };
+  }
+  if (!Number.isInteger(weekday) || startMinute === null || endMinute === null) {
+    return { error: 'Compila giorno, inizio e fine.' };
+  }
+
+  const result = await updateAvailabilitySlot(user.id, slotId, {
+    weekday,
+    startMinute,
+    endMinute,
+  });
+  if (!result.ok) return { error: result.error };
+
+  revalidatePath('/dashboard/coach/services');
+  return { success: 'Fascia aggiornata.' };
 }
 
 export async function deleteAvailabilityAction(
@@ -57,6 +87,6 @@ export async function deleteAvailabilityAction(
   const result = await deleteAvailabilitySlot(user.id, slotId);
   if (!result.ok) return { error: result.error };
 
-  revalidatePath('/dashboard/coach');
+  revalidatePath('/dashboard/coach/services');
   return { success: 'Fascia rimossa.' };
 }

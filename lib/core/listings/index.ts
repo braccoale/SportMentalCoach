@@ -1,7 +1,10 @@
+import { getAllSpecialties } from '@/lib/core/taxonomies';
 import 'server-only';
-import { and, arrayContains, eq, isNotNull } from 'drizzle-orm';
+import { and, arrayContains, eq, isNotNull, type SQL } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { providerProfiles, profiles, services } from '@/lib/db/schema';
+import { getVerticalConfig, findTaxonomyItem } from '@/lib/core/config';
+import { getRatingSummaries } from '@/lib/core/reviews';
 
 export type CoachListItem = {
   slug: string;
@@ -64,8 +67,17 @@ export async function getApprovedCoaches(
 }
 
 export type CoachDetail = CoachListItem & {
+  providerId: number;
   bio: string | null;
   description: string | null;
+  videoUrl: string | null;
+  yearsExperience: number | null;
+  languages: string[] | null;
+  certifications: string[] | null;
+  athleteLevels: string[] | null;
+  identityVerified: boolean;
+  certificationsVerified: boolean;
+  memberSince: Date;
   services: {
     id: number;
     title: string | null;
@@ -83,7 +95,7 @@ export type CoachDetail = CoachListItem & {
 export async function getCoachBySlug(slug: string): Promise<CoachDetail | null> {
   const [coach] = await db
     .select({
-      id: providerProfiles.id,
+      providerId: providerProfiles.id,
       slug: providerProfiles.slug,
       displayName: profiles.displayName,
       headline: providerProfiles.headline,
@@ -95,6 +107,14 @@ export async function getCoachBySlug(slug: string): Promise<CoachDetail | null> 
       hourlyRate: providerProfiles.hourlyRate,
       currency: providerProfiles.currency,
       certified: providerProfiles.isKaipaiCertified,
+      videoUrl: providerProfiles.videoUrl,
+      yearsExperience: providerProfiles.yearsExperience,
+      languages: providerProfiles.languages,
+      certifications: providerProfiles.certifications,
+      athleteLevels: providerProfiles.athleteLevels,
+      identityVerified: providerProfiles.identityVerified,
+      certificationsVerified: providerProfiles.certificationsVerified,
+      memberSince: providerProfiles.createdAt,
     })
     .from(providerProfiles)
     .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
@@ -118,9 +138,189 @@ export async function getCoachBySlug(slug: string): Promise<CoachDetail | null> 
       currency: services.currency,
     })
     .from(services)
-    .where(and(eq(services.providerId, coach.id), eq(services.isActive, true)))
+    .where(
+      and(eq(services.providerId, coach.providerId), eq(services.isActive, true))
+    )
     .orderBy(services.id);
 
-  const { id: _id, ...rest } = coach;
-  return { ...(rest as CoachListItem), bio: coach.bio, description: coach.description, services: svc };
+  // slug is the queried value, guaranteed non-null.
+  return { ...coach, slug, services: svc };
+}
+
+// --- Discovery (matching) ---------------------------------------------------
+
+export type DiscoverySort = 'recommended' | 'rating' | 'price' | 'experience';
+
+export type DiscoveryFilters = {
+  sport?: string;
+  specialty?: string;
+  level?: string;
+  language?: string;
+  certifiedOnly?: boolean;
+  sort?: DiscoverySort;
+};
+
+export type DiscoveryCoach = {
+  providerId: number;
+  slug: string;
+  displayName: string | null;
+  headline: string | null;
+  avatarUrl: string | null;
+  categories: string[] | null;
+  specialties: string[] | null;
+  hourlyRate: number | null;
+  currency: string;
+  certified: boolean;
+  yearsExperience: number | null;
+  languages: string[] | null;
+  athleteLevels: string[] | null;
+  hasVideo: boolean;
+  rating: { average: number | null; count: number };
+  matchReasons: string[];
+  recommended: boolean;
+  isFavorite: boolean;
+};
+
+/**
+ * The recommendation-style listing. Filters narrow to relevant approved
+ * coaches; a transparent quality score ranks them; per-card match reasons
+ * explain *why*. No AI — a deterministic heuristic.
+ */
+export async function getCoachDiscovery(
+  filters: DiscoveryFilters = {},
+  opts: { favoriteIds?: Set<number> } = {}
+): Promise<DiscoveryCoach[]> {
+  // Specialty labels for match reasons come from the DB master data.
+  const specialtyItems = filters.specialty ? await getAllSpecialties() : [];
+  const conditions: SQL[] = [
+    eq(providerProfiles.status, 'approved'),
+    isNotNull(providerProfiles.slug),
+  ];
+  if (filters.sport)
+    conditions.push(arrayContains(providerProfiles.categories, [filters.sport]));
+  if (filters.specialty)
+    conditions.push(
+      arrayContains(providerProfiles.specialties, [filters.specialty])
+    );
+  if (filters.level)
+    conditions.push(
+      arrayContains(providerProfiles.athleteLevels, [filters.level])
+    );
+  if (filters.language)
+    conditions.push(
+      arrayContains(providerProfiles.languages, [filters.language])
+    );
+  if (filters.certifiedOnly)
+    conditions.push(eq(providerProfiles.isKaipaiCertified, true));
+
+  const rows = await db
+    .select({
+      providerId: providerProfiles.id,
+      slug: providerProfiles.slug,
+      displayName: profiles.displayName,
+      headline: providerProfiles.headline,
+      avatarUrl: profiles.avatarUrl,
+      categories: providerProfiles.categories,
+      specialties: providerProfiles.specialties,
+      hourlyRate: providerProfiles.hourlyRate,
+      currency: providerProfiles.currency,
+      certified: providerProfiles.isKaipaiCertified,
+      yearsExperience: providerProfiles.yearsExperience,
+      languages: providerProfiles.languages,
+      athleteLevels: providerProfiles.athleteLevels,
+      videoUrl: providerProfiles.videoUrl,
+    })
+    .from(providerProfiles)
+    .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
+    .where(and(...conditions));
+
+  const ratings = await getRatingSummaries(rows.map((r) => r.providerId));
+  const config = getVerticalConfig();
+  const labelFor = (
+    items: { key: string; label: string }[],
+    key?: string
+  ) => (key ? findTaxonomyItem(items, key)?.label ?? key : undefined);
+
+  const scored = rows.map((r) => {
+    const rating = ratings.get(r.providerId) ?? { average: null, count: 0 };
+    const hasVideo = !!r.videoUrl;
+
+    // Quality score (drives "Consigliati" ranking).
+    const score =
+      (rating.average ?? 0) * 6 +
+      Math.min(rating.count, 10) +
+      (r.certified ? 25 : 0) +
+      (hasVideo ? 8 : 0) +
+      (r.headline ? 2 : 0) +
+      ((r.specialties?.length ?? 0) > 0 ? 2 : 0) +
+      ((r.languages?.length ?? 0) > 0 ? 1 : 0);
+
+    // Match reasons (max 3): matched filters first, then quality signals.
+    const reasons: string[] = [];
+    if (filters.specialty && r.specialties?.includes(filters.specialty))
+      reasons.push(
+        `Esperto in: ${labelFor(specialtyItems, filters.specialty)}`
+      );
+    if (filters.level && r.athleteLevels?.includes(filters.level))
+      reasons.push(
+        `Lavora con: ${labelFor(config.taxonomies.levels ?? [], filters.level)}`
+      );
+    if (filters.language && r.languages?.includes(filters.language))
+      reasons.push(`Parla ${filters.language}`);
+    if (reasons.length < 3 && r.certified) reasons.push('Certificato Kai Pai');
+    if (reasons.length < 3 && rating.average != null)
+      reasons.push(`★ ${rating.average}`);
+    if (reasons.length < 3 && hasVideo) reasons.push('Video di presentazione');
+
+    return {
+      providerId: r.providerId,
+      slug: r.slug as string,
+      displayName: r.displayName,
+      headline: r.headline,
+      avatarUrl: r.avatarUrl,
+      categories: r.categories,
+      specialties: r.specialties,
+      hourlyRate: r.hourlyRate,
+      currency: r.currency,
+      certified: r.certified,
+      yearsExperience: r.yearsExperience,
+      languages: r.languages,
+      athleteLevels: r.athleteLevels,
+      hasVideo,
+      rating,
+      matchReasons: reasons.slice(0, 3),
+      recommended: false,
+      isFavorite: opts.favoriteIds?.has(r.providerId) ?? false,
+      _score: score,
+    };
+  });
+
+  const sort = filters.sort ?? 'recommended';
+  scored.sort((a, b) => {
+    switch (sort) {
+      case 'rating':
+        return (
+          (b.rating.average ?? -1) - (a.rating.average ?? -1) ||
+          b.rating.count - a.rating.count
+        );
+      case 'price':
+        return (
+          (a.hourlyRate ?? Number.MAX_SAFE_INTEGER) -
+          (b.hourlyRate ?? Number.MAX_SAFE_INTEGER)
+        );
+      case 'experience':
+        return (b.yearsExperience ?? -1) - (a.yearsExperience ?? -1);
+      default:
+        return b._score - a._score || (b.rating.average ?? 0) - (a.rating.average ?? 0);
+    }
+  });
+
+  // Highlight the top matches when ranked by relevance.
+  if (sort === 'recommended') {
+    scored.slice(0, 3).forEach((c) => {
+      if (c._score > 0) c.recommended = true;
+    });
+  }
+
+  return scored.map(({ _score, ...c }) => c);
 }

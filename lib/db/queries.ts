@@ -1,39 +1,35 @@
 import { desc, and, eq, isNull } from 'drizzle-orm';
 import { db } from './drizzle';
 import { activityLogs, teamMembers, teams, users } from './schema';
-import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth/session';
+import { unstable_rethrow } from 'next/navigation';
+import { createSupabaseServer } from '@/lib/auth/supabase';
 
+/**
+ * Resolves the current user: Supabase Auth session (cookie) → app profile
+ * row in `public.users` (by `auth_id`). Returns null when logged out,
+ * unknown, or soft-deleted.
+ */
 export async function getUser() {
-  const sessionCookie = (await cookies()).get('session');
-  if (!sessionCookie || !sessionCookie.value) {
-    return null;
-  }
-
-  let sessionData;
+  let authUserId: string | null = null;
   try {
-    sessionData = await verifyToken(sessionCookie.value);
-  } catch {
-    // Tampered, malformed, or expired-signature token: treat as logged out.
+    const supabase = await createSupabaseServer();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    authUserId = authUser?.id ?? null;
+  } catch (error) {
+    // Next.js internal signals (dynamic rendering, redirects) must propagate.
+    unstable_rethrow(error);
+    // Missing Supabase env or auth outage: treat as logged out rather than
+    // crashing every page render.
     return null;
   }
-
-  if (
-    !sessionData ||
-    !sessionData.user ||
-    typeof sessionData.user.id !== 'number'
-  ) {
-    return null;
-  }
-
-  if (new Date(sessionData.expires) < new Date()) {
-    return null;
-  }
+  if (!authUserId) return null;
 
   const user = await db
     .select()
     .from(users)
-    .where(and(eq(users.id, sessionData.user.id), isNull(users.deletedAt)))
+    .where(and(eq(users.authId, authUserId), isNull(users.deletedAt)))
     .limit(1);
 
   if (user.length === 0) {

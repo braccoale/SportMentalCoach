@@ -1,6 +1,7 @@
 import 'server-only';
 import { eq } from 'drizzle-orm';
 import { db, type DbOrTx } from '@/lib/db/drizzle';
+import { yearsSince } from '@/lib/core/format';
 import {
   profiles,
   userRoles,
@@ -20,7 +21,7 @@ export async function ensureProfile(
 ) {
   await exec
     .insert(profiles)
-    .values({ userId, displayName: displayName ?? null })
+    .values({ userId, displayName: displayName ?? null, createdBy: userId })
     .onConflictDoNothing({ target: profiles.userId });
 }
 
@@ -32,7 +33,7 @@ export async function setAvatarUrl(userId: number, url: string | null) {
   await ensureProfile(userId);
   await db
     .update(profiles)
-    .set({ avatarUrl: url, updatedAt: new Date() })
+    .set({ avatarUrl: url, updatedAt: new Date(), updatedBy: userId })
     .where(eq(profiles.userId, userId));
   return url;
 }
@@ -55,7 +56,7 @@ export async function assignRole(
 ) {
   await exec
     .insert(userRoles)
-    .values({ userId, roleKey })
+    .values({ userId, roleKey, createdBy: userId })
     .onConflictDoNothing();
 }
 
@@ -63,7 +64,7 @@ export async function assignRole(
 export async function ensureClientProfile(userId: number, exec: DbOrTx = db) {
   await exec
     .insert(clientProfiles)
-    .values({ userId })
+    .values({ userId, createdBy: userId })
     .onConflictDoNothing({ target: clientProfiles.userId });
 }
 
@@ -100,7 +101,7 @@ export async function ensureProviderProfile(
   const slug = await uniqueSlug(slugBase, userId, exec);
   await exec
     .insert(providerProfiles)
-    .values({ userId, slug })
+    .values({ userId, slug, createdBy: userId })
     .onConflictDoNothing({ target: providerProfiles.userId });
 }
 
@@ -129,8 +130,21 @@ export async function updateProviderProfileFields(
     description?: string | null;
     categories?: string[];
     specialties?: string[];
+    videoUrl?: string | null;
+    coachSince?: string | null;
+    yearsExperience?: number | null;
+    languages?: string[];
+    certifications?: string[];
+    athleteLevels?: string[];
   }
 ) {
+  // `coach_since` is the source of truth for experience; keep the legacy
+  // `years_experience` integer in sync so existing consumers (public profile,
+  // listings, sorting) keep working without changes.
+  const coachSince = fields.coachSince ?? null;
+  const yearsExperience =
+    coachSince != null ? yearsSince(coachSince) : fields.yearsExperience ?? null;
+
   await db
     .update(providerProfiles)
     .set({
@@ -138,8 +152,23 @@ export async function updateProviderProfileFields(
       description: fields.description ?? null,
       categories: fields.categories ?? [],
       specialties: fields.specialties ?? [],
+      videoUrl: fields.videoUrl ?? null,
+      coachSince,
+      yearsExperience,
+      languages: fields.languages ?? [],
+      certifications: fields.certifications ?? [],
+      athleteLevels: fields.athleteLevels ?? [],
       updatedAt: new Date(),
+      updatedBy: userId,
     })
+    .where(eq(providerProfiles.userId, userId));
+}
+
+/** Sets (or clears) just the coach's presentation video URL. */
+export async function setProviderVideoUrl(userId: number, url: string | null) {
+  await db
+    .update(providerProfiles)
+    .set({ videoUrl: url, updatedAt: new Date(), updatedBy: userId })
     .where(eq(providerProfiles.userId, userId));
 }
 
@@ -157,7 +186,7 @@ export async function submitProviderForReview(
   if (provider.status === 'draft' || provider.status === 'rejected') {
     await db
       .update(providerProfiles)
-      .set({ status: 'pending', updatedAt: new Date() })
+      .set({ status: 'pending', updatedAt: new Date(), updatedBy: userId })
       .where(eq(providerProfiles.userId, userId));
     return 'pending';
   }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect } from 'react';
 import type { ActionState } from '@/lib/auth/middleware';
 
 /**
@@ -12,12 +12,20 @@ export function ActionForm({
   action,
   children,
   className,
+  onSuccess,
 }: {
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
   children: React.ReactNode;
   className?: string;
+  /** Called once when the action reports success (e.g. close a drawer). */
+  onSuccess?: (state: ActionState) => void;
 }) {
   const [state, formAction] = useActionState<ActionState, FormData>(action, {});
+
+  useEffect(() => {
+    if (state?.success) onSuccess?.(state);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire per result
+  }, [state]);
 
   return (
     <form action={formAction} className={className}>

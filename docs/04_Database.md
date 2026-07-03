@@ -84,6 +84,12 @@ One row per user that holds the `coach` role.
 | currency      | varchar(8)          | default `'EUR'`                                |
 | status        | varchar(20)         | `draft` / `pending` / `approved` / `rejected`; default `'draft'` |
 | is_kaipai_certified | boolean        | Kai Pai Academy certification; default `false` (migration `0002`) |
+| video_url      | text                | intro video: YouTube/Vimeo URL **or** uploaded file (Supabase Storage / `/uploads/`); migration `0007` |
+| years_experience | integer           | years of experience — derived from `coach_since` on save; migration `0007` |
+| coach_since    | date                | date the coach started practising; source of truth for experience; migration `0010` |
+| languages      | text[]              | spoken languages; migration `0007`             |
+| certifications | text[]              | professional credentials; migration `0007`     |
+| athlete_levels | text[]              | level taxonomy keys worked with; migration `0007` |
 | reviewed_by   | integer FK users.id | admin who last reviewed                        |
 | reviewed_at   | timestamp           |                                                |
 | created_at    | timestamp           | defaultNow()                                   |
@@ -205,6 +211,57 @@ migration `0005`.
 Indexes on `(user_id, created_at)` and `(user_id, read_at)` (unread counts).
 The table and CRUD (`lib/core/notifications`) are content-agnostic; the default
 marketplace copy lives in a single, swappable `buildContent` map.
+
+### `notification_preferences` (Phase 2 — generic)
+
+Per-user, per-type **email** delivery preference. Added by migration `0006`.
+
+| column        | type                | notes                                       |
+|---------------|---------------------|---------------------------------------------|
+| id            | serial PK           |                                             |
+| user_id       | integer FK users.id | not null                                    |
+| type          | varchar(50)         | notification type key                       |
+| email_enabled | boolean             | default `true`                              |
+| created_at    | timestamp           | defaultNow()                                |
+| updated_at    | timestamp           | defaultNow()                                |
+
+Unique `(user_id, type)`. A **missing row means default** (email enabled), so
+storage is effectively sparse and any vertical's type set works. In-app
+notifications are always on and are **not** represented here — this table only
+governs the optional email mirror.
+
+### `reviews` (Phase 2 — verified)
+
+Athlete reviews of a coach. Added by migration `0007`.
+
+| column      | type                          | notes                                         |
+|-------------|-------------------------------|-----------------------------------------------|
+| id          | serial PK                     |                                               |
+| provider_id | integer FK provider_profiles.id | not null                                    |
+| booking_id  | integer FK bookings.id        | **unique**; null only for seeded demo reviews |
+| author_id   | integer FK users.id           | not null                                      |
+| rating      | integer                       | `CHECK between 1 and 5`                        |
+| body        | text                          | optional                                      |
+| created_at  | timestamp                     | defaultNow()                                  |
+
+Index on `(provider_id, created_at)`. A real review (`lib/core/reviews`) is tied
+to a **completed booking owned by the author** — one per booking (unique
+`booking_id`) — so it cannot be faked. `verified` in the UI = `booking_id`
+present.
+
+### `favorites` (Phase 2 — saved coaches)
+
+A user's favourite coaches. Added by migration `0008`.
+
+| column      | type                          | notes              |
+|-------------|-------------------------------|--------------------|
+| id          | serial PK                     |                    |
+| user_id     | integer FK users.id           | not null           |
+| provider_id | integer FK provider_profiles.id | not null         |
+| created_at  | timestamp                     | defaultNow()       |
+
+Unique `(user_id, provider_id)`. Toggled from the coach discovery cards
+(`lib/core/favorites`); used to fill the heart state and the "Preferiti" filter.
 
 ---
 

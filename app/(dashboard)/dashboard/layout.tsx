@@ -7,7 +7,6 @@ import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import {
   Home,
-  Settings,
   Shield,
   Activity,
   Menu,
@@ -33,15 +32,28 @@ export default function DashboardLayout({
     (r) => ({
       href: ROLE_DASHBOARDS[r],
       icon: LayoutDashboard,
+      // Coach area uses the Kai Pai brand mark instead of a generic icon.
+      // TODO: swap /logo.jpg for a dedicated coach-area glyph when available.
+      logo: r === 'coach',
       label: getRoleLabel(r)
     })
   );
 
   const settingsNavItems = [
-    { href: '/dashboard', icon: Home, label: 'Dashboard' },
-    { href: '/dashboard/general', icon: Settings, label: 'Generale' },
-    { href: '/dashboard/activity', icon: Activity, label: 'Attività' },
-    { href: '/dashboard/security', icon: Shield, label: 'Sicurezza' }
+    { href: '/dashboard', icon: Home, logo: false, label: 'Dashboard' },
+    { href: '/dashboard/activity', icon: Activity, logo: false, label: 'Attività' },
+    // Coaches manage security from the "Sicurezza" tab in the coach area;
+    // other roles keep the sidebar entry.
+    ...(roles.includes('coach')
+      ? []
+      : [
+          {
+            href: '/dashboard/security',
+            icon: Shield,
+            logo: false,
+            label: 'Sicurezza'
+          }
+        ])
   ];
 
   const navItems = [...roleNavItems, ...settingsNavItems];
@@ -82,7 +94,15 @@ export default function DashboardLayout({
                   }`}
                   onClick={() => setIsSidebarOpen(false)}
                 >
-                  <item.icon className="h-4 w-4" />
+                  {item.logo ? (
+                    <img
+                      src="/logo.jpg"
+                      alt=""
+                      className="h-4 w-4 rounded object-cover"
+                    />
+                  ) : (
+                    <item.icon className="h-4 w-4" />
+                  )}
                   {item.label}
                 </Button>
               </Link>

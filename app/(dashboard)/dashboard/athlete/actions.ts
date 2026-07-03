@@ -17,6 +17,8 @@ export async function cancelBookingAction(
   if (!result.ok) return { error: result.error };
 
   revalidatePath('/dashboard/athlete');
+  revalidatePath('/dashboard/athlete/calendar');
   revalidatePath('/dashboard/coach');
+  revalidatePath('/dashboard/coach/calendar');
   return { success: 'Prenotazione annullata.' };
 }

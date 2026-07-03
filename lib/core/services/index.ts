@@ -47,6 +47,7 @@ export async function createCoachService(
       description: input.description ?? null,
       durationMin: input.durationMin ?? null,
       price: input.price ?? null,
+      createdBy: userId,
     })
     .returning({ id: services.id });
 
@@ -70,6 +71,7 @@ export async function updateCoachService(
       durationMin: input.durationMin ?? null,
       price: input.price ?? null,
       updatedAt: new Date(),
+      updatedBy: userId,
     })
     .where(and(eq(services.id, serviceId), eq(services.providerId, providerId)))
     .returning({ id: services.id });

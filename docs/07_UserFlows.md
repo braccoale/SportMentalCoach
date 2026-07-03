@@ -95,6 +95,22 @@ truth**), then — best-effort — emails the recipient when email is enabled:
   `[email] failed to … (status)`.
 - No push notifications.
 
+### Email preferences (per-user, per-type)
+
+```
+/dashboard/notifications/preferences → toggle email per notification type → Salva
+```
+
+- Users choose **which types send email**; in-app notifications are always on
+  and have no toggle. Default for every type is **enabled**.
+- Stored sparsely in `notification_preferences` (`getEmailPreferences` /
+  `setEmailPreferences`). `notify()` resolves the recipient's email via
+  `resolveEmailRecipient(userId, type)`, which returns the address only when the
+  user has email enabled for that type — otherwise it logs
+  `[email] skipped (preference/no-email)` and sends nothing.
+- Generic & reusable: any vertical's notification types and labels
+  (`NOTIFICATION_TYPE_LABELS`) drive the page automatically.
+
 ## Session lifecycle completion (Phase 2, implemented)
 
 ```

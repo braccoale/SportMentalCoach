@@ -101,14 +101,14 @@ export function ChatPanel({
                 key={m.id}
                 className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
                   mine
-                    ? 'self-end bg-orange-500 text-white'
+                    ? 'self-end bg-red-600 text-white'
                     : 'self-start bg-gray-100 text-gray-800'
                 }`}
               >
                 <p className="whitespace-pre-line">{m.body}</p>
                 <p
                   className={`mt-1 text-[11px] ${
-                    mine ? 'text-orange-100' : 'text-gray-400'
+                    mine ? 'text-red-100' : 'text-gray-400'
                   }`}
                 >
                   {mine ? 'Tu' : m.senderName ?? m.senderEmail} ·{' '}

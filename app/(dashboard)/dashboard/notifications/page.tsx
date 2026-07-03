@@ -24,13 +24,21 @@ export default async function NotificationsPage() {
     <section className="mx-auto w-full max-w-2xl p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-gray-900">Notifiche</h1>
-        {hasUnread && (
-          <form action={markAllNotificationsReadAction}>
-            <Button type="submit" variant="outline" size="sm" className="rounded-full">
-              Segna tutte come lette
-            </Button>
-          </form>
-        )}
+        <div className="flex items-center gap-3">
+          <Link
+            href="/dashboard/notifications/preferences"
+            className="text-sm font-medium text-red-600 hover:text-red-700"
+          >
+            Preferenze
+          </Link>
+          {hasUnread && (
+            <form action={markAllNotificationsReadAction}>
+              <Button type="submit" variant="outline" size="sm" className="rounded-full">
+                Segna tutte come lette
+              </Button>
+            </form>
+          )}
+        </div>
       </div>
 
       {items.length === 0 ? (
@@ -45,13 +53,13 @@ export default async function NotificationsPage() {
                 className={`flex items-start justify-between gap-3 rounded-lg border p-4 ${
                   n.readAt
                     ? 'border-gray-100 bg-white'
-                    : 'border-orange-200 bg-orange-50'
+                    : 'border-red-200 bg-red-50'
                 }`}
               >
                 <div className="min-w-0">
                   <p className="flex items-center gap-2 font-medium text-gray-900">
                     {!n.readAt && (
-                      <span className="h-2 w-2 shrink-0 rounded-full bg-orange-500" />
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-red-600" />
                     )}
                     {link ? (
                       <Link href={link} className="hover:underline">

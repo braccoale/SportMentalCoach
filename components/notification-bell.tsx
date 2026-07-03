@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { Bell } from 'lucide-react';
@@ -37,11 +38,16 @@ export function NotificationBell() {
     refreshInterval: 30000,
   });
   const router = useRouter();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   if (!data?.authenticated) return null;
   const unread = data.unreadCount;
 
   async function open(item: Item) {
+    // Close the menu first: the items are plain buttons (not
+    // DropdownMenuItem), so Radix would otherwise keep the menu open and
+    // its modal overlay would block clicks on the destination page.
+    setMenuOpen(false);
     const fd = new FormData();
     fd.set('id', String(item.id));
     await markNotificationReadAction(fd);
@@ -55,11 +61,11 @@ export function NotificationBell() {
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
       <DropdownMenuTrigger className="relative rounded-full p-1.5 text-gray-600 hover:bg-gray-100 hover:text-gray-900">
         <Bell className="h-5 w-5" />
         {unread > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-orange-500 px-1 text-[10px] font-semibold text-white">
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
             {unread > 9 ? '9+' : unread}
           </span>
         )}
@@ -71,7 +77,7 @@ export function NotificationBell() {
           {unread > 0 && (
             <button
               onClick={markAll}
-              className="text-xs font-medium text-orange-600 hover:text-orange-700"
+              className="text-xs font-medium text-red-600 hover:text-red-700"
             >
               Segna tutte come lette
             </button>
@@ -94,7 +100,7 @@ export function NotificationBell() {
               >
                 <span className="flex w-full items-center gap-2">
                   {!item.readAt && (
-                    <span className="h-2 w-2 shrink-0 rounded-full bg-orange-500" />
+                    <span className="h-2 w-2 shrink-0 rounded-full bg-red-600" />
                   )}
                   <span className="text-sm font-medium text-gray-900">
                     {item.title}
@@ -114,7 +120,7 @@ export function NotificationBell() {
         <div className="border-t border-gray-100 px-3 py-2 text-center">
           <Link
             href="/dashboard/notifications"
-            className="text-sm font-medium text-orange-600 hover:text-orange-700"
+            className="text-sm font-medium text-red-600 hover:text-red-700"
           >
             Vedi tutte
           </Link>

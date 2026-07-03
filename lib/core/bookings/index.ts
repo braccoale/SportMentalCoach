@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, count, desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
   bookings,
@@ -29,7 +29,7 @@ export function bookingStatusTone(status: string): string {
     case 'completed':
       return 'bg-blue-50 text-blue-700';
     default:
-      return 'bg-amber-50 text-amber-700';
+      return 'bg-gray-100 text-gray-700';
   }
 }
 
@@ -47,6 +47,34 @@ export const BOOKING_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
 
 export function canTransition(from: BookingStatus, to: BookingStatus): boolean {
   return BOOKING_TRANSITIONS[from]?.includes(to) ?? false;
+}
+
+/** Number of completed sessions for a coach (social-proof credibility). */
+export async function getCompletedSessionCount(
+  providerId: number
+): Promise<number> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(bookings)
+    .where(
+      and(eq(bookings.providerId, providerId), eq(bookings.status, 'completed'))
+    );
+  return row?.value ?? 0;
+}
+
+/** Number of pending (`requested`) bookings for a coach, by user id. */
+export async function getPendingRequestCount(userId: number): Promise<number> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(bookings)
+    .innerJoin(providerProfiles, eq(bookings.providerId, providerProfiles.id))
+    .where(
+      and(
+        eq(providerProfiles.userId, userId),
+        eq(bookings.status, 'requested')
+      )
+    );
+  return row?.value ?? 0;
 }
 
 /**
@@ -108,6 +136,7 @@ export async function createBookingRequest(params: {
       status: 'requested',
       note: params.note ?? null,
       scheduledFor: params.scheduledFor ?? null,
+      createdBy: params.clientUserId,
     })
     .returning({ id: bookings.id });
 
@@ -238,7 +267,7 @@ export async function decideBooking(params: {
 
   await db
     .update(bookings)
-    .set({ status: params.decision, decidedAt: new Date(), updatedAt: new Date() })
+    .set({ status: params.decision, decidedAt: new Date(), updatedAt: new Date(), updatedBy: params.coachUserId })
     .where(eq(bookings.id, params.bookingId));
 
   if (params.decision === 'accepted') {
@@ -289,7 +318,7 @@ export async function completeBooking(params: {
 
   await db
     .update(bookings)
-    .set({ status: 'completed', completedAt: new Date(), updatedAt: new Date() })
+    .set({ status: 'completed', completedAt: new Date(), updatedAt: new Date(), updatedBy: params.coachUserId })
     .where(eq(bookings.id, params.bookingId));
 
   await notify('booking_completed', booking.clientId, { bookingId: booking.id });
@@ -327,7 +356,7 @@ export async function cancelBooking(params: {
 
   await db
     .update(bookings)
-    .set({ status: 'cancelled', updatedAt: new Date() })
+    .set({ status: 'cancelled', updatedAt: new Date(), updatedBy: params.userId })
     .where(eq(bookings.id, params.bookingId));
 
   // Notify the other participant.

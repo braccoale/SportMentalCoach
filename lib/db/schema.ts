@@ -9,18 +9,39 @@ import {
   unique,
   index,
   jsonb,
+  check,
+  date,
+  uuid,
 } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
+
+/**
+ * Audit columns, present on every table (migration 0011). `created_by` /
+ * `updated_by` reference `users.id` logically (no DB-level FK to keep system
+ * writes and seeds simple); `updated_at` is bumped automatically by the
+ * `set_updated_at()` trigger installed on all tables.
+ */
+const audit = {
+  createdBy: integer('created_by'),
+  updatedBy: integer('updated_by'),
+};
 
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
+  // Supabase Auth identity (auth.users.id). Identities live in Supabase Auth;
+  // this table remains the app-level profile keyed by integer id.
+  authId: uuid('auth_id').unique(),
   name: varchar('name', { length: 100 }),
+  lastName: varchar('last_name', { length: 100 }),
   email: varchar('email', { length: 255 }).notNull().unique(),
-  passwordHash: text('password_hash').notNull(),
+  // Legacy bcrypt hash (pre-Supabase-Auth). Kept for the one-time migration;
+  // null for accounts created after the switch.
+  passwordHash: text('password_hash'),
   role: varchar('role', { length: 20 }).notNull().default('member'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
   deletedAt: timestamp('deleted_at'),
+  ...audit,
 });
 
 export const teams = pgTable('teams', {
@@ -33,6 +54,7 @@ export const teams = pgTable('teams', {
   stripeProductId: text('stripe_product_id'),
   planName: varchar('plan_name', { length: 50 }),
   subscriptionStatus: varchar('subscription_status', { length: 20 }),
+  ...audit,
 });
 
 export const teamMembers = pgTable('team_members', {
@@ -45,6 +67,9 @@ export const teamMembers = pgTable('team_members', {
     .references(() => teams.id),
   role: varchar('role', { length: 50 }).notNull(),
   joinedAt: timestamp('joined_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  ...audit,
 });
 
 export const activityLogs = pgTable('activity_logs', {
@@ -56,6 +81,9 @@ export const activityLogs = pgTable('activity_logs', {
   action: text('action').notNull(),
   timestamp: timestamp('timestamp').notNull().defaultNow(),
   ipAddress: varchar('ip_address', { length: 45 }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  ...audit,
 });
 
 export const invitations = pgTable('invitations', {
@@ -70,6 +98,9 @@ export const invitations = pgTable('invitations', {
     .references(() => users.id),
   invitedAt: timestamp('invited_at').notNull().defaultNow(),
   status: varchar('status', { length: 20 }).notNull().default('pending'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  ...audit,
 });
 
 export const teamsRelations = relations(teams, ({ many }) => ({
@@ -169,12 +200,16 @@ export const profiles = pgTable('profiles', {
   locale: varchar('locale', { length: 8 }).notNull().default('it'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  ...audit,
 });
 
 // Catalog of role keys. Seeded; not user-editable.
 export const roles = pgTable('roles', {
   key: varchar('key', { length: 40 }).primaryKey(),
   label: varchar('label', { length: 80 }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  ...audit,
 });
 
 // Many-to-many: which roles a user holds.
@@ -189,9 +224,38 @@ export const userRoles = pgTable(
       .notNull()
       .references(() => roles.key),
     createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    ...audit,
   },
   (table) => [unique('user_roles_user_id_role_key_unique').on(table.userId, table.roleKey)]
 );
+
+// ---------------------------------------------------------------------------
+// Taxonomy master data (anagrafiche). Sports and specialties are managed in
+// the DB with an `active` flag: only active rows are offered in filters and
+// editors; existing profiles keep referencing keys even if later deactivated
+// (labels still resolve). Levels ("lavora con") stay in the vertical config.
+// ---------------------------------------------------------------------------
+
+export const sports = pgTable('sports', {
+  key: varchar('key', { length: 60 }).primaryKey(),
+  label: varchar('label', { length: 120 }).notNull(),
+  active: boolean('active').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  ...audit,
+});
+
+export const specialties = pgTable('specialties', {
+  key: varchar('key', { length: 60 }).primaryKey(),
+  label: varchar('label', { length: 120 }).notNull(),
+  active: boolean('active').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  ...audit,
+});
 
 // Coach side. One row per user that holds the `coach` role.
 export const providerProfiles = pgTable('provider_profiles', {
@@ -210,10 +274,25 @@ export const providerProfiles = pgTable('provider_profiles', {
   status: varchar('status', { length: 20 }).notNull().default('draft'),
   // Whether the coach is certified by the Kai Pai Academy.
   isKaipaiCertified: boolean('is_kaipai_certified').notNull().default(false),
+  // Trust/credibility fields for the public profile (Phase 2 profile redesign).
+  videoUrl: text('video_url'),
+  yearsExperience: integer('years_experience'),
+  // Date the coach started practising. Years of experience are derived from
+  // this; `yearsExperience` above is kept in sync on save for backward compat.
+  coachSince: date('coach_since'),
+  languages: text('languages').array(),
+  certifications: text('certifications').array(),
+  athleteLevels: text('athlete_levels').array(),
+  // Admin-managed verification (meaningful, scarce trust signals).
+  identityVerified: boolean('identity_verified').notNull().default(false),
+  certificationsVerified: boolean('certifications_verified')
+    .notNull()
+    .default(false),
   reviewedBy: integer('reviewed_by').references(() => users.id),
   reviewedAt: timestamp('reviewed_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  ...audit,
 });
 
 // Athlete side. One row per user that holds the `athlete` role.
@@ -229,6 +308,7 @@ export const clientProfiles = pgTable('client_profiles', {
   orgId: integer('org_id').references(() => teams.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  ...audit,
 });
 
 // Offerings created by a provider.
@@ -245,6 +325,7 @@ export const services = pgTable('services', {
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  ...audit,
 });
 
 // A booking request and its lifecycle. No payment fields in Phase 1.
@@ -269,6 +350,7 @@ export const bookings = pgTable(
     completedAt: timestamp('completed_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    ...audit,
   },
   (table) => [
     index('bookings_provider_id_status_idx').on(table.providerId, table.status),
@@ -291,6 +373,7 @@ export const coachAvailability = pgTable(
     endMinute: integer('end_minute').notNull(),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    ...audit,
   },
   (table) => [
     unique('coach_availability_provider_weekday_start_unique').on(
@@ -316,6 +399,8 @@ export const messages = pgTable(
       .references(() => users.id),
     body: text('body').notNull(),
     createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    ...audit,
   },
   (table) => [
     index('messages_booking_id_created_at_idx').on(
@@ -399,6 +484,8 @@ export const notifications = pgTable(
     data: jsonb('data'),
     readAt: timestamp('read_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    ...audit,
   },
   (table) => [
     index('notifications_user_id_created_at_idx').on(
@@ -413,6 +500,119 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
   user: one(users, {
     fields: [notifications.userId],
     references: [users.id],
+  }),
+}));
+
+// Per-user, per-type email delivery preference. Generic: one row per
+// (user, notification type). A missing row means "default" (email enabled).
+// In-app notifications are always on and are not represented here.
+export const notificationPreferences = pgTable(
+  'notification_preferences',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id),
+    type: varchar('type', { length: 50 }).notNull(),
+    emailEnabled: boolean('email_enabled').notNull().default(true),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    ...audit,
+  },
+  (table) => [
+    unique('notification_preferences_user_type_unique').on(
+      table.userId,
+      table.type
+    ),
+  ]
+);
+
+export const notificationPreferencesRelations = relations(
+  notificationPreferences,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [notificationPreferences.userId],
+      references: [users.id],
+    }),
+  })
+);
+
+// Verified athlete reviews of a coach. A review is tied to a completed booking
+// (one per booking) so it cannot be faked. Seeded demo reviews may have a null
+// booking_id. Reusable by any vertical.
+export const reviews = pgTable(
+  'reviews',
+  {
+    id: serial('id').primaryKey(),
+    providerId: integer('provider_id')
+      .notNull()
+      .references(() => providerProfiles.id),
+    bookingId: integer('booking_id')
+      .references(() => bookings.id)
+      .unique(),
+    authorId: integer('author_id')
+      .notNull()
+      .references(() => users.id),
+    rating: integer('rating').notNull(),
+    body: text('body'),
+    // Optional public reply from the coach (accountability / responsiveness).
+    reply: text('reply'),
+    replyAt: timestamp('reply_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    ...audit,
+  },
+  (table) => [
+    index('reviews_provider_id_created_at_idx').on(
+      table.providerId,
+      table.createdAt
+    ),
+    check('reviews_rating_range', sql`${table.rating} between 1 and 5`),
+  ]
+);
+
+export const reviewsRelations = relations(reviews, ({ one }) => ({
+  provider: one(providerProfiles, {
+    fields: [reviews.providerId],
+    references: [providerProfiles.id],
+  }),
+  author: one(users, {
+    fields: [reviews.authorId],
+    references: [users.id],
+  }),
+}));
+
+// A user's saved (favourite) coaches. Generic & reusable.
+export const favorites = pgTable(
+  'favorites',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id),
+    providerId: integer('provider_id')
+      .notNull()
+      .references(() => providerProfiles.id),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    ...audit,
+  },
+  (table) => [
+    unique('favorites_user_provider_unique').on(
+      table.userId,
+      table.providerId
+    ),
+  ]
+);
+
+export const favoritesRelations = relations(favorites, ({ one }) => ({
+  user: one(users, {
+    fields: [favorites.userId],
+    references: [users.id],
+  }),
+  provider: one(providerProfiles, {
+    fields: [favorites.providerId],
+    references: [providerProfiles.id],
   }),
 }));
 
@@ -474,6 +674,18 @@ export type Message = typeof messages.$inferSelect;
 export type NewMessage = typeof messages.$inferInsert;
 export type Notification = typeof notifications.$inferSelect;
 export type NewNotification = typeof notifications.$inferInsert;
+export type NotificationPreference =
+  typeof notificationPreferences.$inferSelect;
+export type NewNotificationPreference =
+  typeof notificationPreferences.$inferInsert;
+export type Review = typeof reviews.$inferSelect;
+export type NewReview = typeof reviews.$inferInsert;
+export type Favorite = typeof favorites.$inferSelect;
+export type NewFavorite = typeof favorites.$inferInsert;
+export type Sport = typeof sports.$inferSelect;
+export type NewSport = typeof sports.$inferInsert;
+export type Specialty = typeof specialties.$inferSelect;
+export type NewSpecialty = typeof specialties.$inferInsert;
 
 export const BOOKING_STATUSES = [
   'requested',

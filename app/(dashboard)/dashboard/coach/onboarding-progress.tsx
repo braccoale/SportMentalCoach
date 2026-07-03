@@ -24,7 +24,7 @@ export function OnboardingProgress({
 
       <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-gray-100">
         <div
-          className="h-full rounded-full bg-orange-500 transition-all"
+          className="h-full rounded-full bg-red-600 transition-all"
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -35,8 +35,8 @@ export function OnboardingProgress({
           {nextStep.label} — {nextStep.description}
           {nextStep.anchor && (
             <a
-              href={`#${nextStep.anchor}`}
-              className="ml-1 font-medium text-orange-600 hover:text-orange-700"
+              href={nextStep.anchor}
+              className="ml-1 font-medium text-red-600 hover:text-red-700"
             >
               Vai →
             </a>

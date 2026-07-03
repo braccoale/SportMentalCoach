@@ -20,9 +20,13 @@ export type ProviderReviewItem = {
   categories: string[] | null;
   specialties: string[] | null;
   status: string;
+  identityVerified: boolean;
+  certificationsVerified: boolean;
   reviewedAt: Date | null;
   createdAt: Date;
 };
+
+export type VerificationField = 'identity' | 'certifications';
 
 /**
  * All provider profiles for admin review, across every status
@@ -42,6 +46,8 @@ export async function getProviderProfilesForReview(): Promise<
       categories: providerProfiles.categories,
       specialties: providerProfiles.specialties,
       status: providerProfiles.status,
+      identityVerified: providerProfiles.identityVerified,
+      certificationsVerified: providerProfiles.certificationsVerified,
       reviewedAt: providerProfiles.reviewedAt,
       createdAt: providerProfiles.createdAt,
     })
@@ -49,6 +55,28 @@ export async function getProviderProfilesForReview(): Promise<
     .innerJoin(users, eq(providerProfiles.userId, users.id))
     .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
     .orderBy(desc(providerProfiles.createdAt));
+}
+
+/** Admin toggles a verification flag on a provider profile. */
+export async function setProviderVerification(params: {
+  providerId: number;
+  field: VerificationField;
+  value: boolean;
+  actorUserId?: number;
+}): Promise<Result> {
+  const patch =
+    params.field === 'identity'
+      ? { identityVerified: params.value }
+      : { certificationsVerified: params.value };
+
+  const [updated] = await db
+    .update(providerProfiles)
+    .set({ ...patch, updatedAt: new Date(), updatedBy: params.actorUserId ?? null })
+    .where(eq(providerProfiles.id, params.providerId))
+    .returning({ id: providerProfiles.id });
+
+  if (!updated) return { ok: false, error: 'Profilo non trovato.' };
+  return { ok: true };
 }
 
 /**
@@ -71,6 +99,7 @@ export async function reviewProviderProfile(params: {
       reviewedBy: params.adminUserId,
       reviewedAt: new Date(),
       updatedAt: new Date(),
+      updatedBy: params.adminUserId,
     })
     .where(eq(providerProfiles.id, params.providerId))
     .returning({ id: providerProfiles.id, userId: providerProfiles.userId });

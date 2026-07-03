@@ -20,11 +20,11 @@ export function DemoAccounts() {
   if (process.env.NODE_ENV === 'production') return null;
 
   return (
-    <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50 p-5">
-      <p className="text-sm font-semibold text-amber-900">
+    <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-5">
+      <p className="text-sm font-semibold text-gray-900">
         Account demo (solo sviluppo)
       </p>
-      <p className="mt-1 text-xs text-amber-700">
+      <p className="mt-1 text-xs text-gray-600">
         Disponibili dopo <code>pnpm db:seed</code>. Registra atleti/coach/club da{' '}
         <a href="/sign-up" className="underline">
           /sign-up
@@ -35,7 +35,7 @@ export function DemoAccounts() {
         {ACCOUNTS.map((a) => (
           <li
             key={a.email}
-            className="rounded-lg border border-amber-200 bg-white p-3 text-xs"
+            className="rounded-lg border border-gray-200 bg-white p-3 text-xs"
           >
             <p className="font-medium text-gray-900">{a.role}</p>
             <p className="mt-1 text-gray-600">{a.email}</p>

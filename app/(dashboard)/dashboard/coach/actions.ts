@@ -11,7 +11,9 @@ import type { ActionState } from '@/lib/auth/middleware';
 
 function revalidateBookings() {
   revalidatePath('/dashboard/coach');
+  revalidatePath('/dashboard/coach/calendar');
   revalidatePath('/dashboard/athlete');
+  revalidatePath('/dashboard/athlete/calendar');
 }
 
 async function decide(

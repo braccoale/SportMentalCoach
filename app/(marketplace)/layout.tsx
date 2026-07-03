@@ -1,7 +1,6 @@
 import Link from 'next/link';
-import { CircleIcon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Footer } from '@/components/footer';
+import { MarketplaceAuthNav } from '@/components/marketplace-auth-nav';
 import { getVerticalConfig, t } from '@/lib/core/config';
 
 export default function MarketplaceLayout({
@@ -12,12 +11,12 @@ export default function MarketplaceLayout({
   const config = getVerticalConfig();
 
   return (
-    <section className="flex flex-col min-h-screen">
-      <header className="border-b border-gray-200">
+    <section className="flex min-h-screen flex-col bg-gray-200 text-gray-700">
+      <header className="border-b border-gray-200 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <Link href="/" className="flex items-center">
-            <CircleIcon className="h-6 w-6 text-orange-500" />
-            <span className="ml-2 text-xl font-semibold text-gray-900">
+          <Link href="/" className="flex items-center gap-2.5">
+            <img src="/logo.jpg" alt="Kai Pai" width={127} height={141} className="h-12 w-auto rounded-lg" />
+            <span className="text-2xl font-bold tracking-tight text-gray-900">
               {t('brand.name', config)}
             </span>
           </Link>
@@ -28,9 +27,7 @@ export default function MarketplaceLayout({
             >
               {t('role.provider.plural', config)}
             </Link>
-            <Button asChild className="rounded-full">
-              <Link href="/sign-in">Accedi</Link>
-            </Button>
+            <MarketplaceAuthNav />
           </nav>
         </div>
       </header>

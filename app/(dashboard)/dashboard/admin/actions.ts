@@ -2,7 +2,11 @@
 
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/core/auth';
-import { reviewProviderProfile } from '@/lib/core/admin';
+import {
+  reviewProviderProfile,
+  setProviderVerification,
+  type VerificationField,
+} from '@/lib/core/admin';
 import type { ActionState } from '@/lib/auth/middleware';
 
 async function review(
@@ -44,4 +48,22 @@ export async function rejectProviderAction(
   formData: FormData
 ): Promise<ActionState> {
   return review(formData, 'rejected');
+}
+
+async function setVerification(formData: FormData, field: VerificationField) {
+  const admin = await requireRole('admin');
+  const providerId = Number(formData.get('providerId'));
+  const value = formData.get('value') === '1';
+  if (!Number.isInteger(providerId)) return;
+  await setProviderVerification({ providerId, field, value, actorUserId: admin.id });
+  revalidatePath('/dashboard/admin');
+  revalidatePath('/coaches');
+}
+
+export async function toggleIdentityVerifiedAction(formData: FormData) {
+  await setVerification(formData, 'identity');
+}
+
+export async function toggleCertificationsVerifiedAction(formData: FormData) {
+  await setVerification(formData, 'certifications');
 }

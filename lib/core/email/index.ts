@@ -77,7 +77,7 @@ export async function sendNotificationEmail(input: {
     ${input.body ? `<p style="color:#444">${escapeHtml(input.body)}</p>` : ''}
     ${
       url
-        ? `<p><a href="${escapeHtml(url)}" style="display:inline-block;background:#f97316;color:#fff;padding:10px 18px;border-radius:9999px;text-decoration:none">Apri ${escapeHtml(brand)}</a></p>`
+        ? `<p><a href="${escapeHtml(url)}" style="display:inline-block;background:#e11d2a;color:#fff;padding:10px 18px;border-radius:9999px;text-decoration:none">Apri ${escapeHtml(brand)}</a></p>`
         : ''
     }
     <hr style="border:none;border-top:1px solid #eee;margin:24px 0" />
@@ -87,4 +87,37 @@ export async function sendNotificationEmail(input: {
   const text = `${input.title}\n${input.body ?? ''}${url ? `\n\n${url}` : ''}`;
 
   await sendEmail({ to: input.to, subject: input.title, html, text });
+}
+
+/**
+ * Welcome email after signup. Best-effort like every email in this module:
+ * a failure never breaks the signup flow. Sent regardless of notification
+ * preferences (it is transactional, not a notification mirror).
+ */
+export async function sendWelcomeEmail(input: {
+  to: string;
+  name?: string | null;
+}): Promise<void> {
+  const brand = t('brand.name', getVerticalConfig());
+  const baseUrl = process.env.BASE_URL ?? '';
+  const greeting = input.name ? `Ciao ${escapeHtml(input.name)},` : 'Ciao,';
+
+  const html = `<div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto">
+    <h2 style="color:#111">Benvenuto su ${escapeHtml(brand)} 👋</h2>
+    <p style="color:#444">${greeting}</p>
+    <p style="color:#444">il tuo account è pronto. Da oggi puoi trovare il tuo
+    mental coach, richiedere sessioni e allenare la mente come alleni il corpo.</p>
+    <p><a href="${escapeHtml(`${baseUrl}/dashboard`)}" style="display:inline-block;background:#e11d2a;color:#fff;padding:10px 18px;border-radius:9999px;text-decoration:none">Vai alla tua area</a></p>
+    <hr style="border:none;border-top:1px solid #eee;margin:24px 0" />
+    <p style="color:#999;font-size:12px">${escapeHtml(brand)} — Alleniamo la mente. Miglioriamo le prestazioni.</p>
+  </div>`;
+
+  const text = `Benvenuto su ${brand}!\nIl tuo account è pronto: ${baseUrl}/dashboard`;
+
+  await sendEmail({
+    to: input.to,
+    subject: `Benvenuto su ${brand}`,
+    html,
+    text,
+  });
 }

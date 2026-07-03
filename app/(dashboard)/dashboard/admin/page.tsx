@@ -1,11 +1,27 @@
 import Link from 'next/link';
+import { ShieldCheck, Award } from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
 import { getProviderProfilesForReview, type ProviderReviewItem } from '@/lib/core/admin';
 import { getVerticalConfig, findTaxonomyItem, t } from '@/lib/core/config';
+import { getAllSports } from '@/lib/core/taxonomies';
+import type { TaxonomyItem } from '@/lib/core/config/types';
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
 import { CoachAvatar } from '@/components/coach-visuals';
-import { approveProviderAction, rejectProviderAction } from './actions';
+import {
+  approveProviderAction,
+  rejectProviderAction,
+  toggleIdentityVerifiedAction,
+  toggleCertificationsVerifiedAction,
+} from './actions';
+
+function verifyChip(active: boolean) {
+  return `inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
+    active
+      ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+      : 'bg-gray-100 text-gray-500 ring-1 ring-gray-200'
+  }`;
+}
 
 function statusBadge(status: string) {
   const config = getVerticalConfig();
@@ -16,7 +32,7 @@ function statusBadge(status: string) {
       : status === 'rejected'
         ? 'bg-red-50 text-red-700'
         : status === 'pending'
-          ? 'bg-amber-50 text-amber-700'
+          ? 'bg-gray-100 text-gray-700'
           : 'bg-gray-100 text-gray-600';
   return (
     <span className={`rounded-full px-3 py-1 text-xs font-medium ${cls}`}>
@@ -25,10 +41,10 @@ function statusBadge(status: string) {
   );
 }
 
-function ProviderRow({ p }: { p: ProviderReviewItem }) {
+function ProviderRow({ p, sportsList }: { p: ProviderReviewItem; sportsList: TaxonomyItem[] }) {
   const config = getVerticalConfig();
   const sportLabels = (p.categories ?? [])
-    .map((k) => findTaxonomyItem(config.taxonomies.categories, k)?.label ?? k)
+    .map((k) => findTaxonomyItem(sportsList, k)?.label ?? k)
     .join(', ');
 
   return (
@@ -52,11 +68,42 @@ function ProviderRow({ p }: { p: ProviderReviewItem }) {
           {p.status === 'approved' && p.slug && (
             <Link
               href={`/coaches/${p.slug}`}
-              className="text-xs font-medium text-orange-600 hover:text-orange-700"
+              className="text-xs font-medium text-red-600 hover:text-red-700"
             >
               Vedi profilo pubblico →
             </Link>
           )}
+
+          {/* Admin-managed verification (click to toggle) */}
+          <div className="mt-2 flex flex-wrap gap-2">
+            <form action={toggleIdentityVerifiedAction}>
+              <input type="hidden" name="providerId" value={p.id} />
+              <input
+                type="hidden"
+                name="value"
+                value={p.identityVerified ? '0' : '1'}
+              />
+              <button type="submit" className={verifyChip(p.identityVerified)}>
+                <ShieldCheck className="h-3.5 w-3.5" /> Identità{' '}
+                {p.identityVerified ? '✓' : '—'}
+              </button>
+            </form>
+            <form action={toggleCertificationsVerifiedAction}>
+              <input type="hidden" name="providerId" value={p.id} />
+              <input
+                type="hidden"
+                name="value"
+                value={p.certificationsVerified ? '0' : '1'}
+              />
+              <button
+                type="submit"
+                className={verifyChip(p.certificationsVerified)}
+              >
+                <Award className="h-3.5 w-3.5" /> Certificazioni{' '}
+                {p.certificationsVerified ? '✓' : '—'}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
 
@@ -89,7 +136,10 @@ function ProviderRow({ p }: { p: ProviderReviewItem }) {
 
 export default async function AdminDashboardPage() {
   await requireRole('admin');
-  const all = await getProviderProfilesForReview();
+  const [all, sportsList] = await Promise.all([
+    getProviderProfilesForReview(),
+    getAllSports(),
+  ]);
   const queue = all.filter((p) => p.status === 'draft' || p.status === 'pending');
   const reviewed = all.filter(
     (p) => p.status === 'approved' || p.status === 'rejected'
@@ -100,7 +150,7 @@ export default async function AdminDashboardPage() {
       <h1 className="text-2xl font-semibold text-gray-900">Admin dashboard</h1>
       <p className="mt-1 text-sm text-gray-500">
         Revisione dei profili coach. Solo i profili approvati appaiono su{' '}
-        <Link href="/coaches" className="text-orange-600 hover:underline">
+        <Link href="/coaches" className="text-red-600 hover:underline">
           /coaches
         </Link>
         .
@@ -114,7 +164,7 @@ export default async function AdminDashboardPage() {
       ) : (
         <ul className="mt-3 flex flex-col gap-3">
           {queue.map((p) => (
-            <ProviderRow key={p.id} p={p} />
+            <ProviderRow key={p.id} p={p} sportsList={sportsList} />
           ))}
         </ul>
       )}
@@ -127,7 +177,7 @@ export default async function AdminDashboardPage() {
       ) : (
         <ul className="mt-3 flex flex-col gap-3">
           {reviewed.map((p) => (
-            <ProviderRow key={p.id} p={p} />
+            <ProviderRow key={p.id} p={p} sportsList={sportsList} />
           ))}
         </ul>
       )}

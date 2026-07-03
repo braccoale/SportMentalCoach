@@ -1,7 +1,12 @@
 import 'server-only';
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { db, type DbOrTx } from '@/lib/db/drizzle';
-import { notifications, users, type Notification } from '@/lib/db/schema';
+import {
+  notifications,
+  notificationPreferences,
+  users,
+  type Notification,
+} from '@/lib/db/schema';
 import { isEmailEnabled } from '@/lib/core/flags';
 import { sendNotificationEmail } from '@/lib/core/email';
 
@@ -20,6 +25,20 @@ export const NOTIFICATION_TYPES = [
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+
+/**
+ * Human-readable labels for each type (default marketplace copy; a vertical can
+ * override). Used by the email-preferences UI.
+ */
+export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
+  booking_requested: 'Nuova richiesta di sessione',
+  booking_accepted: 'Richiesta accettata',
+  booking_cancelled: 'Prenotazione annullata',
+  booking_completed: 'Sessione completata',
+  new_message: 'Nuovo messaggio',
+  provider_approved: 'Profilo approvato',
+  provider_rejected: 'Profilo rifiutato',
+};
 
 export type NotificationData = {
   /** In-app link to open when the notification is clicked. */
@@ -126,6 +145,86 @@ export async function markAllAsRead(userId: number): Promise<void> {
     );
 }
 
+// --- Email preferences (per-user, per-type) --------------------------------
+
+export type EmailPreferences = Record<NotificationType, boolean>;
+
+/**
+ * Returns the user's email preference for every notification type, defaulting
+ * to `true` (enabled) for any type without a stored row.
+ */
+export async function getEmailPreferences(
+  userId: number
+): Promise<EmailPreferences> {
+  const rows = await db
+    .select({
+      type: notificationPreferences.type,
+      emailEnabled: notificationPreferences.emailEnabled,
+    })
+    .from(notificationPreferences)
+    .where(eq(notificationPreferences.userId, userId));
+
+  const stored = new Map(rows.map((r) => [r.type, r.emailEnabled]));
+  return NOTIFICATION_TYPES.reduce((acc, type) => {
+    acc[type] = stored.get(type) ?? true; // default enabled
+    return acc;
+  }, {} as EmailPreferences);
+}
+
+/** Upserts the user's per-type email preferences. */
+export async function setEmailPreferences(
+  userId: number,
+  prefs: Partial<EmailPreferences>
+): Promise<void> {
+  const rows = Object.entries(prefs).map(([type, emailEnabled]) => ({
+    userId,
+    type,
+    emailEnabled: Boolean(emailEnabled),
+  }));
+  if (rows.length === 0) return;
+
+  await db
+    .insert(notificationPreferences)
+    .values(rows)
+    .onConflictDoUpdate({
+      target: [notificationPreferences.userId, notificationPreferences.type],
+      set: {
+        emailEnabled: sql`excluded.email_enabled`,
+        updatedAt: new Date(),
+      },
+    });
+}
+
+/**
+ * Resolves the recipient's email for a given type — but only if the user has
+ * email enabled for it (default enabled). Returns null when there is no email
+ * or the user opted out of this type. One indexed query (left join).
+ */
+async function resolveEmailRecipient(
+  userId: number,
+  type: NotificationType
+): Promise<string | null> {
+  const [row] = await db
+    .select({
+      email: users.email,
+      emailEnabled: notificationPreferences.emailEnabled,
+    })
+    .from(users)
+    .leftJoin(
+      notificationPreferences,
+      and(
+        eq(notificationPreferences.userId, users.id),
+        eq(notificationPreferences.type, type)
+      )
+    )
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!row?.email) return null;
+  const enabled = row.emailEnabled ?? true; // default enabled
+  return enabled ? row.email : null;
+}
+
 function toView(n: Notification): NotificationView {
   return {
     id: n.id,
@@ -200,8 +299,11 @@ function buildContent(
       };
     case 'provider_approved':
       return {
-        title: 'Profilo approvato',
-        body: 'Il tuo profilo è stato approvato ed è ora pubblico.',
+        title: 'Congratulazioni, sei un coach Kai Pai! 🎉',
+        body:
+          'Il tuo profilo è stato approvato ed è ora visibile agli atleti. ' +
+          'Da oggi puoi ricevere richieste di sessione, gestire calendario e ' +
+          'servizi, e far crescere la tua presenza sulla piattaforma. Benvenuto!',
         data: { link: '/dashboard/coach' },
       };
     case 'provider_rejected':
@@ -231,21 +333,15 @@ export async function notify(
     console.error('notify failed:', type, error);
   }
 
-  // Optional email mirror — best-effort; never breaks the action.
+  // Optional email mirror — best-effort; never breaks the action. Respects the
+  // user's per-type email preference (default enabled).
   if (isEmailEnabled()) {
     try {
-      const [recipient] = await db
-        .select({ email: users.email })
-        .from(users)
-        .where(eq(users.id, recipientUserId))
-        .limit(1);
-      if (recipient?.email) {
-        await sendNotificationEmail({
-          to: recipient.email,
-          title,
-          body,
-          link: data.link,
-        });
+      const to = await resolveEmailRecipient(recipientUserId, type);
+      if (to) {
+        await sendNotificationEmail({ to, title, body, link: data.link });
+      } else {
+        console.log(`[email] skipped (preference/no-email): "${title}"`);
       }
     } catch (error) {
       console.error('[email] notify-email failed:', type, error);

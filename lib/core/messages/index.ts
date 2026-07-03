@@ -123,7 +123,7 @@ export async function sendMessage(
     return { ok: false, error: 'La chat è disponibile solo per le richieste accettate.' };
   }
 
-  await db.insert(messages).values({ bookingId, senderId: userId, body: trimmed });
+  await db.insert(messages).values({ bookingId, senderId: userId, body: trimmed, createdBy: userId });
 
   // Notify the other participant of the new message.
   const isClient = userId === context.clientId;

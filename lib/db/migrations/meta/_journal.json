@@ -43,6 +43,55 @@
       "when": 1782837867908,
       "tag": "0005_breezy_magus",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1782851933083,
+      "tag": "0006_easy_arclight",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1782854123893,
+      "tag": "0007_soft_reptil",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1782856115075,
+      "tag": "0008_chief_speed_demon",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1782857184723,
+      "tag": "0009_small_agent_brand",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1783009982588,
+      "tag": "0010_regular_mockingbird",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1783059988492,
+      "tag": "0011_goofy_tarantula",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1783062439275,
+      "tag": "0012_peaceful_komodo",
+      "breakpoints": true
     }
   ]
 }

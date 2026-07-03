@@ -46,11 +46,11 @@ export default async function VideoPage({
         {result.ok ? (
           <VideoRoom serverUrl={result.url} token={result.token} />
         ) : (
-          <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50 p-6">
-            <p className="text-sm font-semibold text-amber-900">
+          <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6">
+            <p className="text-sm font-semibold text-gray-900">
               Videochiamata non configurata
             </p>
-            <p className="mt-1 text-sm text-amber-800">
+            <p className="mt-1 text-sm text-gray-800">
               La videochiamata richiede LiveKit. Imposta{' '}
               <code>LIVEKIT_API_KEY</code>, <code>LIVEKIT_API_SECRET</code> e{' '}
               <code>NEXT_PUBLIC_LIVEKIT_URL</code> nell’ambiente, poi riavvia

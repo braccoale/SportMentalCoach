@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm db:generate)",
+      "Bash(pnpm db:migrate)",
+      "Bash(sed -i 's|return <UserMenu name={user.name} email={user.email} />;|return \\(\\\\n    <UserMenu\\\\n      name={[user.name, user.lastName].filter\\(Boolean\\).join\\(\\\\x27 \\\\x27\\) \\\\|\\\\| null}\\\\n      email={user.email}\\\\n    />\\\\n  \\);|' \"app/\\(dashboard\\)/layout.tsx\")",
+      "Bash(sed -i 's|type SessionUser = { id: number; name: string \\\\| null; email: string };|type SessionUser = {\\\\n  id: number;\\\\n  name: string \\\\| null;\\\\n  lastName?: string \\\\| null;\\\\n  email: string;\\\\n};|' components/landing/site-nav.tsx components/marketplace-auth-nav.tsx)",
+      "Bash(sed -i 's|<UserMenu name={user.name} email={user.email} />|<UserMenu name={[user.name, user.lastName].filter\\(Boolean\\).join\\(\\\\x27 \\\\x27\\) \\\\|\\\\| null} email={user.email} />|g' components/landing/site-nav.tsx components/marketplace-auth-nav.tsx)",
+      "Bash(sed -i 's|<PhotoForm name={user.name} avatarUrl={avatarUrl} />|<PhotoForm name={[user.name, user.lastName].filter\\(Boolean\\).join\\(\\\\x27 \\\\x27\\) \\\\|\\\\| null} avatarUrl={avatarUrl} />|' \"app/\\(dashboard\\)/dashboard/athlete/page.tsx\")",
+      "Bash(sed -i 's|<PhotoForm name={user.name} avatarUrl={avatarUrl} status={provider.status} />|<PhotoForm name={[user.name, user.lastName].filter\\(Boolean\\).join\\(\\\\x27 \\\\x27\\) \\\\|\\\\| null} avatarUrl={avatarUrl} status={provider.status} />|' \"app/\\(dashboard\\)/dashboard/coach/profile/page.tsx\")",
+      "Bash(pnpm auth:migrate)",
+      "PowerShell($c = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue; if \\($c\\) { $c | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } }; if \\(Test-Path 'c:\\\\Dati\\\\SportMentalCoach\\\\.next\\\\dev\\\\lock'\\) { Remove-Item 'c:\\\\Dati\\\\SportMentalCoach\\\\.next\\\\dev\\\\lock' -Force -Recurse }; Write-Host 'ready')",
+      "Bash(node auth-e2e.mjs)"
+    ]
+  }
+}
