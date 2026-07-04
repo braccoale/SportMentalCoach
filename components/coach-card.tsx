@@ -106,10 +106,9 @@ export function CoachCard({
           )}
         </div>
 
-        <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
-          {/* Hourly rate hidden via SHOW_COACH_HOURLY_RATE flag; the empty
-              span keeps "Vedi profilo" aligned right when the price is off. */}
-          {SHOW_COACH_HOURLY_RATE && coach.hourlyRate != null ? (
+        {/* Footer only when the hourly rate is shown (whole card is a link). */}
+        {SHOW_COACH_HOURLY_RATE && coach.hourlyRate != null && (
+          <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
             <span className="text-sm text-gray-700">
               <span className="text-gray-400">da </span>
               <span className="font-semibold text-gray-900">
@@ -117,13 +116,8 @@ export function CoachCard({
               </span>
               <span className="text-gray-400"> / h</span>
             </span>
-          ) : (
-            <span />
-          )}
-          <span className="text-sm font-medium text-red-600">
-            Vedi profilo →
-          </span>
-        </div>
+          </div>
+        )}
       </Link>
     </div>
   );

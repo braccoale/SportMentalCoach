@@ -8,18 +8,26 @@ import {
   Briefcase,
   Shield,
   CalendarDays,
+  MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const TABS = [
   { href: '/dashboard/coach', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/coach/calendar', label: 'Calendario', icon: CalendarDays },
+  { href: '/dashboard/coach/messages', label: 'Messaggi', icon: MessageSquare },
   { href: '/dashboard/coach/profile', label: 'Coach', icon: UserRound },
   { href: '/dashboard/coach/services', label: 'Servizi', icon: Briefcase },
   { href: '/dashboard/coach/security', label: 'Sicurezza', icon: Shield },
 ];
 
-export function CoachNav({ pendingCount = 0 }: { pendingCount?: number }) {
+export function CoachNav({
+  pendingCount = 0,
+  unreadMessages = 0,
+}: {
+  pendingCount?: number;
+  unreadMessages?: number;
+}) {
   const pathname = usePathname();
 
   return (
@@ -59,6 +67,12 @@ export function CoachNav({ pendingCount = 0 }: { pendingCount?: number }) {
               {tab.href === '/dashboard/coach' && pendingCount > 0 && (
                 <span className="absolute -top-0.5 right-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-orange-500 px-1 text-[10px] font-semibold text-white">
                   {pendingCount}
+                </span>
+              )}
+              {/* Unread-messages count on the Messaggi tab */}
+              {tab.href === '/dashboard/coach/messages' && unreadMessages > 0 && (
+                <span className="absolute -top-0.5 right-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
+                  {unreadMessages}
                 </span>
               )}
             </Link>

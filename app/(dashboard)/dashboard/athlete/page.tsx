@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Clock, CalendarCheck, MessageSquare } from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
 import {
   getAthleteBookings,
@@ -7,6 +8,8 @@ import {
   type AthleteBooking,
 } from '@/lib/core/bookings';
 import { getAvatarUrl } from '@/lib/core/profiles';
+import { getUnreadCountForType } from '@/lib/core/notifications';
+import { SummaryCard } from '@/components/summary-card';
 import { getReviewedBookingIds } from '@/lib/core/reviews';
 import {
   formatDate,
@@ -133,10 +136,11 @@ function Section({
 
 export default async function AthleteDashboardPage() {
   const user = await requireRole('athlete');
-  const [requests, avatarUrl, reviewedIds] = await Promise.all([
+  const [requests, avatarUrl, reviewedIds, unreadMessages] = await Promise.all([
     getAthleteBookings(user.id),
     getAvatarUrl(user.id),
     getReviewedBookingIds(user.id),
+    getUnreadCountForType(user.id, 'new_message'),
   ]);
 
   const waiting = requests.filter((b) => b.status === 'requested');
@@ -147,6 +151,37 @@ export default async function AthleteDashboardPage() {
 
   return (
     <section className="flex flex-col gap-6 p-6">
+      {/* Summary widgets */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+        <SummaryCard
+          icon={Clock}
+          label="Richieste in attesa"
+          value={waiting.length}
+          accent={
+            waiting.length > 0
+              ? 'bg-orange-100 text-orange-600'
+              : 'bg-gray-100 text-gray-600'
+          }
+        />
+        <SummaryCard
+          icon={CalendarCheck}
+          label="Sessioni confermate"
+          value={accepted.length}
+          accent="bg-red-50 text-red-600"
+        />
+        <SummaryCard
+          icon={MessageSquare}
+          label="Messaggi non letti"
+          value={unreadMessages}
+          accent={
+            unreadMessages > 0
+              ? 'bg-red-600 text-white'
+              : 'bg-gray-100 text-gray-600'
+          }
+          href="/dashboard/athlete/messages"
+        />
+      </div>
+
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-medium text-gray-900">Le tue sessioni</h2>
         <Link

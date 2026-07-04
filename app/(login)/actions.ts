@@ -31,6 +31,7 @@ import {
 import { dashboardPathForRoles, getUserRoles } from '@/lib/core/auth';
 import {
   ensureProfile,
+  syncDisplayName,
   provisionMarketplaceRole,
   type SignupRole
 } from '@/lib/core/profiles';
@@ -466,6 +467,9 @@ export const updateAccount = validatedActionWithUser(
           updatedBy: user.id
         })
         .where(eq(users.id, user.id)),
+      // Public display name (marketplace card, chat, reviews) follows the
+      // account name; the email is never shown publicly.
+      syncDisplayName(user.id, [name, lastName].filter(Boolean).join(' ')),
       logActivity(userWithTeam?.teamId, user.id, ActivityType.UPDATE_ACCOUNT)
     ]);
 

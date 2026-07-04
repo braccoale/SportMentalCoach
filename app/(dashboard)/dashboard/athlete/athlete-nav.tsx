@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, CalendarDays } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const TABS = [
@@ -12,9 +12,18 @@ const TABS = [
     label: 'Calendario',
     icon: CalendarDays,
   },
+  {
+    href: '/dashboard/athlete/messages',
+    label: 'Messaggi',
+    icon: MessageSquare,
+  },
 ];
 
-export function AthleteNav() {
+export function AthleteNav({
+  unreadMessages = 0,
+}: {
+  unreadMessages?: number;
+}) {
   const pathname = usePathname();
 
   return (
@@ -39,7 +48,7 @@ export function AthleteNav() {
               key={tab.href}
               href={tab.href}
               className={cn(
-                'flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
+                'relative flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
                 active
                   ? 'border-red-600 text-red-600'
                   : 'border-transparent text-gray-500 hover:text-gray-900'
@@ -47,6 +56,13 @@ export function AthleteNav() {
             >
               <tab.icon className="h-4 w-4" />
               {tab.label}
+              {/* Unread-messages count on the Messaggi tab */}
+              {tab.href === '/dashboard/athlete/messages' &&
+                unreadMessages > 0 && (
+                  <span className="absolute -top-0.5 right-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
+                    {unreadMessages}
+                  </span>
+                )}
             </Link>
           );
         })}

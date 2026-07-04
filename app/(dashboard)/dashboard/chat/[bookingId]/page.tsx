@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getUser } from '@/lib/db/queries';
 import { getChat } from '@/lib/core/messages';
+import { markMessageNotificationsRead } from '@/lib/core/notifications';
 import { formatDateTime } from '@/lib/core/format';
 import { ChatPanel, type SerializedMessage } from './chat-panel';
 
@@ -24,6 +25,9 @@ export default async function ChatPage({
     // Not a participant, not found, or booking not accepted.
     notFound();
   }
+
+  // Opening the chat clears its unread-message counters (bell + widgets).
+  await markMessageNotificationsRead(user.id, id);
 
   const { context, messages } = chat;
   const isClient = user.id === context.clientId;

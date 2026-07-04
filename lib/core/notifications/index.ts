@@ -82,6 +82,45 @@ export async function createNotification(
   });
 }
 
+/** Unread notifications of a given type (e.g. `new_message` for chat KPIs). */
+export async function getUnreadCountForType(
+  userId: number,
+  type: NotificationType
+): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.userId, userId),
+        eq(notifications.type, type),
+        isNull(notifications.readAt)
+      )
+    );
+  return row?.count ?? 0;
+}
+
+/**
+ * Marks all unread `new_message` notifications for one booking as read —
+ * called when the user opens that chat, so unread counters stay honest.
+ */
+export async function markMessageNotificationsRead(
+  userId: number,
+  bookingId: number
+): Promise<void> {
+  await db
+    .update(notifications)
+    .set({ readAt: new Date() })
+    .where(
+      and(
+        eq(notifications.userId, userId),
+        eq(notifications.type, 'new_message'),
+        isNull(notifications.readAt),
+        sql`${notifications.data}->>'bookingId' = ${String(bookingId)}`
+      )
+    );
+}
+
 /** Recent notifications + unread count for a user (for the header bell). */
 export async function getRecentWithCount(
   userId: number,

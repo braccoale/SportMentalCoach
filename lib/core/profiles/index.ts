@@ -38,6 +38,25 @@ export async function setAvatarUrl(userId: number, url: string | null) {
   return url;
 }
 
+/**
+ * Syncs the public display name (marketplace cards, chat, reviews) from the
+ * account's first + last name. Never exposes the email.
+ */
+export async function syncDisplayName(
+  userId: number,
+  fullName: string | null
+) {
+  await ensureProfile(userId);
+  await db
+    .update(profiles)
+    .set({
+      displayName: fullName?.trim() || null,
+      updatedAt: new Date(),
+      updatedBy: userId,
+    })
+    .where(eq(profiles.userId, userId));
+}
+
 /** Reads a user's avatar URL (null when unset / no profile). */
 export async function getAvatarUrl(userId: number): Promise<string | null> {
   const [row] = await db

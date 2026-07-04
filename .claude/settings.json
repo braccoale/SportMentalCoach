@@ -10,7 +10,8 @@
       "Bash(sed -i 's|<PhotoForm name={user.name} avatarUrl={avatarUrl} status={provider.status} />|<PhotoForm name={[user.name, user.lastName].filter\\(Boolean\\).join\\(\\\\x27 \\\\x27\\) \\\\|\\\\| null} avatarUrl={avatarUrl} status={provider.status} />|' \"app/\\(dashboard\\)/dashboard/coach/profile/page.tsx\")",
       "Bash(pnpm auth:migrate)",
       "PowerShell($c = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue; if \\($c\\) { $c | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } }; if \\(Test-Path 'c:\\\\Dati\\\\SportMentalCoach\\\\.next\\\\dev\\\\lock'\\) { Remove-Item 'c:\\\\Dati\\\\SportMentalCoach\\\\.next\\\\dev\\\\lock' -Force -Recurse }; Write-Host 'ready')",
-      "Bash(node auth-e2e.mjs)"
+      "Bash(node auth-e2e.mjs)",
+      "Bash(node messages-e2e.mjs)"
     ]
   }
 }

@@ -1,5 +1,5 @@
 import 'server-only';
-import { asc, eq } from 'drizzle-orm';
+import { asc, desc, eq, or, and, inArray, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
   messages,
@@ -35,6 +35,107 @@ export type ChatMessage = {
 };
 
 const MAX_BODY = 4000;
+
+export type Conversation = {
+  bookingId: number;
+  /** Counterpart display name (athlete for a coach, coach for an athlete). */
+  otherName: string | null;
+  serviceTitle: string | null;
+  scheduledFor: Date | null;
+  lastBody: string | null;
+  lastAt: Date | null;
+  lastFromMe: boolean;
+  unread: number;
+};
+
+/**
+ * All chat conversations for a user (both roles): accepted bookings they
+ * participate in, newest activity first, with last-message preview and the
+ * per-conversation unread count (from unread `new_message` notifications).
+ */
+export async function getConversations(userId: number): Promise<Conversation[]> {
+  const clientProfilesAlias = profiles; // coach display name lives in profiles
+
+  const rows = await db
+    .select({
+      bookingId: bookings.id,
+      clientId: bookings.clientId,
+      clientName: users.name,
+      coachName: clientProfilesAlias.displayName,
+      serviceTitle: services.title,
+      scheduledFor: bookings.scheduledFor,
+    })
+    .from(bookings)
+    .innerJoin(providerProfiles, eq(bookings.providerId, providerProfiles.id))
+    .innerJoin(users, eq(bookings.clientId, users.id))
+    .leftJoin(
+      clientProfilesAlias,
+      eq(clientProfilesAlias.userId, providerProfiles.userId)
+    )
+    .leftJoin(services, eq(bookings.serviceId, services.id))
+    .where(
+      and(
+        eq(bookings.status, 'accepted'),
+        or(
+          eq(bookings.clientId, userId),
+          eq(providerProfiles.userId, userId)
+        )
+      )
+    );
+
+  if (rows.length === 0) return [];
+  const ids = rows.map((r) => r.bookingId);
+
+  // Last message per booking.
+  const lastMessages = await db
+    .select({
+      bookingId: messages.bookingId,
+      senderId: messages.senderId,
+      body: messages.body,
+      createdAt: messages.createdAt,
+    })
+    .from(messages)
+    .where(inArray(messages.bookingId, ids))
+    .orderBy(desc(messages.createdAt));
+  const lastByBooking = new Map<number, (typeof lastMessages)[number]>();
+  for (const m of lastMessages) {
+    if (!lastByBooking.has(m.bookingId)) lastByBooking.set(m.bookingId, m);
+  }
+
+  // Unread new_message notifications grouped by bookingId (stored in data).
+  const unreadRows = await db.execute(sql`
+    SELECT (data->>'bookingId')::int AS booking_id, count(*)::int AS n
+    FROM notifications
+    WHERE user_id = ${userId}
+      AND type = 'new_message'
+      AND read_at IS NULL
+      AND data->>'bookingId' IS NOT NULL
+    GROUP BY 1
+  `);
+  const unreadByBooking = new Map<number, number>();
+  for (const r of unreadRows as unknown as { booking_id: number; n: number }[]) {
+    unreadByBooking.set(Number(r.booking_id), Number(r.n));
+  }
+
+  return rows
+    .map((r) => {
+      const last = lastByBooking.get(r.bookingId);
+      const isClient = r.clientId === userId;
+      return {
+        bookingId: r.bookingId,
+        otherName: isClient ? r.coachName : r.clientName,
+        serviceTitle: r.serviceTitle,
+        scheduledFor: r.scheduledFor,
+        lastBody: last?.body ?? null,
+        lastAt: last?.createdAt ?? null,
+        lastFromMe: last ? last.senderId === userId : false,
+        unread: unreadByBooking.get(r.bookingId) ?? 0,
+      };
+    })
+    .sort(
+      (a, b) => (b.lastAt?.getTime() ?? 0) - (a.lastAt?.getTime() ?? 0)
+    );
+}
 
 /**
  * Loads a booking's chat context, but only if `userId` is a participant

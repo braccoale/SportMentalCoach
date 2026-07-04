@@ -3,12 +3,13 @@ import {
   Clock,
   CalendarCheck,
   ListChecks,
+  MessageSquare,
   Star,
-  type LucideIcon,
 } from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
 import { getCoachBookings, bookingStatusLabel } from '@/lib/core/bookings';
 import { getProviderProfileByUser } from '@/lib/core/profiles';
+import { getUnreadCountForType } from '@/lib/core/notifications';
 import { getCoachReviews } from '@/lib/core/reviews';
 import {
   formatDate,
@@ -18,6 +19,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
 import { RatingStars } from '@/components/rating-stars';
+import { SummaryCard } from '@/components/summary-card';
 import { replyToReviewAction } from './review-reply-actions';
 import {
   acceptBookingAction,
@@ -26,40 +28,13 @@ import {
   cancelBookingAction,
 } from './actions';
 
-function SummaryCard({
-  icon: Icon,
-  label,
-  value,
-  accent,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: number;
-  accent: string;
-}) {
-  return (
-    <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4">
-      <span
-        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${accent}`}
-      >
-        <Icon className="h-5 w-5" />
-      </span>
-      <div>
-        <p className="text-2xl font-semibold leading-none text-gray-900">
-          {value}
-        </p>
-        <p className="mt-1 text-sm text-gray-500">{label}</p>
-      </div>
-    </div>
-  );
-}
-
 export default async function CoachDashboardPage() {
   const user = await requireRole('coach');
 
-  const [provider, allBookings] = await Promise.all([
+  const [provider, allBookings, unreadMessages] = await Promise.all([
     getProviderProfileByUser(user.id),
     getCoachBookings(user.id),
+    getUnreadCountForType(user.id, 'new_message'),
   ]);
 
   const reviews = provider ? await getCoachReviews(provider.id) : [];
@@ -73,7 +48,7 @@ export default async function CoachDashboardPage() {
   return (
     <section className="flex flex-col gap-8 p-6">
       {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         {/* Orange when there is something waiting for the coach's action. */}
         <SummaryCard
           icon={Clock}
@@ -102,6 +77,18 @@ export default async function CoachDashboardPage() {
           label="Recensioni"
           value={reviews.length}
           accent="bg-red-50 text-red-600"
+        />
+        {/* Unread chat messages (new_message notifications not yet read). */}
+        <SummaryCard
+          icon={MessageSquare}
+          label="Messaggi non letti"
+          value={unreadMessages}
+          accent={
+            unreadMessages > 0
+              ? 'bg-red-600 text-white'
+              : 'bg-gray-100 text-gray-600'
+          }
+          href="/dashboard/coach/messages"
         />
       </div>
 
