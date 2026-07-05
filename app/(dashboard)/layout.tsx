@@ -42,7 +42,8 @@ function HeaderUserMenu() {
 
 function Header() {
   return (
-    <header className="border-b border-gray-200">
+    // Same dark surface as the site footer (kp-ink2), white type.
+    <header className="border-b border-kp-line bg-kp-ink2">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
         <Link href="/" className="flex items-center">
           <img
@@ -52,14 +53,14 @@ function Header() {
             height={141}
             className="h-9 w-auto rounded-lg"
           />
-          <span className="ml-2 text-xl font-semibold text-gray-900">
+          <span className="ml-2 text-xl font-semibold text-white">
             Kai Pai
           </span>
         </Link>
         <div className="flex items-center space-x-4">
           <Link
             href="/coaches"
-            className="text-sm font-medium text-gray-700 hover:text-gray-900"
+            className="text-sm font-medium text-gray-300 hover:text-white"
           >
             Trova un coach
           </Link>

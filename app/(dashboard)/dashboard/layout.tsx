@@ -1,118 +1,17 @@
-'use client';
-
-import { useState } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import useSWR from 'swr';
-import { Button } from '@/components/ui/button';
-import {
-  Home,
-  Shield,
-  Activity,
-  Menu,
-  LayoutDashboard
-} from 'lucide-react';
-import { ROLE_PRIORITY, ROLE_DASHBOARDS } from '@/lib/core/auth/role-routes';
-import { getRoleLabel } from '@/lib/core/config';
-import { fetcher } from '@/lib/fetcher';
-
+/**
+ * Dashboard shell. The old template sidebar (role links / Dashboard /
+ * Attività / Sicurezza) was removed: navigation lives in each area's tabs
+ * (coach and athlete), and account security is a tab in both areas. Content
+ * runs full width.
+ */
 export default function DashboardLayout({
   children
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-  const { data } = useSWR<{ roles: string[] }>('/api/user/roles', fetcher);
-  const roles = data?.roles ?? [];
-
-  // Role dashboards the user can reach, highest-priority first.
-  const roleNavItems = ROLE_PRIORITY.filter((r) => roles.includes(r)).map(
-    (r) => ({
-      href: ROLE_DASHBOARDS[r],
-      icon: LayoutDashboard,
-      // Coach area uses the Kai Pai brand mark instead of a generic icon.
-      // TODO: swap /logo.jpg for a dedicated coach-area glyph when available.
-      logo: r === 'coach',
-      label: getRoleLabel(r)
-    })
-  );
-
-  const settingsNavItems = [
-    { href: '/dashboard', icon: Home, logo: false, label: 'Dashboard' },
-    { href: '/dashboard/activity', icon: Activity, logo: false, label: 'Attività' },
-    // Coaches manage security from the "Sicurezza" tab in the coach area;
-    // other roles keep the sidebar entry.
-    ...(roles.includes('coach')
-      ? []
-      : [
-          {
-            href: '/dashboard/security',
-            icon: Shield,
-            logo: false,
-            label: 'Sicurezza'
-          }
-        ])
-  ];
-
-  const navItems = [...roleNavItems, ...settingsNavItems];
-
   return (
-    <div className="flex flex-col min-h-[calc(100dvh-68px)] max-w-7xl mx-auto w-full">
-      {/* Mobile header */}
-      <div className="lg:hidden flex items-center justify-between bg-white border-b border-gray-200 p-4">
-        <div className="flex items-center">
-          <span className="font-medium">Dashboard</span>
-        </div>
-        <Button
-          className="-mr-3"
-          variant="ghost"
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        >
-          <Menu className="h-6 w-6" />
-          <span className="sr-only">Toggle sidebar</span>
-        </Button>
-      </div>
-
-      <div className="flex flex-1 overflow-hidden h-full">
-        {/* Sidebar */}
-        <aside
-          className={`w-64 bg-white lg:bg-gray-50 border-r border-gray-200 lg:block ${
-            isSidebarOpen ? 'block' : 'hidden'
-          } lg:relative absolute inset-y-0 left-0 z-40 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
-            isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
-        >
-          <nav className="h-full overflow-y-auto p-4">
-            {navItems.map((item) => (
-              <Link key={item.href} href={item.href} passHref>
-                <Button
-                  variant={pathname === item.href ? 'secondary' : 'ghost'}
-                  className={`shadow-none my-1 w-full justify-start ${
-                    pathname === item.href ? 'bg-gray-100' : ''
-                  }`}
-                  onClick={() => setIsSidebarOpen(false)}
-                >
-                  {item.logo ? (
-                    <img
-                      src="/logo.jpg"
-                      alt=""
-                      className="h-4 w-4 rounded object-cover"
-                    />
-                  ) : (
-                    <item.icon className="h-4 w-4" />
-                  )}
-                  {item.label}
-                </Button>
-              </Link>
-            ))}
-          </nav>
-        </aside>
-
-        {/* Main content */}
-        <main className="flex-1 overflow-y-auto p-0 lg:p-4">{children}</main>
-      </div>
+    <div className="mx-auto min-h-[calc(100dvh-68px)] w-full max-w-7xl">
+      <main className="p-0 lg:p-4">{children}</main>
     </div>
   );
 }

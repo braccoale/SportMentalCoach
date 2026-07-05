@@ -22,6 +22,9 @@ export const client =
     max: process.env.NODE_ENV === 'production' ? 10 : 1,
     idle_timeout: 20,
     max_lifetime: 60 * 30,
+    // Supabase transaction pooler (port 6543) multiplexes connections and
+    // does not support prepared statements.
+    prepare: false,
   });
 
 if (process.env.NODE_ENV !== 'production') {

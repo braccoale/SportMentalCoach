@@ -11,7 +11,39 @@
       "Bash(pnpm auth:migrate)",
       "PowerShell($c = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue; if \\($c\\) { $c | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } }; if \\(Test-Path 'c:\\\\Dati\\\\SportMentalCoach\\\\.next\\\\dev\\\\lock'\\) { Remove-Item 'c:\\\\Dati\\\\SportMentalCoach\\\\.next\\\\dev\\\\lock' -Force -Recurse }; Write-Host 'ready')",
       "Bash(node auth-e2e.mjs)",
-      "Bash(node messages-e2e.mjs)"
+      "Bash(node messages-e2e.mjs)",
+      "Bash(curl -s -o /dev/null -w \"dev server: %{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(pnpm e2e *)",
+      "PowerShell(Get-Process node -ErrorAction SilentlyContinue | Select-Object Id, StartTime | Format-Table; $c = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue; if \\($c\\) { $c | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force } }; Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue; Write-Host 'node processes cleared')",
+      "Bash(curl -s -o /dev/null -w \"server: %{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(sed -i \"s/admin@kaipai.com/e2e-coach-1783151307683@demo.smc/; s/admin1234/password1234/\" dbg-admin2.mjs)",
+      "Bash(node dbg-admin2.mjs)",
+      "PowerShell($c = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue; if \\($c\\) { $c | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force } }; Write-Host 'stopped')",
+      "Bash(curl -s http://localhost:3000/)",
+      "PowerShell($c = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue; if \\($c\\) { $c | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force } }; Write-Host ok)",
+      "Bash(node dbg-anim.mjs)",
+      "Bash(curl -s \"http://localhost:3000/coaches\")",
+      "PowerShell(Add-Type -AssemblyName System.Drawing; $i = [System.Drawing.Image]::FromFile\\('c:\\\\Dati\\\\SportMentalCoach\\\\public\\\\BorracciaKaiPai.png'\\); Write-Host \"$\\($i.Width\\)x$\\($i.Height\\)\"; $i.Dispose\\(\\))",
+      "PowerShell(Add-Type -AssemblyName System.Drawing; $src = [System.Drawing.Bitmap]::FromFile\\('c:\\\\Dati\\\\SportMentalCoach\\\\public\\\\badge.png'\\); $rect = New-Object System.Drawing.Rectangle\\(38, 128, 210, 147\\); $crop = $src.Clone\\($rect, $src.PixelFormat\\); $src.Dispose\\(\\); $crop.Save\\('c:\\\\Dati\\\\SportMentalCoach\\\\public\\\\badge-crop.png', [System.Drawing.Imaging.ImageFormat]::Png\\); $crop.Dispose\\(\\); [BgRemover]::Process\\('c:\\\\Dati\\\\SportMentalCoach\\\\public\\\\badge-crop.png', 'c:\\\\Dati\\\\SportMentalCoach\\\\public\\\\badge-transparent.png', 46\\); Remove-Item 'c:\\\\Dati\\\\SportMentalCoach\\\\public\\\\badge-crop.png')",
+      "PowerShell(Add-Type -AssemblyName System.Drawing; $img = [System.Drawing.Bitmap]::FromFile\\('c:\\\\Dati\\\\SportMentalCoach\\\\public\\\\badge-transparent.png'\\); $bg = New-Object System.Drawing.Bitmap\\($img.Width, $img.Height\\); $g = [System.Drawing.Graphics]::FromImage\\($bg\\); $g.Clear\\([System.Drawing.Color]::FromArgb\\(255,60,180,90\\)\\); $g.DrawImage\\($img, 0, 0\\); $g.Dispose\\(\\); $img.Dispose\\(\\); $bg.Save\\('c:\\\\Dati\\\\SportMentalCoach\\\\public\\\\__badge-check.png', [System.Drawing.Imaging.ImageFormat]::Png\\); $bg.Dispose\\(\\); Write-Host ok)",
+      "PowerShell(Add-Type -AssemblyName System.Drawing; $b = [System.Drawing.Bitmap]::FromFile\\('c:\\\\Dati\\\\SportMentalCoach\\\\public\\\\badge.png'\\); foreach \\($pt in @\\(@\\(140,200,'centro card'\\), @\\(100,170,'card alto-sx'\\), @\\(280,60,'bg dx'\\), @\\(150,250,'card basso'\\), @\\(60,240,'bordo card sx'\\)\\)\\) { $c = $b.GetPixel\\($pt[0], $pt[1]\\); Write-Host \"$\\($pt[2]\\) \\($\\($pt[0]\\),$\\($pt[1]\\)\\): R$\\($c.R\\) G$\\($c.G\\) B$\\($c.B\\)\" }; $b.Dispose\\(\\))",
+      "Bash(node shot-merch.mjs)",
+      "Bash(cd \"c:/Dati/SportMentalCoach\" && grep -n \"max-w-3xl\" \"app/\\(dashboard\\)/dashboard/video/[bookingId]/page.tsx\" && sed -i 's|className=\"mx-auto w-full max-w-3xl p-6\"|className=\"mx-auto w-full max-w-6xl p-6\"|' \"app/\\(dashboard\\)/dashboard/video/[bookingId]/page.tsx\" && grep -n \"max-w-6xl\" \"app/\\(dashboard\\)/dashboard/video/[bookingId]/page.tsx\")",
+      "Bash(node dbg-lkchat.mjs)",
+      "Bash(curl -s -o /dev/null -w \"warm dashboard: %{http_code}\\\\n\" --max-time 120 http://localhost:3000/dashboard/coach)",
+      "Bash(sed -i \"s|await p.goto\\('http://localhost:3000' + chatHref.replace\\('/chat/', '/video/'\\), { waitUntil: 'networkidle' }\\);|await p.goto\\('http://localhost:3000' + chatHref.replace\\('/chat/', '/video/'\\), { waitUntil: 'load', timeout: 90000 }\\);\\\\nawait p.waitForSelector\\('[data-lk-theme]', { timeout: 60000 }\\);|\" dbg-lkchat.mjs)",
+      "Bash(sed -i \"s|await p.goto\\('http://localhost:3000/dashboard/coach'\\);|await p.goto\\('http://localhost:3000/dashboard/coach', { timeout: 120000 }\\);|\" dbg-lkchat.mjs)",
+      "PowerShell(Get-Process node -ErrorAction SilentlyContinue)",
+      "PowerShell($conns = Get-NetTCPConnection -RemotePort 5432 -ErrorAction SilentlyContinue | Where-Object State -eq 'Established'; Write-Host \"Connessioni locali a :5432 attive: $\\(\\($conns | Measure-Object\\).Count\\)\"; $conns | Group-Object OwningProcess | ForEach-Object { $p = Get-Process -Id $_.Name -ErrorAction SilentlyContinue; Write-Host \" PID $\\($_.Name\\) \\($\\($p.ProcessName\\)\\): $\\($_.Count\\) conn\" }; Test-NetConnection aws-1-eu-central-1.pooler.supabase.com -Port 5432 -InformationLevel Quiet)",
+      "Bash(curl -s -o /dev/null -w \"home: %{http_code} in %{time_total}s\\\\n\" --max-time 120 http://localhost:3000/)",
+      "Bash(mkdir -p \"app/\\(dashboard\\)/dashboard/athlete/security\")",
+      "Bash(sed -i \"s|import { LayoutDashboard, CalendarDays, MessageSquare } from 'lucide-react';|import { LayoutDashboard, CalendarDays, MessageSquare, Shield } from 'lucide-react';|\" \"app/\\(dashboard\\)/dashboard/athlete/athlete-nav.tsx\")",
+      "Bash(perl -0pi -e \"s|\\(  \\\\{\\\\n    href: '/dashboard/athlete/messages',\\\\n    label: 'Messaggi',\\\\n    icon: MessageSquare,\\\\n  \\\\},\\\\n\\)|\\\\$1  {\\\\n    href: '/dashboard/athlete/security',\\\\n    label: 'Sicurezza',\\\\n    icon: Shield,\\\\n  },\\\\n|\" \"app/\\(dashboard\\)/dashboard/athlete/athlete-nav.tsx\")",
+      "Bash(awk '{print $5, $9, $10, $11, $12}')",
+      "Bash(git reset *)"
+    ],
+    "additionalDirectories": [
+      "c:\\Dati\\SportMentalCoach\\app\\(dashboard)\\dashboard\\video\\[bookingId]"
     ]
   }
 }

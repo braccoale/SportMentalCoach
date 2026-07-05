@@ -114,7 +114,7 @@ function fmtFull(d: Date): string {
 /* ── status visuals (Kai Pai dark) ── */
 
 const STATUS_LABELS: Record<string, string> = {
-  requested: 'In attesa',
+  requested: 'Richieste in attesa',
   accepted: 'Accettata',
   completed: 'Completata',
   cancelled: 'Annullata',

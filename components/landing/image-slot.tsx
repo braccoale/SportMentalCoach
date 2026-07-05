@@ -13,6 +13,8 @@ type ImageSlotProps = {
   label?: string;
   /** 'none' hides the placeholder graphic (e.g. hero, where a glow stands in). */
   placeholder?: 'auto' | 'none';
+  /** Extra classes on the image layer itself (e.g. `kp-kenburns`). */
+  imageClassName?: string;
   className?: string;
   style?: CSSProperties;
   /** Overlay content rendered above the image (scrims, glows, widgets). */
@@ -32,6 +34,7 @@ export function ImageSlot({
   icon: Icon = ImageIcon,
   label,
   placeholder = 'auto',
+  imageClassName = '',
   className = '',
   style,
   children,
@@ -49,7 +52,7 @@ export function ImageSlot({
     >
       {src ? (
         <div
-          className="absolute inset-0 bg-cover"
+          className={`absolute inset-0 bg-cover ${imageClassName}`}
           style={{ backgroundImage: `url('${src}')`, backgroundPosition: position }}
           role="img"
           aria-label={label}

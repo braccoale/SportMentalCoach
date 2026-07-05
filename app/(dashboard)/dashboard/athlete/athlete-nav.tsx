@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, CalendarDays, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, MessageSquare, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const TABS = [
@@ -17,24 +17,44 @@ const TABS = [
     label: 'Messaggi',
     icon: MessageSquare,
   },
+  {
+    href: '/dashboard/athlete/security',
+    label: 'Sicurezza',
+    icon: Shield,
+  },
 ];
 
 export function AthleteNav({
   unreadMessages = 0,
+  athleteName,
 }: {
   unreadMessages?: number;
+  /** Shown next to the area title. */
+  athleteName?: string | null;
 }) {
   const pathname = usePathname();
 
   return (
-    <div className="border-b border-gray-200">
+    <div className="relative border-b border-gray-200">
+      {/* Kai Pai bottle — decorative, same spot as the coach badge */}
+      <img
+        src="/BorracciaAI.png"
+        alt=""
+        aria-hidden
+        className="pointer-events-none absolute -top-1 right-10 z-10 hidden h-36 w-auto rotate-6 rounded-xl object-cover shadow-xl ring-1 ring-black/10 md:block"
+      />
       <div className="flex items-center gap-3 px-6 pt-6">
         <img
           src="/logo.jpg"
           alt="Kai Pai"
           className="h-9 w-9 rounded-lg object-cover"
         />
-        <h1 className="text-xl font-semibold text-gray-900">Area Atleta</h1>
+        <h1 className="text-xl font-semibold text-gray-900">
+          Area Atleta
+          {athleteName && (
+            <span className="font-normal text-gray-400"> · {athleteName}</span>
+          )}
+        </h1>
       </div>
 
       <nav className="mt-4 flex gap-1 overflow-x-auto px-4">
@@ -59,7 +79,7 @@ export function AthleteNav({
               {/* Unread-messages count on the Messaggi tab */}
               {tab.href === '/dashboard/athlete/messages' &&
                 unreadMessages > 0 && (
-                  <span className="absolute -top-0.5 right-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
+                  <span className="absolute top-0 right-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
                     {unreadMessages}
                   </span>
                 )}

@@ -460,9 +460,79 @@
   animation: kpFloat 7s ease-in-out infinite;
   animation-delay: -2.5s;
 }
+/* Hero portrait "breathing" — a clearly perceivable inhale/exhale. The
+   transform-origin sits on the athlete's chest so the frame doesn't slide. */
+@keyframes kpBreathePortrait {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.035);
+  }
+}
+.kp-breathe-img {
+  animation: kpBreathePortrait 4.5s ease-in-out infinite;
+  transform-origin: 72% 28%;
+  will-change: transform;
+}
+/* Brain heartbeat: float + strong scale/opacity pulse in ONE animation
+   (separate classes would fight over the `animation` shorthand). Synced to
+   the same 4.5s rhythm as the portrait breathing. */
+@keyframes kpBrainPulse {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translateY(-6px) scale(1.28);
+    opacity: 1;
+  }
+}
+.kp-glow-anim {
+  animation: kpBrainPulse 4.5s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+/* Energy wave radiating from the brain on every beat. */
+@keyframes kpPulseRing {
+  0% {
+    transform: scale(0.45);
+    opacity: 0.9;
+  }
+  75% {
+    opacity: 0;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+.kp-pulse-ring {
+  border: 2px solid rgba(245, 51, 63, 0.75);
+  border-radius: 9999px;
+  box-shadow: 0 0 24px rgba(225, 29, 42, 0.35);
+  animation: kpPulseRing 4.5s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+  will-change: transform, opacity;
+}
+.kp-pulse-ring-delayed {
+  animation-delay: -2.25s;
+}
 @media (prefers-reduced-motion: reduce) {
   .kp-float,
-  .kp-float-slow {
+  .kp-float-slow,
+  .kp-breathe-img,
+  .kp-glow-anim,
+  .kp-pulse-ring {
     animation: none;
   }
+  .kp-pulse-ring {
+    opacity: 0;
+  }
+}
+
+/* LiveKit chat panel: guarantee a usable width inside our rounded container
+   (the grid otherwise squeezes it on narrow layouts). */
+[data-lk-theme] .lk-chat {
+  min-width: min(320px, 80vw);
 }

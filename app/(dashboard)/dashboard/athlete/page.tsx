@@ -1,5 +1,10 @@
 import Link from 'next/link';
-import { Clock, CalendarCheck, MessageSquare } from 'lucide-react';
+import {
+  Hourglass,
+  CalendarCheck,
+  CheckCircle2,
+  MessageSquare,
+} from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
 import {
   getAthleteBookings,
@@ -10,6 +15,7 @@ import {
 import { getAvatarUrl } from '@/lib/core/profiles';
 import { getUnreadCountForType } from '@/lib/core/notifications';
 import { SummaryCard } from '@/components/summary-card';
+import { AccountInfoCard } from '@/components/account-info-card';
 import { getReviewedBookingIds } from '@/lib/core/reviews';
 import {
   formatDate,
@@ -145,39 +151,71 @@ export default async function AthleteDashboardPage() {
 
   const waiting = requests.filter((b) => b.status === 'requested');
   const accepted = requests.filter((b) => b.status === 'accepted');
+  const completed = requests.filter((b) => b.status === 'completed');
   const archive = requests.filter((b) =>
     ['declined', 'cancelled', 'completed'].includes(b.status)
   );
 
+  // Trend footnotes for the KPI cards.
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfWeek = new Date(startOfToday);
+  startOfWeek.setDate(startOfWeek.getDate() - ((startOfToday.getDay() + 6) % 7));
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const newToday = waiting.filter((b) => b.requestedAt >= startOfToday).length;
+  const confirmedThisWeek = accepted.filter(
+    (b) => b.decidedAt && b.decidedAt >= startOfWeek
+  ).length;
+  const completedThisMonth = completed.filter(
+    (b) => b.decidedAt && b.decidedAt >= startOfMonth
+  ).length;
+
   return (
     <section className="flex flex-col gap-6 p-6">
       {/* Summary widgets */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <SummaryCard
-          icon={Clock}
+          icon={Hourglass}
           label="Richieste in attesa"
           value={waiting.length}
-          accent={
-            waiting.length > 0
-              ? 'bg-orange-100 text-orange-600'
-              : 'bg-gray-100 text-gray-600'
+          tone="red"
+          note={
+            newToday > 0 ? `${newToday} inviate oggi` : 'Nessuna nuova oggi'
           }
+          trend={newToday > 0 ? 'up' : 'flat'}
         />
         <SummaryCard
           icon={CalendarCheck}
           label="Sessioni confermate"
           value={accepted.length}
-          accent="bg-red-50 text-red-600"
+          tone="green"
+          note={
+            confirmedThisWeek > 0
+              ? `${confirmedThisWeek} questa settimana`
+              : 'Nessuna questa settimana'
+          }
+          trend={confirmedThisWeek > 0 ? 'up' : 'flat'}
+        />
+        <SummaryCard
+          icon={CheckCircle2}
+          label="Sessioni completate"
+          value={completed.length}
+          tone="purple"
+          note={
+            completedThisMonth > 0
+              ? `${completedThisMonth} questo mese`
+              : 'Storico completo'
+          }
+          trend={completedThisMonth > 0 ? 'up' : 'flat'}
         />
         <SummaryCard
           icon={MessageSquare}
           label="Messaggi non letti"
           value={unreadMessages}
-          accent={
-            unreadMessages > 0
-              ? 'bg-red-600 text-white'
-              : 'bg-gray-100 text-gray-600'
-          }
+          tone="blue"
+          note={unreadMessages > 0 ? 'Da leggere ora' : 'Nessun nuovo messaggio'}
+          trend="flat"
           href="/dashboard/athlete/messages"
         />
       </div>
@@ -192,7 +230,14 @@ export default async function AthleteDashboardPage() {
         </Link>
       </div>
 
-      <PhotoForm name={[user.name, user.lastName].filter(Boolean).join(' ') || null} avatarUrl={avatarUrl} />
+      {/* Photo + account info side by side (name feeds what the coach sees). */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <PhotoForm
+          name={[user.name, user.lastName].filter(Boolean).join(' ') || null}
+          avatarUrl={avatarUrl}
+        />
+        <AccountInfoCard />
+      </div>
 
       {requests.length === 0 ? (
         <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center">

@@ -28,7 +28,7 @@ export default async function VideoPage({
   const { backHref, otherName } = result;
 
   return (
-    <section className="mx-auto w-full max-w-3xl p-6">
+    <section className="mx-auto w-full max-w-6xl p-6">
       <Link
         href={backHref}
         className="text-sm text-gray-500 hover:text-gray-900"

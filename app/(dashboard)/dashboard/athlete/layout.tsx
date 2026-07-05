@@ -14,7 +14,14 @@ export default async function AthleteAreaLayout({
 
   return (
     <div className="flex flex-col">
-      <AthleteNav unreadMessages={unreadMessages} />
+      <AthleteNav
+        unreadMessages={unreadMessages}
+        athleteName={
+          user
+            ? [user.name, user.lastName].filter(Boolean).join(' ') || null
+            : null
+        }
+      />
       {children}
     </div>
   );

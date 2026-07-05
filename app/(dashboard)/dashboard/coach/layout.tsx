@@ -19,7 +19,15 @@ export default async function CoachAreaLayout({
 
   return (
     <div className="flex flex-col">
-      <CoachNav pendingCount={pendingCount} unreadMessages={unreadMessages} />
+      <CoachNav
+        pendingCount={pendingCount}
+        unreadMessages={unreadMessages}
+        coachName={
+          user
+            ? [user.name, user.lastName].filter(Boolean).join(' ') || null
+            : null
+        }
+      />
       {children}
     </div>
   );

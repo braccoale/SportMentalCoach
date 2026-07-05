@@ -60,7 +60,7 @@ export async function getConversations(userId: number): Promise<Conversation[]> 
     .select({
       bookingId: bookings.id,
       clientId: bookings.clientId,
-      clientName: users.name,
+      clientName: sql<string | null>`nullif(trim(concat(${users.name}, ' ', coalesce(${users.lastName}, ''))), '')`,
       coachName: clientProfilesAlias.displayName,
       serviceTitle: services.title,
       scheduledFor: bookings.scheduledFor,
@@ -153,7 +153,7 @@ export async function getBookingChatContext(
       status: bookings.status,
       clientId: bookings.clientId,
       coachUserId: providerProfiles.userId,
-      clientName: users.name,
+      clientName: sql<string | null>`nullif(trim(concat(${users.name}, ' ', coalesce(${users.lastName}, ''))), '')`,
       clientEmail: users.email,
       coachName: profiles.displayName,
       coachSlug: providerProfiles.slug,

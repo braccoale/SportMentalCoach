@@ -62,7 +62,7 @@ export function NotificationBell() {
 
   return (
     <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-      <DropdownMenuTrigger className="relative rounded-full p-1.5 text-gray-600 hover:bg-gray-100 hover:text-gray-900">
+      <DropdownMenuTrigger className="relative rounded-full p-1.5 text-gray-300 hover:bg-white/10 hover:text-white">
         <Bell className="h-5 w-5" />
         {unread > 0 && (
           <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">

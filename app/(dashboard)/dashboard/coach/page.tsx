@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import {
-  Clock,
+  Hourglass,
   CalendarCheck,
-  ListChecks,
+  BarChart3,
   MessageSquare,
   Star,
 } from 'lucide-react';
@@ -45,49 +45,88 @@ export default async function CoachDashboardPage() {
     ['declined', 'cancelled', 'completed'].includes(b.status)
   );
 
+  // Trend footnotes for the KPI cards.
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfWeek = new Date(startOfToday);
+  startOfWeek.setDate(startOfWeek.getDate() - ((startOfToday.getDay() + 6) % 7));
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+  const newToday = pending.filter((b) => b.requestedAt >= startOfToday).length;
+  const acceptedThisWeek = accepted.filter(
+    (b) => b.decidedAt && b.decidedAt >= startOfWeek
+  ).length;
+  const bookingsThisMonth = allBookings.filter(
+    (b) => b.requestedAt >= startOfMonth
+  ).length;
+  const bookingsLastMonth = allBookings.filter(
+    (b) => b.requestedAt >= startOfLastMonth && b.requestedAt < startOfMonth
+  ).length;
+  const monthPct =
+    bookingsLastMonth > 0
+      ? Math.round(((bookingsThisMonth - bookingsLastMonth) / bookingsLastMonth) * 100)
+      : null;
+  const reviewsThisWeek = reviews.filter(
+    (r) => r.createdAt >= startOfWeek
+  ).length;
+
   return (
     <section className="flex flex-col gap-8 p-6">
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-        {/* Orange when there is something waiting for the coach's action. */}
         <SummaryCard
-          icon={Clock}
+          icon={Hourglass}
           label="Richieste in attesa"
           value={pending.length}
-          accent={
-            pending.length > 0
-              ? 'bg-orange-100 text-orange-600'
-              : 'bg-gray-100 text-gray-600'
-          }
+          tone="red"
+          note={newToday > 0 ? `${newToday} nuove oggi` : 'Nessuna nuova oggi'}
+          trend={newToday > 0 ? 'up' : 'flat'}
         />
         <SummaryCard
           icon={CalendarCheck}
           label="Sessioni accettate"
           value={accepted.length}
-          accent="bg-red-50 text-red-600"
+          tone="green"
+          note={
+            acceptedThisWeek > 0
+              ? `${acceptedThisWeek} questa settimana`
+              : 'Nessuna questa settimana'
+          }
+          trend={acceptedThisWeek > 0 ? 'up' : 'flat'}
         />
         <SummaryCard
-          icon={ListChecks}
+          icon={BarChart3}
           label="Sessioni totali"
           value={allBookings.length}
-          accent="bg-gray-900 text-white"
+          tone="purple"
+          note={
+            monthPct !== null
+              ? `${monthPct >= 0 ? '+' : ''}${monthPct}% rispetto al mese scorso`
+              : `${bookingsThisMonth} questo mese`
+          }
+          trend={monthPct !== null && monthPct < 0 ? 'down' : 'up'}
         />
         <SummaryCard
           icon={Star}
           label="Recensioni"
           value={reviews.length}
-          accent="bg-red-50 text-red-600"
+          tone="amber"
+          note={
+            reviewsThisWeek > 0
+              ? `${reviewsThisWeek} ${reviewsThisWeek === 1 ? 'nuova' : 'nuove'} questa settimana`
+              : 'Nessuna nuova questa settimana'
+          }
+          trend={reviewsThisWeek > 0 ? 'up' : 'flat'}
         />
         {/* Unread chat messages (new_message notifications not yet read). */}
         <SummaryCard
           icon={MessageSquare}
           label="Messaggi non letti"
           value={unreadMessages}
-          accent={
-            unreadMessages > 0
-              ? 'bg-red-600 text-white'
-              : 'bg-gray-100 text-gray-600'
-          }
+          tone="blue"
+          note={unreadMessages > 0 ? 'Da leggere ora' : 'Nessun nuovo messaggio'}
+          trend="flat"
           href="/dashboard/coach/messages"
         />
       </div>

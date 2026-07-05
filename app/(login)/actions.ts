@@ -430,6 +430,68 @@ export const deleteAccount = validatedActionWithUser(
   }
 );
 
+const resetRequestSchema = z.object({
+  email: z.string().email('Indirizzo email non valido')
+});
+
+/**
+ * Sends the password-reset email via Supabase Auth. Always reports success
+ * (no account enumeration). The link lands on /auth/callback which exchanges
+ * the code for a session and forwards to the update-password page.
+ */
+export const requestPasswordReset = validatedAction(
+  resetRequestSchema,
+  async (data) => {
+    const supabase = await createSupabaseServer();
+    const baseUrl = process.env.BASE_URL ?? 'http://localhost:3000';
+    await supabase.auth.resetPasswordForEmail(data.email, {
+      redirectTo: `${baseUrl}/auth/callback?next=/reset-password/update`
+    });
+    return {
+      success:
+        'Se l’email è registrata riceverai un link per reimpostare la password. Controlla la posta (anche lo spam).'
+    };
+  }
+);
+
+const resetConfirmSchema = z.object({
+  password: z.string().min(8, 'Minimo 8 caratteri').max(100),
+  confirmPassword: z.string().min(8).max(100)
+});
+
+/** Sets the new password (requires the session created by the email link). */
+export const confirmPasswordReset = validatedAction(
+  resetConfirmSchema,
+  async (data) => {
+    if (data.password !== data.confirmPassword) {
+      return { error: 'Le password non coincidono.' };
+    }
+
+    const supabase = await createSupabaseServer();
+    const {
+      data: { user: authUser }
+    } = await supabase.auth.getUser();
+    if (!authUser) {
+      return {
+        error:
+          'Link scaduto o non valido. Richiedi un nuovo link di reimpostazione.'
+      };
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      password: data.password
+    });
+    if (error) {
+      return { error: 'Aggiornamento non riuscito. Richiedi un nuovo link.' };
+    }
+
+    // The user already has a valid session: straight to their area.
+    const appUser = await getUser();
+    const roles = appUser ? await getUserRoles(appUser.id) : [];
+    redirect(dashboardPathForRoles(roles));
+  }
+);
+
 const updateAccountSchema = z.object({
   name: z.string().min(1, 'Il nome è obbligatorio').max(100),
   lastName: z.string().max(100).optional(),

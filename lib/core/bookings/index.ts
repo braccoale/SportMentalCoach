@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, count, desc, eq } from 'drizzle-orm';
+import { and, count, desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
   bookings,
@@ -216,7 +216,7 @@ export async function getCoachBookings(
       scheduledFor: bookings.scheduledFor,
       requestedAt: bookings.requestedAt,
       decidedAt: bookings.decidedAt,
-      clientName: users.name,
+      clientName: sql<string | null>`nullif(trim(concat(${users.name}, ' ', coalesce(${users.lastName}, ''))), '')`,
       clientEmail: users.email,
       serviceTitle: services.title,
     })
