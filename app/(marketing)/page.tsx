@@ -269,6 +269,12 @@ function Founder() {
               sola: la mente non va corretta, va guidata.
             </p>
           </Reveal>
+          <Reveal delay={0.13}>
+            <p className="mt-4 max-w-xl text-lg leading-relaxed text-kp-hi">
+              Kai Pai è nato per questo: portare ciò che ho imparato con i
+              campioni a ogni ragazzo che fa sport.
+            </p>
+          </Reveal>
           <Reveal delay={0.15}>
             <div className="mt-7 flex flex-wrap gap-2">
               {chips.map((c) => (
@@ -508,20 +514,21 @@ function MarketplaceAcademy() {
       <div className={`${WRAP} grid items-center gap-14 lg:grid-cols-2`}>
         <div>
           <SectionHeader
-            eyebrow="La piattaforma"
+            eyebrow="Le nostre guide"
             title={
               <>
-                Il coach giusto <span className="text-kp-red">per la tua testa</span>.
+                Non un coach qualsiasi.{' '}
+                <span className="text-kp-red">Una guida formata da noi</span>.
               </>
             }
-            sub="Ogni coach è verificato e formato dalla nostra Academy. Nessuna vetrina: solo professionisti veri, scelti per te."
+            sub="Ogni guida Kai Pai è verificata, certificata e cresciuta dalla nostra Academy. Niente vetrine, niente sconosciuti: solo persone di cui fidarti."
           />
           <Reveal delay={0.15}>
             <ul className="mt-8 space-y-3">
               {[
                 'Identità e credenziali verificate',
-                'Recensioni verificate, solo dopo sessioni reali',
-                'Formati dalla Kai Pai Academy',
+                'Recensioni vere, solo dopo sessioni reali',
+                'Formate dalla Kai Pai Academy',
               ].map((f) => (
                 <li key={f} className="flex items-center gap-3 text-kp-mid">
                   <CheckCircle2 className="h-5 w-5 shrink-0 text-kp-verify" />
@@ -606,8 +613,8 @@ function MarketplaceAcademy() {
           </Reveal>
           <Reveal delay={0.1}>
             <p className="mt-5 text-lg leading-relaxed text-kp-mid">
-              Ogni coach supera un percorso rigoroso prima di entrare nel
-              network. Solo chi passa ogni fase è visibile su Kai Pai.
+              Ogni coach supera un percorso rigoroso prima di affiancare un
+              atleta. Solo chi lo completa entra a far parte di Kai Pai.
             </p>
           </Reveal>
         </div>
@@ -640,7 +647,7 @@ function MarketplaceAcademy() {
 function Results() {
   const stats = [
     { to: 34, prefix: '+', suffix: '%', label: 'Gestione della pressione*' },
-    { to: 92, suffix: '%', label: 'Consiglia il proprio coach' },
+    { to: 9, suffix: ' su 10', label: 'Tornerebbero a farlo' },
     { to: 2400, suffix: '+', label: 'Sessioni completate' },
     { to: 18, label: 'Regioni coperte' },
   ];
@@ -675,10 +682,11 @@ function Results() {
       <div className={`relative z-10 ${WRAP}`}>
         <SectionHeader
           center
-          eyebrow="Storie vere"
+          eyebrow="Chi ha già iniziato"
           title={
             <>
-              Risultati reali. <span className="text-kp-red">Persone vere.</span>
+              Non numeri.{' '}
+              <span className="text-kp-red">Persone che sono cambiate.</span>
             </>
           }
         />
@@ -711,8 +719,8 @@ function Results() {
         </div>
         <Reveal>
           <p className="mt-8 text-center text-xs text-kp-low">
-            *Dato illustrativo, in fase di validazione con metriche reali di
-            piattaforma.
+            *Dato illustrativo, in fase di validazione con i risultati reali dei
+            percorsi Kai Pai.
           </p>
         </Reveal>
       </div>
@@ -724,14 +732,14 @@ function Results() {
 function TrustHowItWorks() {
   const pillars = [
     { icon: ShieldCheck, t: 'Identità verificata', b: 'Ogni coach è approvato dal nostro team prima della pubblicazione.' },
-    { icon: BadgeCheck, t: 'Professionisti certificati', b: 'Credenziali ed esperienza controllate, formazione continua.' },
+    { icon: BadgeCheck, t: 'Guide certificate', b: 'Credenziali ed esperienza controllate, formazione continua.' },
     { icon: Star, t: 'Recensioni verificate', b: 'Solo da atleti che hanno svolto sessioni reali.' },
     { icon: HeartHandshake, t: 'Tutela dei minori & GDPR', b: 'Consenso dei genitori per gli under 18. Dati riservati.' },
   ];
   const steps = [
-    { icon: Search, t: 'Scegli', b: 'Trova il coach giusto per il tuo sport e i tuoi obiettivi.' },
-    { icon: CalendarCheck, t: 'Prenoti', b: 'Invii la richiesta e concordi la sessione, online o in presenza.' },
-    { icon: TrendingUp, t: 'Cresci', b: 'Inizi il percorso e alleni i tuoi 4 muscoli della mente.' },
+    { icon: Search, t: 'Scegli', b: 'Trova la guida giusta per il tuo sport e per te.' },
+    { icon: CalendarCheck, t: 'Inizia', b: 'Mandi una richiesta e fai il primo incontro, online o dal vivo.' },
+    { icon: TrendingUp, t: 'Cresci', b: 'Alleni i tuoi 4 muscoli della mente, un percorso alla volta.' },
   ];
   return (
     <section className="kp-snap relative bg-kp-ink2 py-20 sm:py-24">
@@ -770,7 +778,7 @@ function TrustHowItWorks() {
           eyebrow="In tre passi"
           title={
             <>
-              Scegli. Prenota. <span className="text-kp-red">Cresci.</span>
+              Scegli. Inizia. <span className="text-kp-red">Cresci.</span>
             </>
           }
         />
@@ -805,10 +813,10 @@ function TrustHowItWorks() {
 function Vision() {
   const layers = [
     { t: 'Il Metodo', d: 'Il linguaggio comune', tag: 'fondamenta' },
-    { t: 'Il Marketplace', d: "L'accesso ai coach", tag: 'oggi' },
+    { t: 'Le Guide', d: "L'incontro con chi ti accompagna", tag: 'oggi' },
     { t: "L'Academy", d: 'Lo standard di qualità', tag: 'oggi' },
     { t: 'La Mappa Mentale', d: 'Misurare la crescita nel tempo', tag: 'prossimo' },
-    { t: 'Le Società', d: 'L’infrastruttura mentale dei club', tag: 'prossimo' },
+    { t: 'Le Società', d: 'La mentalità dentro i club', tag: 'prossimo' },
     { t: 'La Cultura', d: 'Rendere normale allenare la mente', tag: 'la missione' },
   ];
   return (
@@ -818,10 +826,10 @@ function Vision() {
           eyebrow="La visione"
           title={
             <>
-              Il marketplace è <span className="text-kp-red">solo l'inizio</span>.
+              Trovare una guida è <span className="text-kp-red">solo l'inizio</span>.
             </>
           }
-          sub="Stiamo costruendo l'infrastruttura della performance mentale nello sport. Un livello alla volta."
+          sub="Vogliamo cambiare il modo in cui lo sport allena la mente — dal singolo atleta a un'intera cultura. Un passo alla volta."
         />
         <div className="mx-auto mt-14 max-w-3xl space-y-3">
           {layers.map((l, i) => {
@@ -1073,7 +1081,7 @@ function FinalCta() {
         <Reveal delay={0.05}>
           <h2 className="kp-display mx-auto mt-5 max-w-3xl text-[clamp(2.2rem,6vw,4.5rem)] text-kp-hi">
             Il futuro dello sport si allena{' '}
-            <span className="text-kp-red">anche con la testa</span>.
+            <span className="text-kp-red">con la testa</span>.
           </h2>
         </Reveal>
         <Reveal delay={0.1}>
@@ -1087,7 +1095,7 @@ function FinalCta() {
               href="/coaches"
               className="kp-cta group inline-flex items-center gap-2 rounded-full px-8 py-4 font-semibold text-white"
             >
-              Trova un Coach
+              Inizia il tuo percorso
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
             <a
@@ -1116,7 +1124,7 @@ function FinalCta() {
 /* ── Footer ── */
 function SiteFooter() {
   const cols = [
-    { h: 'Prodotto', links: ['Trova un Coach', 'Come funziona', 'Prezzi'] },
+    { h: 'Inizia', links: ['Trova la tua guida', 'Come funziona', 'Prezzi'] },
     { h: 'Metodo', links: ['I 4 muscoli', 'Academy', 'Ricerca'] },
     { h: 'Per chi', links: ['Atleti', 'Famiglie', 'Coach', 'Società'] },
     { h: 'Azienda', links: ['Origine', 'Movimento', 'Contatti'] },

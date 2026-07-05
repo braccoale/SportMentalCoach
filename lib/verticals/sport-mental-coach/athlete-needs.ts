@@ -10,6 +10,8 @@ export type AthleteNeed = {
   description: string;
   selectedTitle: string;
   selectedSubtitle: string;
+  imageSrc: string;
+  imagePosition?: string;
   iconName:
     | 'pulse'
     | 'shield'
@@ -29,6 +31,8 @@ export const athleteNeeds: AthleteNeed[] = [
     selectedTitle: "Coach per gestire l'ansia sportiva",
     selectedSubtitle:
       "Percorsi pensati per atleti che vogliono trasformare pressione, paura dell'errore e tensione pre-gara in lucidita e presenza.",
+    imageSrc: '/needs/need-anxiety.jpg',
+    imagePosition: '82% center',
     iconName: 'pulse',
     specialtyKeys: [
       'performance_anxiety',
@@ -44,6 +48,8 @@ export const athleteNeeds: AthleteNeed[] = [
     selectedTitle: 'Coach per il rientro dopo un infortunio',
     selectedSubtitle:
       'Supporto mentale per ritrovare fiducia, continuita e sicurezza nel ritorno alla performance.',
+    imageSrc: '/needs/need-injury-return.jpg',
+    imagePosition: '32% center',
     iconName: 'shield',
     specialtyKeys: ['injury_recovery', 'confidence', 'resilience'],
   },
@@ -55,6 +61,8 @@ export const athleteNeeds: AthleteNeed[] = [
     selectedTitle: 'Coach per migliorare concentrazione e focus',
     selectedSubtitle:
       'Percorsi per atleti che vogliono restare presenti nei momenti chiave e dare continuita alla propria attenzione.',
+    imageSrc: '/needs/need-focus.jpg',
+    imagePosition: 'center 22%',
     iconName: 'target',
     specialtyKeys: ['focus_concentration', 'pre_competition_routine'],
   },
@@ -66,6 +74,8 @@ export const athleteNeeds: AthleteNeed[] = [
     selectedTitle: 'Coach per ritrovare motivazione e continuita',
     selectedSubtitle:
       "Un supporto concreto per riaccendere energia mentale, disciplina quotidiana e voglia di crescere nell'allenamento.",
+    imageSrc: '/needs/need-motivation.jpg',
+    imagePosition: 'center 34%',
     iconName: 'flame',
     specialtyKeys: ['motivation', 'goal_setting', 'resilience'],
   },
@@ -77,6 +87,8 @@ export const athleteNeeds: AthleteNeed[] = [
     selectedTitle: 'Coach per costruire la tua routine pre-gara',
     selectedSubtitle:
       'Lavori mirati per arrivare alla competizione con una preparazione mentale stabile, riconoscibile e ripetibile.',
+    imageSrc: '/needs/need-pre-game-routine.jpg',
+    imagePosition: 'center 40%',
     iconName: 'timer',
     specialtyKeys: [
       'pre_competition_routine',
@@ -92,6 +104,8 @@ export const athleteNeeds: AthleteNeed[] = [
     selectedTitle: 'Coach per rafforzare fiducia e sicurezza',
     selectedSubtitle:
       'Percorsi per superare blocchi interiori, ritrovare sicurezza e giocare con piu presenza nelle proprie qualita.',
+    imageSrc: '/needs/need-self-confidence.jpg',
+    imagePosition: '38% center',
     iconName: 'spark',
     specialtyKeys: ['confidence', 'resilience', 'performance_anxiety'],
   },

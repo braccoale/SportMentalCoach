@@ -50,14 +50,14 @@ const NEED_ICONS: Record<AthleteNeed['iconName'], LucideIcon> = {
 };
 
 type SearchParams = {
-  sport?: string;
-  specialty?: string;
-  level?: string;
-  language?: string;
-  certified?: string;
-  sort?: string;
-  fav?: string;
-  need?: string;
+  sport?: string | string[];
+  specialty?: string | string[];
+  level?: string | string[];
+  language?: string | string[];
+  certified?: string | string[];
+  sort?: string | string[];
+  fav?: string | string[];
+  need?: string | string[];
 };
 
 const fieldCls =
@@ -76,21 +76,31 @@ export default async function CoachesPage({
     getActiveSpecialties(),
   ]);
 
-  const selectedNeed =
-    athleteNeeds.find((need) => need.id === sp.need) ?? null;
+  const selectedNeedIds = parseSelectedNeedIds(sp.need);
+  const selectedNeeds = athleteNeeds.filter((need) =>
+    selectedNeedIds.includes(need.id)
+  );
 
-  const sort: DiscoverySort = SORTS.some((s) => s.value === sp.sort)
-    ? (sp.sort as DiscoverySort)
+  const sport = getSingleParam(sp.sport);
+  const specialty = getSingleParam(sp.specialty);
+  const level = getSingleParam(sp.level);
+  const language = getSingleParam(sp.language);
+  const certified = getSingleParam(sp.certified);
+  const favorite = getSingleParam(sp.fav);
+  const sortParam = getSingleParam(sp.sort);
+
+  const sort: DiscoverySort = SORTS.some((s) => s.value === sortParam)
+    ? (sortParam as DiscoverySort)
     : 'recommended';
   const filters: DiscoveryFilters = {
-    sport: sp.sport || undefined,
-    specialty: sp.specialty || undefined,
-    level: sp.level || undefined,
-    language: sp.language || undefined,
-    certifiedOnly: sp.certified === '1',
+    sport: sport || undefined,
+    specialty: specialty || undefined,
+    level: level || undefined,
+    language: language || undefined,
+    certifiedOnly: certified === '1',
     sort,
   };
-  const onlyFav = sp.fav === '1';
+  const onlyFav = favorite === '1';
 
   const user = await getUser();
   const loggedIn = !!user;
@@ -100,7 +110,9 @@ export default async function CoachesPage({
 
   let coaches = await getCoachDiscovery(filters, { favoriteIds });
   if (onlyFav && loggedIn) coaches = coaches.filter((c) => c.isFavorite);
-  if (selectedNeed) coaches = filterAndRankCoachesForNeed(coaches, selectedNeed);
+  if (selectedNeeds.length > 0) {
+    coaches = filterAndRankCoachesForNeeds(coaches, selectedNeeds);
+  }
 
   const anyAdvancedFilter =
     !!filters.sport ||
@@ -109,7 +121,7 @@ export default async function CoachesPage({
     !!filters.language ||
     filters.certifiedOnly ||
     onlyFav;
-  const hasActiveNeed = !!selectedNeed;
+  const hasActiveNeed = selectedNeeds.length > 0;
   const activeAdvancedFilterCount = [
     filters.sport,
     filters.specialty,
@@ -122,17 +134,23 @@ export default async function CoachesPage({
   const fallback =
     coaches.length === 0 && (anyAdvancedFilter || hasActiveNeed)
       ? buildFallbackSuggestions(
-          await getCoachDiscovery({}, { favoriteIds }),
-          selectedNeed
+        await getCoachDiscovery({}, { favoriteIds }),
+          selectedNeeds
         ).slice(0, 3)
       : [];
 
-  const resultsTitle = selectedNeed
-    ? selectedNeed.selectedTitle
-    : 'Trova il supporto giusto per il tuo momento';
-  const resultsSubtitle = selectedNeed
-    ? selectedNeed.selectedSubtitle
-    : 'Parti da cio che vuoi migliorare oppure usa i filtri avanzati per affinare la ricerca.';
+  const resultsTitle =
+    selectedNeeds.length === 1
+      ? selectedNeeds[0].selectedTitle
+      : selectedNeeds.length > 1
+        ? 'Coach per il momento che stai vivendo'
+        : 'Trova il supporto giusto per il tuo momento';
+  const resultsSubtitle =
+    selectedNeeds.length === 1
+      ? selectedNeeds[0].selectedSubtitle
+      : selectedNeeds.length > 1
+        ? `Una selezione pensata per chi vuole lavorare su ${formatNeedLabels(selectedNeeds)}. I coach che vedi qui danno priorita ai bisogni che hai combinato.`
+        : 'Parti da cio che vuoi migliorare oppure usa i filtri avanzati per affinare la ricerca.';
 
   const clearNeedHref = buildMarketplaceHref(sp, { need: undefined });
   const clearAdvancedFiltersHref = buildMarketplaceHref(sp, {
@@ -207,19 +225,19 @@ export default async function CoachesPage({
               key={need.id}
               need={need}
               href={buildMarketplaceHref(sp, {
-                need: selectedNeed?.id === need.id ? undefined : need.id,
+                need: toggleNeedSelection(selectedNeedIds, need.id),
               })}
-              selected={selectedNeed?.id === need.id}
+              selected={selectedNeedIds.includes(need.id)}
             />
           ))}
         </div>
 
         <div className="mt-5 flex flex-col gap-3 border-t border-gray-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-gray-600">
-            Scegli il percorso piu vicino alla tua situazione, poi affina la
-            ricerca solo se serve.
+            Puoi combinare piu bisogni insieme, poi affinare la ricerca solo se
+            serve.
           </p>
-          {selectedNeed ? (
+          {selectedNeeds.length > 0 ? (
             <Button asChild variant="outline" className="rounded-full">
               <Link href={clearNeedHref}>Voglio esplorare tutti i coach</Link>
             </Button>
@@ -252,26 +270,26 @@ export default async function CoachesPage({
 
         <div className="border-t border-gray-100 px-5 pb-5 pt-4">
           <CoachesFilterForm className="flex flex-wrap items-end gap-3">
-            {selectedNeed ? (
-              <input type="hidden" name="need" value={selectedNeed.id} />
-            ) : null}
+            {selectedNeedIds.map((needId) => (
+              <input key={needId} type="hidden" name="need" value={needId} />
+            ))}
 
             <Field
               label="Sport"
               name="sport"
-              value={sp.sport}
+              value={sport}
               options={categories}
             />
             <Field
               label="Specializzazione"
               name="specialty"
-              value={sp.specialty}
+              value={specialty}
               options={specialties}
             />
             <Field
               label="Livello"
               name="level"
-              value={sp.level}
+              value={level}
               options={levels ?? []}
             />
             <div className="flex flex-col">
@@ -284,7 +302,7 @@ export default async function CoachesPage({
               <select
                 id="language"
                 name="language"
-                defaultValue={sp.language ?? ''}
+                defaultValue={language ?? ''}
                 className={`${fieldCls} mt-1`}
               >
                 <option value="">Tutte</option>
@@ -388,7 +406,7 @@ export default async function CoachesPage({
             fallback={fallback}
             loggedIn={loggedIn}
             categories={categories}
-            selectedNeed={selectedNeed}
+            selectedNeeds={selectedNeeds}
           />
         ) : (
           <div className="mt-5 grid gap-6 md:grid-cols-2">
@@ -421,35 +439,63 @@ function NeedCard({
   return (
     <Link
       href={href}
+      aria-current={selected ? 'true' : undefined}
       className={cn(
-        'group flex h-full flex-col rounded-2xl border p-5 transition duration-200',
+        'group relative flex min-h-[250px] h-full overflow-hidden rounded-[26px] border transition duration-300',
         selected
-          ? 'border-red-300 bg-white shadow-lg shadow-red-100 ring-1 ring-red-200'
-          : 'border-gray-200 bg-white/90 shadow-sm hover:-translate-y-0.5 hover:border-red-200 hover:shadow-md'
+          ? 'border-red-300 shadow-xl shadow-red-200/70 ring-1 ring-red-200'
+          : 'border-gray-200 shadow-sm hover:-translate-y-1 hover:border-red-200 hover:shadow-xl hover:shadow-red-100/70'
       )}
     >
-      <div className="flex items-start justify-between gap-4">
-        <span
-          className={cn(
-            'inline-flex h-11 w-11 items-center justify-center rounded-2xl',
-            selected ? 'bg-red-600 text-white' : 'bg-red-50 text-red-600'
-          )}
-        >
-          <Icon className="h-5 w-5" />
-        </span>
-        {selected ? (
-          <span className="inline-flex rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600">
-            Selezionato
+      <div
+        className="absolute inset-0 bg-cover bg-center transition duration-500 group-hover:scale-[1.04]"
+        style={{
+          backgroundImage: `url(${need.imageSrc})`,
+          backgroundPosition: need.imagePosition ?? 'center',
+        }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/25" />
+      <div
+        className={cn(
+          'absolute inset-0 transition duration-300',
+          selected ? 'bg-red-950/10' : 'bg-black/5 group-hover:bg-black/0'
+        )}
+      />
+
+      <div className="relative flex h-full flex-1 flex-col p-5">
+        <div className="flex items-start justify-between gap-4">
+          <span
+            className={cn(
+              'inline-flex h-11 w-11 items-center justify-center rounded-2xl border backdrop-blur-sm',
+              selected
+                ? 'border-white/40 bg-white/20 text-white'
+                : 'border-white/20 bg-black/25 text-white'
+            )}
+          >
+            <Icon className="h-5 w-5" />
           </span>
-        ) : null}
+          {selected ? (
+            <span className="inline-flex rounded-full border border-white/20 bg-white/15 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+              Selezionato
+            </span>
+          ) : null}
+        </div>
+
+        <div className="mt-auto">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/70">
+            Percorso del momento
+          </p>
+
+          <h3 className="mt-3 text-xl font-semibold text-white">{need.title}</h3>
+          <p className="mt-2 max-w-sm text-sm leading-6 text-white/82">
+            {need.description}
+          </p>
+
+          <span className="mt-5 inline-flex text-sm font-medium text-red-100">
+            {selected ? 'Stai esplorando questo percorso' : 'Parti da qui'}
+          </span>
+        </div>
       </div>
-
-      <h3 className="mt-4 text-lg font-semibold text-gray-950">{need.title}</h3>
-      <p className="mt-2 text-sm leading-6 text-gray-600">{need.description}</p>
-
-      <span className="mt-5 text-sm font-medium text-red-600">
-        {selected ? 'Rimuovi questo focus' : 'Parti da qui'}
-      </span>
     </Link>
   );
 }
@@ -492,13 +538,13 @@ function NoResults({
   fallback,
   loggedIn,
   categories,
-  selectedNeed,
+  selectedNeeds,
 }: {
   anyFilter: boolean;
   fallback: Awaited<ReturnType<typeof getCoachDiscovery>>;
   loggedIn: boolean;
   categories: { key: string; label: string }[];
-  selectedNeed: AthleteNeed | null;
+  selectedNeeds: AthleteNeed[];
 }) {
   if (!anyFilter) {
     return (
@@ -516,8 +562,8 @@ function NoResults({
           Non abbiamo trovato coach con questa combinazione.
         </p>
         <p className="mt-2 text-sm text-gray-500">
-          {selectedNeed
-            ? 'Prova a mantenere il bisogno selezionato e alleggerire i filtri avanzati, oppure esplora coach vicini a questo momento.'
+          {selectedNeeds.length > 0
+            ? 'Prova a mantenere i bisogni selezionati e alleggerire i filtri avanzati, oppure esplora coach vicini a questo momento.'
             : 'Prova a rimuovere qualche filtro per vedere piu risultati.'}
         </p>
         <Button asChild className="mt-4 rounded-full">
@@ -528,8 +574,8 @@ function NoResults({
       {fallback.length > 0 ? (
         <div className="mt-8">
           <h2 className="text-lg font-medium text-gray-900">
-            {selectedNeed
-              ? 'Coach vicini a questo momento'
+            {selectedNeeds.length > 0
+              ? 'Coach vicini ai bisogni selezionati'
               : 'Forse ti interessano'}
           </h2>
           <div className="mt-4 grid gap-6 md:grid-cols-2">
@@ -548,25 +594,32 @@ function NoResults({
   );
 }
 
-function filterAndRankCoachesForNeed(
+function filterAndRankCoachesForNeeds(
   coaches: DiscoveryCoach[],
-  need: AthleteNeed
+  needs: AthleteNeed[]
 ): DiscoveryCoach[] {
   return [...coaches]
-    .filter((coach) => coachMatchesNeed(coach, need))
-    .sort((a, b) => needMatchCount(b, need) - needMatchCount(a, need));
+    .filter((coach) => coachMatchesAnyNeed(coach, needs))
+    .sort(
+      (a, b) =>
+        matchedNeedsCount(b, needs) - matchedNeedsCount(a, needs) ||
+        totalNeedMatchCount(b, needs) - totalNeedMatchCount(a, needs)
+    );
 }
 
 function buildFallbackSuggestions(
   coaches: DiscoveryCoach[],
-  need: AthleteNeed | null
+  needs: AthleteNeed[]
 ): DiscoveryCoach[] {
-  if (!need) return coaches;
-  return filterAndRankCoachesForNeed(coaches, need);
+  if (needs.length === 0) return coaches;
+  return filterAndRankCoachesForNeeds(coaches, needs);
 }
 
-function coachMatchesNeed(coach: DiscoveryCoach, need: AthleteNeed): boolean {
-  return needMatchCount(coach, need) > 0;
+function coachMatchesAnyNeed(
+  coach: DiscoveryCoach,
+  needs: AthleteNeed[]
+): boolean {
+  return matchedNeedsCount(coach, needs) > 0;
 }
 
 function needMatchCount(coach: DiscoveryCoach, need: AthleteNeed): number {
@@ -574,9 +627,52 @@ function needMatchCount(coach: DiscoveryCoach, need: AthleteNeed): number {
   return need.specialtyKeys.filter((key) => specialties.includes(key)).length;
 }
 
+function matchedNeedsCount(coach: DiscoveryCoach, needs: AthleteNeed[]): number {
+  return needs.filter((need) => needMatchCount(coach, need) > 0).length;
+}
+
+function totalNeedMatchCount(coach: DiscoveryCoach, needs: AthleteNeed[]): number {
+  return needs.reduce((total, need) => total + needMatchCount(coach, need), 0);
+}
+
+function parseSelectedNeedIds(value: SearchParams['need']): AthleteNeed['id'][] {
+  const ids = (Array.isArray(value) ? value : value ? [value] : [])
+    .flatMap((item) => item.split(','))
+    .map((item) => item.trim())
+    .filter((item): item is AthleteNeed['id'] =>
+      athleteNeeds.some((need) => need.id === item)
+    );
+
+  return [...new Set(ids)];
+}
+
+function getSingleParam(value?: string | string[]): string | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value;
+}
+
+function toggleNeedSelection(
+  selectedNeedIds: AthleteNeed['id'][],
+  needId: AthleteNeed['id']
+): AthleteNeed['id'][] | undefined {
+  if (selectedNeedIds.includes(needId)) {
+    const next = selectedNeedIds.filter((id) => id !== needId);
+    return next.length > 0 ? next : undefined;
+  }
+
+  return [...selectedNeedIds, needId];
+}
+
+function formatNeedLabels(needs: AthleteNeed[]): string {
+  const labels = needs.map((need) => need.title.toLowerCase());
+  if (labels.length <= 1) return labels[0] ?? '';
+  if (labels.length === 2) return `${labels[0]} e ${labels[1]}`;
+  return `${labels.slice(0, -1).join(', ')} e ${labels.at(-1)}`;
+}
+
 function buildMarketplaceHref(
   sp: SearchParams,
-  updates: Partial<Record<keyof SearchParams, string | undefined>>
+  updates: Partial<Record<keyof SearchParams, string | string[] | undefined>>
 ): string {
   const params = new URLSearchParams();
   const next: SearchParams = { ...sp, ...updates };
@@ -594,7 +690,17 @@ function buildMarketplaceHref(
     ] as const
   ).forEach((key) => {
     const value = next[key];
-    if (value) params.set(key, value);
+    const values = Array.isArray(value) ? value : value ? [value] : [];
+
+    if (key === 'need') {
+      values.forEach((entry) => {
+        if (entry) params.append(key, entry);
+      });
+      return;
+    }
+
+    const firstValue = values[0];
+    if (firstValue) params.set(key, firstValue);
   });
 
   const query = params.toString();
