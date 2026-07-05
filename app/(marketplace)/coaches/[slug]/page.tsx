@@ -153,14 +153,17 @@ export default async function CoachDetailPage({
           {/* rating / new */}
           <div className="mt-2">
             {reviewSummary.count > 0 ? (
-              <span className="inline-flex items-center gap-2 text-sm text-gray-700">
+              <a
+                href="#recensioni"
+                className="inline-flex items-center gap-2 text-sm text-gray-700 transition hover:text-gray-900"
+              >
                 <RatingStars value={reviewSummary.average ?? 0} />
                 <span className="font-medium">{reviewSummary.average}</span>
                 <span className="text-gray-500">
                   ({reviewSummary.count}{' '}
                   {reviewSummary.count === 1 ? 'recensione' : 'recensioni'})
                 </span>
-              </span>
+              </a>
             ) : (
               <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700">
                 <Star className="h-3.5 w-3.5" /> Nuovo su{' '}
@@ -562,7 +565,7 @@ export default async function CoachDetailPage({
           )}
 
           {/* Reviews */}
-          <section className="mt-10">
+          <section id="recensioni" className="mt-10 scroll-mt-24">
             <h2 className="text-xl font-semibold text-gray-900">Recensioni</h2>
             {reviewSummary.count === 0 ? (
               <div className="mt-3 rounded-lg border border-dashed border-gray-200 p-4">

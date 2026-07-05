@@ -4,6 +4,8 @@ import {
   CalendarCheck,
   CheckCircle2,
   MessageSquare,
+  UserRound,
+  Video,
 } from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
 import {
@@ -24,6 +26,7 @@ import {
 } from '@/lib/core/format';
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
+import { CoachAvatar } from '@/components/coach-visuals';
 import { PhotoForm } from '../photo-form';
 import { ReviewForm } from './review-form';
 import { cancelBookingAction } from './actions';
@@ -37,81 +40,120 @@ function BookingRow({
 }) {
   const canCancel = b.status === 'requested' || b.status === 'accepted';
   const canReview = b.status === 'completed' && !reviewedIds.has(b.id);
+  const canOpenLiveTools = b.status === 'accepted';
+  const canOpenCoach = !!b.coachSlug;
+
   return (
-    <li className="flex flex-col gap-3 rounded-lg border border-gray-200 p-4">
-      <div className="flex items-start justify-between gap-3">
-      <div>
-        <p className="font-medium text-gray-900">
-          {b.coachSlug ? (
-            <Link href={`/coaches/${b.coachSlug}`} className="hover:underline">
-              {b.coachName ?? 'Coach'}
-            </Link>
-          ) : (
-            (b.coachName ?? 'Coach')
-          )}
-        </p>
-        <p className="text-sm text-gray-500">
-          {b.serviceTitle ?? 'Richiesta generica'} · richiesta inviata il{' '}
-          {formatDate(b.requestedAt)}
-        </p>
-        {b.scheduledFor && (
-          <p
-            className={
-              b.status === 'accepted'
-                ? 'text-sm font-semibold text-gray-900'
-                : 'text-sm font-medium text-gray-700'
-            }
-          >
-            {scheduledForLabel(b.status)} {formatDateTime(b.scheduledFor)}
-          </p>
-        )}
-      </div>
-      <div className="flex flex-col items-end gap-2">
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-medium ${bookingStatusTone(b.status)}`}
-        >
-          {bookingStatusLabel(b.status)}
-        </span>
-        {/* chat/video only for accepted; never for cancelled */}
-        {b.status === 'accepted' && (
-          <div className="flex flex-col items-end gap-1">
-            <Link
-              href={`/dashboard/chat/${b.id}`}
-              className="text-sm font-medium text-red-600 hover:text-red-700"
-            >
-              Apri chat →
-            </Link>
-            <Link
-              href={`/dashboard/video/${b.id}`}
-              className="text-sm font-medium text-red-600 hover:text-red-700"
-            >
-              Apri videochiamata →
-            </Link>
+    <li className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-4 sm:p-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 flex-1 items-start gap-4">
+          <CoachAvatar
+            name={b.coachName ?? 'Coach'}
+            src={b.coachAvatarUrl}
+            className="size-14 shrink-0"
+          />
+
+          <div className="min-w-0">
+            <p className="font-medium text-gray-900">
+              {b.coachSlug ? (
+                <Link
+                  href={`/coaches/${b.coachSlug}`}
+                  className="hover:underline"
+                >
+                  {b.coachName ?? 'Coach'}
+                </Link>
+              ) : (
+                b.coachName ?? 'Coach'
+              )}
+            </p>
+            <p className="text-sm text-gray-500">
+              {b.serviceTitle ?? 'Richiesta generica'} · richiesta inviata il{' '}
+              {formatDate(b.requestedAt)}
+            </p>
+            {b.scheduledFor ? (
+              <p
+                className={
+                  b.status === 'accepted'
+                    ? 'text-sm font-semibold text-gray-900'
+                    : 'text-sm font-medium text-gray-700'
+                }
+              >
+                {scheduledForLabel(b.status)} {formatDateTime(b.scheduledFor)}
+              </p>
+            ) : null}
           </div>
-        )}
-        {canCancel && (
-          <ActionForm action={cancelBookingAction}>
-            <input type="hidden" name="bookingId" value={b.id} />
+        </div>
+
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[190px]">
+          <span
+            className={`self-start rounded-full px-3 py-1 text-xs font-medium sm:self-end ${bookingStatusTone(b.status)}`}
+          >
+            {bookingStatusLabel(b.status)}
+          </span>
+
+          {canOpenLiveTools ? (
+            <>
+              <Button
+                asChild
+                size="sm"
+                className="w-full rounded-full bg-blue-600 text-white hover:bg-blue-700"
+              >
+                <Link href={`/dashboard/chat/${b.id}`}>
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  Apri chat
+                </Link>
+              </Button>
+              <Button
+                asChild
+                size="sm"
+                className="w-full rounded-full bg-green-600 text-white hover:bg-green-700"
+              >
+                <Link href={`/dashboard/video/${b.id}`}>
+                  <Video className="mr-2 h-4 w-4" />
+                  Apri videochiamata
+                </Link>
+              </Button>
+            </>
+          ) : null}
+
+          {!canOpenLiveTools && canOpenCoach ? (
             <Button
-              type="submit"
+              asChild
               variant="outline"
               size="sm"
-              className="rounded-full text-red-600 hover:text-red-700"
+              className="w-full rounded-full"
             >
-              Annulla
+              <Link href={`/coaches/${b.coachSlug}`}>
+                <UserRound className="mr-2 h-4 w-4" />
+                Vedi coach
+              </Link>
             </Button>
-          </ActionForm>
-        )}
+          ) : null}
+
+          {canCancel ? (
+            <ActionForm action={cancelBookingAction}>
+              <input type="hidden" name="bookingId" value={b.id} />
+              <Button
+                type="submit"
+                variant="outline"
+                size="sm"
+                className="w-full rounded-full text-red-600 hover:text-red-700"
+              >
+                Annulla
+              </Button>
+            </ActionForm>
+          ) : null}
+        </div>
       </div>
-      </div>
-      {canReview && (
+
+      {canReview ? (
         <div className="border-t border-gray-100 pt-3">
           <p className="text-sm font-medium text-gray-700">
             Com&apos;è andata? Lascia una recensione
           </p>
           <ReviewForm bookingId={b.id} coachName={b.coachName ?? 'Coach'} />
         </div>
-      )}
+      ) : null}
     </li>
   );
 }
@@ -126,6 +168,7 @@ function Section({
   reviewedIds: Set<number>;
 }) {
   if (items.length === 0) return null;
+
   return (
     <div>
       <h2 className="text-lg font-medium text-gray-900">
@@ -156,7 +199,6 @@ export default async function AthleteDashboardPage() {
     ['declined', 'cancelled', 'completed'].includes(b.status)
   );
 
-  // Trend footnotes for the KPI cards.
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const startOfWeek = new Date(startOfToday);
@@ -173,7 +215,6 @@ export default async function AthleteDashboardPage() {
 
   return (
     <section className="flex flex-col gap-6 p-6">
-      {/* Summary widgets */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <SummaryCard
           icon={Hourglass}
@@ -230,7 +271,6 @@ export default async function AthleteDashboardPage() {
         </Link>
       </div>
 
-      {/* Photo + account info side by side (name feeds what the coach sees). */}
       <div className="grid gap-6 lg:grid-cols-2">
         <PhotoForm
           name={[user.name, user.lastName].filter(Boolean).join(' ') || null}
@@ -241,9 +281,7 @@ export default async function AthleteDashboardPage() {
 
       {requests.length === 0 ? (
         <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center">
-          <p className="text-gray-600">
-            Non hai ancora richieste di sessione.
-          </p>
+          <p className="text-gray-600">Non hai ancora richieste di sessione.</p>
           <p className="mt-1 text-sm text-gray-400">
             Sfoglia i coach approvati e invia la tua prima richiesta.
           </p>

@@ -35,7 +35,11 @@ export function ConversationsList({
               c.unread > 0 ? 'border-red-200' : 'border-gray-200'
             }`}
           >
-            <UserAvatar name={c.otherName} className="size-11 shrink-0" />
+            <UserAvatar
+              name={c.otherName}
+              src={c.otherAvatarUrl}
+              className="size-11 shrink-0"
+            />
             <span className="min-w-0 flex-1">
               <span className="flex items-center justify-between gap-2">
                 <span

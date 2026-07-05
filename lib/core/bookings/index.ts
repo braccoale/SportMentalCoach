@@ -157,6 +157,7 @@ export type AthleteBooking = {
   requestedAt: Date;
   decidedAt: Date | null;
   coachName: string | null;
+  coachAvatarUrl: string | null;
   coachSlug: string | null;
   serviceTitle: string | null;
 };
@@ -174,6 +175,7 @@ export async function getAthleteBookings(
       requestedAt: bookings.requestedAt,
       decidedAt: bookings.decidedAt,
       coachName: profiles.displayName,
+      coachAvatarUrl: profiles.avatarUrl,
       coachSlug: providerProfiles.slug,
       serviceTitle: services.title,
     })

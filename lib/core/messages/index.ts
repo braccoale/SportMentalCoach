@@ -40,6 +40,7 @@ export type Conversation = {
   bookingId: number;
   /** Counterpart display name (athlete for a coach, coach for an athlete). */
   otherName: string | null;
+  otherAvatarUrl: string | null;
   serviceTitle: string | null;
   scheduledFor: Date | null;
   lastBody: string | null;
@@ -54,24 +55,35 @@ export type Conversation = {
  * per-conversation unread count (from unread `new_message` notifications).
  */
 export async function getConversations(userId: number): Promise<Conversation[]> {
-  const clientProfilesAlias = profiles; // coach display name lives in profiles
-
   const rows = await db
     .select({
       bookingId: bookings.id,
       clientId: bookings.clientId,
       clientName: sql<string | null>`nullif(trim(concat(${users.name}, ' ', coalesce(${users.lastName}, ''))), '')`,
-      coachName: clientProfilesAlias.displayName,
+      clientAvatarUrl: sql<string | null>`(
+        select ${profiles.avatarUrl}
+        from ${profiles}
+        where ${profiles.userId} = ${users.id}
+        limit 1
+      )`,
+      coachName: sql<string | null>`(
+        select ${profiles.displayName}
+        from ${profiles}
+        where ${profiles.userId} = ${providerProfiles.userId}
+        limit 1
+      )`,
+      coachAvatarUrl: sql<string | null>`(
+        select ${profiles.avatarUrl}
+        from ${profiles}
+        where ${profiles.userId} = ${providerProfiles.userId}
+        limit 1
+      )`,
       serviceTitle: services.title,
       scheduledFor: bookings.scheduledFor,
     })
     .from(bookings)
     .innerJoin(providerProfiles, eq(bookings.providerId, providerProfiles.id))
     .innerJoin(users, eq(bookings.clientId, users.id))
-    .leftJoin(
-      clientProfilesAlias,
-      eq(clientProfilesAlias.userId, providerProfiles.userId)
-    )
     .leftJoin(services, eq(bookings.serviceId, services.id))
     .where(
       and(
@@ -124,6 +136,7 @@ export async function getConversations(userId: number): Promise<Conversation[]> 
       return {
         bookingId: r.bookingId,
         otherName: isClient ? r.coachName : r.clientName,
+        otherAvatarUrl: isClient ? r.coachAvatarUrl : r.clientAvatarUrl,
         serviceTitle: r.serviceTitle,
         scheduledFor: r.scheduledFor,
         lastBody: last?.body ?? null,

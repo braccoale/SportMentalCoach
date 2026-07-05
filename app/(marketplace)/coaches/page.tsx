@@ -1,14 +1,9 @@
 import Link from 'next/link';
 import {
-  Brain,
   ChevronDown,
-  Clock3,
-  Flame,
+  Flag,
   Heart,
-  ShieldCheck,
   Sparkles,
-  Target,
-  type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getVerticalConfig } from '@/lib/core/config';
@@ -39,15 +34,6 @@ const SORTS: { value: DiscoverySort; label: string }[] = [
   { value: 'price', label: 'Prezzo crescente' },
   { value: 'experience', label: 'Esperienza' },
 ];
-
-const NEED_ICONS: Record<AthleteNeed['iconName'], LucideIcon> = {
-  pulse: Brain,
-  shield: ShieldCheck,
-  target: Target,
-  flame: Flame,
-  timer: Clock3,
-  spark: Sparkles,
-};
 
 type SearchParams = {
   sport?: string | string[];
@@ -166,10 +152,7 @@ export default async function CoachesPage({
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <header className="max-w-3xl">
-        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-red-600">
-          Marketplace Kai Pai
-        </p>
-        <h1 className="mt-3 text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">
           Il mental coach giusto parte dal tuo momento, non da una lista.
         </h1>
         <p className="mt-3 text-base leading-7 text-gray-600 sm:text-lg">
@@ -207,10 +190,7 @@ export default async function CoachesPage({
 
       <section className="mt-8 rounded-[28px] border border-gray-200 bg-gradient-to-br from-white via-red-50/40 to-white p-5 shadow-sm sm:p-7">
         <div className="max-w-3xl">
-          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-red-600">
-            Per cosa hai bisogno oggi?
-          </p>
-          <h2 className="mt-3 text-2xl font-semibold tracking-tight text-gray-950 sm:text-3xl">
+          <h2 className="text-2xl font-semibold tracking-tight text-gray-950 sm:text-3xl">
             Parti da cio che vuoi migliorare.
           </h2>
           <p className="mt-3 text-sm leading-6 text-gray-600 sm:text-base">
@@ -434,68 +414,45 @@ function NeedCard({
   href: string;
   selected: boolean;
 }) {
-  const Icon = NEED_ICONS[need.iconName];
-
   return (
     <Link
       href={href}
       aria-current={selected ? 'true' : undefined}
       className={cn(
-        'group relative flex min-h-[250px] h-full overflow-hidden rounded-[26px] border transition duration-300',
+        'group relative flex min-h-[320px] h-full overflow-hidden rounded-[26px] border transition duration-300',
         selected
-          ? 'border-red-300 shadow-xl shadow-red-200/70 ring-1 ring-red-200'
+          ? 'border-green-300 shadow-xl shadow-green-200/70 ring-2 ring-green-200'
           : 'border-gray-200 shadow-sm hover:-translate-y-1 hover:border-red-200 hover:shadow-xl hover:shadow-red-100/70'
       )}
     >
       <div
-        className="absolute inset-0 bg-cover bg-center transition duration-500 group-hover:scale-[1.04]"
+        className="absolute inset-0 bg-cover bg-center transition duration-500 group-hover:scale-[1.035]"
         style={{
           backgroundImage: `url(${need.imageSrc})`,
-          backgroundPosition: need.imagePosition ?? 'center',
+          backgroundPosition: need.imagePosition ?? 'right top',
         }}
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/25" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/14 via-transparent to-transparent" />
       <div
         className={cn(
           'absolute inset-0 transition duration-300',
-          selected ? 'bg-red-950/10' : 'bg-black/5 group-hover:bg-black/0'
+          selected ? 'bg-green-950/8' : 'bg-black/0 group-hover:bg-black/0'
         )}
       />
 
       <div className="relative flex h-full flex-1 flex-col p-5">
-        <div className="flex items-start justify-between gap-4">
-          <span
-            className={cn(
-              'inline-flex h-11 w-11 items-center justify-center rounded-2xl border backdrop-blur-sm',
-              selected
-                ? 'border-white/40 bg-white/20 text-white'
-                : 'border-white/20 bg-black/25 text-white'
-            )}
-          >
-            <Icon className="h-5 w-5" />
-          </span>
+        <div className="flex items-start justify-start gap-4">
           {selected ? (
-            <span className="inline-flex rounded-full border border-white/20 bg-white/15 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-green-200/70 bg-green-500 px-2.5 py-1 text-xs font-semibold text-white shadow-lg shadow-green-900/20">
+              <Flag className="h-3.5 w-3.5" />
               Selezionato
             </span>
           ) : null}
         </div>
-
-        <div className="mt-auto">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/70">
-            Percorso del momento
-          </p>
-
-          <h3 className="mt-3 text-xl font-semibold text-white">{need.title}</h3>
-          <p className="mt-2 max-w-sm text-sm leading-6 text-white/82">
-            {need.description}
-          </p>
-
-          <span className="mt-5 inline-flex text-sm font-medium text-red-100">
-            {selected ? 'Stai esplorando questo percorso' : 'Parti da qui'}
-          </span>
-        </div>
       </div>
+      <span className="sr-only">
+        {need.title}. {need.description}
+      </span>
     </Link>
   );
 }
