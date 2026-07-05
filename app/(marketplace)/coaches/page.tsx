@@ -1,9 +1,20 @@
 import Link from 'next/link';
-import { Sparkles, Heart } from 'lucide-react';
+import {
+  Brain,
+  ChevronDown,
+  Clock3,
+  Flame,
+  Heart,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  type LucideIcon,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getVerticalConfig, t } from '@/lib/core/config';
+import { getVerticalConfig } from '@/lib/core/config';
 import {
   getCoachDiscovery,
+  type DiscoveryCoach,
   type DiscoveryFilters,
   type DiscoverySort,
 } from '@/lib/core/listings';
@@ -13,6 +24,11 @@ import { SHOW_UPCOMING_FEATURES } from '@/lib/core/flags';
 import { getActiveSports, getActiveSpecialties } from '@/lib/core/taxonomies';
 import { CoachCard } from '@/components/coach-card';
 import { CoachesFilterForm } from '@/components/coaches-filter-form';
+import {
+  athleteNeeds,
+  type AthleteNeed,
+} from '@/lib/verticals/sport-mental-coach/athlete-needs';
+import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +40,15 @@ const SORTS: { value: DiscoverySort; label: string }[] = [
   { value: 'experience', label: 'Esperienza' },
 ];
 
+const NEED_ICONS: Record<AthleteNeed['iconName'], LucideIcon> = {
+  pulse: Brain,
+  shield: ShieldCheck,
+  target: Target,
+  flame: Flame,
+  timer: Clock3,
+  spark: Sparkles,
+};
+
 type SearchParams = {
   sport?: string;
   specialty?: string;
@@ -32,10 +57,11 @@ type SearchParams = {
   certified?: string;
   sort?: string;
   fav?: string;
+  need?: string;
 };
 
 const fieldCls =
-  'rounded-md border border-gray-300 bg-white px-3 py-2 text-sm';
+  'rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700';
 
 export default async function CoachesPage({
   searchParams,
@@ -44,13 +70,14 @@ export default async function CoachesPage({
 }) {
   const sp = await searchParams;
   const config = getVerticalConfig();
-  // Sports/specialties are DB master data (active rows only); levels stay
-  // in the vertical config.
   const { levels } = config.taxonomies;
   const [categories, specialties] = await Promise.all([
     getActiveSports(),
     getActiveSpecialties(),
   ]);
+
+  const selectedNeed =
+    athleteNeeds.find((need) => need.id === sp.need) ?? null;
 
   const sort: DiscoverySort = SORTS.some((s) => s.value === sp.sort)
     ? (sp.sort as DiscoverySort)
@@ -67,46 +94,83 @@ export default async function CoachesPage({
 
   const user = await getUser();
   const loggedIn = !!user;
-  const favoriteIds = user ? await getFavoriteProviderIds(user.id) : new Set<number>();
+  const favoriteIds = user
+    ? await getFavoriteProviderIds(user.id)
+    : new Set<number>();
 
   let coaches = await getCoachDiscovery(filters, { favoriteIds });
   if (onlyFav && loggedIn) coaches = coaches.filter((c) => c.isFavorite);
+  if (selectedNeed) coaches = filterAndRankCoachesForNeed(coaches, selectedNeed);
 
-  const anyFilter =
+  const anyAdvancedFilter =
     !!filters.sport ||
     !!filters.specialty ||
     !!filters.level ||
     !!filters.language ||
     filters.certifiedOnly ||
     onlyFav;
+  const hasActiveNeed = !!selectedNeed;
+  const activeAdvancedFilterCount = [
+    filters.sport,
+    filters.specialty,
+    filters.level,
+    filters.language,
+    filters.certifiedOnly ? 'certified' : undefined,
+    onlyFav ? 'fav' : undefined,
+  ].filter(Boolean).length;
 
-  // Second-chance suggestions when filters yield nothing.
   const fallback =
-    coaches.length === 0 && anyFilter
-      ? (await getCoachDiscovery({}, { favoriteIds })).slice(0, 3)
+    coaches.length === 0 && (anyAdvancedFilter || hasActiveNeed)
+      ? buildFallbackSuggestions(
+          await getCoachDiscovery({}, { favoriteIds }),
+          selectedNeed
+        ).slice(0, 3)
       : [];
+
+  const resultsTitle = selectedNeed
+    ? selectedNeed.selectedTitle
+    : 'Trova il supporto giusto per il tuo momento';
+  const resultsSubtitle = selectedNeed
+    ? selectedNeed.selectedSubtitle
+    : 'Parti da cio che vuoi migliorare oppure usa i filtri avanzati per affinare la ricerca.';
+
+  const clearNeedHref = buildMarketplaceHref(sp, { need: undefined });
+  const clearAdvancedFiltersHref = buildMarketplaceHref(sp, {
+    sport: undefined,
+    specialty: undefined,
+    level: undefined,
+    language: undefined,
+    certified: undefined,
+    sort: undefined,
+    fav: undefined,
+  });
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-      {/* Hero */}
-      <header>
-        <h1 className="text-3xl font-bold text-gray-900">
-          {t('listing.title', config)}
+      <header className="max-w-3xl">
+        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-red-600">
+          Marketplace Kai Pai
+        </p>
+        <h1 className="mt-3 text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">
+          Il mental coach giusto parte dal tuo momento, non da una lista.
         </h1>
-        <p className="mt-1 text-gray-500">{t('listing.subtitle', config)}</p>
+        <p className="mt-3 text-base leading-7 text-gray-600 sm:text-lg">
+          Scegli il tipo di supporto che stai cercando e lascia che Kai Pai ti
+          accompagni verso i coach piu adatti alla tua situazione sportiva.
+        </p>
       </header>
 
-      {/* AI matching — entry point hidden until the feature ships */}
       {SHOW_UPCOMING_FEATURES && (
-        <div className="mt-5 flex flex-col items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 sm:flex-row sm:items-center">
+        <div className="mt-6 flex flex-col items-start justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 sm:flex-row sm:items-center">
           <div className="flex items-start gap-3">
             <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
             <div>
               <p className="text-sm font-semibold text-gray-900">
-                Non sai chi scegliere?
+                Non sai ancora da dove partire?
               </p>
               <p className="text-sm text-gray-600">
-                Lascia che l’AI trovi il match perfetto in base ai tuoi obiettivi.
+                Presto potrai ricevere un suggerimento guidato in base ai tuoi
+                obiettivi e al tuo momento sportivo.
               </p>
             </div>
           </div>
@@ -123,97 +187,270 @@ export default async function CoachesPage({
         </div>
       )}
 
-      {/* Filters — auto-apply on change, no submit button */}
-      <CoachesFilterForm className="mt-5 flex flex-wrap items-end gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
-        <Field label={t('listing.filter.sport', config)} name="sport" value={sp.sport} options={categories} />
-        <Field
-          label={t('listing.filter.specialty', config)}
-          name="specialty"
-          value={sp.specialty}
-          options={specialties}
-        />
-        <Field label="Livello" name="level" value={sp.level} options={levels ?? []} />
-        <div className="flex flex-col">
-          <label htmlFor="language" className="text-xs font-medium text-gray-600">
-            Lingua
-          </label>
-          <select id="language" name="language" defaultValue={sp.language ?? ''} className={`${fieldCls} mt-1`}>
-            <option value="">Tutte</option>
-            {LANGUAGES.map((l) => (
-              <option key={l} value={l}>
-                {l}
-              </option>
-            ))}
-          </select>
+      <section className="mt-8 rounded-[28px] border border-gray-200 bg-gradient-to-br from-white via-red-50/40 to-white p-5 shadow-sm sm:p-7">
+        <div className="max-w-3xl">
+          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-red-600">
+            Per cosa hai bisogno oggi?
+          </p>
+          <h2 className="mt-3 text-2xl font-semibold tracking-tight text-gray-950 sm:text-3xl">
+            Parti da cio che vuoi migliorare.
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-gray-600 sm:text-base">
+            Parti dal tuo obiettivo mentale: ti aiutiamo a trovare il coach piu
+            adatto al tuo momento sportivo.
+          </p>
         </div>
-        <div className="flex flex-col">
-          <label htmlFor="sort" className="text-xs font-medium text-gray-600">
-            Ordina
-          </label>
-          <select id="sort" name="sort" defaultValue={sort} className={`${fieldCls} mt-1`}>
-            {SORTS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <label className="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm">
-          <input type="checkbox" name="certified" value="1" defaultChecked={filters.certifiedOnly} className="accent-red-600" />
-          Solo certificati
-        </label>
-        {loggedIn && (
-          <label className="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm">
-            <input type="checkbox" name="fav" value="1" defaultChecked={onlyFav} className="accent-red-500" />
-            <Heart className="h-3.5 w-3.5 text-red-500" /> Preferiti
-          </label>
-        )}
-        {/* No submit button: filters auto-apply on change (JS). This submit
-            is the no-JS fallback only. */}
-        <noscript>
-          <Button type="submit" className="rounded-md">
-            Filtra
-          </Button>
-        </noscript>
-        {anyFilter && (
-          <Button asChild variant="outline" className="rounded-md">
-            <Link href="/coaches">Azzera</Link>
-          </Button>
-        )}
-        {SHOW_UPCOMING_FEATURES && (
-          <span
-            className="ml-auto inline-flex cursor-not-allowed items-center gap-1.5 self-center rounded-md px-2 py-1 text-xs text-gray-400"
-            title="Presto disponibile"
-          >
-            Salva ricerca
-            <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-400">
-              Presto
-            </span>
-          </span>
-        )}
-      </CoachesFilterForm>
 
-      {/* Results */}
-      <div className="mt-6 flex items-center justify-between">
-        <p className="text-sm text-gray-500">
-          {coaches.length}{' '}
-          {coaches.length === 1 ? 'coach' : 'coach'} ·{' '}
-          {sort === 'recommended'
-            ? 'ordinati per rilevanza'
-            : `ordinati per ${SORTS.find((s) => s.value === sort)?.label.toLowerCase()}`}
-        </p>
-      </div>
-
-      {coaches.length === 0 ? (
-        <NoResults anyFilter={anyFilter} fallback={fallback} loggedIn={loggedIn} categories={categories} />
-      ) : (
-        <div className="mt-4 grid gap-6 md:grid-cols-2">
-          {coaches.map((coach) => (
-            <CoachCard key={coach.slug} coach={coach} loggedIn={loggedIn} sportsList={categories} />
+        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {athleteNeeds.map((need) => (
+            <NeedCard
+              key={need.id}
+              need={need}
+              href={buildMarketplaceHref(sp, {
+                need: selectedNeed?.id === need.id ? undefined : need.id,
+              })}
+              selected={selectedNeed?.id === need.id}
+            />
           ))}
         </div>
-      )}
+
+        <div className="mt-5 flex flex-col gap-3 border-t border-gray-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-gray-600">
+            Scegli il percorso piu vicino alla tua situazione, poi affina la
+            ricerca solo se serve.
+          </p>
+          {selectedNeed ? (
+            <Button asChild variant="outline" className="rounded-full">
+              <Link href={clearNeedHref}>Voglio esplorare tutti i coach</Link>
+            </Button>
+          ) : null}
+        </div>
+      </section>
+
+      <details
+        className="group mt-6 rounded-2xl border border-gray-200 bg-white"
+        open={anyAdvancedFilter}
+      >
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
+          <div>
+            <p className="text-sm font-semibold text-gray-900">
+              Filtri avanzati
+            </p>
+            <p className="mt-1 text-sm text-gray-500">
+              Sport, specializzazioni, lingua, esperienza e preferiti.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {activeAdvancedFilterCount > 0 ? (
+              <span className="inline-flex rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600">
+                {activeAdvancedFilterCount} attivi
+              </span>
+            ) : null}
+            <ChevronDown className="h-5 w-5 text-gray-400 transition group-open:rotate-180" />
+          </div>
+        </summary>
+
+        <div className="border-t border-gray-100 px-5 pb-5 pt-4">
+          <CoachesFilterForm className="flex flex-wrap items-end gap-3">
+            {selectedNeed ? (
+              <input type="hidden" name="need" value={selectedNeed.id} />
+            ) : null}
+
+            <Field
+              label="Sport"
+              name="sport"
+              value={sp.sport}
+              options={categories}
+            />
+            <Field
+              label="Specializzazione"
+              name="specialty"
+              value={sp.specialty}
+              options={specialties}
+            />
+            <Field
+              label="Livello"
+              name="level"
+              value={sp.level}
+              options={levels ?? []}
+            />
+            <div className="flex flex-col">
+              <label
+                htmlFor="language"
+                className="text-xs font-medium text-gray-600"
+              >
+                Lingua
+              </label>
+              <select
+                id="language"
+                name="language"
+                defaultValue={sp.language ?? ''}
+                className={`${fieldCls} mt-1`}
+              >
+                <option value="">Tutte</option>
+                {LANGUAGES.map((language) => (
+                  <option key={language} value={language}>
+                    {language}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col">
+              <label
+                htmlFor="sort"
+                className="text-xs font-medium text-gray-600"
+              >
+                Ordina
+              </label>
+              <select
+                id="sort"
+                name="sort"
+                defaultValue={sort}
+                className={`${fieldCls} mt-1`}
+              >
+                {SORTS.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <label className="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                name="certified"
+                value="1"
+                defaultChecked={filters.certifiedOnly}
+                className="accent-red-600"
+              />
+              Solo coach certificati
+            </label>
+            {loggedIn ? (
+              <label className="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  name="fav"
+                  value="1"
+                  defaultChecked={onlyFav}
+                  className="accent-red-500"
+                />
+                <Heart className="h-3.5 w-3.5 text-red-500" /> Solo preferiti
+              </label>
+            ) : null}
+
+            <noscript>
+              <Button type="submit" className="rounded-md">
+                Aggiorna i risultati
+              </Button>
+            </noscript>
+
+            {anyAdvancedFilter ? (
+              <Button asChild variant="outline" className="rounded-full">
+                <Link href={clearAdvancedFiltersHref}>
+                  Azzera i filtri avanzati
+                </Link>
+              </Button>
+            ) : null}
+          </CoachesFilterForm>
+        </div>
+      </details>
+
+      <section className="mt-8">
+        <div className="max-w-3xl">
+          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-red-600">
+            Coach selezionati per te
+          </p>
+          <h2 className="mt-3 text-2xl font-semibold tracking-tight text-gray-950 sm:text-3xl">
+            {resultsTitle}
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-gray-600 sm:text-base">
+            {resultsSubtitle}
+          </p>
+        </div>
+
+        <div className="mt-5 flex flex-col gap-2 border-t border-gray-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-gray-600">
+            {coaches.length}{' '}
+            {coaches.length === 1
+              ? 'coach in linea con questo momento'
+              : 'coach in linea con questo momento'}
+          </p>
+          <p className="text-sm text-gray-500">
+            {sort === 'recommended'
+              ? 'Ordinati per rilevanza e qualita del match'
+              : `Ordinati per ${SORTS.find((item) => item.value === sort)?.label.toLowerCase()}`}
+          </p>
+        </div>
+
+        {coaches.length === 0 ? (
+          <NoResults
+            anyFilter={anyAdvancedFilter || hasActiveNeed}
+            fallback={fallback}
+            loggedIn={loggedIn}
+            categories={categories}
+            selectedNeed={selectedNeed}
+          />
+        ) : (
+          <div className="mt-5 grid gap-6 md:grid-cols-2">
+            {coaches.map((coach) => (
+              <CoachCard
+                key={coach.slug}
+                coach={coach}
+                loggedIn={loggedIn}
+                sportsList={categories}
+              />
+            ))}
+          </div>
+        )}
+      </section>
     </main>
+  );
+}
+
+function NeedCard({
+  need,
+  href,
+  selected,
+}: {
+  need: AthleteNeed;
+  href: string;
+  selected: boolean;
+}) {
+  const Icon = NEED_ICONS[need.iconName];
+
+  return (
+    <Link
+      href={href}
+      className={cn(
+        'group flex h-full flex-col rounded-2xl border p-5 transition duration-200',
+        selected
+          ? 'border-red-300 bg-white shadow-lg shadow-red-100 ring-1 ring-red-200'
+          : 'border-gray-200 bg-white/90 shadow-sm hover:-translate-y-0.5 hover:border-red-200 hover:shadow-md'
+      )}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <span
+          className={cn(
+            'inline-flex h-11 w-11 items-center justify-center rounded-2xl',
+            selected ? 'bg-red-600 text-white' : 'bg-red-50 text-red-600'
+          )}
+        >
+          <Icon className="h-5 w-5" />
+        </span>
+        {selected ? (
+          <span className="inline-flex rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600">
+            Selezionato
+          </span>
+        ) : null}
+      </div>
+
+      <h3 className="mt-4 text-lg font-semibold text-gray-950">{need.title}</h3>
+      <p className="mt-2 text-sm leading-6 text-gray-600">{need.description}</p>
+
+      <span className="mt-5 text-sm font-medium text-red-600">
+        {selected ? 'Rimuovi questo focus' : 'Parti da qui'}
+      </span>
+    </Link>
   );
 }
 
@@ -233,11 +470,16 @@ function Field({
       <label htmlFor={name} className="text-xs font-medium text-gray-600">
         {label}
       </label>
-      <select id={name} name={name} defaultValue={value ?? ''} className={`${fieldCls} mt-1`}>
+      <select
+        id={name}
+        name={name}
+        defaultValue={value ?? ''}
+        className={`${fieldCls} mt-1`}
+      >
         <option value="">Tutti</option>
-        {options.map((o) => (
-          <option key={o.key} value={o.key}>
-            {o.label}
+        {options.map((option) => (
+          <option key={option.key} value={option.key}>
+            {option.label}
           </option>
         ))}
       </select>
@@ -250,45 +492,111 @@ function NoResults({
   fallback,
   loggedIn,
   categories,
+  selectedNeed,
 }: {
   anyFilter: boolean;
   fallback: Awaited<ReturnType<typeof getCoachDiscovery>>;
   loggedIn: boolean;
   categories: { key: string; label: string }[];
+  selectedNeed: AthleteNeed | null;
 }) {
   if (!anyFilter) {
     return (
-      <div className="mt-6 rounded-xl border border-dashed border-gray-300 p-10 text-center">
-        <p className="text-gray-600">Nessun coach disponibile al momento.</p>
-        <p className="mt-1 text-sm text-gray-400">Torna a trovarci a breve.</p>
+      <div className="mt-6 rounded-2xl border border-dashed border-gray-300 p-10 text-center">
+        <p className="text-gray-700">Nessun coach disponibile al momento.</p>
+        <p className="mt-1 text-sm text-gray-500">Torna a trovarci a breve.</p>
       </div>
     );
   }
+
   return (
     <div className="mt-6">
-      <div className="rounded-xl border border-dashed border-gray-300 p-8 text-center">
-        <p className="font-medium text-gray-700">
-          Nessun coach con questi filtri.
+      <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center">
+        <p className="font-medium text-gray-800">
+          Non abbiamo trovato coach con questa combinazione.
         </p>
-        <p className="mt-1 text-sm text-gray-500">
-          Prova a rimuovere qualche filtro per vedere più risultati.
+        <p className="mt-2 text-sm text-gray-500">
+          {selectedNeed
+            ? 'Prova a mantenere il bisogno selezionato e alleggerire i filtri avanzati, oppure esplora coach vicini a questo momento.'
+            : 'Prova a rimuovere qualche filtro per vedere piu risultati.'}
         </p>
         <Button asChild className="mt-4 rounded-full">
-          <Link href="/coaches">Azzera i filtri</Link>
+          <Link href="/coaches">Riparti da tutti i coach</Link>
         </Button>
       </div>
-      {fallback.length > 0 && (
+
+      {fallback.length > 0 ? (
         <div className="mt-8">
           <h2 className="text-lg font-medium text-gray-900">
-            Forse ti interessano
+            {selectedNeed
+              ? 'Coach vicini a questo momento'
+              : 'Forse ti interessano'}
           </h2>
           <div className="mt-4 grid gap-6 md:grid-cols-2">
             {fallback.map((coach) => (
-              <CoachCard key={coach.slug} coach={coach} loggedIn={loggedIn} sportsList={categories} />
+              <CoachCard
+                key={coach.slug}
+                coach={coach}
+                loggedIn={loggedIn}
+                sportsList={categories}
+              />
             ))}
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
+}
+
+function filterAndRankCoachesForNeed(
+  coaches: DiscoveryCoach[],
+  need: AthleteNeed
+): DiscoveryCoach[] {
+  return [...coaches]
+    .filter((coach) => coachMatchesNeed(coach, need))
+    .sort((a, b) => needMatchCount(b, need) - needMatchCount(a, need));
+}
+
+function buildFallbackSuggestions(
+  coaches: DiscoveryCoach[],
+  need: AthleteNeed | null
+): DiscoveryCoach[] {
+  if (!need) return coaches;
+  return filterAndRankCoachesForNeed(coaches, need);
+}
+
+function coachMatchesNeed(coach: DiscoveryCoach, need: AthleteNeed): boolean {
+  return needMatchCount(coach, need) > 0;
+}
+
+function needMatchCount(coach: DiscoveryCoach, need: AthleteNeed): number {
+  const specialties = coach.specialties ?? [];
+  return need.specialtyKeys.filter((key) => specialties.includes(key)).length;
+}
+
+function buildMarketplaceHref(
+  sp: SearchParams,
+  updates: Partial<Record<keyof SearchParams, string | undefined>>
+): string {
+  const params = new URLSearchParams();
+  const next: SearchParams = { ...sp, ...updates };
+
+  (
+    [
+      'sport',
+      'specialty',
+      'level',
+      'language',
+      'certified',
+      'sort',
+      'fav',
+      'need',
+    ] as const
+  ).forEach((key) => {
+    const value = next[key];
+    if (value) params.set(key, value);
+  });
+
+  const query = params.toString();
+  return query ? `/coaches?${query}` : '/coaches';
 }

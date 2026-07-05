@@ -13,9 +13,9 @@ const SIDE_STATS = [
 ];
 
 const TRUST = [
-  { icon: ShieldCheck, label: 'Coach verificati' },
+  { icon: ShieldCheck, label: 'Guide certificate Kai Pai' },
   { icon: BadgeCheck, label: 'Metodo scientifico' },
-  { icon: Lock, label: 'Sicuro e affidabile' },
+  { icon: Lock, label: 'Pensato anche per gli under 18' },
 ];
 
 /**
@@ -94,10 +94,9 @@ export function Hero() {
 
           <Reveal delay={0.15} className="mt-6 max-w-lg">
             <p className="text-lg leading-relaxed text-kp-mid">
-              Kai Pai è la piattaforma che unisce Mental Coach certificati, un
-              metodo <span className="text-kp-red">scientifico</span> e strumenti
-              digitali per potenziare la performance mentale di atleti,
-              allenatori e squadre.
+              Non formiamo solo atleti più forti. Accompagniamo le persone a
+              diventare la <span className="text-kp-red">versione migliore</span>{' '}
+              di sé — attraverso lo sport, con un metodo e una guida al fianco.
             </p>
           </Reveal>
 
@@ -107,7 +106,7 @@ export function Hero() {
                 href="/coaches"
                 className="kp-cta group inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 font-semibold text-white"
               >
-                Trova un Coach
+                Inizia il tuo percorso
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Link>
               <a

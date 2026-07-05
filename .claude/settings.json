@@ -46,7 +46,8 @@
       "Bash(perl -0pi -e \"s|\\(  const name = coach\\\\.displayName \\\\?\\\\? 'Coach';\\\\n\\)|\\\\$1  const firstName = name.split\\(' '\\)[0];\\\\n  // Compact availability hint shown beside the date field.\\\\n  const availabilityHint = availability\\\\n    .slice\\(0, 3\\)\\\\n    .map\\(\\(s\\) => \\\\`\\\\\\\\\\\\${WEEKDAY_LABELS[s.weekday]} \\\\\\\\\\\\${formatMinutesOfDay\\(s.startMinute\\)}\\\\`\\)\\\\n    .join\\(' · '\\);\\\\n|\" \"app/\\(marketplace\\)/coaches/[slug]/page.tsx\")",
       "Bash(cd \"c:/Dati/SportMentalCoach\" && sed -n '1,25p' \"app/\\(marketplace\\)/coaches/[slug]/page.tsx\" | grep -n \"lucide\" && sed -i \"s|import {\\\\n  BadgeCheck,|&|\" \"app/\\(marketplace\\)/coaches/[slug]/page.tsx\"; grep -n \"from 'lucide-react'\" -B 12 \"app/\\(marketplace\\)/coaches/[slug]/page.tsx\" | head -15)",
       "Bash(rm -f __par.tmp.ts)",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "Bash(grep -nE \"'.{10,}'|\\\\\".{10,}\\\\\"|>[A-ZÈÉ].{8,}<\")"
     ],
     "additionalDirectories": [
       "c:\\Dati\\SportMentalCoach\\app\\(dashboard)\\dashboard\\video\\[bookingId]",

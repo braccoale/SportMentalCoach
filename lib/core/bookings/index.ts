@@ -3,6 +3,7 @@ import { and, count, desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
   bookings,
+  clientProfiles,
   providerProfiles,
   profiles,
   services,
@@ -193,6 +194,10 @@ export type CoachBooking = {
   decidedAt: Date | null;
   clientName: string | null;
   clientEmail: string;
+  clientAvatarUrl: string | null;
+  athleteSport: string | null;
+  athleteLevel: string | null;
+  athleteGoals: string | null;
   serviceTitle: string | null;
 };
 
@@ -218,10 +223,16 @@ export async function getCoachBookings(
       decidedAt: bookings.decidedAt,
       clientName: sql<string | null>`nullif(trim(concat(${users.name}, ' ', coalesce(${users.lastName}, ''))), '')`,
       clientEmail: users.email,
+      clientAvatarUrl: profiles.avatarUrl,
+      athleteSport: clientProfiles.category,
+      athleteLevel: clientProfiles.level,
+      athleteGoals: clientProfiles.goals,
       serviceTitle: services.title,
     })
     .from(bookings)
     .innerJoin(users, eq(bookings.clientId, users.id))
+    .leftJoin(profiles, eq(profiles.userId, users.id))
+    .leftJoin(clientProfiles, eq(clientProfiles.userId, users.id))
     .leftJoin(services, eq(bookings.serviceId, services.id))
     .where(eq(bookings.providerId, provider.id))
     .orderBy(desc(bookings.requestedAt));

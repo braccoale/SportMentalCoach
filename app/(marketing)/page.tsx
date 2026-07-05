@@ -122,19 +122,19 @@ function Problem() {
     {
       t: 'Tecnica',
       icon: Volleyball,
-      b: 'La base del gioco. Indispensabile, ma non sufficiente.',
+      b: 'La base del gioco. Indispensabile, ma non basta.',
       lit: false,
     },
     {
       t: 'Preparazione atletica',
       icon: Footprints,
-      b: 'Il motore della performance. Fisico allenato, ma mente impreparata.',
+      b: 'Il motore della performance. Corpo pronto a tutto — ma è la testa che lo guida.',
       lit: false,
     },
     {
-      t: 'Mental performance',
+      t: 'Allenamento mentale',
       icon: Brain,
-      b: 'Il vero vantaggio competitivo. Concentrazione, resilienza, fiducia, gestione della pressione.',
+      b: 'Ciò che fa la differenza quando conta: concentrazione, fiducia, calma sotto pressione.',
       lit: true,
     },
   ];
@@ -152,7 +152,7 @@ function Problem() {
       <div className={`relative z-10 ${WRAP}`}>
         <SectionHeader
           center
-          eyebrow="Il calcio moderno richiede di più"
+          eyebrow="L’allenamento che manca"
           title={
             <>
               Oggi tutti allenano il fisico.
@@ -190,7 +190,7 @@ function Problem() {
         </div>
         <Reveal delay={0.4}>
           <p className="mt-12 text-center text-sm text-kp-low">
-            Il calcio moderno richiede tutte e tre. Noi ti aiutiamo a{' '}
+            I campioni le allenano tutte e tre. Kai Pai è nato per{' '}
             <span className="text-kp-hi">completare il cerchio</span>.
           </p>
         </Reveal>
@@ -205,14 +205,15 @@ function Method() {
     <section id="metodo" className={SECTION}>
       <div className={WRAP}>
         <SectionHeader
-          eyebrow="Il metodo"
+          eyebrow="Il Metodo Kai Pai"
           title={
             <>
-              Il Metodo Kai Pai:
-              <br />i <span className="text-kp-red">4 muscoli</span> della mente.
+              La mente ha <span className="text-kp-red">4 muscoli</span>.
+              <br />
+              Noi li alleniamo tutti.
             </>
           }
-          sub="La mente è un muscolo. Si allena. Il nostro metodo la scompone in quattro muscoli che ogni coach Kai Pai sa allenare."
+          sub="Come il corpo, la mente si allena un muscolo alla volta: lucidità, calma, fiducia, identità. È il cuore di ogni percorso Kai Pai — dal primo incontro all’ultima partita."
         />
         <div className="mt-16">
           <MethodDiamond />
@@ -294,28 +295,28 @@ function WhyNow() {
       label: 'Club di Serie A',
       to: 95,
       prefix: '',
-      note: 'hanno figure dedicate allo sviluppo mentale',
+      note: 'allenano la mente con figure dedicate',
     },
     {
       icon: Shirt,
       label: 'Settori giovanili',
       to: 70,
       prefix: '+',
-      note: 'di investimenti nel mental coaching negli ultimi 5 anni',
+      note: 'di investimento nell’allenamento mentale in 5 anni',
     },
     {
       icon: Trophy,
-      label: 'Performance',
+      label: 'In campo',
       to: 30,
       prefix: '+',
-      note: 'miglioramento medio in concentrazione e focus',
+      note: 'concentrazione e lucidità nei momenti decisivi',
     },
     {
       icon: ShieldCheck,
-      label: 'Prevenzione',
+      label: 'Fuori dal campo',
       to: 40,
       prefix: '−',
-      note: 'riduzione di burnout e drop-out',
+      note: 'meno burnout, meno ragazzi che abbandonano',
     },
   ];
   return (
@@ -334,18 +335,19 @@ function WhyNow() {
       >
         <div>
           <Reveal>
-            <Eyebrow>Perché oggi</Eyebrow>
+            <Eyebrow>Il mondo è già cambiato</Eyebrow>
           </Reveal>
           <Reveal delay={0.05}>
             <h2 className="kp-display mt-4 text-[clamp(1.8rem,4vw,3rem)] text-kp-hi">
-              Il Mental Coaching non è più un&apos;opzione.
-              <br />È diventato un <span className="text-kp-red">pilastro</span>.
+              La testa non è più un dettaglio.
+              <br />È il primo <span className="text-kp-red">allenamento</span>.
             </h2>
           </Reveal>
           <Reveal delay={0.1}>
             <p className="mt-6 max-w-md text-lg leading-relaxed text-kp-mid">
-              Dai top club ai settori giovanili, la preparazione mentale è ormai
-              parte integrante del percorso di crescita e della performance.
+              I più grandi club del mondo allenano la mente ogni giorno, dai
+              campioni ai ragazzi del vivaio. Non è una moda: è il nuovo modo
+              di crescere nello sport.
             </p>
           </Reveal>
           <Reveal delay={0.15}>
@@ -353,7 +355,7 @@ function WhyNow() {
               href="#metodo"
               className="kp-cta group mt-8 inline-flex items-center gap-2 rounded-full px-7 py-3.5 font-semibold text-white"
             >
-              Approfondisci
+              Scopri come si allena
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </a>
           </Reveal>

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import {
   Hourglass,
   CalendarCheck,
@@ -7,7 +8,12 @@ import {
   Star,
 } from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
-import { getCoachBookings, bookingStatusLabel } from '@/lib/core/bookings';
+import {
+  bookingStatusLabel,
+  bookingStatusTone,
+  getCoachBookings,
+  type CoachBooking,
+} from '@/lib/core/bookings';
 import { getProviderProfileByUser } from '@/lib/core/profiles';
 import { getUnreadCountForType } from '@/lib/core/notifications';
 import { getCoachReviews } from '@/lib/core/reviews';
@@ -16,10 +22,12 @@ import {
   formatDateTime,
   scheduledForLabel,
 } from '@/lib/core/format';
+import { getVerticalConfig, findTaxonomyItem } from '@/lib/core/config';
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
 import { RatingStars } from '@/components/rating-stars';
 import { SummaryCard } from '@/components/summary-card';
+import { CoachRequestCard, type CoachRequestCardData } from '@/components/coach-request-card';
 import { replyToReviewAction } from './review-reply-actions';
 import {
   acceptBookingAction,
@@ -30,6 +38,7 @@ import {
 
 export default async function CoachDashboardPage() {
   const user = await requireRole('coach');
+  const config = getVerticalConfig();
 
   const [provider, allBookings, unreadMessages] = await Promise.all([
     getProviderProfileByUser(user.id),
@@ -45,7 +54,6 @@ export default async function CoachDashboardPage() {
     ['declined', 'cancelled', 'completed'].includes(b.status)
   );
 
-  // Trend footnotes for the KPI cards.
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const startOfWeek = new Date(startOfToday);
@@ -65,7 +73,9 @@ export default async function CoachDashboardPage() {
   ).length;
   const monthPct =
     bookingsLastMonth > 0
-      ? Math.round(((bookingsThisMonth - bookingsLastMonth) / bookingsLastMonth) * 100)
+      ? Math.round(
+          ((bookingsThisMonth - bookingsLastMonth) / bookingsLastMonth) * 100
+        )
       : null;
   const reviewsThisWeek = reviews.filter(
     (r) => r.createdAt >= startOfWeek
@@ -73,7 +83,19 @@ export default async function CoachDashboardPage() {
 
   return (
     <section className="flex flex-col gap-8 p-6">
-      {/* Summary cards */}
+      <div className="max-w-3xl">
+        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-red-600">
+          Dashboard coach
+        </p>
+        <h1 className="mt-3 text-3xl font-bold tracking-tight text-gray-950">
+          Ogni richiesta racconta un atleta, non solo una prenotazione.
+        </h1>
+        <p className="mt-3 text-base leading-7 text-gray-600">
+          Leggi il momento sportivo della persona che ti sta cercando, capisci
+          il suo bisogno e rispondi con il contesto giusto.
+        </p>
+      </div>
+
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         <SummaryCard
           icon={Hourglass}
@@ -119,7 +141,6 @@ export default async function CoachDashboardPage() {
           }
           trend={reviewsThisWeek > 0 ? 'up' : 'flat'}
         />
-        {/* Unread chat messages (new_message notifications not yet read). */}
         <SummaryCard
           icon={MessageSquare}
           label="Messaggi non letti"
@@ -131,146 +152,99 @@ export default async function CoachDashboardPage() {
         />
       </div>
 
-      {/* Booking requests */}
-      <div>
-        <h2 className="text-lg font-medium text-gray-900">
-          Richieste in attesa ({pending.length})
-        </h2>
-        {pending.length === 0 ? (
-          <p className="mt-2 text-gray-500">Nessuna richiesta in attesa.</p>
-        ) : (
-          <ul className="mt-3 flex flex-col gap-3">
-            {pending.map((b) => (
-              <li
-                key={b.id}
-                className="flex flex-col gap-3 rounded-lg border border-gray-200 p-4 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="font-medium text-gray-900">
-                    {b.clientName || b.clientEmail}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {b.serviceTitle ?? 'Richiesta generica'} · richiesta
-                    inviata il {formatDate(b.requestedAt)}
-                  </p>
-                  {b.scheduledFor && (
-                    <p className="text-sm font-medium text-gray-700">
-                      {scheduledForLabel(b.status)}{' '}
-                      {formatDateTime(b.scheduledFor)}
-                    </p>
-                  )}
-                  {b.note && (
-                    <p className="mt-1 text-sm text-gray-600">“{b.note}”</p>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <ActionForm action={acceptBookingAction}>
-                    <input type="hidden" name="bookingId" value={b.id} />
-                    <Button type="submit" className="rounded-full">
-                      Accetta
-                    </Button>
-                  </ActionForm>
-                  <ActionForm action={declineBookingAction}>
-                    <input type="hidden" name="bookingId" value={b.id} />
-                    <Button
-                      type="submit"
-                      variant="outline"
-                      className="rounded-full"
-                    >
-                      Rifiuta
-                    </Button>
-                  </ActionForm>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <h2 className="mt-8 text-lg font-medium text-gray-900">
-          Sessioni accettate ({accepted.length})
-        </h2>
-        {accepted.length === 0 ? (
-          <p className="mt-2 text-gray-500">Nessuna sessione accettata.</p>
-        ) : (
-          <ul className="mt-3 flex flex-col gap-3">
-            {accepted.map((b) => (
-              <li
-                key={b.id}
-                className="flex flex-col gap-3 rounded-lg border border-gray-200 p-4 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="font-medium text-gray-900">
-                    {b.clientName || b.clientEmail}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {b.serviceTitle ?? 'Richiesta generica'}
-                  </p>
-                  {b.scheduledFor && (
-                    <p className="text-sm font-semibold text-gray-900">
-                      Sessione confermata: {formatDateTime(b.scheduledFor)}
-                    </p>
-                  )}
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <Link
-                    href={`/dashboard/chat/${b.id}`}
-                    className="text-sm font-medium text-red-600 hover:text-red-700"
+      <DashboardSection
+        title="Nuove richieste da valutare"
+        subtitle="Atleti in attesa di una tua risposta. Qui vedi il loro momento, il bisogno principale e il tipo di supporto che stanno cercando."
+        items={pending}
+        emptyTitle="Nessuna richiesta in attesa."
+        emptySubtitle="Quando arriveranno nuove richieste, le vedrai qui con il loro contesto."
+        renderCard={(booking) => (
+          <CoachRequestCard
+            key={booking.id}
+            data={buildCoachRequestCardData(booking, config)}
+            actions={
+              <>
+                <ActionForm action={acceptBookingAction}>
+                  <input type="hidden" name="bookingId" value={booking.id} />
+                  <Button type="submit" className="rounded-full">
+                    Accetta richiesta
+                  </Button>
+                </ActionForm>
+                <ActionForm action={declineBookingAction}>
+                  <input type="hidden" name="bookingId" value={booking.id} />
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    className="rounded-full"
                   >
-                    Apri chat →
+                    Rifiuta
+                  </Button>
+                </ActionForm>
+              </>
+            }
+            detailContent={<CoachRequestDetails booking={booking} config={config} />}
+          />
+        )}
+      />
+
+      <DashboardSection
+        title="Atleti gia in percorso"
+        subtitle="Sessioni accettate e gia avviate. Qui puoi passare dalla lettura del bisogno alla relazione vera: chat, videochiamata e follow-up."
+        items={accepted}
+        emptyTitle="Nessuna sessione accettata."
+        emptySubtitle="Le sessioni confermate compariranno qui appena dai il via a un nuovo percorso."
+        renderCard={(booking) => (
+          <CoachRequestCard
+            key={booking.id}
+            data={buildCoachRequestCardData(booking, config)}
+            actions={
+              <>
+                <Button asChild variant="outline" className="rounded-full">
+                  <Link href={`/dashboard/chat/${booking.id}`}>Apri chat</Link>
+                </Button>
+                <Button asChild variant="outline" className="rounded-full">
+                  <Link href={`/dashboard/video/${booking.id}`}>
+                    Apri videochiamata
                   </Link>
-                  <Link
-                    href={`/dashboard/video/${b.id}`}
-                    className="text-sm font-medium text-red-600 hover:text-red-700"
+                </Button>
+                <ActionForm action={completeBookingAction}>
+                  <input type="hidden" name="bookingId" value={booking.id} />
+                  <Button type="submit" className="rounded-full">
+                    Completa
+                  </Button>
+                </ActionForm>
+                <ActionForm action={cancelBookingAction}>
+                  <input type="hidden" name="bookingId" value={booking.id} />
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    className="rounded-full text-red-600 hover:text-red-700"
                   >
-                    Apri videochiamata →
-                  </Link>
-                  <ActionForm action={completeBookingAction}>
-                    <input type="hidden" name="bookingId" value={b.id} />
-                    <Button type="submit" size="sm" className="rounded-full">
-                      Completa
-                    </Button>
-                  </ActionForm>
-                  <ActionForm action={cancelBookingAction}>
-                    <input type="hidden" name="bookingId" value={b.id} />
-                    <Button
-                      type="submit"
-                      size="sm"
-                      variant="outline"
-                      className="rounded-full text-red-600 hover:text-red-700"
-                    >
-                      Annulla
-                    </Button>
-                  </ActionForm>
-                </div>
-              </li>
-            ))}
-          </ul>
+                    Annulla
+                  </Button>
+                </ActionForm>
+              </>
+            }
+            detailContent={<CoachRequestDetails booking={booking} config={config} />}
+          />
         )}
+      />
 
-        <h2 className="mt-8 text-lg font-medium text-gray-900">Storico</h2>
-        {archive.length === 0 ? (
-          <p className="mt-2 text-gray-500">Nessuna richiesta passata.</p>
-        ) : (
-          <ul className="mt-3 flex flex-col gap-2">
-            {archive.map((b) => (
-              <li
-                key={b.id}
-                className="flex items-center justify-between rounded-lg border border-gray-100 px-4 py-3 text-sm"
-              >
-                <span className="text-gray-700">
-                  {b.clientName || b.clientEmail} —{' '}
-                  {b.serviceTitle ?? 'Richiesta generica'}
-                </span>
-                <span className="font-medium text-gray-500">
-                  {bookingStatusLabel(b.status)}
-                </span>
-              </li>
-            ))}
-          </ul>
+      <DashboardSection
+        title="Percorsi conclusi o archiviati"
+        subtitle="Uno storico piu leggibile delle richieste gia chiuse, completate o annullate."
+        items={archive}
+        emptyTitle="Nessuna richiesta passata."
+        emptySubtitle="Lo storico delle richieste concluse o archiviate comparira qui."
+        renderCard={(booking) => (
+          <CoachRequestCard
+            key={booking.id}
+            data={buildCoachRequestCardData(booking, config)}
+            detailContent={<CoachRequestDetails booking={booking} config={config} />}
+          />
         )}
-      </div>
+      />
 
-      {/* Reviews — coach can reply (accountability / responsiveness) */}
       {provider && (
         <div>
           <h2 className="text-lg font-medium text-gray-900">
@@ -319,7 +293,7 @@ export default async function CoachDashboardPage() {
                         rows={2}
                         maxLength={2000}
                         required
-                        placeholder="Rispondi pubblicamente…"
+                        placeholder="Rispondi pubblicamente..."
                         className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
                       />
                       <div>
@@ -337,4 +311,201 @@ export default async function CoachDashboardPage() {
       )}
     </section>
   );
+}
+
+function DashboardSection({
+  title,
+  subtitle,
+  items,
+  emptyTitle,
+  emptySubtitle,
+  renderCard,
+}: {
+  title: string;
+  subtitle: string;
+  items: CoachBooking[];
+  emptyTitle: string;
+  emptySubtitle: string;
+  renderCard: (booking: CoachBooking) => ReactNode;
+}) {
+  return (
+    <div>
+      <div className="max-w-3xl">
+        <h2 className="text-lg font-medium text-gray-900">
+          {title} ({items.length})
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-gray-500">{subtitle}</p>
+      </div>
+
+      {items.length === 0 ? (
+        <div className="mt-4 rounded-2xl border border-dashed border-gray-300 p-8 text-center">
+          <p className="font-medium text-gray-700">{emptyTitle}</p>
+          <p className="mt-1 text-sm text-gray-500">{emptySubtitle}</p>
+        </div>
+      ) : (
+        <div className="mt-5 grid gap-4 xl:grid-cols-2">
+          {items.map((booking) => renderCard(booking))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CoachRequestDetails({
+  booking,
+  config,
+}: {
+  booking: CoachBooking;
+  config: ReturnType<typeof getVerticalConfig>;
+}) {
+  const sportLabel = booking.athleteSport
+    ? findTaxonomyItem(config.taxonomies.categories, booking.athleteSport)?.label ??
+      booking.athleteSport
+    : null;
+  const levelLabel = booking.athleteLevel
+    ? findTaxonomyItem(config.taxonomies.levels ?? [], booking.athleteLevel)?.label ??
+      booking.athleteLevel
+    : null;
+  const detailRows = [
+    booking.serviceTitle
+      ? { label: 'Percorso richiesto', value: booking.serviceTitle }
+      : null,
+    { label: 'Stato attuale', value: bookingStatusLabel(booking.status) },
+    { label: 'Richiesta ricevuta', value: formatDateTime(booking.requestedAt) },
+    booking.scheduledFor
+      ? {
+          label: scheduledForLabel(booking.status).replace(':', ''),
+          value: formatDateTime(booking.scheduledFor),
+        }
+      : null,
+    sportLabel ? { label: 'Sport indicato', value: sportLabel } : null,
+    levelLabel ? { label: 'Livello atleta', value: levelLabel } : null,
+    booking.clientEmail
+      ? { label: 'Email di riferimento', value: booking.clientEmail }
+      : null,
+  ].filter(Boolean) as { label: string; value: string }[];
+
+  return (
+    <div className="space-y-3">
+      {detailRows.map((row) => (
+        <div key={row.label}>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
+            {row.label}
+          </p>
+          <p className="mt-1 text-sm text-gray-700">{row.value}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function buildCoachRequestCardData(
+  booking: CoachBooking,
+  config: ReturnType<typeof getVerticalConfig>
+): CoachRequestCardData {
+  const sportLabel = booking.athleteSport
+    ? findTaxonomyItem(config.taxonomies.categories, booking.athleteSport)?.label ??
+      booking.athleteSport
+    : null;
+  const levelLabel = booking.athleteLevel
+    ? findTaxonomyItem(config.taxonomies.levels ?? [], booking.athleteLevel)?.label ??
+      booking.athleteLevel
+    : null;
+  const primaryNeed = derivePrimaryNeed(booking);
+  const note = booking.note?.trim() || null;
+  const explicitGoal = booking.athleteGoals?.trim() || null;
+  const goal = explicitGoal || note;
+
+  return {
+    id: booking.id,
+    status: booking.status,
+    statusLabel: bookingStatusLabel(booking.status),
+    statusTone: bookingStatusTone(booking.status),
+    statusEyebrow: bookingEyebrow(booking.status),
+    athleteName: booking.clientName || booking.clientEmail,
+    athleteEmail: booking.clientEmail,
+    athleteAvatarUrl: booking.clientAvatarUrl,
+    athleteMeta: [sportLabel, levelLabel].filter(Boolean).join(' | ') || null,
+    primaryNeed,
+    goal,
+    message: explicitGoal && note ? note : null,
+    requestedFor: booking.scheduledFor
+      ? `Sessione richiesta per ${formatDateTime(booking.scheduledFor)}`
+      : 'Primo incontro da concordare insieme',
+    requestedAtLabel: `Il ${formatDate(booking.requestedAt)}`,
+    serviceLabel: booking.serviceTitle,
+  };
+}
+
+function bookingEyebrow(status: string): string {
+  switch (status) {
+    case 'accepted':
+      return 'Atleta gia in percorso';
+    case 'completed':
+      return 'Percorso completato';
+    case 'declined':
+      return 'Richiesta chiusa';
+    case 'cancelled':
+      return 'Percorso interrotto';
+    default:
+      return 'Nuova richiesta da valutare';
+  }
+}
+
+function derivePrimaryNeed(booking: CoachBooking): string | null {
+  const raw = [booking.athleteGoals, booking.note, booking.serviceTitle]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  if (!raw) return booking.serviceTitle ?? null;
+  if (
+    raw.includes('infort') ||
+    raw.includes('rientro') ||
+    raw.includes('stop')
+  ) {
+    return 'Rientro dopo un infortunio';
+  }
+  if (
+    raw.includes('ansia') ||
+    raw.includes('pressione') ||
+    raw.includes('paura') ||
+    raw.includes('pregara') ||
+    raw.includes('pre-gara')
+  ) {
+    return "Gestire l'ansia pre-gara";
+  }
+  if (
+    raw.includes('concent') ||
+    raw.includes('focus') ||
+    raw.includes('lucid')
+  ) {
+    return 'Piu concentrazione e lucidita';
+  }
+  if (
+    raw.includes('motiv') ||
+    raw.includes('energia') ||
+    raw.includes('costanza')
+  ) {
+    return 'Recuperare motivazione e continuita';
+  }
+  if (
+    raw.includes('routine') ||
+    raw.includes('rituale') ||
+    raw.includes('preparazione mentale')
+  ) {
+    return 'Costruire una routine pre-gara';
+  }
+  if (
+    raw.includes('fiducia') ||
+    raw.includes('insicur') ||
+    raw.includes('autostima') ||
+    raw.includes('giudizio')
+  ) {
+    return 'Rafforzare fiducia e sicurezza';
+  }
+  if (booking.serviceTitle) return booking.serviceTitle;
+  if (booking.athleteGoals) return 'Supporto mentale legato ai suoi obiettivi';
+  if (booking.note) return 'Primo confronto sul momento sportivo attuale';
+  return null;
 }

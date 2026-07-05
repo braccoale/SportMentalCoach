@@ -30,18 +30,24 @@ export function EcosystemAthlete() {
         {/* Header */}
         <div className="mx-auto max-w-5xl text-center">
           <Reveal>
-            <p className="kp-eyebrow text-kp-red">Il Metodo Kai Pai</p>
+            <p className="kp-eyebrow text-kp-red">Nessuno cresce da solo</p>
           </Reveal>
           <Reveal delay={0.05}>
             <h2 className="kp-display mt-4 text-[clamp(1.7rem,4vw,3rem)] text-kp-hi">
               <span className="block lg:whitespace-nowrap">
-                Non lavoriamo solo con l&apos;atleta.
+                Non alleniamo solo l&apos;atleta.
               </span>
               <span className="block lg:whitespace-nowrap">
-                Lavoriamo con tutto il suo{' '}
+                Alleniamo tutto il suo{' '}
                 <span className="text-kp-red">ecosistema</span>.
               </span>
             </h2>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <p className="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-kp-mid">
+              Un ragazzo cresce dove crescono anche il suo allenatore e la sua
+              famiglia. Per questo il percorso Kai Pai li unisce.
+            </p>
           </Reveal>
         </div>
 
