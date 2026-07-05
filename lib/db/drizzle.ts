@@ -19,7 +19,11 @@ const globalForDb = globalThis as unknown as {
 export const client =
   globalForDb.__pgClient ??
   postgres(process.env.POSTGRES_URL, {
-    max: process.env.NODE_ENV === 'production' ? 10 : 1,
+    // Never max:1 on the transaction pooler: postgres.js pipelines parallel
+    // queries onto a single connection and Supavisor (transaction mode)
+    // stalls on multiple in-flight statements. A small pool lets Promise.all
+    // fan out across connections instead.
+    max: process.env.NODE_ENV === 'production' ? 10 : 5,
     idle_timeout: 20,
     max_lifetime: 60 * 30,
     // Supabase transaction pooler (port 6543) multiplexes connections and

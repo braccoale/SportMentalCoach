@@ -11,6 +11,7 @@ import {
   CalendarClock,
   CalendarCheck,
   CalendarDays,
+  CheckCircle2,
   ShieldCheck,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -70,10 +71,15 @@ function toEmbedUrl(url: string): string | null {
 
 export default async function CoachDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ richiesta?: string }>;
 }) {
   const { slug } = await params;
+  // After a booking request the user lands back here with ?richiesta=ok and
+  // the booking box shows a clear confirmation instead of the form.
+  const justRequested = (await searchParams).richiesta === 'ok';
   const coach = await getCoachBySlug(slug);
   if (!coach) {
     notFound();
@@ -109,6 +115,12 @@ export default async function CoachDetailPage({
       ? coach.videoUrl
       : null;
   const name = coach.displayName ?? 'Coach';
+  const firstName = name.split(' ')[0];
+  // Compact availability hint shown beside the date field in the form.
+  const availabilityHint = availability
+    .slice(0, 3)
+    .map((s) => `${WEEKDAY_LABELS[s.weekday]} ${formatMinutesOfDay(s.startMinute)}`)
+    .join(' · ');
   const memberSince = new Intl.DateTimeFormat('it-IT', {
     month: 'long',
     year: 'numeric',
@@ -200,60 +212,64 @@ export default async function CoachDetailPage({
         <aside id="prenota" className="order-1 lg:order-2 lg:col-span-1">
           <div className="lg:sticky lg:top-6">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-base">
-                  {t('booking.cta', config)}
-                </CardTitle>
-                {SHOW_COACH_HOURLY_RATE && coach.hourlyRate != null && (
-                  <p className="text-sm text-muted-foreground">
-                    a partire da{' '}
-                    <span className="font-semibold text-gray-900">
-                      {formatPrice(coach.hourlyRate, coach.currency)}
-                    </span>{' '}
-                    / h
-                  </p>
-                )}
-              </CardHeader>
-              <CardContent className="flex flex-col gap-4">
-                {availability.length > 0 && (
-                  <div>
-                    <p className="flex items-center gap-1.5 text-xs font-medium text-gray-500">
-                      <CalendarClock className="h-4 w-4" /> Prossima
-                      disponibilità
+              {!justRequested && (
+                <CardHeader>
+                  <CardTitle className="text-lg">
+                    Inizia il tuo percorso con {firstName}
+                  </CardTitle>
+                  {SHOW_COACH_HOURLY_RATE && coach.hourlyRate != null && (
+                    <p className="text-sm text-muted-foreground">
+                      a partire da{' '}
+                      <span className="font-semibold text-gray-900">
+                        {formatPrice(coach.hourlyRate, coach.currency)}
+                      </span>{' '}
+                      / h
                     </p>
-                    <ul className="mt-2 flex flex-wrap gap-1.5">
-                      {availability.slice(0, 4).map((slot) => (
-                        <li
-                          key={slot.id}
-                          className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-700"
-                        >
-                          {WEEKDAY_LABELS[slot.weekday]}{' '}
-                          {formatMinutesOfDay(slot.startMinute)}
-                        </li>
-                      ))}
-                    </ul>
+                  )}
+                </CardHeader>
+              )}
+              <CardContent className="flex flex-col gap-4">
+                {justRequested ? (
+                  /* ✔ Confirmation state — the moment of trust */
+                  <div className="flex flex-col items-center gap-3 py-4 text-center">
+                    <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50">
+                      <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+                    </span>
+                    <p className="text-lg font-semibold text-gray-900">
+                      Richiesta inviata a {firstName}!
+                    </p>
+                    <p className="text-sm leading-relaxed text-gray-600">
+                      Riceve subito una notifica e di solito risponde entro 24
+                      ore. Ti avvisiamo appena accetta.
+                    </p>
+                    <Button asChild variant="outline" className="mt-1 rounded-full">
+                      <Link href="/dashboard/athlete">
+                        Segui la richiesta in “Le tue sessioni”
+                      </Link>
+                    </Button>
                   </div>
-                )}
-
-                {!user ? (
-                  <div className="flex flex-col gap-2">
-                    <p className="text-sm text-gray-600">
-                      Accedi come atleta per richiedere una sessione.
+                ) : !user ? (
+                  <div className="flex flex-col gap-2.5">
+                    <p className="text-sm leading-relaxed text-gray-600">
+                      Ti serve solo un account gratuito — poi torni qui e
+                      completi la richiesta.
                     </p>
                     <Button asChild size="lg" className="rounded-full bg-red-600 text-white hover:bg-red-700">
                       <Link href={`/sign-in?redirect=/coaches/${slug}`}>
-                        {t('booking.cta', config)}
+                        Inizia — è gratis
                       </Link>
                     </Button>
                   </div>
                 ) : isAthlete ? (
                   <BookingRequest
                     slug={slug}
+                    coachFirstName={firstName}
                     services={coach.services.map((s) => ({
                       id: s.id,
                       title: s.title,
+                      durationMin: s.durationMin,
                     }))}
-                    ctaLabel={t('booking.cta', config)}
+                    availabilityHint={availabilityHint}
                   />
                 ) : (
                   <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-800">
@@ -261,22 +277,48 @@ export default async function CoachDetailPage({
                   </p>
                 )}
 
-                <ul className="flex flex-col gap-1.5 border-t border-gray-100 pt-3 text-xs text-gray-500">
-                  {coach.identityVerified && (
-                    <li className="flex items-center gap-1.5 text-emerald-700">
-                      <ShieldCheck className="h-3.5 w-3.5" /> Coach con identità
-                      verificata
-                    </li>
-                  )}
-                  <li className="flex items-center gap-1.5">
-                    <BadgeCheck className="h-3.5 w-3.5 text-gray-400" /> Nessun
-                    addebito finché la sessione non è confermata
-                  </li>
-                  <li className="flex items-center gap-1.5">
-                    <BadgeCheck className="h-3.5 w-3.5 text-gray-400" /> Puoi
-                    annullare dalla tua dashboard
-                  </li>
-                </ul>
+                {!justRequested && (
+                  <>
+                    {/* Cosa succede adesso? — 4 rassicurazioni in 4 righe */}
+                    <div className="border-t border-gray-100 pt-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                        Cosa succede adesso?
+                      </p>
+                      <ol className="mt-2 flex flex-col gap-1.5 text-xs text-gray-600">
+                        {[
+                          'Invii la richiesta',
+                          `${firstName} la valuta`,
+                          'Ricevi la conferma',
+                          'Vi allenate online',
+                        ].map((step, i) => (
+                          <li key={step} className="flex items-center gap-2">
+                            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-red-50 text-[10px] font-semibold text-red-600">
+                              {i + 1}
+                            </span>
+                            {step}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+
+                    <ul className="flex flex-col gap-1.5 border-t border-gray-100 pt-3 text-xs text-gray-500">
+                      {coach.identityVerified && (
+                        <li className="flex items-center gap-1.5 text-emerald-700">
+                          <ShieldCheck className="h-3.5 w-3.5" /> Identità
+                          verificata da Kai Pai
+                        </li>
+                      )}
+                      <li className="flex items-center gap-1.5">
+                        <BadgeCheck className="h-3.5 w-3.5 text-gray-400" />
+                        Nessun pagamento richiesto ora
+                      </li>
+                      <li className="flex items-center gap-1.5">
+                        <BadgeCheck className="h-3.5 w-3.5 text-gray-400" />
+                        Puoi annullare quando vuoi
+                      </li>
+                    </ul>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>

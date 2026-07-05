@@ -142,7 +142,7 @@ await ath.selectOption('select[name="serviceId"]', { index: 1 }).catch(() => {})
 await ath.fill('input[name="scheduledFor"]', dtLocal);
 await ath.fill('textarea[name="note"]', 'Prima sessione pilota — test E2E.');
 await ath.locator('form:has(input[name="scheduledFor"]) button[type="submit"]').click();
-await ath.waitForURL(/requested=1/, { timeout: 20000 }).then(
+await ath.waitForURL(/richiesta=ok/, { timeout: 20000 }).then(
   () => ok(6, `Richiesta inviata con data preferita ${dtLocal.replace('T', ' ')}`),
   async () => {
     const errs = await ath.locator('.text-red-500').allTextContents();

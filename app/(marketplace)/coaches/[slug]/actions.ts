@@ -70,5 +70,7 @@ export async function requestBooking(
     return { error: result.error };
   }
 
-  redirect('/dashboard/athlete?requested=1');
+  // Stay in context: back to the coach profile, where the booking box turns
+  // into a clear "request sent" confirmation.
+  redirect(`/coaches/${slug}?richiesta=ok#prenota`);
 }

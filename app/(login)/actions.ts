@@ -36,6 +36,17 @@ import {
   type SignupRole
 } from '@/lib/core/profiles';
 
+/**
+ * Post-auth destination. Honors an internal `redirect` path (e.g. back to
+ * the coach profile the user came from) so the booking context is never
+ * lost; falls back to the role dashboard. Only same-origin paths pass.
+ */
+function safeRedirectPath(value: string | null): string | null {
+  if (!value) return null;
+  if (!value.startsWith('/') || value.startsWith('//')) return null;
+  return value;
+}
+
 async function logActivity(
   teamId: number | null | undefined,
   userId: number,
@@ -121,6 +132,12 @@ export const signIn = validatedAction(signInSchema, async (data, formData) => {
           .limit(1)
       : [null];
     return createCheckoutSession({ team: team ?? null, priceId });
+  }
+
+  // Back to where the user came from (e.g. the coach profile).
+  const backTo = safeRedirectPath(redirectTo);
+  if (backTo) {
+    redirect(backTo);
   }
 
   const roles = await getUserRoles(foundUser.id);
@@ -283,6 +300,13 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
   if (redirectTo === 'checkout') {
     const priceId = formData.get('priceId') as string;
     return createCheckoutSession({ team: createdTeam, priceId });
+  }
+
+  // Back to where the user came from (e.g. the coach profile to finish
+  // the booking request they started).
+  const backTo = safeRedirectPath(redirectTo);
+  if (backTo) {
+    redirect(backTo);
   }
 
   redirect(
