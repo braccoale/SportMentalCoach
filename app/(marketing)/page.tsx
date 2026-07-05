@@ -25,6 +25,7 @@ import {
   Video,
   Volleyball,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { ScrollProgress } from '@/components/landing/smooth-scroll';
 import { SnapScroll } from '@/components/landing/snap-scroll';
 import { RevealProvider } from '@/components/landing/reveal-provider';
@@ -285,6 +286,24 @@ function Founder() {
                   {c}
                 </span>
               ))}
+            </div>
+          </Reveal>
+          <Reveal delay={0.18}>
+            <div className="mt-6">
+              <Button
+                asChild
+                variant="outline"
+                className="rounded-full border-kp-line bg-white/5 text-kp-hi hover:bg-white/10"
+              >
+                <a
+                  href="https://www.amazon.it/Before-Storie-fatiche-successi-sentiero/dp/B0G3SWZWK7/ref=sr_1_1?__mk_it_IT=%C3%85M%C3%85%C5%BD%C3%95%C3%91&crid=VVT6YJWCYYXL&dib=eyJ2IjoiMSJ9.IMN-N_7TyhmGXZS5DD6v2ExVRhGwpxfFuNon-lVjObufIkfyjHr7IkirWfFKzPvOw5ggPmXqeoXGe95DkCS38hgtbRqRg97sqwZRsvV3fYOyUQR1Hi47V8teBC3R8tZ-pL0gVKOG_fY1lwOh3UdeY4PNxlJ4i0WEUwIbyfuvpxIDEdjrWNWH23W4iwyjEeMx6ucaXuQoMxvRo0KOD6BcJccFJweOK-7avwZJ8LTl_r7mnCTh3BvWt7SfEZ1B2AcfNZwVKpDh5y6O-dbqSjUQp7ciru3EMAJAiJdsU1xecOU.d1KruZIKpXaOngyJRdAXbsgcaoYM3D3ch4Qpfd77tH0&dib_tag=se&keywords=francesco+borrelli&qid=1783269284&sprefix=francesco+borrelli%2Caps%2C159&sr=8-1"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <BookOpen className="h-4 w-4" />
+                  Compra il libro di Francesco
+                </a>
+              </Button>
             </div>
           </Reveal>
         </div>

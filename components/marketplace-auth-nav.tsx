@@ -24,9 +24,12 @@ export function MarketplaceAuthNav() {
   if (user) {
     return (
       <div className="flex items-center gap-2.5">
-        <span className="hidden text-sm font-medium text-gray-700 sm:inline">
+        <Link
+          href="/dashboard"
+          className="hidden text-sm font-medium text-gray-700 transition-colors hover:text-gray-900 sm:inline"
+        >
           {user.name ?? 'Area personale'}
-        </span>
+        </Link>
         <UserMenu name={[user.name, user.lastName].filter(Boolean).join(' ') || null} email={user.email} />
       </div>
     );

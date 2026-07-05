@@ -86,9 +86,12 @@ export function SiteNav() {
         <div className="hidden items-center gap-3 lg:flex">
           {user ? (
             <div className="flex items-center gap-2.5">
-              <span className="text-sm font-medium text-kp-mid">
+              <Link
+                href="/dashboard"
+                className="text-sm font-medium text-kp-mid transition-colors hover:text-kp-hi"
+              >
                 {user.name ?? 'Area personale'}
-              </span>
+              </Link>
               <UserMenu name={[user.name, user.lastName].filter(Boolean).join(' ') || null} email={user.email} />
             </div>
           ) : (
@@ -138,7 +141,9 @@ export function SiteNav() {
             {user ? (
               <div className="flex items-center justify-center gap-3 rounded-full border border-kp-line px-5 py-3.5 font-medium text-kp-hi">
                 <UserMenu name={[user.name, user.lastName].filter(Boolean).join(' ') || null} email={user.email} />
-                {user.name ?? 'Area personale'}
+                <Link href="/dashboard" onClick={() => setOpen(false)}>
+                  {user.name ?? 'Area personale'}
+                </Link>
               </div>
             ) : (
               <>
