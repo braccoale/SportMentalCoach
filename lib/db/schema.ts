@@ -305,6 +305,8 @@ export const clientProfiles = pgTable('client_profiles', {
   category: varchar('category', { length: 60 }),
   level: varchar('level', { length: 40 }),
   goals: text('goals'),
+  city: varchar('city', { length: 120 }),
+  birthDate: date('birth_date'),
   orgId: integer('org_id').references(() => teams.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),

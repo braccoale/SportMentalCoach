@@ -80,6 +80,8 @@ export async function updateAthleteProfileAction(
   const category = String(formData.get('category') ?? '').trim() || null;
   const level = String(formData.get('level') ?? '').trim() || null;
   const goals = String(formData.get('goals') ?? '').trim() || null;
+  const city = String(formData.get('city') ?? '').trim() || null;
+  const birthDate = String(formData.get('birthDate') ?? '').trim() || null;
 
   if (category && category.length > 60) {
     return { error: 'Sport/categoria troppo lungo (max 60 caratteri).' };
@@ -87,8 +89,17 @@ export async function updateAthleteProfileAction(
   if (level && level.length > 40) {
     return { error: 'Livello troppo lungo (max 40 caratteri).' };
   }
+  if (city && city.length > 120) {
+    return { error: 'Città troppo lunga (max 120 caratteri).' };
+  }
+  if (birthDate) {
+    const d = new Date(birthDate);
+    if (Number.isNaN(d.getTime()) || d.getTime() > Date.now()) {
+      return { error: 'Data di nascita non valida.' };
+    }
+  }
 
-  await updateClientProfile(user.id, { category, level, goals });
+  await updateClientProfile(user.id, { category, level, goals, city, birthDate });
 
   revalidatePath('/dashboard/athlete/profile');
   revalidatePath('/dashboard/coach');

@@ -91,9 +91,12 @@ export type AthleteProfileFields = {
   category: string | null;
   level: string | null;
   goals: string | null;
+  city: string | null;
+  /** ISO date `YYYY-MM-DD`, or null. */
+  birthDate: string | null;
 };
 
-/** Athlete's sport profile fields (category/level/goals), or nulls if unset. */
+/** Athlete's sport profile fields, or nulls if unset. */
 export async function getClientProfile(
   userId: number
 ): Promise<AthleteProfileFields> {
@@ -102,6 +105,8 @@ export async function getClientProfile(
       category: clientProfiles.category,
       level: clientProfiles.level,
       goals: clientProfiles.goals,
+      city: clientProfiles.city,
+      birthDate: clientProfiles.birthDate,
     })
     .from(clientProfiles)
     .where(eq(clientProfiles.userId, userId))
@@ -110,10 +115,12 @@ export async function getClientProfile(
     category: row?.category ?? null,
     level: row?.level ?? null,
     goals: row?.goals ?? null,
+    city: row?.city ?? null,
+    birthDate: row?.birthDate ?? null,
   };
 }
 
-/** Upserts the athlete's sport profile fields (creates the row if missing). */
+/** Upserts the athlete's profile fields (creates the row if missing). */
 export async function updateClientProfile(
   userId: number,
   fields: AthleteProfileFields
@@ -125,6 +132,8 @@ export async function updateClientProfile(
       category: fields.category,
       level: fields.level,
       goals: fields.goals,
+      city: fields.city,
+      birthDate: fields.birthDate,
       updatedAt: new Date(),
       updatedBy: userId,
     })

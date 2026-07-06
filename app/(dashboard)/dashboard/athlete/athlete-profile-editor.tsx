@@ -16,8 +16,22 @@ const LEVELS = [
   'Professionista',
 ];
 
-/** Editor for the athlete's sport profile (category / level / goals). */
+function ageFrom(birthDate: string | null): number | null {
+  if (!birthDate) return null;
+  const d = new Date(birthDate);
+  if (Number.isNaN(d.getTime())) return null;
+  const now = new Date();
+  let a = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) a--;
+  return a >= 0 && a < 120 ? a : null;
+}
+
+/** Editor for the athlete's profile (personal + sport fields). */
 export function AthleteProfileEditor({ profile }: { profile: AthleteProfileFields }) {
+  const age = ageFrom(profile.birthDate);
+  const today = new Date().toISOString().slice(0, 10);
+
   return (
     <Card>
       <CardHeader>
@@ -51,6 +65,36 @@ export function AthleteProfileEditor({ profile }: { profile: AthleteProfileField
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="city">Città</Label>
+              <Input
+                id="city"
+                name="city"
+                defaultValue={profile.city ?? ''}
+                maxLength={120}
+                placeholder="Es. Milano"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="birthDate">
+                Data di nascita
+                {age !== null && (
+                  <span className="ml-1 font-normal text-gray-400">
+                    ({age} anni)
+                  </span>
+                )}
+              </Label>
+              <Input
+                id="birthDate"
+                name="birthDate"
+                type="date"
+                defaultValue={profile.birthDate ?? ''}
+                max={today}
+              />
+            </div>
           </div>
 
           <div className="space-y-1.5">

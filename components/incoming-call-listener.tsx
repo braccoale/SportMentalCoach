@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import useSWR from 'swr';
 import { createClient } from '@supabase/supabase-js';
 import { PhoneCall, Video, X } from 'lucide-react';
@@ -45,6 +45,12 @@ export function IncomingCallListener() {
 
   const userId = user?.id ?? null;
 
+  // Whether the user is currently inside any video room. Kept in a ref so the
+  // realtime handler (bound once) always reads the live value.
+  const inVideoRoom = pathname?.startsWith('/dashboard/video/') ?? false;
+  const inVideoRoomRef = useRef(inVideoRoom);
+  inVideoRoomRef.current = inVideoRoom;
+
   useEffect(() => {
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !userId) return;
     const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -54,14 +60,23 @@ export function IncomingCallListener() {
 
     channel
       .on('broadcast', { event: 'call-started' }, ({ payload }) => {
-        if (payload && typeof payload.bookingId === 'number') {
-          setCall({
-            bookingId: payload.bookingId,
-            fromName: payload.fromName ?? 'Il tuo contatto',
-            serviceTitle: payload.serviceTitle ?? null,
-            scheduledFor: payload.scheduledFor ?? null,
-          });
+        if (!payload || typeof payload.bookingId !== 'number') return;
+        // Ignore the peer's "I joined" broadcast while we're already in a room
+        // (otherwise it lingers in state and re-pops when we return to the
+        // dashboard), and ignore stale broadcasts.
+        if (inVideoRoomRef.current) return;
+        if (
+          typeof payload.startedAt === 'number' &&
+          Date.now() - payload.startedAt > 45_000
+        ) {
+          return;
         }
+        setCall({
+          bookingId: payload.bookingId,
+          fromName: payload.fromName ?? 'Il tuo contatto',
+          serviceTitle: payload.serviceTitle ?? null,
+          scheduledFor: payload.scheduledFor ?? null,
+        });
       })
       .subscribe();
 
@@ -70,14 +85,17 @@ export function IncomingCallListener() {
     };
   }, [userId]);
 
-  // Once the user is in any video room, dismiss any pending/incoming popup —
-  // they're already in a call and the peer's join broadcast would otherwise
-  // pop up on top of the room.
-  const inVideoRoom = pathname?.startsWith('/dashboard/video/') ?? false;
-
+  // Entering a video room dismisses any pending popup.
   useEffect(() => {
     if (inVideoRoom) setCall(null);
   }, [inVideoRoom]);
+
+  // A ringing popup shouldn't hang forever — auto-dismiss after 45s.
+  useEffect(() => {
+    if (!call) return;
+    const t = setTimeout(() => setCall(null), 45_000);
+    return () => clearTimeout(t);
+  }, [call]);
 
   if (!call || inVideoRoom) return null;
 
