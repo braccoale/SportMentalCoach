@@ -409,6 +409,13 @@
   scroll-snap-align: start;
   scroll-snap-stop: always;
 }
+/* The footer is shorter than the viewport: with `y mandatory` it isn't a
+   valid rest position, so the browser bounces back to the last section and
+   the footer can't be seen. Aligning it to the END makes the bottom of the
+   page a valid snap target — the footer becomes fully reachable. */
+.kp-snap-end {
+  scroll-snap-align: end;
+}
 
 /*
   ---break---

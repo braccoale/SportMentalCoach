@@ -46,13 +46,13 @@ export function Footer() {
             </li>
             <li className="flex items-center gap-2">
               <Phone className="h-4 w-4 text-kp-low" />
-              <a href="tel:+390212345678" className="hover:text-kp-hi">
-                +39 02 1234 5678
+              <a href="tel:+393286212598" className="hover:text-kp-hi">
+                +39 328 6212598
               </a>
             </li>
             <li className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-kp-low" />
-              <span>Milano, Italia</span>
+              <span>Genova, Italia</span>
             </li>
           </ul>
         </div>

@@ -1149,7 +1149,7 @@ function SiteFooter() {
     { h: 'Azienda', links: ['Origine', 'Movimento', 'Contatti'] },
   ];
   return (
-    <footer className="border-t border-kp-line bg-kp-ink">
+    <footer className="kp-snap-end border-t border-kp-line bg-kp-ink">
       <div className={`${WRAP} py-16`}>
         <div className="grid gap-10 md:grid-cols-[1.5fr_repeat(4,1fr)]">
           <div>
@@ -1166,6 +1166,14 @@ function SiteFooter() {
               È ora di allenare la mente. Il metodo, la scuola e la rete di coach
               per chi fa sport.
             </p>
+            <div className="mt-4 space-y-2 text-sm text-kp-mid">
+              <p>
+                <a href="tel:+393286212598" className="transition-colors hover:text-kp-hi">
+                  +39 328 6212598
+                </a>
+              </p>
+              <p>Genova, Italia</p>
+            </div>
           </div>
           {cols.map((c) => (
             <div key={c.h}>

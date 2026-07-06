@@ -53,7 +53,8 @@
       "Bash(curl -s -o /dev/null -w \"auth health: %{http_code} in %{time_total}s\\\\n\" --max-time 20 \"https://jrodecctnyfigmgussxg.supabase.co/auth/v1/health\")",
       "PowerShell($c = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue; if \\($c\\) { $c | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } }; Get-Process node -ErrorAction SilentlyContinue | Where-Object { $_.StartTime -lt \\(Get-Date\\).AddHours\\(-1\\) } | Stop-Process -Force -ErrorAction SilentlyContinue; if \\(Test-Path 'c:\\\\Dati\\\\SportMentalCoach\\\\.next\\\\dev\\\\lock'\\) { Remove-Item 'c:\\\\Dati\\\\SportMentalCoach\\\\.next\\\\dev\\\\lock' -Force -Recurse -ErrorAction SilentlyContinue }; Write-Host 'cleaned')",
       "Bash(curl -s -o /dev/null -w \"landing: %{http_code} in %{time_total}s\\\\n\" --max-time 90 http://localhost:3000/)",
-      "Bash(curl -s -o /dev/null -w \"coaches: %{http_code} in %{time_total}s\\\\n\" --max-time 90 http://localhost:3000/coaches)"
+      "Bash(curl -s -o /dev/null -w \"coaches: %{http_code} in %{time_total}s\\\\n\" --max-time 90 http://localhost:3000/coaches)",
+      "Bash(node shot-footer.mjs)"
     ],
     "additionalDirectories": [
       "c:\\Dati\\SportMentalCoach\\app\\(dashboard)\\dashboard\\video\\[bookingId]",

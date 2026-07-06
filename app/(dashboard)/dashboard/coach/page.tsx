@@ -36,6 +36,8 @@ import {
   cancelBookingAction,
 } from './actions';
 
+const DEFAULT_ATHLETE_AVATAR = '/atleta.png';
+
 export default async function CoachDashboardPage() {
   const user = await requireRole('coach');
   const config = getVerticalConfig();
@@ -424,7 +426,7 @@ function buildCoachRequestCardData(
     statusEyebrow: bookingEyebrow(booking.status),
     athleteName: booking.clientName || booking.clientEmail,
     athleteEmail: booking.clientEmail,
-    athleteAvatarUrl: booking.clientAvatarUrl,
+    athleteAvatarUrl: booking.clientAvatarUrl || DEFAULT_ATHLETE_AVATAR,
     athleteMeta: [sportLabel, levelLabel].filter(Boolean).join(' | ') || null,
     primaryNeed,
     goal,

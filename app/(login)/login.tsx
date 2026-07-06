@@ -96,12 +96,12 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
           {mode === 'signup' && (
             <div>
               <Label className="block text-sm font-medium text-gray-700">
-                I am signing up as
+                Mi registro come
               </Label>
               <div className="mt-2 grid grid-cols-3 gap-2">
                 {(
                   [
-                    ['athlete', 'Athlete'],
+                    ['athlete', 'Atleta'],
                     ['coach', 'Coach'],
                     ['club', 'Club']
                   ] as const

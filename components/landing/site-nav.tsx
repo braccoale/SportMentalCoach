@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import useSWR from 'swr';
 import { SignInModal } from './sign-in-modal';
+import { SignUpModal } from './sign-up-modal';
 import { UserMenu } from '@/components/user-menu';
 import { fetcher } from '@/lib/fetcher';
 
@@ -41,7 +42,7 @@ function Logo() {
 export function SiteNav() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
-  const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup' | null>(null);
   // Shared auth state (root layout seeds `/api/user` into SWR).
   const { data: user } = useSWR<SessionUser | null>('/api/user', fetcher);
 
@@ -98,17 +99,18 @@ export function SiteNav() {
             <>
               <button
                 type="button"
-                onClick={() => setAuthOpen(true)}
+                onClick={() => setAuthMode('signin')}
                 className="text-sm font-medium text-kp-mid transition-colors hover:text-kp-hi"
               >
                 Accedi
               </button>
-              <Link
-                href="/sign-up"
+              <button
+                type="button"
+                onClick={() => setAuthMode('signup')}
                 className="kp-cta rounded-full px-4 py-2 text-sm font-semibold text-white"
               >
                 Inizia ora
-              </Link>
+              </button>
             </>
           )}
         </div>
@@ -147,18 +149,21 @@ export function SiteNav() {
               </div>
             ) : (
               <>
-                <Link
-                  href="/sign-up"
-                  onClick={() => setOpen(false)}
-                  className="kp-cta rounded-full px-5 py-3.5 text-center font-semibold text-white"
-                >
-                  Inizia ora
-                </Link>
                 <button
                   type="button"
                   onClick={() => {
                     setOpen(false);
-                    setAuthOpen(true);
+                    setAuthMode('signup');
+                  }}
+                  className="kp-cta rounded-full px-5 py-3.5 text-center font-semibold text-white"
+                >
+                  Inizia ora
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    setAuthMode('signin');
                   }}
                   className="rounded-full border border-kp-line px-5 py-3.5 text-center font-medium text-kp-hi"
                 >
@@ -170,7 +175,16 @@ export function SiteNav() {
         </div>
       )}
     </header>
-    <SignInModal open={authOpen} onClose={() => setAuthOpen(false)} />
+    <SignInModal
+      open={authMode === 'signin'}
+      onClose={() => setAuthMode(null)}
+      onSwitch={() => setAuthMode('signup')}
+    />
+    <SignUpModal
+      open={authMode === 'signup'}
+      onClose={() => setAuthMode(null)}
+      onSwitch={() => setAuthMode('signin')}
+    />
     </>
   );
 }

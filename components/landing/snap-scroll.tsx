@@ -14,7 +14,10 @@ export function SnapScroll() {
     const el = document.documentElement;
     const prevSnap = el.style.scrollSnapType;
     const prevBehavior = el.style.scrollBehavior;
-    el.style.scrollSnapType = 'y mandatory';
+    // `proximity` (not `mandatory`): full-height sections still snap into
+    // place, but the page can rest at the very bottom so the shorter footer
+    // stays reachable instead of bouncing back to the last section.
+    el.style.scrollSnapType = 'y proximity';
     el.style.scrollBehavior = 'smooth';
     return () => {
       el.style.scrollSnapType = prevSnap;

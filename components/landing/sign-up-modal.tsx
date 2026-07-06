@@ -1,20 +1,26 @@
 'use client';
 
-import Link from 'next/link';
 import { useActionState, useEffect, useState } from 'react';
 import { Eye, EyeOff, Loader2, X } from 'lucide-react';
-import { signIn } from '@/app/(login)/actions';
+import { signUp } from '@/app/(login)/actions';
 import type { ActionState } from '@/lib/auth/middleware';
 
 const inputCls =
   'w-full rounded-full border border-kp-line bg-kp-surface px-4 py-2.5 text-sm text-kp-hi placeholder:text-kp-low focus:border-kp-red/50 focus:outline-none';
 
+const ROLES = [
+  ['athlete', 'Atleta'],
+  ['coach', 'Coach'],
+  ['club', 'Club'],
+] as const;
+
 /**
- * Sign-in popup for the landing page. Reuses the `signIn` server action (which
- * redirects to the dashboard on success), so no page navigation is needed to
- * open it. Italian labels, Kai Pai logo, and a show/hide password toggle.
+ * Sign-up popup for the landing page. Mirrors {@link SignInModal}: reuses the
+ * `signUp` server action (which redirects to the dashboard on success), Kai Pai
+ * logo, Italian labels, and a show/hide password toggle. `onSwitch` flips to the
+ * sign-in modal without a page navigation.
  */
-export function SignInModal({
+export function SignUpModal({
   open,
   onClose,
   onSwitch,
@@ -24,7 +30,7 @@ export function SignInModal({
   onSwitch: () => void;
 }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
-    signIn,
+    signUp,
     { error: '' }
   );
   const [showPassword, setShowPassword] = useState(false);
@@ -45,17 +51,12 @@ export function SignInModal({
 
   if (!open) return null;
 
-  const errorMessage =
-    state?.error === 'Invalid email or password. Please try again.'
-      ? 'Email o password non corretti. Riprova.'
-      : state?.error;
-
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
-      aria-label="Accedi"
+      aria-label="Registrati"
     >
       {/* Backdrop */}
       <button
@@ -85,23 +86,25 @@ export function SignInModal({
             className="h-28 w-auto sm:h-32"
           />
           <h2 className="mt-4 font-display text-2xl font-semibold text-kp-hi">
-            Accedi al tuo account
+            Crea il tuo account
           </h2>
         </div>
 
         <form className="mt-8 space-y-5" action={formAction}>
           <input type="hidden" name="redirect" value="" />
+          <input type="hidden" name="priceId" value="" />
+          <input type="hidden" name="inviteId" value="" />
 
           <div>
             <label
-              htmlFor="modal-email"
+              htmlFor="signup-email"
               className="mb-1.5 block text-sm font-medium text-kp-mid"
             >
               Email
             </label>
             <div className="relative">
               <input
-                id="modal-email"
+                id="signup-email"
                 name="email"
                 type="email"
                 autoComplete="email"
@@ -127,23 +130,23 @@ export function SignInModal({
 
           <div>
             <label
-              htmlFor="modal-password"
+              htmlFor="signup-password"
               className="mb-1.5 block text-sm font-medium text-kp-mid"
             >
               Password
             </label>
             <div className="relative">
               <input
-                id="modal-password"
+                id="signup-password"
                 name="password"
                 type={showPassword ? 'text' : 'password'}
-                autoComplete="current-password"
+                autoComplete="new-password"
                 defaultValue={state?.password}
                 required
                 minLength={8}
                 maxLength={100}
                 className={`${inputCls} pr-11`}
-                placeholder="La tua password"
+                placeholder="Almeno 8 caratteri"
               />
               <button
                 type="button"
@@ -160,19 +163,33 @@ export function SignInModal({
                 )}
               </button>
             </div>
-            <div className="mt-1.5 text-right">
-              <Link
-                href="/reset-password"
-                onClick={onClose}
-                className="text-xs text-kp-mid transition-colors hover:text-kp-hi"
-              >
-                Password dimenticata?
-              </Link>
+          </div>
+
+          <div>
+            <span className="mb-1.5 block text-sm font-medium text-kp-mid">
+              Mi registro come
+            </span>
+            <div className="grid grid-cols-3 gap-2">
+              {ROLES.map(([value, label]) => (
+                <label
+                  key={value}
+                  className="flex cursor-pointer items-center justify-center gap-2 rounded-full border border-kp-line bg-kp-surface px-3 py-2 text-sm text-kp-mid transition-colors has-[:checked]:border-kp-red/60 has-[:checked]:bg-kp-red/10 has-[:checked]:text-kp-hi"
+                >
+                  <input
+                    type="radio"
+                    name="role"
+                    value={value}
+                    defaultChecked={value === 'athlete'}
+                    className="accent-kp-red"
+                  />
+                  {label}
+                </label>
+              ))}
             </div>
           </div>
 
-          {errorMessage && (
-            <p className="text-sm text-kp-red">{errorMessage}</p>
+          {state?.error && (
+            <p className="text-sm text-kp-red">{state.error}</p>
           )}
 
           <button
@@ -183,51 +200,23 @@ export function SignInModal({
             {pending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Accesso…
+                Creazione…
               </>
             ) : (
-              'Accedi'
+              'Registrati'
             )}
           </button>
         </form>
 
         <p className="mt-6 text-center text-sm text-kp-mid">
-          Non hai un account?{' '}
+          Hai già un account?{' '}
           <button
             type="button"
             onClick={onSwitch}
             className="font-semibold text-kp-red hover:underline"
           >
-            Registrati
+            Accedi
           </button>
-        </p>
-
-        <p className="mt-4 text-center text-xs leading-relaxed text-kp-low">
-          Accedendo accetti i{' '}
-          <Link
-            href="/terms"
-            onClick={onClose}
-            className="underline transition-colors hover:text-kp-mid"
-          >
-            Termini e Condizioni
-          </Link>
-          , la{' '}
-          <Link
-            href="/privacy"
-            onClick={onClose}
-            className="underline transition-colors hover:text-kp-mid"
-          >
-            Privacy Policy
-          </Link>{' '}
-          e la{' '}
-          <Link
-            href="/cookie"
-            onClick={onClose}
-            className="underline transition-colors hover:text-kp-mid"
-          >
-            Cookie Policy
-          </Link>
-          .
         </p>
       </div>
     </div>
