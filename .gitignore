@@ -49,3 +49,6 @@ __*.tmp.*
 # Microsoft Word temp/lock files
 ~$*
 ~WRL*.tmp
+
+# Local heavy image archive (not served)
+Image/
