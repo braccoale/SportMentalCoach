@@ -54,7 +54,15 @@
       "PowerShell($c = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue; if \\($c\\) { $c | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } }; Get-Process node -ErrorAction SilentlyContinue | Where-Object { $_.StartTime -lt \\(Get-Date\\).AddHours\\(-1\\) } | Stop-Process -Force -ErrorAction SilentlyContinue; if \\(Test-Path 'c:\\\\Dati\\\\SportMentalCoach\\\\.next\\\\dev\\\\lock'\\) { Remove-Item 'c:\\\\Dati\\\\SportMentalCoach\\\\.next\\\\dev\\\\lock' -Force -Recurse -ErrorAction SilentlyContinue }; Write-Host 'cleaned')",
       "Bash(curl -s -o /dev/null -w \"landing: %{http_code} in %{time_total}s\\\\n\" --max-time 90 http://localhost:3000/)",
       "Bash(curl -s -o /dev/null -w \"coaches: %{http_code} in %{time_total}s\\\\n\" --max-time 90 http://localhost:3000/coaches)",
-      "Bash(node shot-footer.mjs)"
+      "Bash(node shot-footer.mjs)",
+      "Bash(git -C c:/Dati/SportMentalCoach status --short)",
+      "Bash(git -C c:/Dati/SportMentalCoach branch --show-current)",
+      "Bash(git -C c:/Dati/SportMentalCoach diff .claude/settings.json)",
+      "Bash(grep -oE \"function VideoConference.{0,1200}\" node_modules/@livekit/components-react/dist/prefabs.mjs)",
+      "Bash(node -e \"const s=require\\('fs'\\).readFileSync\\('node_modules/@livekit/components-react/dist/prefabs.mjs','utf8'\\); const i=s.indexOf\\('VideoConference'\\); console.log\\(s.slice\\(i, i+1400\\)\\);\")",
+      "Bash(node -e ' *)",
+      "Bash(grep -oE \"RoomAudioRenderer[^,;}]{0,40}\" node_modules/@livekit/components-react/dist/components-DqcPwJ_9.mjs)",
+      "Bash(node -e \"const s=require\\('fs'\\).readFileSync\\('node_modules/@livekit/components-react/dist/prefabs.mjs','utf8'\\); const m=[...s.matchAll\\(/be[,\\)]/g\\)]; console.log\\('be refs:', m.length\\);\")"
     ],
     "additionalDirectories": [
       "c:\\Dati\\SportMentalCoach\\app\\(dashboard)\\dashboard\\video\\[bookingId]",
