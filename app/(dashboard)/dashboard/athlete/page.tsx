@@ -225,10 +225,7 @@ export default async function AthleteDashboardPage() {
   return (
     <section className="flex flex-col gap-6 p-6">
       <div className="max-w-3xl">
-        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-red-600">
-          Dashboard atleta
-        </p>
-        <h1 className="mt-3 text-3xl font-bold tracking-tight text-gray-950">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-950">
           Il tuo percorso mentale, una sessione alla volta.
         </h1>
         <p className="mt-3 text-base leading-7 text-gray-600">
