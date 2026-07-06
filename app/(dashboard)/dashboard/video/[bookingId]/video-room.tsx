@@ -256,7 +256,7 @@ export function VideoRoom({
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1 rounded-full"
+                className="flex-1 rounded-full border-gray-300 bg-white text-gray-900 hover:bg-gray-50 hover:text-gray-900"
                 disabled={pending}
                 onClick={() => finish(false)}
               >
