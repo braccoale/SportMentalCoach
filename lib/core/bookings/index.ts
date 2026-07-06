@@ -13,7 +13,10 @@ import {
 } from '@/lib/db/schema';
 import { getVerticalConfig, t } from '@/lib/core/config';
 import { notify } from '@/lib/core/notifications';
-import { REQUEST_RESPONSE_WINDOW_HOURS } from '@/lib/core/sessions';
+import {
+  REQUEST_RESPONSE_WINDOW_HOURS,
+  isSessionJoinable,
+} from '@/lib/core/sessions';
 import type { Result } from '@/lib/core/result';
 
 /** Localized label for a booking status (from the vertical copy). */
@@ -485,6 +488,7 @@ export async function cancelBooking(params: {
     .select({
       id: bookings.id,
       status: bookings.status,
+      scheduledFor: bookings.scheduledFor,
       clientId: bookings.clientId,
       coachUserId: providerProfiles.userId,
     })
@@ -499,6 +503,14 @@ export async function cancelBooking(params: {
 
   if (!canTransition(row.status as BookingStatus, 'cancelled')) {
     return { ok: false, error: 'La prenotazione non può essere annullata.' };
+  }
+
+  // A session that has already taken place can no longer be cancelled.
+  if (!isSessionJoinable(row.scheduledFor)) {
+    return {
+      ok: false,
+      error: 'La sessione è già trascorsa e non può essere annullata.',
+    };
   }
 
   await db

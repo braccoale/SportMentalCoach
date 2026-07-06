@@ -222,16 +222,18 @@ export default async function CoachDashboardPage() {
                     Completa
                   </Button>
                 </ActionForm>
-                <ActionForm action={cancelBookingAction}>
-                  <input type="hidden" name="bookingId" value={booking.id} />
-                  <Button
-                    type="submit"
-                    variant="outline"
-                    className="rounded-full text-red-600 hover:text-red-700"
-                  >
-                    Annulla
-                  </Button>
-                </ActionForm>
+                {isSessionJoinable(booking.scheduledFor) && (
+                  <ActionForm action={cancelBookingAction}>
+                    <input type="hidden" name="bookingId" value={booking.id} />
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      className="rounded-full text-red-600 hover:text-red-700"
+                    >
+                      Annulla
+                    </Button>
+                  </ActionForm>
+                )}
               </>
             }
             detailContent={<CoachRequestDetails booking={booking} config={config} />}

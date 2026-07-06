@@ -39,10 +39,12 @@ function BookingRow({
   b: AthleteBooking;
   reviewedIds: Set<number>;
 }) {
-  const canCancel = b.status === 'requested' || b.status === 'accepted';
   const canReview = b.status === 'completed' && !reviewedIds.has(b.id);
-  // A past session (scheduled time elapsed) is over: no live chat/video.
-  const isPastSession = b.status === 'accepted' && !isSessionJoinable(b.scheduledFor);
+  // A past session (scheduled time elapsed) is over: no live tools, no cancel.
+  const isPast = !isSessionJoinable(b.scheduledFor);
+  const canCancel =
+    (b.status === 'requested' || b.status === 'accepted') && !isPast;
+  const isPastSession = b.status === 'accepted' && isPast;
   const canOpenLiveTools = b.status === 'accepted' && !isPastSession;
   const canOpenCoach = !!b.coachSlug;
 

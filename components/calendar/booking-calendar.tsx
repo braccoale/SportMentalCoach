@@ -673,7 +673,12 @@ function EventDrawer({
           )}
 
           {canManage && completeAction && cancelAction && (
-            <div className="mt-1 grid grid-cols-2 gap-2">
+            <div
+              className={cn(
+                'mt-1 grid gap-2',
+                isPast ? 'grid-cols-1' : 'grid-cols-2'
+              )}
+            >
               <ActionForm action={completeAction} onSuccess={closeAfterSuccess}>
                 <input type="hidden" name="bookingId" value={event.id} />
                 <Button
@@ -684,16 +689,19 @@ function EventDrawer({
                   Completa
                 </Button>
               </ActionForm>
-              <ActionForm action={cancelAction} onSuccess={closeAfterSuccess}>
-                <input type="hidden" name="bookingId" value={event.id} />
-                <Button
-                  type="submit"
-                  variant="outline"
-                  className="w-full rounded-full border-kp-red/50 bg-transparent text-kp-red2 hover:bg-kp-red/10 hover:text-kp-red2"
-                >
-                  Annulla
-                </Button>
-              </ActionForm>
+              {/* A past session can no longer be cancelled — only completed. */}
+              {!isPast && (
+                <ActionForm action={cancelAction} onSuccess={closeAfterSuccess}>
+                  <input type="hidden" name="bookingId" value={event.id} />
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    className="w-full rounded-full border-kp-red/50 bg-transparent text-kp-red2 hover:bg-kp-red/10 hover:text-kp-red2"
+                  >
+                    Annulla
+                  </Button>
+                </ActionForm>
+              )}
             </div>
           )}
         </div>
