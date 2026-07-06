@@ -45,3 +45,7 @@ public/ChatGPT*
 public/brandkitKaiPai.png
 public/merch.png
 __*.tmp.*
+
+# Microsoft Word temp/lock files
+~$*
+~WRL*.tmp

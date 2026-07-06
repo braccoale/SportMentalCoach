@@ -62,7 +62,11 @@
       "Bash(node -e \"const s=require\\('fs'\\).readFileSync\\('node_modules/@livekit/components-react/dist/prefabs.mjs','utf8'\\); const i=s.indexOf\\('VideoConference'\\); console.log\\(s.slice\\(i, i+1400\\)\\);\")",
       "Bash(node -e ' *)",
       "Bash(grep -oE \"RoomAudioRenderer[^,;}]{0,40}\" node_modules/@livekit/components-react/dist/components-DqcPwJ_9.mjs)",
-      "Bash(node -e \"const s=require\\('fs'\\).readFileSync\\('node_modules/@livekit/components-react/dist/prefabs.mjs','utf8'\\); const m=[...s.matchAll\\(/be[,\\)]/g\\)]; console.log\\('be refs:', m.length\\);\")"
+      "Bash(node -e \"const s=require\\('fs'\\).readFileSync\\('node_modules/@livekit/components-react/dist/prefabs.mjs','utf8'\\); const m=[...s.matchAll\\(/be[,\\)]/g\\)]; console.log\\('be refs:', m.length\\);\")",
+      "Bash(npx drizzle-kit *)",
+      "Bash(tail -5 .gitignore)",
+      "Bash(grep -nE \"WRL|~\\\\\\\\\\\\$|\\\\.tmp\" .gitignore)",
+      "Bash(printf '\\\\n# Microsoft Word temp/lock files\\\\n~$*\\\\n~WRL*.tmp\\\\n')"
     ],
     "additionalDirectories": [
       "c:\\Dati\\SportMentalCoach\\app\\(dashboard)\\dashboard\\video\\[bookingId]",
