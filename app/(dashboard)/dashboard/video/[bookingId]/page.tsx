@@ -60,6 +60,8 @@ export default async function VideoPage({
               serverUrl={result.url}
               token={result.token}
               bookingId={id}
+              viewerIsCoach={result.viewerIsCoach}
+              backHref={result.backHref}
             />
           </>
         ) : result.reason === 'past' ? (

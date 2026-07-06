@@ -43,6 +43,8 @@ export type RoomTokenResult =
       room: string;
       backHref: string;
       otherName: string;
+      /** True when the current viewer is the coach (owns the "complete" action). */
+      viewerIsCoach: boolean;
       /** The other participant's user id (broadcast target for the popup). */
       counterpartUserId: number;
       /** The current viewer's display name (shown in the peer's popup as caller). */
@@ -99,6 +101,7 @@ export async function createRoomToken(
     room,
     backHref,
     otherName,
+    viewerIsCoach: !isClient,
     counterpartUserId: isClient ? ctx.coachUserId : ctx.clientId,
     viewerName: isClient
       ? ctx.clientName ?? ctx.clientEmail

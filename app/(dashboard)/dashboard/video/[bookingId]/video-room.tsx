@@ -2,6 +2,7 @@
 
 import '@livekit/components-styles';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   LiveKitRoom,
   VideoConference,
@@ -14,6 +15,8 @@ import {
   supportsBackgroundProcessors,
   type BackgroundProcessorWrapper,
 } from '@livekit/track-processors';
+import { Button } from '@/components/ui/button';
+import { completeBookingAction } from '@/app/(dashboard)/dashboard/coach/actions';
 
 /* Background options. "image" backgrounds are generated at runtime as gradient
    data-URLs so we ship no assets and make no external requests. */
@@ -170,16 +173,51 @@ export function VideoRoom({
   serverUrl,
   token,
   bookingId,
+  viewerIsCoach,
+  backHref,
 }: {
   serverUrl: string;
   token: string;
   bookingId: number;
+  viewerIsCoach: boolean;
+  backHref: string;
 }) {
+  const router = useRouter();
+  // When the coach leaves, ask whether to mark the session completed. The
+  // athlete just returns to the dashboard on leave.
+  const [askComplete, setAskComplete] = useState(false);
+  const [pending, setPending] = useState(false);
+  const leftRef = useRef(false);
+
+  function handleDisconnected() {
+    if (leftRef.current) return;
+    leftRef.current = true;
+    if (viewerIsCoach) {
+      setAskComplete(true);
+    } else {
+      router.push(backHref);
+    }
+  }
+
+  async function finish(markCompleted: boolean) {
+    if (markCompleted) {
+      setPending(true);
+      try {
+        const fd = new FormData();
+        fd.set('bookingId', String(bookingId));
+        await completeBookingAction({}, fd);
+      } catch {
+        // best-effort: navigate back regardless
+      }
+    }
+    router.push(backHref);
+  }
+
   return (
     <div
       data-lk-theme="default"
       style={{ height: '70vh' }}
-      className="overflow-hidden rounded-lg border border-gray-200"
+      className="relative overflow-hidden rounded-lg border border-gray-200"
     >
       <LiveKitRoom
         serverUrl={serverUrl}
@@ -187,6 +225,7 @@ export function VideoRoom({
         connect
         video
         audio
+        onDisconnected={handleDisconnected}
         style={{ height: '100%' }}
       >
         <SessionTracker bookingId={bookingId} />
@@ -199,6 +238,42 @@ export function VideoRoom({
           </div>
         </div>
       </LiveKitRoom>
+
+      {askComplete && (
+        <div
+          className="absolute inset-0 z-10 flex items-center justify-center bg-black/70 p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-2xl">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Sessione terminata
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Vuoi segnare questa sessione come <strong>completata</strong>?
+            </p>
+            <div className="mt-6 flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 rounded-full"
+                disabled={pending}
+                onClick={() => finish(false)}
+              >
+                No
+              </Button>
+              <Button
+                type="button"
+                className="flex-1 rounded-full"
+                disabled={pending}
+                onClick={() => finish(true)}
+              >
+                Sì, completa
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
