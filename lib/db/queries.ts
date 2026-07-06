@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { desc, and, eq, isNull } from 'drizzle-orm';
 import { db } from './drizzle';
 import { activityLogs, teamMembers, teams, users } from './schema';
@@ -8,8 +9,12 @@ import { createSupabaseServer } from '@/lib/auth/supabase';
  * Resolves the current user: Supabase Auth session (cookie) → app profile
  * row in `public.users` (by `auth_id`). Returns null when logged out,
  * unknown, or soft-deleted.
+ *
+ * Wrapped in React `cache()` so repeated calls within a single server request
+ * (layout + page + `requireRole`) share one Supabase Auth validation + DB read
+ * instead of doing a network round-trip each time.
  */
-export async function getUser() {
+export const getUser = cache(async () => {
   let authUserId: string | null = null;
   try {
     const supabase = await createSupabaseServer();
@@ -37,7 +42,7 @@ export async function getUser() {
   }
 
   return user[0];
-}
+});
 
 export async function getTeamByStripeCustomerId(customerId: string) {
   const result = await db

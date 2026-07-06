@@ -58,14 +58,25 @@ export function canTransition(from: BookingStatus, to: BookingStatus): boolean {
   return BOOKING_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
+// Throttle the lazy sweep so it doesn't fire a write on every single read.
+// Module-level, so warm serverless instances reuse it; multiple instances just
+// each sweep once per window (harmless — the UPDATE is idempotent).
+let lastExpiryRun = 0;
+const EXPIRY_THROTTLE_MS = 60_000;
+
 /**
  * Auto-declines pending (`requested`) bookings the coach never answered in
  * time — either the requested session time has passed, or the response window
- * elapsed. Runs lazily on every booking read (no cron infrastructure needed):
- * the guarded `status = 'requested'` UPDATE is idempotent and returns only the
- * rows it actually flipped, so athletes are notified exactly once.
+ * elapsed. Runs lazily on booking reads (no cron infrastructure needed), but
+ * at most once per minute: the guarded `status = 'requested'` UPDATE is
+ * idempotent and returns only the rows it flipped, so athletes are notified
+ * exactly once.
  */
 export async function expireStaleRequests(): Promise<void> {
+  const now = Date.now();
+  if (now - lastExpiryRun < EXPIRY_THROTTLE_MS) return;
+  lastExpiryRun = now;
+
   const expired = await db
     .update(bookings)
     .set({ status: 'expired', decidedAt: new Date(), updatedAt: new Date() })

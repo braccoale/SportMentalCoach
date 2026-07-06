@@ -1,4 +1,5 @@
 import 'server-only';
+import { cache } from 'react';
 import { eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db/drizzle';
@@ -12,14 +13,17 @@ import {
 
 export { ROLE_PRIORITY, ROLE_DASHBOARDS, dashboardPathForRoles };
 
-/** Returns the role keys held by a user (from `user_roles`). */
-export async function getUserRoles(userId: number): Promise<string[]> {
+/**
+ * Returns the role keys held by a user (from `user_roles`). Cached per request
+ * so `requireRole` + `hasRole` in the same render share one query.
+ */
+export const getUserRoles = cache(async (userId: number): Promise<string[]> => {
   const rows = await db
     .select({ roleKey: userRoles.roleKey })
     .from(userRoles)
     .where(eq(userRoles.userId, userId));
   return rows.map((r) => r.roleKey);
-}
+});
 
 /** True when the user holds the given role key. */
 export async function hasRole(userId: number, roleKey: string): Promise<boolean> {

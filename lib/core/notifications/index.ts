@@ -1,4 +1,5 @@
 import 'server-only';
+import { after } from 'next/server';
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { db, type DbOrTx } from '@/lib/db/drizzle';
 import {
@@ -384,18 +385,28 @@ export async function notify(
     console.error('notify failed:', type, error);
   }
 
-  // Optional email mirror — best-effort; never breaks the action. Respects the
-  // user's per-type email preference (default enabled).
+  // Optional email mirror — best-effort; never breaks the action. Sent AFTER
+  // the response (via `after`) so the Resend network round-trip never adds
+  // latency to the user's action. Respects the per-type email preference.
   if (isEmailEnabled()) {
-    try {
-      const to = await resolveEmailRecipient(recipientUserId, type);
-      if (to) {
-        await sendNotificationEmail({ to, title, body, link: data.link });
-      } else {
-        console.log(`[email] skipped (preference/no-email): "${title}"`);
+    const sendEmail = async () => {
+      try {
+        const to = await resolveEmailRecipient(recipientUserId, type);
+        if (to) {
+          await sendNotificationEmail({ to, title, body, link: data.link });
+        } else {
+          console.log(`[email] skipped (preference/no-email): "${title}"`);
+        }
+      } catch (error) {
+        console.error('[email] notify-email failed:', type, error);
       }
-    } catch (error) {
-      console.error('[email] notify-email failed:', type, error);
+    };
+    try {
+      // Runs after the response is flushed (kept alive by the platform).
+      after(sendEmail);
+    } catch {
+      // Outside a request scope (e.g. scripts): fall back to fire-and-forget.
+      void sendEmail();
     }
   } else {
     console.log(`[email] skipped (disabled): "${title}"`);
