@@ -203,7 +203,7 @@ export default async function CoachDetailPage({
           <Button
             asChild
             size="lg"
-            className="mt-4 w-full rounded-full bg-red-600 text-white hover:bg-red-700 lg:hidden"
+            className="mt-4 w-full rounded-full lg:hidden"
           >
             <a href="#prenota">{t('booking.cta', config)}</a>
           </Button>
@@ -257,7 +257,7 @@ export default async function CoachDetailPage({
                       Ti serve solo un account gratuito — poi torni qui e
                       completi la richiesta.
                     </p>
-                    <Button asChild size="lg" className="rounded-full bg-red-600 text-white hover:bg-red-700">
+                    <Button asChild size="lg" className="rounded-full">
                       <Link href={`/sign-in?redirect=/coaches/${slug}`}>
                         Inizia — è gratis
                       </Link>

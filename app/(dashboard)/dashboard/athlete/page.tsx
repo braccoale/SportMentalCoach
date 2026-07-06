@@ -16,6 +16,7 @@ import {
   type AthleteBooking,
 } from '@/lib/core/bookings';
 import { getAvatarUrl } from '@/lib/core/profiles';
+import { isSessionJoinable } from '@/lib/core/sessions';
 import { getUnreadCountForType } from '@/lib/core/notifications';
 import { SummaryCard } from '@/components/summary-card';
 import { AccountInfoCard } from '@/components/account-info-card';
@@ -42,7 +43,9 @@ function BookingRow({
 }) {
   const canCancel = b.status === 'requested' || b.status === 'accepted';
   const canReview = b.status === 'completed' && !reviewedIds.has(b.id);
-  const canOpenLiveTools = b.status === 'accepted';
+  // A past session (scheduled time elapsed) is over: no live chat/video.
+  const isPastSession = b.status === 'accepted' && !isSessionJoinable(b.scheduledFor);
+  const canOpenLiveTools = b.status === 'accepted' && !isPastSession;
   const canOpenCoach = !!b.coachSlug;
 
   return (
@@ -116,6 +119,12 @@ function BookingRow({
                 </Link>
               </Button>
             </>
+          ) : null}
+
+          {isPastSession ? (
+            <p className="text-xs text-gray-400 sm:text-right">
+              Sessione trascorsa
+            </p>
           ) : null}
 
           {!canOpenLiveTools && canOpenCoach ? (

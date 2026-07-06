@@ -94,7 +94,6 @@ export function SecuritySettings() {
             )}
             <Button
               type="submit"
-              className="bg-red-600 hover:bg-red-700 text-white"
               disabled={isPasswordPending}
             >
               {isPasswordPending ? (
@@ -142,7 +141,6 @@ export function SecuritySettings() {
             <Button
               type="submit"
               variant="destructive"
-              className="bg-red-600 hover:bg-red-700"
               disabled={isDeletePending}
             >
               {isDeletePending ? (

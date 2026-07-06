@@ -643,8 +643,8 @@ function EventDrawer({
         {/* Actions */}
         <div className="mt-6 flex flex-col gap-2 border-t border-kp-line pt-5">
           {isAccepted ? (
-            <>
-              <div className={cn(canJoin && 'grid grid-cols-2 gap-2')}>
+            canJoin ? (
+              <div className="grid grid-cols-2 gap-2">
                 <Link
                   href={`/dashboard/chat/${event.id}`}
                   className="flex items-center justify-center gap-2 rounded-full bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
@@ -652,23 +652,20 @@ function EventDrawer({
                   <MessageSquare className="h-4 w-4" />
                   Apri chat
                 </Link>
-                {canJoin && (
-                  <Link
-                    href={`/dashboard/video/${event.id}`}
-                    className="flex items-center justify-center gap-2 rounded-full bg-green-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-green-700"
-                  >
-                    <Video className="h-4 w-4" />
-                    Videochiamata
-                  </Link>
-                )}
+                <Link
+                  href={`/dashboard/video/${event.id}`}
+                  className="flex items-center justify-center gap-2 rounded-full bg-green-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-green-700"
+                >
+                  <Video className="h-4 w-4" />
+                  Videochiamata
+                </Link>
               </div>
-              {isPast && (
-                <p className="text-xs text-kp-low">
-                  La videochiamata non è più disponibile: la sessione è già
-                  trascorsa.
-                </p>
-              )}
-            </>
+            ) : (
+              <p className="text-xs text-kp-low">
+                La sessione è già trascorsa: chat e videochiamata non sono più
+                disponibili.
+              </p>
+            )
           ) : (
             <p className="text-xs text-kp-low">
               Chat e videochiamata sono disponibili per le sessioni accettate.

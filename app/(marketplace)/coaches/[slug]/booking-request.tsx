@@ -116,7 +116,7 @@ export function BookingRequest({
       <Button
         type="submit"
         size="lg"
-        className="w-full rounded-full bg-red-600 text-base text-white hover:bg-red-700"
+        className="w-full rounded-full text-base"
         disabled={pending}
       >
         {pending ? (

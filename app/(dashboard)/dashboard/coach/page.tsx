@@ -15,6 +15,7 @@ import {
   type CoachBooking,
 } from '@/lib/core/bookings';
 import { getProviderProfileByUser } from '@/lib/core/profiles';
+import { isSessionJoinable } from '@/lib/core/sessions';
 import { getUnreadCountForType } from '@/lib/core/notifications';
 import { getCoachReviews } from '@/lib/core/reviews';
 import {
@@ -201,14 +202,22 @@ export default async function CoachDashboardPage() {
             data={buildCoachRequestCardData(booking, config)}
             actions={
               <>
-                <Button asChild variant="outline" className="rounded-full">
-                  <Link href={`/dashboard/chat/${booking.id}`}>Apri chat</Link>
-                </Button>
-                <Button asChild variant="outline" className="rounded-full">
-                  <Link href={`/dashboard/video/${booking.id}`}>
-                    Apri videochiamata
-                  </Link>
-                </Button>
+                {isSessionJoinable(booking.scheduledFor) ? (
+                  <>
+                    <Button asChild variant="outline" className="rounded-full">
+                      <Link href={`/dashboard/chat/${booking.id}`}>Apri chat</Link>
+                    </Button>
+                    <Button asChild variant="outline" className="rounded-full">
+                      <Link href={`/dashboard/video/${booking.id}`}>
+                        Apri videochiamata
+                      </Link>
+                    </Button>
+                  </>
+                ) : (
+                  <span className="self-center text-xs text-gray-400">
+                    Sessione trascorsa
+                  </span>
+                )}
                 <ActionForm action={completeBookingAction}>
                   <input type="hidden" name="bookingId" value={booking.id} />
                   <Button type="submit" className="rounded-full">

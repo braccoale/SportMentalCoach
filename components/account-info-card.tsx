@@ -106,11 +106,7 @@ export function AccountInfoCard() {
           {state.success && (
             <p className="text-sm text-green-600">{state.success}</p>
           )}
-          <Button
-            type="submit"
-            className="bg-red-600 text-white hover:bg-red-700"
-            disabled={isPending}
-          >
+          <Button type="submit" disabled={isPending}>
             {isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

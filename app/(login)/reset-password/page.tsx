@@ -73,7 +73,7 @@ function ResetForm() {
           <Button
             type="submit"
             disabled={pending}
-            className="w-full rounded-full bg-red-600 text-white hover:bg-red-700"
+            className="w-full rounded-full"
           >
             {pending ? (
               <>
