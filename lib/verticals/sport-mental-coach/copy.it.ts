@@ -56,6 +56,7 @@ export const copyIt: Record<string, string> = {
   'booking.status.requested': 'Richiesta inviata',
   'booking.status.accepted': 'Accettata',
   'booking.status.declined': 'Rifiutata',
+  'booking.status.expired': 'Scaduta',
   'booking.status.cancelled': 'Annullata',
   'booking.status.completed': 'Completata',
 };

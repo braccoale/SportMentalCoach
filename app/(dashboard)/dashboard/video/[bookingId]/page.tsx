@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { getUser } from '@/lib/db/queries';
 import { createRoomToken } from '@/lib/core/video';
 import { VideoRoom } from './video-room';
+import { StartCallSignal } from './start-call-signal';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,7 +45,30 @@ export default async function VideoPage({
 
       <div className="mt-6">
         {result.ok ? (
-          <VideoRoom serverUrl={result.url} token={result.token} />
+          <>
+            {/* Either participant opening the room nudges the other's app with
+                an incoming-call popup, so the second to arrive can join
+                (best-effort; only if realtime configured). */}
+            <StartCallSignal
+              bookingId={id}
+              counterpartUserId={result.counterpartUserId}
+              fromName={result.viewerName}
+              serviceTitle={result.serviceTitle}
+              scheduledFor={result.scheduledFor}
+            />
+            <VideoRoom serverUrl={result.url} token={result.token} />
+          </>
+        ) : result.reason === 'past' ? (
+          <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6">
+            <p className="text-sm font-semibold text-gray-900">
+              Sessione terminata
+            </p>
+            <p className="mt-1 text-sm text-gray-800">
+              Non è possibile avviare una videochiamata per una sessione già
+              trascorsa. Se hai bisogno di un nuovo incontro, prenota un’altra
+              sessione.
+            </p>
+          </div>
         ) : (
           <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6">
             <p className="text-sm font-semibold text-gray-900">

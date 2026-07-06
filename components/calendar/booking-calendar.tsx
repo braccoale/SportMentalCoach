@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
 import { cn } from '@/lib/utils';
+import { isSessionJoinable } from '@/lib/core/sessions';
 import type { ActionState } from '@/lib/auth/middleware';
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -119,6 +120,7 @@ const STATUS_LABELS: Record<string, string> = {
   completed: 'Completata',
   cancelled: 'Annullata',
   declined: 'Rifiutata',
+  expired: 'Scaduta',
 };
 
 /** Event pill classes per status: requested=gray, accepted=red, completed=green, cancelled=muted. */
@@ -130,6 +132,8 @@ function pillCls(status: string): string {
       return 'bg-emerald-600 text-white';
     case 'requested':
       return 'bg-white/10 text-kp-mid ring-1 ring-white/10';
+    case 'expired':
+      return 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/40 line-through';
     default: // cancelled / declined
       return 'bg-white/5 text-kp-low line-through';
   }
@@ -143,6 +147,8 @@ function badgeCls(status: string): string {
       return 'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/40';
     case 'requested':
       return 'bg-white/10 text-kp-mid ring-1 ring-white/15';
+    case 'expired':
+      return 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/40';
     default:
       return 'bg-white/5 text-kp-low ring-1 ring-white/10';
   }
@@ -294,7 +300,9 @@ function MonthView({
                                 ? 'bg-emerald-500'
                                 : e.status === 'requested'
                                   ? 'bg-kp-mid'
-                                  : 'bg-kp-low'
+                                  : e.status === 'expired'
+                                    ? 'bg-amber-400'
+                                    : 'bg-kp-low'
                           )}
                         />
                       ))}
@@ -449,7 +457,9 @@ function AgendaView({
                           ? 'bg-emerald-500'
                           : e.status === 'requested'
                             ? 'bg-kp-mid'
-                            : 'bg-kp-low/50'
+                            : e.status === 'expired'
+                              ? 'bg-amber-400'
+                              : 'bg-kp-low/50'
                     )}
                   />
                   <span className="w-12 shrink-0 text-sm font-medium text-kp-hi">
@@ -459,7 +469,7 @@ function AgendaView({
                     <span
                       className={cn(
                         'block truncate text-sm font-medium',
-                        ['cancelled', 'declined'].includes(e.status)
+                        ['cancelled', 'declined', 'expired'].includes(e.status)
                           ? 'text-kp-low line-through'
                           : 'text-kp-hi'
                       )}
@@ -544,8 +554,10 @@ function EventDrawer({
   onClose: () => void;
 }) {
   const counterpartLabel = role === 'coach' ? 'Atleta' : 'Coach';
-  const canJoin = event.status === 'accepted';
-  const canManage = role === 'coach' && event.status === 'accepted';
+  const isAccepted = event.status === 'accepted';
+  const isPast = !isSessionJoinable(event.when);
+  const canJoin = isAccepted && !isPast;
+  const canManage = role === 'coach' && isAccepted;
 
   // After a successful action, keep the confirmation visible briefly, then
   // close the drawer (the page revalidates underneath).
@@ -630,23 +642,33 @@ function EventDrawer({
 
         {/* Actions */}
         <div className="mt-6 flex flex-col gap-2 border-t border-kp-line pt-5">
-          {canJoin ? (
-            <div className="grid grid-cols-2 gap-2">
-              <Link
-                href={`/dashboard/chat/${event.id}`}
-                className="flex items-center justify-center gap-2 rounded-full border border-kp-line px-4 py-2.5 text-sm font-medium text-kp-hi transition-colors hover:border-white/25"
-              >
-                <MessageSquare className="h-4 w-4" />
-                Apri chat
-              </Link>
-              <Link
-                href={`/dashboard/video/${event.id}`}
-                className="flex items-center justify-center gap-2 rounded-full border border-kp-line px-4 py-2.5 text-sm font-medium text-kp-hi transition-colors hover:border-white/25"
-              >
-                <Video className="h-4 w-4" />
-                Videochiamata
-              </Link>
-            </div>
+          {isAccepted ? (
+            <>
+              <div className={cn(canJoin && 'grid grid-cols-2 gap-2')}>
+                <Link
+                  href={`/dashboard/chat/${event.id}`}
+                  className="flex items-center justify-center gap-2 rounded-full border border-kp-line px-4 py-2.5 text-sm font-medium text-kp-hi transition-colors hover:border-white/25"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Apri chat
+                </Link>
+                {canJoin && (
+                  <Link
+                    href={`/dashboard/video/${event.id}`}
+                    className="flex items-center justify-center gap-2 rounded-full border border-kp-line px-4 py-2.5 text-sm font-medium text-kp-hi transition-colors hover:border-white/25"
+                  >
+                    <Video className="h-4 w-4" />
+                    Videochiamata
+                  </Link>
+                )}
+              </div>
+              {isPast && (
+                <p className="text-xs text-kp-low">
+                  La videochiamata non è più disponibile: la sessione è già
+                  trascorsa.
+                </p>
+              )}
+            </>
           ) : (
             <p className="text-xs text-kp-low">
               Chat e videochiamata sono disponibili per le sessioni accettate.
@@ -801,6 +823,9 @@ export function BookingCalendar({
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Completata
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-amber-400" /> Scaduta
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-kp-low/50" /> Annullata

@@ -1,10 +1,12 @@
 import 'server-only';
 import { getBookingChatContext } from '@/lib/core/messages';
 import { isVideoConfigured } from '@/lib/core/flags';
+import { isSessionJoinable } from '@/lib/core/sessions';
 import { mintAccessToken } from './token';
 
 export type RoomTokenResult =
   | { ok: false; reason: 'unauthorized' }
+  | { ok: false; reason: 'past'; backHref: string; otherName: string }
   | { ok: false; reason: 'not_configured'; backHref: string; otherName: string }
   | {
       ok: true;
@@ -13,13 +15,21 @@ export type RoomTokenResult =
       room: string;
       backHref: string;
       otherName: string;
+      /** The other participant's user id (broadcast target for the popup). */
+      counterpartUserId: number;
+      /** The current viewer's display name (shown in the peer's popup as caller). */
+      viewerName: string;
+      /** Display info carried in the incoming-call popup. */
+      serviceTitle: string | null;
+      scheduledFor: string | null;
     };
 
 /**
  * Mints a LiveKit room token for a booking, but only for the booking's
- * participants and only when the booking is `accepted`. Returns
- * `unauthorized` otherwise (caller should 404), or `not_configured` when the
- * LiveKit env vars are absent (caller should show a setup message).
+ * participants, only when the booking is `accepted`, and only while the session
+ * is not in the past. Returns `unauthorized` otherwise (caller should 404),
+ * `past` when the scheduled session time has elapsed, or `not_configured` when
+ * the LiveKit env vars are absent (caller should show a setup message).
  */
 export async function createRoomToken(
   bookingId: number,
@@ -35,6 +45,11 @@ export async function createRoomToken(
   const otherName = isClient
     ? ctx.coachName ?? 'Coach'
     : ctx.clientName ?? ctx.clientEmail;
+
+  // Cannot start/join a call for a session in the past.
+  if (!isSessionJoinable(ctx.scheduledFor)) {
+    return { ok: false, reason: 'past', backHref, otherName };
+  }
 
   if (!isVideoConfigured()) {
     return { ok: false, reason: 'not_configured', backHref, otherName };
@@ -56,5 +71,11 @@ export async function createRoomToken(
     room,
     backHref,
     otherName,
+    counterpartUserId: isClient ? ctx.coachUserId : ctx.clientId,
+    viewerName: isClient
+      ? ctx.clientName ?? ctx.clientEmail
+      : ctx.coachName ?? 'Coach',
+    serviceTitle: ctx.serviceTitle,
+    scheduledFor: ctx.scheduledFor ? ctx.scheduledFor.toISOString() : null,
   };
 }

@@ -41,6 +41,7 @@ export function scheduledForLabel(status: string): string {
       return 'Sessione svolta:';
     case 'cancelled':
     case 'declined':
+    case 'expired':
       return 'Era prevista:';
     default:
       return 'Data proposta:';

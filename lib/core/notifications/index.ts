@@ -17,6 +17,7 @@ import { sendNotificationEmail } from '@/lib/core/email';
 export const NOTIFICATION_TYPES = [
   'booking_requested',
   'booking_accepted',
+  'booking_declined',
   'booking_cancelled',
   'booking_completed',
   'new_message',
@@ -33,6 +34,7 @@ export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   booking_requested: 'Nuova richiesta di sessione',
   booking_accepted: 'Richiesta accettata',
+  booking_declined: 'Richiesta rifiutata',
   booking_cancelled: 'Prenotazione annullata',
   booking_completed: 'Sessione completata',
   new_message: 'Nuovo messaggio',
@@ -284,6 +286,8 @@ export type NotifyContext = {
   bookingId?: number;
   /** For ambiguous-recipient events (e.g. cancel), which dashboard to link. */
   audience?: 'athlete' | 'coach';
+  /** For `booking_declined`: distinguishes an auto-expiry from a manual decline. */
+  expired?: boolean;
 };
 
 /**
@@ -311,6 +315,14 @@ function buildContent(
       return {
         title: 'Richiesta accettata',
         body: 'La tua richiesta di sessione è stata accettata.',
+        data: { link: '/dashboard/athlete', bookingId: ctx.bookingId },
+      };
+    case 'booking_declined':
+      return {
+        title: 'Richiesta rifiutata',
+        body: ctx.expired
+          ? 'La tua richiesta di sessione è scaduta senza risposta ed è stata rifiutata automaticamente. Puoi inviarne una nuova.'
+          : 'La tua richiesta di sessione è stata rifiutata.',
         data: { link: '/dashboard/athlete', bookingId: ctx.bookingId },
       };
     case 'booking_cancelled':

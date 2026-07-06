@@ -691,6 +691,7 @@ export const BOOKING_STATUSES = [
   'requested',
   'accepted',
   'declined',
+  'expired',
   'cancelled',
   'completed',
 ] as const;

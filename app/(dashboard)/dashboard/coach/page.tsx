@@ -53,7 +53,7 @@ export default async function CoachDashboardPage() {
   const pending = allBookings.filter((b) => b.status === 'requested');
   const accepted = allBookings.filter((b) => b.status === 'accepted');
   const archive = allBookings.filter((b) =>
-    ['declined', 'cancelled', 'completed'].includes(b.status)
+    ['declined', 'expired', 'cancelled', 'completed'].includes(b.status)
   );
 
   const now = new Date();
@@ -447,6 +447,8 @@ function bookingEyebrow(status: string): string {
       return 'Percorso completato';
     case 'declined':
       return 'Richiesta chiusa';
+    case 'expired':
+      return 'Richiesta scaduta senza risposta';
     case 'cancelled':
       return 'Percorso interrotto';
     default:

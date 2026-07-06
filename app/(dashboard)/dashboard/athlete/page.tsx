@@ -196,7 +196,7 @@ export default async function AthleteDashboardPage() {
   const accepted = requests.filter((b) => b.status === 'accepted');
   const completed = requests.filter((b) => b.status === 'completed');
   const archive = requests.filter((b) =>
-    ['declined', 'cancelled', 'completed'].includes(b.status)
+    ['declined', 'expired', 'cancelled', 'completed'].includes(b.status)
   );
 
   const now = new Date();

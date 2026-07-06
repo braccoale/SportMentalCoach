@@ -12,6 +12,7 @@ import {
 } from '@/lib/db/schema';
 import { getVerticalConfig, t } from '@/lib/core/config';
 import { notify } from '@/lib/core/notifications';
+import { REQUEST_RESPONSE_WINDOW_HOURS } from '@/lib/core/sessions';
 import type { Result } from '@/lib/core/result';
 
 /** Localized label for a booking status (from the vertical copy). */
@@ -27,6 +28,8 @@ export function bookingStatusTone(status: string): string {
     case 'declined':
     case 'cancelled':
       return 'bg-red-50 text-red-700';
+    case 'expired':
+      return 'bg-amber-50 text-amber-700';
     case 'completed':
       return 'bg-blue-50 text-blue-700';
     default:
@@ -39,15 +42,46 @@ export function bookingStatusTone(status: string): string {
  * Phase 1 exercises only `requested → accepted | declined`.
  */
 export const BOOKING_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
-  requested: ['accepted', 'declined', 'cancelled'],
+  requested: ['accepted', 'declined', 'expired', 'cancelled'],
   accepted: ['completed', 'cancelled'],
   declined: [],
+  expired: [],
   cancelled: [],
   completed: [],
 };
 
 export function canTransition(from: BookingStatus, to: BookingStatus): boolean {
   return BOOKING_TRANSITIONS[from]?.includes(to) ?? false;
+}
+
+/**
+ * Auto-declines pending (`requested`) bookings the coach never answered in
+ * time — either the requested session time has passed, or the response window
+ * elapsed. Runs lazily on every booking read (no cron infrastructure needed):
+ * the guarded `status = 'requested'` UPDATE is idempotent and returns only the
+ * rows it actually flipped, so athletes are notified exactly once.
+ */
+export async function expireStaleRequests(): Promise<void> {
+  const expired = await db
+    .update(bookings)
+    .set({ status: 'expired', decidedAt: new Date(), updatedAt: new Date() })
+    .where(
+      and(
+        eq(bookings.status, 'requested'),
+        sql`(
+          (${bookings.scheduledFor} is not null and ${bookings.scheduledFor} < now())
+          or ${bookings.requestedAt} < now() - (${REQUEST_RESPONSE_WINDOW_HOURS} * interval '1 hour')
+        )`
+      )
+    )
+    .returning({ id: bookings.id, clientId: bookings.clientId });
+
+  for (const b of expired) {
+    await notify('booking_declined', b.clientId, {
+      bookingId: b.id,
+      expired: true,
+    });
+  }
 }
 
 /** Number of completed sessions for a coach (social-proof credibility). */
@@ -65,6 +99,7 @@ export async function getCompletedSessionCount(
 
 /** Number of pending (`requested`) bookings for a coach, by user id. */
 export async function getPendingRequestCount(userId: number): Promise<number> {
+  await expireStaleRequests();
   const [row] = await db
     .select({ value: count() })
     .from(bookings)
@@ -166,6 +201,7 @@ export type AthleteBooking = {
 export async function getAthleteBookings(
   userId: number
 ): Promise<AthleteBooking[]> {
+  await expireStaleRequests();
   return db
     .select({
       id: bookings.id,
@@ -207,6 +243,7 @@ export type CoachBooking = {
 export async function getCoachBookings(
   userId: number
 ): Promise<CoachBooking[]> {
+  await expireStaleRequests();
   const [provider] = await db
     .select({ id: providerProfiles.id })
     .from(providerProfiles)
@@ -285,6 +322,10 @@ export async function decideBooking(params: {
 
   if (params.decision === 'accepted') {
     await notify('booking_accepted', booking.clientId, {
+      bookingId: booking.id,
+    });
+  } else {
+    await notify('booking_declined', booking.clientId, {
       bookingId: booking.id,
     });
   }

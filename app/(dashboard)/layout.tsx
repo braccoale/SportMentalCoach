@@ -8,6 +8,7 @@ import { User } from '@/lib/db/schema';
 import { BILLING_ENABLED } from '@/lib/core/flags';
 import { Footer } from '@/components/footer';
 import { NotificationBell } from '@/components/notification-bell';
+import { IncomingCallListener } from '@/components/incoming-call-listener';
 import { fetcher } from '@/lib/fetcher';
 import useSWR from 'swr';
 
@@ -80,6 +81,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <Header />
       {children}
       <Footer />
+      <IncomingCallListener />
     </section>
   );
 }
