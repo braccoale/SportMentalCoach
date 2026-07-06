@@ -21,6 +21,7 @@ import { getCoachReviews } from '@/lib/core/reviews';
 import {
   formatDate,
   formatDateTime,
+  formatSessionDuration,
   scheduledForLabel,
 } from '@/lib/core/format';
 import { getVerticalConfig, findTaxonomyItem } from '@/lib/core/config';
@@ -384,6 +385,16 @@ function CoachRequestDetails({
       ? {
           label: scheduledForLabel(booking.status).replace(':', ''),
           value: formatDateTime(booking.scheduledFor),
+        }
+      : null,
+    booking.status === 'completed' &&
+    formatSessionDuration(booking.sessionStartedAt, booking.sessionEndedAt)
+      ? {
+          label: 'Durata sessione',
+          value: formatSessionDuration(
+            booking.sessionStartedAt,
+            booking.sessionEndedAt
+          )!,
         }
       : null,
     sportLabel ? { label: 'Sport indicato', value: sportLabel } : null,

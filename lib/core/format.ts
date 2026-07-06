@@ -48,6 +48,25 @@ export function scheduledForLabel(status: string): string {
   }
 }
 
+/**
+ * Formats the real duration between a session's start and end as e.g. "52 min"
+ * or "1h 05m". Returns null when either bound is missing or the span is
+ * non-positive.
+ */
+export function formatSessionDuration(
+  start: Date | null,
+  end: Date | null
+): string | null {
+  if (!start || !end) return null;
+  const ms = end.getTime() - start.getTime();
+  if (ms <= 0) return null;
+  const totalMin = Math.max(1, Math.round(ms / 60000));
+  if (totalMin < 60) return `${totalMin} min`;
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${h}h ${String(m).padStart(2, '0')}m`;
+}
+
 /** Derives up to two uppercase initials from a name (fallback "?"). */
 export function initials(name?: string | null): string {
   if (!name) return '?';

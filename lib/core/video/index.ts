@@ -1,8 +1,36 @@
 import 'server-only';
+import { eq, sql } from 'drizzle-orm';
+import { db } from '@/lib/db/drizzle';
+import { bookings } from '@/lib/db/schema';
 import { getBookingChatContext } from '@/lib/core/messages';
 import { isVideoConfigured } from '@/lib/core/flags';
 import { isSessionJoinable } from '@/lib/core/sessions';
 import { mintAccessToken } from './token';
+
+/**
+ * Heartbeat from a connected call participant: stamps the session's real start
+ * once (first ping) and advances its end to now on every ping. The last ping
+ * before both participants disconnect approximates the true end — robust to
+ * abrupt tab closes. Only participants of an `accepted` booking are accepted.
+ */
+export async function recordSessionHeartbeat(
+  bookingId: number,
+  userId: number
+): Promise<boolean> {
+  const ctx = await getBookingChatContext(bookingId, userId);
+  if (!ctx || ctx.status !== 'accepted') return false;
+
+  const now = new Date();
+  await db
+    .update(bookings)
+    .set({
+      sessionStartedAt: sql`coalesce(${bookings.sessionStartedAt}, ${now})`,
+      sessionEndedAt: now,
+      updatedAt: now,
+    })
+    .where(eq(bookings.id, bookingId));
+  return true;
+}
 
 export type RoomTokenResult =
   | { ok: false; reason: 'unauthorized' }

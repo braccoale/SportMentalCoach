@@ -350,6 +350,9 @@ export const bookings = pgTable(
     requestedAt: timestamp('requested_at').notNull().defaultNow(),
     decidedAt: timestamp('decided_at'),
     completedAt: timestamp('completed_at'),
+    // Actual video-call span, tracked by a client heartbeat while connected.
+    sessionStartedAt: timestamp('session_started_at'),
+    sessionEndedAt: timestamp('session_ended_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
     ...audit,

@@ -56,7 +56,11 @@ export default async function VideoPage({
               serviceTitle={result.serviceTitle}
               scheduledFor={result.scheduledFor}
             />
-            <VideoRoom serverUrl={result.url} token={result.token} />
+            <VideoRoom
+              serverUrl={result.url}
+              token={result.token}
+              bookingId={id}
+            />
           </>
         ) : result.reason === 'past' ? (
           <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6">

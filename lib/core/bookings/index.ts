@@ -192,6 +192,8 @@ export type AthleteBooking = {
   scheduledFor: Date | null;
   requestedAt: Date;
   decidedAt: Date | null;
+  sessionStartedAt: Date | null;
+  sessionEndedAt: Date | null;
   coachName: string | null;
   coachAvatarUrl: string | null;
   coachSlug: string | null;
@@ -295,6 +297,8 @@ export async function getAthleteBookings(
       scheduledFor: bookings.scheduledFor,
       requestedAt: bookings.requestedAt,
       decidedAt: bookings.decidedAt,
+      sessionStartedAt: bookings.sessionStartedAt,
+      sessionEndedAt: bookings.sessionEndedAt,
       coachName: profiles.displayName,
       coachAvatarUrl: profiles.avatarUrl,
       coachSlug: providerProfiles.slug,
@@ -315,6 +319,8 @@ export type CoachBooking = {
   scheduledFor: Date | null;
   requestedAt: Date;
   decidedAt: Date | null;
+  sessionStartedAt: Date | null;
+  sessionEndedAt: Date | null;
   clientName: string | null;
   clientEmail: string;
   clientAvatarUrl: string | null;
@@ -345,6 +351,8 @@ export async function getCoachBookings(
       scheduledFor: bookings.scheduledFor,
       requestedAt: bookings.requestedAt,
       decidedAt: bookings.decidedAt,
+      sessionStartedAt: bookings.sessionStartedAt,
+      sessionEndedAt: bookings.sessionEndedAt,
       clientName: sql<string | null>`nullif(trim(concat(${users.name}, ' ', coalesce(${users.lastName}, ''))), '')`,
       clientEmail: users.email,
       clientAvatarUrl: profiles.avatarUrl,

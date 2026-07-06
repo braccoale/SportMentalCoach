@@ -22,6 +22,7 @@ import { getReviewedBookingIds } from '@/lib/core/reviews';
 import {
   formatDate,
   formatDateTime,
+  formatSessionDuration,
   scheduledForLabel,
 } from '@/lib/core/format';
 import { Button } from '@/components/ui/button';
@@ -83,6 +84,15 @@ function BookingRow({
                 {scheduledForLabel(b.status)} {formatDateTime(b.scheduledFor)}
               </p>
             ) : null}
+            {b.status === 'completed' &&
+              formatSessionDuration(b.sessionStartedAt, b.sessionEndedAt) && (
+                <p className="text-sm text-gray-500">
+                  Durata sessione:{' '}
+                  <span className="font-medium text-gray-900">
+                    {formatSessionDuration(b.sessionStartedAt, b.sessionEndedAt)}
+                  </span>
+                </p>
+              )}
           </div>
         </div>
 

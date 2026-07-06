@@ -6,8 +6,9 @@ import {
   LiveKitRoom,
   VideoConference,
   useLocalParticipant,
+  useConnectionState,
 } from '@livekit/components-react';
-import type { LocalVideoTrack } from 'livekit-client';
+import { ConnectionState, type LocalVideoTrack } from 'livekit-client';
 import {
   BackgroundProcessor,
   supportsBackgroundProcessors,
@@ -134,6 +135,33 @@ function BackgroundControls() {
 }
 
 /**
+ * Records the real session duration: while connected to the room, pings the
+ * heartbeat endpoint on connect and every 15s. Renders nothing.
+ */
+function SessionTracker({ bookingId }: { bookingId: number }) {
+  const state = useConnectionState();
+
+  useEffect(() => {
+    if (state !== ConnectionState.Connected) return;
+    let active = true;
+    const ping = () => {
+      if (!active) return;
+      fetch(`/api/video/${bookingId}/heartbeat`, { method: 'POST' }).catch(
+        () => {}
+      );
+    };
+    ping();
+    const id = setInterval(ping, 15_000);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, [state, bookingId]);
+
+  return null;
+}
+
+/**
  * LiveKit room client. Connects with a server-minted token and renders the
  * standard conference UI (camera/mic publish + remote participants), plus a
  * background blur / virtual-background toolbar for the local camera.
@@ -141,9 +169,11 @@ function BackgroundControls() {
 export function VideoRoom({
   serverUrl,
   token,
+  bookingId,
 }: {
   serverUrl: string;
   token: string;
+  bookingId: number;
 }) {
   return (
     <div
@@ -159,6 +189,7 @@ export function VideoRoom({
         audio
         style={{ height: '100%' }}
       >
+        <SessionTracker bookingId={bookingId} />
         <div className="flex h-full flex-col">
           <BackgroundControls />
           <div className="min-h-0 flex-1">
