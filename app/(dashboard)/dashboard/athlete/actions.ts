@@ -51,7 +51,10 @@ export async function createBookingRequestAction(
   if (whenRaw) {
     const d = new Date(whenRaw);
     if (Number.isNaN(d.getTime())) return { error: 'Data/ora non valida.' };
-    if (d.getTime() < Date.now()) return { error: 'Scegli una data/ora futura.' };
+    // Small grace so a "now" prefill doesn't fail while the user is submitting.
+    if (d.getTime() < Date.now() - 2 * 60 * 1000) {
+      return { error: 'Scegli una data/ora futura.' };
+    }
     scheduledFor = d;
   }
 

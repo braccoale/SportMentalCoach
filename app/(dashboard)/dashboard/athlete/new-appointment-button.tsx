@@ -14,14 +14,30 @@ import { createBookingRequestAction } from './actions';
  * complements — rather than replaces — marketplace discovery. With no such
  * coach yet, it degrades to a "Trova un coach" link.
  */
+/** Current local date-time as a `YYYY-MM-DDTHH:mm` string for datetime-local. */
+function nowLocalDateTime(): string {
+  const now = new Date();
+  const off = now.getTimezoneOffset();
+  return new Date(now.getTime() - off * 60_000).toISOString().slice(0, 16);
+}
+
 export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[] }) {
   const [open, setOpen] = useState(false);
+  // Default to the last-followed coach (coaches are ordered by recency).
   const [slug, setSlug] = useState(coaches[0]?.slug ?? '');
+  // Recomputed each time the dialog opens so the time stays "current".
+  const [defaultWhen, setDefaultWhen] = useState('');
 
   const selected = useMemo(
     () => coaches.find((c) => c.slug === slug),
     [coaches, slug]
   );
+
+  function openDialog() {
+    setSlug(coaches[0]?.slug ?? '');
+    setDefaultWhen(nowLocalDateTime());
+    setOpen(true);
+  }
 
   if (coaches.length === 0) {
     return (
@@ -41,7 +57,7 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
     <>
       <Button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={openDialog}
         className="rounded-full bg-green-600 text-white hover:bg-green-700"
       >
         <CalendarPlus className="mr-2 h-4 w-4" />
@@ -122,6 +138,7 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                 <input
                   type="datetime-local"
                   name="scheduledFor"
+                  defaultValue={defaultWhen}
                   className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
                 />
               </label>

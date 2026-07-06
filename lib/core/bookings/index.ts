@@ -220,17 +220,27 @@ export type RelationshipCoach = {
 export async function getAthleteRelationshipCoaches(
   userId: number
 ): Promise<RelationshipCoach[]> {
-  // Provider ids from prior bookings ∪ favourites.
+  // Providers from prior bookings (with recency) ∪ favourites.
   const [booked, faved] = await Promise.all([
     db
-      .selectDistinct({ providerId: bookings.providerId })
+      .select({
+        providerId: bookings.providerId,
+        lastAt: sql<Date>`max(${bookings.requestedAt})`,
+      })
       .from(bookings)
-      .where(eq(bookings.clientId, userId)),
+      .where(eq(bookings.clientId, userId))
+      .groupBy(bookings.providerId),
     db
       .select({ providerId: favorites.providerId })
       .from(favorites)
       .where(eq(favorites.userId, userId)),
   ]);
+
+  // Most-recent booking time per provider, to surface the last-followed coach first.
+  const lastByProvider = new Map<number, number>();
+  for (const b of booked) {
+    lastByProvider.set(b.providerId, new Date(b.lastAt).getTime());
+  }
 
   const providerIds = [
     ...new Set([
@@ -283,8 +293,12 @@ export async function getAthleteRelationshipCoaches(
       name: c.name ?? 'Coach',
       avatarUrl: c.avatarUrl,
       services: servicesByProvider.get(c.id) ?? [],
+      _recency: lastByProvider.get(c.id) ?? 0,
     }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    // Last-followed coach first; favourited-only coaches (no booking) after,
+    // alphabetically.
+    .sort((a, b) => b._recency - a._recency || a.name.localeCompare(b.name))
+    .map(({ _recency, ...c }) => c);
 }
 
 /** Bookings made by an athlete, with coach + service display info. */

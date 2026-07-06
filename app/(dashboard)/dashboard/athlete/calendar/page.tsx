@@ -1,13 +1,20 @@
 import { requireRole } from '@/lib/core/auth';
-import { getAthleteBookings } from '@/lib/core/bookings';
+import {
+  getAthleteBookings,
+  getAthleteRelationshipCoaches,
+} from '@/lib/core/bookings';
 import {
   BookingCalendar,
   type CalendarEvent,
 } from '@/components/calendar/booking-calendar';
+import { NewAppointmentButton } from '../new-appointment-button';
 
 export default async function AthleteCalendarPage() {
   const user = await requireRole('athlete');
-  const bookings = await getAthleteBookings(user.id);
+  const [bookings, relationshipCoaches] = await Promise.all([
+    getAthleteBookings(user.id),
+    getAthleteRelationshipCoaches(user.id),
+  ]);
 
   const events: CalendarEvent[] = bookings.map((b) => ({
     id: b.id,
@@ -21,7 +28,11 @@ export default async function AthleteCalendarPage() {
 
   // Read-only for athletes: no complete/cancel actions in the drawer.
   return (
-    <section className="p-4 sm:p-6">
+    <section className="flex flex-col gap-4 p-4 sm:p-6">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-lg font-medium text-gray-900">Il tuo calendario</h1>
+        <NewAppointmentButton coaches={relationshipCoaches} />
+      </div>
       <BookingCalendar events={events} role="athlete" />
     </section>
   );
