@@ -21,6 +21,18 @@ export async function middleware(request: NextRequest) {
       : NextResponse.next();
   }
 
+  // Anonymous visitors have no Supabase session cookie, so there is nothing to
+  // refresh: skip the network `getUser()` entirely (big win for public traffic
+  // like the landing/marketplace). Just guard /dashboard.
+  const hasAuthCookie = request.cookies
+    .getAll()
+    .some((c) => /^sb-.*-auth-token/.test(c.name));
+  if (!hasAuthCookie) {
+    return isProtectedRoute
+      ? NextResponse.redirect(new URL('/sign-in', request.url))
+      : NextResponse.next();
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(url, anonKey, {

@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import useSWR from 'swr';
-import { createClient } from '@supabase/supabase-js';
 import { PhoneCall, Video, X } from 'lucide-react';
 import { fetcher } from '@/lib/fetcher';
 import type { User } from '@/lib/db/schema';
@@ -53,35 +52,48 @@ export function IncomingCallListener() {
 
   useEffect(() => {
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !userId) return;
-    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const channel = client.channel(`calls-user-${userId}`, {
-      config: { broadcast: { self: false } },
+    let cancelled = false;
+    let cleanup: (() => void) | undefined;
+
+    // Load the Supabase client lazily (code-split) so it isn't bundled into
+    // every dashboard page — only fetched when we actually subscribe.
+    import('@supabase/supabase-js').then(({ createClient }) => {
+      if (cancelled) return;
+      const client = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!);
+      const channel = client.channel(`calls-user-${userId}`, {
+        config: { broadcast: { self: false } },
+      });
+
+      channel
+        .on('broadcast', { event: 'call-started' }, ({ payload }) => {
+          if (!payload || typeof payload.bookingId !== 'number') return;
+          // Ignore the peer's "I joined" broadcast while we're already in a
+          // room (otherwise it lingers in state and re-pops when we return to
+          // the dashboard), and ignore stale broadcasts.
+          if (inVideoRoomRef.current) return;
+          if (
+            typeof payload.startedAt === 'number' &&
+            Date.now() - payload.startedAt > 45_000
+          ) {
+            return;
+          }
+          setCall({
+            bookingId: payload.bookingId,
+            fromName: payload.fromName ?? 'Il tuo contatto',
+            serviceTitle: payload.serviceTitle ?? null,
+            scheduledFor: payload.scheduledFor ?? null,
+          });
+        })
+        .subscribe();
+
+      cleanup = () => {
+        client.removeChannel(channel);
+      };
     });
 
-    channel
-      .on('broadcast', { event: 'call-started' }, ({ payload }) => {
-        if (!payload || typeof payload.bookingId !== 'number') return;
-        // Ignore the peer's "I joined" broadcast while we're already in a room
-        // (otherwise it lingers in state and re-pops when we return to the
-        // dashboard), and ignore stale broadcasts.
-        if (inVideoRoomRef.current) return;
-        if (
-          typeof payload.startedAt === 'number' &&
-          Date.now() - payload.startedAt > 45_000
-        ) {
-          return;
-        }
-        setCall({
-          bookingId: payload.bookingId,
-          fromName: payload.fromName ?? 'Il tuo contatto',
-          serviceTitle: payload.serviceTitle ?? null,
-          scheduledFor: payload.scheduledFor ?? null,
-        });
-      })
-      .subscribe();
-
     return () => {
-      client.removeChannel(channel);
+      cancelled = true;
+      cleanup?.();
     };
   }, [userId]);
 
