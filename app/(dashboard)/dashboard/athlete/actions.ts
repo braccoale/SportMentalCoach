@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/core/auth';
 import { cancelBooking, createBookingRequest } from '@/lib/core/bookings';
+import { updateClientProfile } from '@/lib/core/profiles';
 import type { ActionState } from '@/lib/auth/middleware';
 
 export async function cancelBookingAction(
@@ -67,4 +68,29 @@ export async function createBookingRequestAction(
   revalidatePath('/dashboard/athlete/calendar');
   revalidatePath('/dashboard/coach');
   return { success: 'Richiesta inviata al coach.' };
+}
+
+/** Updates the athlete's sport profile (category/level/goals). */
+export async function updateAthleteProfileAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const user = await requireRole('athlete');
+
+  const category = String(formData.get('category') ?? '').trim() || null;
+  const level = String(formData.get('level') ?? '').trim() || null;
+  const goals = String(formData.get('goals') ?? '').trim() || null;
+
+  if (category && category.length > 60) {
+    return { error: 'Sport/categoria troppo lungo (max 60 caratteri).' };
+  }
+  if (level && level.length > 40) {
+    return { error: 'Livello troppo lungo (max 40 caratteri).' };
+  }
+
+  await updateClientProfile(user.id, { category, level, goals });
+
+  revalidatePath('/dashboard/athlete/profile');
+  revalidatePath('/dashboard/coach');
+  return { success: 'Profilo aggiornato.' };
 }

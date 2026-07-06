@@ -15,11 +15,9 @@ import {
   bookingStatusTone,
   type AthleteBooking,
 } from '@/lib/core/bookings';
-import { getAvatarUrl } from '@/lib/core/profiles';
 import { isSessionJoinable } from '@/lib/core/sessions';
 import { getUnreadCountForType } from '@/lib/core/notifications';
 import { SummaryCard } from '@/components/summary-card';
-import { AccountInfoCard } from '@/components/account-info-card';
 import { getReviewedBookingIds } from '@/lib/core/reviews';
 import {
   formatDate,
@@ -29,7 +27,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
 import { CoachAvatar } from '@/components/coach-visuals';
-import { PhotoForm } from '../photo-form';
 import { ReviewForm } from './review-form';
 import { NewAppointmentButton } from './new-appointment-button';
 import { cancelBookingAction } from './actions';
@@ -196,10 +193,9 @@ function Section({
 
 export default async function AthleteDashboardPage() {
   const user = await requireRole('athlete');
-  const [requests, avatarUrl, reviewedIds, unreadMessages, relationshipCoaches] =
+  const [requests, reviewedIds, unreadMessages, relationshipCoaches] =
     await Promise.all([
       getAthleteBookings(user.id),
-      getAvatarUrl(user.id),
       getReviewedBookingIds(user.id),
       getUnreadCountForType(user.id, 'new_message'),
       getAthleteRelationshipCoaches(user.id),
@@ -228,6 +224,19 @@ export default async function AthleteDashboardPage() {
 
   return (
     <section className="flex flex-col gap-6 p-6">
+      <div className="max-w-3xl">
+        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-red-600">
+          Dashboard atleta
+        </p>
+        <h1 className="mt-3 text-3xl font-bold tracking-tight text-gray-950">
+          Il tuo percorso mentale, una sessione alla volta.
+        </h1>
+        <p className="mt-3 text-base leading-7 text-gray-600">
+          Tieni sotto controllo richieste, sessioni confermate e messaggi con i
+          tuoi coach. I tuoi dati personali sono nella scheda “Atleta”.
+        </p>
+      </div>
+
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <SummaryCard
           icon={Hourglass}
@@ -277,14 +286,6 @@ export default async function AthleteDashboardPage() {
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-medium text-gray-900">Le tue sessioni</h2>
         <NewAppointmentButton coaches={relationshipCoaches} />
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <PhotoForm
-          name={[user.name, user.lastName].filter(Boolean).join(' ') || null}
-          avatarUrl={avatarUrl}
-        />
-        <AccountInfoCard />
       </div>
 
       {requests.length === 0 ? (

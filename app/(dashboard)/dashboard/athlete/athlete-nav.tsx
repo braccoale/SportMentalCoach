@@ -2,7 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, CalendarDays, MessageSquare, Shield } from 'lucide-react';
+import {
+  LayoutDashboard,
+  CalendarDays,
+  MessageSquare,
+  Shield,
+  UserRound,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const TABS = [
@@ -16,6 +22,11 @@ const TABS = [
     href: '/dashboard/athlete/messages',
     label: 'Messaggi',
     icon: MessageSquare,
+  },
+  {
+    href: '/dashboard/athlete/profile',
+    label: 'Atleta',
+    icon: UserRound,
   },
   {
     href: '/dashboard/athlete/security',

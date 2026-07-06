@@ -87,6 +87,50 @@ export async function ensureClientProfile(userId: number, exec: DbOrTx = db) {
     .onConflictDoNothing({ target: clientProfiles.userId });
 }
 
+export type AthleteProfileFields = {
+  category: string | null;
+  level: string | null;
+  goals: string | null;
+};
+
+/** Athlete's sport profile fields (category/level/goals), or nulls if unset. */
+export async function getClientProfile(
+  userId: number
+): Promise<AthleteProfileFields> {
+  const [row] = await db
+    .select({
+      category: clientProfiles.category,
+      level: clientProfiles.level,
+      goals: clientProfiles.goals,
+    })
+    .from(clientProfiles)
+    .where(eq(clientProfiles.userId, userId))
+    .limit(1);
+  return {
+    category: row?.category ?? null,
+    level: row?.level ?? null,
+    goals: row?.goals ?? null,
+  };
+}
+
+/** Upserts the athlete's sport profile fields (creates the row if missing). */
+export async function updateClientProfile(
+  userId: number,
+  fields: AthleteProfileFields
+): Promise<void> {
+  await ensureClientProfile(userId);
+  await db
+    .update(clientProfiles)
+    .set({
+      category: fields.category,
+      level: fields.level,
+      goals: fields.goals,
+      updatedAt: new Date(),
+      updatedBy: userId,
+    })
+    .where(eq(clientProfiles.userId, userId));
+}
+
 function slugify(input: string): string {
   const base = input
     .toLowerCase()
