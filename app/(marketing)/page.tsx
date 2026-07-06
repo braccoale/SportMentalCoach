@@ -1154,10 +1154,13 @@ function SiteFooter() {
         <div className="grid gap-10 md:grid-cols-[1.5fr_repeat(4,1fr)]">
           <div>
             <div className="flex items-center gap-2.5">
-              <span className="relative flex h-7 w-7 items-center justify-center">
-                <span className="absolute inset-0 rounded-full border border-kp-red/70" />
-                <span className="h-2 w-2 rounded-full bg-kp-red" />
-              </span>
+              <img
+                src="/logo.jpg"
+                alt="Kai Pai"
+                width={127}
+                height={141}
+                className="h-8 w-8 rounded-md"
+              />
               <span className="font-display text-lg font-semibold text-kp-hi">
                 Kai Pai
               </span>

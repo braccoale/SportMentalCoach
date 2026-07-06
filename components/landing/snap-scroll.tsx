@@ -14,10 +14,10 @@ export function SnapScroll() {
     const el = document.documentElement;
     const prevSnap = el.style.scrollSnapType;
     const prevBehavior = el.style.scrollBehavior;
-    // `proximity` (not `mandatory`): full-height sections still snap into
-    // place, but the page can rest at the very bottom so the shorter footer
-    // stays reachable instead of bouncing back to the last section.
-    el.style.scrollSnapType = 'y proximity';
+    // `mandatory` gives the crisp Apple-style section snapping. The shorter
+    // footer stays reachable because it carries `.kp-snap-end`
+    // (scroll-snap-align: end), making the very bottom a valid snap target.
+    el.style.scrollSnapType = 'y mandatory';
     el.style.scrollBehavior = 'smooth';
     return () => {
       el.style.scrollSnapType = prevSnap;
