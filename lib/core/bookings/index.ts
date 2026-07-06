@@ -1,9 +1,10 @@
 import 'server-only';
-import { and, count, desc, eq, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
   bookings,
   clientProfiles,
+  favorites,
   providerProfiles,
   profiles,
   services,
@@ -196,6 +197,90 @@ export type AthleteBooking = {
   coachSlug: string | null;
   serviceTitle: string | null;
 };
+
+export type RelationshipCoach = {
+  slug: string;
+  name: string;
+  avatarUrl: string | null;
+  services: { id: number; title: string }[];
+};
+
+/**
+ * Approved coaches an athlete already has a relationship with — coaches they
+ * have booked before or favourited — each with their active services. Powers
+ * the "Nuovo appuntamento" quick-rebook flow (a scoped alternative to browsing
+ * the whole marketplace). Returns an empty array when there is no relationship
+ * yet (the UI then routes the athlete to discovery).
+ */
+export async function getAthleteRelationshipCoaches(
+  userId: number
+): Promise<RelationshipCoach[]> {
+  // Provider ids from prior bookings ∪ favourites.
+  const [booked, faved] = await Promise.all([
+    db
+      .selectDistinct({ providerId: bookings.providerId })
+      .from(bookings)
+      .where(eq(bookings.clientId, userId)),
+    db
+      .select({ providerId: favorites.providerId })
+      .from(favorites)
+      .where(eq(favorites.userId, userId)),
+  ]);
+
+  const providerIds = [
+    ...new Set([
+      ...booked.map((r) => r.providerId),
+      ...faved.map((r) => r.providerId),
+    ]),
+  ];
+  if (providerIds.length === 0) return [];
+
+  const [coaches, svc] = await Promise.all([
+    db
+      .select({
+        id: providerProfiles.id,
+        slug: providerProfiles.slug,
+        name: profiles.displayName,
+        avatarUrl: profiles.avatarUrl,
+      })
+      .from(providerProfiles)
+      .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
+      .where(
+        and(
+          inArray(providerProfiles.id, providerIds),
+          eq(providerProfiles.status, 'approved')
+        )
+      ),
+    db
+      .select({
+        providerId: services.providerId,
+        id: services.id,
+        title: services.title,
+      })
+      .from(services)
+      .where(
+        and(inArray(services.providerId, providerIds), eq(services.isActive, true))
+      ),
+  ]);
+
+  const servicesByProvider = new Map<number, { id: number; title: string }[]>();
+  for (const s of svc) {
+    if (!s.title) continue;
+    const list = servicesByProvider.get(s.providerId) ?? [];
+    list.push({ id: s.id, title: s.title });
+    servicesByProvider.set(s.providerId, list);
+  }
+
+  return coaches
+    .filter((c) => c.slug)
+    .map((c) => ({
+      slug: c.slug!,
+      name: c.name ?? 'Coach',
+      avatarUrl: c.avatarUrl,
+      services: servicesByProvider.get(c.id) ?? [],
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
 
 /** Bookings made by an athlete, with coach + service display info. */
 export async function getAthleteBookings(

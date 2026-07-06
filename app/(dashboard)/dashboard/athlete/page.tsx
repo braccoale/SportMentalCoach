@@ -10,6 +10,7 @@ import {
 import { requireRole } from '@/lib/core/auth';
 import {
   getAthleteBookings,
+  getAthleteRelationshipCoaches,
   bookingStatusLabel,
   bookingStatusTone,
   type AthleteBooking,
@@ -29,6 +30,7 @@ import { ActionForm } from '@/components/action-form';
 import { CoachAvatar } from '@/components/coach-visuals';
 import { PhotoForm } from '../photo-form';
 import { ReviewForm } from './review-form';
+import { NewAppointmentButton } from './new-appointment-button';
 import { cancelBookingAction } from './actions';
 
 function BookingRow({
@@ -185,12 +187,14 @@ function Section({
 
 export default async function AthleteDashboardPage() {
   const user = await requireRole('athlete');
-  const [requests, avatarUrl, reviewedIds, unreadMessages] = await Promise.all([
-    getAthleteBookings(user.id),
-    getAvatarUrl(user.id),
-    getReviewedBookingIds(user.id),
-    getUnreadCountForType(user.id, 'new_message'),
-  ]);
+  const [requests, avatarUrl, reviewedIds, unreadMessages, relationshipCoaches] =
+    await Promise.all([
+      getAthleteBookings(user.id),
+      getAvatarUrl(user.id),
+      getReviewedBookingIds(user.id),
+      getUnreadCountForType(user.id, 'new_message'),
+      getAthleteRelationshipCoaches(user.id),
+    ]);
 
   const waiting = requests.filter((b) => b.status === 'requested');
   const accepted = requests.filter((b) => b.status === 'accepted');
@@ -261,15 +265,9 @@ export default async function AthleteDashboardPage() {
         />
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-medium text-gray-900">Le tue sessioni</h2>
-        <Link
-          href="/coaches"
-          className="inline-flex items-center gap-1.5 rounded-full bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700"
-        >
-          <UserRound className="h-4 w-4" />
-          Trova un coach
-        </Link>
+        <NewAppointmentButton coaches={relationshipCoaches} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
