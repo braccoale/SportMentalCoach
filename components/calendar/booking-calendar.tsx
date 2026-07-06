@@ -647,7 +647,7 @@ function EventDrawer({
               <div className={cn(canJoin && 'grid grid-cols-2 gap-2')}>
                 <Link
                   href={`/dashboard/chat/${event.id}`}
-                  className="flex items-center justify-center gap-2 rounded-full border border-kp-line px-4 py-2.5 text-sm font-medium text-kp-hi transition-colors hover:border-white/25"
+                  className="flex items-center justify-center gap-2 rounded-full bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
                 >
                   <MessageSquare className="h-4 w-4" />
                   Apri chat
@@ -655,7 +655,7 @@ function EventDrawer({
                 {canJoin && (
                   <Link
                     href={`/dashboard/video/${event.id}`}
-                    className="flex items-center justify-center gap-2 rounded-full border border-kp-line px-4 py-2.5 text-sm font-medium text-kp-hi transition-colors hover:border-white/25"
+                    className="flex items-center justify-center gap-2 rounded-full bg-green-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-green-700"
                   >
                     <Video className="h-4 w-4" />
                     Videochiamata
@@ -681,7 +681,8 @@ function EventDrawer({
                 <input type="hidden" name="bookingId" value={event.id} />
                 <Button
                   type="submit"
-                  className="w-full rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
+                  variant="outline"
+                  className="w-full rounded-full border-emerald-500/50 bg-transparent text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
                 >
                   Completa
                 </Button>

@@ -70,10 +70,16 @@ export function IncomingCallListener() {
     };
   }, [userId]);
 
-  if (!call) return null;
+  // Once the user is in any video room, dismiss any pending/incoming popup —
+  // they're already in a call and the peer's join broadcast would otherwise
+  // pop up on top of the room.
+  const inVideoRoom = pathname?.startsWith('/dashboard/video/') ?? false;
 
-  // Don't nag if the user is already in that call's room.
-  if (pathname === `/dashboard/video/${call.bookingId}`) return null;
+  useEffect(() => {
+    if (inVideoRoom) setCall(null);
+  }, [inVideoRoom]);
+
+  if (!call || inVideoRoom) return null;
 
   const when = fmtTime(call.scheduledFor);
 

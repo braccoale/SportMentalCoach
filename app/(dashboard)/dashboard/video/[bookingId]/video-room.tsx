@@ -5,7 +5,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   LiveKitRoom,
   VideoConference,
-  RoomAudioRenderer,
   useLocalParticipant,
 } from '@livekit/components-react';
 import type { LocalVideoTrack } from 'livekit-client';
@@ -163,10 +162,11 @@ export function VideoRoom({
         <div className="flex h-full flex-col">
           <BackgroundControls />
           <div className="min-h-0 flex-1">
+            {/* VideoConference renders its own RoomAudioRenderer internally —
+                do not add a second one or remote audio plays twice/garbled. */}
             <VideoConference />
           </div>
         </div>
-        <RoomAudioRenderer />
       </LiveKitRoom>
     </div>
   );

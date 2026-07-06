@@ -265,9 +265,10 @@ export default async function AthleteDashboardPage() {
         <h2 className="text-lg font-medium text-gray-900">Le tue sessioni</h2>
         <Link
           href="/coaches"
-          className="text-sm font-medium text-red-600 hover:text-red-700"
+          className="inline-flex items-center gap-1.5 rounded-full bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700"
         >
-          Trova un coach →
+          <UserRound className="h-4 w-4" />
+          Trova un coach
         </Link>
       </div>
 
