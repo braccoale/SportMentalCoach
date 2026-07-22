@@ -1239,3 +1239,31 @@ La raccolta della **data di nascita in registrazione** è affidata a un altro ag
 - `e2e/happy-path.mjs` — il Task 7 modifica il passo 1 del flusso coach; l'altro agent toccherà con ogni probabilità l'helper `signup()` per il campo data di nascita. Se entrambi i lavori atterrano insieme, conflitto quasi certo su questo file: fai il merge a mano e riesegui `pnpm e2e`.
 
 L'articolo 5 del contratto parla già di atleti minorenni e l'articolo 6 di indicatori rilevati sui messaggi: è voluto. Il contratto descrive il regime a regime, e le Fasi B e C ne implementano l'applicazione tecnica.
+
+---
+
+## Revisione 22/07 — stato di esecuzione
+
+Eseguito nel worktree `.claude/worktrees/coach-agreement` (branch
+`worktree-coach-agreement`), basato su `origin/main` @ `6030369`.
+
+- **Task 1 — fatto** (`e782324`). In corso d'opera è emerso un bug nel codice
+  fornito da questo piano: `hashAgreement()` era insensibile ai numeri
+  economici, perché i corpi delle sezioni sono interpolati dalle costanti di
+  modulo e non dall'oggetto passato. Corretto aggiungendo all'intestazione
+  renderizzata una riga derivata dai campi dell'oggetto. Nessun testo legale
+  toccato.
+- **Task 2 — SUPERSEDED.** La tabella `agreement_acceptances` è stata
+  costruita in parallelo da un altro agent, con `agreementKey` che prevede già
+  le chiavi `'coach'` e `'guardian-consent'`. Non reimplementare.
+- **Task 4 — fatto** (`8b2aa61`).
+- **Task 3, 5, 6, 7, 8 — da fare**, dopo il rebase sul lavoro dell'altro
+  agent. Vincoli emersi che il piano non prevedeva:
+  - il Task 3 non crea `lib/core/legal/acceptance.ts`, che ora **esiste già**
+    con `recordPlatformTermsAcceptance`, `getLatestAcceptance`,
+    `hasAcceptedCurrentTerms` e la costante `PLATFORM_TERMS_KEY`. Le funzioni
+    coach-specific vanno **innestate lì**, seguendone le convenzioni;
+  - lo schema della tabella differisce da quello del Task 2: `signatureName` è
+    nullable, `version` è `varchar(32)`, non ci sono colonne di audit né
+    `createdAt`/`updatedAt`, e l'indice è `agreement_acceptances_user_key_idx`
+    su `(userId, agreementKey)`. Il codice del Task 3 va adattato.
