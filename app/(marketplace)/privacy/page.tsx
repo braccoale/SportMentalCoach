@@ -1,5 +1,10 @@
 import { LegalPage } from '../legal-layout';
-import { SUB_PROCESSORS, LEGAL_LAST_UPDATED } from '@/lib/core/legal/processors';
+import {
+  SUB_PROCESSORS,
+  LEGAL_LAST_UPDATED,
+  INACTIVITY_MONTHS,
+  POST_CLOSURE_RETENTION_MONTHS,
+} from '@/lib/core/legal/processors';
 import { MIN_SIGNUP_AGE } from '@/lib/core/guardians/age';
 
 export const metadata = { title: 'Privacy Policy — KaiPai' };
@@ -9,9 +14,12 @@ export default function PrivacyPage() {
     <LegalPage title="Privacy Policy" updated={LEGAL_LAST_UPDATED}>
       <h2>1. Titolare del trattamento</h2>
       <p>
-        {/* DA COMPLETARE: ragione sociale, sede legale, P.IVA / C.F. e, se
-            nominato, i contatti del Responsabile della protezione dei dati.
-            Senza questi elementi l'informativa non è conforme all'art. 13 GDPR. */}
+        {/* DA COMPLETARE: ragione sociale, sede legale, P.IVA / C.F., indirizzo
+            PEC e, se nominato, i contatti del Responsabile della protezione dei
+            dati (DPO). Senza questi elementi l'informativa non è conforme
+            all'art. 13 GDPR. Un DPO non risulta obbligatorio ex art. 37 finché
+            non trattiamo categorie particolari su larga scala — il che è
+            un'altra ragione per tenere ferma la posizione della sezione 5. */}
         Il titolare del trattamento dei dati è KaiPai, con sede a Genova
         (contatto: info@kaipai.com). La presente informativa è resa ai sensi
         del Regolamento (UE) 2016/679 («GDPR»).
@@ -48,7 +56,7 @@ export default function PrivacyPage() {
         <li>
           <strong>Dati del genitore o tutore</strong>, per gli atleti fra i 15 e
           i 17 anni: nome, email e rapporto dichiarato, insieme alla prova
-          dell’autorizzazione prestata (vedi la sezione 10).
+          dell’autorizzazione prestata (vedi la sezione 13).
         </li>
         <li>
           <strong>Dati tecnici</strong>: indirizzo IP e informazioni sul
@@ -56,6 +64,16 @@ export default function PrivacyPage() {
           pagine e per la sicurezza.
         </li>
       </ul>
+
+      <p>
+        <strong>Cosa è obbligatorio e cosa no.</strong> Sono necessari per
+        erogare il servizio, e senza di essi non è possibile usare la
+        piattaforma: nome, email, password e — per gli atleti — la data di
+        nascita, che serve ad applicare l’età minima e le tutele per i
+        minorenni. Tutto il resto è <strong>facoltativo</strong>: sport,
+        livello, obiettivi, città, fotografia, preferiti e notifiche push. Non
+        fornirli limita alcune funzioni, ma non impedisce di usare il servizio.
+      </p>
 
       <h2>3. Finalità e base giuridica</h2>
       <p>
@@ -65,8 +83,59 @@ export default function PrivacyPage() {
         contratto), per garantire la sicurezza della piattaforma e prevenirne
         gli abusi (legittimo interesse) e per adempiere a obblighi di legge.
       </p>
+      <p>
+        <strong>Non trattiamo i tuoi dati per finalità di marketing</strong> e
+        non inviamo comunicazioni commerciali o newsletter: tutte le email che
+        riceverai sono legate a un fatto che ti riguarda. Non profiliamo gli
+        utenti e non prendiamo decisioni automatizzate che producano effetti
+        giuridici nei tuoi confronti.
+      </p>
 
-      <h2>4. Dati pubblici del profilo Coach</h2>
+      <h2>4. Navigazione del sito pubblico</h2>
+      <p>
+        Le pagine pubbliche — la home, l’elenco dei coach e i profili — sono
+        consultabili <strong>senza registrarsi</strong>. Anche in questo caso i
+        sistemi che servono il sito registrano automaticamente alcuni dati
+        tecnici: indirizzo IP, tipo di browser e di dispositivo, pagina
+        richiesta, data e ora.
+      </p>
+      <p>
+        Servono unicamente a consegnare le pagine, a diagnosticare i
+        malfunzionamenti e a difendere il sito dagli abusi; la base giuridica è
+        il nostro legittimo interesse a un servizio funzionante e sicuro (art.
+        6.1.f GDPR). <strong>Non li usiamo per profilare</strong> né per
+        costruire statistiche di comportamento: non abbiamo strumenti di
+        analytics. Questi log sono conservati per il breve periodo necessario
+        alla diagnostica e alla sicurezza, e comunque non oltre 12 mesi.
+      </p>
+
+      <h2>5. Dati sulla salute: non li chiediamo</h2>
+      <p>
+        KaiPai eroga allenamento mentale sportivo, <strong>non prestazioni
+        sanitarie</strong>. Di conseguenza{' '}
+        <strong>
+          non richiediamo, non raccogliamo e non vogliamo dati relativi alla
+          salute
+        </strong>{' '}
+        — che il Regolamento classifica fra le «categorie particolari» (art. 9
+        GDPR) e sottopone a tutele rafforzate.
+      </p>
+      <p>
+        I campi liberi della piattaforma — obiettivi, note alla richiesta,
+        messaggi in chat — servono a descrivere il tuo momento sportivo e su
+        cosa vuoi lavorare: concentrazione, gestione della pressione, fiducia.{' '}
+        <strong>Non vanno usati per diagnosi, terapie, farmaci o altre
+        informazioni cliniche</strong>, né tue né di terzi.
+      </p>
+      <p>
+        Se durante il percorso emerge un bisogno di natura clinica, il coach non
+        è la figura appropriata: il suo compito è fermarsi e indirizzarti verso
+        un professionista sanitario, coinvolgendo la famiglia quando l’atleta è
+        minorenne. In caso di emergenza contatta i servizi sanitari competenti o
+        il numero unico 112.
+      </p>
+
+      <h2>6. Dati pubblici del profilo Coach</h2>
       <p>
         Se ti registri come Coach, una volta approvato il tuo profilo diventa
         pubblico e consultabile anche da chi non ha un account. Sono pubblici il
@@ -82,7 +151,7 @@ export default function PrivacyPage() {
         con cui ha una sessione in corso o già svolta.
       </p>
 
-      <h2>5. Videochiamate e chat</h2>
+      <h2>7. Videochiamate e chat</h2>
       <p>
         Le videochiamate si svolgono attraverso un’infrastruttura specializzata
         e <strong>non vengono registrate</strong>: audio e video transitano per
@@ -92,7 +161,7 @@ export default function PrivacyPage() {
         sono accessibili unicamente ai due partecipanti alla conversazione.
       </p>
 
-      <h2>6. Email e notifiche push</h2>
+      <h2>8. Email e notifiche push</h2>
       <p>
         Le email che inviamo sono esclusivamente di servizio, legate a fatti che
         ti riguardano: una richiesta ricevuta, una sessione confermata o
@@ -111,10 +180,39 @@ export default function PrivacyPage() {
         archivi.
       </p>
 
-      <h2>7. Responsabili del trattamento</h2>
+      <h2>9. Il Coach come destinatario dei tuoi dati</h2>
       <p>
-        Ci avvaliamo dei seguenti fornitori, che trattano i dati per nostro
-        conto e su nostra istruzione, in qualità di responsabili del
+        {/* DA COMPLETARE: far confermare al legale la qualificazione scelta.
+            L'alternativa è la contitolarità ex art. 26 GDPR, che tutela di più
+            l'atleta ma richiede un accordo di contitolarità sottoscritto da
+            ogni coach e la messa a disposizione del suo contenuto essenziale.
+            Non dichiararla finché quell'accordo non esiste. */}
+        Il Coach non è un nostro fornitore tecnico: è un{' '}
+        <strong>professionista indipendente</strong>, che opera come autonomo
+        titolare del trattamento per la propria attività professionale. KaiPai
+        non è parte del rapporto professionale fra te e il Coach e non
+        interviene nel merito delle sessioni.
+      </p>
+      <p>
+        Quando invii una richiesta, comunichiamo al Coach i dati necessari a
+        valutarla e a condurre il percorso: nome, indirizzo email, sport,
+        livello, gli obiettivi che hai indicato, il messaggio della richiesta,
+        i messaggi scambiati in chat e — se hai fra i 15 e i 17 anni — il fatto
+        che sei minorenne. La base giuridica è l’esecuzione del contratto.
+      </p>
+      <p>
+        Il Coach è tenuto contrattualmente alla riservatezza e può usare questi
+        dati <strong>solo</strong> per erogare le sessioni sulla piattaforma:
+        non può contattarti per altre finalità, cederli o usarli per proprie
+        comunicazioni commerciali. Nessun altro Coach vede i tuoi dati: la
+        visibilità è limitata a chi ha con te una sessione richiesta, in corso o
+        già svolta.
+      </p>
+
+      <h2>10. Responsabili del trattamento</h2>
+      <p>
+        Ci avvaliamo inoltre dei seguenti fornitori, che trattano i dati per
+        nostro conto e su nostra istruzione, in qualità di responsabili del
         trattamento. <strong>Non vendiamo i dati personali a terzi</strong> e
         non li cediamo per finalità pubblicitarie.
       </p>
@@ -142,23 +240,35 @@ export default function PrivacyPage() {
       </div>
       <p>
         Per i fornitori che trattano dati al di fuori dell’Unione Europea il
-        trasferimento avviene sulla base delle Clausole Contrattuali Standard
-        approvate dalla Commissione Europea.
+        trasferimento avviene solo verso Paesi coperti da una decisione di
+        adeguatezza della Commissione (art. 45 GDPR) oppure, in mancanza, sulla
+        base delle Clausole Contrattuali Standard approvate dalla Commissione
+        (art. 46 GDPR), che ti attribuiscono diritti azionabili e mezzi di
+        ricorso effettivi.
       </p>
 
-      <h2>8. Conservazione</h2>
+      <h2>11. Conservazione</h2>
+      <p>
+        Un account si considera <strong>cessato</strong> dopo{' '}
+        {INACTIVITY_MONTHS} mesi senza alcuna attività sulla piattaforma, oppure
+        dal momento della chiusura volontaria. Da lì decorrono i termini che
+        seguono.
+      </p>
       <ul>
         <li>
-          <strong>Account e profilo</strong>: finché l’account resta attivo.
+          <strong>Account e profilo</strong>: per tutta la durata dell’account
+          attivo e per {POST_CLOSURE_RETENTION_MONTHS} mesi dalla cessazione.
         </li>
         <li>
-          <strong>Prenotazioni e storico delle sessioni</strong>: per la durata
-          del rapporto e successivamente per il tempo necessario a difendere un
-          diritto in sede giudiziaria.
+          <strong>Prenotazioni e storico delle sessioni</strong>:{' '}
+          {POST_CLOSURE_RETENTION_MONTHS} mesi dalla cessazione, termine
+          necessario a far valere o difendere un diritto. Se pende un
+          contenzioso, la conservazione prosegue fino alla sua definizione.
         </li>
         <li>
           <strong>Messaggi di chat</strong>: finché resta attivo l’account di
-          almeno uno dei due partecipanti.
+          almeno uno dei due partecipanti, e comunque non oltre{' '}
+          {POST_CLOSURE_RETENTION_MONTHS} mesi dalla cessazione di entrambi.
         </li>
         <li>
           <strong>Iscrizioni alle notifiche push</strong>: fino alla revoca, o
@@ -173,7 +283,7 @@ export default function PrivacyPage() {
         </li>
       </ul>
 
-      <h2>9. Chiusura dell’account</h2>
+      <h2>12. Chiusura dell’account</h2>
       <p>
         Dalla sezione Sicurezza puoi chiudere il tuo account in autonomia.
         L’operazione disattiva immediatamente l’accesso: le credenziali di
@@ -189,7 +299,7 @@ export default function PrivacyPage() {
         limiti degli obblighi di conservazione previsti dalla legge.
       </p>
 
-      <h2>10. Atleti minorenni</h2>
+      <h2>13. Atleti minorenni</h2>
       <p>
         La piattaforma è offerta agli atleti dai {MIN_SIGNUP_AGE} anni in su.
         Poiché la soglia italiana per il consenso digitale è fissata a 14 anni
@@ -216,14 +326,92 @@ export default function PrivacyPage() {
         riguardano il minore e può esercitarne i diritti in sua vece.
       </p>
 
-      <h2>11. Diritti dell’interessato</h2>
+      <h2>14. Diritti dell’interessato</h2>
       <p>
+        {/* DA COMPLETARE: attivare una casella dedicata (es. privacy@kaipai.com)
+            e sostituirla a info@. Un indirizzo generico rende più difficile
+            dimostrare di aver rispettato il termine di un mese dell'art. 12.3. */}
         Puoi esercitare in ogni momento i diritti previsti dagli artt. 15–22
-        GDPR (accesso, rettifica, cancellazione, limitazione, portabilità e
-        opposizione) scrivendo a info@kaipai.com; risponderemo entro un mese
-        dalla richiesta. Se ritieni che il trattamento violi il Regolamento,
-        hai diritto di proporre reclamo al Garante per la protezione dei dati
-        personali.
+        GDPR scrivendo a info@kaipai.com: risponderemo entro un mese dalla
+        richiesta.
+      </p>
+      <ul>
+        <li>
+          <strong>Accesso</strong>: sapere quali dati trattiamo e ottenerne
+          copia.
+        </li>
+        <li>
+          <strong>Rettifica</strong>: correggere dati inesatti o completare
+          quelli incompleti.
+        </li>
+        <li>
+          <strong>Cancellazione</strong>, al ricorrere delle condizioni
+          dell’art. 17 e salvo quanto dobbiamo conservare per legge.
+        </li>
+        <li>
+          <strong>Limitazione</strong> del trattamento nei casi dell’art. 18.
+        </li>
+        <li>
+          <strong>Portabilità</strong>: ricevere i tuoi dati in un formato
+          strutturato e leggibile da un dispositivo automatico.
+        </li>
+        <li>
+          <strong>Opposizione (art. 21)</strong>: puoi opporti in qualsiasi
+          momento ai trattamenti che svolgiamo sulla base del{' '}
+          <em>legittimo interesse</em> — nel nostro caso la sicurezza della
+          piattaforma e la prevenzione degli abusi. Opporsi non ti impedisce di
+          continuare a usare il servizio.
+        </li>
+      </ul>
+      <p>
+        Se ritieni che il trattamento violi il Regolamento, hai diritto di
+        proporre reclamo a un’autorità di controllo (art. 77 GDPR): in Italia il{' '}
+        <strong>Garante per la protezione dei dati personali</strong>{' '}
+        (www.garanteprivacy.it), oppure l’autorità dello Stato UE in cui
+        risiedi o lavori.
+      </p>
+
+      <h2>15. Come proteggiamo i dati</h2>
+      <p>
+        Il trattamento avviene con strumenti informatici, secondo i principi di
+        liceità, minimizzazione ed esattezza, e con misure tecniche e
+        organizzative adeguate al rischio. In concreto:
+      </p>
+      <ul>
+        <li>
+          il traffico fra il tuo browser e la piattaforma è cifrato (HTTPS), e i
+          dati sono cifrati anche a riposo dall’infrastruttura che li ospita;
+        </li>
+        <li>
+          le password non sono mai conservate in chiaro: le custodisce Supabase
+          Auth in forma cifrata, e nessuno in KaiPai può leggerle;
+        </li>
+        <li>
+          l’accesso ai dati è limitato al personale autorizzato e istruito, e ai
+          fornitori nominati responsabili;
+        </li>
+        <li>
+          le videochiamate non vengono registrate e i loro contenuti non
+          transitano nei nostri archivi;
+        </li>
+        <li>
+          <strong>i dati personali non vengono in alcun modo diffusi</strong>,
+          fatta eccezione per le informazioni che il Coach sceglie di pubblicare
+          sul proprio profilo.
+        </li>
+      </ul>
+      <p>
+        Nessuna misura elimina del tutto il rischio: se dovesse verificarsi una
+        violazione dei dati personali che comporta un rischio elevato per i tuoi
+        diritti, te ne daremo comunicazione secondo l’art. 34 GDPR.
+      </p>
+
+      <h2>16. Modifiche a questa informativa</h2>
+      <p>
+        Questa informativa può essere aggiornata quando cambiano il servizio, i
+        fornitori o la normativa. La data di ultimo aggiornamento è indicata in
+        cima alla pagina; le modifiche rilevanti sono comunicate agli utenti
+        registrati.
       </p>
     </LegalPage>
   );

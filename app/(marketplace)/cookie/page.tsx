@@ -55,7 +55,28 @@ export default function CookiePage() {
         122 del Codice Privacy.
       </p>
 
-      <h2>5. Gestione dei cookie</h2>
+      <h2>5. Video di presentazione dei coach</h2>
+      <p>
+        Alcuni coach pubblicano un video di presentazione ospitato su YouTube o
+        Vimeo. Un video incorporato normalmente contatta quei servizi non appena
+        apri la pagina, consegnando loro il tuo indirizzo IP e permettendo di
+        installare cookie <em>prima</em> che tu abbia scelto alcunché.
+      </p>
+      <p>
+        Per evitarlo <strong>non carichiamo il video automaticamente</strong>:
+        al suo posto vedi un’anteprima disegnata da noi, e nessuna richiesta
+        parte finché non premi «Guarda la presentazione». Solo da quel momento
+        YouTube o Vimeo ricevono i tuoi dati e possono impostare cookie propri,
+        soggetti alle loro informative. Se non premi, non li contatti mai — ed è
+        la ragione per cui questa pagina può ancora dire, con verità, che non ci
+        sono cookie di terze parti da consentire.
+      </p>
+      <p>
+        Per lo stesso motivo i caratteri tipografici del sito sono ospitati sui
+        nostri server e non richiamati da servizi esterni.
+      </p>
+
+      <h2>6. Gestione dei cookie</h2>
       <p>
         Puoi cancellare o bloccare i cookie dalle impostazioni del tuo browser.
         Tieni presente che, senza i cookie tecnici di autenticazione, l’accesso
@@ -65,7 +86,7 @@ export default function CookiePage() {
         browser.
       </p>
 
-      <h2>6. Contatti</h2>
+      <h2>7. Contatti</h2>
       <p>
         Per qualsiasi domanda su questa policy: info@kaipai.com. Vedi anche la{' '}
         <a href="/privacy" className="text-red-600 underline hover:text-red-700">

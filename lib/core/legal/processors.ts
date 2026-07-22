@@ -49,6 +49,13 @@ export const SUB_PROCESSORS: SubProcessor[] = [
     location: 'Stati Uniti (clausole contrattuali standard)',
   },
   {
+    name: 'YouTube / Vimeo (solo su tuo clic)',
+    purpose:
+      'Riproduzione del video di presentazione di un coach, quando è ospitato su queste piattaforme',
+    data: 'Indirizzo IP e dati del browser, inviati solo se scegli di caricare il video',
+    location: 'Stati Uniti (clausole contrattuali standard)',
+  },
+  {
     name: 'Servizi push del browser (Google, Apple, Mozilla)',
     purpose:
       'Recapito delle notifiche push al dispositivo, se le hai attivate',
@@ -64,3 +71,32 @@ export const SUB_PROCESSORS: SubProcessor[] = [
  * usually is one.
  */
 export const LEGAL_LAST_UPDATED = '22 luglio 2026';
+
+/**
+ * After how many months without any activity an account is treated as closed,
+ * starting the retention clock.
+ *
+ * GDPR requires a *limit*, not a vague one: "for as long as the account is
+ * active" with no definition of inactive means "forever", which is exactly
+ * what art. 5.1.e forbids. This is a business decision as much as a legal one
+ * — raise or lower it deliberately, but it must be a number.
+ */
+export const INACTIVITY_MONTHS = 24;
+
+/** How long records are kept after closure, to defend a claim in court. */
+export const POST_CLOSURE_RETENTION_MONTHS = 36;
+
+/**
+ * Notice given before a change to the Terms takes effect. "Continued use means
+ * acceptance" is only fair if the user had a real chance to read the change
+ * and leave — a clause with no notice period at all is the kind a consumer
+ * court sets aside.
+ */
+export const TERMS_CHANGE_NOTICE_DAYS = 15;
+
+/**
+ * Hours of notice expected to cancel a session without it counting as a
+ * no-show. No penalty attaches today (nothing is charged), but the coach has
+ * still set the time aside, and the norm needs to exist before billing does.
+ */
+export const CANCELLATION_NOTICE_HOURS = 24;

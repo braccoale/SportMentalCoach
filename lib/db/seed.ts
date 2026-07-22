@@ -89,7 +89,7 @@ const DEMO_COACHES: DemoCoach[] = [
     headline: 'Mental coach per atleti di squadra e individuali',
     description:
       'Aiuto gli atleti a gestire l’ansia da prestazione e a ritrovare lucidità nei momenti decisivi.',
-    avatarUrl: 'https://i.pravatar.cc/300?img=12',
+    avatarUrl: '/atleta.png',
     certified: true,
     videoUrl: 'https://www.youtube.com/watch?v=ScMzIvxBSi4',
     yearsExperience: 8,
@@ -123,7 +123,7 @@ const DEMO_COACHES: DemoCoach[] = [
     headline: 'Motivazione e resilienza per sport individuali',
     description:
       'Specializzata in nuoto e atletica: lavoro su motivazione, obiettivi e recupero dagli ostacoli.',
-    avatarUrl: 'https://i.pravatar.cc/300?img=5',
+    avatarUrl: '/atleta.png',
     certified: true,
     videoUrl: 'https://www.youtube.com/watch?v=ScMzIvxBSi4',
     yearsExperience: 6,
@@ -151,7 +151,7 @@ const DEMO_COACHES: DemoCoach[] = [
     headline: 'Dinamiche di squadra e fiducia per sport di gruppo',
     description:
       'Lavoro con squadre di basket e pallavolo su coesione, comunicazione e fiducia individuale.',
-    avatarUrl: 'https://i.pravatar.cc/300?img=13',
+    avatarUrl: '/atleta.png',
     certified: false,
     yearsExperience: 10,
     languages: ['Italiano', 'Spagnolo'],
@@ -184,7 +184,7 @@ const DEMO_COACHES: DemoCoach[] = [
     headline: 'In attesa di approvazione — demo coda admin',
     description:
       'Profilo demo in stato "pending" per testare la coda di revisione admin.',
-    avatarUrl: 'https://i.pravatar.cc/300?img=32',
+    avatarUrl: '/atleta.png',
     certified: false,
     status: 'pending',
     yearsExperience: 4,
