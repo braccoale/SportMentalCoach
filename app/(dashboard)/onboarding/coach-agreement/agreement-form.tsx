@@ -7,9 +7,12 @@ import type { ActionState } from '@/lib/auth/middleware';
 
 export function AgreementForm({
   vexatiousTitles,
+  needsName,
   children,
 }: {
   vexatiousTitles: string[];
+  /** Account has no name/lastName yet: collect them in this same form. */
+  needsName: boolean;
   children: React.ReactNode;
 }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
@@ -31,6 +34,52 @@ export function AgreementForm({
 
   return (
     <form action={formAction} className="space-y-6">
+      {needsName && (
+        <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+          <p className="text-sm text-gray-700">
+            Il tuo account non ha ancora nome e cognome: servono per
+            intestare la firma. Inseriscili qui, verranno salvati sul tuo
+            profilo.
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <label
+                htmlFor="name"
+                className="mb-1.5 block text-sm font-medium text-gray-700"
+              >
+                Nome
+              </label>
+              <input
+                id="name"
+                name="name"
+                type="text"
+                required
+                maxLength={100}
+                autoComplete="given-name"
+                className="w-full rounded-full border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-900 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="lastName"
+                className="mb-1.5 block text-sm font-medium text-gray-700"
+              >
+                Cognome
+              </label>
+              <input
+                id="lastName"
+                name="lastName"
+                type="text"
+                required
+                maxLength={100}
+                autoComplete="family-name"
+                className="w-full rounded-full border border-gray-300 px-4 py-2.5 text-sm focus:border-gray-900 focus:outline-none"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div
         ref={boxRef}
         onScroll={onScroll}

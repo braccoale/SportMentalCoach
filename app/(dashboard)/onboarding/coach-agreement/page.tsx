@@ -28,35 +28,21 @@ export default async function CoachAgreementOnboardingPage() {
         prenotazioni serve la tua firma.
       </p>
 
-      {!hasFullName ? (
-        <div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-6">
-          <p className="text-sm text-amber-900">
-            Prima di firmare inserisci nome e cognome nel tuo profilo: la firma
-            deve corrispondere all’intestazione dell’account.
-          </p>
-          <a
-            href="/dashboard/coach/profile"
-            className="mt-4 inline-block rounded-full bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white"
-          >
-            Vai al profilo
-          </a>
-        </div>
-      ) : (
-        <div className="mt-8">
-          <AgreementForm
-            vexatiousTitles={vexatiousSections().map((s) => s.title)}
-          >
-            {COACH_AGREEMENT.sections.map((section) => (
-              <section key={section.id}>
-                <h2>{section.title}</h2>
-                {section.body.map((paragraph, i) => (
-                  <p key={i}>{paragraph}</p>
-                ))}
-              </section>
-            ))}
-          </AgreementForm>
-        </div>
-      )}
+      <div className="mt-8">
+        <AgreementForm
+          vexatiousTitles={vexatiousSections().map((s) => s.title)}
+          needsName={!hasFullName}
+        >
+          {COACH_AGREEMENT.sections.map((section) => (
+            <section key={section.id}>
+              <h2>{section.title}</h2>
+              {section.body.map((paragraph, i) => (
+                <p key={i}>{paragraph}</p>
+              ))}
+            </section>
+          ))}
+        </AgreementForm>
+      </div>
     </main>
   );
 }

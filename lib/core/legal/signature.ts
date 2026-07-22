@@ -30,8 +30,8 @@ function normalizeName(value: string): string {
  * signatory's name proves nothing about who signed.
  *
  * Both name parts are required. An account without a surname cannot produce a
- * valid signature — which is why the signing page asks the coach to complete
- * their profile first.
+ * valid signature — the signing page collects the missing name/lastName in
+ * the same form before checking this.
  */
 export function signatureMatchesName(
   signature: string,
