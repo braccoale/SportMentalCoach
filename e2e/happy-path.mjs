@@ -64,16 +64,16 @@ const coachCtx = await browser.newContext();
 const coach = await coachCtx.newPage();
 await signup(coach, COACH, 'coach');
 
-// Dopo il signup il coach viene mandato a firmare il contratto: senza firma
-// non può pubblicare il profilo né accettare prenotazioni.
+// After signup the coach is sent to sign the agreement: until they do, they
+// can neither publish a profile nor accept bookings.
 await coach.goto(`${BASE}/onboarding/coach-agreement`);
 if (coach.url().includes('/onboarding/coach-agreement')) {
-  // L'account non ha ancora nome e cognome: la pagina di firma li chiede
-  // lì stesso, non più dal profilo.
+  // The account has no name yet: the signing page collects it inline rather
+  // than sending the coach to the profile, which the gate would bounce back.
   await coach.waitForSelector('#signature');
   await coach.fill('#name', COACH.nome);
   await coach.fill('#lastName', COACH.cognome);
-  // Scorri il contratto fino in fondo per abilitare la firma.
+  // Scroll the contract to the end to unlock the submit button.
   await coach.locator('form div.overflow-y-auto').evaluate((el) => {
     el.scrollTop = el.scrollHeight;
   });
