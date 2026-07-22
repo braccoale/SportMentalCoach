@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,8 @@ import { signIn, signUp } from './actions';
 import { ActionState } from '@/lib/auth/middleware';
 
 export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
+  // Only athletes declare a birth date, so the field follows the role choice.
+  const [role, setRole] = useState<string>('athlete');
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect');
   const priceId = searchParams.get('priceId');
@@ -114,13 +116,39 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
                       type="radio"
                       name="role"
                       value={value}
-                      defaultChecked={value === 'athlete'}
+                      checked={role === value}
+                      onChange={() => setRole(value)}
                       className="accent-red-600"
                     />
                     {label}
                   </label>
                 ))}
               </div>
+            </div>
+          )}
+
+          {mode === 'signup' && role === 'athlete' && (
+            <div>
+              <Label
+                htmlFor="birthDate"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Data di nascita
+              </Label>
+              <div className="mt-1">
+                <Input
+                  id="birthDate"
+                  name="birthDate"
+                  type="date"
+                  required
+                  className="appearance-none rounded-full relative block w-full px-3 py-2 border border-gray-300 text-gray-900 focus:outline-none focus:ring-red-500 focus:border-red-500 focus:z-10 sm:text-sm"
+                />
+              </div>
+              <p className="mt-1.5 text-xs text-gray-500">
+                KaiPai è riservato agli atleti dai 15 anni in su. Sotto i 18
+                serve l’autorizzazione di un genitore o tutore, che potrai
+                invitare subito dopo la registrazione.
+              </p>
             </div>
           )}
 
