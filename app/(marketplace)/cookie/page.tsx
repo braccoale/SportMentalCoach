@@ -1,5 +1,8 @@
 import { LegalPage } from '../legal-layout';
-import { LEGAL_LAST_UPDATED } from '@/lib/core/legal/processors';
+import {
+  LEGAL_LAST_UPDATED,
+  LEGAL_CONTACT_EMAIL,
+} from '@/lib/core/legal/processors';
 
 export const metadata = { title: 'Cookie Policy — KaiPai' };
 
@@ -88,7 +91,7 @@ export default function CookiePage() {
 
       <h2>7. Contatti</h2>
       <p>
-        Per qualsiasi domanda su questa policy: info@kaipai.com. Vedi anche la{' '}
+        Per qualsiasi domanda su questa policy: {LEGAL_CONTACT_EMAIL}. Vedi anche la{' '}
         <a href="/privacy" className="text-red-600 underline hover:text-red-700">
           Privacy Policy
         </a>{' '}

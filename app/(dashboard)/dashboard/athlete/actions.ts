@@ -6,6 +6,7 @@ import { cancelBooking, createBookingRequest } from '@/lib/core/bookings';
 import { parseRomeLocalDateTime } from '@/lib/core/availability';
 import { updateClientProfile } from '@/lib/core/profiles';
 import { inviteGuardian } from '@/lib/core/guardians';
+import { LEGAL_CONTACT_EMAIL } from '@/lib/core/legal/processors';
 import type { ActionState } from '@/lib/auth/middleware';
 
 export async function cancelBookingAction(
@@ -133,7 +134,7 @@ export async function inviteGuardianAction(
   revalidatePath('/dashboard/athlete');
   return {
     success: result.alreadyConfirmed
-      ? 'Il tuo percorso è già autorizzato, quindi non abbiamo inviato nulla. Per cambiare il genitore o tutore di riferimento scrivi a info@kaipai.com.'
+      ? `Il tuo percorso è già autorizzato, quindi non abbiamo inviato nulla. Per cambiare il genitore o tutore di riferimento scrivi a ${LEGAL_CONTACT_EMAIL}.`
       : 'Richiesta inviata. Appena il tuo genitore o tutore conferma, potrai prenotare.',
   };
 }

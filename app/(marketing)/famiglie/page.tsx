@@ -69,7 +69,7 @@ const FAQ = [
   },
   {
     q: 'Come vengono trattati i dati di mio figlio?',
-    a: 'Trattiamo i dati nel rispetto del GDPR, solo per erogare il servizio. Puoi accedere ai dati, chiederne la rettifica o la cancellazione in ogni momento scrivendo a info@kaipai.com. I dettagli sono nella Privacy Policy.',
+    a: 'Trattiamo i dati nel rispetto del GDPR, solo per erogare il servizio. Puoi accedere ai dati, chiederne la rettifica o la cancellazione in ogni momento scrivendo a privacy@kaipai.it. I dettagli sono nella Privacy Policy.',
   },
   {
     q: 'I coach sono verificati?',
@@ -227,7 +227,7 @@ export default function FamigliePage() {
                   <ArrowRight className="h-4 w-4" />
                 </Link>
                 <a
-                  href="mailto:info@kaipai.com?subject=Informazioni%20percorso%20per%20mio%20figlio"
+                  href="mailto:info@kaipai.it?subject=Informazioni%20percorso%20per%20mio%20figlio"
                   className="inline-flex items-center rounded-full border border-kp-line px-6 py-3 font-semibold text-kp-hi transition-colors hover:border-kp-red/50"
                 >
                   Scrivici

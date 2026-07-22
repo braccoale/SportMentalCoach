@@ -4,6 +4,7 @@ import {
   INACTIVITY_MONTHS,
   TERMS_CHANGE_NOTICE_DAYS,
   CANCELLATION_NOTICE_HOURS,
+  LEGAL_CONTACT_EMAIL,
 } from '@/lib/core/legal/processors';
 import { REQUEST_RESPONSE_WINDOW_HOURS } from '@/lib/core/sessions';
 import { MIN_SIGNUP_AGE, AGE_OF_MAJORITY } from '@/lib/core/guardians/age';
@@ -142,7 +143,7 @@ export default function TermsPage() {
       </p>
       <p>
         L’autorizzazione può essere revocata in ogni momento scrivendo a
-        info@kaipai.com: da quel momento l’Atleta non può più prenotare nuove
+        {LEGAL_CONTACT_EMAIL}: da quel momento l’Atleta non può più prenotare nuove
         Sessioni.
       </p>
       <p>
@@ -388,7 +389,7 @@ export default function TermsPage() {
       <p>
         Se agisci come consumatore hai diritto di recedere dal contratto entro{' '}
         <strong>14 giorni</strong> dalla registrazione, senza doverne indicare
-        il motivo, scrivendo a info@kaipai.com o chiudendo l’account dalla
+        il motivo, scrivendo a {LEGAL_CONTACT_EMAIL} o chiudendo l’account dalla
         sezione Sicurezza.
       </p>
       <p>
@@ -494,12 +495,12 @@ export default function TermsPage() {
         Se sei un consumatore, per le controversie è competente il giudice del
         luogo in cui risiedi o hai eletto domicilio. Prima di rivolgerti al
         giudice puoi tentare una risoluzione stragiudiziale rivolgendoti a un
-        organismo ADR accreditato: scrivici a info@kaipai.com e ti indicheremo
+        organismo ADR accreditato: scrivici a {LEGAL_CONTACT_EMAIL} e ti indicheremo
         quello competente.
       </p>
 
       <h2>24. Contatti</h2>
-      <p>Per qualsiasi domanda su questi Termini: info@kaipai.com.</p>
+      <p>Per qualsiasi domanda su questi Termini: {LEGAL_CONTACT_EMAIL}.</p>
     </LegalPage>
   );
 }

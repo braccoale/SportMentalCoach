@@ -52,3 +52,6 @@ __*.tmp.*
 
 # Local heavy image archive (not served)
 Image/
+
+# Worktree scratch space used by agent sessions (never part of the project)
+.claude/worktrees/

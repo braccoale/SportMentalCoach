@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ShieldCheck } from 'lucide-react';
 import { getInvitationByToken } from '@/lib/core/guardians';
+import { LEGAL_CONTACT_EMAIL } from '@/lib/core/legal/processors';
 import { ActionForm } from '@/components/action-form';
 import { confirmGuardianAction } from './actions';
 
@@ -142,7 +143,7 @@ export default async function GuardianConfirmPage({
       <p className="mt-6 text-xs leading-relaxed text-gray-400">
         Registriamo la data, l’ora e l’indirizzo di rete di questa conferma come
         prova dell’autorizzazione. Puoi revocarla in qualsiasi momento
-        scrivendo a info@kaipai.com.
+        scrivendo a {LEGAL_CONTACT_EMAIL}.
       </p>
     </main>
   );

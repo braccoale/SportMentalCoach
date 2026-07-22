@@ -572,6 +572,50 @@ export const athleteGuardians = pgTable(
 export type AthleteGuardian = typeof athleteGuardians.$inferSelect;
 export type NewAthleteGuardian = typeof athleteGuardians.$inferInsert;
 
+// Proof that a user accepted a legal document, and which version of it.
+//
+// **Append-only. Never updated, never deleted.** Each acceptance is a new row:
+// the history *is* the evidence. Overwriting would destroy the only record
+// that a given person agreed to a given text on a given day.
+//
+// `agreementKey` is deliberately open to more documents than the platform
+// terms — the coach agreement design already calls for 'coach' and
+// 'guardian-consent' keys, so they share this table rather than each growing
+// their own.
+export const agreementAcceptances = pgTable(
+  'agreement_acceptances',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id),
+    /** 'platform-terms' (Terms + Privacy + Cookie, at signup) | 'coach' | 'guardian-consent'. */
+    agreementKey: varchar('agreement_key', { length: 40 }).notNull(),
+    /** Version of the document accepted, e.g. '2026-07-22'. */
+    version: varchar('version', { length: 32 }).notNull(),
+    /** SHA-256 of the document text at the moment of acceptance. */
+    documentHash: varchar('document_hash', { length: 64 }).notNull(),
+    /** General acceptance of the document. */
+    acceptedTerms: boolean('accepted_terms').notNull().default(true),
+    /** Separate approval of onerous clauses (art. 1341 c.c.), where required. */
+    acceptedVexatious: boolean('accepted_vexatious').notNull().default(false),
+    /** Typed name, where the document is signed rather than ticked. */
+    signatureName: varchar('signature_name', { length: 200 }),
+    ipAddress: varchar('ip_address', { length: 64 }),
+    userAgent: text('user_agent'),
+    acceptedAt: timestamp('accepted_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('agreement_acceptances_user_key_idx').on(
+      table.userId,
+      table.agreementKey
+    ),
+  ]
+);
+
+export type AgreementAcceptance = typeof agreementAcceptances.$inferSelect;
+export type NewAgreementAcceptance = typeof agreementAcceptances.$inferInsert;
+
 // Per-user, per-type email delivery preference. Generic: one row per
 // (user, notification type). A missing row means "default" (email enabled).
 // In-app notifications are always on and are not represented here.

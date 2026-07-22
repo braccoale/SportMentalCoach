@@ -1064,7 +1064,7 @@ function Packages() {
                 </ul>
 
                 <a
-                  href="mailto:info@kaipai.com?subject=Informazioni%20pacchetti%20KaiPai"
+                  href="mailto:info@kaipai.it?subject=Informazioni%20pacchetti%20KaiPai"
                   className={`mt-8 inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-semibold transition ${
                     p.lit
                       ? 'kp-cta text-white'

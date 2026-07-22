@@ -73,6 +73,25 @@ export const SUB_PROCESSORS: SubProcessor[] = [
 export const LEGAL_LAST_UPDATED = '22 luglio 2026';
 
 /**
+ * The address cited across every legal document — informativa, Termini and
+ * Cookie Policy alike.
+ *
+ * One address rather than several: data-protection requests carry a one-month
+ * statutory deadline (art. 12.3 GDPR) and contractual ones a 14-day withdrawal
+ * window, and both are far easier to prove met when they land in a single
+ * monitored mailbox than when they scatter across general enquiries.
+ */
+export const LEGAL_CONTACT_EMAIL = 'privacy@kaipai.it';
+
+/**
+ * Machine-readable version of the legal documents, stored with every
+ * acceptance. Bump it together with `LEGAL_LAST_UPDATED` whenever the text
+ * changes substantively: users who accepted an older version are then asked to
+ * accept again, and the old rows keep proving what they actually agreed to.
+ */
+export const LEGAL_VERSION = '2026-07-22';
+
+/**
  * After how many months without any activity an account is treated as closed,
  * starting the retention clock.
  *

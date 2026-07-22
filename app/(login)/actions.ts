@@ -23,6 +23,8 @@ import {
 } from '@/lib/auth/supabase';
 import { sendWelcomeEmail } from '@/lib/core/email';
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
+import { recordPlatformTermsAcceptance } from '@/lib/core/legal/acceptance';
 import { createCheckoutSession } from '@/lib/payments/stripe';
 import { getUser, getUserWithTeam } from '@/lib/db/queries';
 import {
@@ -185,6 +187,15 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
     }
   }
 
+  // Who accepted, and from where. Behind Vercel the client address arrives in
+  // `x-forwarded-for`; the first entry is the original client.
+  const reqHeaders = await headers();
+  const signupIp =
+    reqHeaders.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    reqHeaders.get('x-real-ip') ||
+    null;
+  const signupUserAgent = reqHeaders.get('user-agent');
+
   const existingUser = await db
     .select()
     .from(users)
@@ -299,6 +310,15 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
       } else {
         await ensureProfile(createdUser.id, undefined, tx);
       }
+
+      // Proof of acceptance, written in the same transaction as the account:
+      // an account that exists without a matching acceptance row would be one
+      // we cannot show anyone agreed to anything.
+      await recordPlatformTermsAcceptance(
+        createdUser.id,
+        { ipAddress: signupIp, userAgent: signupUserAgent },
+        tx
+      );
 
       // Persist the declared birth date: the guardian gate reads it back from
       // the athlete profile, so it has to land in the same transaction that
