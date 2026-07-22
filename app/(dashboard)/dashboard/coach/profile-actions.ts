@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { requireRole } from '@/lib/core/auth';
 import {
   updateProviderProfileFields,
@@ -11,6 +12,7 @@ import {
 import { getCoachOnboarding } from '@/lib/core/onboarding';
 import { getActiveSports, getActiveSpecialties } from '@/lib/core/taxonomies';
 import { getVerticalConfig } from '@/lib/core/config';
+import { hasAcceptedCoachAgreement } from '@/lib/core/legal/acceptance';
 import type { ActionState } from '@/lib/auth/middleware';
 
 const profileSchema = z.object({
@@ -157,6 +159,13 @@ export async function updateVideoAction(
 
 export async function submitForReviewAction(_formData: FormData) {
   const user = await requireRole('coach');
+
+  // Nessuna pubblicazione senza contratto firmato. Il layout già reindirizza,
+  // ma questa azione è raggiungibile via POST diretta.
+  if (!(await hasAcceptedCoachAgreement(user.id))) {
+    redirect('/onboarding/coach-agreement');
+  }
+
   // Do not allow submitting an incomplete profile (defense in depth — the UI
   // also only enables the button when onboarding steps 1–3 are complete).
   const onboarding = await getCoachOnboarding(user.id);

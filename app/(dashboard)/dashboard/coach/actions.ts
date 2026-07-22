@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/core/auth';
+import { hasAcceptedCoachAgreement } from '@/lib/core/legal/acceptance';
 import {
   decideBooking,
   completeBooking,
@@ -23,6 +24,17 @@ async function decide(
   decision: 'accepted' | 'declined'
 ): Promise<ActionState> {
   const user = await requireRole('coach');
+
+  // Solo l'accettazione è vincolata: rifiutare una richiesta non fa sorgere
+  // alcuna obbligazione, e un coach che non ha firmato deve comunque poter
+  // liberare l'agenda invece di lasciare l'atleta in attesa.
+  if (decision === 'accepted' && !(await hasAcceptedCoachAgreement(user.id))) {
+    return {
+      error:
+        'Per accettare le prenotazioni devi prima firmare il Contratto di Adesione Coach.',
+    };
+  }
+
   const bookingId = Number(formData.get('bookingId'));
   if (!Number.isInteger(bookingId)) {
     return { error: 'Richiesta non valida.' };
@@ -98,6 +110,15 @@ export async function createCoachBookingAction(
   formData: FormData
 ): Promise<ActionState> {
   const user = await requireRole('coach');
+
+  // Crea una sessione già accettata: stessa cautela del ramo "accepted" di
+  // `decide` sopra.
+  if (!(await hasAcceptedCoachAgreement(user.id))) {
+    return {
+      error:
+        'Per accettare le prenotazioni devi prima firmare il Contratto di Adesione Coach.',
+    };
+  }
 
   // `Number('')` and `Number(null)` are both 0, so an integer check alone would
   // let a missing field through and surface as a confusing downstream error.
