@@ -37,8 +37,16 @@ piattaforma — e la stessa carenza di fondo: nessun consenso viene registrato.
 | Enforcement anti-fuga | Deterrenza + rilevamento (no censura in chat) |
 | Punto del flusso | Step dedicato post-signup, bloccante |
 | Scope fase A | Contratto + accettazione + gating |
-| Account minori | Intestato al genitore/tutore |
+| Account minori | Dell'atleta 15–17; il tutore autorizza da link firmato |
+| Gate minori | Sulla prenotazione, non sulla registrazione |
 | Età minima | 15 anni, blocco duro sotto |
+
+> **Revisione 22/07, dopo ricognizione del working tree.** La decisione
+> iniziale era "account intestato al genitore". In fase di pianificazione è
+> emerso che `lib/core/guardians/` (non committato) implementa già il modello
+> opposto, e migliore: l'atleta 15–17 possiede il proprio account, il tutore
+> non ne ha alcuno e autorizza una volta da un link firmato. Adottato quello.
+> Motivazione nel §2.2.
 
 La commissione è dichiarata nel contratto ma non ancora trattenuta
 automaticamente: Stripe Connect è fase successiva. Il contratto è scritto per
@@ -134,24 +142,56 @@ Data di nascita chiesta al signup per il ruolo Atleta (una data, non una
 checkbox "sono maggiorenne": resta agli atti e discrimina i casi limite).
 
 - **<15** → registrazione bloccata, messaggio esplicito.
-- **15–17** → il form cambia intestazione: l'account è creato dal
-  genitore/tutore, che ne è titolare insieme al contratto e al pagamento. Si
-  raccolgono i dati del genitore (nome, email, data di nascita ≥18) e, in un
-  blocco separato, nome e data di nascita dell'atleta.
+- **15–17** → registrazione consentita. L'atleta ha il proprio account e può
+  navigare, completare il profilo e scrivere ai coach; **non può prenotare**
+  finché un genitore o tutore non ha autorizzato.
 - **≥18** → flusso attuale invariato.
 
-### 2.2 Realismo sulla fascia 15–17
+### 2.2 Perché l'account è dell'atleta e il gate sta sulla prenotazione
 
-Un sedicenne userà il prodotto per conto suo. Lo spec ne prende atto:
+Un sedicenne userà il prodotto per conto suo: costringerlo dentro l'account del
+padre è una finzione che si rompe al primo login condiviso, e produrrebbe dati
+di contatto sbagliati (le notifiche di sessione arriverebbero al genitore, non
+a chi deve presentarsi in call).
 
-- l'accesso limitato per il minore (vede sessioni e chat, entra in call; non
-  paga, non contratta, non modifica il profilo) è **fase B**, prevista;
-- il contratto coach dichiara che con atleti 15–17 **chat e videochiamata
-  possono coinvolgere direttamente il minore**, e che valgono le regole di
-  condotta della sezione minori. Un contratto che finge il contrario non
-  protegge nessuno.
+Sopra i 14 anni il minore consente da sé al trattamento dei propri dati, quindi
+il genitore non serve per aprire l'account. Serve per la **capacità di
+contrarre**, che sorge nel momento in cui si prenota una sessione — non al
+sign-in. Il gate va quindi lì: `canBookSessions()`.
 
-### 2.3 Sezione minori del contratto coach
+Il tutore non ha un account e non ne vuole uno. Conferma una volta sola da un
+link firmato ricevuto via email, valido 14 giorni, e quella riga è la prova
+dell'autorizzazione.
+
+Conseguenza sul contratto coach: con atleti 15–17 **chat e videochiamata
+coinvolgono direttamente il minore**, e valgono le regole di condotta della
+sezione minori. Un contratto che finge il contrario non protegge nessuno.
+
+### 2.3 Cosa esiste già (non committato)
+
+`lib/core/guardians/` è scritto e va **committato con una migration**, non
+riscritto:
+
+- `age.ts` — `MIN_SIGNUP_AGE = 15`, `AGE_OF_MAJORITY = 18`,
+  `ageFromBirthDate()`, `requiresGuardian()`, `isEligibleAge()`. Modulo puro
+  (non `server-only`) così form e server action validano sulle stesse soglie.
+- `index.ts` — `getGuardianStatus()` (`not_required` | `missing` | `pending` |
+  `confirmed` | `unknown_age`), `canBookSessions()`, `inviteGuardian()`,
+  `getInvitationByToken()`, `confirmGuardian()`. Token JWT `jose` firmati con
+  `AUTH_SECRET`, TTL 14 giorni, scoped a un solo atleta.
+- `athleteGuardians` in `lib/db/schema.ts` — una riga per atleta,
+  `confirmedAt` null = invitato in attesa, `bothParentsDeclared` per l'art.
+  316 c.c., `confirmedIp` come prova. **Manca la migration.**
+
+Da costruire sopra: data di nascita al signup con blocco <15, UI di invito
+nell'area atleta, pagina pubblica `/tutore/conferma`, chiamata a
+`canBookSessions()` nel flusso di prenotazione, collegamento ad
+`acceptsMinors` lato coach.
+
+Nota: `getGuardianStatus` legge `clientProfiles.birthDate`, quindi la data di
+nascita raccolta al signup deve finire lì, non solo su `users`.
+
+### 2.4 Sezione minori del contratto coach
 
 1. **Opt-in esplicito**: il coach dichiara se accetta atleti minorenni. Chi non
    opta non compare nelle ricerche per atleti minori e non può accettarne le
@@ -257,21 +297,16 @@ Email Resend alla firma con il documento e la data.
 
 ### Schema — minori
 
-`clientProfiles`:
+`athleteGuardians` (già in `lib/db/schema.ts`, migration da generare) è la
+sede del consenso genitoriale: `confirmedAt`, `confirmedIp` e
+`bothParentsDeclared` svolgono per il tutore la stessa funzione probatoria che
+`agreementAcceptances` svolge per il coach. **Non** si duplica il consenso
+genitoriale dentro `agreementAcceptances`: una sola sede per fatto.
 
-```
-isMinor boolean not null default false
-guardianUserId integer references users.id  -- null se maggiorenne
-birthDate  -- già presente, diventa obbligatorio
-```
-
-Il genitore è un `users` normale; una riga `clientProfiles` con
-`guardianUserId` valorizzato rappresenta il minore. Un genitore può avere più
-figli: la relazione uno-a-molti la regge già.
-
-Consenso genitoriale in `agreementAcceptances` con
-`agreementKey: 'guardian-consent'`, stessa struttura, includendo la
-dichiarazione di agire anche in nome dell'altro genitore.
+`clientProfiles.birthDate` — già presente — diventa il campo che governa tutto,
+valorizzato al signup e non più solo dal profilo. Nessun `isMinor` persistito:
+l'età si deriva dalla data di nascita, perché un booleano salvato diventa falso
+il giorno del diciottesimo compleanno e nessuno lo aggiorna.
 
 `providerProfiles`:
 
@@ -296,16 +331,22 @@ l'onboarding. Diventa requisito quando i volumi lo giustificano.
 
 Se l'atleta è minore, banner permanente nella pagina della videochiamata,
 visibile a entrambi: "Sessione con atleta minorenne — il genitore ha diritto di
-essere presente". Il genitore riceve le stesse notifiche di prenotazione e
-promemoria. Deterrenza a costo quasi nullo che resta agli atti.
+essere presente". Deterrenza a costo quasi nullo che resta agli atti.
+
+Il tutore non ha un account, quindi riceve per email (a
+`athleteGuardians.guardianEmail`) conferma e promemoria delle sessioni
+prenotate. È l'unico canale che ha, ed è ciò che rende reale il "diritto di
+essere presente".
 
 ## Fasi
 
 - **A — Contratto coach**: documento versionato, pagina pubblica,
   `agreementAcceptances`, step bloccante, doppio gate, email di copia.
-- **B — Minori**: data di nascita al signup con i tre rami, account genitore,
-  `isMinor`/`guardianUserId`, `acceptsMinors`, gate prenotazioni, banner in
-  call, notifiche al genitore. Poi accesso limitato per il minore 15–17.
+- **B — Minori**: commit di `lib/core/guardians/` con migration, data di
+  nascita al signup con i tre rami (scritta su `clientProfiles.birthDate`), UI
+  di invito del tutore nell'area atleta, pagina pubblica `/tutore/conferma`,
+  `canBookSessions()` nel flusso di prenotazione, `acceptsMinors` lato coach
+  con gate e filtro ricerca, banner in call, notifiche al tutore.
 - **C — Fuori scope ora**: masking dei contatti e rilevamento pattern in chat
   con flag admin; Stripe Connect con `application_fee`; pannello admin delle
   segnalazioni.
