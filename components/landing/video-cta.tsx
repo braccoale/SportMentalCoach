@@ -37,7 +37,7 @@ export function VideoCta() {
             Guarda il video
           </span>
           <span className="block text-xs text-kp-mid">
-            Scopri Kai Pai in 1:30
+            Scopri KaiPai in 1:30
           </span>
         </span>
       </button>

@@ -14,7 +14,8 @@ import {
   type NewTeamMember,
   type NewActivityLog,
   ActivityType,
-  invitations
+  invitations,
+  clientProfiles
 } from '@/lib/db/schema';
 import {
   createSupabaseServer,
@@ -29,6 +30,11 @@ import {
   validatedActionWithUser
 } from '@/lib/auth/middleware';
 import { dashboardPathForRoles, getUserRoles } from '@/lib/core/auth';
+import {
+  ageFromBirthDate,
+  isEligibleAge,
+  MIN_SIGNUP_AGE
+} from '@/lib/core/guardians/age';
 import {
   ensureProfile,
   syncDisplayName,
@@ -149,11 +155,35 @@ const signUpSchema = z.object({
   password: z.string().min(8),
   inviteId: z.string().optional(),
   // Public signup may only choose athlete / coach / club — never admin.
-  role: z.enum(['athlete', 'coach', 'club']).optional()
+  role: z.enum(['athlete', 'coach', 'club']).optional(),
+  // Required for athletes: the platform is offered from 15 up, and between 15
+  // and 17 a guardian has to authorise. Neither rule can be applied without it.
+  birthDate: z.string().optional()
 });
 
 export const signUp = validatedAction(signUpSchema, async (data, formData) => {
-  const { email, password, inviteId, role } = data;
+  const { email, password, inviteId, role, birthDate } = data;
+
+  // Age gate. Only athletes declare a birth date — a coach or a club signing
+  // up is acting in a professional capacity, not as a young athlete.
+  const isAthleteSignup = !role || role === 'athlete';
+  let athleteAge: number | null = null;
+  if (isAthleteSignup) {
+    athleteAge = ageFromBirthDate(birthDate ?? null);
+    if (athleteAge == null) {
+      return { error: 'Indica la tua data di nascita.', email, password };
+    }
+    if (athleteAge > 120) {
+      return { error: 'Data di nascita non valida.', email, password };
+    }
+    if (!isEligibleAge(athleteAge)) {
+      return {
+        error: `KaiPai è riservato agli atleti dai ${MIN_SIGNUP_AGE} anni in su.`,
+        email,
+        password
+      };
+    }
+  }
 
   const existingUser = await db
     .select()
@@ -268,6 +298,19 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
         );
       } else {
         await ensureProfile(createdUser.id, undefined, tx);
+      }
+
+      // Persist the declared birth date: the guardian gate reads it back from
+      // the athlete profile, so it has to land in the same transaction that
+      // creates the account rather than waiting for a profile edit.
+      if (isAthleteSignup && birthDate) {
+        await tx
+          .insert(clientProfiles)
+          .values({ userId: createdUser.id, birthDate, createdBy: createdUser.id })
+          .onConflictDoUpdate({
+            target: clientProfiles.userId,
+            set: { birthDate, updatedAt: new Date() }
+          });
       }
 
       return { user: createdUser, team };

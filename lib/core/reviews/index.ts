@@ -9,6 +9,7 @@ import {
   providerProfiles,
 } from '@/lib/db/schema';
 import type { Result } from '@/lib/core/result';
+import { notify } from '@/lib/core/notifications';
 
 export type ReviewSummary = { count: number; average: number | null };
 
@@ -184,8 +185,10 @@ export async function createReview(params: {
       clientId: bookings.clientId,
       providerId: bookings.providerId,
       status: bookings.status,
+      coachUserId: providerProfiles.userId,
     })
     .from(bookings)
+    .innerJoin(providerProfiles, eq(bookings.providerId, providerProfiles.id))
     .where(eq(bookings.id, params.bookingId))
     .limit(1);
 
@@ -215,5 +218,10 @@ export async function createReview(params: {
   if (!created) {
     return { ok: false, error: 'Hai già recensito questa sessione.' };
   }
+
+  await notify('review_received', booking.coachUserId, {
+    rating: params.rating,
+  });
+
   return { ok: true };
 }

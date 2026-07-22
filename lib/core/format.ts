@@ -16,17 +16,69 @@ export function formatMinutesOfDay(min: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+/**
+ * The vertical's fixed display timezone. Bookings are shown in Italian local
+ * time regardless of where the server process runs — without this, the same
+ * UTC instant renders differently on a Rome-timezone dev machine vs. the
+ * UTC-timezone Vercel runtime, silently shifting every scheduled time.
+ */
+const DISPLAY_TIME_ZONE = 'Europe/Rome';
+
 /** Formats a date as a localized medium date + short time (default it-IT). */
 export function formatDateTime(d: Date, locale = 'it-IT'): string {
   return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeStyle: 'short',
+    timeZone: DISPLAY_TIME_ZONE,
   }).format(d);
 }
 
 /** Formats a date only (no time), localized medium style (default it-IT). */
 export function formatDate(d: Date, locale = 'it-IT'): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(d);
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: 'medium',
+    timeZone: DISPLAY_TIME_ZONE,
+  }).format(d);
+}
+
+/** Formats just the time of day, "HH:mm" in Rome local time. */
+export function formatTime(d: Date, locale = 'it-IT'): string {
+  return new Intl.DateTimeFormat(locale, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+    timeZone: DISPLAY_TIME_ZONE,
+  }).format(d);
+}
+
+/**
+ * Splits a date into the three pieces a "big date" hero display needs — huge
+ * day number, short month + year, and time — all in the app's fixed display
+ * timezone (Europe/Rome).
+ */
+export function formatBigDateParts(d: Date): {
+  day: string;
+  monthYear: string;
+  time: string;
+} {
+  const day = new Intl.DateTimeFormat('it-IT', {
+    day: '2-digit',
+    timeZone: DISPLAY_TIME_ZONE,
+  }).format(d);
+  const monthYear = new Intl.DateTimeFormat('it-IT', {
+    month: 'short',
+    year: 'numeric',
+    timeZone: DISPLAY_TIME_ZONE,
+  })
+    .format(d)
+    .toUpperCase();
+  const time = new Intl.DateTimeFormat('it-IT', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+    timeZone: DISPLAY_TIME_ZONE,
+  }).format(d);
+  return { day, monthYear, time };
 }
 
 /**
@@ -49,6 +101,28 @@ export function scheduledForLabel(status: string): string {
 }
 
 /**
+ * Whole minutes between a session's real start and end. Returns null when
+ * either bound is missing or the span is non-positive.
+ */
+export function getSessionDurationMinutes(
+  start: Date | null,
+  end: Date | null
+): number | null {
+  if (!start || !end) return null;
+  const ms = end.getTime() - start.getTime();
+  if (ms <= 0) return null;
+  return Math.max(1, Math.round(ms / 60000));
+}
+
+/** Formats a minute count as e.g. "52 min" or "1h 05m". */
+export function formatMinutes(totalMin: number): string {
+  if (totalMin < 60) return `${totalMin} min`;
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${h}h ${String(m).padStart(2, '0')}m`;
+}
+
+/**
  * Formats the real duration between a session's start and end as e.g. "52 min"
  * or "1h 05m". Returns null when either bound is missing or the span is
  * non-positive.
@@ -57,14 +131,41 @@ export function formatSessionDuration(
   start: Date | null,
   end: Date | null
 ): string | null {
-  if (!start || !end) return null;
-  const ms = end.getTime() - start.getTime();
-  if (ms <= 0) return null;
-  const totalMin = Math.max(1, Math.round(ms / 60000));
-  if (totalMin < 60) return `${totalMin} min`;
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  return `${h}h ${String(m).padStart(2, '0')}m`;
+  const totalMin = getSessionDurationMinutes(start, end);
+  return totalMin == null ? null : formatMinutes(totalMin);
+}
+
+/** Formats a total minute count as e.g. "45 min" or "128h" (rounded, no minutes past the first hour — this is a cumulative total, not a single span). */
+export function formatTotalHours(totalMinutes: number): string {
+  if (totalMinutes < 60) return `${Math.round(totalMinutes)} min`;
+  return `${Math.round(totalMinutes / 60)}h`;
+}
+
+/**
+ * Humanizes an email local-part into a presentable name, e.g.
+ * "mario.rossi" → "Mario Rossi". Used as a friendlier fallback than showing
+ * the raw email when a user hasn't set their display name.
+ */
+function displayNameFromEmail(email: string): string {
+  const local = email.split('@')[0] ?? email;
+  const words = local
+    .replace(/[._-]+/g, ' ')
+    .split(' ')
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1));
+  return words.length > 0 ? words.join(' ') : email;
+}
+
+/**
+ * Resolves the best display name for a person: their real name if set,
+ * otherwise a humanized version of their email (never the raw address) —
+ * cards look unprofessional showing a bare email where a name is expected.
+ */
+export function resolveDisplayName(
+  name: string | null | undefined,
+  email: string
+): string {
+  return name?.trim() || displayNameFromEmail(email);
 }
 
 /** Derives up to two uppercase initials from a name (fallback "?"). */

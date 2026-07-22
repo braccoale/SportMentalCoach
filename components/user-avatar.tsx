@@ -5,7 +5,7 @@ import { initials } from '@/lib/core/format';
 /**
  * Generic user avatar: shows the uploaded image when present, otherwise the
  * user's uppercase initials (first + last, e.g. "John Smith" → "JS") on the
- * Kai Pai brand-red disc.
+ * KaiPai brand-red disc.
  */
 export function UserAvatar({
   name,

@@ -1,5 +1,5 @@
 /**
- * Kai Pai coach badge, rebuilt in HTML/CSS from the merch photo (the photo's
+ * KaiPai coach badge, rebuilt in HTML/CSS from the merch photo (the photo's
  * background could not be keyed out — the card pixels match the backdrop).
  * Dark card, white lettering, personalised with the coach's name.
  */
@@ -26,7 +26,7 @@ export function CoachBadge({
               className="h-8 w-8 rounded-md object-cover"
             />
             <p className="mt-1 text-[0.55rem] font-semibold tracking-[0.2em] text-white">
-              KAI PAI
+              KAIPAI
             </p>
             {name && (
               <p className="mt-1 max-w-full truncate text-[0.6rem] font-semibold text-white">

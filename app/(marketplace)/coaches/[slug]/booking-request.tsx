@@ -1,10 +1,11 @@
 'use client';
 
-import { useActionState, useEffect, useState } from 'react';
+import { useActionState, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { requestBooking } from './actions';
 import type { ActionState } from '@/lib/auth/middleware';
+import type { BookableDay } from '@/lib/core/availability';
 
 type ServiceOption = {
   id: number;
@@ -16,39 +17,42 @@ const fieldCls =
   'mt-1.5 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm';
 
 /**
- * Booking request form — human copy, no "(optional)" noise. Visual order:
- * service → when → message → big CTA. The availability hint sits next to the
- * date field so the athlete picks a time that can actually work.
+ * Booking request form. When the coach has published availability, the "when"
+ * field is a constrained day + time picker built from `bookableDays` — the
+ * athlete can only choose days/hours the coach actually works. With no
+ * availability configured it degrades to a plain "da concordare" note.
  */
 export function BookingRequest({
   slug,
   coachFirstName,
   services,
-  availabilityHint,
+  bookableDays,
 }: {
   slug: string;
   coachFirstName: string;
   services: ServiceOption[];
-  availabilityHint?: string;
+  bookableDays: BookableDay[];
 }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     requestBooking,
     { error: '' }
   );
 
-  // min for datetime-local (client-only to avoid hydration mismatch).
-  const [minDt, setMinDt] = useState<string | undefined>(undefined);
-  useEffect(() => {
-    const d = new Date(Date.now() + 60 * 60 * 1000);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    setMinDt(
-      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:00`
-    );
-  }, []);
+  const [day, setDay] = useState(bookableDays[0]?.value ?? '');
+  const [time, setTime] = useState(bookableDays[0]?.times[0] ?? '');
+
+  const selectedDay = useMemo(
+    () => bookableDays.find((d) => d.value === day),
+    [bookableDays, day]
+  );
+
+  // Combined datetime-local value the server parses (Rome wall-clock).
+  const scheduledFor = day && time ? `${day}T${time}` : '';
 
   return (
     <form action={formAction} className="flex w-full flex-col gap-4">
       <input type="hidden" name="slug" value={slug} />
+      <input type="hidden" name="scheduledFor" value={scheduledFor} />
 
       {services.length > 0 && (
         <div className="flex flex-col">
@@ -75,27 +79,58 @@ export function BookingRequest({
         </div>
       )}
 
-      <div className="flex flex-col">
-        <label
-          htmlFor="scheduledFor"
-          className="text-sm font-medium text-gray-900"
-        >
-          Quando vorresti iniziare?
-        </label>
-        <input
-          id="scheduledFor"
-          name="scheduledFor"
-          type="datetime-local"
-          min={minDt}
-          className={fieldCls}
-        />
-        <p className="mt-1 text-xs text-gray-500">
-          {availabilityHint
-            ? `Di solito è libero: ${availabilityHint}. `
-            : ''}
-          È solo una preferenza — confermerete insieme.
+      {bookableDays.length > 0 ? (
+        <div className="flex flex-col gap-3">
+          <span className="text-sm font-medium text-gray-900">
+            Quando vorresti iniziare?
+          </span>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="flex flex-col">
+              <span className="text-xs text-gray-500">Giorno</span>
+              <select
+                value={day}
+                onChange={(e) => {
+                  const nextDay = e.target.value;
+                  setDay(nextDay);
+                  const first =
+                    bookableDays.find((d) => d.value === nextDay)?.times[0] ?? '';
+                  setTime(first);
+                }}
+                className={fieldCls}
+              >
+                {bookableDays.map((d) => (
+                  <option key={d.value} value={d.value}>
+                    {d.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col">
+              <span className="text-xs text-gray-500">Ora</span>
+              <select
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                className={fieldCls}
+              >
+                {selectedDay?.times.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <p className="text-xs text-gray-500">
+            Vedi solo i giorni e gli orari in cui {coachFirstName} riceve.
+            Confermerete insieme.
+          </p>
+        </div>
+      ) : (
+        <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-600">
+          {coachFirstName} non ha ancora pubblicato la sua disponibilità:
+          proponi il tuo obiettivo e concorderete insieme un orario.
         </p>
-      </div>
+      )}
 
       <div className="flex flex-col">
         <label htmlFor="note" className="text-sm font-medium text-gray-900">

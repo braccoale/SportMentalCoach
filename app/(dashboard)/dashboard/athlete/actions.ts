@@ -3,7 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/core/auth';
 import { cancelBooking, createBookingRequest } from '@/lib/core/bookings';
+import { parseRomeLocalDateTime } from '@/lib/core/availability';
 import { updateClientProfile } from '@/lib/core/profiles';
+import { inviteGuardian } from '@/lib/core/guardians';
 import type { ActionState } from '@/lib/auth/middleware';
 
 export async function cancelBookingAction(
@@ -49,8 +51,8 @@ export async function createBookingRequestAction(
   const whenRaw = String(formData.get('scheduledFor') ?? '').trim();
   let scheduledFor: Date | null = null;
   if (whenRaw) {
-    const d = new Date(whenRaw);
-    if (Number.isNaN(d.getTime())) return { error: 'Data/ora non valida.' };
+    const d = parseRomeLocalDateTime(whenRaw);
+    if (!d || Number.isNaN(d.getTime())) return { error: 'Data/ora non valida.' };
     // Small grace so a "now" prefill doesn't fail while the user is submitting.
     if (d.getTime() < Date.now() - 2 * 60 * 1000) {
       return { error: 'Scegli una data/ora futura.' };
@@ -107,4 +109,31 @@ export async function updateAthleteProfileAction(
   revalidatePath('/dashboard/athlete/profile');
   revalidatePath('/dashboard/coach');
   return { success: 'Profilo aggiornato.' };
+}
+
+/**
+ * Invites (or re-invites) the athlete's parent/guardian to authorise the path.
+ * Only reachable for the athlete themselves — `requireRole` resolves the user,
+ * so a minor can never trigger an invitation on someone else's behalf.
+ */
+export async function inviteGuardianAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const user = await requireRole('athlete');
+
+  const result = await inviteGuardian({
+    athleteUserId: user.id,
+    guardianName: String(formData.get('guardianName') ?? ''),
+    guardianEmail: String(formData.get('guardianEmail') ?? ''),
+    relationship: String(formData.get('relationship') ?? '') || null,
+  });
+  if (!result.ok) return { error: result.error };
+
+  revalidatePath('/dashboard/athlete');
+  return {
+    success: result.alreadyConfirmed
+      ? 'Il tuo percorso è già autorizzato, quindi non abbiamo inviato nulla. Per cambiare il genitore o tutore di riferimento scrivi a info@kaipai.com.'
+      : 'Richiesta inviata. Appena il tuo genitore o tutore conferma, potrai prenotare.',
+  };
 }

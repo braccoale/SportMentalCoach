@@ -103,7 +103,9 @@ export function SummaryCard({
   const cls =
     'flex flex-col justify-between overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm';
 
-  return href ? (
+  // Only clickable when there's something behind the number to jump to —
+  // a "0" widget has no destination worth navigating for.
+  return href && value > 0 ? (
     <Link
       href={href}
       className={`${cls} transition-shadow hover:shadow-md`}

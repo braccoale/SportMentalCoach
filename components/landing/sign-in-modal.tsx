@@ -12,7 +12,7 @@ const inputCls =
 /**
  * Sign-in popup for the landing page. Reuses the `signIn` server action (which
  * redirects to the dashboard on success), so no page navigation is needed to
- * open it. Italian labels, Kai Pai logo, and a show/hide password toggle.
+ * open it. Italian labels, KaiPai logo, and a show/hide password toggle.
  */
 export function SignInModal({
   open,
@@ -79,7 +79,7 @@ export function SignInModal({
         <div className="flex flex-col items-center">
           <img
             src="/logo-transparent-clean.png"
-            alt="Kai Pai — Mental Coaching"
+            alt="KaiPai — Mental Coaching"
             width={626}
             height={178}
             className="h-28 w-auto sm:h-32"

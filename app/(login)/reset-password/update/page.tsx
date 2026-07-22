@@ -25,7 +25,7 @@ export default function UpdatePasswordPage() {
         <div className="flex justify-center">
           <img
             src="/logo.jpg"
-            alt="Kai Pai"
+            alt="KaiPai"
             width={127}
             height={141}
             className="h-14 w-auto rounded-xl"

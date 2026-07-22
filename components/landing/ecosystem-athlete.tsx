@@ -18,7 +18,7 @@ export function EcosystemAthlete() {
       className={`${SECTION} overflow-hidden bg-kp-ink2`}
     >
       <ImageSlot
-        src="/orizzonte.jpg"
+        src="/orizzonte.png"
         position="center"
         placeholder="none"
         className="absolute inset-0"
@@ -46,7 +46,7 @@ export function EcosystemAthlete() {
           <Reveal delay={0.1}>
             <p className="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-kp-mid">
               Un ragazzo cresce dove crescono anche il suo allenatore e la sua
-              famiglia. Per questo il percorso Kai Pai li unisce.
+              famiglia. Per questo il percorso KaiPai li unisce.
             </p>
           </Reveal>
         </div>
@@ -55,7 +55,7 @@ export function EcosystemAthlete() {
         <Reveal delay={0.1} className="mt-12">
           <img
             src="/ecosystem-diagram.jpg"
-            alt="L'ecosistema Kai Pai: attorno all'atleta lavoriamo con allenatori e genitori. Atleta: gestione della pressione, concentrazione, ansia e stress, recupero infortuni, autostima e fiducia. Allenatori: leadership e comunicazione, gestione del gruppo, motivazione e obiettivi, performance mindset. Genitori: aspettative consapevoli, supporto positivo, comunicazione efficace, benessere emotivo. Un metodo integrato per far crescere atleti migliori, persone migliori."
+            alt="L'ecosistema KaiPai: attorno all'atleta lavoriamo con allenatori e genitori. Atleta: gestione della pressione, concentrazione, ansia e stress, recupero infortuni, autostima e fiducia. Allenatori: leadership e comunicazione, gestione del gruppo, motivazione e obiettivi, performance mindset. Genitori: aspettative consapevoli, supporto positivo, comunicazione efficace, benessere emotivo. Un metodo integrato per far crescere atleti migliori, persone migliori."
             className="mx-auto w-full max-w-5xl"
           />
         </Reveal>

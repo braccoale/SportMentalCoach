@@ -18,7 +18,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getVerticalConfig, findTaxonomyItem, t } from '@/lib/core/config';
 import { getCoachBySlug } from '@/lib/core/listings';
-import { getApprovedCoachAvailabilityBySlug } from '@/lib/core/availability';
+import {
+  getApprovedCoachAvailabilityBySlug,
+  describeAvailability,
+  getBookableDays,
+} from '@/lib/core/availability';
 import { getReviewSummary, getCoachReviews } from '@/lib/core/reviews';
 import { getCompletedSessionCount } from '@/lib/core/bookings';
 import {
@@ -33,6 +37,7 @@ import { getAllSports, getAllSpecialties } from '@/lib/core/taxonomies';
 import { hasRole } from '@/lib/core/auth';
 import { SHOW_COACH_HOURLY_RATE } from '@/lib/core/flags';
 import { CoachAvatar, CertifiedBadge } from '@/components/coach-visuals';
+import { CoachExperienceStats } from '@/components/coach-experience-stats';
 import { RatingStars } from '@/components/rating-stars';
 import {
   TrustAndSafeguarding,
@@ -117,13 +122,13 @@ export default async function CoachDetailPage({
   const name = coach.displayName ?? 'Coach';
   const firstName = name.split(' ')[0];
   // Compact availability hint shown beside the date field in the form.
-  const availabilityHint = availability
-    .slice(0, 3)
-    .map((s) => `${WEEKDAY_LABELS[s.weekday]} ${formatMinutesOfDay(s.startMinute)}`)
-    .join(' · ');
+  const availabilityHint = describeAvailability(availability.slice(0, 3));
+  // Concrete day+time options for the constrained booking picker.
+  const bookableDays = getBookableDays(availability);
   const memberSince = new Intl.DateTimeFormat('it-IT', {
     month: 'long',
     year: 'numeric',
+    timeZone: 'Europe/Rome',
   }).format(coach.memberSince);
   const certTitle = coach.certified
     ? t('coach.certified.yes', config)
@@ -210,6 +215,11 @@ export default async function CoachDetailPage({
         </div>
       </header>
 
+      <CoachExperienceStats
+        athletesCount={coach.athletesCount}
+        totalMinutes={coach.totalMinutes}
+      />
+
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         {/* BOOKING — first on mobile, sticky right on desktop */}
         <aside id="prenota" className="order-1 lg:order-2 lg:col-span-1">
@@ -272,7 +282,7 @@ export default async function CoachDetailPage({
                       title: s.title,
                       durationMin: s.durationMin,
                     }))}
-                    availabilityHint={availabilityHint}
+                    bookableDays={bookableDays}
                   />
                 ) : (
                   <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-800">
@@ -308,7 +318,7 @@ export default async function CoachDetailPage({
                       {coach.identityVerified && (
                         <li className="flex items-center gap-1.5 text-emerald-700">
                           <ShieldCheck className="h-3.5 w-3.5" /> Identità
-                          verificata da Kai Pai
+                          verificata da KaiPai
                         </li>
                       )}
                       <li className="flex items-center gap-1.5">

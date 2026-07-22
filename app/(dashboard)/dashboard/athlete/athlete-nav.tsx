@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -47,17 +48,22 @@ export function AthleteNav({
 
   return (
     <div className="relative border-b border-gray-200">
-      {/* Kai Pai bottle — decorative, same spot as the coach badge */}
-      <img
-        src="/BorracciaAI.png"
+      {/* KaiPai bottle — decorative, same spot as the coach badge. Desktop-only
+          (`md:block`), so it's lazy-loaded: mobile never pays for it. */}
+      <Image
+        src="/BorracciaAI.jpg"
         alt=""
         aria-hidden
+        width={268}
+        height={320}
+        loading="lazy"
+        sizes="121px"
         className="pointer-events-none absolute -top-1 right-10 z-10 hidden h-36 w-auto rotate-6 rounded-xl object-cover shadow-xl ring-1 ring-black/10 md:block"
       />
       <div className="flex items-center gap-3 px-6 pt-6">
         <img
           src="/logo.jpg"
-          alt="Kai Pai"
+          alt="KaiPai"
           className="h-9 w-9 rounded-lg object-cover"
         />
         <h1 className="text-xl font-semibold text-gray-900">
@@ -81,7 +87,7 @@ export function AthleteNav({
               className={cn(
                 'relative flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
                 active
-                  ? 'border-red-600 text-red-600'
+                  ? 'border-blue-900 text-blue-900'
                   : 'border-transparent text-gray-500 hover:text-gray-900'
               )}
             >

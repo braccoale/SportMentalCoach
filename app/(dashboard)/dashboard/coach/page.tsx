@@ -6,24 +6,47 @@ import {
   BarChart3,
   MessageSquare,
   Star,
+  Clock,
+  Video,
 } from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
 import {
   bookingStatusLabel,
   bookingStatusTone,
   getCoachBookings,
+  getCoachRelationshipAthletes,
   type CoachBooking,
 } from '@/lib/core/bookings';
+import { getCoachServices } from '@/lib/core/services';
+import {
+  getCoachAvailability,
+  describeAvailability,
+  getBookableDays,
+} from '@/lib/core/availability';
 import { getProviderProfileByUser } from '@/lib/core/profiles';
-import { isSessionJoinable } from '@/lib/core/sessions';
+import { isSessionJoinable, canJoinVideoNow } from '@/lib/core/sessions';
 import { getUnreadCountForType } from '@/lib/core/notifications';
 import { getCoachReviews } from '@/lib/core/reviews';
 import {
   formatDate,
   formatDateTime,
-  formatSessionDuration,
+  formatBigDateParts,
+  formatMinutes,
+  formatTime,
+  resolveDisplayName,
+  getSessionDurationMinutes,
   scheduledForLabel,
 } from '@/lib/core/format';
+import {
+  UpcomingAppointmentCard,
+  type UpcomingAppointmentData,
+} from '@/components/upcoming-appointment-card';
+import {
+  CompletedSessionCard,
+  type CompletedSessionData,
+} from '@/components/completed-session-card';
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 import { getVerticalConfig, findTaxonomyItem } from '@/lib/core/config';
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
@@ -37,26 +60,64 @@ import {
   completeBookingAction,
   cancelBookingAction,
 } from './actions';
+import { CoachNewAppointmentButton } from './new-appointment-button';
 
 const DEFAULT_ATHLETE_AVATAR = '/atleta.png';
+
+/** Sort key for the archive: when the session actually happened, newest first. */
+function archiveRecency(b: CoachBooking): number {
+  return (
+    b.sessionEndedAt?.getTime() ??
+    b.scheduledFor?.getTime() ??
+    b.decidedAt?.getTime() ??
+    b.requestedAt.getTime()
+  );
+}
+
+/** Inert placeholder matching the button row's height, so hint text lines up with real buttons instead of floating baseline-aligned next to them. */
+function HintPill({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex h-9 items-center rounded-full px-3 text-xs text-gray-400">
+      {children}
+    </span>
+  );
+}
 
 export default async function CoachDashboardPage() {
   const user = await requireRole('coach');
   const config = getVerticalConfig();
 
-  const [provider, allBookings, unreadMessages] = await Promise.all([
+  const [
+    provider,
+    allBookings,
+    unreadMessages,
+    relationshipAthletes,
+    coachServices,
+    coachAvailability,
+  ] = await Promise.all([
     getProviderProfileByUser(user.id),
     getCoachBookings(user.id),
     getUnreadCountForType(user.id, 'new_message'),
+    getCoachRelationshipAthletes(user.id),
+    getCoachServices(user.id),
+    getCoachAvailability(user.id),
   ]);
+  const availabilityHint = describeAvailability(coachAvailability);
+  // Same Rome-derived day/time options the athlete sees, so the coach can't
+  // pick a slot their own availability would reject on submit.
+  const bookableDays = getBookableDays(coachAvailability);
 
   const reviews = provider ? await getCoachReviews(provider.id) : [];
 
   const pending = allBookings.filter((b) => b.status === 'requested');
   const accepted = allBookings.filter((b) => b.status === 'accepted');
-  const archive = allBookings.filter((b) =>
-    ['declined', 'expired', 'cancelled', 'completed'].includes(b.status)
-  );
+  // Archive newest-first by when the session actually happened (real end or
+  // scheduled time), not by when it was first requested.
+  const archive = allBookings
+    .filter((b) =>
+      ['declined', 'expired', 'cancelled', 'completed'].includes(b.status)
+    )
+    .sort((a, b) => archiveRecency(b) - archiveRecency(a));
 
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -105,6 +166,7 @@ export default async function CoachDashboardPage() {
           tone="red"
           note={newToday > 0 ? `${newToday} nuove oggi` : 'Nessuna nuova oggi'}
           trend={newToday > 0 ? 'up' : 'flat'}
+          href="/dashboard/coach#richieste-in-attesa"
         />
         <SummaryCard
           icon={CalendarCheck}
@@ -117,6 +179,7 @@ export default async function CoachDashboardPage() {
               : 'Nessuna questa settimana'
           }
           trend={acceptedThisWeek > 0 ? 'up' : 'flat'}
+          href="/dashboard/coach#atleti-in-percorso"
         />
         <SummaryCard
           icon={BarChart3}
@@ -129,6 +192,7 @@ export default async function CoachDashboardPage() {
               : `${bookingsThisMonth} questo mese`
           }
           trend={monthPct !== null && monthPct < 0 ? 'down' : 'up'}
+          href="/dashboard/coach#percorsi-archiviati"
         />
         <SummaryCard
           icon={Star}
@@ -141,6 +205,7 @@ export default async function CoachDashboardPage() {
               : 'Nessuna nuova questa settimana'
           }
           trend={reviewsThisWeek > 0 ? 'up' : 'flat'}
+          href="/dashboard/coach#recensioni"
         />
         <SummaryCard
           icon={MessageSquare}
@@ -154,6 +219,7 @@ export default async function CoachDashboardPage() {
       </div>
 
       <DashboardSection
+        id="richieste-in-attesa"
         title="Nuove richieste da valutare"
         subtitle="Atleti in attesa di una tua risposta. Qui vedi il loro momento, il bisogno principale e il tipo di supporto che stanno cercando."
         items={pending}
@@ -189,49 +255,83 @@ export default async function CoachDashboardPage() {
       />
 
       <DashboardSection
-        title="Atleti gia in percorso"
+        id="atleti-in-percorso"
+        title="Prossimi Appuntamenti"
+        titleClassName="text-green-600"
         subtitle="Sessioni accettate e gia avviate. Qui puoi passare dalla lettura del bisogno alla relazione vera: chat, videochiamata e follow-up."
+        headerAction={
+          <CoachNewAppointmentButton
+            athletes={relationshipAthletes}
+            services={coachServices
+              .filter((s) => s.isActive && s.title)
+              .map((s) => ({ id: s.id, title: s.title as string }))}
+            availabilityHint={availabilityHint}
+            bookableDays={bookableDays}
+          />
+        }
         items={accepted}
         emptyTitle="Nessuna sessione accettata."
         emptySubtitle="Le sessioni confermate compariranno qui appena dai il via a un nuovo percorso."
         renderCard={(booking) => (
-          <CoachRequestCard
+          <UpcomingAppointmentCard
             key={booking.id}
-            data={buildCoachRequestCardData(booking, config)}
-            actions={
-              <>
-                {isSessionJoinable(booking.scheduledFor) ? (
-                  <>
-                    <Button asChild variant="outline" className="rounded-full">
-                      <Link href={`/dashboard/chat/${booking.id}`}>Apri chat</Link>
-                    </Button>
-                    <Button asChild variant="outline" className="rounded-full">
-                      <Link href={`/dashboard/video/${booking.id}`}>
-                        Apri videochiamata
-                      </Link>
-                    </Button>
-                  </>
-                ) : (
-                  <span className="self-center text-xs text-gray-400">
-                    Sessione trascorsa
-                  </span>
-                )}
-                <ActionForm action={completeBookingAction}>
-                  <input type="hidden" name="bookingId" value={booking.id} />
-                  <Button type="submit" className="rounded-full">
-                    Completa
-                  </Button>
-                </ActionForm>
-                {isSessionJoinable(booking.scheduledFor) && (
-                  <ActionForm action={cancelBookingAction}>
-                    <input type="hidden" name="bookingId" value={booking.id} />
-                    <Button
-                      type="submit"
-                      variant="outline"
-                      className="rounded-full text-red-600 hover:text-red-700"
+            data={buildUpcomingAppointmentData(booking)}
+            primaryActions={
+              isSessionJoinable(booking.scheduledFor) ? (
+                <>
+                  <Link
+                    href={`/dashboard/chat/${booking.id}`}
+                    className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+                  >
+                    <MessageSquare className="h-4 w-4" /> Apri chat
+                  </Link>
+                  {canJoinVideoNow(booking.scheduledFor) ? (
+                    <Link
+                      href={`/dashboard/video/${booking.id}`}
+                      className="inline-flex items-center gap-2 rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700"
                     >
-                      Annulla
-                    </Button>
+                      <Video className="h-4 w-4" /> Apri videochiamata
+                    </Link>
+                  ) : (
+                    <span
+                      title="Videochiamata disponibile 5 min prima"
+                      className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-400"
+                    >
+                      <Video className="h-4 w-4" /> Apri videochiamata
+                    </span>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-gray-400">Sessione trascorsa</p>
+              )
+            }
+            overflowActions={
+              <>
+                {booking.sessionStartedAt ? (
+                  <ActionForm action={completeBookingAction} className="w-full">
+                    <input type="hidden" name="bookingId" value={booking.id} />
+                    <button type="submit" className="flex w-full">
+                      <DropdownMenuItem className="w-full flex-1 cursor-pointer">
+                        Completa
+                      </DropdownMenuItem>
+                    </button>
+                  </ActionForm>
+                ) : (
+                  <DropdownMenuItem disabled>
+                    Completabile dopo la videochiamata
+                  </DropdownMenuItem>
+                )}
+                {isSessionJoinable(booking.scheduledFor) && (
+                  <ActionForm action={cancelBookingAction} className="w-full">
+                    <input type="hidden" name="bookingId" value={booking.id} />
+                    <button type="submit" className="flex w-full">
+                      <DropdownMenuItem
+                        variant="destructive"
+                        className="w-full flex-1 cursor-pointer"
+                      >
+                        Annulla
+                      </DropdownMenuItem>
+                    </button>
                   </ActionForm>
                 )}
               </>
@@ -242,22 +342,25 @@ export default async function CoachDashboardPage() {
       />
 
       <DashboardSection
+        id="percorsi-archiviati"
         title="Percorsi conclusi o archiviati"
         subtitle="Uno storico piu leggibile delle richieste gia chiuse, completate o annullate."
         items={archive}
         emptyTitle="Nessuna richiesta passata."
         emptySubtitle="Lo storico delle richieste concluse o archiviate comparira qui."
         renderCard={(booking) => (
-          <CoachRequestCard
+          <CompletedSessionCard
             key={booking.id}
-            data={buildCoachRequestCardData(booking, config)}
-            detailContent={<CoachRequestDetails booking={booking} config={config} />}
+            data={buildArchiveCardData(booking, config)}
+            detailContent={
+              <CoachRequestDetails booking={booking} config={config} />
+            }
           />
         )}
       />
 
       {provider && (
-        <div>
+        <div id="recensioni" className="scroll-mt-24">
           <h2 className="text-lg font-medium text-gray-900">
             Le tue recensioni ({reviews.length})
           </h2>
@@ -325,27 +428,40 @@ export default async function CoachDashboardPage() {
 }
 
 function DashboardSection({
+  id,
   title,
+  titleClassName,
   subtitle,
+  headerAction,
   items,
   emptyTitle,
   emptySubtitle,
   renderCard,
+  cardsLayout = 'grid',
 }: {
+  id?: string;
   title: string;
+  /** Overrides the title's default color, e.g. "text-green-600". */
+  titleClassName?: string;
   subtitle: string;
+  headerAction?: ReactNode;
   items: CoachBooking[];
   emptyTitle: string;
   emptySubtitle: string;
   renderCard: (booking: CoachBooking) => ReactNode;
+  /** "list" for wide landscape cards that need the full row width (e.g. upcoming appointments); "grid" (default) pairs compact cards two-up. */
+  cardsLayout?: 'grid' | 'list';
 }) {
   return (
-    <div>
-      <div className="max-w-3xl">
-        <h2 className="text-lg font-medium text-gray-900">
-          {title} ({items.length})
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-gray-500">{subtitle}</p>
+    <div id={id} className="scroll-mt-24">
+      <div className="flex items-start justify-between gap-3">
+        <div className="max-w-3xl">
+          <h2 className={cn('text-lg font-medium', titleClassName ?? 'text-gray-900')}>
+            {title} ({items.length})
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-gray-500">{subtitle}</p>
+        </div>
+        {headerAction}
       </div>
 
       {items.length === 0 ? (
@@ -354,7 +470,14 @@ function DashboardSection({
           <p className="mt-1 text-sm text-gray-500">{emptySubtitle}</p>
         </div>
       ) : (
-        <div className="mt-5 grid gap-4 xl:grid-cols-2">
+        <div
+          className={cn(
+            'mt-5 gap-4',
+            cardsLayout === 'grid'
+              ? 'grid items-start xl:grid-cols-2'
+              : 'flex flex-col'
+          )}
+        >
           {items.map((booking) => renderCard(booking))}
         </div>
       )}
@@ -389,25 +512,12 @@ function CoachRequestDetails({
           value: formatDateTime(booking.scheduledFor),
         }
       : null,
-    booking.status === 'completed' &&
-    formatSessionDuration(booking.sessionStartedAt, booking.sessionEndedAt)
-      ? {
-          label: 'Durata sessione',
-          value: formatSessionDuration(
-            booking.sessionStartedAt,
-            booking.sessionEndedAt
-          )!,
-        }
-      : null,
     sportLabel ? { label: 'Sport indicato', value: sportLabel } : null,
     levelLabel ? { label: 'Livello atleta', value: levelLabel } : null,
-    booking.clientEmail
-      ? { label: 'Email di riferimento', value: booking.clientEmail }
-      : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
-    <div className="space-y-3">
+    <div className="grid gap-3 sm:grid-cols-2">
       {detailRows.map((row) => (
         <div key={row.label}>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
@@ -443,10 +553,11 @@ function buildCoachRequestCardData(
     statusLabel: bookingStatusLabel(booking.status),
     statusTone: bookingStatusTone(booking.status),
     statusEyebrow: bookingEyebrow(booking.status),
-    athleteName: booking.clientName || booking.clientEmail,
+    athleteName: resolveDisplayName(booking.clientName, booking.clientEmail),
     athleteEmail: booking.clientEmail,
     athleteAvatarUrl: booking.clientAvatarUrl || DEFAULT_ATHLETE_AVATAR,
     athleteMeta: [sportLabel, levelLabel].filter(Boolean).join(' | ') || null,
+    isMinor: booking.athleteIsMinor,
     primaryNeed,
     goal,
     message: explicitGoal && note ? note : null,
@@ -455,7 +566,127 @@ function buildCoachRequestCardData(
       : 'Primo incontro da concordare insieme',
     requestedAtLabel: `Il ${formatDate(booking.requestedAt)}`,
     serviceLabel: booking.serviceTitle,
+    sessionStart: booking.sessionStartedAt,
+    sessionEnd: booking.sessionEndedAt,
+    fallbackMinutes: booking.serviceDurationMin,
   };
+}
+
+function buildUpcomingAppointmentData(
+  booking: CoachBooking
+): UpcomingAppointmentData {
+  return {
+    id: booking.id,
+    athleteName: resolveDisplayName(booking.clientName, booking.clientEmail),
+    athleteAvatarUrl: booking.clientAvatarUrl || DEFAULT_ATHLETE_AVATAR,
+    eyebrow: bookingEyebrow(booking.status),
+    statusLabel: bookingStatusLabel(booking.status),
+    date: booking.scheduledFor ? formatBigDateParts(booking.scheduledFor) : null,
+    primaryNeed: derivePrimaryNeed(booking) ?? 'Da chiarire insieme nel primo confronto.',
+    completionHint: booking.sessionStartedAt
+      ? 'Puoi segnare la sessione come completata dal menu "…".'
+      : 'La sessione potrà essere completata dopo la videochiamata.',
+    requestedAtLabel: formatDate(booking.requestedAt),
+  };
+}
+
+function archiveTone(status: string): CompletedSessionData['tone'] {
+  if (status === 'completed') return 'green';
+  if (status === 'cancelled') return 'gray';
+  return 'red'; // expired, declined
+}
+
+function archiveHeaderLabel(status: string): string {
+  switch (status) {
+    case 'completed':
+      return 'Sessione completata';
+    case 'expired':
+      return 'Richiesta scaduta';
+    case 'declined':
+      return 'Richiesta rifiutata';
+    case 'cancelled':
+      return 'Percorso annullato';
+    default:
+      return bookingStatusLabel(status);
+  }
+}
+
+function buildArchiveCardData(
+  booking: CoachBooking,
+  config: ReturnType<typeof getVerticalConfig>
+): CompletedSessionData {
+  const sportLabel = booking.athleteSport
+    ? findTaxonomyItem(config.taxonomies.categories, booking.athleteSport)?.label ??
+      booking.athleteSport
+    : null;
+  const levelLabel = booking.athleteLevel
+    ? findTaxonomyItem(config.taxonomies.levels ?? [], booking.athleteLevel)?.label ??
+      booking.athleteLevel
+    : null;
+  const note = booking.note?.trim() || null;
+  const goal = booking.athleteGoals?.trim() || note;
+  const isCompleted = booking.status === 'completed';
+
+  // Completed: real call span (or derived) → date range + duration + timeline.
+  const start = booking.sessionStartedAt ?? booking.scheduledFor;
+  const end = booking.sessionEndedAt;
+  const durationMin =
+    getSessionDurationMinutes(booking.sessionStartedAt, booking.sessionEndedAt) ??
+    booking.serviceDurationMin ??
+    null;
+  // Both completed and non-completed render the big date hero (session date, or
+  // the scheduled date for closed-without-session states) so every archive card
+  // has the same structure and height.
+  const dayFrom = booking.scheduledFor ?? booking.sessionStartedAt;
+  const big = dayFrom ? formatBigDateParts(dayFrom) : null;
+
+  return {
+    id: booking.id,
+    status: booking.status,
+    eyebrow: bookingEyebrow(booking.status),
+    headerLabel: archiveHeaderLabel(booking.status),
+    statusLabel: bookingStatusLabel(booking.status),
+    tone: archiveTone(booking.status),
+    personName: resolveDisplayName(booking.clientName, booking.clientEmail),
+    personAvatarUrl: booking.clientAvatarUrl || DEFAULT_ATHLETE_AVATAR,
+    personMeta: [sportLabel, levelLabel].filter(Boolean).join(' · ') || null,
+    date: big
+      ? {
+          day: big.day,
+          monthYear: big.monthYear,
+          startTime: isCompleted && start ? formatTime(start) : big.time,
+          endTime: isCompleted && end ? formatTime(end) : null,
+          durationLabel:
+            isCompleted && durationMin != null ? formatMinutes(durationMin) : null,
+          lead: isCompleted ? null : 'Era prevista',
+        }
+      : null,
+    primaryNeed: derivePrimaryNeed(booking) ?? 'Da chiarire insieme nel primo confronto.',
+    goal,
+    timeline: isCompleted
+      ? {
+          requestedValue: formatDate(booking.requestedAt),
+          sessionValue: start
+            ? `${formatDate(start)}${end ? `, ${formatTime(start)}–${formatTime(end)}` : ''}`
+            : 'orario non registrato',
+        }
+      : null,
+    note: isCompleted ? null : archiveReason(booking.status),
+    requestedAtLabel: formatDate(booking.requestedAt),
+  };
+}
+
+function archiveReason(status: string): string {
+  switch (status) {
+    case 'expired':
+      return 'Nessuna risposta entro i termini.';
+    case 'declined':
+      return 'Richiesta rifiutata.';
+    case 'cancelled':
+      return 'Sessione annullata.';
+    default:
+      return '';
+  }
 }
 
 function bookingEyebrow(status: string): string {

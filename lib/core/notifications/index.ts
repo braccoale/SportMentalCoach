@@ -10,6 +10,7 @@ import {
 } from '@/lib/db/schema';
 import { isEmailEnabled } from '@/lib/core/flags';
 import { sendNotificationEmail } from '@/lib/core/email';
+import { isPushConfigured, sendPushToUser } from '@/lib/core/push';
 
 /**
  * Stable notification type keys. Generic marketplace events — any vertical on
@@ -24,6 +25,7 @@ export const NOTIFICATION_TYPES = [
   'new_message',
   'provider_approved',
   'provider_rejected',
+  'review_received',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -41,6 +43,7 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   new_message: 'Nuovo messaggio',
   provider_approved: 'Profilo approvato',
   provider_rejected: 'Profilo rifiutato',
+  review_received: 'Nuova recensione',
 };
 
 export type NotificationData = {
@@ -289,6 +292,8 @@ export type NotifyContext = {
   audience?: 'athlete' | 'coach';
   /** For `booking_declined`: distinguishes an auto-expiry from a manual decline. */
   expired?: boolean;
+  /** For `review_received`: the star rating (1-5) left by the athlete. */
+  rating?: number;
 };
 
 /**
@@ -351,7 +356,7 @@ function buildContent(
       };
     case 'provider_approved':
       return {
-        title: 'Congratulazioni, sei un coach Kai Pai! 🎉',
+        title: 'Congratulazioni, sei un coach KaiPai! 🎉',
         body:
           'Il tuo profilo è stato approvato ed è ora visibile agli atleti. ' +
           'Da oggi puoi ricevere richieste di sessione, gestire calendario e ' +
@@ -363,6 +368,14 @@ function buildContent(
         title: 'Profilo rifiutato',
         body: 'Il tuo profilo è stato rifiutato. Aggiornalo e invialo di nuovo.',
         data: { link: '/dashboard/coach' },
+      };
+    case 'review_received':
+      return {
+        title: 'Nuova recensione',
+        body: ctx.rating
+          ? `Hai ricevuto una recensione da ${ctx.rating} ${ctx.rating === 1 ? 'stella' : 'stelle'}.`
+          : 'Hai ricevuto una nuova recensione.',
+        data: { link: '/dashboard/coach#recensioni' },
       };
   }
 }
@@ -410,5 +423,22 @@ export async function notify(
     }
   } else {
     console.log(`[email] skipped (disabled): "${title}"`);
+  }
+
+  // Web Push mirror — native notification on subscribed devices (PWA). Same
+  // best-effort, after-the-response pattern as email; no-op without VAPID keys.
+  if (isPushConfigured()) {
+    const sendPush = () =>
+      sendPushToUser(recipientUserId, {
+        title,
+        body: body || undefined,
+        url: data.link,
+        tag: `${type}-${data.bookingId ?? ''}`,
+      }).catch((error) => console.error('[push] notify-push failed:', type, error));
+    try {
+      after(sendPush);
+    } catch {
+      void sendPush();
+    }
   }
 }

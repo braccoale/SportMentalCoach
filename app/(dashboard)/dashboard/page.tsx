@@ -35,7 +35,7 @@ export default async function DashboardHomePage() {
     return (
       <section className="mx-auto w-full max-w-2xl p-6 lg:p-10">
         <h1 className="text-2xl font-semibold text-gray-900">
-          Benvenuto su Kai Pai
+          Benvenuto su KaiPai
         </h1>
         <p className="mt-2 text-gray-500">
           Il tuo account non ha ancora un ruolo attivo. Sfoglia i coach o

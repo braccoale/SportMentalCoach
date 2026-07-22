@@ -4,7 +4,7 @@ import { db } from '@/lib/db/drizzle';
 import { bookings } from '@/lib/db/schema';
 import { getBookingChatContext } from '@/lib/core/messages';
 import { isVideoConfigured } from '@/lib/core/flags';
-import { isSessionJoinable } from '@/lib/core/sessions';
+import { isSessionJoinable, canJoinVideoNow } from '@/lib/core/sessions';
 import { mintAccessToken } from './token';
 
 /**
@@ -35,6 +35,13 @@ export async function recordSessionHeartbeat(
 export type RoomTokenResult =
   | { ok: false; reason: 'unauthorized' }
   | { ok: false; reason: 'past'; backHref: string; otherName: string }
+  | {
+      ok: false;
+      reason: 'too_early';
+      backHref: string;
+      otherName: string;
+      scheduledFor: string;
+    }
   | { ok: false; reason: 'not_configured'; backHref: string; otherName: string }
   | {
       ok: true;
@@ -79,6 +86,17 @@ export async function createRoomToken(
   // Cannot start/join a call for a session in the past.
   if (!isSessionJoinable(ctx.scheduledFor)) {
     return { ok: false, reason: 'past', backHref, otherName };
+  }
+
+  // Nor before the join window opens (a few minutes ahead of the scheduled start).
+  if (!canJoinVideoNow(ctx.scheduledFor)) {
+    return {
+      ok: false,
+      reason: 'too_early',
+      backHref,
+      otherName,
+      scheduledFor: ctx.scheduledFor!.toISOString(),
+    };
   }
 
   if (!isVideoConfigured()) {

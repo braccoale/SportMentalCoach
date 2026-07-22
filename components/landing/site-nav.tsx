@@ -7,6 +7,8 @@ import useSWR from 'swr';
 import { SignInModal } from './sign-in-modal';
 import { SignUpModal } from './sign-up-modal';
 import { UserMenu } from '@/components/user-menu';
+import { UserAvatar } from '@/components/user-avatar';
+import { NotificationBell } from '@/components/notification-bell';
 import { fetcher } from '@/lib/fetcher';
 
 type SessionUser = {
@@ -27,10 +29,10 @@ const LINKS = [
 
 function Logo() {
   return (
-    <Link href="/" className="flex items-center" aria-label="Kai Pai — home">
+    <Link href="/" className="flex items-center" aria-label="KaiPai — home">
       <img
         src="/logo.jpg"
-        alt="Kai Pai"
+        alt="KaiPai"
         width={127}
         height={141}
         className="h-11 w-auto"
@@ -91,8 +93,9 @@ export function SiteNav() {
                 href="/dashboard"
                 className="text-sm font-medium text-kp-mid transition-colors hover:text-kp-hi"
               >
-                {user.name ?? 'Area personale'}
+                {user.name ?? 'Dashboard'}
               </Link>
+              <NotificationBell />
               <UserMenu name={[user.name, user.lastName].filter(Boolean).join(' ') || null} email={user.email} />
             </div>
           ) : (
@@ -115,15 +118,39 @@ export function SiteNav() {
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-kp-hi lg:hidden"
-          aria-label={open ? 'Chiudi menu' : 'Apri menu'}
-          aria-expanded={open}
-        >
-          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        {/* Mobile: account entry point stays visible next to the hamburger —
+            no need to open the menu to sign in or reach the dashboard. */}
+        <div className="flex items-center gap-1.5 lg:hidden">
+          {user ? (
+            <>
+              <NotificationBell />
+              {/* Direct link (not the dropdown) so a tap goes straight to the
+                  dashboard; sign-out is reachable from inside the dashboard. */}
+              <Link href="/dashboard" aria-label="Dashboard">
+                <UserAvatar
+                  name={[user.name, user.lastName].filter(Boolean).join(' ') || user.email}
+                />
+              </Link>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAuthMode('signin')}
+              className="rounded-full border border-kp-line px-3.5 py-1.5 text-sm font-medium text-kp-hi"
+            >
+              Accedi
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="flex h-10 w-10 items-center justify-center rounded-full text-kp-hi"
+            aria-label={open ? 'Chiudi menu' : 'Apri menu'}
+            aria-expanded={open}
+          >
+            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </nav>
 
       {/* Mobile overlay */}
@@ -141,12 +168,13 @@ export function SiteNav() {
           ))}
           <div className="mt-6 flex flex-col gap-3">
             {user ? (
-              <div className="flex items-center justify-center gap-3 rounded-full border border-kp-line px-5 py-3.5 font-medium text-kp-hi">
-                <UserMenu name={[user.name, user.lastName].filter(Boolean).join(' ') || null} email={user.email} />
-                <Link href="/dashboard" onClick={() => setOpen(false)}>
-                  {user.name ?? 'Area personale'}
-                </Link>
-              </div>
+              <Link
+                href="/dashboard"
+                onClick={() => setOpen(false)}
+                className="rounded-full border border-kp-line px-5 py-3.5 text-center font-medium text-kp-hi"
+              >
+                {user.name ?? 'Dashboard'}
+              </Link>
             ) : (
               <>
                 <button

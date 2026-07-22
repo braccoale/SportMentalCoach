@@ -272,7 +272,7 @@ export const providerProfiles = pgTable('provider_profiles', {
   hourlyRate: integer('hourly_rate'),
   currency: varchar('currency', { length: 8 }).notNull().default('EUR'),
   status: varchar('status', { length: 20 }).notNull().default('draft'),
-  // Whether the coach is certified by the Kai Pai Academy.
+  // Whether the coach is certified by the KaiPai Academy.
   isKaipaiCertified: boolean('is_kaipai_certified').notNull().default(false),
   // Trust/credibility fields for the public profile (Phase 2 profile redesign).
   videoUrl: text('video_url'),
@@ -507,6 +507,70 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+// Web Push subscriptions (one per browser/device a user has opted in on).
+// `endpoint` is unique — the same device re-subscribing upserts the same row.
+export const pushSubscriptions = pgTable(
+  'push_subscriptions',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id),
+    endpoint: text('endpoint').notNull().unique(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    ...audit,
+  },
+  (table) => [index('push_subscriptions_user_id_idx').on(table.userId)]
+);
+
+// Parental authorisation for athletes aged 15-17.
+//
+// Deliberately NOT a fourth role: the guardian has no area of their own and no
+// account to manage. They confirm once, from a signed link in an email, and
+// that record is what makes the contract valid — a minor cannot conclude one
+// themselves (art. 1425 c.c.), even though from 14 they can consent to the
+// data processing on their own under Italian law.
+//
+// One row per athlete: re-inviting a guardian overwrites the pending request
+// rather than accumulating rows. `confirmedAt` null means "invited, waiting".
+export const athleteGuardians = pgTable(
+  'athlete_guardians',
+  {
+    id: serial('id').primaryKey(),
+    // The minor. Unique: an athlete has at most one guardian on record.
+    athleteUserId: integer('athlete_user_id')
+      .notNull()
+      .unique()
+      .references(() => users.id),
+    guardianName: varchar('guardian_name', { length: 200 }).notNull(),
+    guardianEmail: varchar('guardian_email', { length: 255 }).notNull(),
+    // Declared relationship: "madre", "padre", "tutore"…
+    relationship: varchar('relationship', { length: 60 }),
+    // Set when the guardian follows the signed link and confirms. Until then
+    // the athlete cannot request or receive a session.
+    confirmedAt: timestamp('confirmed_at'),
+    // Evidence of who accepted and from where, kept to prove the consent.
+    confirmedIp: varchar('confirmed_ip', { length: 64 }),
+    // Art. 316 c.c.: parental responsibility is exercised by both parents, so
+    // the confirming one declares they act with the other's agreement.
+    bothParentsDeclared: boolean('both_parents_declared')
+      .notNull()
+      .default(false),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    ...audit,
+  },
+  (table) => [
+    index('athlete_guardians_athlete_user_id_idx').on(table.athleteUserId),
+  ]
+);
+
+export type AthleteGuardian = typeof athleteGuardians.$inferSelect;
+export type NewAthleteGuardian = typeof athleteGuardians.$inferInsert;
 
 // Per-user, per-type email delivery preference. Generic: one row per
 // (user, notification type). A missing row means "default" (email enabled).

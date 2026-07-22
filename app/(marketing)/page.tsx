@@ -191,7 +191,7 @@ function Problem() {
         </div>
         <Reveal delay={0.4}>
           <p className="mt-12 text-center text-sm text-kp-low">
-            I campioni le allenano tutte e tre. Kai Pai è nato per{' '}
+            I campioni le allenano tutte e tre. KaiPai è nato per{' '}
             <span className="text-kp-hi">completare il cerchio</span>.
           </p>
         </Reveal>
@@ -206,7 +206,7 @@ function Method() {
     <section id="metodo" className={SECTION}>
       <div className={WRAP}>
         <SectionHeader
-          eyebrow="Il Metodo Kai Pai"
+          eyebrow="Il Metodo KaiPai"
           title={
             <>
               La mente ha <span className="text-kp-red">4 muscoli</span>.
@@ -214,7 +214,7 @@ function Method() {
               Noi li alleniamo tutti.
             </>
           }
-          sub="Come il corpo, la mente si allena un muscolo alla volta: lucidità, calma, fiducia, identità. È il cuore di ogni percorso Kai Pai — dal primo incontro all’ultima partita."
+          sub="Come il corpo, la mente si allena un muscolo alla volta: lucidità, calma, fiducia, identità. È il cuore di ogni percorso KaiPai — dal primo incontro all’ultima partita."
         />
         <div className="mt-16">
           <MethodDiamond />
@@ -245,7 +245,7 @@ function Founder() {
                 Francesco Borrelli
               </p>
               <p className="text-sm text-kp-mid">
-                Fondatore · Ideatore del Metodo Kai Pai
+                Fondatore · Ideatore del Metodo KaiPai
               </p>
             </div>
           </ImageSlot>
@@ -272,7 +272,7 @@ function Founder() {
           </Reveal>
           <Reveal delay={0.13}>
             <p className="mt-4 max-w-xl text-lg leading-relaxed text-kp-hi">
-              Kai Pai è nato per questo: portare ciò che ho imparato con i
+              KaiPai è nato per questo: portare ciò che ho imparato con i
               campioni a ogni ragazzo che fa sport.
             </p>
           </Reveal>
@@ -420,18 +420,24 @@ function Audience() {
       t: 'Atleti',
       img: '/atleta.png',
       b: 'Sviluppa il tuo potenziale mentale. Affronta ogni sfida al massimo.',
+      href: '/coaches',
+      cta: 'Scopri di più',
     },
     {
       icon: Users,
       t: 'Allenatori',
       img: '/allenatore.png',
       b: 'Migliora la gestione del gruppo. Comunica, guida, ispira.',
+      href: '/coaches',
+      cta: 'Scopri di più',
     },
     {
       icon: HeartHandshake,
       t: 'Famiglie',
       img: '/famiglia.jpg',
-      b: 'Supporta la crescita dei tuoi figli. Con consapevolezza e serenità.',
+      b: 'Il tuo ruolo conta più di quanto pensi. Ti aiutiamo ad accompagnare tuo figlio con equilibrio: meno pressione, più fiducia — nel rispetto della sua riservatezza.',
+      href: '/famiglie',
+      cta: 'Scopri come accompagnare tuo figlio',
     },
   ];
   return (
@@ -439,7 +445,7 @@ function Audience() {
       <div className={WRAP}>
         <div className="mx-auto max-w-3xl text-center">
           <Reveal>
-            <Eyebrow>Per chi è Kai Pai</Eyebrow>
+            <Eyebrow>Per chi è KaiPai</Eyebrow>
           </Reveal>
           <Reveal delay={0.05}>
             <h2 className="kp-display mt-4 text-[clamp(1.4rem,3vw,2.25rem)] text-kp-hi lg:whitespace-nowrap">
@@ -469,11 +475,11 @@ function Audience() {
                   </h3>
                   <p className="mt-2 text-sm text-kp-mid">{r.b}</p>
                   <a
-                    href="/coaches"
+                    href={r.href}
                     className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-kp-red"
                   >
-                    Scopri di più
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    {r.cta}
+                    <ArrowRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-1" />
                   </a>
                 </div>
               </div>
@@ -481,7 +487,7 @@ function Audience() {
           ))}
         </div>
 
-        {/* Kai Pai per Società Sportive — wide banner */}
+        {/* KaiPai per Società Sportive — wide banner */}
         <Reveal delay={0.3}>
           <div className="mx-auto mt-6 grid max-w-5xl overflow-hidden rounded-2xl border border-kp-line bg-white/[0.02] md:grid-cols-2">
             <ImageSlot
@@ -498,7 +504,7 @@ function Audience() {
                 <Building2 className="h-5 w-5" />
               </span>
               <h3 className="mt-4 font-display text-2xl font-semibold text-kp-hi">
-                Kai Pai per Società Sportive
+                KaiPai per Società Sportive
               </h3>
               <p className="mt-2 text-kp-mid">
                 Inseriamo la preparazione mentale all&apos;interno del tuo
@@ -540,14 +546,14 @@ function MarketplaceAcademy() {
                 <span className="text-kp-red">Una guida formata da noi</span>.
               </>
             }
-            sub="Ogni guida Kai Pai è verificata, certificata e cresciuta dalla nostra Academy. Niente vetrine, niente sconosciuti: solo persone di cui fidarti."
+            sub="Ogni guida KaiPai è verificata, certificata e cresciuta dalla nostra Academy. Niente vetrine, niente sconosciuti: solo persone di cui fidarti."
           />
           <Reveal delay={0.15}>
             <ul className="mt-8 space-y-3">
               {[
                 'Identità e credenziali verificate',
                 'Recensioni vere, solo dopo sessioni reali',
-                'Formate dalla Kai Pai Academy',
+                'Formate dalla KaiPai Academy',
               ].map((f) => (
                 <li key={f} className="flex items-center gap-3 text-kp-mid">
                   <CheckCircle2 className="h-5 w-5 shrink-0 text-kp-verify" />
@@ -618,11 +624,11 @@ function MarketplaceAcademy() {
         </Reveal>
       </div>
 
-      {/* Kai Pai Academy */}
+      {/* KaiPai Academy */}
       <div className={`${WRAP} mt-16`} id="academy">
         <div className="mx-auto max-w-4xl text-center">
           <Reveal>
-            <Eyebrow>Kai Pai Academy</Eyebrow>
+            <Eyebrow>KaiPai Academy</Eyebrow>
           </Reveal>
           <Reveal delay={0.05}>
             <h2 className="kp-display mt-4 text-[clamp(1.5rem,3.4vw,2.6rem)] text-kp-hi lg:whitespace-nowrap">
@@ -633,7 +639,7 @@ function MarketplaceAcademy() {
           <Reveal delay={0.1}>
             <p className="mt-5 text-lg leading-relaxed text-kp-mid">
               Ogni coach supera un percorso rigoroso prima di affiancare un
-              atleta. Solo chi lo completa entra a far parte di Kai Pai.
+              atleta. Solo chi lo completa entra a far parte di KaiPai.
             </p>
           </Reveal>
         </div>
@@ -739,7 +745,7 @@ function Results() {
         <Reveal>
           <p className="mt-8 text-center text-xs text-kp-low">
             *Dato illustrativo, in fase di validazione con i risultati reali dei
-            percorsi Kai Pai.
+            percorsi KaiPai.
           </p>
         </Reveal>
       </div>
@@ -946,7 +952,7 @@ function MovementResources() {
           ))}
           <Reveal delay={lines.length * 0.1}>
             <p className="kp-display text-[clamp(1.6rem,4.5vw,3rem)] leading-tight text-kp-red">
-              Questo è Kai Pai.
+              Questo è KaiPai.
             </p>
           </Reveal>
         </div>
@@ -1058,7 +1064,7 @@ function Packages() {
                 </ul>
 
                 <a
-                  href="mailto:info@kaipai.com?subject=Informazioni%20pacchetti%20Kai%20Pai"
+                  href="mailto:info@kaipai.com?subject=Informazioni%20pacchetti%20KaiPai"
                   className={`mt-8 inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-semibold transition ${
                     p.lit
                       ? 'kp-cta text-white'
@@ -1156,13 +1162,13 @@ function SiteFooter() {
             <div className="flex items-center gap-2.5">
               <img
                 src="/logo.jpg"
-                alt="Kai Pai"
+                alt="KaiPai"
                 width={127}
                 height={141}
                 className="h-8 w-8 rounded-md"
               />
               <span className="font-display text-lg font-semibold text-kp-hi">
-                Kai Pai
+                KaiPai
               </span>
             </div>
             <p className="mt-4 max-w-xs text-sm text-kp-mid">
@@ -1194,11 +1200,20 @@ function SiteFooter() {
           ))}
         </div>
         <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t border-kp-line pt-6 text-sm text-kp-low sm:flex-row">
-          <p>© {new Date().getFullYear()} Kai Pai. Tutti i diritti riservati.</p>
+          <p>© {new Date().getFullYear()} KaiPai. Tutti i diritti riservati.</p>
+          {/* Real links: these were `span`s that looked and hovered like links
+              but went nowhere — the landing is the main public entry point, so
+              it can't be the one page where the legal pages are unreachable. */}
           <div className="flex gap-6">
-            <span className="cursor-pointer hover:text-kp-mid">Privacy</span>
-            <span className="cursor-pointer hover:text-kp-mid">Termini</span>
-            <span className="cursor-pointer hover:text-kp-mid">Cookie</span>
+            <Link href="/privacy" className="hover:text-kp-mid">
+              Privacy
+            </Link>
+            <Link href="/terms" className="hover:text-kp-mid">
+              Termini
+            </Link>
+            <Link href="/cookie" className="hover:text-kp-mid">
+              Cookie
+            </Link>
           </div>
         </div>
       </div>

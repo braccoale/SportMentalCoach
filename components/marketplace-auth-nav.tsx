@@ -28,7 +28,7 @@ export function MarketplaceAuthNav() {
           href="/dashboard"
           className="hidden text-sm font-medium text-gray-700 transition-colors hover:text-gray-900 sm:inline"
         >
-          {user.name ?? 'Area personale'}
+          {user.name ?? 'Dashboard'}
         </Link>
         <UserMenu name={[user.name, user.lastName].filter(Boolean).join(' ') || null} email={user.email} />
       </div>

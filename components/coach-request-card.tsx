@@ -4,6 +4,7 @@ import { useId } from 'react';
 import type { ReactNode } from 'react';
 import { ChevronDown, Clock3 } from 'lucide-react';
 import { UserAvatar } from '@/components/user-avatar';
+import { SessionSummary } from '@/components/session-summary';
 import { cn } from '@/lib/utils';
 
 export type CoachRequestCardData = {
@@ -22,6 +23,13 @@ export type CoachRequestCardData = {
   requestedFor: string;
   requestedAtLabel: string;
   serviceLabel?: string | null;
+  /** Completed-session recap shown next to "Ricevuta": real call span + duration gauge. */
+  sessionStart?: Date | null;
+  sessionEnd?: Date | null;
+  /** Planned length (minutes) used for the gauge when no real span was recorded. */
+  fallbackMinutes?: number | null;
+  /** Athlete is 15-17: the coach must know before the call, not discover it on camera. */
+  isMinor?: boolean;
 };
 
 export function CoachRequestCard({
@@ -54,12 +62,27 @@ export function CoachRequestCard({
               className="size-12 ring-2 ring-red-50"
             />
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-red-600">
+              <p
+                className={cn(
+                  'text-xs font-semibold uppercase tracking-[0.18em]',
+                  data.status === 'completed' ? 'text-blue-600' : 'text-red-600'
+                )}
+              >
                 {data.statusEyebrow}
               </p>
-              <h3 className="mt-1 text-xl font-semibold tracking-tight text-gray-950">
-                {data.athleteName}
-              </h3>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <h3 className="text-xl font-semibold tracking-tight text-gray-950">
+                  {data.athleteName}
+                </h3>
+                {data.isMinor && (
+                  <span
+                    title="Atleta minorenne, percorso autorizzato da un genitore o tutore"
+                    className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800"
+                  >
+                    Minorenne
+                  </span>
+                )}
+              </div>
               {data.athleteMeta ? (
                 <p className="mt-1 text-sm text-gray-600">{data.athleteMeta}</p>
               ) : null}
@@ -99,36 +122,47 @@ export function CoachRequestCard({
           ) : null}
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.16em] text-gray-400">
-              Ricevuta
-            </p>
-            <p className="mt-1 text-sm text-gray-600">{data.requestedAtLabel}</p>
-          </div>
+        <div className="flex flex-col gap-3 border-t border-gray-100 pt-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.16em] text-gray-400">
+                  Ricevuta
+                </p>
+                <p className="mt-1 text-sm text-gray-600">{data.requestedAtLabel}</p>
+              </div>
 
-          <div className="flex flex-col gap-3 sm:items-end">
+              {data.status === 'completed' && (
+                <SessionSummary
+                  start={data.sessionStart ?? null}
+                  end={data.sessionEnd ?? null}
+                  fallbackMinutes={data.fallbackMinutes}
+                />
+              )}
+            </div>
+
             {actions ? (
               <div className="flex flex-wrap items-center gap-2">{actions}</div>
             ) : null}
-            {detailContent ? (
-              <details className="group w-full sm:w-auto">
-                <summary
-                  aria-controls={detailsId}
-                  className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-950"
-                >
-                  Vedi dettagli
-                  <ChevronDown className="h-4 w-4 transition group-open:rotate-180" />
-                </summary>
-                <div
-                  id={detailsId}
-                  className="mt-3 rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600"
-                >
-                  {detailContent}
-                </div>
-              </details>
-            ) : null}
           </div>
+
+          {detailContent ? (
+            <details className="group">
+              <summary
+                aria-controls={detailsId}
+                className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-950"
+              >
+                Vedi dettagli
+                <ChevronDown className="h-4 w-4 transition group-open:rotate-180" />
+              </summary>
+              <div
+                id={detailsId}
+                className="mt-3 rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600"
+              >
+                {detailContent}
+              </div>
+            </details>
+          ) : null}
         </div>
       </div>
     </article>

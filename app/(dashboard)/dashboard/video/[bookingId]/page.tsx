@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getUser } from '@/lib/db/queries';
 import { createRoomToken } from '@/lib/core/video';
+import { formatDateTime } from '@/lib/core/format';
 import { VideoRoom } from './video-room';
 import { StartCallSignal } from './start-call-signal';
 
@@ -73,6 +74,17 @@ export default async function VideoPage({
               Non è possibile avviare una videochiamata per una sessione già
               trascorsa. Se hai bisogno di un nuovo incontro, prenota un’altra
               sessione.
+            </p>
+          </div>
+        ) : result.reason === 'too_early' ? (
+          <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6">
+            <p className="text-sm font-semibold text-gray-900">
+              Non è ancora ora
+            </p>
+            <p className="mt-1 text-sm text-gray-800">
+              La videochiamata si apre 5 minuti prima dell’orario previsto:{' '}
+              {formatDateTime(new Date(result.scheduledFor))}. Torna qui poco
+              prima dell’inizio.
             </p>
           </div>
         ) : (

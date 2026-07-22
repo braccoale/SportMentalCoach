@@ -23,10 +23,10 @@ function ResetForm() {
     <div className="flex min-h-[100dvh] flex-col justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          <Link href="/" aria-label="Kai Pai — home">
+          <Link href="/" aria-label="KaiPai — home">
             <img
               src="/logo.jpg"
-              alt="Kai Pai"
+              alt="KaiPai"
               width={127}
               height={141}
               className="h-14 w-auto rounded-xl"

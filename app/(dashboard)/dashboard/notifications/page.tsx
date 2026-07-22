@@ -4,6 +4,7 @@ import { getUser } from '@/lib/db/queries';
 import { getNotifications } from '@/lib/core/notifications';
 import { formatDateTime } from '@/lib/core/format';
 import { Button } from '@/components/ui/button';
+import { PushSetup } from '@/components/push-setup';
 import {
   markNotificationReadAction,
   markAllNotificationsReadAction,
@@ -39,6 +40,10 @@ export default async function NotificationsPage() {
             </form>
           )}
         </div>
+      </div>
+
+      <div className="mt-4">
+        <PushSetup />
       </div>
 
       {items.length === 0 ? (

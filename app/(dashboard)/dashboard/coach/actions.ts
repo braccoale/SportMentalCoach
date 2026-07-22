@@ -6,7 +6,9 @@ import {
   decideBooking,
   completeBooking,
   cancelBooking,
+  createCoachBookingRequest,
 } from '@/lib/core/bookings';
+import { parseRomeLocalDateTime } from '@/lib/core/availability';
 import type { ActionState } from '@/lib/auth/middleware';
 
 function revalidateBookings() {
@@ -84,4 +86,54 @@ export async function cancelBookingAction(
 
   revalidateBookings();
   return { success: 'Prenotazione annullata.' };
+}
+
+/**
+ * Coach-side "Nuovo appuntamento": creates an already-accepted session for an
+ * athlete the coach has already worked with (validated against the client id
+ * in `createCoachBookingRequest`, which also checks the service ownership).
+ */
+export async function createCoachBookingAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const user = await requireRole('coach');
+
+  // `Number('')` and `Number(null)` are both 0, so an integer check alone would
+  // let a missing field through and surface as a confusing downstream error.
+  const clientUserId = Number(formData.get('clientUserId'));
+  if (!Number.isInteger(clientUserId) || clientUserId <= 0) {
+    return { error: 'Seleziona un atleta.' };
+  }
+
+  const serviceRaw = String(formData.get('serviceId') ?? '').trim();
+  const serviceId = serviceRaw ? Number(serviceRaw) : null;
+  if (serviceRaw && (!Number.isInteger(serviceId) || serviceId! <= 0)) {
+    return { error: 'Servizio non valido.' };
+  }
+
+  const note = String(formData.get('note') ?? '').trim() || null;
+
+  const whenRaw = String(formData.get('scheduledFor') ?? '').trim();
+  let scheduledFor: Date | null = null;
+  if (whenRaw) {
+    const d = parseRomeLocalDateTime(whenRaw);
+    if (!d || Number.isNaN(d.getTime())) return { error: 'Data/ora non valida.' };
+    if (d.getTime() < Date.now() - 2 * 60 * 1000) {
+      return { error: 'Scegli una data/ora futura.' };
+    }
+    scheduledFor = d;
+  }
+
+  const result = await createCoachBookingRequest({
+    coachUserId: user.id,
+    clientUserId,
+    serviceId,
+    note,
+    scheduledFor,
+  });
+  if (!result.ok) return { error: result.error };
+
+  revalidateBookings();
+  return { success: 'Sessione creata e atleta avvisato.' };
 }

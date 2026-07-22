@@ -24,10 +24,10 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
     <div className="min-h-[100dvh] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          <Link href="/" aria-label="Kai Pai — home">
+          <Link href="/" aria-label="KaiPai — home">
             <img
               src="/logo.jpg"
-              alt="Kai Pai"
+              alt="KaiPai"
               width={127}
               height={141}
               className="h-14 w-auto rounded-xl"
@@ -156,7 +156,7 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
             <div className="relative flex justify-center text-sm">
               <span className="px-2 bg-gray-50 text-gray-500">
                 {mode === 'signin'
-                  ? 'Nuovo su Kai Pai?'
+                  ? 'Nuovo su KaiPai?'
                   : 'Hai già un account?'}
               </span>
             </div>
@@ -175,6 +175,26 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
             </Link>
           </div>
         </div>
+
+        {/* Same acceptance notice as the landing modals — this route is a
+            fully functional entry point, so it can't be the one place where
+            the legal links are missing. */}
+        <p className="mt-6 text-center text-xs leading-relaxed text-gray-500">
+          {mode === 'signup' ? 'Creando un account accetti' : 'Accedendo accetti'}{' '}
+          i{' '}
+          <Link href="/terms" className="underline hover:text-gray-700">
+            Termini e Condizioni
+          </Link>
+          , la{' '}
+          <Link href="/privacy" className="underline hover:text-gray-700">
+            Privacy Policy
+          </Link>{' '}
+          e la{' '}
+          <Link href="/cookie" className="underline hover:text-gray-700">
+            Cookie Policy
+          </Link>
+          .
+        </p>
       </div>
     </div>
   );

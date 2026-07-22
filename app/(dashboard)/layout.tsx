@@ -49,13 +49,13 @@ function Header() {
         <Link href="/" className="flex items-center">
           <img
             src="/logo.jpg"
-            alt="Kai Pai"
+            alt="KaiPai"
             width={127}
             height={141}
             className="h-9 w-auto rounded-lg"
           />
           <span className="ml-2 text-xl font-semibold text-white">
-            Kai Pai
+            KaiPai
           </span>
         </Link>
         <div className="flex items-center space-x-4">

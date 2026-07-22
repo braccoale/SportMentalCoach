@@ -52,7 +52,7 @@
   --color-sidebar-border: hsl(var(--sidebar-border));
   --color-sidebar-ring: hsl(var(--sidebar-ring));
 
-  /* ── Kai Pai brand identity (dark-first) ── */
+  /* ── KaiPai brand identity (dark-first) ── */
   --color-kp-ink: #050507;
   --color-kp-ink2: #0a0a0d;
   --color-kp-surface: #121217;
@@ -293,7 +293,7 @@
 
 /*
   ---break---
-  Kai Pai landing utilities (dark-first, cinematic). Scoped by usage on the
+  KaiPai landing utilities (dark-first, cinematic). Scoped by usage on the
   marketing route; safe globally since classes are prefixed `kp-`.
 */
 .kp-root {

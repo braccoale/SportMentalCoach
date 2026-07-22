@@ -23,7 +23,7 @@ export function CoachAvatar({
 }
 
 /**
- * Kai Pai Academy certification mark. Coloured when certified, greyed out
+ * KaiPai Academy certification mark. Coloured when certified, greyed out
  * otherwise. Pass `withLabel` to also render the textual label.
  */
 export function CertifiedBadge({

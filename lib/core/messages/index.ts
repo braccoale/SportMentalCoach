@@ -87,7 +87,9 @@ export async function getConversations(userId: number): Promise<Conversation[]> 
     .leftJoin(services, eq(bookings.serviceId, services.id))
     .where(
       and(
-        eq(bookings.status, 'accepted'),
+        // Accepted (upcoming) and completed (past) sessions both keep an open
+        // chat, so athletes can keep messaging coaches they've worked with.
+        inArray(bookings.status, ['accepted', 'completed']),
         or(
           eq(bookings.clientId, userId),
           eq(providerProfiles.userId, userId)
@@ -186,10 +188,13 @@ export async function getBookingChatContext(
   return row;
 }
 
+/** Statuses for which the booking chat stays open (upcoming + past sessions). */
+const CHATTABLE_STATUSES = ['accepted', 'completed'];
+
 /**
- * Returns the chat (context + messages) for a participant. Chat is available
- * only for `accepted` bookings. Returns `null` if not a participant, not found,
- * or not accepted.
+ * Returns the chat (context + messages) for a participant. Chat stays open for
+ * `accepted` and `completed` bookings. Returns `null` if not a participant,
+ * not found, or the booking is in a non-chattable status.
  */
 export async function getChat(
   bookingId: number,
@@ -197,7 +202,7 @@ export async function getChat(
 ): Promise<{ context: BookingChatContext; messages: ChatMessage[] } | null> {
   const context = await getBookingChatContext(bookingId, userId);
   if (!context) return null;
-  if (context.status !== 'accepted') return null;
+  if (!CHATTABLE_STATUSES.includes(context.status)) return null;
 
   const rows = await db
     .select({
@@ -233,8 +238,8 @@ export async function sendMessage(
 
   const context = await getBookingChatContext(bookingId, userId);
   if (!context) return { ok: false, error: 'Chat non disponibile.' };
-  if (context.status !== 'accepted') {
-    return { ok: false, error: 'La chat è disponibile solo per le richieste accettate.' };
+  if (!CHATTABLE_STATUSES.includes(context.status)) {
+    return { ok: false, error: 'La chat non è più disponibile per questa sessione.' };
   }
 
   await db.insert(messages).values({ bookingId, senderId: userId, body: trimmed, createdBy: userId });

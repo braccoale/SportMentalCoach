@@ -22,7 +22,12 @@ export function FavoriteButton({
 
   if (!loggedIn) {
     return (
-      <a href="/sign-in?redirect=/coaches" aria-label="Accedi per salvare" className={base}>
+      <a
+        href="/sign-in?redirect=/coaches"
+        aria-label="Accedi per salvare"
+        title="Accedi per aggiungere ai preferiti"
+        className={base}
+      >
         <Heart className="h-4 w-4 text-gray-400" />
       </a>
     );
@@ -44,7 +49,8 @@ export function FavoriteButton({
       type="button"
       onClick={onClick}
       aria-pressed={fav}
-      aria-label={fav ? 'Rimuovi dai preferiti' : 'Salva tra i preferiti'}
+      aria-label={fav ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}
+      title={fav ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}
       className={base}
     >
       <Heart

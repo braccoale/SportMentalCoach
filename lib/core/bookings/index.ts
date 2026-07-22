@@ -1,9 +1,10 @@
 import 'server-only';
-import { and, count, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
   bookings,
   clientProfiles,
+  coachAvailability,
   favorites,
   providerProfiles,
   profiles,
@@ -12,11 +13,24 @@ import {
   type BookingStatus,
 } from '@/lib/db/schema';
 import { getVerticalConfig, t } from '@/lib/core/config';
+import { resolveDisplayName } from '@/lib/core/format';
 import { notify } from '@/lib/core/notifications';
 import {
   REQUEST_RESPONSE_WINDOW_HOURS,
   isSessionJoinable,
 } from '@/lib/core/sessions';
+import {
+  getCoachAvailabilityByProviderId,
+  isWithinAvailability,
+  describeAvailability,
+  getBookableDays,
+  type BookableDay,
+} from '@/lib/core/availability';
+import {
+  canBookSessions,
+  ageFromBirthDate,
+  requiresGuardian,
+} from '@/lib/core/guardians';
 import type { Result } from '@/lib/core/result';
 
 /** Localized label for a booking status (from the vertical copy). */
@@ -99,6 +113,59 @@ export async function expireStaleRequests(): Promise<void> {
   }
 }
 
+export type CoachExperienceStats = {
+  athletesCount: number;
+  totalMinutes: number;
+};
+
+/**
+ * Aggregate "experience" trust signals for one or more coaches — distinct
+ * athletes coached and total coaching time delivered, both derived only from
+ * `completed` sessions. Uses the real call duration (session heartbeat span)
+ * when available, falling back to the booked service's planned duration
+ * otherwise (older completions predate the heartbeat, or had no video call).
+ */
+export async function getCoachExperienceStats(
+  providerIds: number[]
+): Promise<Map<number, CoachExperienceStats>> {
+  if (providerIds.length === 0) return new Map();
+
+  const rows = await db
+    .select({
+      providerId: bookings.providerId,
+      athletesCount: sql<number>`count(distinct ${bookings.clientId})::int`,
+      // `greatest(…, 0)` guards against rows written before `completeBooking`
+      // clamped its derived span: a negative duration must never subtract from
+      // a coach's total.
+      totalMinutes: sql<number>`coalesce(sum(
+        greatest(
+          case
+            when ${bookings.sessionStartedAt} is not null and ${bookings.sessionEndedAt} is not null
+              then extract(epoch from (${bookings.sessionEndedAt} - ${bookings.sessionStartedAt})) / 60
+            else coalesce(${services.durationMin}, 0)
+          end,
+          0
+        )
+      ), 0)::int`,
+    })
+    .from(bookings)
+    .leftJoin(services, eq(services.id, bookings.serviceId))
+    .where(
+      and(
+        eq(bookings.status, 'completed'),
+        inArray(bookings.providerId, providerIds)
+      )
+    )
+    .groupBy(bookings.providerId);
+
+  return new Map(
+    rows.map((r) => [
+      r.providerId,
+      { athletesCount: r.athletesCount, totalMinutes: r.totalMinutes },
+    ])
+  );
+}
+
 /** Number of completed sessions for a coach (social-proof credibility). */
 export async function getCompletedSessionCount(
   providerId: number
@@ -158,6 +225,22 @@ export async function createBookingRequest(params: {
     return { ok: false, error: 'Non puoi prenotare una sessione con te stesso.' };
   }
 
+  // An athlete aged 15-17 cannot enter into a session until their guardian has
+  // authorised it: the booking is where the obligation arises, and a minor
+  // cannot validly conclude it on their own (art. 1425 c.c.).
+  const guardian = await canBookSessions(params.clientUserId);
+  if (!guardian.ok) return guardian;
+
+  if (params.scheduledFor) {
+    const slots = await getCoachAvailabilityByProviderId(provider.id);
+    if (!isWithinAvailability(slots, params.scheduledFor)) {
+      return {
+        ok: false,
+        error: `Il coach è disponibile solo in questi orari: ${describeAvailability(slots)}. Scegli un orario in questa fascia.`,
+      };
+    }
+  }
+
   let serviceId: number | null = null;
   let serviceTitle: string | null = null;
   if (params.serviceId != null) {
@@ -212,6 +295,7 @@ export type AthleteBooking = {
   coachAvatarUrl: string | null;
   coachSlug: string | null;
   serviceTitle: string | null;
+  serviceDurationMin: number | null;
 };
 
 export type RelationshipCoach = {
@@ -219,6 +303,10 @@ export type RelationshipCoach = {
   name: string;
   avatarUrl: string | null;
   services: { id: number; title: string }[];
+  /** Compact weekly availability summary, e.g. "Lun 09:00–18:00"; empty if none configured. */
+  availabilityHint: string;
+  /** Selectable day/time options from that availability; empty if none configured. */
+  bookableDays: BookableDay[];
 };
 
 /**
@@ -252,6 +340,7 @@ export async function getAthleteRelationshipCoaches(
   for (const b of booked) {
     lastByProvider.set(b.providerId, new Date(b.lastAt).getTime());
   }
+  const favedIds = new Set(faved.map((r) => r.providerId));
 
   const providerIds = [
     ...new Set([
@@ -261,7 +350,7 @@ export async function getAthleteRelationshipCoaches(
   ];
   if (providerIds.length === 0) return [];
 
-  const [coaches, svc] = await Promise.all([
+  const [coaches, svc, avail] = await Promise.all([
     db
       .select({
         id: providerProfiles.id,
@@ -287,6 +376,16 @@ export async function getAthleteRelationshipCoaches(
       .where(
         and(inArray(services.providerId, providerIds), eq(services.isActive, true))
       ),
+    db
+      .select({
+        providerId: coachAvailability.providerId,
+        weekday: coachAvailability.weekday,
+        startMinute: coachAvailability.startMinute,
+        endMinute: coachAvailability.endMinute,
+      })
+      .from(coachAvailability)
+      .where(inArray(coachAvailability.providerId, providerIds))
+      .orderBy(asc(coachAvailability.weekday), asc(coachAvailability.startMinute)),
   ]);
 
   const servicesByProvider = new Map<number, { id: number; title: string }[]>();
@@ -297,6 +396,13 @@ export async function getAthleteRelationshipCoaches(
     servicesByProvider.set(s.providerId, list);
   }
 
+  const availByProvider = new Map<number, typeof avail>();
+  for (const a of avail) {
+    const list = availByProvider.get(a.providerId) ?? [];
+    list.push(a);
+    availByProvider.set(a.providerId, list);
+  }
+
   return coaches
     .filter((c) => c.slug)
     .map((c) => ({
@@ -304,12 +410,182 @@ export async function getAthleteRelationshipCoaches(
       name: c.name ?? 'Coach',
       avatarUrl: c.avatarUrl,
       services: servicesByProvider.get(c.id) ?? [],
+      availabilityHint: describeAvailability(availByProvider.get(c.id) ?? []),
+      bookableDays: getBookableDays(availByProvider.get(c.id) ?? []),
+      _favorite: favedIds.has(c.id),
       _recency: lastByProvider.get(c.id) ?? 0,
     }))
-    // Last-followed coach first; favourited-only coaches (no booking) after,
-    // alphabetically.
+    // Favourited coaches float to the top; then last-followed first;
+    // favourited-only coaches (no booking) alphabetically after that.
+    .sort(
+      (a, b) =>
+        (b._favorite ? 1 : 0) - (a._favorite ? 1 : 0) ||
+        b._recency - a._recency ||
+        a.name.localeCompare(b.name)
+    )
+    .map(({ _recency, _favorite, ...c }) => c);
+}
+
+export type RelationshipAthlete = {
+  userId: number;
+  name: string;
+  avatarUrl: string | null;
+};
+
+/**
+ * Athletes a coach already has a relationship with — people who have booked a
+ * session with them before. Powers the coach-side "Nuovo appuntamento" quick
+ * flow, symmetric to `getAthleteRelationshipCoaches`: a coach can only
+ * schedule directly with an athlete they've already worked with, never an
+ * arbitrary user.
+ */
+export async function getCoachRelationshipAthletes(
+  userId: number
+): Promise<RelationshipAthlete[]> {
+  const [provider] = await db
+    .select({ id: providerProfiles.id })
+    .from(providerProfiles)
+    .where(eq(providerProfiles.userId, userId))
+    .limit(1);
+  if (!provider) return [];
+
+  const booked = await db
+    .select({
+      clientId: bookings.clientId,
+      lastAt: sql<Date>`max(${bookings.requestedAt})`,
+    })
+    .from(bookings)
+    .where(eq(bookings.providerId, provider.id))
+    .groupBy(bookings.clientId);
+  if (booked.length === 0) return [];
+
+  const clientIds = booked.map((b) => b.clientId);
+  const lastByClient = new Map(
+    booked.map((b) => [b.clientId, new Date(b.lastAt).getTime()])
+  );
+
+  const rows = await db
+    .select({
+      userId: users.id,
+      name: sql<string | null>`nullif(trim(concat(${users.name}, ' ', coalesce(${users.lastName}, ''))), '')`,
+      email: users.email,
+      avatarUrl: profiles.avatarUrl,
+    })
+    .from(users)
+    .leftJoin(profiles, eq(profiles.userId, users.id))
+    .where(inArray(users.id, clientIds));
+
+  return rows
+    .map((r) => ({
+      userId: r.userId,
+      name: resolveDisplayName(r.name, r.email),
+      avatarUrl: r.avatarUrl,
+      _recency: lastByClient.get(r.userId) ?? 0,
+    }))
     .sort((a, b) => b._recency - a._recency || a.name.localeCompare(b.name))
-    .map(({ _recency, ...c }) => c);
+    .map(({ _recency, ...a }) => a);
+}
+
+/**
+ * Creates a session directly from the coach's side, for an athlete they have
+ * already worked with. Unlike `createBookingRequest` (athlete → coach,
+ * `requested`), this is created as `accepted` right away: the coach is the
+ * one being booked, so there's nothing to accept. The athlete is notified and
+ * can still cancel via the normal flow if the time doesn't work for them.
+ */
+export async function createCoachBookingRequest(params: {
+  coachUserId: number;
+  clientUserId: number;
+  serviceId?: number | null;
+  note?: string | null;
+  scheduledFor?: Date | null;
+}): Promise<Result<{ bookingId: number }>> {
+  const [provider] = await db
+    .select({ id: providerProfiles.id })
+    .from(providerProfiles)
+    .where(eq(providerProfiles.userId, params.coachUserId))
+    .limit(1);
+  if (!provider) {
+    return { ok: false, error: 'Profilo coach non trovato.' };
+  }
+
+  // Safety: only allow scheduling with an athlete this coach has already
+  // worked with (same relationship the picker is scoped to).
+  const [relationship] = await db
+    .select({ clientId: bookings.clientId })
+    .from(bookings)
+    .where(
+      and(
+        eq(bookings.providerId, provider.id),
+        eq(bookings.clientId, params.clientUserId)
+      )
+    )
+    .limit(1);
+  if (!relationship) {
+    return { ok: false, error: 'Puoi creare una sessione solo con un atleta con cui hai già lavorato.' };
+  }
+
+  // The same authorisation gate as the athlete-initiated path: a coach must
+  // not be able to schedule around a missing parental consent.
+  const guardian = await canBookSessions(params.clientUserId);
+  if (!guardian.ok) {
+    return {
+      ok: false,
+      error:
+        'Questo atleta è minorenne e non ha ancora l’autorizzazione del genitore o tutore. Non puoi fissare una sessione finché non viene confermata.',
+    };
+  }
+
+  if (params.scheduledFor) {
+    const slots = await getCoachAvailabilityByProviderId(provider.id);
+    if (!isWithinAvailability(slots, params.scheduledFor)) {
+      return {
+        ok: false,
+        error: `Questo orario è fuori dalla tua disponibilità settimanale: ${describeAvailability(slots)}. Scegli un orario in questa fascia o aggiornala in "Disponibilità".`,
+      };
+    }
+  }
+
+  let serviceId: number | null = null;
+  let serviceTitle: string | null = null;
+  if (params.serviceId != null) {
+    const [svc] = await db
+      .select({ id: services.id, title: services.title })
+      .from(services)
+      .where(
+        and(
+          eq(services.id, params.serviceId),
+          eq(services.providerId, provider.id)
+        )
+      )
+      .limit(1);
+    if (!svc) {
+      return { ok: false, error: 'Servizio non valido.' };
+    }
+    serviceId = svc.id;
+    serviceTitle = svc.title;
+  }
+
+  const [created] = await db
+    .insert(bookings)
+    .values({
+      clientId: params.clientUserId,
+      providerId: provider.id,
+      serviceId,
+      status: 'accepted',
+      note: params.note ?? null,
+      scheduledFor: params.scheduledFor ?? null,
+      createdBy: params.coachUserId,
+      decidedAt: new Date(),
+    })
+    .returning({ id: bookings.id });
+
+  await notify('booking_accepted', params.clientUserId, {
+    serviceTitle,
+    bookingId: created.id,
+  });
+
+  return { ok: true, bookingId: created.id };
 }
 
 /** Bookings made by an athlete, with coach + service display info. */
@@ -331,6 +607,7 @@ export async function getAthleteBookings(
       coachAvatarUrl: profiles.avatarUrl,
       coachSlug: providerProfiles.slug,
       serviceTitle: services.title,
+      serviceDurationMin: services.durationMin,
     })
     .from(bookings)
     .innerJoin(providerProfiles, eq(bookings.providerId, providerProfiles.id))
@@ -356,6 +633,9 @@ export type CoachBooking = {
   athleteLevel: string | null;
   athleteGoals: string | null;
   serviceTitle: string | null;
+  serviceDurationMin: number | null;
+  /** True when the athlete is 15-17. The coach needs to know before the call. */
+  athleteIsMinor: boolean;
 };
 
 /** Incoming bookings for a coach (resolved from their user id). */
@@ -371,7 +651,7 @@ export async function getCoachBookings(
 
   if (!provider) return [];
 
-  return db
+  const rows = await db
     .select({
       id: bookings.id,
       status: bookings.status,
@@ -387,7 +667,9 @@ export async function getCoachBookings(
       athleteSport: clientProfiles.category,
       athleteLevel: clientProfiles.level,
       athleteGoals: clientProfiles.goals,
+      athleteBirthDate: clientProfiles.birthDate,
       serviceTitle: services.title,
+      serviceDurationMin: services.durationMin,
     })
     .from(bookings)
     .innerJoin(users, eq(bookings.clientId, users.id))
@@ -396,6 +678,13 @@ export async function getCoachBookings(
     .leftJoin(services, eq(bookings.serviceId, services.id))
     .where(eq(bookings.providerId, provider.id))
     .orderBy(desc(bookings.requestedAt));
+
+  // Derive the minor flag here rather than exposing the birth date: the coach
+  // needs to know they are working with a 15-17 year old, not their birthday.
+  return rows.map(({ athleteBirthDate, ...b }) => ({
+    ...b,
+    athleteIsMinor: requiresGuardian(ageFromBirthDate(athleteBirthDate)),
+  }));
 }
 
 /**
@@ -478,8 +767,13 @@ export async function completeBooking(params: {
       providerId: bookings.providerId,
       clientId: bookings.clientId,
       status: bookings.status,
+      scheduledFor: bookings.scheduledFor,
+      sessionStartedAt: bookings.sessionStartedAt,
+      sessionEndedAt: bookings.sessionEndedAt,
+      serviceDurationMin: services.durationMin,
     })
     .from(bookings)
+    .leftJoin(services, eq(bookings.serviceId, services.id))
     .where(eq(bookings.id, params.bookingId))
     .limit(1);
 
@@ -491,9 +785,38 @@ export async function completeBooking(params: {
     return { ok: false, error: 'La sessione non può essere completata.' };
   }
 
+  const now = new Date();
+  // Ensure the session always has a start/end on record. If a video call was
+  // tracked, those real times are kept; otherwise we derive a plausible span
+  // from the scheduled time + booked duration (default 50') so the history can
+  // always show "iniziata … terminata …".
+  const durationMs = (booking.serviceDurationMin ?? 50) * 60_000;
+  // A scheduled time in the future can't be the real start (the coach is
+  // completing it early) — falling back to it would put the start after the
+  // end and feed a *negative* span into `getCoachExperienceStats`.
+  const plannedStart =
+    booking.scheduledFor && booking.scheduledFor.getTime() < now.getTime()
+      ? booking.scheduledFor
+      : new Date(now.getTime() - durationMs);
+  const start = booking.sessionStartedAt ?? plannedStart;
+  const end =
+    booking.sessionEndedAt ??
+    new Date(Math.min(now.getTime(), start.getTime() + durationMs));
+  // Last resort: a tracked heartbeat pair can still be inconsistent (clock
+  // skew, an end recorded before the start). Never persist a non-positive span.
+  const safeEnd =
+    end.getTime() > start.getTime() ? end : new Date(start.getTime() + durationMs);
+
   await db
     .update(bookings)
-    .set({ status: 'completed', completedAt: new Date(), updatedAt: new Date(), updatedBy: params.coachUserId })
+    .set({
+      status: 'completed',
+      completedAt: now,
+      sessionStartedAt: start,
+      sessionEndedAt: safeEnd,
+      updatedAt: now,
+      updatedBy: params.coachUserId,
+    })
     .where(eq(bookings.id, params.bookingId));
 
   await notify('booking_completed', booking.clientId, { bookingId: booking.id });

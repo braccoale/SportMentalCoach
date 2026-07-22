@@ -10,6 +10,12 @@ import {
 } from 'lucide-react';
 import { getVerticalConfig, t } from '@/lib/core/config';
 
+const LEGAL_LINKS = [
+  { href: '/terms', label: 'Termini e Condizioni' },
+  { href: '/privacy', label: 'Privacy Policy' },
+  { href: '/cookie', label: 'Cookie Policy' },
+];
+
 const SOCIALS = [
   { label: 'Instagram', href: 'https://instagram.com/kaipai', Icon: Instagram },
   { label: 'Facebook', href: 'https://facebook.com/kaipai', Icon: Facebook },
@@ -24,10 +30,10 @@ export function Footer() {
 
   return (
     <footer className="mt-auto border-t border-kp-line bg-kp-ink2">
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-3 lg:px-8">
+      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
         <div>
           <Link href="/" className="flex items-center gap-2">
-            <img src="/logo.jpg" alt="Kai Pai" width={127} height={141} className="h-8 w-auto rounded-md" />
+            <img src="/logo.jpg" alt="KaiPai" width={127} height={141} className="h-8 w-auto rounded-md" />
             <span className="text-lg font-semibold text-kp-hi">{brand}</span>
           </Link>
           <p className="mt-3 max-w-xs text-sm text-kp-mid">
@@ -54,6 +60,19 @@ export function Footer() {
               <MapPin className="h-4 w-4 text-kp-low" />
               <span>Genova, Italia</span>
             </li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-semibold text-kp-hi">Legale</h3>
+          <ul className="mt-3 space-y-2 text-sm text-kp-mid">
+            {LEGAL_LINKS.map(({ href, label }) => (
+              <li key={href}>
+                <Link href={href} className="hover:text-kp-hi">
+                  {label}
+                </Link>
+              </li>
+            ))}
           </ul>
         </div>
 

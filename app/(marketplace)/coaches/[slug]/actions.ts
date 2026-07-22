@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/db/queries';
 import { hasRole } from '@/lib/core/auth';
 import { createBookingRequest } from '@/lib/core/bookings';
+import { parseRomeLocalDateTime } from '@/lib/core/availability';
 import type { ActionState } from '@/lib/auth/middleware';
 
 const requestSchema = z.object({
@@ -20,11 +21,12 @@ function parseScheduledFor(
   value: string | undefined
 ): { ok: true; value: Date | null } | { ok: false; error: string } {
   if (!value || value.trim() === '') return { ok: true, value: null };
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
+  const date = parseRomeLocalDateTime(value);
+  if (!date || Number.isNaN(date.getTime())) {
     return { ok: false, error: 'Data/ora non valida.' };
   }
-  if (date.getTime() < Date.now()) {
+  // Small grace so a just-now selection isn't rejected mid-submit.
+  if (date.getTime() < Date.now() - 2 * 60 * 1000) {
     return { ok: false, error: 'Scegli una data/ora futura.' };
   }
   return { ok: true, value: date };

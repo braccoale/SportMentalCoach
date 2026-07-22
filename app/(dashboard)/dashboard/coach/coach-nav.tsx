@@ -46,7 +46,7 @@ export function CoachNav({
             coach-area icon asset when available. */}
         <img
           src="/logo.jpg"
-          alt="Kai Pai"
+          alt="KaiPai"
           className="h-9 w-9 rounded-lg object-cover"
         />
         <h1 className="text-xl font-semibold text-gray-900">
@@ -71,7 +71,7 @@ export function CoachNav({
               className={cn(
                 'relative flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
                 active
-                  ? 'border-red-600 text-red-600'
+                  ? 'border-blue-900 text-blue-900'
                   : 'border-transparent text-gray-500 hover:text-gray-900'
               )}
             >

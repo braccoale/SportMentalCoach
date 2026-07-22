@@ -5,6 +5,7 @@ import { db } from '@/lib/db/drizzle';
 import { providerProfiles, profiles, services } from '@/lib/db/schema';
 import { getVerticalConfig, findTaxonomyItem } from '@/lib/core/config';
 import { getRatingSummaries } from '@/lib/core/reviews';
+import { getCoachExperienceStats } from '@/lib/core/bookings';
 
 export type CoachListItem = {
   slug: string;
@@ -78,6 +79,9 @@ export type CoachDetail = CoachListItem & {
   identityVerified: boolean;
   certificationsVerified: boolean;
   memberSince: Date;
+  /** Distinct athletes coached and total coaching minutes, from completed sessions. */
+  athletesCount: number;
+  totalMinutes: number;
   services: {
     id: number;
     title: string | null;
@@ -128,6 +132,10 @@ export async function getCoachBySlug(slug: string): Promise<CoachDetail | null> 
 
   if (!coach) return null;
 
+  const stats = (await getCoachExperienceStats([coach.providerId])).get(
+    coach.providerId
+  ) ?? { athletesCount: 0, totalMinutes: 0 };
+
   const svc = await db
     .select({
       id: services.id,
@@ -144,7 +152,7 @@ export async function getCoachBySlug(slug: string): Promise<CoachDetail | null> 
     .orderBy(services.id);
 
   // slug is the queried value, guaranteed non-null.
-  return { ...coach, slug, services: svc };
+  return { ...coach, slug, services: svc, ...stats };
 }
 
 // --- Discovery (matching) ---------------------------------------------------
@@ -179,6 +187,9 @@ export type DiscoveryCoach = {
   matchReasons: string[];
   recommended: boolean;
   isFavorite: boolean;
+  /** Distinct athletes coached and total coaching minutes, from completed sessions. */
+  athletesCount: number;
+  totalMinutes: number;
 };
 
 /**
@@ -234,7 +245,10 @@ export async function getCoachDiscovery(
     .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
     .where(and(...conditions));
 
-  const ratings = await getRatingSummaries(rows.map((r) => r.providerId));
+  const [ratings, experience] = await Promise.all([
+    getRatingSummaries(rows.map((r) => r.providerId)),
+    getCoachExperienceStats(rows.map((r) => r.providerId)),
+  ]);
   const config = getVerticalConfig();
   const labelFor = (
     items: { key: string; label: string }[],
@@ -243,6 +257,10 @@ export async function getCoachDiscovery(
 
   const scored = rows.map((r) => {
     const rating = ratings.get(r.providerId) ?? { average: null, count: 0 };
+    const stats = experience.get(r.providerId) ?? {
+      athletesCount: 0,
+      totalMinutes: 0,
+    };
     const hasVideo = !!r.videoUrl;
 
     // Quality score (drives "Consigliati" ranking).
@@ -267,7 +285,7 @@ export async function getCoachDiscovery(
       );
     if (filters.language && r.languages?.includes(filters.language))
       reasons.push(`Parla ${filters.language}`);
-    if (reasons.length < 3 && r.certified) reasons.push('Certificato Kai Pai');
+    if (reasons.length < 3 && r.certified) reasons.push('Certificato KaiPai');
     if (reasons.length < 3 && rating.average != null)
       reasons.push(`★ ${rating.average}`);
     if (reasons.length < 3 && hasVideo) reasons.push('Video di presentazione');
@@ -291,12 +309,17 @@ export async function getCoachDiscovery(
       matchReasons: reasons.slice(0, 3),
       recommended: false,
       isFavorite: opts.favoriteIds?.has(r.providerId) ?? false,
+      athletesCount: stats.athletesCount,
+      totalMinutes: stats.totalMinutes,
       _score: score,
     };
   });
 
   const sort = filters.sort ?? 'recommended';
   scored.sort((a, b) => {
+    // A user's own favourites always float to the top, regardless of sort —
+    // "your" coaches shouldn't hide behind whatever ranking is active.
+    if (a.isFavorite !== b.isFavorite) return a.isFavorite ? -1 : 1;
     switch (sort) {
       case 'rating':
         return (

@@ -14,28 +14,41 @@ import { createBookingRequestAction } from './actions';
  * complements — rather than replaces — marketplace discovery. With no such
  * coach yet, it degrades to a "Trova un coach" link.
  */
-/** Current local date-time as a `YYYY-MM-DDTHH:mm` string for datetime-local. */
-function nowLocalDateTime(): string {
-  const now = new Date();
-  const off = now.getTimezoneOffset();
-  return new Date(now.getTime() - off * 60_000).toISOString().slice(0, 16);
-}
-
 export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[] }) {
   const [open, setOpen] = useState(false);
   // Default to the last-followed coach (coaches are ordered by recency).
   const [slug, setSlug] = useState(coaches[0]?.slug ?? '');
-  // Recomputed each time the dialog opens so the time stays "current".
-  const [defaultWhen, setDefaultWhen] = useState('');
 
   const selected = useMemo(
     () => coaches.find((c) => c.slug === slug),
     [coaches, slug]
   );
 
+  // Day/time options come pre-computed from the server in Rome time — the same
+  // zone `parseRomeLocalDateTime` reads them back in. A free `datetime-local`
+  // would be interpreted in the browser's timezone and silently shift for an
+  // athlete outside Italy.
+  const days = selected?.bookableDays ?? [];
+  const [day, setDay] = useState('');
+  const [time, setTime] = useState('');
+
+  const selectedDay = useMemo(
+    () => days.find((d) => d.value === day),
+    [days, day]
+  );
+  const scheduledFor = day && time ? `${day}T${time}` : '';
+
+  /** Points day/time at the first option of the given coach (or clears them). */
+  function resetWhenFor(coachSlug: string) {
+    const first = coaches.find((c) => c.slug === coachSlug)?.bookableDays[0];
+    setDay(first?.value ?? '');
+    setTime(first?.times[0] ?? '');
+  }
+
   function openDialog() {
-    setSlug(coaches[0]?.slug ?? '');
-    setDefaultWhen(nowLocalDateTime());
+    const first = coaches[0]?.slug ?? '';
+    setSlug(first);
+    resetWhenFor(first);
     setOpen(true);
   }
 
@@ -102,7 +115,10 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                 <select
                   name="coachSlug"
                   value={slug}
-                  onChange={(e) => setSlug(e.target.value)}
+                  onChange={(e) => {
+                    setSlug(e.target.value);
+                    resetWhenFor(e.target.value);
+                  }}
                   required
                   className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
                 >
@@ -131,17 +147,61 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                 </select>
               </label>
 
-              <label className="flex flex-col gap-1.5">
-                <span className="text-sm font-medium text-gray-700">
-                  Data e ora <span className="text-gray-400">(opzionale)</span>
-                </span>
-                <input
-                  type="datetime-local"
-                  name="scheduledFor"
-                  defaultValue={defaultWhen}
-                  className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-                />
-              </label>
+              <input type="hidden" name="scheduledFor" value={scheduledFor} />
+
+              {days.length > 0 ? (
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-sm font-medium text-gray-700">
+                    Data e ora
+                  </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex flex-col gap-1">
+                      <span className="text-xs text-gray-500">Giorno</span>
+                      <select
+                        value={day}
+                        onChange={(e) => {
+                          const nextDay = e.target.value;
+                          setDay(nextDay);
+                          setTime(
+                            days.find((d) => d.value === nextDay)?.times[0] ?? ''
+                          );
+                        }}
+                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+                      >
+                        {days.map((d) => (
+                          <option key={d.value} value={d.value}>
+                            {d.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-xs text-gray-500">Ora</span>
+                      <select
+                        value={time}
+                        onChange={(e) => setTime(e.target.value)}
+                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+                      >
+                        {selectedDay?.times.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  {selected?.availabilityHint && (
+                    <span className="text-xs text-gray-500">
+                      Disponibile: {selected.availabilityHint}.
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                  {selected?.name ?? 'Il coach'} non ha ancora pubblicato la sua
+                  disponibilità: l’orario lo concorderete in chat.
+                </p>
+              )}
 
               <label className="flex flex-col gap-1.5">
                 <span className="text-sm font-medium text-gray-700">

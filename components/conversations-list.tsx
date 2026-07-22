@@ -19,7 +19,8 @@ export function ConversationsList({
         <MessageSquare className="mx-auto h-8 w-8 text-gray-300" />
         <p className="mt-3 text-gray-600">Nessuna conversazione.</p>
         <p className="mt-1 text-sm text-gray-400">
-          La chat si attiva quando una richiesta di sessione viene accettata.
+          La chat si apre quando una sessione viene accettata e resta
+          disponibile con i coach con cui hai già lavorato.
         </p>
       </div>
     );

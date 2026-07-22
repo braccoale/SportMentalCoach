@@ -14,11 +14,11 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Kai Pai — Alleni il corpo da sempre. È ora della mente.',
+  title: 'KaiPai — Alleni il corpo da sempre. È ora della mente.',
   description:
-    'Kai Pai è il metodo, la scuola e la rete di coach che allenano la mente di chi fa sport. Perché allenare la testa diventi normale quanto allenare il fisico.',
+    'KaiPai è il metodo, la scuola e la rete di coach che allenano la mente di chi fa sport. Perché allenare la testa diventi normale quanto allenare il fisico.',
   openGraph: {
-    title: 'Kai Pai — È ora di allenare la mente.',
+    title: 'KaiPai — È ora di allenare la mente.',
     description:
       'Il metodo, la scuola e la rete di coach che allenano la mente di atleti, squadre e famiglie.',
     type: 'website',

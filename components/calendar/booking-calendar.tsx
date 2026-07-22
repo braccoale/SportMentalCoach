@@ -13,14 +13,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
 import { cn } from '@/lib/utils';
-import { isSessionJoinable } from '@/lib/core/sessions';
+import { isSessionJoinable, canJoinVideoNow } from '@/lib/core/sessions';
 import type { ActionState } from '@/lib/auth/middleware';
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Internal booking calendar (no external calendar services).
  * Data source: the existing `bookings` table only (scheduled_for + status).
  * Views: month / week / agenda. Click → right-side drawer with details and
- * the existing booking actions. Kai Pai dark design system.
+ * the existing booking actions. KaiPai dark design system.
  * ──────────────────────────────────────────────────────────────────────────── */
 
 export type CalendarEvent = {
@@ -112,7 +112,7 @@ function fmtFull(d: Date): string {
   }).format(d);
 }
 
-/* ── status visuals (Kai Pai dark) ── */
+/* ── status visuals (KaiPai dark) ── */
 
 const STATUS_LABELS: Record<string, string> = {
   requested: 'In attesa',
@@ -123,18 +123,41 @@ const STATUS_LABELS: Record<string, string> = {
   expired: 'Scaduta',
 };
 
-/** Event pill classes per status: requested=gray, accepted=red, completed=green, cancelled=muted. */
+/**
+ * Semantic status colours (shared by pill, badge and dot):
+ *   requested → amber (needs a decision), accepted → blue (scheduled/future),
+ *   completed → green (done), expired/declined → red (unhandled/failed),
+ *   cancelled → gray (closed, inactive).
+ */
+function statusDotCls(status: string): string {
+  switch (status) {
+    case 'accepted':
+      return 'bg-blue-500';
+    case 'completed':
+      return 'bg-emerald-500';
+    case 'requested':
+      return 'bg-amber-500';
+    case 'expired':
+    case 'declined':
+      return 'bg-red-500';
+    default: // cancelled
+      return 'bg-zinc-500';
+  }
+}
+
+/** Event pill classes per status. */
 function pillCls(status: string): string {
   switch (status) {
     case 'accepted':
-      return 'bg-kp-red text-white';
+      return 'bg-blue-600 text-white';
     case 'completed':
       return 'bg-emerald-600 text-white';
     case 'requested':
-      return 'bg-white/10 text-kp-mid ring-1 ring-white/10';
+      return 'bg-amber-500 text-white';
     case 'expired':
-      return 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/40 line-through';
-    default: // cancelled / declined
+    case 'declined':
+      return 'bg-red-500/15 text-red-300 ring-1 ring-red-500/40 line-through';
+    default: // cancelled
       return 'bg-white/5 text-kp-low line-through';
   }
 }
@@ -142,14 +165,15 @@ function pillCls(status: string): string {
 function badgeCls(status: string): string {
   switch (status) {
     case 'accepted':
-      return 'bg-kp-red/15 text-kp-red2 ring-1 ring-kp-red/40';
+      return 'bg-blue-500/15 text-blue-300 ring-1 ring-blue-500/40';
     case 'completed':
       return 'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/40';
     case 'requested':
-      return 'bg-white/10 text-kp-mid ring-1 ring-white/15';
-    case 'expired':
       return 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/40';
-    default:
+    case 'expired':
+    case 'declined':
+      return 'bg-red-500/15 text-red-300 ring-1 ring-red-500/40';
+    default: // cancelled
       return 'bg-white/5 text-kp-low ring-1 ring-white/10';
   }
 }
@@ -294,15 +318,7 @@ function MonthView({
                           onClick={() => onSelect(e)}
                           className={cn(
                             'h-2 w-2 rounded-full',
-                            e.status === 'accepted'
-                              ? 'bg-kp-red'
-                              : e.status === 'completed'
-                                ? 'bg-emerald-500'
-                                : e.status === 'requested'
-                                  ? 'bg-kp-mid'
-                                  : e.status === 'expired'
-                                    ? 'bg-amber-400'
-                                    : 'bg-kp-low'
+                            statusDotCls(e.status)
                           )}
                         />
                       ))}
@@ -451,15 +467,7 @@ function AgendaView({
                   <span
                     className={cn(
                       'h-9 w-1 shrink-0 rounded-full',
-                      e.status === 'accepted'
-                        ? 'bg-kp-red'
-                        : e.status === 'completed'
-                          ? 'bg-emerald-500'
-                          : e.status === 'requested'
-                            ? 'bg-kp-mid'
-                            : e.status === 'expired'
-                              ? 'bg-amber-400'
-                              : 'bg-kp-low/50'
+                      statusDotCls(e.status)
                     )}
                   />
                   <span className="w-12 shrink-0 text-sm font-medium text-kp-hi">
@@ -652,13 +660,26 @@ function EventDrawer({
                   <MessageSquare className="h-4 w-4" />
                   Apri chat
                 </Link>
-                <Link
-                  href={`/dashboard/video/${event.id}`}
-                  className="flex items-center justify-center gap-2 rounded-full bg-green-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-green-700"
-                >
-                  <Video className="h-4 w-4" />
-                  Videochiamata
-                </Link>
+                {canJoinVideoNow(event.when) ? (
+                  <Link
+                    href={`/dashboard/video/${event.id}`}
+                    className="flex items-center justify-center gap-2 rounded-full bg-green-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-green-700"
+                  >
+                    <Video className="h-4 w-4" />
+                    Videochiamata
+                  </Link>
+                ) : (
+                  <span title="Videochiamata disponibile 5 min prima">
+                    <button
+                      type="button"
+                      disabled
+                      className="flex w-full items-center justify-center gap-2 rounded-full bg-kp-line px-4 py-2.5 text-sm font-medium text-kp-low"
+                    >
+                      <Video className="h-4 w-4" />
+                      Videochiamata
+                    </button>
+                  </span>
+                )}
               </div>
             ) : (
               <p className="text-xs text-kp-low">
@@ -822,19 +843,19 @@ export function BookingCalendar({
           Legenda
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-kp-mid" /> In attesa
+          <span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> In attesa
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-kp-red" /> Accettata
+          <span className="h-2.5 w-2.5 rounded-full bg-blue-500" /> Accettata
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Completata
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-amber-400" /> Scaduta
+          <span className="h-2.5 w-2.5 rounded-full bg-red-500" /> Scaduta
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-kp-low/50" /> Annullata
+          <span className="h-2.5 w-2.5 rounded-full bg-zinc-500" /> Annullata
         </span>
         <span className="ml-auto hidden text-kp-low sm:inline">
           {role === 'coach'

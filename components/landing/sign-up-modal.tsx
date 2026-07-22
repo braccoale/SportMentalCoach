@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useActionState, useEffect, useState } from 'react';
 import { Eye, EyeOff, Loader2, X } from 'lucide-react';
 import { signUp } from '@/app/(login)/actions';
@@ -16,7 +17,7 @@ const ROLES = [
 
 /**
  * Sign-up popup for the landing page. Mirrors {@link SignInModal}: reuses the
- * `signUp` server action (which redirects to the dashboard on success), Kai Pai
+ * `signUp` server action (which redirects to the dashboard on success), KaiPai
  * logo, Italian labels, and a show/hide password toggle. `onSwitch` flips to the
  * sign-in modal without a page navigation.
  */
@@ -35,6 +36,9 @@ export function SignUpModal({
   );
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState(state?.email ?? '');
+  // Only athletes declare a birth date: the age rules exist to protect young
+  // athletes, not to vet a coach or a club signing up professionally.
+  const [role, setRole] = useState<string>('athlete');
 
   // Close on Escape, and lock body scroll while open.
   useEffect(() => {
@@ -80,7 +84,7 @@ export function SignUpModal({
         <div className="flex flex-col items-center">
           <img
             src="/logo-transparent-clean.png"
-            alt="Kai Pai — Mental Coaching"
+            alt="KaiPai — Mental Coaching"
             width={626}
             height={178}
             className="h-28 w-auto sm:h-32"
@@ -179,7 +183,8 @@ export function SignUpModal({
                     type="radio"
                     name="role"
                     value={value}
-                    defaultChecked={value === 'athlete'}
+                    checked={role === value}
+                    onChange={() => setRole(value)}
                     className="accent-kp-red"
                   />
                   {label}
@@ -188,9 +193,64 @@ export function SignUpModal({
             </div>
           </div>
 
+          {role === 'athlete' && (
+            <div>
+              <label
+                htmlFor="birthDate"
+                className="mb-1.5 block text-sm font-medium text-kp-mid"
+              >
+                Data di nascita
+              </label>
+              <input
+                id="birthDate"
+                name="birthDate"
+                type="date"
+                required
+                className={inputCls}
+              />
+              <p className="mt-1.5 text-xs text-kp-low">
+                KaiPai è riservato agli atleti dai 15 anni in su. Sotto i 18
+                serve l’autorizzazione di un genitore o tutore, che potrai
+                invitare subito dopo la registrazione.
+              </p>
+            </div>
+          )}
+
           {state?.error && (
             <p className="text-sm text-kp-red">{state.error}</p>
           )}
+
+          {/* Acceptance sits above the submit button, not below it: this is the
+              moment consent is actually given, so it has to be readable before
+              the click rather than after it. */}
+          <p className="text-xs leading-relaxed text-kp-low">
+            Creando un account dichiari di aver letto e di accettare i{' '}
+            <Link
+              href="/terms"
+              onClick={onClose}
+              className="underline transition-colors hover:text-kp-mid"
+            >
+              Termini e Condizioni
+            </Link>
+            , la{' '}
+            <Link
+              href="/privacy"
+              onClick={onClose}
+              className="underline transition-colors hover:text-kp-mid"
+            >
+              Privacy Policy
+            </Link>{' '}
+            e la{' '}
+            <Link
+              href="/cookie"
+              onClick={onClose}
+              className="underline transition-colors hover:text-kp-mid"
+            >
+              Cookie Policy
+            </Link>
+            . Se hai meno di 18 anni, ti serve il consenso di un genitore o
+            tutore.
+          </p>
 
           <button
             type="submit"

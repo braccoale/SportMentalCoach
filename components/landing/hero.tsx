@@ -13,7 +13,7 @@ const SIDE_STATS = [
 ];
 
 const TRUST = [
-  { icon: ShieldCheck, label: 'Guide certificate Kai Pai' },
+  { icon: ShieldCheck, label: 'Guide certificate KaiPai' },
   { icon: BadgeCheck, label: 'Metodo scientifico' },
   { icon: Lock, label: 'Pensato anche per gli under 18' },
 ];
@@ -85,7 +85,7 @@ export function Hero() {
         <div className="max-w-xl">
           <img
             src="/logo-transparent-clean.png"
-            alt="Kai Pai — Mental Coaching"
+            alt="KaiPai — Mental Coaching"
             width={626}
             height={178}
             className="mb-6 h-64 w-auto sm:h-[22rem]"

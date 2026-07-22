@@ -15,22 +15,150 @@ import {
   bookingStatusTone,
   type AthleteBooking,
 } from '@/lib/core/bookings';
-import { isSessionJoinable } from '@/lib/core/sessions';
+import { isSessionJoinable, canJoinVideoNow } from '@/lib/core/sessions';
 import { getUnreadCountForType } from '@/lib/core/notifications';
 import { SummaryCard } from '@/components/summary-card';
 import { getReviewedBookingIds } from '@/lib/core/reviews';
 import {
   formatDate,
   formatDateTime,
-  formatSessionDuration,
+  formatTime,
+  formatBigDateParts,
+  formatMinutes,
+  getSessionDurationMinutes,
   scheduledForLabel,
 } from '@/lib/core/format';
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
 import { CoachAvatar } from '@/components/coach-visuals';
+import { SessionSummary } from '@/components/session-summary';
+import {
+  UpcomingAppointmentCard,
+  type UpcomingAppointmentData,
+} from '@/components/upcoming-appointment-card';
+import {
+  CompletedSessionCard,
+  type CompletedSessionData,
+} from '@/components/completed-session-card';
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { ReviewForm } from './review-form';
 import { NewAppointmentButton } from './new-appointment-button';
-import { cancelBookingAction } from './actions';
+import { cancelBookingAction, inviteGuardianAction } from './actions';
+import { getGuardianStatus } from '@/lib/core/guardians';
+import { GuardianBanner } from '@/components/guardian-banner';
+
+/** Sort key for the archive: when the session actually happened, newest first. */
+function archiveRecency(b: AthleteBooking): number {
+  return (
+    b.sessionEndedAt?.getTime() ??
+    b.scheduledFor?.getTime() ??
+    b.decidedAt?.getTime() ??
+    b.requestedAt.getTime()
+  );
+}
+
+/** Card data for one of the athlete's accepted (upcoming) sessions — mirrors the coach's "Prossimi Appuntamenti" card, but showing the coach as the counterpart. */
+function buildAthleteUpcomingData(b: AthleteBooking): UpcomingAppointmentData {
+  const goal = b.note?.trim() || null;
+  return {
+    id: b.id,
+    athleteName: b.coachName ?? 'Coach',
+    athleteAvatarUrl: b.coachAvatarUrl,
+    eyebrow: 'Il tuo coach',
+    statusLabel: bookingStatusLabel(b.status),
+    date: b.scheduledFor ? formatBigDateParts(b.scheduledFor) : null,
+    primaryNeed:
+      goal ??
+      b.serviceTitle ??
+      'Obiettivo da mettere a fuoco insieme al coach.',
+    completionHint:
+      'Puoi entrare in videochiamata da qualche minuto prima dell’inizio.',
+    requestedAtLabel: formatDate(b.requestedAt),
+  };
+}
+
+function archiveTone(status: string): CompletedSessionData['tone'] {
+  if (status === 'completed') return 'green';
+  if (status === 'cancelled') return 'gray';
+  return 'red'; // expired, declined
+}
+
+function archiveHeaderLabel(status: string): string {
+  switch (status) {
+    case 'completed':
+      return 'Sessione completata';
+    case 'expired':
+      return 'Richiesta scaduta';
+    case 'declined':
+      return 'Richiesta rifiutata';
+    case 'cancelled':
+      return 'Sessione annullata';
+    default:
+      return bookingStatusLabel(status);
+  }
+}
+
+/** Archive card data for one of the athlete's closed sessions, showing the coach as counterpart. */
+function buildAthleteArchiveData(b: AthleteBooking): CompletedSessionData {
+  const isCompleted = b.status === 'completed';
+  const start = b.sessionStartedAt ?? b.scheduledFor;
+  const end = b.sessionEndedAt;
+  const durationMin =
+    getSessionDurationMinutes(b.sessionStartedAt, b.sessionEndedAt) ??
+    b.serviceDurationMin ??
+    null;
+  const dayFrom = b.scheduledFor ?? b.sessionStartedAt;
+  const big = dayFrom ? formatBigDateParts(dayFrom) : null;
+
+  return {
+    id: b.id,
+    status: b.status,
+    eyebrow: isCompleted ? 'Percorso completato' : 'Il tuo coach',
+    headerLabel: archiveHeaderLabel(b.status),
+    statusLabel: bookingStatusLabel(b.status),
+    tone: archiveTone(b.status),
+    personName: b.coachName ?? 'Coach',
+    personAvatarUrl: b.coachAvatarUrl,
+    personMeta: b.serviceTitle,
+    date: big
+      ? {
+          day: big.day,
+          monthYear: big.monthYear,
+          startTime: isCompleted && start ? formatTime(start) : big.time,
+          endTime: isCompleted && end ? formatTime(end) : null,
+          durationLabel:
+            isCompleted && durationMin != null ? formatMinutes(durationMin) : null,
+          lead: isCompleted ? null : 'Era prevista',
+        }
+      : null,
+    primaryNeed:
+      b.note?.trim() || b.serviceTitle || 'Percorso di mental coaching',
+    goal: null,
+    timeline: isCompleted
+      ? {
+          requestedValue: formatDate(b.requestedAt),
+          sessionValue: start
+            ? `${formatDate(start)}${end ? `, ${formatTime(start)}–${formatTime(end)}` : ''}`
+            : 'orario non registrato',
+        }
+      : null,
+    note: isCompleted ? null : archiveReason(b.status),
+    requestedAtLabel: formatDate(b.requestedAt),
+  };
+}
+
+function archiveReason(status: string): string {
+  switch (status) {
+    case 'expired':
+      return 'Scaduta senza risposta del coach.';
+    case 'declined':
+      return 'Richiesta rifiutata dal coach.';
+    case 'cancelled':
+      return 'Sessione annullata.';
+    default:
+      return '';
+  }
+}
 
 function BookingRow({
   b,
@@ -50,7 +178,7 @@ function BookingRow({
 
   return (
     <li className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-4 sm:p-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 flex-1 items-start gap-4">
           <CoachAvatar
             name={b.coachName ?? 'Coach'}
@@ -86,17 +214,17 @@ function BookingRow({
                 {scheduledForLabel(b.status)} {formatDateTime(b.scheduledFor)}
               </p>
             ) : null}
-            {b.status === 'completed' &&
-              formatSessionDuration(b.sessionStartedAt, b.sessionEndedAt) && (
-                <p className="text-sm text-gray-500">
-                  Durata sessione:{' '}
-                  <span className="font-medium text-gray-900">
-                    {formatSessionDuration(b.sessionStartedAt, b.sessionEndedAt)}
-                  </span>
-                </p>
-              )}
           </div>
         </div>
+
+        {b.status === 'completed' ? (
+          <SessionSummary
+            start={b.sessionStartedAt}
+            end={b.sessionEndedAt}
+            fallbackMinutes={b.serviceDurationMin}
+            className="shrink-0"
+          />
+        ) : null}
 
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[190px]">
           <span
@@ -117,16 +245,28 @@ function BookingRow({
                   Apri chat
                 </Link>
               </Button>
-              <Button
-                asChild
-                size="sm"
-                className="w-full rounded-full bg-green-600 text-white hover:bg-green-700"
-              >
-                <Link href={`/dashboard/video/${b.id}`}>
-                  <Video className="mr-2 h-4 w-4" />
-                  Apri videochiamata
-                </Link>
-              </Button>
+              {canJoinVideoNow(b.scheduledFor) ? (
+                <Button
+                  asChild
+                  size="sm"
+                  className="w-full rounded-full bg-green-600 text-white hover:bg-green-700"
+                >
+                  <Link href={`/dashboard/video/${b.id}`}>
+                    <Video className="mr-2 h-4 w-4" />
+                    Apri videochiamata
+                  </Link>
+                </Button>
+              ) : (
+                <span
+                  title="Videochiamata disponibile 5 min prima"
+                  className="block"
+                >
+                  <Button disabled size="sm" className="w-full rounded-full">
+                    <Video className="mr-2 h-4 w-4" />
+                    Apri videochiamata
+                  </Button>
+                </span>
+              )}
             </>
           ) : null}
 
@@ -179,10 +319,12 @@ function BookingRow({
 }
 
 function Section({
+  id,
   title,
   items,
   reviewedIds,
 }: {
+  id?: string;
   title: string;
   items: AthleteBooking[];
   reviewedIds: Set<number>;
@@ -190,7 +332,7 @@ function Section({
   if (items.length === 0) return null;
 
   return (
-    <div>
+    <div id={id} className="scroll-mt-24">
       <h2 className="text-lg font-medium text-gray-900">
         {title} ({items.length})
       </h2>
@@ -203,22 +345,154 @@ function Section({
   );
 }
 
+/**
+ * History section: completed sessions render with the rich `CompletedSessionCard`
+ * (plus a review CTA when not yet reviewed); other closed states (declined,
+ * expired, cancelled) keep the compact `BookingRow`.
+ */
+function ArchiveSection({
+  items,
+  reviewedIds,
+}: {
+  items: AthleteBooking[];
+  reviewedIds: Set<number>;
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <div id="storico" className="scroll-mt-24">
+      <h2 className="text-lg font-medium text-gray-900">Storico ({items.length})</h2>
+      <div className="mt-3 grid items-start gap-3 xl:grid-cols-2">
+        {items.map((b) => {
+          const canReview = b.status === 'completed' && !reviewedIds.has(b.id);
+          return (
+            <div key={b.id} className="flex flex-col gap-2">
+              <CompletedSessionCard
+                data={buildAthleteArchiveData(b)}
+                overflowActions={
+                  b.coachSlug ? (
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link href={`/coaches/${b.coachSlug}`}>Vedi coach</Link>
+                    </DropdownMenuItem>
+                  ) : undefined
+                }
+              />
+              {canReview && (
+                <div className="rounded-xl border border-gray-200 bg-white p-3.5">
+                  <p className="text-sm font-medium text-gray-700">
+                    Com&apos;è andata? Lascia una recensione
+                  </p>
+                  <ReviewForm bookingId={b.id} coachName={b.coachName ?? 'Coach'} />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Accepted (upcoming) sessions, rendered with the same rich card the coach sees. */
+function AcceptedAppointments({ items }: { items: AthleteBooking[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div id="sessioni-confermate" className="scroll-mt-24">
+      <h2 className="text-lg font-medium text-green-600">
+        Prossimi Appuntamenti ({items.length})
+      </h2>
+      <div className="mt-3 grid items-start gap-4 xl:grid-cols-2">
+        {items.map((b) => {
+          const past = !isSessionJoinable(b.scheduledFor);
+          return (
+            <UpcomingAppointmentCard
+              key={b.id}
+              data={buildAthleteUpcomingData(b)}
+              primaryActions={
+                past ? (
+                  <p className="text-sm text-gray-400">Sessione trascorsa</p>
+                ) : (
+                  <>
+                    <Link
+                      href={`/dashboard/chat/${b.id}`}
+                      className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+                    >
+                      <MessageSquare className="h-4 w-4" /> Apri chat
+                    </Link>
+                    {canJoinVideoNow(b.scheduledFor) ? (
+                      <Link
+                        href={`/dashboard/video/${b.id}`}
+                        className="inline-flex items-center gap-2 rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+                      >
+                        <Video className="h-4 w-4" /> Apri videochiamata
+                      </Link>
+                    ) : (
+                      <span
+                        title="Videochiamata disponibile 5 min prima"
+                        className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-400"
+                      >
+                        <Video className="h-4 w-4" /> Apri videochiamata
+                      </span>
+                    )}
+                  </>
+                )
+              }
+              overflowActions={
+                <>
+                  {b.coachSlug && (
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link href={`/coaches/${b.coachSlug}`}>Vedi coach</Link>
+                    </DropdownMenuItem>
+                  )}
+                  {!past && (
+                    <ActionForm action={cancelBookingAction} className="w-full">
+                      <input type="hidden" name="bookingId" value={b.id} />
+                      <button type="submit" className="flex w-full">
+                        <DropdownMenuItem
+                          variant="destructive"
+                          className="w-full flex-1 cursor-pointer"
+                        >
+                          Annulla
+                        </DropdownMenuItem>
+                      </button>
+                    </ActionForm>
+                  )}
+                </>
+              }
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default async function AthleteDashboardPage() {
   const user = await requireRole('athlete');
-  const [requests, reviewedIds, unreadMessages, relationshipCoaches] =
-    await Promise.all([
-      getAthleteBookings(user.id),
-      getReviewedBookingIds(user.id),
-      getUnreadCountForType(user.id, 'new_message'),
-      getAthleteRelationshipCoaches(user.id),
-    ]);
+  const [
+    requests,
+    reviewedIds,
+    unreadMessages,
+    relationshipCoaches,
+    guardianStatus,
+  ] = await Promise.all([
+    getAthleteBookings(user.id),
+    getReviewedBookingIds(user.id),
+    getUnreadCountForType(user.id, 'new_message'),
+    getAthleteRelationshipCoaches(user.id),
+    getGuardianStatus(user.id),
+  ]);
 
   const waiting = requests.filter((b) => b.status === 'requested');
   const accepted = requests.filter((b) => b.status === 'accepted');
   const completed = requests.filter((b) => b.status === 'completed');
-  const archive = requests.filter((b) =>
-    ['declined', 'expired', 'cancelled', 'completed'].includes(b.status)
-  );
+  // Archive newest-first by when the session actually happened (real end or
+  // scheduled time), not by when it was first requested.
+  const archive = requests
+    .filter((b) =>
+      ['declined', 'expired', 'cancelled', 'completed'].includes(b.status)
+    )
+    .sort((a, b) => archiveRecency(b) - archiveRecency(a));
 
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -236,6 +510,10 @@ export default async function AthleteDashboardPage() {
 
   return (
     <section className="flex flex-col gap-6 p-6">
+      {/* Parental authorisation, for 15-17 year olds only. Renders nothing for
+          adults, so it can sit here unconditionally. */}
+      <GuardianBanner status={guardianStatus} action={inviteGuardianAction} />
+
       <div className="max-w-3xl">
         <h1 className="text-3xl font-bold tracking-tight text-gray-950">
           Il tuo percorso mentale, una sessione alla volta.
@@ -256,6 +534,7 @@ export default async function AthleteDashboardPage() {
             newToday > 0 ? `${newToday} inviate oggi` : 'Nessuna nuova oggi'
           }
           trend={newToday > 0 ? 'up' : 'flat'}
+          href="/dashboard/athlete#richieste-in-attesa"
         />
         <SummaryCard
           icon={CalendarCheck}
@@ -268,6 +547,7 @@ export default async function AthleteDashboardPage() {
               : 'Nessuna questa settimana'
           }
           trend={confirmedThisWeek > 0 ? 'up' : 'flat'}
+          href="/dashboard/athlete#sessioni-confermate"
         />
         <SummaryCard
           icon={CheckCircle2}
@@ -280,6 +560,7 @@ export default async function AthleteDashboardPage() {
               : 'Storico completo'
           }
           trend={completedThisMonth > 0 ? 'up' : 'flat'}
+          href="/dashboard/athlete#storico"
         />
         <SummaryCard
           icon={MessageSquare}
@@ -309,9 +590,14 @@ export default async function AthleteDashboardPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-6">
-          <Section title="In attesa" items={waiting} reviewedIds={reviewedIds} />
-          <Section title="Accettate" items={accepted} reviewedIds={reviewedIds} />
-          <Section title="Storico" items={archive} reviewedIds={reviewedIds} />
+          <Section
+            id="richieste-in-attesa"
+            title="In attesa"
+            items={waiting}
+            reviewedIds={reviewedIds}
+          />
+          <AcceptedAppointments items={accepted} />
+          <ArchiveSection items={archive} reviewedIds={reviewedIds} />
         </div>
       )}
     </section>

@@ -156,7 +156,7 @@ export default async function CoachesPage({
           Il mental coach giusto parte dal tuo momento, non da una lista.
         </h1>
         <p className="mt-3 text-base leading-7 text-gray-600 sm:text-lg">
-          Scegli il tipo di supporto che stai cercando e lascia che Kai Pai ti
+          Scegli il tipo di supporto che stai cercando e lascia che KaiPai ti
           accompagni verso i coach piu adatti alla tua situazione sportiva.
         </p>
       </header>
@@ -389,7 +389,7 @@ export default async function CoachesPage({
             selectedNeeds={selectedNeeds}
           />
         ) : (
-          <div className="mt-5 grid gap-6 md:grid-cols-2">
+          <div className="mt-5 flex flex-col gap-4">
             {coaches.map((coach) => (
               <CoachCard
                 key={coach.slug}
@@ -535,7 +535,7 @@ function NoResults({
               ? 'Coach vicini ai bisogni selezionati'
               : 'Forse ti interessano'}
           </h2>
-          <div className="mt-4 grid gap-6 md:grid-cols-2">
+          <div className="mt-4 flex flex-col gap-4">
             {fallback.map((coach) => (
               <CoachCard
                 key={coach.slug}

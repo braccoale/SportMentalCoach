@@ -48,11 +48,11 @@ async function seedAdmin() {
   const passwordHash = await hashPassword('admin1234');
   const [user] = await db
     .insert(users)
-    .values({ name: 'Kai Pai Admin', email, passwordHash, role: 'owner' })
+    .values({ name: 'KaiPai Admin', email, passwordHash, role: 'owner' })
     .returning();
   await db
     .insert(profiles)
-    .values({ userId: user.id, displayName: 'Kai Pai Admin' });
+    .values({ userId: user.id, displayName: 'KaiPai Admin' });
   await db.insert(userRoles).values({ userId: user.id, roleKey: 'admin' });
   console.log(`Admin seeded: ${email} (password: admin1234)`);
 }

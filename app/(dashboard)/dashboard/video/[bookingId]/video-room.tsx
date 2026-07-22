@@ -18,11 +18,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { completeBookingAction } from '@/app/(dashboard)/dashboard/coach/actions';
 
-/* Background options. "image" backgrounds are generated at runtime as gradient
-   data-URLs so we ship no assets and make no external requests. */
+/* Background options. Image backgrounds are either a shipped asset (`src`, e.g.
+   the branded KaiPai backdrop) or a runtime-generated gradient (`from`/`to`). */
 type BgOption =
   | { id: 'none'; label: string; kind: 'none' }
   | { id: 'blur'; label: string; kind: 'blur' }
+  | { id: string; label: string; kind: 'image'; src: string }
   | { id: string; label: string; kind: 'image'; from: string; to: string };
 
 /** Renders a diagonal two-stop gradient to a data-URL usable as a background. */
@@ -44,7 +45,7 @@ function gradientDataUrl(from: string, to: string): string {
 const BG_OPTIONS: BgOption[] = [
   { id: 'none', label: 'Nessuno', kind: 'none' },
   { id: 'blur', label: 'Sfoca', kind: 'blur' },
-  { id: 'kaipai', label: 'Kai Pai', kind: 'image', from: '#1a0505', to: '#7f1d1d' },
+  { id: 'kaipai', label: 'KaiPai', kind: 'image', src: '/kaipai-vc-bg.jpg' },
   { id: 'studio', label: 'Studio', kind: 'image', from: '#0f172a', to: '#334155' },
 ];
 
@@ -59,11 +60,13 @@ function BackgroundControls() {
   const processorRef = useRef<BackgroundProcessorWrapper | null>(null);
   const supported = useMemo(() => supportsBackgroundProcessors(), []);
 
-  // Generate gradient data-URLs once (client-only).
+  // Resolve each image option to a usable path: shipped asset (`src`) as-is,
+  // or a runtime-generated gradient data-URL.
   const images = useMemo(() => {
     const map: Record<string, string> = {};
     for (const o of BG_OPTIONS) {
-      if (o.kind === 'image') map[o.id] = gradientDataUrl(o.from, o.to);
+      if (o.kind !== 'image') continue;
+      map[o.id] = 'src' in o ? o.src : gradientDataUrl(o.from, o.to);
     }
     return map;
   }, []);

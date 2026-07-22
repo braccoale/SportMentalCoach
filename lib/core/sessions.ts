@@ -15,6 +15,13 @@ export const REQUEST_RESPONSE_WINDOW_HOURS = 48;
 export const SESSION_JOIN_GRACE_MINUTES = 120;
 
 /**
+ * How long before a session's scheduled start the video call can be entered.
+ * Keeps the room closed while people are still just "requested"/"accepted"
+ * and browsing — the call is only for the actual appointment window.
+ */
+export const VIDEO_JOIN_LEAD_MINUTES = 5;
+
+/**
  * A pending (`requested`) booking is stale when the coach never answered in
  * time: either the requested session time has already passed, or the response
  * window elapsed since it was requested.
@@ -43,4 +50,22 @@ export function isSessionJoinable(
   const end =
     scheduledFor.getTime() + SESSION_JOIN_GRACE_MINUTES * 60 * 1000;
   return end >= now.getTime();
+}
+
+/**
+ * Whether the *video call* specifically can be entered now: not before
+ * `VIDEO_JOIN_LEAD_MINUTES` ahead of the scheduled start, and not past the
+ * usual joinable window. A session with no fixed time has no lead
+ * restriction — it's always joinable, same as `isSessionJoinable`. Chat and
+ * cancellation are unaffected by this; they use `isSessionJoinable` alone.
+ */
+export function canJoinVideoNow(
+  scheduledFor: Date | null,
+  now: Date = new Date()
+): boolean {
+  if (!scheduledFor) return true;
+  if (!isSessionJoinable(scheduledFor, now)) return false;
+  const earliestJoin =
+    scheduledFor.getTime() - VIDEO_JOIN_LEAD_MINUTES * 60 * 1000;
+  return now.getTime() >= earliestJoin;
 }
