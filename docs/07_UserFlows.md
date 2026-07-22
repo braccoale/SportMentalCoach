@@ -148,10 +148,48 @@ Requested booking:
 - No payments, no calendar availability, no video/chat. The `accepted` state is
   terminal for Phase 1 (no `completed` transition wired in the UI yet).
 
+## Coach Adhesion Contract (legal gate, implemented)
+
+```
+Coach signs up → gated: /dashboard/coach → /onboarding/coach-agreement
+  Account has no name/lastName yet → the sign page itself collects
+    "Nome" + "Cognome" in the same form (no separate profile step first)
+  Coach scrolls the contract to the end → sign button unlocks
+  Coach checks "Accetto il contratto" (acceptTerms)
+  Coach checks the art. 1341/1342 c.c. specific approval (acceptVexatious)
+  Coach types full name in "Firma" — must match Nome + Cognome
+  Submit → row inserted in agreement_acceptances (agreement_key='coach')
+         → best-effort emailed copy of the signature
+         → redirect to /dashboard/coach
+```
+
+- Enforced in three places, all reading `hasAcceptedCoachAgreement`: the coach
+  area layout (`app/(dashboard)/dashboard/coach/layout.tsx`) redirects to
+  `/onboarding/coach-agreement` so an unsigned coach can't open the coach
+  area at all; `submitForReviewAction` (`profile-actions.ts`) redirects the
+  same way as defense-in-depth against a direct POST that would publish the
+  profile; `decideBooking`/`createCoachBookingRequest` (`dashboard/coach/actions.ts`)
+  return an inline error instead of redirecting when a coach tries to accept
+  a request unsigned (declining stays allowed, so the coach can still clear
+  the queue). If already signed for the current version, the agreement page
+  itself redirects straight to `/dashboard/coach`.
+- Name/lastName are collected on the agreement page only when missing, and
+  persisted to the account **before** the signature match is checked — there
+  is no separate "set your name in the profile first" step or banner.
+- The signed copy is emailed best-effort (`sendNotificationEmail`, gated by
+  `isEmailEnabled()`) right after the DB insert in
+  `recordCoachAgreementAcceptance`; a delivery failure never invalidates the
+  signature, which is already durably recorded.
+- Re-acceptance: `hasAcceptedCoachAgreement` compares the stored version
+  against the current document version, so bumping the contract text sends
+  the coach back through this gate. There is no "what changed" banner or
+  grace-period/suspended state yet — both are deferred to a later phase, to
+  be built when the document is actually revised for the first time.
+
 ## Guided coach onboarding (implemented)
 
 ```
-Coach signs up → /dashboard/coach (status=draft)
+Coach signs up, signs the agreement → /dashboard/coach (status=draft)
   Onboarding card "Completa il tuo profilo" (X/4):
     1. Profilo base          → headline + bio
     2. Sport e specializzazioni → ≥1 sport e ≥1 specializzazione

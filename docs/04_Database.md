@@ -263,6 +263,40 @@ A user's favourite coaches. Added by migration `0008`.
 Unique `(user_id, provider_id)`. Toggled from the coach discovery cards
 (`lib/core/favorites`); used to fill the heart state and the "Preferiti" filter.
 
+### `agreement_acceptances` (legal — signatures on contractual documents)
+
+Records every acceptance of a contractual document: the platform's own Terms
+(at signup) and the Coach Adhesion Contract (`lib/core/legal/acceptance.ts`).
+
+| column             | type                   | notes                                                          |
+|--------------------|------------------------|-----------------------------------------------------------------|
+| id                  | serial PK              |                                                                   |
+| user_id             | integer FK users.id    | not null                                                         |
+| agreement_key       | varchar(40)            | `'platform-terms'` (Terms+Privacy+Cookie) or `'coach'` (Coach Adhesion Contract); `'guardian-consent'` reserved for Phase B, not used yet |
+| version             | varchar(32)            | version of the document accepted, e.g. `'2026-07-22'`           |
+| document_hash       | varchar(64)            | SHA-256 of the rendered document text at the moment of acceptance |
+| accepted_terms      | boolean                | default `true`; general acceptance of the document              |
+| accepted_vexatious  | boolean                | default `false`; separate approval of the onerous clauses under art. 1341 c.c. — only meaningful for `agreement_key = 'coach'` |
+| signature_name      | varchar(200)           | nullable; typed name, only populated where the document is signed rather than ticked (the coach contract) |
+| ip_address          | varchar(64)            | nullable                                                         |
+| user_agent          | text                   | nullable                                                         |
+| accepted_at         | timestamp              | defaultNow()                                                     |
+
+Index `agreement_acceptances_user_key_idx` on `(user_id, agreement_key)`.
+**Append-only**: signing never updates or deletes a row, even for a
+re-acceptance of the same document — accepting a new version, or re-signing,
+just inserts another row. What must survive is the history ("they accepted
+*this exact text*, at *this time*, from *this IP*"), not merely the latest
+state; `document_hash` is what lets a later dispute prove which wording was
+actually shown and accepted. `hasAcceptedCoachAgreement` reads the latest
+`'coach'` row and requires it to match the current document version with both
+`accepted_terms` and `accepted_vexatious` true — no upsert, no "current
+status" column, by design.
+
+Today only the `'coach'` key is exercised end-to-end (`recordCoachAgreementAcceptance`,
+called from the sign step at `/onboarding/coach-agreement`); `'platform-terms'`
+is written at signup by `recordPlatformTermsAcceptance`.
+
 ---
 
 ## Aliases & views
