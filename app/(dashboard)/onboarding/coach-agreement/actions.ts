@@ -34,6 +34,9 @@ export async function signCoachAgreementAction(
     if (!name || !lastName) {
       return { error: 'Inserisci nome e cognome.' };
     }
+    if (name.length > 100 || lastName.length > 100) {
+      return { error: 'Nome e cognome non devono superare 100 caratteri.' };
+    }
 
     await Promise.all([
       db
