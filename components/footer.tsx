@@ -14,6 +14,7 @@ const LEGAL_LINKS = [
   { href: '/terms', label: 'Termini e Condizioni' },
   { href: '/privacy', label: 'Privacy Policy' },
   { href: '/cookie', label: 'Cookie Policy' },
+  { href: '/legal/coach-agreement', label: 'Contratto Coach' },
 ];
 
 const SOCIALS = [
