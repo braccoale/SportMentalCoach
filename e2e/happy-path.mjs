@@ -44,7 +44,9 @@ async function signup(page, u, role) {
   await page.fill('#password', u.pass);
   await page.check(`input[name="role"][value="${role}"]`);
   await page.click('button[type="submit"]');
-  await page.waitForURL(/dashboard/, { timeout: 30000 });
+  // A freshly signed-up coach is gated straight to the agreement page
+  // instead of the dashboard, so the landing URL can be either.
+  await page.waitForURL(/dashboard|onboarding/, { timeout: 30000 });
 }
 
 async function login(page, email, pass) {
@@ -61,19 +63,33 @@ const browser = await chromium.launch();
 const coachCtx = await browser.newContext();
 const coach = await coachCtx.newPage();
 await signup(coach, COACH, 'coach');
-coach.url().includes('/dashboard/coach')
-  ? ok(1, `Coach registrato (${COACH.email})`)
-  : ko(1, `atteso /dashboard/coach, trovato ${coach.url()}`);
 
-// Account name (drives the public display name)
-await coach.goto(`${BASE}/dashboard/coach/profile`);
-await coach.waitForSelector('#lastName');
-await coach.fill('#name', COACH.nome);
-await coach.fill('#lastName', COACH.cognome);
-await coach.locator('form:has(#lastName) button[type="submit"]').click();
-await coach.waitForSelector('text=Account aggiornato.');
+// Dopo il signup il coach viene mandato a firmare il contratto: senza firma
+// non può pubblicare il profilo né accettare prenotazioni.
+await coach.goto(`${BASE}/onboarding/coach-agreement`);
+if (coach.url().includes('/onboarding/coach-agreement')) {
+  // L'account non ha ancora nome e cognome: la pagina di firma li chiede
+  // lì stesso, non più dal profilo.
+  await coach.waitForSelector('#signature');
+  await coach.fill('#name', COACH.nome);
+  await coach.fill('#lastName', COACH.cognome);
+  // Scorri il contratto fino in fondo per abilitare la firma.
+  await coach.locator('form div.overflow-y-auto').evaluate((el) => {
+    el.scrollTop = el.scrollHeight;
+  });
+  await coach.check('input[name="acceptTerms"]');
+  await coach.check('input[name="acceptVexatious"]');
+  await coach.fill('#signature', COACH_FULL);
+  await coach.click('button[type="submit"]');
+  await coach.waitForURL(/dashboard\/coach/, { timeout: 30000 });
+  ok(1, `Coach registrato e contratto firmato (${COACH.email})`);
+} else {
+  ko(1, `atteso lo step contratto, trovato ${coach.url()}`);
+}
 
 // Profile: headline + bio + sport + specialty
+await coach.goto(`${BASE}/dashboard/coach/profile`);
+await coach.waitForSelector('#headline');
 await coach.fill('#headline', 'Mental coach E2E per il calcio');
 await coach.fill('#description', 'Percorsi di allenamento mentale per atleti. Profilo creato dal test end-to-end.');
 await coach.check('input[name="categories"][value="football"]');

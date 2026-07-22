@@ -1,11 +1,14 @@
 import 'server-only';
 import { and, desc, eq } from 'drizzle-orm';
 import { db, type DbOrTx } from '@/lib/db/drizzle';
-import { agreementAcceptances } from '@/lib/db/schema';
+import { agreementAcceptances, users } from '@/lib/db/schema';
 import type { Result } from '@/lib/core/result';
+import { sendNotificationEmail } from '@/lib/core/email';
+import { isEmailEnabled } from '@/lib/core/flags';
 import { LEGAL_VERSION } from './processors';
 import { LEGAL_CONTENT_HASH } from './content-hash.generated';
 import {
+  COACH_AGREEMENT,
   CURRENT_COACH_AGREEMENT_VERSION,
   hashAgreement,
 } from './coach-agreement';
@@ -156,6 +159,30 @@ export async function recordCoachAgreementAcceptance(params: {
     userAgent: params.userAgent?.slice(0, 1000) ?? null,
     documentHash: hashAgreement(),
   });
+
+  // Copia al coach: standard in qualsiasi sottoscrizione, e la prima cosa che
+  // viene chiesta in caso di contestazione. Best-effort: se l'email fallisce
+  // la firma resta valida, la riga a DB è la prova.
+  if (isEmailEnabled()) {
+    const [coach] = await db
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.id, params.userId))
+      .limit(1);
+
+    if (coach) {
+      await sendNotificationEmail({
+        to: coach.email,
+        title: 'Copia del Contratto di Adesione Coach',
+        body:
+          `Hai firmato il Contratto di Adesione Coach KaiPai (versione ${COACH_AGREEMENT.version}) ` +
+          `il ${new Date().toLocaleDateString('it-IT')}. Puoi rileggerlo in qualsiasi momento dal link qui sotto.`,
+        link: '/legal/coach-agreement',
+      }).catch((e) =>
+        console.error('[legal] agreement copy email failed:', e)
+      );
+    }
+  }
 
   return { ok: true };
 }
