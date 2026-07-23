@@ -6,10 +6,10 @@ import path from 'path';
  * File storage abstraction.
  *
  * Uploads go to Supabase Storage when the project is configured
- * (`SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`), which is required for
- * serverless / read-only hosts. When those env vars are absent (e.g. local
- * development) it transparently falls back to writing under `public/uploads/`,
- * mirroring the existing avatar upload behaviour so nothing breaks.
+ * (`SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_URL`, plus
+ * `SUPABASE_SERVICE_ROLE_KEY`), which is required for serverless / read-only
+ * hosts. When those env vars are absent (e.g. local development) it
+ * transparently falls back to writing under `public/uploads/`.
  *
  * ── Supabase Storage setup (one-time) ────────────────────────────────────────
  *  1. Create a PUBLIC bucket (default: `media`) in the Supabase dashboard,
@@ -24,8 +24,14 @@ import path from 'path';
 
 const BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'media';
 
+function getSupabaseUrl(): string | undefined {
+  // The project URL is public by design, so deployments that already expose it
+  // to the browser do not need to duplicate it under a server-only variable.
+  return process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+}
+
 export function isSupabaseStorageConfigured(): boolean {
-  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  return Boolean(getSupabaseUrl() && process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
 /**
@@ -40,7 +46,7 @@ export async function storeFile(
   if (isSupabaseStorageConfigured()) {
     const { createClient } = await import('@supabase/supabase-js');
     const supabase = createClient(
-      process.env.SUPABASE_URL!,
+      getSupabaseUrl()!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
     const { error } = await supabase.storage

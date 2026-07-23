@@ -46,10 +46,26 @@ export function PhotoForm({
         method: 'POST',
         body: fd,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Caricamento fallito.');
+      const responseText = await res.text();
+      let data: { error?: string; url?: string } | null = null;
+      if (responseText) {
+        try {
+          data = JSON.parse(responseText);
+        } catch {
+          // Proxies and hosting platforms can return an HTML error page.
+        }
+      }
+      if (!res.ok) {
+        throw new Error(
+          data?.error || `Caricamento fallito (errore ${res.status}).`
+        );
+      }
+      if (!data?.url) {
+        throw new Error('Il server non ha restituito la foto caricata.');
+      }
       submitUrl(data.url);
     } catch (err) {
+      setPreview(avatarUrl);
       setUploadError(err instanceof Error ? err.message : 'Caricamento fallito.');
     } finally {
       setUploading(false);
