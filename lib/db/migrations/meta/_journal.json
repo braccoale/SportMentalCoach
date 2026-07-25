@@ -127,6 +127,13 @@
       "when": 1784721220138,
       "tag": "0017_complex_switch",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1784976918789,
+      "tag": "0018_invite_referrals",
+      "breakpoints": true
     }
   ]
 }

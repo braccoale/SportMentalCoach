@@ -43,6 +43,8 @@ import {
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { ReviewForm } from './review-form';
 import { NewAppointmentButton } from './new-appointment-button';
+import { InviteFriendCard } from '@/components/invite/invite-friend-card';
+import { InviteFriendLink } from '@/components/invite/invite-friend-link';
 import { cancelBookingAction, inviteGuardianAction } from './actions';
 import { getGuardianStatus } from '@/lib/core/guardians';
 import { GuardianBanner } from '@/components/guardian-banner';
@@ -578,6 +580,8 @@ export default async function AthleteDashboardPage() {
         />
       </div>
 
+      <InviteFriendCard />
+
       <h2 className="text-lg font-medium text-gray-900">Le tue sessioni</h2>
 
       {requests.length === 0 ? (
@@ -600,6 +604,12 @@ export default async function AthleteDashboardPage() {
           />
           <AcceptedAppointments items={accepted} />
           <ArchiveSection items={archive} reviewedIds={reviewedIds} />
+          {/* Discreet nudge after a concluded session — never a hard sell. */}
+          {completed.length > 0 && (
+            <div className="border-t border-gray-100 pt-5">
+              <InviteFriendLink />
+            </div>
+          )}
         </div>
       )}
     </section>

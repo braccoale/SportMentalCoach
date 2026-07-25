@@ -763,6 +763,70 @@ export const bookingsRelations = relations(bookings, ({ one }) => ({
   }),
 }));
 
+// ---------------------------------------------------------------------------
+// "Invita un amico" — referral (Phase 1: attribution only, no rewards yet).
+//
+// Two tables on purpose. `referral_codes` holds the ONE stable personal code
+// per user (reused for every share); `referrals` records each conversion. The
+// unique `referred_user_id` is what makes attribution single and idempotent:
+// a new user can be attributed to at most one inviter, forever.
+//
+// Security note: these tables are read/written only server-side through Drizzle
+// (the app never queries them from the browser with the anon key), so — like
+// every other table here — authorization is enforced in server code, and the
+// public code lookup projects only the inviter's first name, never PII. No RLS.
+// ---------------------------------------------------------------------------
+export const referralCodes = pgTable(
+  'referral_codes',
+  {
+    id: serial('id').primaryKey(),
+    // One code per user. Unique so a user can never hold two personal codes.
+    userId: integer('user_id')
+      .notNull()
+      .unique()
+      .references(() => users.id),
+    // Public, non-guessable, does NOT encode the internal user id. Uppercase
+    // base32 (no ambiguous chars). Unique across the whole table.
+    code: varchar('code', { length: 16 }).notNull().unique(),
+    // Lets us disable a code without deleting it (future abuse handling).
+    active: boolean('active').notNull().default(true),
+    // Best-effort counter of public-page opens (deduped per visitor cookie).
+    openCount: integer('open_count').notNull().default(0),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    ...audit,
+  },
+  (table) => [index('referral_codes_code_idx').on(table.code)]
+);
+
+export const referrals = pgTable(
+  'referrals',
+  {
+    id: serial('id').primaryKey(),
+    codeId: integer('code_id')
+      .notNull()
+      .references(() => referralCodes.id),
+    inviterUserId: integer('inviter_user_id')
+      .notNull()
+      .references(() => users.id),
+    // Unique: a signed-up user is attributed to exactly one inviter, once.
+    referredUserId: integer('referred_user_id')
+      .notNull()
+      .unique()
+      .references(() => users.id),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    ...audit,
+  },
+  (table) => [
+    index('referrals_inviter_user_id_idx').on(table.inviterUserId),
+  ]
+);
+
+export type ReferralCode = typeof referralCodes.$inferSelect;
+export type NewReferralCode = typeof referralCodes.$inferInsert;
+export type Referral = typeof referrals.$inferSelect;
+export type NewReferral = typeof referrals.$inferInsert;
+
 // --- Types ---
 
 export type Organization = Team;

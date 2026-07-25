@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState, useState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,10 +17,23 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
   const redirect = searchParams.get('redirect');
   const priceId = searchParams.get('priceId');
   const inviteId = searchParams.get('inviteId');
+  // Friend-referral code (from /invita/[code] → /sign-up?ref=CODE). Distinct
+  // from `inviteId`, which is a team/club membership invitation.
+  const ref = searchParams.get('ref');
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     mode === 'signin' ? signIn : signUp,
     { error: '' }
   );
+
+  // Persist the referral code so it survives navigation within the auth flow
+  // (e.g. sign-up ↔ sign-in). The signUp action reads formData first, then this
+  // cookie. A referral code is not sensitive, so a plain lax cookie is fine.
+  useEffect(() => {
+    if (!ref) return;
+    document.cookie = `kp_ref=${encodeURIComponent(ref)}; path=/; max-age=${
+      60 * 60 * 24 * 30
+    }; SameSite=Lax`;
+  }, [ref]);
 
   return (
     <div className="min-h-[100dvh] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
@@ -48,6 +61,7 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
           <input type="hidden" name="redirect" value={redirect || ''} />
           <input type="hidden" name="priceId" value={priceId || ''} />
           <input type="hidden" name="inviteId" value={inviteId || ''} />
+          <input type="hidden" name="ref" value={ref || ''} />
           <div>
             <Label
               htmlFor="email"
@@ -194,7 +208,9 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
             <Link
               href={`${mode === 'signin' ? '/sign-up' : '/sign-in'}${
                 redirect ? `?redirect=${redirect}` : ''
-              }${priceId ? `&priceId=${priceId}` : ''}`}
+              }${priceId ? `&priceId=${priceId}` : ''}${
+                ref ? `${redirect ? '&' : '?'}ref=${ref}` : ''
+              }`}
               className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-full shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
             >
               {mode === 'signin'

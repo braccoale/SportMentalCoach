@@ -9,6 +9,7 @@
     "db:seed": "npx tsx lib/db/seed.ts",
     "auth:migrate": "npx tsx lib/db/migrate-auth.ts",
     "e2e": "node e2e/happy-path.mjs",
+    "test": "tsx --test lib/core/referrals/referrals.test.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio"

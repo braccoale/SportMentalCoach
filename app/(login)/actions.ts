@@ -23,7 +23,8 @@ import {
 } from '@/lib/auth/supabase';
 import { sendWelcomeEmail } from '@/lib/core/email';
 import { redirect } from 'next/navigation';
-import { headers } from 'next/headers';
+import { headers, cookies } from 'next/headers';
+import { attributeReferral } from '@/lib/core/referrals';
 import { recordPlatformTermsAcceptance } from '@/lib/core/legal/acceptance';
 import { createCheckoutSession } from '@/lib/payments/stripe';
 import { getUser, getUserWithTeam } from '@/lib/db/queries';
@@ -156,6 +157,10 @@ const signUpSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   inviteId: z.string().optional(),
+  // Friend-referral code (from /invita/[code]). Unrelated to `inviteId` (team
+  // invitations). Never trusted: validated server-side, and its absence or
+  // invalidity must never block the signup.
+  ref: z.string().optional(),
   // Public signup may only choose athlete / coach / club — never admin.
   role: z.enum(['athlete', 'coach', 'club']).optional(),
   // Required for athletes: the platform is offered from 15 up, and between 15
@@ -350,7 +355,20 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
     };
   }
 
-  const { team: createdTeam } = signupResult;
+  const { user: createdUser, team: createdTeam } = signupResult;
+
+  // Friend referral attribution — strictly best-effort, AFTER the account is
+  // safely committed. The code may come from the form (query param) or the
+  // `kp_ref` cookie set when the invite link was opened. It can never block or
+  // undo the signup: attributeReferral swallows every error, ignores self- and
+  // duplicate-attribution, and no-ops on an invalid/unknown code.
+  const cookieStore = await cookies();
+  const refCode = data.ref?.trim() || cookieStore.get('kp_ref')?.value || null;
+  await attributeReferral({ rawCode: refCode, referredUserId: createdUser.id });
+  if (refCode) {
+    // Consume the cookie so a later signup in the same browser isn't attributed.
+    cookieStore.set('kp_ref', '', { path: '/', maxAge: 0 });
+  }
 
   // 2) Session cookies for the freshly created identity.
   const supabase = await createSupabaseServer();
