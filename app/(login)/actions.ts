@@ -156,6 +156,10 @@ export const signIn = validatedAction(signInSchema, async (data, formData) => {
 const signUpSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
+  // Mandatory, like the email: the public display name and the invite page's
+  // "[Nome] ti invita" both rely on a real first + last name being present.
+  name: z.string().trim().min(1, 'Inserisci il tuo nome.').max(100),
+  lastName: z.string().trim().min(1, 'Inserisci il tuo cognome.').max(100),
   inviteId: z.string().optional(),
   // Friend-referral code (from /invita/[code]). Unrelated to `inviteId` (team
   // invitations). Never trusted: validated server-side, and its absence or
@@ -169,7 +173,8 @@ const signUpSchema = z.object({
 });
 
 export const signUp = validatedAction(signUpSchema, async (data, formData) => {
-  const { email, password, inviteId, role, birthDate } = data;
+  const { email, password, name, lastName, inviteId, role, birthDate } = data;
+  const fullName = `${name} ${lastName}`.trim();
 
   // Age gate. Only athletes declare a birth date — a coach or a club signing
   // up is acting in a professional capacity, not as a young athlete.
@@ -269,7 +274,7 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
   // orphaned user / team / profile rows behind.
   const signupResult = await db
     .transaction(async (tx) => {
-      const newUser: NewUser = { email, authId, role: 'owner' };
+      const newUser: NewUser = { email, authId, role: 'owner', name, lastName };
       const [createdUser] = await tx.insert(users).values(newUser).returning();
 
       let teamId: number;
@@ -309,11 +314,11 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
         await provisionMarketplaceRole(
           createdUser.id,
           marketplaceRole,
-          { email },
+          { email, displayName: fullName },
           tx
         );
       } else {
-        await ensureProfile(createdUser.id, undefined, tx);
+        await ensureProfile(createdUser.id, fullName, tx);
       }
 
       // Proof of acceptance, written in the same transaction as the account:

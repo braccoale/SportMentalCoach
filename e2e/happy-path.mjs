@@ -41,8 +41,13 @@ function ko(step, msg) { results.push({ step, pass: false }); console.log(`❌ $
 async function signup(page, u, role) {
   await page.goto(`${BASE}/sign-up`);
   await page.fill('#email', u.email);
+  // Name + surname are mandatory at signup (like the email).
+  await page.fill('#name', u.nome);
+  await page.fill('#lastName', u.cognome);
   await page.fill('#password', u.pass);
   await page.check(`input[name="role"][value="${role}"]`);
+  // Athletes must also declare a birth date (age gate).
+  if (role === 'athlete') await page.fill('#birthDate', '2000-01-01');
   await page.click('button[type="submit"]');
   await page.waitForURL(/dashboard/, { timeout: 30000 });
 }

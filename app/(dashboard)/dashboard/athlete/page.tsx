@@ -43,7 +43,7 @@ import {
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { ReviewForm } from './review-form';
 import { NewAppointmentButton } from './new-appointment-button';
-import { InviteFriendCard } from '@/components/invite/invite-friend-card';
+import { InviteFriendButton } from '@/components/invite/invite-friend-button';
 import { InviteFriendLink } from '@/components/invite/invite-friend-link';
 import { cancelBookingAction, inviteGuardianAction } from './actions';
 import { getGuardianStatus } from '@/lib/core/guardians';
@@ -526,8 +526,9 @@ export default async function AthleteDashboardPage() {
             i tuoi coach. I tuoi dati personali sono nella scheda “Atleta”.
           </p>
         </div>
-        <div className="shrink-0">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <NewAppointmentButton coaches={relationshipCoaches} />
+          <InviteFriendButton />
         </div>
       </div>
 
@@ -579,8 +580,6 @@ export default async function AthleteDashboardPage() {
           href="/dashboard/athlete/messages"
         />
       </div>
-
-      <InviteFriendCard />
 
       <h2 className="text-lg font-medium text-gray-900">Le tue sessioni</h2>
 
