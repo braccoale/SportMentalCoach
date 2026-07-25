@@ -514,14 +514,19 @@ export default async function AthleteDashboardPage() {
           adults, so it can sit here unconditionally. */}
       <GuardianBanner status={guardianStatus} action={inviteGuardianAction} />
 
-      <div className="max-w-3xl">
-        <h1 className="text-3xl font-bold tracking-tight text-gray-950">
-          Il tuo percorso mentale, una sessione alla volta.
-        </h1>
-        <p className="mt-3 text-base leading-7 text-gray-600">
-          Tieni sotto controllo richieste, sessioni confermate e messaggi con i
-          tuoi coach. I tuoi dati personali sono nella scheda “Atleta”.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="max-w-3xl">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-950">
+            Il tuo percorso mentale, una sessione alla volta.
+          </h1>
+          <p className="mt-3 text-base leading-7 text-gray-600">
+            Tieni sotto controllo richieste, sessioni confermate e messaggi con
+            i tuoi coach. I tuoi dati personali sono nella scheda “Atleta”.
+          </p>
+        </div>
+        <div className="shrink-0">
+          <NewAppointmentButton coaches={relationshipCoaches} />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -573,10 +578,7 @@ export default async function AthleteDashboardPage() {
         />
       </div>
 
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-medium text-gray-900">Le tue sessioni</h2>
-        <NewAppointmentButton coaches={relationshipCoaches} />
-      </div>
+      <h2 className="text-lg font-medium text-gray-900">Le tue sessioni</h2>
 
       {requests.length === 0 ? (
         <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center">
