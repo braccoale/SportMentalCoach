@@ -1,10 +1,16 @@
 import Link from 'next/link';
-import { ShieldCheck, Award } from 'lucide-react';
+import { ShieldCheck, Award, Users, Hourglass } from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
-import { getProviderProfilesForReview, type ProviderReviewItem } from '@/lib/core/admin';
+import {
+  getProviderProfilesForReview,
+  getAllAthletesForAdmin,
+  type ProviderReviewItem,
+  type AthleteAdminItem,
+} from '@/lib/core/admin';
 import { getVerticalConfig, findTaxonomyItem, t } from '@/lib/core/config';
 import { getAllSports } from '@/lib/core/taxonomies';
 import type { TaxonomyItem } from '@/lib/core/config/types';
+import { formatDate } from '@/lib/core/format';
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
 import { CoachAvatar } from '@/components/coach-visuals';
@@ -134,11 +140,43 @@ function ProviderRow({ p, sportsList }: { p: ProviderReviewItem; sportsList: Tax
   );
 }
 
+function AthleteRow({
+  a,
+  sportsList,
+}: {
+  a: AthleteAdminItem;
+  sportsList: TaxonomyItem[];
+}) {
+  const config = getVerticalConfig();
+  const sport = a.category
+    ? findTaxonomyItem(sportsList, a.category)?.label ?? a.category
+    : null;
+  const level = a.level
+    ? findTaxonomyItem(config.taxonomies.levels ?? [], a.level)?.label ?? a.level
+    : null;
+  const meta = [sport, level, a.city].filter(Boolean).join(' · ');
+
+  return (
+    <li className="flex items-center gap-3 rounded-lg border border-gray-200 p-3">
+      <CoachAvatar name={a.name} src={a.avatarUrl} className="size-10 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium text-gray-900">{a.name}</p>
+        <p className="truncate text-sm text-gray-500">{a.email}</p>
+        {meta && <p className="truncate text-xs text-gray-400">{meta}</p>}
+      </div>
+      <span className="shrink-0 text-xs text-gray-400">
+        Iscritto il {formatDate(a.createdAt)}
+      </span>
+    </li>
+  );
+}
+
 export default async function AdminDashboardPage() {
   await requireRole('admin');
-  const [all, sportsList] = await Promise.all([
+  const [all, sportsList, athletes] = await Promise.all([
     getProviderProfilesForReview(),
     getAllSports(),
+    getAllAthletesForAdmin(),
   ]);
   const queue = all.filter((p) => p.status === 'draft' || p.status === 'pending');
   const reviewed = all.filter(
@@ -156,7 +194,42 @@ export default async function AdminDashboardPage() {
         .
       </p>
 
-      <h2 className="mt-6 text-lg font-medium text-gray-900">
+      {/* Quick stats */}
+      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="flex items-center gap-2 text-gray-500">
+            <Hourglass className="h-4 w-4" />
+            <span className="text-xs font-medium uppercase tracking-wide">
+              Coach da approvare
+            </span>
+          </div>
+          <p className="mt-1 text-2xl font-bold text-gray-900">{queue.length}</p>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="flex items-center gap-2 text-gray-500">
+            <Award className="h-4 w-4" />
+            <span className="text-xs font-medium uppercase tracking-wide">
+              Coach revisionati
+            </span>
+          </div>
+          <p className="mt-1 text-2xl font-bold text-gray-900">
+            {reviewed.length}
+          </p>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="flex items-center gap-2 text-gray-500">
+            <Users className="h-4 w-4" />
+            <span className="text-xs font-medium uppercase tracking-wide">
+              Atleti registrati
+            </span>
+          </div>
+          <p className="mt-1 text-2xl font-bold text-gray-900">
+            {athletes.length}
+          </p>
+        </div>
+      </div>
+
+      <h2 className="mt-8 text-lg font-medium text-gray-900">
         Coda di revisione ({queue.length})
       </h2>
       {queue.length === 0 ? (
@@ -178,6 +251,19 @@ export default async function AdminDashboardPage() {
         <ul className="mt-3 flex flex-col gap-3">
           {reviewed.map((p) => (
             <ProviderRow key={p.id} p={p} sportsList={sportsList} />
+          ))}
+        </ul>
+      )}
+
+      <h2 className="mt-8 text-lg font-medium text-gray-900">
+        Atleti registrati ({athletes.length})
+      </h2>
+      {athletes.length === 0 ? (
+        <p className="mt-2 text-gray-500">Nessun atleta registrato.</p>
+      ) : (
+        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+          {athletes.map((a) => (
+            <AthleteRow key={a.userId} a={a} sportsList={sportsList} />
           ))}
         </ul>
       )}
