@@ -7,11 +7,17 @@ import { userRoles, type User } from '@/lib/db/schema';
 import { getUser } from '@/lib/db/queries';
 import {
   ROLE_PRIORITY,
+  PRIMARY_DASHBOARD_ROLES,
   ROLE_DASHBOARDS,
   dashboardPathForRoles,
 } from './role-routes';
 
-export { ROLE_PRIORITY, ROLE_DASHBOARDS, dashboardPathForRoles };
+export {
+  ROLE_PRIORITY,
+  PRIMARY_DASHBOARD_ROLES,
+  ROLE_DASHBOARDS,
+  dashboardPathForRoles,
+};
 
 /**
  * Returns the role keys held by a user (from `user_roles`). Cached per request
