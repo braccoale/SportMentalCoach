@@ -38,6 +38,10 @@ export const users = pgTable('users', {
   // null for accounts created after the switch.
   passwordHash: text('password_hash'),
   role: varchar('role', { length: 20 }).notNull().default('member'),
+  // Optional marketing consent (never required to register). Stored with its
+  // timestamp; the required legal acceptances live in `agreement_acceptances`.
+  marketingConsent: boolean('marketing_consent').notNull().default(false),
+  marketingConsentAt: timestamp('marketing_consent_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
   deletedAt: timestamp('deleted_at'),
@@ -826,6 +830,39 @@ export type ReferralCode = typeof referralCodes.$inferSelect;
 export type NewReferralCode = typeof referralCodes.$inferInsert;
 export type Referral = typeof referrals.$inferSelect;
 export type NewReferral = typeof referrals.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Onboarding state machine. One row per user, created at signup. Server-owned
+// and resumable (the wizard reads `step` back, so a refresh or another device
+// continues where it left off). `status` is authoritative for routing:
+//   not_started | in_progress | guardian_pending | completed
+// The value is set only by server code — never writable from the client.
+// ---------------------------------------------------------------------------
+export const ONBOARDING_STATUSES = [
+  'not_started',
+  'in_progress',
+  'guardian_pending',
+  'completed',
+] as const;
+export type OnboardingStatus = (typeof ONBOARDING_STATUSES)[number];
+
+export const userOnboarding = pgTable('user_onboarding', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id')
+    .notNull()
+    .unique()
+    .references(() => users.id),
+  status: varchar('status', { length: 20 }).notNull().default('in_progress'),
+  /** Furthest wizard step reached (0-based), for resume. */
+  step: integer('step').notNull().default(0),
+  completedAt: timestamp('completed_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  ...audit,
+});
+
+export type UserOnboarding = typeof userOnboarding.$inferSelect;
+export type NewUserOnboarding = typeof userOnboarding.$inferInsert;
 
 // --- Types ---
 

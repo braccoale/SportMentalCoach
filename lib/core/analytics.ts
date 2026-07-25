@@ -15,7 +15,20 @@ export type AnalyticsEvent =
   | 'invite_native_share'
   | 'invite_page_viewed'
   | 'invite_signup_clicked'
-  | 'invite_signup_completed';
+  | 'invite_signup_completed'
+  // Registration + onboarding funnel (never carry personal data as props).
+  | 'signup_role_selected'
+  | 'signup_credentials_completed'
+  | 'signup_age_verified'
+  | 'signup_blocked_underage'
+  | 'guardian_consent_requested'
+  | 'guardian_consent_approved'
+  | 'guardian_consent_rejected'
+  | 'email_verified'
+  | 'onboarding_started'
+  | 'onboarding_step_completed'
+  | 'onboarding_completed'
+  | 'coach_profile_submitted';
 
 export function track(
   event: AnalyticsEvent,

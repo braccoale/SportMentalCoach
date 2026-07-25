@@ -134,6 +134,13 @@
       "when": 1784976918789,
       "tag": "0018_invite_referrals",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1784981536567,
+      "tag": "0019_onboarding_state",
+      "breakpoints": true
     }
   ]
 }

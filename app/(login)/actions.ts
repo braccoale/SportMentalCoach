@@ -33,6 +33,7 @@ import {
   validatedActionWithUser
 } from '@/lib/auth/middleware';
 import { dashboardPathForRoles, getUserRoles } from '@/lib/core/auth';
+import { ensureOnboarding } from '@/lib/core/onboarding';
 import {
   ageFromBirthDate,
   isEligibleAge,
@@ -343,6 +344,15 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
           });
       }
 
+      // Onboarding state. Athletes go through the initial wizard; other roles
+      // (coach/club, and invited members) keep the current flow for now and are
+      // marked complete so nothing gates their dashboard.
+      await ensureOnboarding(
+        createdUser.id,
+        marketplaceRole === 'athlete' ? 'in_progress' : 'completed',
+        tx
+      );
+
       return { user: createdUser, team };
     })
     .catch((error) => {
@@ -393,6 +403,12 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
   const backTo = safeRedirectPath(redirectTo);
   if (backTo) {
     redirect(backTo);
+  }
+
+  // New athletes start the onboarding wizard; everyone else goes straight to
+  // their dashboard (their onboarding is already marked complete).
+  if (marketplaceRole === 'athlete') {
+    redirect('/onboarding');
   }
 
   redirect(

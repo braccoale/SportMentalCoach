@@ -49,7 +49,20 @@ async function signup(page, u, role) {
   // Athletes must also declare a birth date (age gate).
   if (role === 'athlete') await page.fill('#birthDate', '2000-01-01');
   await page.click('button[type="submit"]');
-  await page.waitForURL(/dashboard/, { timeout: 30000 });
+
+  if (role === 'athlete') {
+    // New athletes land in the onboarding wizard: name/surname are prefilled,
+    // the rest is optional, so click through to completion (→ /coaches).
+    await page.waitForURL(/\/onboarding/, { timeout: 30000 });
+    for (let i = 0; i < 3; i++) {
+      await page.getByRole('button', { name: 'Continua' }).click();
+      await page.waitForTimeout(400);
+    }
+    await page.getByRole('button', { name: /Trova il tuo coach/ }).click();
+    await page.waitForURL(/\/(coaches|dashboard)/, { timeout: 30000 });
+  } else {
+    await page.waitForURL(/dashboard/, { timeout: 30000 });
+  }
 }
 
 async function login(page, email, pass) {

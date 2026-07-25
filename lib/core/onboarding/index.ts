@@ -7,6 +7,8 @@ import {
   type ProviderProfile,
 } from '@/lib/db/schema';
 
+export * from './state';
+
 export type OnboardingStep = {
   key: 'profile' | 'taxonomies' | 'services' | 'submit';
   label: string;
