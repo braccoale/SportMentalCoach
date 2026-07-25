@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400" role="img" aria-label="Giulia Bianchi">
+  <defs>
+    <linearGradient id="bgG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f7cdb0"/>
+      <stop offset="1" stop-color="#eeb08c"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="400" fill="url(#bgG)"/>
+  <path d="M52 400 C52 296 128 250 200 250 C272 250 348 296 348 400 Z" fill="#2f3550"/>
+  <path d="M170 232 h60 v42 a30 30 0 0 1 -60 0 Z" fill="#e7ac83"/>
+  <path d="M118 168 C118 96 158 66 200 66 C242 66 282 96 282 168 L282 268 C270 262 258 246 258 214 L258 168 C258 132 232 116 200 116 C168 116 142 132 142 168 L142 214 C142 246 130 262 118 268 Z" fill="#7a5230"/>
+  <circle cx="200" cy="176" r="62" fill="#f0c4a2"/>
+  <path d="M138 168 C138 112 168 96 200 96 C232 96 262 112 262 168 C262 168 234 138 200 138 C166 138 138 168 138 168 Z" fill="#7a5230"/>
+  <circle cx="179" cy="178" r="6" fill="#3b2a1a"/>
+  <circle cx="221" cy="178" r="6" fill="#3b2a1a"/>
+  <path d="M182 204 Q200 220 218 204" stroke="#a86b47" stroke-width="5" fill="none" stroke-linecap="round"/>
+</svg>

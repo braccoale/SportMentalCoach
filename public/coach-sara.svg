@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400" role="img" aria-label="Sara Neri">
+  <defs>
+    <linearGradient id="bgS" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8f74c4"/>
+      <stop offset="1" stop-color="#6b4fa0"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="400" fill="url(#bgS)"/>
+  <path d="M52 400 C52 296 128 250 200 250 C272 250 348 296 348 400 Z" fill="#2a2340"/>
+  <path d="M172 232 h56 v40 a28 28 0 0 1 -56 0 Z" fill="#c98f6a"/>
+  <path d="M112 176 C112 98 156 64 200 64 C244 64 288 98 288 176 L288 300 C274 292 256 272 256 232 L256 176 C256 138 232 120 200 120 C168 120 144 138 144 176 L144 232 C144 272 126 292 112 300 Z" fill="#1f1a24"/>
+  <circle cx="200" cy="176" r="60" fill="#dda680"/>
+  <path d="M140 168 C140 110 168 92 200 92 C232 92 260 110 260 168 C260 168 232 140 200 140 C168 140 140 168 140 168 Z" fill="#1f1a24"/>
+  <circle cx="180" cy="178" r="6" fill="#241a12"/>
+  <circle cx="220" cy="178" r="6" fill="#241a12"/>
+  <path d="M183 204 Q200 219 217 204" stroke="#93583a" stroke-width="5" fill="none" stroke-linecap="round"/>
+</svg>
