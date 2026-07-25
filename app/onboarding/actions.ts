@@ -9,6 +9,9 @@ import {
   getClientProfile,
   updateClientProfile,
   syncDisplayName,
+  getProviderProfileByUser,
+  updateProviderProfileFields,
+  submitProviderForReview,
 } from '@/lib/core/profiles';
 import {
   saveOnboardingStep,
@@ -84,4 +87,69 @@ export async function completeAthleteOnboarding(
   await persistFields(user.id, input);
   await completeOnboarding(user.id);
   redirect('/coaches');
+}
+
+// --- Coach wizard ----------------------------------------------------------
+
+export type CoachOnboardingInput = {
+  name?: string;
+  lastName?: string;
+  headline?: string | null;
+  description?: string | null;
+  yearsExperience?: number | null;
+  languages?: string[];
+  categories?: string[];
+  specialties?: string[];
+  athleteLevels?: string[];
+};
+
+/**
+ * Merges the wizard fields into the coach's provider profile without clearing
+ * the ones this call didn't touch (progressive save). Never changes the review
+ * status — publication stays a separate, explicit action.
+ */
+async function persistCoachFields(
+  userId: number,
+  input: CoachOnboardingInput
+): Promise<void> {
+  await persistName(userId, input.name, input.lastName);
+  const p = await getProviderProfileByUser(userId);
+  await updateProviderProfileFields(userId, {
+    headline: input.headline ?? p?.headline ?? null,
+    description: input.description ?? p?.description ?? null,
+    categories: input.categories ?? p?.categories ?? [],
+    specialties: input.specialties ?? p?.specialties ?? [],
+    videoUrl: p?.videoUrl ?? null,
+    coachSince: p?.coachSince ?? null,
+    yearsExperience: input.yearsExperience ?? p?.yearsExperience ?? null,
+    languages: input.languages ?? p?.languages ?? [],
+    certifications: p?.certifications ?? [],
+    athleteLevels: input.athleteLevels ?? p?.athleteLevels ?? [],
+  });
+}
+
+export async function saveCoachStep(
+  input: CoachOnboardingInput & { step: number }
+): Promise<{ ok: true }> {
+  const user = await requireRole('coach');
+  await persistCoachFields(user.id, input);
+  await saveOnboardingStep(user.id, input.step);
+  return { ok: true };
+}
+
+/**
+ * Completes the coach wizard (dashboard access needs only name + surname).
+ * `submitForReview` optionally sends the profile to the admin queue — but only
+ * the existing server gate decides eligibility; the wizard never auto-publishes.
+ */
+export async function completeCoachOnboarding(
+  input: CoachOnboardingInput & { submitForReview?: boolean }
+): Promise<never> {
+  const user = await requireRole('coach');
+  await persistCoachFields(user.id, input);
+  if (input.submitForReview) {
+    await submitProviderForReview(user.id);
+  }
+  await completeOnboarding(user.id);
+  redirect('/dashboard/coach');
 }

@@ -72,6 +72,16 @@ async function signup(page, u, role) {
     }
     await page.getByRole('button', { name: /Trova il tuo coach/ }).click();
     await page.waitForURL(/\/(coaches|dashboard)/, { timeout: 30000 });
+  } else if (role === 'coach') {
+    // New coaches also land in the wizard: name/surname prefilled, the pro
+    // fields are optional here (set later on the dashboard) → click through.
+    await page.waitForURL(/\/onboarding/, { timeout: 30000 });
+    await page.getByRole('button', { name: 'Continua' }).click();
+    await page.waitForTimeout(400);
+    await page.getByRole('button', { name: 'Continua' }).click();
+    await page.waitForTimeout(400);
+    await page.getByRole('button', { name: 'Vai alla dashboard' }).click();
+    await page.waitForURL(/dashboard/, { timeout: 30000 });
   } else {
     await page.waitForURL(/dashboard/, { timeout: 30000 });
   }

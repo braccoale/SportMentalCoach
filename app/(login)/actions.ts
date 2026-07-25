@@ -368,12 +368,14 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
           });
       }
 
-      // Onboarding state. Athletes go through the initial wizard; other roles
-      // (coach/club, and invited members) keep the current flow for now and are
-      // marked complete so nothing gates their dashboard.
+      // Onboarding state. Athletes and coaches go through the initial wizard;
+      // club (and invited members) keep the current flow for now and are marked
+      // complete so nothing gates their dashboard.
       await ensureOnboarding(
         createdUser.id,
-        marketplaceRole === 'athlete' ? 'in_progress' : 'completed',
+        marketplaceRole === 'athlete' || marketplaceRole === 'coach'
+          ? 'in_progress'
+          : 'completed',
         tx
       );
 
@@ -429,9 +431,9 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
     redirect(backTo);
   }
 
-  // New athletes start the onboarding wizard; everyone else goes straight to
-  // their dashboard (their onboarding is already marked complete).
-  if (marketplaceRole === 'athlete') {
+  // New athletes and coaches start the onboarding wizard; everyone else goes
+  // straight to their dashboard (their onboarding is already marked complete).
+  if (marketplaceRole === 'athlete' || marketplaceRole === 'coach') {
     redirect('/onboarding');
   }
 
