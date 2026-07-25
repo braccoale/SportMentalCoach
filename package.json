@@ -9,6 +9,7 @@
     "db:seed": "npx tsx lib/db/seed.ts",
     "auth:migrate": "npx tsx lib/db/migrate-auth.ts",
     "e2e": "node e2e/happy-path.mjs",
+    "test": "npx tsx --test lib/core/referrals/referrals.test.ts lib/core/onboarding/onboarding.test.ts lib/core/services/validation.test.ts lib/core/messages/policy.test.ts lib/core/google-calendar.test.ts components/add-to-google-calendar-button.test.tsx",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio"

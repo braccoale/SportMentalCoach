@@ -3,6 +3,10 @@ import { and, asc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { services, providerProfiles, type Service } from '@/lib/db/schema';
 import type { Result } from '@/lib/core/result';
+import {
+  DEFAULT_SERVICE_DURATION_MIN,
+  hasValidServiceDuration,
+} from './validation';
 
 async function resolveProviderId(userId: number): Promise<number | null> {
   const [row] = await db
@@ -38,6 +42,10 @@ export async function createCoachService(
   const providerId = await resolveProviderId(userId);
   if (!providerId) return { ok: false, error: 'Profilo coach non trovato.' };
   if (!input.title?.trim()) return { ok: false, error: 'Il titolo è obbligatorio.' };
+  const durationMin = input.durationMin ?? DEFAULT_SERVICE_DURATION_MIN;
+  if (!hasValidServiceDuration(durationMin)) {
+    return { ok: false, error: 'Inserisci una durata valida in minuti.' };
+  }
 
   const [created] = await db
     .insert(services)
@@ -45,7 +53,7 @@ export async function createCoachService(
       providerId,
       title: input.title.trim(),
       description: input.description ?? null,
-      durationMin: input.durationMin ?? null,
+      durationMin,
       price: input.price ?? null,
       createdBy: userId,
     })
@@ -62,13 +70,17 @@ export async function updateCoachService(
   const providerId = await resolveProviderId(userId);
   if (!providerId) return { ok: false, error: 'Profilo coach non trovato.' };
   if (!input.title?.trim()) return { ok: false, error: 'Il titolo è obbligatorio.' };
+  const durationMin = input.durationMin ?? DEFAULT_SERVICE_DURATION_MIN;
+  if (!hasValidServiceDuration(durationMin)) {
+    return { ok: false, error: 'Inserisci una durata valida in minuti.' };
+  }
 
   const [updated] = await db
     .update(services)
     .set({
       title: input.title.trim(),
       description: input.description ?? null,
-      durationMin: input.durationMin ?? null,
+      durationMin,
       price: input.price ?? null,
       updatedAt: new Date(),
       updatedBy: userId,

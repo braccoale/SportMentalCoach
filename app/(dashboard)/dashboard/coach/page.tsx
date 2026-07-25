@@ -8,13 +8,15 @@ import {
   Star,
   Clock,
   Video,
+  CalendarPlus,
+  ArrowRight,
 } from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
 import {
   bookingStatusLabel,
   bookingStatusTone,
   getCoachBookings,
-  getCoachRelationshipAthletes,
+  getAllAthletes,
   type CoachBooking,
 } from '@/lib/core/bookings';
 import { getCoachServices } from '@/lib/core/services';
@@ -61,6 +63,12 @@ import {
   cancelBookingAction,
 } from './actions';
 import { CoachNewAppointmentButton } from './new-appointment-button';
+import { InviteFriendButton } from '@/components/invite/invite-friend-button';
+import { computeCoachOnboarding } from '@/lib/core/onboarding';
+import { submitForReviewAction } from './profile-actions';
+import { AddToGoogleCalendarButton } from '@/components/add-to-google-calendar-button';
+import { buildBookingGoogleCalendarUrl } from '@/lib/core/booking-calendar';
+import { getAppBaseUrl } from '@/lib/core/app-url';
 
 const DEFAULT_ATHLETE_AVATAR = '/atleta.png';
 
@@ -86,19 +94,22 @@ function HintPill({ children }: { children: ReactNode }) {
 export default async function CoachDashboardPage() {
   const user = await requireRole('coach');
   const config = getVerticalConfig();
+  const appBaseUrl = getAppBaseUrl();
+  const coachName =
+    [user.name, user.lastName].filter(Boolean).join(' ').trim() || null;
 
   const [
     provider,
     allBookings,
     unreadMessages,
-    relationshipAthletes,
+    athletes,
     coachServices,
     coachAvailability,
   ] = await Promise.all([
     getProviderProfileByUser(user.id),
     getCoachBookings(user.id),
     getUnreadCountForType(user.id, 'new_message'),
-    getCoachRelationshipAthletes(user.id),
+    getAllAthletes(),
     getCoachServices(user.id),
     getCoachAvailability(user.id),
   ]);
@@ -108,6 +119,23 @@ export default async function CoachDashboardPage() {
   const bookableDays = getBookableDays(coachAvailability);
 
   const reviews = provider ? await getCoachReviews(provider.id) : [];
+
+  // Review/publication gate. Appointments unlock only once the ADMIN APPROVES
+  // the profile — not merely when it's been submitted (pending still counts as
+  // not-yet-usable). The submit CTA lives right on the dashboard.
+  const coachOnboarding = provider
+    ? computeCoachOnboarding(
+        provider,
+        coachServices.filter(
+          (service) =>
+            service.isActive &&
+            Number.isInteger(service.durationMin) &&
+            (service.durationMin ?? 0) > 0
+        ).length
+      )
+    : null;
+  const isApproved = provider?.status === 'approved';
+  const isPending = provider?.status === 'pending';
 
   const pending = allBookings.filter((b) => b.status === 'requested');
   const accepted = allBookings.filter((b) => b.status === 'accepted');
@@ -148,15 +176,90 @@ export default async function CoachDashboardPage() {
 
   return (
     <section className="flex flex-col gap-8 p-6">
-      <div className="max-w-3xl">
-        <h1 className="text-3xl font-bold tracking-tight text-gray-950">
-          Ogni richiesta racconta un atleta, non solo una prenotazione.
-        </h1>
-        <p className="mt-3 text-base leading-7 text-gray-600">
-          Leggi il momento sportivo della persona che ti sta cercando, capisci
-          il suo bisogno e rispondi con il contesto giusto.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="max-w-3xl">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-950">
+            Ogni richiesta racconta un atleta, non solo una prenotazione.
+          </h1>
+          <p className="mt-3 text-base leading-7 text-gray-600">
+            Leggi il momento sportivo della persona che ti sta cercando, capisci
+            il suo bisogno e rispondi con il contesto giusto.
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {isApproved ? (
+            <CoachNewAppointmentButton
+              athletes={athletes}
+              services={coachServices
+                .filter(
+                  (s) =>
+                    s.isActive &&
+                    s.title &&
+                    Number.isInteger(s.durationMin) &&
+                    (s.durationMin ?? 0) > 0
+                )
+                .map((s) => ({
+                  id: s.id,
+                  title: s.title as string,
+                  durationMin: s.durationMin as number,
+                }))}
+              availabilityHint={availabilityHint}
+              bookableDays={bookableDays}
+            />
+          ) : (
+            <div className="flex flex-col items-end gap-1">
+              <Button
+                type="button"
+                disabled
+                className="rounded-full bg-green-600 text-white opacity-50"
+              >
+                <CalendarPlus className="mr-2 h-4 w-4" />
+                Nuovo appuntamento
+              </Button>
+              <p className="text-xs text-gray-400">
+                Disponibile dopo l’approvazione del profilo.
+              </p>
+            </div>
+          )}
+          <InviteFriendButton />
+        </div>
       </div>
+
+      {/* Approval gate: not yet submitted (draft/rejected) → prompt to send. */}
+      {provider && !isApproved && !isPending && (
+        <div className="flex flex-col items-start justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 sm:flex-row sm:items-center">
+          <div>
+            <h2 className="text-base font-semibold text-amber-900">
+              Il tuo profilo non è ancora stato inviato per l’approvazione
+            </h2>
+            <p className="mt-1 text-sm text-amber-800">
+              Invialo alla revisione dell’admin. Potrai creare appuntamenti solo
+              dopo l’approvazione.
+            </p>
+          </div>
+          {coachOnboarding?.canSubmit ? (
+            <form action={submitForReviewAction} className="shrink-0">
+              <Button type="submit" className="rounded-full">
+                Invia approvazione
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </form>
+          ) : (
+            <Button asChild variant="outline" className="shrink-0 rounded-full">
+              <Link href="/dashboard/coach/profile">Completa il profilo</Link>
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Submitted, awaiting the admin decision — still not usable yet. */}
+      {isPending && (
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+          Profilo inviato il{' '}
+          {formatDate(provider.submittedAt ?? provider.updatedAt)}: è in
+          revisione. Potrai creare appuntamenti dopo l’approvazione dell’admin.
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         <SummaryCard
@@ -259,86 +362,107 @@ export default async function CoachDashboardPage() {
         title="Prossimi Appuntamenti"
         titleClassName="text-green-600"
         subtitle="Sessioni accettate e gia avviate. Qui puoi passare dalla lettura del bisogno alla relazione vera: chat, videochiamata e follow-up."
-        headerAction={
-          <CoachNewAppointmentButton
-            athletes={relationshipAthletes}
-            services={coachServices
-              .filter((s) => s.isActive && s.title)
-              .map((s) => ({ id: s.id, title: s.title as string }))}
-            availabilityHint={availabilityHint}
-            bookableDays={bookableDays}
-          />
-        }
         items={accepted}
         emptyTitle="Nessuna sessione accettata."
         emptySubtitle="Le sessioni confermate compariranno qui appena dai il via a un nuovo percorso."
-        renderCard={(booking) => (
-          <UpcomingAppointmentCard
-            key={booking.id}
-            data={buildUpcomingAppointmentData(booking)}
-            primaryActions={
-              isSessionJoinable(booking.scheduledFor) ? (
-                <>
-                  <Link
-                    href={`/dashboard/chat/${booking.id}`}
-                    className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
-                  >
-                    <MessageSquare className="h-4 w-4" /> Apri chat
-                  </Link>
-                  {canJoinVideoNow(booking.scheduledFor) ? (
+        renderCard={(booking) => {
+          const calendarUrl = buildBookingGoogleCalendarUrl({
+            id: booking.id,
+            status: booking.status,
+            scheduledFor: booking.scheduledFor,
+            durationMin: booking.serviceDurationMin,
+            coachName,
+            athleteName: booking.clientName,
+            viewerRole: 'coach',
+            appBaseUrl,
+            canView: true,
+            isOnline: true,
+          });
+          return (
+            <UpcomingAppointmentCard
+              key={booking.id}
+              data={buildUpcomingAppointmentData(booking)}
+              primaryActions={
+                isSessionJoinable(booking.scheduledFor) ? (
+                  <>
                     <Link
-                      href={`/dashboard/video/${booking.id}`}
-                      className="inline-flex items-center gap-2 rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+                      href={`/dashboard/chat/${booking.id}`}
+                      className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
                     >
-                      <Video className="h-4 w-4" /> Apri videochiamata
+                      <MessageSquare className="h-4 w-4" /> Apri chat
                     </Link>
-                  ) : (
-                    <span
-                      title="Videochiamata disponibile 5 min prima"
-                      className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-400"
+                    {canJoinVideoNow(booking.scheduledFor) ? (
+                      <Link
+                        href={`/dashboard/video/${booking.id}`}
+                        className="inline-flex items-center gap-2 rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+                      >
+                        <Video className="h-4 w-4" /> Apri videochiamata
+                      </Link>
+                    ) : (
+                      <span
+                        title="Videochiamata disponibile 5 min prima"
+                        className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-400"
+                      >
+                        <Video className="h-4 w-4" /> Apri videochiamata
+                      </span>
+                    )}
+                    <AddToGoogleCalendarButton
+                      url={calendarUrl}
+                      uiSource="appointment_card"
+                      userRole="coach"
+                      compact
+                    />
+                    <ActionForm
+                      action={cancelBookingAction}
+                      confirmMessage="Vuoi davvero annullare questa sessione?"
                     >
-                      <Video className="h-4 w-4" /> Apri videochiamata
-                    </span>
-                  )}
-                </>
-              ) : (
-                <p className="text-sm text-gray-400">Sessione trascorsa</p>
-              )
-            }
-            overflowActions={
-              <>
-                {booking.sessionStartedAt ? (
-                  <ActionForm action={completeBookingAction} className="w-full">
-                    <input type="hidden" name="bookingId" value={booking.id} />
-                    <button type="submit" className="flex w-full">
-                      <DropdownMenuItem className="w-full flex-1 cursor-pointer">
-                        Completa
-                      </DropdownMenuItem>
-                    </button>
-                  </ActionForm>
-                ) : (
-                  <DropdownMenuItem disabled>
-                    Completabile dopo la videochiamata
-                  </DropdownMenuItem>
-                )}
-                {isSessionJoinable(booking.scheduledFor) && (
-                  <ActionForm action={cancelBookingAction} className="w-full">
-                    <input type="hidden" name="bookingId" value={booking.id} />
-                    <button type="submit" className="flex w-full">
-                      <DropdownMenuItem
+                      <input
+                        type="hidden"
+                        name="bookingId"
+                        value={booking.id}
+                      />
+                      <Button
+                        type="submit"
                         variant="destructive"
-                        className="w-full flex-1 cursor-pointer"
+                        className="rounded-full"
                       >
                         Annulla
-                      </DropdownMenuItem>
-                    </button>
-                  </ActionForm>
-                )}
-              </>
-            }
-            detailContent={<CoachRequestDetails booking={booking} config={config} />}
-          />
-        )}
+                      </Button>
+                    </ActionForm>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-400">Sessione trascorsa</p>
+                )
+              }
+              overflowActions={
+                <>
+                  <DropdownMenuItem asChild className="cursor-pointer">
+                    <Link href={`/dashboard/appointments/${booking.id}`}>
+                      Vedi dettagli
+                    </Link>
+                  </DropdownMenuItem>
+                  {booking.sessionStartedAt ? (
+                    <ActionForm action={completeBookingAction} className="w-full">
+                      <input type="hidden" name="bookingId" value={booking.id} />
+                      <button type="submit" className="flex w-full">
+                        <DropdownMenuItem className="w-full flex-1 cursor-pointer">
+                          Completa
+                        </DropdownMenuItem>
+                      </button>
+                    </ActionForm>
+                  ) : (
+                    <DropdownMenuItem disabled>
+                      Completabile dopo la videochiamata
+                    </DropdownMenuItem>
+                  )}
+                </>
+              }
+              detailContent={
+                <CoachRequestDetails booking={booking} config={config} />
+              }
+            />
+          );
+        }}
       />
 
       <DashboardSection
@@ -517,15 +641,23 @@ function CoachRequestDetails({
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {detailRows.map((row) => (
-        <div key={row.label}>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
-            {row.label}
-          </p>
-          <p className="mt-1 text-sm text-gray-700">{row.value}</p>
-        </div>
-      ))}
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        {detailRows.map((row) => (
+          <div key={row.label}>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
+              {row.label}
+            </p>
+            <p className="mt-1 text-sm text-gray-700">{row.value}</p>
+          </div>
+        ))}
+      </div>
+      <Link
+        href={`/dashboard/appointments/${booking.id}`}
+        className="text-sm font-semibold text-blue-700 hover:underline"
+      >
+        Apri il dettaglio appuntamento
+      </Link>
     </div>
   );
 }

@@ -1,13 +1,17 @@
 import 'server-only';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/lib/db/drizzle';
 import {
   providerProfiles,
   profiles,
+  clientProfiles,
+  userRoles,
   users,
   type ProviderStatus,
 } from '@/lib/db/schema';
 import { notify } from '@/lib/core/notifications';
+import { resolveDisplayName } from '@/lib/core/format';
 import type { Result } from '@/lib/core/result';
 
 export type ProviderReviewItem = {
@@ -22,6 +26,7 @@ export type ProviderReviewItem = {
   status: string;
   identityVerified: boolean;
   certificationsVerified: boolean;
+  reviewedByName: string | null;
   reviewedAt: Date | null;
   createdAt: Date;
 };
@@ -35,6 +40,8 @@ export type VerificationField = 'identity' | 'certifications';
 export async function getProviderProfilesForReview(): Promise<
   ProviderReviewItem[]
 > {
+  const reviewer = alias(users, 'reviewer');
+
   return db
     .select({
       id: providerProfiles.id,
@@ -48,13 +55,74 @@ export async function getProviderProfilesForReview(): Promise<
       status: providerProfiles.status,
       identityVerified: providerProfiles.identityVerified,
       certificationsVerified: providerProfiles.certificationsVerified,
+      reviewedByName: sql<string | null>`coalesce(
+        nullif(trim(concat(
+          coalesce(${reviewer.name}, ''),
+          ' ',
+          coalesce(${reviewer.lastName}, '')
+        )), ''),
+        ${reviewer.email}
+      )`,
       reviewedAt: providerProfiles.reviewedAt,
       createdAt: providerProfiles.createdAt,
     })
     .from(providerProfiles)
     .innerJoin(users, eq(providerProfiles.userId, users.id))
     .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
+    .leftJoin(reviewer, eq(reviewer.id, providerProfiles.reviewedBy))
     .orderBy(desc(providerProfiles.createdAt));
+}
+
+export type AthleteAdminItem = {
+  userId: number;
+  name: string;
+  email: string;
+  avatarUrl: string | null;
+  category: string | null;
+  level: string | null;
+  city: string | null;
+  birthDate: string | null;
+  goals: string | null;
+  createdAt: Date;
+};
+
+/** Every registered athlete, for the admin overview. Newest first. */
+export async function getAllAthletesForAdmin(): Promise<AthleteAdminItem[]> {
+  const rows = await db
+    .select({
+      userId: users.id,
+      rawName: sql<string | null>`nullif(trim(concat(coalesce(${users.name}, ''), ' ', coalesce(${users.lastName}, ''))), '')`,
+      email: users.email,
+      avatarUrl: profiles.avatarUrl,
+      category: clientProfiles.category,
+      level: clientProfiles.level,
+      city: clientProfiles.city,
+      birthDate: clientProfiles.birthDate,
+      goals: clientProfiles.goals,
+      createdAt: users.createdAt,
+    })
+    .from(users)
+    .innerJoin(
+      userRoles,
+      and(eq(userRoles.userId, users.id), eq(userRoles.roleKey, 'athlete'))
+    )
+    .leftJoin(clientProfiles, eq(clientProfiles.userId, users.id))
+    .leftJoin(profiles, eq(profiles.userId, users.id))
+    .where(isNull(users.deletedAt))
+    .orderBy(desc(users.createdAt));
+
+  return rows.map((r) => ({
+    userId: r.userId,
+    name: resolveDisplayName(r.rawName, r.email),
+    email: r.email,
+    avatarUrl: r.avatarUrl,
+    category: r.category,
+    level: r.level,
+    city: r.city,
+    birthDate: r.birthDate,
+    goals: r.goals,
+    createdAt: r.createdAt,
+  }));
 }
 
 /** Admin toggles a verification flag on a provider profile. */

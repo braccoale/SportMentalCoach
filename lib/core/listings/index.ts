@@ -1,11 +1,20 @@
 import { getAllSpecialties } from '@/lib/core/taxonomies';
 import 'server-only';
-import { and, arrayContains, eq, isNotNull, type SQL } from 'drizzle-orm';
+import {
+  and,
+  arrayContains,
+  eq,
+  gt,
+  isNotNull,
+  lte,
+  type SQL,
+} from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { providerProfiles, profiles, services } from '@/lib/db/schema';
 import { getVerticalConfig, findTaxonomyItem } from '@/lib/core/config';
 import { getRatingSummaries } from '@/lib/core/reviews';
 import { getCoachExperienceStats } from '@/lib/core/bookings';
+import { MAX_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
 
 export type CoachListItem = {
   slug: string;
@@ -147,7 +156,12 @@ export async function getCoachBySlug(slug: string): Promise<CoachDetail | null> 
     })
     .from(services)
     .where(
-      and(eq(services.providerId, coach.providerId), eq(services.isActive, true))
+      and(
+        eq(services.providerId, coach.providerId),
+        eq(services.isActive, true),
+        gt(services.durationMin, 0),
+        lte(services.durationMin, MAX_SERVICE_DURATION_MIN)
+      )
     )
     .orderBy(services.id);
 

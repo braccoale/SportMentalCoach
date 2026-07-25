@@ -139,14 +139,14 @@ export function ProfileEditor({
             {sportOptions.map((o) => (
               <label
                 key={o.key}
-                className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-sm has-[:checked]:border-red-500 has-[:checked]:bg-red-50 has-[:checked]:text-red-700"
+                className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-sm has-[:checked]:border-green-500 has-[:checked]:bg-green-50 has-[:checked]:text-green-700"
               >
                 <input
                   type="checkbox"
                   name="categories"
                   value={o.key}
                   defaultChecked={categories.includes(o.key)}
-                  className="accent-red-600"
+                  className="accent-green-600"
                 />
                 {o.label}
               </label>
@@ -162,14 +162,14 @@ export function ProfileEditor({
             {specialtyOptions.map((o) => (
               <label
                 key={o.key}
-                className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-sm has-[:checked]:border-red-500 has-[:checked]:bg-red-50 has-[:checked]:text-red-700"
+                className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-sm has-[:checked]:border-green-500 has-[:checked]:bg-green-50 has-[:checked]:text-green-700"
               >
                 <input
                   type="checkbox"
                   name="specialties"
                   value={o.key}
                   defaultChecked={specialties.includes(o.key)}
-                  className="accent-red-600"
+                  className="accent-green-600"
                 />
                 {o.label}
               </label>
@@ -186,14 +186,14 @@ export function ProfileEditor({
               {levelOptions.map((o) => (
                 <label
                   key={o.key}
-                  className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-sm has-[:checked]:border-red-500 has-[:checked]:bg-red-50 has-[:checked]:text-red-700"
+                  className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-sm has-[:checked]:border-green-500 has-[:checked]:bg-green-50 has-[:checked]:text-green-700"
                 >
                   <input
                     type="checkbox"
                     name="athleteLevels"
                     value={o.key}
                     defaultChecked={athleteLevels.includes(o.key)}
-                    className="accent-red-600"
+                    className="accent-green-600"
                   />
                   {o.label}
                 </label>

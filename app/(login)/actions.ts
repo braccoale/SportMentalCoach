@@ -23,7 +23,8 @@ import {
 } from '@/lib/auth/supabase';
 import { sendWelcomeEmail } from '@/lib/core/email';
 import { redirect } from 'next/navigation';
-import { headers } from 'next/headers';
+import { headers, cookies } from 'next/headers';
+import { attributeReferral } from '@/lib/core/referrals';
 import { recordPlatformTermsAcceptance } from '@/lib/core/legal/acceptance';
 import { createCheckoutSession } from '@/lib/payments/stripe';
 import { getUser, getUserWithTeam } from '@/lib/db/queries';
@@ -32,6 +33,7 @@ import {
   validatedActionWithUser
 } from '@/lib/auth/middleware';
 import { dashboardPathForRoles, getUserRoles } from '@/lib/core/auth';
+import { ensureOnboarding } from '@/lib/core/onboarding';
 import {
   ageFromBirthDate,
   isEligibleAge,
@@ -155,16 +157,41 @@ export const signIn = validatedAction(signInSchema, async (data, formData) => {
 const signUpSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
+  // Mandatory, like the email: the public display name and the invite page's
+  // "[Nome] ti invita" both rely on a real first + last name being present.
+  name: z.string().trim().min(1, 'Inserisci il tuo nome.').max(100),
+  lastName: z.string().trim().min(1, 'Inserisci il tuo cognome.').max(100),
   inviteId: z.string().optional(),
+  // Friend-referral code (from /invita/[code]). Unrelated to `inviteId` (team
+  // invitations). Never trusted: validated server-side, and its absence or
+  // invalidity must never block the signup.
+  ref: z.string().optional(),
   // Public signup may only choose athlete / coach / club — never admin.
   role: z.enum(['athlete', 'coach', 'club']).optional(),
   // Required for athletes: the platform is offered from 15 up, and between 15
   // and 17 a guardian has to authorise. Neither rule can be applied without it.
-  birthDate: z.string().optional()
+  birthDate: z.string().optional(),
+  // Legal: the two required acceptances arrive as 'on' from the checkboxes.
+  // Marketing is optional and never blocks registration.
+  acceptTerms: z.string().optional(),
+  acceptPrivacy: z.string().optional(),
+  marketing: z.string().optional()
 });
 
 export const signUp = validatedAction(signUpSchema, async (data, formData) => {
-  const { email, password, inviteId, role, birthDate } = data;
+  const { email, password, name, lastName, inviteId, role, birthDate } = data;
+  const fullName = `${name} ${lastName}`.trim();
+  const marketing = data.marketing === 'on';
+
+  // Required legal acceptances — enforced server-side too, not just in the UI.
+  if (data.acceptTerms !== 'on' || data.acceptPrivacy !== 'on') {
+    return {
+      error:
+        'Per registrarti devi accettare i Termini e dichiarare di aver letto l’Informativa privacy.',
+      email,
+      password
+    };
+  }
 
   // Age gate. Only athletes declare a birth date — a coach or a club signing
   // up is acting in a professional capacity, not as a young athlete.
@@ -264,7 +291,15 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
   // orphaned user / team / profile rows behind.
   const signupResult = await db
     .transaction(async (tx) => {
-      const newUser: NewUser = { email, authId, role: 'owner' };
+      const newUser: NewUser = {
+        email,
+        authId,
+        role: 'owner',
+        name,
+        lastName,
+        marketingConsent: marketing,
+        marketingConsentAt: marketing ? new Date() : null
+      };
       const [createdUser] = await tx.insert(users).values(newUser).returning();
 
       let teamId: number;
@@ -304,11 +339,11 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
         await provisionMarketplaceRole(
           createdUser.id,
           marketplaceRole,
-          { email },
+          { email, displayName: fullName },
           tx
         );
       } else {
-        await ensureProfile(createdUser.id, undefined, tx);
+        await ensureProfile(createdUser.id, fullName, tx);
       }
 
       // Proof of acceptance, written in the same transaction as the account:
@@ -333,6 +368,17 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
           });
       }
 
+      // Onboarding state. Athletes and coaches go through the initial wizard;
+      // club (and invited members) keep the current flow for now and are marked
+      // complete so nothing gates their dashboard.
+      await ensureOnboarding(
+        createdUser.id,
+        marketplaceRole === 'athlete' || marketplaceRole === 'coach'
+          ? 'in_progress'
+          : 'completed',
+        tx
+      );
+
       return { user: createdUser, team };
     })
     .catch((error) => {
@@ -350,7 +396,20 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
     };
   }
 
-  const { team: createdTeam } = signupResult;
+  const { user: createdUser, team: createdTeam } = signupResult;
+
+  // Friend referral attribution — strictly best-effort, AFTER the account is
+  // safely committed. The code may come from the form (query param) or the
+  // `kp_ref` cookie set when the invite link was opened. It can never block or
+  // undo the signup: attributeReferral swallows every error, ignores self- and
+  // duplicate-attribution, and no-ops on an invalid/unknown code.
+  const cookieStore = await cookies();
+  const refCode = data.ref?.trim() || cookieStore.get('kp_ref')?.value || null;
+  await attributeReferral({ rawCode: refCode, referredUserId: createdUser.id });
+  if (refCode) {
+    // Consume the cookie so a later signup in the same browser isn't attributed.
+    cookieStore.set('kp_ref', '', { path: '/', maxAge: 0 });
+  }
 
   // 2) Session cookies for the freshly created identity.
   const supabase = await createSupabaseServer();
@@ -370,6 +429,12 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
   const backTo = safeRedirectPath(redirectTo);
   if (backTo) {
     redirect(backTo);
+  }
+
+  // New athletes and coaches start the onboarding wizard; everyone else goes
+  // straight to their dashboard (their onboarding is already marked complete).
+  if (marketplaceRole === 'athlete' || marketplaceRole === 'coach') {
+    redirect('/onboarding');
   }
 
   redirect(
@@ -580,9 +645,13 @@ export const confirmPasswordReset = validatedAction(
 );
 
 const updateAccountSchema = z.object({
-  name: z.string().min(1, 'Il nome è obbligatorio').max(100),
-  lastName: z.string().max(100).optional(),
-  email: z.string().email('Indirizzo email non valido')
+  name: z.string().trim().min(1, 'Il nome è obbligatorio').max(100),
+  lastName: z.string().trim().min(1, 'Il cognome è obbligatorio').max(100),
+  email: z
+    .string()
+    .trim()
+    .min(1, 'L’email è obbligatoria')
+    .email('Indirizzo email non valido')
 });
 
 export const updateAccount = validatedActionWithUser(
@@ -611,7 +680,7 @@ export const updateAccount = validatedActionWithUser(
         .update(users)
         .set({
           name,
-          lastName: lastName?.trim() || null,
+          lastName,
           email,
           updatedBy: user.id
         })
@@ -622,7 +691,7 @@ export const updateAccount = validatedActionWithUser(
       logActivity(userWithTeam?.teamId, user.id, ActivityType.UPDATE_ACCOUNT)
     ]);
 
-    return { name, lastName, success: 'Account aggiornato.' };
+    return { name, lastName, email, success: 'Account aggiornato.' };
   }
 );
 

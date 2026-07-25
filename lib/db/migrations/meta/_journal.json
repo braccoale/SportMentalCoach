@@ -127,6 +127,55 @@
       "when": 1784721220138,
       "tag": "0017_complex_switch",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1784976918789,
+      "tag": "0018_invite_referrals",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1784981536567,
+      "tag": "0019_onboarding_state",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1784999711714,
+      "tag": "0020_auth-user-cascade",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1785004137303,
+      "tag": "0021_service-duration-default",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1785008310618,
+      "tag": "0022_add-curling-sport",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1785013200000,
+      "tag": "0023_add-provider-submitted-at",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1785020400000,
+      "tag": "0024_default-notification-preferences",
+      "breakpoints": true
     }
   ]
 }

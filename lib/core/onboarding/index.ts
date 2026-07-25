@@ -1,11 +1,14 @@
 import 'server-only';
-import { count, eq } from 'drizzle-orm';
+import { and, count, eq, gt, lte } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
   providerProfiles,
   services,
   type ProviderProfile,
 } from '@/lib/db/schema';
+import { MAX_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
+
+export * from './state';
 
 export type OnboardingStep = {
   key: 'profile' | 'taxonomies' | 'services' | 'submit';
@@ -33,7 +36,7 @@ export type CoachOnboarding = {
  * columns. Step completion:
  *  1. profile     → headline + description present
  *  2. taxonomies  → at least one sport and one specialty
- *  3. services    → at least one service
+ *  3. services    → at least one active service with a valid duration
  *  4. submit      → status is no longer `draft` (submitted for review)
  */
 export async function getCoachOnboarding(
@@ -49,7 +52,14 @@ export async function getCoachOnboarding(
   const [{ value: serviceCount }] = await db
     .select({ value: count() })
     .from(services)
-    .where(eq(services.providerId, provider.id));
+    .where(
+      and(
+        eq(services.providerId, provider.id),
+        eq(services.isActive, true),
+        gt(services.durationMin, 0),
+        lte(services.durationMin, MAX_SERVICE_DURATION_MIN)
+      )
+    );
 
   return computeCoachOnboarding(provider, serviceCount);
 }
@@ -89,7 +99,7 @@ export function computeCoachOnboarding(
     {
       key: 'services',
       label: 'Servizi',
-      description: 'Crea almeno un servizio (titolo, durata, prezzo).',
+      description: 'Crea almeno un servizio attivo con titolo e durata.',
       anchor: '/dashboard/coach/services',
       done: servicesDone,
     },

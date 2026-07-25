@@ -4,7 +4,7 @@ import { LayoutDashboard, ArrowRight } from 'lucide-react';
 import {
   getUser,
   getUserRoles,
-  ROLE_PRIORITY,
+  PRIMARY_DASHBOARD_ROLES,
   ROLE_DASHBOARDS,
 } from '@/lib/core/auth';
 import { getRoleLabel } from '@/lib/core/config';
@@ -13,8 +13,9 @@ import { Button } from '@/components/ui/button';
 export const dynamic = 'force-dynamic';
 
 /**
- * Dashboard home. Users with a single role never see this page: they are
- * sent straight to their own area. Multi-role users get a simple chooser.
+ * Dashboard home. Users land on their normal role area; `admin` is NOT a
+ * landing role (it's reached from the menu), so an admin who is also a coach
+ * lands on the coach dashboard, and an admin-only user goes to the admin area.
  */
 export default async function DashboardHomePage() {
   const user = await getUser();
@@ -23,15 +24,21 @@ export default async function DashboardHomePage() {
   }
 
   const roles = await getUserRoles(user.id);
-  const dashboardRoles = ROLE_PRIORITY.filter((r) => roles.includes(r));
+  // Admin is excluded on purpose: it never captures the default landing.
+  const dashboardRoles = PRIMARY_DASHBOARD_ROLES.filter((r) =>
+    roles.includes(r)
+  );
 
-  // Single role → straight to their area, no intermediate page.
+  // Single normal role → straight to their area, no intermediate page.
   if (dashboardRoles.length === 1) {
     redirect(ROLE_DASHBOARDS[dashboardRoles[0]]);
   }
 
-  // No marketplace role (edge case): guide the user to the marketplace.
+  // No normal role: an admin-only user goes to the admin area.
   if (dashboardRoles.length === 0) {
+    if (roles.includes('admin')) {
+      redirect('/dashboard/admin');
+    }
     return (
       <section className="mx-auto w-full max-w-2xl p-6 lg:p-10">
         <h1 className="text-2xl font-semibold text-gray-900">

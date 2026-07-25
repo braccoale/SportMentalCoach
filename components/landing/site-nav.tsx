@@ -2,10 +2,10 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import useSWR from 'swr';
 import { SignInModal } from './sign-in-modal';
-import { SignUpModal } from './sign-up-modal';
 import { UserMenu } from '@/components/user-menu';
 import { UserAvatar } from '@/components/user-avatar';
 import { NotificationBell } from '@/components/notification-bell';
@@ -44,7 +44,8 @@ function Logo() {
 export function SiteNav() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
-  const [authMode, setAuthMode] = useState<'signin' | 'signup' | null>(null);
+  const [authMode, setAuthMode] = useState<'signin' | null>(null);
+  const router = useRouter();
   // Shared auth state (root layout seeds `/api/user` into SWR).
   const { data: user } = useSWR<SessionUser | null>('/api/user', fetcher);
 
@@ -107,13 +108,12 @@ export function SiteNav() {
               >
                 Accedi
               </button>
-              <button
-                type="button"
-                onClick={() => setAuthMode('signup')}
+              <Link
+                href="/sign-up"
                 className="kp-cta rounded-full px-4 py-2 text-sm font-semibold text-white"
               >
-                Inizia ora
-              </button>
+                Inizia gratis
+              </Link>
             </>
           )}
         </div>
@@ -177,16 +177,13 @@ export function SiteNav() {
               </Link>
             ) : (
               <>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpen(false);
-                    setAuthMode('signup');
-                  }}
+                <Link
+                  href="/sign-up"
+                  onClick={() => setOpen(false)}
                   className="kp-cta rounded-full px-5 py-3.5 text-center font-semibold text-white"
                 >
-                  Inizia ora
-                </button>
+                  Inizia gratis
+                </Link>
                 <button
                   type="button"
                   onClick={() => {
@@ -206,12 +203,10 @@ export function SiteNav() {
     <SignInModal
       open={authMode === 'signin'}
       onClose={() => setAuthMode(null)}
-      onSwitch={() => setAuthMode('signup')}
-    />
-    <SignUpModal
-      open={authMode === 'signup'}
-      onClose={() => setAuthMode(null)}
-      onSwitch={() => setAuthMode('signin')}
+      onSwitch={() => {
+        setAuthMode(null);
+        router.push('/sign-up');
+      }}
     />
     </>
   );

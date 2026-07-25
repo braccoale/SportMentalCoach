@@ -23,6 +23,7 @@ export const NOTIFICATION_TYPES = [
   'booking_cancelled',
   'booking_completed',
   'new_message',
+  'provider_review_requested',
   'provider_approved',
   'provider_rejected',
   'review_received',
@@ -41,6 +42,7 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   booking_cancelled: 'Prenotazione annullata',
   booking_completed: 'Sessione completata',
   new_message: 'Nuovo messaggio',
+  provider_review_requested: 'Nuovo profilo coach da approvare',
   provider_approved: 'Profilo approvato',
   provider_rejected: 'Profilo rifiutato',
   review_received: 'Nuova recensione',
@@ -353,6 +355,12 @@ function buildContent(
           ? `Nuovo messaggio da ${ctx.senderName}.`
           : 'Hai ricevuto un nuovo messaggio.',
         data: { link: bookingLink ?? '/dashboard', bookingId: ctx.bookingId },
+      };
+    case 'provider_review_requested':
+      return {
+        title: 'Nuovo profilo coach da approvare',
+        body: 'Un coach ha inviato il proprio profilo per la revisione.',
+        data: { link: '/dashboard/admin' },
       };
     case 'provider_approved':
       return {

@@ -50,7 +50,15 @@ export default async function CoachProfilePage() {
   ]);
 
   const onboarding = provider
-    ? computeCoachOnboarding(provider, services.length)
+    ? computeCoachOnboarding(
+        provider,
+        services.filter(
+          (service) =>
+            service.isActive &&
+            Number.isInteger(service.durationMin) &&
+            (service.durationMin ?? 0) > 0
+        ).length
+      )
     : null;
 
   // Sports/specialties come from the DB master data (active only).
@@ -82,14 +90,17 @@ export default async function CoachProfilePage() {
         <OnboardingProgress onboarding={onboarding} />
       )}
 
-      {/* Photo (with approval badge) + account information, side by side. */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <PhotoForm name={[user.name, user.lastName].filter(Boolean).join(' ') || null} avatarUrl={avatarUrl} status={provider.status} />
+      {/* Compact media + account row: keeps the profile editor above the fold. */}
+      <div className="grid items-stretch gap-4 lg:grid-cols-3">
+        <PhotoForm
+          name={[user.name, user.lastName].filter(Boolean).join(' ') || null}
+          avatarUrl={avatarUrl}
+          status={provider.status}
+        />
+        <div className="h-full rounded-lg border border-gray-200 p-3">
+          <VideoUpload videoUrl={provider.videoUrl} />
+        </div>
         <AccountInfoCard />
-      </div>
-
-      <div className="rounded-lg border border-gray-200 p-4">
-        <VideoUpload videoUrl={provider.videoUrl} />
       </div>
 
       <div id="onboarding-profilo">

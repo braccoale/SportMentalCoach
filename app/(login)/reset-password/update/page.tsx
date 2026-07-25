@@ -5,6 +5,7 @@ import { useActionState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { confirmPasswordReset } from '../../actions';
 import type { ActionState } from '@/lib/auth/middleware';
@@ -40,10 +41,9 @@ export default function UpdatePasswordPage() {
         <form className="space-y-6" action={formAction}>
           <div>
             <Label htmlFor="password">Nuova password</Label>
-            <Input
+            <PasswordInput
               id="password"
               name="password"
-              type="password"
               autoComplete="new-password"
               required
               minLength={8}
@@ -54,10 +54,9 @@ export default function UpdatePasswordPage() {
           </div>
           <div>
             <Label htmlFor="confirmPassword">Conferma password</Label>
-            <Input
+            <PasswordInput
               id="confirmPassword"
               name="confirmPassword"
-              type="password"
               autoComplete="new-password"
               required
               minLength={8}

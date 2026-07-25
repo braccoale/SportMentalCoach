@@ -1,5 +1,17 @@
 import 'server-only';
-import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gt,
+  inArray,
+  isNull,
+  lte,
+  or,
+  sql,
+} from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
   bookings,
@@ -9,6 +21,7 @@ import {
   providerProfiles,
   profiles,
   services,
+  userRoles,
   users,
   type BookingStatus,
 } from '@/lib/db/schema';
@@ -32,6 +45,7 @@ import {
   requiresGuardian,
 } from '@/lib/core/guardians';
 import type { Result } from '@/lib/core/result';
+import { MAX_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
 
 /** Localized label for a booking status (from the vertical copy). */
 export function bookingStatusLabel(status: string): string {
@@ -197,12 +211,13 @@ export async function getPendingRequestCount(userId: number): Promise<number> {
 
 /**
  * Creates a `requested` booking from an athlete to an approved coach (by slug).
- * An optional service may be attached; it must belong to that coach.
+ * A bookable service is mandatory and must belong to that coach. Its duration
+ * is configured by the coach, never supplied by the athlete.
  */
 export async function createBookingRequest(params: {
   clientUserId: number;
   providerSlug: string;
-  serviceId?: number | null;
+  serviceId: number;
   note?: string | null;
   scheduledFor?: Date | null;
 }): Promise<Result<{ bookingId: number }>> {
@@ -241,24 +256,27 @@ export async function createBookingRequest(params: {
     }
   }
 
-  let serviceId: number | null = null;
-  let serviceTitle: string | null = null;
-  if (params.serviceId != null) {
-    const [svc] = await db
-      .select({ id: services.id, title: services.title })
-      .from(services)
-      .where(
-        and(
-          eq(services.id, params.serviceId),
-          eq(services.providerId, provider.id)
-        )
+  if (!Number.isInteger(params.serviceId) || params.serviceId <= 0) {
+    return { ok: false, error: 'Seleziona un servizio.' };
+  }
+  const [svc] = await db
+    .select({ id: services.id, title: services.title })
+    .from(services)
+    .where(
+      and(
+        eq(services.id, params.serviceId),
+        eq(services.providerId, provider.id),
+        eq(services.isActive, true),
+        gt(services.durationMin, 0),
+        lte(services.durationMin, MAX_SERVICE_DURATION_MIN)
       )
-      .limit(1);
-    if (!svc) {
-      return { ok: false, error: 'Servizio non valido per questo coach.' };
-    }
-    serviceId = svc.id;
-    serviceTitle = svc.title;
+    )
+    .limit(1);
+  if (!svc) {
+    return {
+      ok: false,
+      error: 'Il servizio selezionato non è disponibile o non ha una durata.',
+    };
   }
 
   const [created] = await db
@@ -266,7 +284,7 @@ export async function createBookingRequest(params: {
     .values({
       clientId: params.clientUserId,
       providerId: provider.id,
-      serviceId,
+      serviceId: svc.id,
       status: 'requested',
       note: params.note ?? null,
       scheduledFor: params.scheduledFor ?? null,
@@ -275,7 +293,7 @@ export async function createBookingRequest(params: {
     .returning({ id: bookings.id });
 
   await notify('booking_requested', provider.userId, {
-    serviceTitle,
+    serviceTitle: svc.title,
     bookingId: created.id,
   });
 
@@ -298,11 +316,86 @@ export type AthleteBooking = {
   serviceDurationMin: number | null;
 };
 
+export type ParticipantBooking = {
+  id: number;
+  status: string;
+  scheduledFor: Date | null;
+  serviceTitle: string | null;
+  serviceDurationMin: number | null;
+  coachName: string | null;
+  athleteName: string | null;
+  viewerRole: 'athlete' | 'coach';
+};
+
+/**
+ * Minimal, privacy-safe projection for the authenticated appointment detail.
+ * The participant predicate is part of the database query so callers cannot
+ * use a guessed id to retrieve somebody else's booking.
+ */
+export async function getParticipantBooking(
+  bookingId: number,
+  userId: number
+): Promise<ParticipantBooking | null> {
+  if (!Number.isInteger(bookingId) || bookingId <= 0) return null;
+
+  const [booking] = await db
+    .select({
+      id: bookings.id,
+      status: bookings.status,
+      scheduledFor: bookings.scheduledFor,
+      serviceTitle: services.title,
+      serviceDurationMin: services.durationMin,
+      clientId: bookings.clientId,
+      providerUserId: providerProfiles.userId,
+    })
+    .from(bookings)
+    .innerJoin(providerProfiles, eq(bookings.providerId, providerProfiles.id))
+    .leftJoin(services, eq(bookings.serviceId, services.id))
+    .where(
+      and(
+        eq(bookings.id, bookingId),
+        or(
+          eq(bookings.clientId, userId),
+          eq(providerProfiles.userId, userId)
+        )
+      )
+    )
+    .limit(1);
+
+  if (!booking) return null;
+
+  const [[coach], [athlete]] = await Promise.all([
+    db
+      .select({ name: profiles.displayName })
+      .from(profiles)
+      .where(eq(profiles.userId, booking.providerUserId))
+      .limit(1),
+    db
+      .select({
+        name: sql<string | null>`nullif(trim(concat(${users.name}, ' ', coalesce(${users.lastName}, ''))), '')`,
+      })
+      .from(users)
+      .where(eq(users.id, booking.clientId))
+      .limit(1),
+  ]);
+
+  return {
+    id: booking.id,
+    status: booking.status,
+    scheduledFor: booking.scheduledFor,
+    serviceTitle: booking.serviceTitle,
+    serviceDurationMin: booking.serviceDurationMin,
+    coachName: coach?.name ?? null,
+    athleteName: athlete?.name ?? null,
+    viewerRole: booking.clientId === userId ? 'athlete' : 'coach',
+  };
+}
+
 export type RelationshipCoach = {
   slug: string;
   name: string;
   avatarUrl: string | null;
-  services: { id: number; title: string }[];
+  services: { id: number; title: string; durationMin: number }[];
   /** Compact weekly availability summary, e.g. "Lun 09:00–18:00"; empty if none configured. */
   availabilityHint: string;
   /** Selectable day/time options from that availability; empty if none configured. */
@@ -371,10 +464,16 @@ export async function getAthleteRelationshipCoaches(
         providerId: services.providerId,
         id: services.id,
         title: services.title,
+        durationMin: services.durationMin,
       })
       .from(services)
       .where(
-        and(inArray(services.providerId, providerIds), eq(services.isActive, true))
+        and(
+          inArray(services.providerId, providerIds),
+          eq(services.isActive, true),
+          gt(services.durationMin, 0),
+          lte(services.durationMin, MAX_SERVICE_DURATION_MIN)
+        )
       ),
     db
       .select({
@@ -388,11 +487,14 @@ export async function getAthleteRelationshipCoaches(
       .orderBy(asc(coachAvailability.weekday), asc(coachAvailability.startMinute)),
   ]);
 
-  const servicesByProvider = new Map<number, { id: number; title: string }[]>();
+  const servicesByProvider = new Map<
+    number,
+    { id: number; title: string; durationMin: number }[]
+  >();
   for (const s of svc) {
-    if (!s.title) continue;
+    if (!s.title || s.durationMin == null) continue;
     const list = servicesByProvider.get(s.providerId) ?? [];
-    list.push({ id: s.id, title: s.title });
+    list.push({ id: s.id, title: s.title, durationMin: s.durationMin });
     servicesByProvider.set(s.providerId, list);
   }
 
@@ -487,6 +589,39 @@ export async function getCoachRelationshipAthletes(
 }
 
 /**
+ * Every athlete registered on the platform — all users holding the `athlete`
+ * role, regardless of whether this coach has worked with them before. Powers
+ * the coach-side "Nuovo appuntamento" picker so a coach can open a session with
+ * any athlete, not only prior clients. Safeguarding is still enforced at
+ * booking time: `createCoachBookingRequest` rejects minors without a confirmed
+ * guardian.
+ */
+export async function getAllAthletes(): Promise<RelationshipAthlete[]> {
+  const rows = await db
+    .select({
+      userId: users.id,
+      name: sql<string | null>`nullif(trim(concat(${users.name}, ' ', coalesce(${users.lastName}, ''))), '')`,
+      email: users.email,
+      avatarUrl: profiles.avatarUrl,
+    })
+    .from(users)
+    .innerJoin(
+      userRoles,
+      and(eq(userRoles.userId, users.id), eq(userRoles.roleKey, 'athlete'))
+    )
+    .leftJoin(profiles, eq(profiles.userId, users.id))
+    .where(isNull(users.deletedAt));
+
+  return rows
+    .map((r) => ({
+      userId: r.userId,
+      name: resolveDisplayName(r.name, r.email),
+      avatarUrl: r.avatarUrl,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
  * Creates a session directly from the coach's side, for an athlete they have
  * already worked with. Unlike `createBookingRequest` (athlete → coach,
  * `requested`), this is created as `accepted` right away: the coach is the
@@ -496,7 +631,7 @@ export async function getCoachRelationshipAthletes(
 export async function createCoachBookingRequest(params: {
   coachUserId: number;
   clientUserId: number;
-  serviceId?: number | null;
+  serviceId: number;
   note?: string | null;
   scheduledFor?: Date | null;
 }): Promise<Result<{ bookingId: number }>> {
@@ -509,20 +644,21 @@ export async function createCoachBookingRequest(params: {
     return { ok: false, error: 'Profilo coach non trovato.' };
   }
 
-  // Safety: only allow scheduling with an athlete this coach has already
-  // worked with (same relationship the picker is scoped to).
-  const [relationship] = await db
-    .select({ clientId: bookings.clientId })
-    .from(bookings)
+  // Safety: the target must be a registered athlete. The picker now lists every
+  // athlete (not just prior clients), so this guards against scheduling a
+  // session for an arbitrary user id (e.g. another coach or an admin).
+  const [athlete] = await db
+    .select({ userId: userRoles.userId })
+    .from(userRoles)
     .where(
       and(
-        eq(bookings.providerId, provider.id),
-        eq(bookings.clientId, params.clientUserId)
+        eq(userRoles.userId, params.clientUserId),
+        eq(userRoles.roleKey, 'athlete')
       )
     )
     .limit(1);
-  if (!relationship) {
-    return { ok: false, error: 'Puoi creare una sessione solo con un atleta con cui hai già lavorato.' };
+  if (!athlete) {
+    return { ok: false, error: 'Puoi creare una sessione solo con un atleta registrato.' };
   }
 
   // The same authorisation gate as the athlete-initiated path: a coach must
@@ -546,24 +682,27 @@ export async function createCoachBookingRequest(params: {
     }
   }
 
-  let serviceId: number | null = null;
-  let serviceTitle: string | null = null;
-  if (params.serviceId != null) {
-    const [svc] = await db
-      .select({ id: services.id, title: services.title })
-      .from(services)
-      .where(
-        and(
-          eq(services.id, params.serviceId),
-          eq(services.providerId, provider.id)
-        )
+  if (!Number.isInteger(params.serviceId) || params.serviceId <= 0) {
+    return { ok: false, error: 'Seleziona un servizio.' };
+  }
+  const [svc] = await db
+    .select({ id: services.id, title: services.title })
+    .from(services)
+    .where(
+      and(
+        eq(services.id, params.serviceId),
+        eq(services.providerId, provider.id),
+        eq(services.isActive, true),
+        gt(services.durationMin, 0),
+        lte(services.durationMin, MAX_SERVICE_DURATION_MIN)
       )
-      .limit(1);
-    if (!svc) {
-      return { ok: false, error: 'Servizio non valido.' };
-    }
-    serviceId = svc.id;
-    serviceTitle = svc.title;
+    )
+    .limit(1);
+  if (!svc) {
+    return {
+      ok: false,
+      error: 'Il servizio selezionato non è disponibile o non ha una durata.',
+    };
   }
 
   const [created] = await db
@@ -571,7 +710,7 @@ export async function createCoachBookingRequest(params: {
     .values({
       clientId: params.clientUserId,
       providerId: provider.id,
-      serviceId,
+      serviceId: svc.id,
       status: 'accepted',
       note: params.note ?? null,
       scheduledFor: params.scheduledFor ?? null,
@@ -581,7 +720,7 @@ export async function createCoachBookingRequest(params: {
     .returning({ id: bookings.id });
 
   await notify('booking_accepted', params.clientUserId, {
-    serviceTitle,
+    serviceTitle: svc.title,
     bookingId: created.id,
   });
 

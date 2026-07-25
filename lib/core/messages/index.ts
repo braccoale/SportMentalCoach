@@ -11,6 +11,12 @@ import {
 } from '@/lib/db/schema';
 import { notify } from '@/lib/core/notifications';
 import type { Result } from '@/lib/core/result';
+import {
+  CHAT_HISTORY_STATUSES,
+  CHATTABLE_STATUSES,
+  canViewBookingChatHistory,
+  isBookingChatAvailable,
+} from './policy';
 
 export type BookingChatContext = {
   bookingId: number;
@@ -47,17 +53,19 @@ export type Conversation = {
   lastAt: Date | null;
   lastFromMe: boolean;
   unread: number;
+  readOnly: boolean;
 };
 
 /**
- * All chat conversations for a user (both roles): accepted bookings they
- * participate in, newest activity first, with last-message preview and the
- * per-conversation unread count (from unread `new_message` notifications).
+ * All chat conversations for a user (both roles): pending requests, accepted
+ * bookings and completed sessions they participate in, newest activity first,
+ * with last-message preview and the per-conversation unread count.
  */
 export async function getConversations(userId: number): Promise<Conversation[]> {
   const rows = await db
     .select({
       bookingId: bookings.id,
+      status: bookings.status,
       clientId: bookings.clientId,
       clientName: sql<string | null>`nullif(trim(concat(${users.name}, ' ', coalesce(${users.lastName}, ''))), '')`,
       clientAvatarUrl: sql<string | null>`(
@@ -87,9 +95,10 @@ export async function getConversations(userId: number): Promise<Conversation[]> 
     .leftJoin(services, eq(bookings.serviceId, services.id))
     .where(
       and(
-        // Accepted (upcoming) and completed (past) sessions both keep an open
-        // chat, so athletes can keep messaging coaches they've worked with.
-        inArray(bookings.status, ['accepted', 'completed']),
+        inArray(bookings.status, [
+          ...CHATTABLE_STATUSES,
+          ...CHAT_HISTORY_STATUSES,
+        ]),
         or(
           eq(bookings.clientId, userId),
           eq(providerProfiles.userId, userId)
@@ -132,6 +141,9 @@ export async function getConversations(userId: number): Promise<Conversation[]> 
   }
 
   return rows
+    .filter((r) =>
+      canViewBookingChatHistory(r.status, lastByBooking.has(r.bookingId))
+    )
     .map((r) => {
       const last = lastByBooking.get(r.bookingId);
       const isClient = r.clientId === userId;
@@ -145,6 +157,7 @@ export async function getConversations(userId: number): Promise<Conversation[]> 
         lastAt: last?.createdAt ?? null,
         lastFromMe: last ? last.senderId === userId : false,
         unread: unreadByBooking.get(r.bookingId) ?? 0,
+        readOnly: !isBookingChatAvailable(r.status),
       };
     })
     .sort(
@@ -188,21 +201,21 @@ export async function getBookingChatContext(
   return row;
 }
 
-/** Statuses for which the booking chat stays open (upcoming + past sessions). */
-const CHATTABLE_STATUSES = ['accepted', 'completed'];
-
 /**
  * Returns the chat (context + messages) for a participant. Chat stays open for
- * `accepted` and `completed` bookings. Returns `null` if not a participant,
- * not found, or the booking is in a non-chattable status.
+ * pending requests, accepted bookings and completed sessions. Returns `null`
+ * if not a participant, not found, or the booking is non-chattable.
  */
 export async function getChat(
   bookingId: number,
   userId: number
-): Promise<{ context: BookingChatContext; messages: ChatMessage[] } | null> {
+): Promise<{
+  context: BookingChatContext;
+  messages: ChatMessage[];
+  readOnly: boolean;
+} | null> {
   const context = await getBookingChatContext(bookingId, userId);
   if (!context) return null;
-  if (!CHATTABLE_STATUSES.includes(context.status)) return null;
 
   const rows = await db
     .select({
@@ -218,12 +231,18 @@ export async function getChat(
     .where(eq(messages.bookingId, bookingId))
     .orderBy(asc(messages.createdAt));
 
-  return { context, messages: rows };
+  if (!canViewBookingChatHistory(context.status, rows.length > 0)) return null;
+
+  return {
+    context,
+    messages: rows,
+    readOnly: !isBookingChatAvailable(context.status),
+  };
 }
 
 /**
  * Posts a message to a booking chat. Re-verifies that the sender is a
- * participant and that the booking is accepted before inserting.
+ * participant and that the booking is still chattable before inserting.
  */
 export async function sendMessage(
   bookingId: number,
@@ -238,7 +257,7 @@ export async function sendMessage(
 
   const context = await getBookingChatContext(bookingId, userId);
   if (!context) return { ok: false, error: 'Chat non disponibile.' };
-  if (!CHATTABLE_STATUSES.includes(context.status)) {
+  if (!isBookingChatAvailable(context.status)) {
     return { ok: false, error: 'La chat non è più disponibile per questa sessione.' };
   }
 

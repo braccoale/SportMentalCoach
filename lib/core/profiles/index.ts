@@ -2,6 +2,7 @@ import 'server-only';
 import { eq } from 'drizzle-orm';
 import { db, type DbOrTx } from '@/lib/db/drizzle';
 import { yearsSince } from '@/lib/core/format';
+import { notify } from '@/lib/core/notifications';
 import {
   profiles,
   userRoles,
@@ -256,10 +257,27 @@ export async function submitProviderForReview(
   const provider = await getProviderProfileByUser(userId);
   if (!provider) return null;
   if (provider.status === 'draft' || provider.status === 'rejected') {
+    const submittedAt = new Date();
     await db
       .update(providerProfiles)
-      .set({ status: 'pending', updatedAt: new Date(), updatedBy: userId })
+      .set({
+        status: 'pending',
+        submittedAt,
+        updatedAt: submittedAt,
+        updatedBy: userId,
+      })
       .where(eq(providerProfiles.userId, userId));
+
+    const admins = await db
+      .select({ userId: userRoles.userId })
+      .from(userRoles)
+      .where(eq(userRoles.roleKey, 'admin'));
+    await Promise.all(
+      admins.map(({ userId: adminUserId }) =>
+        notify('provider_review_requested', adminUserId)
+      )
+    );
+
     return 'pending';
   }
   return provider.status;

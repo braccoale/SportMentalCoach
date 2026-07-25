@@ -10,7 +10,7 @@ import type { ActionState } from '@/lib/auth/middleware';
 
 const requestSchema = z.object({
   slug: z.string().min(1),
-  serviceId: z.string().optional(),
+  serviceId: z.string().min(1, 'Seleziona un servizio.'),
   note: z.string().max(1000).optional(),
   // datetime-local string, e.g. "2026-07-01T15:30"
   scheduledFor: z.string().optional(),
@@ -53,7 +53,10 @@ export async function requestBooking(
   }
 
   const { slug, serviceId, note, scheduledFor } = parsed.data;
-  const sid = serviceId && serviceId !== '' ? Number(serviceId) : null;
+  const sid = Number(serviceId);
+  if (!Number.isInteger(sid) || sid <= 0) {
+    return { error: 'Seleziona un servizio valido.' };
+  }
 
   const when = parseScheduledFor(scheduledFor);
   if (!when.ok) {
@@ -72,7 +75,5 @@ export async function requestBooking(
     return { error: result.error };
   }
 
-  // Stay in context: back to the coach profile, where the booking box turns
-  // into a clear "request sent" confirmation.
-  redirect(`/coaches/${slug}?richiesta=ok#prenota`);
+  redirect(`/dashboard/appointments/${result.bookingId}?created=1`);
 }

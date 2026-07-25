@@ -38,13 +38,53 @@ const results = [];
 function ok(step, msg) { results.push({ step, pass: true }); console.log(`✅ ${step}. ${msg}`); }
 function ko(step, msg) { results.push({ step, pass: false }); console.log(`❌ ${step}. ${msg}`); }
 
+const ROLE_TITLE = {
+  athlete: 'Sono un atleta',
+  coach: 'Sono un mental coach',
+  club: 'Rappresento un team',
+};
+
 async function signup(page, u, role) {
   await page.goto(`${BASE}/sign-up`);
+  // Step 1 — role card.
+  await page.getByText(ROLE_TITLE[role]).click();
+  await page.getByRole('button', { name: 'Continua' }).click();
+  // Step 2 — credentials (+ confirm).
   await page.fill('#email', u.email);
   await page.fill('#password', u.pass);
-  await page.check(`input[name="role"][value="${role}"]`);
-  await page.click('button[type="submit"]');
-  await page.waitForURL(/dashboard/, { timeout: 30000 });
+  await page.fill('#confirm', u.pass);
+  await page.getByRole('button', { name: 'Continua' }).click();
+  // Step 3 — details + legal.
+  await page.fill('#name', u.nome);
+  await page.fill('#lastName', u.cognome);
+  if (role === 'athlete') await page.fill('#birthDate', '2000-01-01');
+  await page.check('input[name="acceptTerms"]');
+  await page.check('input[name="acceptPrivacy"]');
+  await page.getByRole('button', { name: 'Registrati' }).click();
+
+  if (role === 'athlete') {
+    // New athletes land in the onboarding wizard: name/surname are prefilled,
+    // the rest is optional, so click through to completion (→ /coaches).
+    await page.waitForURL(/\/onboarding/, { timeout: 30000 });
+    for (let i = 0; i < 3; i++) {
+      await page.getByRole('button', { name: 'Continua' }).click();
+      await page.waitForTimeout(400);
+    }
+    await page.getByRole('button', { name: /Trova il tuo coach/ }).click();
+    await page.waitForURL(/\/(coaches|dashboard)/, { timeout: 30000 });
+  } else if (role === 'coach') {
+    // New coaches also land in the wizard: name/surname prefilled, the pro
+    // fields are optional here (set later on the dashboard) → click through.
+    await page.waitForURL(/\/onboarding/, { timeout: 30000 });
+    await page.getByRole('button', { name: 'Continua' }).click();
+    await page.waitForTimeout(400);
+    await page.getByRole('button', { name: 'Continua' }).click();
+    await page.waitForTimeout(400);
+    await page.getByRole('button', { name: 'Vai alla dashboard' }).click();
+    await page.waitForURL(/dashboard/, { timeout: 30000 });
+  } else {
+    await page.waitForURL(/dashboard/, { timeout: 30000 });
+  }
 }
 
 async function login(page, email, pass) {

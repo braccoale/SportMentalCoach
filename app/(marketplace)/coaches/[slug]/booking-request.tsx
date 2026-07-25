@@ -49,35 +49,48 @@ export function BookingRequest({
   // Combined datetime-local value the server parses (Rome wall-clock).
   const scheduledFor = day && time ? `${day}T${time}` : '';
 
+  if (services.length === 0) {
+    return (
+      <p className="rounded-md bg-amber-50 px-3 py-3 text-sm text-amber-800">
+        Questo coach non ha ancora configurato un servizio con una durata.
+        La prenotazione sarà disponibile appena completerà il servizio.
+      </p>
+    );
+  }
+
   return (
     <form action={formAction} className="flex w-full flex-col gap-4">
       <input type="hidden" name="slug" value={slug} />
       <input type="hidden" name="scheduledFor" value={scheduledFor} />
 
-      {services.length > 0 && (
-        <div className="flex flex-col">
-          <label
-            htmlFor="serviceId"
-            className="text-sm font-medium text-gray-900"
-          >
-            Su cosa vuoi lavorare?
-          </label>
-          <select
-            id="serviceId"
-            name="serviceId"
-            defaultValue=""
-            className={fieldCls}
-          >
-            <option value="">Lo decidete insieme</option>
-            {services.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.title ?? `Sessione`}
-                {s.durationMin ? ` · ${s.durationMin} min` : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
+      <div className="flex flex-col">
+        <label
+          htmlFor="serviceId"
+          className="text-sm font-medium text-gray-900"
+        >
+          Su cosa vuoi lavorare?
+        </label>
+        <select
+          id="serviceId"
+          name="serviceId"
+          defaultValue=""
+          className={fieldCls}
+          required
+        >
+          <option value="" disabled>
+            Seleziona un servizio
+          </option>
+          {services.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.title ?? `Sessione`}
+              {` · ${s.durationMin} min`}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-gray-500">
+          La durata è stabilita dal coach per ciascun servizio.
+        </p>
+      </div>
 
       {bookableDays.length > 0 ? (
         <div className="flex flex-col gap-3">

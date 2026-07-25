@@ -1,6 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { CalendarPlus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
@@ -10,11 +12,10 @@ import { createCoachBookingAction } from './actions';
 
 /**
  * Coach-side "Nuovo appuntamento": lets the coach create an already-accepted
- * session directly with an athlete they've already worked with. Symmetric to
- * the athlete's quick-rebook button, but scoped to the coach's own client
- * list (no service picker needed if the coach has none). Stays visible even
- * with no athletes yet (disabled, with an explanatory hint) rather than
- * disappearing — otherwise a coach with no bookings yet would never see it.
+ * session directly with any registered athlete using one of the coach's
+ * services. Stays visible even when there are no athletes at all
+ * (disabled, with an explanatory hint) rather than disappearing. Safeguarding
+ * is enforced server-side: minors without a confirmed guardian are rejected.
  *
  * The "when" field is the same constrained day+time picker the athlete gets:
  * options are pre-computed server-side in Rome time, so what the coach picks
@@ -29,12 +30,13 @@ export function CoachNewAppointmentButton({
   bookableDays,
 }: {
   athletes: RelationshipAthlete[];
-  services: { id: number; title: string }[];
+  services: { id: number; title: string; durationMin: number }[];
   /** Compact weekly availability summary, e.g. "Lun 09:00–18:00"; empty if none configured. */
   availabilityHint?: string;
   /** Selectable days/times from the coach's own weekly availability; empty if none set. */
   bookableDays: BookableDay[];
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [day, setDay] = useState(bookableDays[0]?.value ?? '');
   const [time, setTime] = useState(bookableDays[0]?.times[0] ?? '');
@@ -67,8 +69,29 @@ export function CoachNewAppointmentButton({
           Nuovo appuntamento
         </Button>
         <p className="text-xs text-gray-400">
-          Disponibile dopo la tua prima sessione con un atleta.
+          Nessun atleta registrato al momento.
         </p>
+      </div>
+    );
+  }
+
+  if (services.length === 0) {
+    return (
+      <div className="flex flex-col items-end gap-1">
+        <Button
+          type="button"
+          disabled
+          className="rounded-full bg-green-600 text-white opacity-50"
+        >
+          <CalendarPlus className="mr-2 h-4 w-4" />
+          Nuovo appuntamento
+        </Button>
+        <Link
+          href="/dashboard/coach/services"
+          className="text-xs font-medium text-amber-700 hover:underline"
+        >
+          Configura un servizio con durata.
+        </Link>
       </div>
     );
   }
@@ -99,7 +122,7 @@ export function CoachNewAppointmentButton({
                   Nuovo appuntamento
                 </h2>
                 <p className="mt-0.5 text-sm text-gray-500">
-                  Crea una sessione con un atleta con cui hai già lavorato.
+                  Crea una sessione con uno dei tuoi atleti.
                 </p>
               </div>
               <button
@@ -115,7 +138,13 @@ export function CoachNewAppointmentButton({
             <ActionForm
               action={createCoachBookingAction}
               className="mt-5 flex flex-col gap-4"
-              onSuccess={() => setTimeout(() => setOpen(false), 1000)}
+              onSuccess={(state) => {
+                if (typeof state.bookingId === 'number') {
+                  router.push(
+                    `/dashboard/appointments/${state.bookingId}?created=1`
+                  );
+                }
+              }}
             >
               <label className="flex flex-col gap-1.5">
                 <span className="text-sm font-medium text-gray-700">Atleta</span>
@@ -133,24 +162,26 @@ export function CoachNewAppointmentButton({
                 </select>
               </label>
 
-              {services.length > 0 && (
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-sm font-medium text-gray-700">
-                    Servizio <span className="text-gray-400">(opzionale)</span>
-                  </span>
-                  <select
-                    name="serviceId"
-                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-                  >
-                    <option value="">Nessuno</option>
-                    {services.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium text-gray-700">
+                  Servizio
+                </span>
+                <select
+                  name="serviceId"
+                  defaultValue=""
+                  required
+                  className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+                >
+                  <option value="" disabled>
+                    Seleziona un servizio
+                  </option>
+                  {services.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.title} · {s.durationMin} min
+                    </option>
+                  ))}
+                </select>
+              </label>
 
               <input type="hidden" name="scheduledFor" value={scheduledFor} />
 

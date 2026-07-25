@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Home, LogOut } from 'lucide-react';
-import { mutate } from 'swr';
+import { Home, LogOut, UserPlus, ShieldCheck } from 'lucide-react';
+import useSWR, { mutate } from 'swr';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +12,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { UserAvatar } from '@/components/user-avatar';
+import { InviteModal } from '@/components/invite/invite-modal';
+import { fetcher } from '@/lib/fetcher';
 import { signOut } from '@/app/(login)/actions';
 
 /**
@@ -27,7 +29,16 @@ export function UserMenu({
   email: string;
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const router = useRouter();
+
+  // A user can hold several roles (e.g. coach + admin). Surface the Admin area
+  // in the menu whenever the admin role is present, regardless of primary role.
+  const { data: rolesData } = useSWR<{ roles: string[] }>(
+    '/api/user/roles',
+    fetcher
+  );
+  const isAdmin = rolesData?.roles?.includes('admin') ?? false;
 
   async function handleSignOut() {
     await signOut();
@@ -36,27 +47,49 @@ export function UserMenu({
   }
 
   return (
-    <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-      <DropdownMenuTrigger>
-        {/* Initials (first + last name, uppercase) on the brand-red disc. */}
-        <UserAvatar name={name || email} className="cursor-pointer size-9" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="flex flex-col gap-1">
-        <DropdownMenuItem className="cursor-pointer">
-          <Link href="/dashboard" className="flex w-full items-center">
-            <Home className="mr-2 h-4 w-4" />
-            <span>Dashboard</span>
-          </Link>
-        </DropdownMenuItem>
-        <form action={handleSignOut} className="w-full">
-          <button type="submit" className="flex w-full">
-            <DropdownMenuItem className="w-full flex-1 cursor-pointer">
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Esci</span>
+    <>
+      <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+        <DropdownMenuTrigger>
+          {/* Initials (first + last name, uppercase) on the brand-red disc. */}
+          <UserAvatar name={name || email} className="cursor-pointer size-9" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="flex flex-col gap-1">
+          <DropdownMenuItem className="cursor-pointer">
+            <Link href="/dashboard" className="flex w-full items-center">
+              <Home className="mr-2 h-4 w-4" />
+              <span>Dashboard</span>
+            </Link>
+          </DropdownMenuItem>
+          {isAdmin && (
+            <DropdownMenuItem className="cursor-pointer">
+              <Link
+                href="/dashboard/admin"
+                className="flex w-full items-center"
+              >
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                <span>Admin</span>
+              </Link>
             </DropdownMenuItem>
-          </button>
-        </form>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          )}
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onSelect={() => setInviteOpen(true)}
+          >
+            <UserPlus className="mr-2 h-4 w-4" />
+            <span>Invita un amico</span>
+          </DropdownMenuItem>
+          <form action={handleSignOut} className="w-full">
+            <button type="submit" className="flex w-full">
+              <DropdownMenuItem className="w-full flex-1 cursor-pointer">
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Esci</span>
+              </DropdownMenuItem>
+            </button>
+          </form>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <InviteModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
+    </>
   );
 }

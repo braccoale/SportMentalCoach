@@ -76,6 +76,9 @@ async function main() {
         }
         if (!authId) throw error;
       }
+      if (!authId) {
+        throw new Error(`Identità Supabase Auth non disponibile per ${u.email}`);
+      }
 
       await db
         .update(users)

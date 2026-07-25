@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { CalendarPlus, UserRound, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ import { createBookingRequestAction } from './actions';
  * coach yet, it degrades to a "Trova un coach" link.
  */
 export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[] }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   // Default to the last-followed coach (coaches are ordered by recency).
   const [slug, setSlug] = useState(coaches[0]?.slug ?? '');
@@ -108,7 +110,13 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
             <ActionForm
               action={createBookingRequestAction}
               className="mt-5 flex flex-col gap-4"
-              onSuccess={() => setTimeout(() => setOpen(false), 1000)}
+              onSuccess={(state) => {
+                if (typeof state.bookingId === 'number') {
+                  router.push(
+                    `/dashboard/appointments/${state.bookingId}?created=1`
+                  );
+                }
+              }}
             >
               <label className="flex flex-col gap-1.5">
                 <span className="text-sm font-medium text-gray-700">Coach</span>
@@ -132,19 +140,29 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
 
               <label className="flex flex-col gap-1.5">
                 <span className="text-sm font-medium text-gray-700">
-                  Servizio <span className="text-gray-400">(opzionale)</span>
+                  Servizio
                 </span>
                 <select
+                  key={slug}
                   name="serviceId"
+                  defaultValue=""
+                  required
                   className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
                 >
-                  <option value="">Richiesta generica</option>
+                  <option value="" disabled>
+                    Seleziona un servizio
+                  </option>
                   {selected?.services.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.title}
+                      {s.title} · {s.durationMin} min
                     </option>
                   ))}
                 </select>
+                {selected?.services.length === 0 && (
+                  <span className="text-xs text-amber-700">
+                    Questo coach deve ancora configurare un servizio con durata.
+                  </span>
+                )}
               </label>
 
               <input type="hidden" name="scheduledFor" value={scheduledFor} />
@@ -227,6 +245,7 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                 </Button>
                 <Button
                   type="submit"
+                  disabled={!selected || selected.services.length === 0}
                   className="rounded-full bg-green-600 text-white hover:bg-green-700"
                 >
                   Invia richiesta

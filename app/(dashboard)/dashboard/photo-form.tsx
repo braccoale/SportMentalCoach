@@ -46,10 +46,26 @@ export function PhotoForm({
         method: 'POST',
         body: fd,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Caricamento fallito.');
+      const responseText = await res.text();
+      let data: { error?: string; url?: string } | null = null;
+      if (responseText) {
+        try {
+          data = JSON.parse(responseText);
+        } catch {
+          // Proxies and hosting platforms can return an HTML error page.
+        }
+      }
+      if (!res.ok) {
+        throw new Error(
+          data?.error || `Caricamento fallito (errore ${res.status}).`
+        );
+      }
+      if (!data?.url) {
+        throw new Error('Il server non ha restituito la foto caricata.');
+      }
       submitUrl(data.url);
     } catch (err) {
+      setPreview(avatarUrl);
       setUploadError(err instanceof Error ? err.message : 'Caricamento fallito.');
     } finally {
       setUploading(false);
@@ -57,7 +73,7 @@ export function PhotoForm({
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 p-4">
+    <div className="h-full rounded-lg border border-gray-200 p-3">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-medium text-gray-700">Foto profilo</h2>
         {status === 'approved' && (
@@ -67,9 +83,9 @@ export function PhotoForm({
           </span>
         )}
       </div>
-      <div className="mt-3 flex items-center gap-5">
+      <div className="mt-2.5 flex items-center gap-3">
         <div className="relative">
-          <CoachAvatar name={name} src={preview} className="size-28 text-3xl" />
+          <CoachAvatar name={name} src={preview} className="size-20 text-xl" />
           {status === 'approved' && (
             <span
               title="Profilo approvato"
@@ -91,7 +107,8 @@ export function PhotoForm({
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
-            className="rounded-md bg-green-600 text-white hover:bg-green-700"
+            size="sm"
+            className="rounded-md"
           >
             {uploading ? (
               <>
@@ -117,7 +134,7 @@ export function PhotoForm({
               Rimuovi
             </button>
           )}
-          <p className="mt-2 text-xs text-gray-400">JPG o PNG, max 5MB.</p>
+          <p className="mt-1.5 text-xs text-gray-400">JPG o PNG, max 5MB.</p>
         </div>
       </div>
 

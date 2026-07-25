@@ -14,7 +14,13 @@ export function CoachAvatar({
 }) {
   return (
     <Avatar className={cn('size-16', className)}>
-      {src ? <AvatarImage src={src} alt={name ?? 'Coach'} /> : null}
+      {src ? (
+        <AvatarImage
+          src={src}
+          alt={name ?? 'Coach'}
+          className="object-cover"
+        />
+      ) : null}
       <AvatarFallback className="bg-red-100 font-semibold text-red-700">
         {initials(name)}
       </AvatarFallback>

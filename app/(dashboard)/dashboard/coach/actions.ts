@@ -85,6 +85,7 @@ export async function cancelBookingAction(
   if (!result.ok) return { error: result.error };
 
   revalidateBookings();
+  revalidatePath(`/dashboard/appointments/${bookingId}`);
   return { success: 'Prenotazione annullata.' };
 }
 
@@ -107,9 +108,9 @@ export async function createCoachBookingAction(
   }
 
   const serviceRaw = String(formData.get('serviceId') ?? '').trim();
-  const serviceId = serviceRaw ? Number(serviceRaw) : null;
-  if (serviceRaw && (!Number.isInteger(serviceId) || serviceId! <= 0)) {
-    return { error: 'Servizio non valido.' };
+  const serviceId = Number(serviceRaw);
+  if (!serviceRaw || !Number.isInteger(serviceId) || serviceId <= 0) {
+    return { error: 'Seleziona un servizio valido.' };
   }
 
   const note = String(formData.get('note') ?? '').trim() || null;
@@ -135,5 +136,8 @@ export async function createCoachBookingAction(
   if (!result.ok) return { error: result.error };
 
   revalidateBookings();
-  return { success: 'Sessione creata e atleta avvisato.' };
+  return {
+    success: 'Sessione creata e atleta avvisato.',
+    bookingId: result.bookingId,
+  };
 }

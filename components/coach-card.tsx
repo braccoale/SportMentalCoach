@@ -37,16 +37,19 @@ export function CoachCard({
         />
       </div>
 
-      {/* Photo panel */}
+      {/* Photo panel. The image is absolutely positioned so it never adds to the
+          card's height: the card height is driven only by the text content, and
+          a tall/portrait photo simply stretches (object-cover) to fill and crop
+          — the card stays the same size for everyone. */}
       <div className="relative hidden w-[26%] shrink-0 overflow-hidden bg-gray-900 sm:block">
         {coach.avatarUrl ? (
           <img
             src={coach.avatarUrl}
             alt={name}
-            className="h-full w-full object-cover grayscale"
+            className="absolute inset-0 h-full w-full object-cover"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gray-100 text-4xl font-semibold text-gray-300">
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-4xl font-semibold text-gray-300">
             {name.charAt(0).toUpperCase()}
           </div>
         )}
@@ -85,18 +88,22 @@ export function CoachCard({
             </div>
           </div>
 
-          {coach.headline && (
-            <p className="mt-2 line-clamp-1 text-sm text-gray-600">
-              {coach.headline}
-            </p>
-          )}
+          {/* Reserved one-line slot so cards with/without a headline stay the
+              same height. */}
+          <p className="mt-2 line-clamp-1 min-h-5 text-sm text-gray-600">
+            {coach.headline || ' '}
+          </p>
 
-          {coach.certified && (
-            <span className="mt-2 inline-flex w-fit items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">
-              <BadgeCheck className="h-3.5 w-3.5" />
-              Certificato KaiPai
-            </span>
-          )}
+          {/* Reserved slot for the certified pill — kept even when absent so
+              certified and non-certified cards line up to the same height. */}
+          <div className="mt-2 min-h-[1.75rem]">
+            {coach.certified && (
+              <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">
+                <BadgeCheck className="h-3.5 w-3.5" />
+                Certificato KaiPai
+              </span>
+            )}
+          </div>
 
           <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-gray-100 pt-2.5 text-sm text-gray-600">
             {sportLabels.length > 0 && <span>{sportLabels.join(' · ')}</span>}

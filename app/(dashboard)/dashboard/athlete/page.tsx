@@ -4,7 +4,6 @@ import {
   CalendarCheck,
   CheckCircle2,
   MessageSquare,
-  UserRound,
   Video,
 } from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
@@ -43,9 +42,14 @@ import {
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { ReviewForm } from './review-form';
 import { NewAppointmentButton } from './new-appointment-button';
+import { InviteFriendButton } from '@/components/invite/invite-friend-button';
+import { InviteFriendLink } from '@/components/invite/invite-friend-link';
 import { cancelBookingAction, inviteGuardianAction } from './actions';
 import { getGuardianStatus } from '@/lib/core/guardians';
 import { GuardianBanner } from '@/components/guardian-banner';
+import { AddToGoogleCalendarButton } from '@/components/add-to-google-calendar-button';
+import { buildBookingGoogleCalendarUrl } from '@/lib/core/booking-calendar';
+import { getAppBaseUrl } from '@/lib/core/app-url';
 
 /** Sort key for the archive: when the session actually happened, newest first. */
 function archiveRecency(b: AthleteBooking): number {
@@ -174,7 +178,7 @@ function BookingRow({
     (b.status === 'requested' || b.status === 'accepted') && !isPast;
   const isPastSession = b.status === 'accepted' && isPast;
   const canOpenLiveTools = b.status === 'accepted' && !isPastSession;
-  const canOpenCoach = !!b.coachSlug;
+  const canMessage = ['requested', 'accepted', 'completed'].includes(b.status);
 
   return (
     <li className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-4 sm:p-5">
@@ -237,8 +241,9 @@ function BookingRow({
             <>
               <Button
                 asChild
+                variant="outline"
                 size="sm"
-                className="w-full rounded-full bg-blue-600 text-white hover:bg-blue-700"
+                className="w-full rounded-full"
               >
                 <Link href={`/dashboard/chat/${b.id}`}>
                   <MessageSquare className="mr-2 h-4 w-4" />
@@ -249,7 +254,7 @@ function BookingRow({
                 <Button
                   asChild
                   size="sm"
-                  className="w-full rounded-full bg-green-600 text-white hover:bg-green-700"
+                  className="w-full rounded-full"
                 >
                   <Link href={`/dashboard/video/${b.id}`}>
                     <Video className="mr-2 h-4 w-4" />
@@ -276,16 +281,27 @@ function BookingRow({
             </p>
           ) : null}
 
-          {!canOpenLiveTools && canOpenCoach ? (
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="w-full rounded-full"
+          >
+            <Link href={`/dashboard/appointments/${b.id}`}>
+              <CalendarCheck className="mr-2 h-4 w-4" />
+              Vedi appuntamento
+            </Link>
+          </Button>
+
+          {!canOpenLiveTools && canMessage ? (
             <Button
               asChild
-              variant="outline"
               size="sm"
               className="w-full rounded-full"
             >
-              <Link href={`/coaches/${b.coachSlug}`}>
-                <UserRound className="mr-2 h-4 w-4" />
-                Vedi coach
+              <Link href={`/dashboard/chat/${b.id}`}>
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Manda un messaggio
               </Link>
             </Button>
           ) : null}
@@ -295,9 +311,9 @@ function BookingRow({
               <input type="hidden" name="bookingId" value={b.id} />
               <Button
                 type="submit"
-                variant="outline"
+                variant="destructive"
                 size="sm"
-                className="w-full rounded-full text-red-600 hover:text-red-700"
+                className="w-full rounded-full"
               >
                 Annulla
               </Button>
@@ -394,7 +410,15 @@ function ArchiveSection({
 }
 
 /** Accepted (upcoming) sessions, rendered with the same rich card the coach sees. */
-function AcceptedAppointments({ items }: { items: AthleteBooking[] }) {
+function AcceptedAppointments({
+  items,
+  athleteName,
+  appBaseUrl,
+}: {
+  items: AthleteBooking[];
+  athleteName: string | null;
+  appBaseUrl: string | null;
+}) {
   if (items.length === 0) return null;
   return (
     <div id="sessioni-confermate" className="scroll-mt-24">
@@ -404,6 +428,18 @@ function AcceptedAppointments({ items }: { items: AthleteBooking[] }) {
       <div className="mt-3 grid items-start gap-4 xl:grid-cols-2">
         {items.map((b) => {
           const past = !isSessionJoinable(b.scheduledFor);
+          const calendarUrl = buildBookingGoogleCalendarUrl({
+            id: b.id,
+            status: b.status,
+            scheduledFor: b.scheduledFor,
+            durationMin: b.serviceDurationMin,
+            coachName: b.coachName,
+            athleteName,
+            viewerRole: 'athlete',
+            appBaseUrl,
+            canView: true,
+            isOnline: true,
+          });
           return (
             <UpcomingAppointmentCard
               key={b.id}
@@ -434,28 +470,39 @@ function AcceptedAppointments({ items }: { items: AthleteBooking[] }) {
                         <Video className="h-4 w-4" /> Apri videochiamata
                       </span>
                     )}
+                    <AddToGoogleCalendarButton
+                      url={calendarUrl}
+                      uiSource="appointment_card"
+                      userRole="athlete"
+                      compact
+                    />
+                    <ActionForm
+                      action={cancelBookingAction}
+                      confirmMessage="Vuoi davvero annullare questa sessione?"
+                    >
+                      <input type="hidden" name="bookingId" value={b.id} />
+                      <Button
+                        type="submit"
+                        variant="destructive"
+                        className="rounded-full"
+                      >
+                        Annulla
+                      </Button>
+                    </ActionForm>
                   </>
                 )
               }
               overflowActions={
                 <>
+                  <DropdownMenuItem asChild className="cursor-pointer">
+                    <Link href={`/dashboard/appointments/${b.id}`}>
+                      Vedi dettagli
+                    </Link>
+                  </DropdownMenuItem>
                   {b.coachSlug && (
                     <DropdownMenuItem asChild className="cursor-pointer">
                       <Link href={`/coaches/${b.coachSlug}`}>Vedi coach</Link>
                     </DropdownMenuItem>
-                  )}
-                  {!past && (
-                    <ActionForm action={cancelBookingAction} className="w-full">
-                      <input type="hidden" name="bookingId" value={b.id} />
-                      <button type="submit" className="flex w-full">
-                        <DropdownMenuItem
-                          variant="destructive"
-                          className="w-full flex-1 cursor-pointer"
-                        >
-                          Annulla
-                        </DropdownMenuItem>
-                      </button>
-                    </ActionForm>
                   )}
                 </>
               }
@@ -469,6 +516,9 @@ function AcceptedAppointments({ items }: { items: AthleteBooking[] }) {
 
 export default async function AthleteDashboardPage() {
   const user = await requireRole('athlete');
+  const appBaseUrl = getAppBaseUrl();
+  const athleteName =
+    [user.name, user.lastName].filter(Boolean).join(' ').trim() || null;
   const [
     requests,
     reviewedIds,
@@ -514,14 +564,20 @@ export default async function AthleteDashboardPage() {
           adults, so it can sit here unconditionally. */}
       <GuardianBanner status={guardianStatus} action={inviteGuardianAction} />
 
-      <div className="max-w-3xl">
-        <h1 className="text-3xl font-bold tracking-tight text-gray-950">
-          Il tuo percorso mentale, una sessione alla volta.
-        </h1>
-        <p className="mt-3 text-base leading-7 text-gray-600">
-          Tieni sotto controllo richieste, sessioni confermate e messaggi con i
-          tuoi coach. I tuoi dati personali sono nella scheda “Atleta”.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="max-w-3xl">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-950">
+            Il tuo percorso mentale, una sessione alla volta.
+          </h1>
+          <p className="mt-3 text-base leading-7 text-gray-600">
+            Tieni sotto controllo richieste, sessioni confermate e messaggi con
+            i tuoi coach. I tuoi dati personali sono nella scheda “Atleta”.
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <NewAppointmentButton coaches={relationshipCoaches} />
+          <InviteFriendButton />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -573,10 +629,7 @@ export default async function AthleteDashboardPage() {
         />
       </div>
 
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-medium text-gray-900">Le tue sessioni</h2>
-        <NewAppointmentButton coaches={relationshipCoaches} />
-      </div>
+      <h2 className="text-lg font-medium text-gray-900">Le tue sessioni</h2>
 
       {requests.length === 0 ? (
         <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center">
@@ -596,8 +649,18 @@ export default async function AthleteDashboardPage() {
             items={waiting}
             reviewedIds={reviewedIds}
           />
-          <AcceptedAppointments items={accepted} />
+          <AcceptedAppointments
+            items={accepted}
+            athleteName={athleteName}
+            appBaseUrl={appBaseUrl}
+          />
           <ArchiveSection items={archive} reviewedIds={reviewedIds} />
+          {/* Discreet nudge after a concluded session — never a hard sell. */}
+          {completed.length > 0 && (
+            <div className="border-t border-gray-100 pt-5">
+              <InviteFriendLink />
+            </div>
+          )}
         </div>
       )}
     </section>

@@ -17,7 +17,7 @@ const TABS = [
   { href: '/dashboard/coach', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/coach/calendar', label: 'Calendario', icon: CalendarDays },
   { href: '/dashboard/coach/messages', label: 'Messaggi', icon: MessageSquare },
-  { href: '/dashboard/coach/profile', label: 'Coach', icon: UserRound },
+  { href: '/dashboard/coach/profile', label: 'Profilo', icon: UserRound },
   { href: '/dashboard/coach/services', label: 'Servizi', icon: Briefcase },
   { href: '/dashboard/coach/security', label: 'Sicurezza', icon: Shield },
 ];
@@ -44,11 +44,13 @@ export function CoachNav({
       <div className="flex items-center gap-3 px-6 pt-6">
         {/* Coach area branding. TODO: replace /logo.jpg with a dedicated
             coach-area icon asset when available. */}
-        <img
-          src="/logo.jpg"
-          alt="KaiPai"
-          className="h-9 w-9 rounded-lg object-cover"
-        />
+        <Link href="/" aria-label="KaiPai — home">
+          <img
+            src="/logo.jpg"
+            alt="KaiPai"
+            className="h-9 w-9 rounded-lg object-cover"
+          />
+        </Link>
         <h1 className="text-xl font-semibold text-gray-900">
           Area Coach
           {coachName && (
