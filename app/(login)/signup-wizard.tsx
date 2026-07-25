@@ -14,6 +14,16 @@ import { track } from '@/lib/core/analytics';
 const INPUT =
   'appearance-none rounded-full relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm';
 
+/** Red asterisk marking a mandatory field. */
+function Req() {
+  return (
+    <span className="text-red-600" aria-hidden="true">
+      {' '}
+      *
+    </span>
+  );
+}
+
 const ROLES = [
   {
     value: 'athlete',
@@ -205,7 +215,10 @@ export function SignupWizard() {
           {/* Step 2 — credentials */}
           <div hidden={step !== 1} className="space-y-4">
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">
+                Email
+                <Req />
+              </Label>
               <Input
                 id="email"
                 name="email"
@@ -219,7 +232,10 @@ export function SignupWizard() {
               />
             </div>
             <div>
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">
+                Password
+                <Req />
+              </Label>
               <Input
                 id="password"
                 name="password"
@@ -234,7 +250,10 @@ export function SignupWizard() {
               />
             </div>
             <div>
-              <Label htmlFor="confirm">Conferma password</Label>
+              <Label htmlFor="confirm">
+                Conferma password
+                <Req />
+              </Label>
               <Input
                 id="confirm"
                 type="password"
@@ -253,7 +272,10 @@ export function SignupWizard() {
           <div hidden={step !== 2} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <Label htmlFor="name">Nome</Label>
+                <Label htmlFor="name">
+                  Nome
+                  <Req />
+                </Label>
                 <Input
                   id="name"
                   name="name"
@@ -267,7 +289,10 @@ export function SignupWizard() {
                 />
               </div>
               <div>
-                <Label htmlFor="lastName">Cognome</Label>
+                <Label htmlFor="lastName">
+                  Cognome
+                  <Req />
+                </Label>
                 <Input
                   id="lastName"
                   name="lastName"
@@ -284,7 +309,10 @@ export function SignupWizard() {
 
             {isAthlete && (
               <div>
-                <Label htmlFor="birthDate">Data di nascita</Label>
+                <Label htmlFor="birthDate">
+                  Data di nascita
+                  <Req />
+                </Label>
                 <Input
                   id="birthDate"
                   name="birthDate"
@@ -330,6 +358,7 @@ export function SignupWizard() {
                   Termini e condizioni
                 </Link>{' '}
                 di KaiPai.
+                <Req />
               </span>
             </label>
             <label className="flex items-start gap-2 text-sm text-gray-700">
@@ -346,6 +375,7 @@ export function SignupWizard() {
                   Informativa privacy
                 </Link>
                 .
+                <Req />
               </span>
             </label>
             <label className="flex items-start gap-2 text-sm text-gray-700">
@@ -356,8 +386,16 @@ export function SignupWizard() {
                 onChange={(e) => setMarketing(e.target.checked)}
                 className="mt-0.5 accent-red-600"
               />
-              <span>Desidero ricevere novità e comunicazioni da KaiPai.</span>
+              <span>
+                Desidero ricevere novità e comunicazioni da KaiPai.{' '}
+                <span className="text-gray-400">(facoltativo)</span>
+              </span>
             </label>
+
+            <p className="pt-1 text-xs text-gray-400">
+              I campi contrassegnati con <span className="text-red-600">*</span>{' '}
+              sono obbligatori.
+            </p>
           </div>
 
           {(localError || state?.error) && (

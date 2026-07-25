@@ -186,7 +186,9 @@ export function CoachWizard({
           <h1 className="text-xl font-semibold text-gray-900">Le tue informazioni</h1>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <Label htmlFor="c-name">Nome</Label>
+              <Label htmlFor="c-name">
+                Nome <span className="text-red-600">*</span>
+              </Label>
               <Input
                 id="c-name"
                 value={name}
@@ -197,7 +199,9 @@ export function CoachWizard({
               />
             </div>
             <div>
-              <Label htmlFor="c-lastName">Cognome</Label>
+              <Label htmlFor="c-lastName">
+                Cognome <span className="text-red-600">*</span>
+              </Label>
               <Input
                 id="c-lastName"
                 value={lastName}

@@ -138,7 +138,9 @@ export function AthleteWizard({
           </h1>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <Label htmlFor="ob-name">Nome</Label>
+              <Label htmlFor="ob-name">
+                Nome <span className="text-red-600">*</span>
+              </Label>
               <Input
                 id="ob-name"
                 value={name}
@@ -149,7 +151,9 @@ export function AthleteWizard({
               />
             </div>
             <div>
-              <Label htmlFor="ob-lastName">Cognome</Label>
+              <Label htmlFor="ob-lastName">
+                Cognome <span className="text-red-600">*</span>
+              </Label>
               <Input
                 id="ob-lastName"
                 value={lastName}
