@@ -1,5 +1,6 @@
 import 'server-only';
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/lib/db/drizzle';
 import {
   providerProfiles,
@@ -25,6 +26,7 @@ export type ProviderReviewItem = {
   status: string;
   identityVerified: boolean;
   certificationsVerified: boolean;
+  reviewedByName: string | null;
   reviewedAt: Date | null;
   createdAt: Date;
 };
@@ -38,6 +40,8 @@ export type VerificationField = 'identity' | 'certifications';
 export async function getProviderProfilesForReview(): Promise<
   ProviderReviewItem[]
 > {
+  const reviewer = alias(users, 'reviewer');
+
   return db
     .select({
       id: providerProfiles.id,
@@ -51,12 +55,21 @@ export async function getProviderProfilesForReview(): Promise<
       status: providerProfiles.status,
       identityVerified: providerProfiles.identityVerified,
       certificationsVerified: providerProfiles.certificationsVerified,
+      reviewedByName: sql<string | null>`coalesce(
+        nullif(trim(concat(
+          coalesce(${reviewer.name}, ''),
+          ' ',
+          coalesce(${reviewer.lastName}, '')
+        )), ''),
+        ${reviewer.email}
+      )`,
       reviewedAt: providerProfiles.reviewedAt,
       createdAt: providerProfiles.createdAt,
     })
     .from(providerProfiles)
     .innerJoin(users, eq(providerProfiles.userId, users.id))
     .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
+    .leftJoin(reviewer, eq(reviewer.id, providerProfiles.reviewedBy))
     .orderBy(desc(providerProfiles.createdAt));
 }
 
@@ -69,6 +82,7 @@ export type AthleteAdminItem = {
   level: string | null;
   city: string | null;
   birthDate: string | null;
+  goals: string | null;
   createdAt: Date;
 };
 
@@ -84,6 +98,7 @@ export async function getAllAthletesForAdmin(): Promise<AthleteAdminItem[]> {
       level: clientProfiles.level,
       city: clientProfiles.city,
       birthDate: clientProfiles.birthDate,
+      goals: clientProfiles.goals,
       createdAt: users.createdAt,
     })
     .from(users)
@@ -105,6 +120,7 @@ export async function getAllAthletesForAdmin(): Promise<AthleteAdminItem[]> {
     level: r.level,
     city: r.city,
     birthDate: r.birthDate,
+    goals: r.goals,
     createdAt: r.createdAt,
   }));
 }

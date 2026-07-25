@@ -20,6 +20,10 @@ import {
   toggleIdentityVerifiedAction,
   toggleCertificationsVerifiedAction,
 } from './actions';
+import {
+  AthleteProfileDialog,
+  type AthleteProfileDialogData,
+} from './athlete-profile-dialog';
 
 function verifyChip(active: boolean) {
   return `inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
@@ -70,6 +74,14 @@ function ProviderRow({ p, sportsList }: { p: ProviderReviewItem; sportsList: Tax
           )}
           {sportLabels && (
             <p className="mt-1 text-xs text-gray-400">{sportLabels}</p>
+          )}
+          {p.status === 'approved' && (
+            <p className="mt-1 text-xs font-medium text-green-700">
+              Approvato da {p.reviewedByName ?? 'amministratore'}
+              {p.reviewedAt
+                ? ` il ${formatDate(p.reviewedAt)}`
+                : ' · data non disponibile'}
+            </p>
           )}
           {p.status === 'approved' && p.slug && (
             <Link
@@ -154,19 +166,24 @@ function AthleteRow({
   const level = a.level
     ? findTaxonomyItem(config.taxonomies.levels ?? [], a.level)?.label ?? a.level
     : null;
-  const meta = [sport, level, a.city].filter(Boolean).join(' · ');
+  const birthDate = a.birthDate
+    ? formatDate(new Date(`${a.birthDate}T12:00:00Z`))
+    : null;
+  const athlete: AthleteProfileDialogData = {
+    name: a.name,
+    email: a.email,
+    avatarUrl: a.avatarUrl,
+    sport,
+    level,
+    city: a.city,
+    birthDate,
+    goals: a.goals,
+    registeredAt: formatDate(a.createdAt),
+  };
 
   return (
-    <li className="flex items-center gap-3 rounded-lg border border-gray-200 p-3">
-      <CoachAvatar name={a.name} src={a.avatarUrl} className="size-10 shrink-0" />
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-medium text-gray-900">{a.name}</p>
-        <p className="truncate text-sm text-gray-500">{a.email}</p>
-        {meta && <p className="truncate text-xs text-gray-400">{meta}</p>}
-      </div>
-      <span className="shrink-0 text-xs text-gray-400">
-        Iscritto il {formatDate(a.createdAt)}
-      </span>
+    <li>
+      <AthleteProfileDialog athlete={athlete} />
     </li>
   );
 }
@@ -179,9 +196,8 @@ export default async function AdminDashboardPage() {
     getAllAthletesForAdmin(),
   ]);
   const queue = all.filter((p) => p.status === 'draft' || p.status === 'pending');
-  const reviewed = all.filter(
-    (p) => p.status === 'approved' || p.status === 'rejected'
-  );
+  const approved = all.filter((p) => p.status === 'approved');
+  const rejected = all.filter((p) => p.status === 'rejected');
 
   return (
     <section className="p-6">
@@ -209,11 +225,11 @@ export default async function AdminDashboardPage() {
           <div className="flex items-center gap-2 text-gray-500">
             <Award className="h-4 w-4" />
             <span className="text-xs font-medium uppercase tracking-wide">
-              Coach revisionati
+              Coach approvati
             </span>
           </div>
           <p className="mt-1 text-2xl font-bold text-gray-900">
-            {reviewed.length}
+            {approved.length}
           </p>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-4">
@@ -243,16 +259,29 @@ export default async function AdminDashboardPage() {
       )}
 
       <h2 className="mt-8 text-lg font-medium text-gray-900">
-        Profili revisionati ({reviewed.length})
+        Profili Approvati ({approved.length})
       </h2>
-      {reviewed.length === 0 ? (
-        <p className="mt-2 text-gray-500">Nessun profilo revisionato.</p>
+      {approved.length === 0 ? (
+        <p className="mt-2 text-gray-500">Nessun profilo approvato.</p>
       ) : (
         <ul className="mt-3 flex flex-col gap-3">
-          {reviewed.map((p) => (
+          {approved.map((p) => (
             <ProviderRow key={p.id} p={p} sportsList={sportsList} />
           ))}
         </ul>
+      )}
+
+      {rejected.length > 0 && (
+        <>
+          <h2 className="mt-8 text-lg font-medium text-gray-900">
+            Profili rifiutati ({rejected.length})
+          </h2>
+          <ul className="mt-3 flex flex-col gap-3">
+            {rejected.map((p) => (
+              <ProviderRow key={p.id} p={p} sportsList={sportsList} />
+            ))}
+          </ul>
+        </>
       )}
 
       <h2 className="mt-8 text-lg font-medium text-gray-900">
