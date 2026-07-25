@@ -62,6 +62,9 @@ import {
 } from './actions';
 import { CoachNewAppointmentButton } from './new-appointment-button';
 import { InviteFriendButton } from '@/components/invite/invite-friend-button';
+import { AddToGoogleCalendarButton } from '@/components/add-to-google-calendar-button';
+import { buildBookingGoogleCalendarUrl } from '@/lib/core/booking-calendar';
+import { getAppBaseUrl } from '@/lib/core/app-url';
 
 const DEFAULT_ATHLETE_AVATAR = '/atleta.png';
 
@@ -87,6 +90,9 @@ function HintPill({ children }: { children: ReactNode }) {
 export default async function CoachDashboardPage() {
   const user = await requireRole('coach');
   const config = getVerticalConfig();
+  const appBaseUrl = getAppBaseUrl();
+  const coachName =
+    [user.name, user.lastName].filter(Boolean).join(' ').trim() || null;
 
   const [
     provider,
@@ -276,73 +282,100 @@ export default async function CoachDashboardPage() {
         items={accepted}
         emptyTitle="Nessuna sessione accettata."
         emptySubtitle="Le sessioni confermate compariranno qui appena dai il via a un nuovo percorso."
-        renderCard={(booking) => (
-          <UpcomingAppointmentCard
-            key={booking.id}
-            data={buildUpcomingAppointmentData(booking)}
-            primaryActions={
-              isSessionJoinable(booking.scheduledFor) ? (
-                <>
-                  <Link
-                    href={`/dashboard/chat/${booking.id}`}
-                    className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
-                  >
-                    <MessageSquare className="h-4 w-4" /> Apri chat
-                  </Link>
-                  {canJoinVideoNow(booking.scheduledFor) ? (
+        renderCard={(booking) => {
+          const calendarUrl = buildBookingGoogleCalendarUrl({
+            id: booking.id,
+            status: booking.status,
+            scheduledFor: booking.scheduledFor,
+            durationMin: booking.serviceDurationMin,
+            coachName,
+            athleteName: booking.clientName,
+            viewerRole: 'coach',
+            appBaseUrl,
+            canView: true,
+            isOnline: true,
+          });
+          return (
+            <UpcomingAppointmentCard
+              key={booking.id}
+              data={buildUpcomingAppointmentData(booking)}
+              primaryActions={
+                isSessionJoinable(booking.scheduledFor) ? (
+                  <>
                     <Link
-                      href={`/dashboard/video/${booking.id}`}
-                      className="inline-flex items-center gap-2 rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+                      href={`/dashboard/chat/${booking.id}`}
+                      className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
                     >
-                      <Video className="h-4 w-4" /> Apri videochiamata
+                      <MessageSquare className="h-4 w-4" /> Apri chat
                     </Link>
+                    {canJoinVideoNow(booking.scheduledFor) ? (
+                      <Link
+                        href={`/dashboard/video/${booking.id}`}
+                        className="inline-flex items-center gap-2 rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+                      >
+                        <Video className="h-4 w-4" /> Apri videochiamata
+                      </Link>
+                    ) : (
+                      <span
+                        title="Videochiamata disponibile 5 min prima"
+                        className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-400"
+                      >
+                        <Video className="h-4 w-4" /> Apri videochiamata
+                      </span>
+                    )}
+                    <AddToGoogleCalendarButton
+                      url={calendarUrl}
+                      uiSource="appointment_card"
+                      userRole="coach"
+                      compact
+                    />
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-400">Sessione trascorsa</p>
+                )
+              }
+              overflowActions={
+                <>
+                  <DropdownMenuItem asChild className="cursor-pointer">
+                    <Link href={`/dashboard/appointments/${booking.id}`}>
+                      Vedi dettagli
+                    </Link>
+                  </DropdownMenuItem>
+                  {booking.sessionStartedAt ? (
+                    <ActionForm action={completeBookingAction} className="w-full">
+                      <input type="hidden" name="bookingId" value={booking.id} />
+                      <button type="submit" className="flex w-full">
+                        <DropdownMenuItem className="w-full flex-1 cursor-pointer">
+                          Completa
+                        </DropdownMenuItem>
+                      </button>
+                    </ActionForm>
                   ) : (
-                    <span
-                      title="Videochiamata disponibile 5 min prima"
-                      className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-400"
-                    >
-                      <Video className="h-4 w-4" /> Apri videochiamata
-                    </span>
+                    <DropdownMenuItem disabled>
+                      Completabile dopo la videochiamata
+                    </DropdownMenuItem>
+                  )}
+                  {isSessionJoinable(booking.scheduledFor) && (
+                    <ActionForm action={cancelBookingAction} className="w-full">
+                      <input type="hidden" name="bookingId" value={booking.id} />
+                      <button type="submit" className="flex w-full">
+                        <DropdownMenuItem
+                          variant="destructive"
+                          className="w-full flex-1 cursor-pointer"
+                        >
+                          Annulla
+                        </DropdownMenuItem>
+                      </button>
+                    </ActionForm>
                   )}
                 </>
-              ) : (
-                <p className="text-sm text-gray-400">Sessione trascorsa</p>
-              )
-            }
-            overflowActions={
-              <>
-                {booking.sessionStartedAt ? (
-                  <ActionForm action={completeBookingAction} className="w-full">
-                    <input type="hidden" name="bookingId" value={booking.id} />
-                    <button type="submit" className="flex w-full">
-                      <DropdownMenuItem className="w-full flex-1 cursor-pointer">
-                        Completa
-                      </DropdownMenuItem>
-                    </button>
-                  </ActionForm>
-                ) : (
-                  <DropdownMenuItem disabled>
-                    Completabile dopo la videochiamata
-                  </DropdownMenuItem>
-                )}
-                {isSessionJoinable(booking.scheduledFor) && (
-                  <ActionForm action={cancelBookingAction} className="w-full">
-                    <input type="hidden" name="bookingId" value={booking.id} />
-                    <button type="submit" className="flex w-full">
-                      <DropdownMenuItem
-                        variant="destructive"
-                        className="w-full flex-1 cursor-pointer"
-                      >
-                        Annulla
-                      </DropdownMenuItem>
-                    </button>
-                  </ActionForm>
-                )}
-              </>
-            }
-            detailContent={<CoachRequestDetails booking={booking} config={config} />}
-          />
-        )}
+              }
+              detailContent={
+                <CoachRequestDetails booking={booking} config={config} />
+              }
+            />
+          );
+        }}
       />
 
       <DashboardSection
@@ -521,15 +554,23 @@ function CoachRequestDetails({
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {detailRows.map((row) => (
-        <div key={row.label}>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
-            {row.label}
-          </p>
-          <p className="mt-1 text-sm text-gray-700">{row.value}</p>
-        </div>
-      ))}
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        {detailRows.map((row) => (
+          <div key={row.label}>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
+              {row.label}
+            </p>
+            <p className="mt-1 text-sm text-gray-700">{row.value}</p>
+          </div>
+        ))}
+      </div>
+      <Link
+        href={`/dashboard/appointments/${booking.id}`}
+        className="text-sm font-semibold text-blue-700 hover:underline"
+      >
+        Apri il dettaglio appuntamento
+      </Link>
     </div>
   );
 }

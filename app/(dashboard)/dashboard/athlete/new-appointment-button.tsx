@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { CalendarPlus, UserRound, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ import { createBookingRequestAction } from './actions';
  * coach yet, it degrades to a "Trova un coach" link.
  */
 export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[] }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   // Default to the last-followed coach (coaches are ordered by recency).
   const [slug, setSlug] = useState(coaches[0]?.slug ?? '');
@@ -108,7 +110,13 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
             <ActionForm
               action={createBookingRequestAction}
               className="mt-5 flex flex-col gap-4"
-              onSuccess={() => setTimeout(() => setOpen(false), 1000)}
+              onSuccess={(state) => {
+                if (typeof state.bookingId === 'number') {
+                  router.push(
+                    `/dashboard/appointments/${state.bookingId}?created=1`
+                  );
+                }
+              }}
             >
               <label className="flex flex-col gap-1.5">
                 <span className="text-sm font-medium text-gray-700">Coach</span>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { CalendarPlus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
@@ -34,6 +35,7 @@ export function CoachNewAppointmentButton({
   /** Selectable days/times from the coach's own weekly availability; empty if none set. */
   bookableDays: BookableDay[];
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [day, setDay] = useState(bookableDays[0]?.value ?? '');
   const [time, setTime] = useState(bookableDays[0]?.times[0] ?? '');
@@ -114,7 +116,13 @@ export function CoachNewAppointmentButton({
             <ActionForm
               action={createCoachBookingAction}
               className="mt-5 flex flex-col gap-4"
-              onSuccess={() => setTimeout(() => setOpen(false), 1000)}
+              onSuccess={(state) => {
+                if (typeof state.bookingId === 'number') {
+                  router.push(
+                    `/dashboard/appointments/${state.bookingId}?created=1`
+                  );
+                }
+              }}
             >
               <label className="flex flex-col gap-1.5">
                 <span className="text-sm font-medium text-gray-700">Atleta</span>

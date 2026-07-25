@@ -73,7 +73,10 @@ export async function createBookingRequestAction(
   revalidatePath('/dashboard/athlete');
   revalidatePath('/dashboard/athlete/calendar');
   revalidatePath('/dashboard/coach');
-  return { success: 'Richiesta inviata al coach.' };
+  return {
+    success: 'Richiesta inviata al coach.',
+    bookingId: result.bookingId,
+  };
 }
 
 /** Updates the athlete's sport profile (category/level/goals). */

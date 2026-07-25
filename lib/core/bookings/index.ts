@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, asc, count, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
   bookings,
@@ -298,6 +298,81 @@ export type AthleteBooking = {
   serviceTitle: string | null;
   serviceDurationMin: number | null;
 };
+
+export type ParticipantBooking = {
+  id: number;
+  status: string;
+  scheduledFor: Date | null;
+  serviceTitle: string | null;
+  serviceDurationMin: number | null;
+  coachName: string | null;
+  athleteName: string | null;
+  viewerRole: 'athlete' | 'coach';
+};
+
+/**
+ * Minimal, privacy-safe projection for the authenticated appointment detail.
+ * The participant predicate is part of the database query so callers cannot
+ * use a guessed id to retrieve somebody else's booking.
+ */
+export async function getParticipantBooking(
+  bookingId: number,
+  userId: number
+): Promise<ParticipantBooking | null> {
+  if (!Number.isInteger(bookingId) || bookingId <= 0) return null;
+
+  const [booking] = await db
+    .select({
+      id: bookings.id,
+      status: bookings.status,
+      scheduledFor: bookings.scheduledFor,
+      serviceTitle: services.title,
+      serviceDurationMin: services.durationMin,
+      clientId: bookings.clientId,
+      providerUserId: providerProfiles.userId,
+    })
+    .from(bookings)
+    .innerJoin(providerProfiles, eq(bookings.providerId, providerProfiles.id))
+    .leftJoin(services, eq(bookings.serviceId, services.id))
+    .where(
+      and(
+        eq(bookings.id, bookingId),
+        or(
+          eq(bookings.clientId, userId),
+          eq(providerProfiles.userId, userId)
+        )
+      )
+    )
+    .limit(1);
+
+  if (!booking) return null;
+
+  const [[coach], [athlete]] = await Promise.all([
+    db
+      .select({ name: profiles.displayName })
+      .from(profiles)
+      .where(eq(profiles.userId, booking.providerUserId))
+      .limit(1),
+    db
+      .select({
+        name: sql<string | null>`nullif(trim(concat(${users.name}, ' ', coalesce(${users.lastName}, ''))), '')`,
+      })
+      .from(users)
+      .where(eq(users.id, booking.clientId))
+      .limit(1),
+  ]);
+
+  return {
+    id: booking.id,
+    status: booking.status,
+    scheduledFor: booking.scheduledFor,
+    serviceTitle: booking.serviceTitle,
+    serviceDurationMin: booking.serviceDurationMin,
+    coachName: coach?.name ?? null,
+    athleteName: athlete?.name ?? null,
+    viewerRole: booking.clientId === userId ? 'athlete' : 'coach',
+  };
+}
 
 export type RelationshipCoach = {
   slug: string;

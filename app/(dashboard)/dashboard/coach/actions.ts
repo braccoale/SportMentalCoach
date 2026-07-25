@@ -135,5 +135,8 @@ export async function createCoachBookingAction(
   if (!result.ok) return { error: result.error };
 
   revalidateBookings();
-  return { success: 'Sessione creata e atleta avvisato.' };
+  return {
+    success: 'Sessione creata e atleta avvisato.',
+    bookingId: result.bookingId,
+  };
 }

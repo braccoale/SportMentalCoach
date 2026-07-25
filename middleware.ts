@@ -14,13 +14,18 @@ const protectedRoutes = '/dashboard';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isProtectedRoute = pathname.startsWith(protectedRoutes);
+  const signInUrl = new URL('/sign-in', request.url);
+  signInUrl.searchParams.set(
+    'redirect',
+    `${pathname}${request.nextUrl.search}`
+  );
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anonKey) {
     // Auth not configured yet: keep public pages working, protect /dashboard.
     return isProtectedRoute
-      ? NextResponse.redirect(new URL('/sign-in', request.url))
+      ? NextResponse.redirect(signInUrl)
       : NextResponse.next();
   }
 
@@ -32,7 +37,7 @@ export async function middleware(request: NextRequest) {
     .some((c) => /^sb-.*-auth-token/.test(c.name));
   if (!hasAuthCookie) {
     return isProtectedRoute
-      ? NextResponse.redirect(new URL('/sign-in', request.url))
+      ? NextResponse.redirect(signInUrl)
       : NextResponse.next();
   }
 
@@ -73,7 +78,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isProtectedRoute && !user) {
-    return NextResponse.redirect(new URL('/sign-in', request.url));
+    return NextResponse.redirect(signInUrl);
   }
 
   // Onboarding gate: an authenticated user whose onboarding is not yet complete

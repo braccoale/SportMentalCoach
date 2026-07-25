@@ -48,6 +48,9 @@ import { InviteFriendLink } from '@/components/invite/invite-friend-link';
 import { cancelBookingAction, inviteGuardianAction } from './actions';
 import { getGuardianStatus } from '@/lib/core/guardians';
 import { GuardianBanner } from '@/components/guardian-banner';
+import { AddToGoogleCalendarButton } from '@/components/add-to-google-calendar-button';
+import { buildBookingGoogleCalendarUrl } from '@/lib/core/booking-calendar';
+import { getAppBaseUrl } from '@/lib/core/app-url';
 
 /** Sort key for the archive: when the session actually happened, newest first. */
 function archiveRecency(b: AthleteBooking): number {
@@ -278,6 +281,18 @@ function BookingRow({
             </p>
           ) : null}
 
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="w-full rounded-full"
+          >
+            <Link href={`/dashboard/appointments/${b.id}`}>
+              <CalendarCheck className="mr-2 h-4 w-4" />
+              Vedi appuntamento
+            </Link>
+          </Button>
+
           {!canOpenLiveTools && canOpenCoach ? (
             <Button
               asChild
@@ -396,7 +411,15 @@ function ArchiveSection({
 }
 
 /** Accepted (upcoming) sessions, rendered with the same rich card the coach sees. */
-function AcceptedAppointments({ items }: { items: AthleteBooking[] }) {
+function AcceptedAppointments({
+  items,
+  athleteName,
+  appBaseUrl,
+}: {
+  items: AthleteBooking[];
+  athleteName: string | null;
+  appBaseUrl: string | null;
+}) {
   if (items.length === 0) return null;
   return (
     <div id="sessioni-confermate" className="scroll-mt-24">
@@ -406,6 +429,18 @@ function AcceptedAppointments({ items }: { items: AthleteBooking[] }) {
       <div className="mt-3 grid items-start gap-4 xl:grid-cols-2">
         {items.map((b) => {
           const past = !isSessionJoinable(b.scheduledFor);
+          const calendarUrl = buildBookingGoogleCalendarUrl({
+            id: b.id,
+            status: b.status,
+            scheduledFor: b.scheduledFor,
+            durationMin: b.serviceDurationMin,
+            coachName: b.coachName,
+            athleteName,
+            viewerRole: 'athlete',
+            appBaseUrl,
+            canView: true,
+            isOnline: true,
+          });
           return (
             <UpcomingAppointmentCard
               key={b.id}
@@ -436,11 +471,22 @@ function AcceptedAppointments({ items }: { items: AthleteBooking[] }) {
                         <Video className="h-4 w-4" /> Apri videochiamata
                       </span>
                     )}
+                    <AddToGoogleCalendarButton
+                      url={calendarUrl}
+                      uiSource="appointment_card"
+                      userRole="athlete"
+                      compact
+                    />
                   </>
                 )
               }
               overflowActions={
                 <>
+                  <DropdownMenuItem asChild className="cursor-pointer">
+                    <Link href={`/dashboard/appointments/${b.id}`}>
+                      Vedi dettagli
+                    </Link>
+                  </DropdownMenuItem>
                   {b.coachSlug && (
                     <DropdownMenuItem asChild className="cursor-pointer">
                       <Link href={`/coaches/${b.coachSlug}`}>Vedi coach</Link>
@@ -471,6 +517,9 @@ function AcceptedAppointments({ items }: { items: AthleteBooking[] }) {
 
 export default async function AthleteDashboardPage() {
   const user = await requireRole('athlete');
+  const appBaseUrl = getAppBaseUrl();
+  const athleteName =
+    [user.name, user.lastName].filter(Boolean).join(' ').trim() || null;
   const [
     requests,
     reviewedIds,
@@ -601,7 +650,11 @@ export default async function AthleteDashboardPage() {
             items={waiting}
             reviewedIds={reviewedIds}
           />
-          <AcceptedAppointments items={accepted} />
+          <AcceptedAppointments
+            items={accepted}
+            athleteName={athleteName}
+            appBaseUrl={appBaseUrl}
+          />
           <ArchiveSection items={archive} reviewedIds={reviewedIds} />
           {/* Discreet nudge after a concluded session — never a hard sell. */}
           {completed.length > 0 && (

@@ -28,7 +28,8 @@ export type AnalyticsEvent =
   | 'onboarding_started'
   | 'onboarding_step_completed'
   | 'onboarding_completed'
-  | 'coach_profile_submitted';
+  | 'coach_profile_submitted'
+  | 'google_calendar_add_clicked';
 
 export function track(
   event: AnalyticsEvent,
