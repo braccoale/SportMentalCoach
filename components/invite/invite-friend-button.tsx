@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button';
 import { InviteModal } from './invite-modal';
 
 /**
- * Inline "Invita un amico" trigger, styled as a SECONDARY (outline) button so
- * it sits next to the primary "Nuovo appuntamento" without competing with it —
- * one filled primary + one outline secondary keeps the hierarchy clear.
+ * Inline "Invita un amico" trigger. Light-blue fill so it reads as its own,
+ * friendly action distinct from the green "Nuovo appuntamento" primary. Shared
+ * by the athlete and coach dashboards.
  */
 export function InviteFriendButton() {
   const [open, setOpen] = useState(false);
@@ -17,9 +17,8 @@ export function InviteFriendButton() {
     <>
       <Button
         type="button"
-        variant="outline"
         onClick={() => setOpen(true)}
-        className="rounded-full"
+        className="rounded-full bg-sky-500 text-white hover:bg-sky-600"
       >
         <UserPlus className="mr-2 h-4 w-4" />
         Invita un amico

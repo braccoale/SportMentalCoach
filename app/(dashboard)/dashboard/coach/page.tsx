@@ -61,6 +61,7 @@ import {
   cancelBookingAction,
 } from './actions';
 import { CoachNewAppointmentButton } from './new-appointment-button';
+import { InviteFriendButton } from '@/components/invite/invite-friend-button';
 
 const DEFAULT_ATHLETE_AVATAR = '/atleta.png';
 
@@ -158,7 +159,7 @@ export default async function CoachDashboardPage() {
             il suo bisogno e rispondi con il contesto giusto.
           </p>
         </div>
-        <div className="shrink-0">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <CoachNewAppointmentButton
             athletes={athletes}
             services={coachServices
@@ -167,6 +168,7 @@ export default async function CoachDashboardPage() {
             availabilityHint={availabilityHint}
             bookableDays={bookableDays}
           />
+          <InviteFriendButton />
         </div>
       </div>
 
