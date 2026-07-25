@@ -18,6 +18,7 @@ export const sports: TaxonomyItem[] = [
   { key: 'skiing', label: 'Sci' },
   { key: 'rugby', label: 'Rugby' },
   { key: 'motorsport', label: 'Motori' },
+  { key: 'curling', label: 'Curling' },
   { key: 'crossfit', label: 'Crossfit' },
   { key: 'other', label: 'Altro' },
 ];

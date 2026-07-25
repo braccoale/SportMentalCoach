@@ -6,6 +6,7 @@ import {
   updateServiceAction,
   deleteServiceAction,
 } from './service-actions';
+import { DEFAULT_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
 
 const fieldCls =
   'rounded-md border border-gray-300 bg-white px-3 py-2 text-sm';
@@ -43,8 +44,11 @@ export function ServicesEditor({ services }: { services: Service[] }) {
                   <input
                     name="durationMin"
                     type="number"
-                    min={0}
-                    defaultValue={s.durationMin ?? ''}
+                    min={1}
+                    max={1440}
+                    defaultValue={
+                      s.durationMin ?? DEFAULT_SERVICE_DURATION_MIN
+                    }
                     placeholder="Durata (min)"
                     className={`${fieldCls} w-32`}
                   />
@@ -102,7 +106,9 @@ export function ServicesEditor({ services }: { services: Service[] }) {
           <input
             name="durationMin"
             type="number"
-            min={0}
+            min={1}
+            max={1440}
+            defaultValue={DEFAULT_SERVICE_DURATION_MIN}
             placeholder="Durata (min)"
             className={`${fieldCls} w-32`}
           />

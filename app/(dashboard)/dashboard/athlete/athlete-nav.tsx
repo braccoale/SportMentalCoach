@@ -26,7 +26,7 @@ const TABS = [
   },
   {
     href: '/dashboard/athlete/profile',
-    label: 'Atleta',
+    label: 'Profilo',
     icon: UserRound,
   },
   {
@@ -61,11 +61,13 @@ export function AthleteNav({
         className="pointer-events-none absolute -top-1 right-10 z-10 hidden h-36 w-auto rotate-6 rounded-xl object-cover shadow-xl ring-1 ring-black/10 md:block"
       />
       <div className="flex items-center gap-3 px-6 pt-6">
-        <img
-          src="/logo.jpg"
-          alt="KaiPai"
-          className="h-9 w-9 rounded-lg object-cover"
-        />
+        <Link href="/" aria-label="KaiPai — home">
+          <img
+            src="/logo.jpg"
+            alt="KaiPai"
+            className="h-9 w-9 rounded-lg object-cover"
+          />
+        </Link>
         <h1 className="text-xl font-semibold text-gray-900">
           Area Atleta
           {athleteName && (

@@ -24,6 +24,7 @@ export async function cancelBookingAction(
   revalidatePath('/dashboard/athlete/calendar');
   revalidatePath('/dashboard/coach');
   revalidatePath('/dashboard/coach/calendar');
+  revalidatePath(`/dashboard/appointments/${bookingId}`);
   return { success: 'Prenotazione annullata.' };
 }
 
@@ -42,9 +43,9 @@ export async function createBookingRequestAction(
   if (!slug) return { error: 'Seleziona un coach.' };
 
   const serviceRaw = String(formData.get('serviceId') ?? '').trim();
-  const serviceId = serviceRaw ? Number(serviceRaw) : null;
-  if (serviceRaw && !Number.isInteger(serviceId)) {
-    return { error: 'Servizio non valido.' };
+  const serviceId = Number(serviceRaw);
+  if (!serviceRaw || !Number.isInteger(serviceId) || serviceId <= 0) {
+    return { error: 'Seleziona un servizio valido.' };
   }
 
   const note = String(formData.get('note') ?? '').trim() || null;

@@ -146,7 +146,7 @@ export function ProfileEditor({
                   name="categories"
                   value={o.key}
                   defaultChecked={categories.includes(o.key)}
-                  className="accent-red-600"
+                  className="accent-green-600"
                 />
                 {o.label}
               </label>
@@ -169,7 +169,7 @@ export function ProfileEditor({
                   name="specialties"
                   value={o.key}
                   defaultChecked={specialties.includes(o.key)}
-                  className="accent-red-600"
+                  className="accent-green-600"
                 />
                 {o.label}
               </label>
@@ -193,7 +193,7 @@ export function ProfileEditor({
                     name="athleteLevels"
                     value={o.key}
                     defaultChecked={athleteLevels.includes(o.key)}
-                    className="accent-red-600"
+                    className="accent-green-600"
                   />
                   {o.label}
                 </label>

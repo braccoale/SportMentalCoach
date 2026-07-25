@@ -298,6 +298,7 @@ export const providerProfiles = pgTable('provider_profiles', {
   reviewedBy: integer('reviewed_by').references(() => users.id, {
     onDelete: 'set null',
   }),
+  submittedAt: timestamp('submitted_at'),
   reviewedAt: timestamp('reviewed_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -330,7 +331,9 @@ export const services = pgTable('services', {
     .references(() => providerProfiles.id, { onDelete: 'cascade' }),
   title: varchar('title', { length: 160 }),
   description: text('description'),
-  durationMin: integer('duration_min'),
+  // Coach-owned planned duration. Existing missing values are backfilled to
+  // the platform default by migration 0021.
+  durationMin: integer('duration_min').notNull().default(40),
   price: integer('price'),
   currency: varchar('currency', { length: 8 }).notNull().default('EUR'),
   isActive: boolean('is_active').notNull().default(true),

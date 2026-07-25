@@ -645,9 +645,13 @@ export const confirmPasswordReset = validatedAction(
 );
 
 const updateAccountSchema = z.object({
-  name: z.string().min(1, 'Il nome è obbligatorio').max(100),
-  lastName: z.string().max(100).optional(),
-  email: z.string().email('Indirizzo email non valido')
+  name: z.string().trim().min(1, 'Il nome è obbligatorio').max(100),
+  lastName: z.string().trim().min(1, 'Il cognome è obbligatorio').max(100),
+  email: z
+    .string()
+    .trim()
+    .min(1, 'L’email è obbligatoria')
+    .email('Indirizzo email non valido')
 });
 
 export const updateAccount = validatedActionWithUser(
@@ -676,7 +680,7 @@ export const updateAccount = validatedActionWithUser(
         .update(users)
         .set({
           name,
-          lastName: lastName?.trim() || null,
+          lastName,
           email,
           updatedBy: user.id
         })
@@ -687,7 +691,7 @@ export const updateAccount = validatedActionWithUser(
       logActivity(userWithTeam?.teamId, user.id, ActivityType.UPDATE_ACCOUNT)
     ]);
 
-    return { name, lastName, success: 'Account aggiornato.' };
+    return { name, lastName, email, success: 'Account aggiornato.' };
   }
 );
 

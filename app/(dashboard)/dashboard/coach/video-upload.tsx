@@ -55,14 +55,14 @@ export function VideoUpload({ videoUrl }: { videoUrl: string | null }) {
       <span className="text-sm font-medium text-gray-700">
         Video di presentazione
       </span>
-      <p className="mt-1 text-xs text-gray-400">
+      <p className="mt-0.5 text-xs text-gray-400">
         Un breve video aumenta molto le prenotazioni. MP4 o WebM, max 100MB.
       </p>
 
-      <div className="mt-3">
+      <div className="mt-2">
         {preview ? (
           // YouTube-style thumbnail card with a play overlay.
-          <div className="group relative aspect-video w-full max-w-md overflow-hidden rounded-xl border border-gray-200 bg-black">
+          <div className="group relative aspect-video w-full max-w-xs overflow-hidden rounded-lg border border-gray-200 bg-black">
             {playable ? (
               <video
                 src={preview}
@@ -84,7 +84,7 @@ export function VideoUpload({ videoUrl }: { videoUrl: string | null }) {
             )}
           </div>
         ) : (
-          <div className="flex aspect-video w-full max-w-md items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 text-sm text-gray-400">
+          <div className="flex aspect-video w-full max-w-xs items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 text-sm text-gray-400">
             Nessun video caricato
           </div>
         )}
@@ -97,11 +97,12 @@ export function VideoUpload({ videoUrl }: { videoUrl: string | null }) {
         className="hidden"
         onChange={onFile}
       />
-      <div className="mt-3 flex items-center gap-3">
+      <div className="mt-2 flex items-center gap-3">
         <Button
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={uploading}
+          size="sm"
           className="rounded-md"
         >
           {uploading ? (

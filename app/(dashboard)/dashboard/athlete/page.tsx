@@ -4,7 +4,6 @@ import {
   CalendarCheck,
   CheckCircle2,
   MessageSquare,
-  UserRound,
   Video,
 } from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
@@ -179,7 +178,7 @@ function BookingRow({
     (b.status === 'requested' || b.status === 'accepted') && !isPast;
   const isPastSession = b.status === 'accepted' && isPast;
   const canOpenLiveTools = b.status === 'accepted' && !isPastSession;
-  const canOpenCoach = !!b.coachSlug;
+  const canMessage = ['requested', 'accepted', 'completed'].includes(b.status);
 
   return (
     <li className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-4 sm:p-5">
@@ -242,8 +241,9 @@ function BookingRow({
             <>
               <Button
                 asChild
+                variant="outline"
                 size="sm"
-                className="w-full rounded-full bg-blue-600 text-white hover:bg-blue-700"
+                className="w-full rounded-full"
               >
                 <Link href={`/dashboard/chat/${b.id}`}>
                   <MessageSquare className="mr-2 h-4 w-4" />
@@ -254,7 +254,7 @@ function BookingRow({
                 <Button
                   asChild
                   size="sm"
-                  className="w-full rounded-full bg-green-600 text-white hover:bg-green-700"
+                  className="w-full rounded-full"
                 >
                   <Link href={`/dashboard/video/${b.id}`}>
                     <Video className="mr-2 h-4 w-4" />
@@ -293,16 +293,15 @@ function BookingRow({
             </Link>
           </Button>
 
-          {!canOpenLiveTools && canOpenCoach ? (
+          {!canOpenLiveTools && canMessage ? (
             <Button
               asChild
-              variant="outline"
               size="sm"
               className="w-full rounded-full"
             >
-              <Link href={`/coaches/${b.coachSlug}`}>
-                <UserRound className="mr-2 h-4 w-4" />
-                Vedi coach
+              <Link href={`/dashboard/chat/${b.id}`}>
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Manda un messaggio
               </Link>
             </Button>
           ) : null}
@@ -312,9 +311,9 @@ function BookingRow({
               <input type="hidden" name="bookingId" value={b.id} />
               <Button
                 type="submit"
-                variant="outline"
+                variant="destructive"
                 size="sm"
-                className="w-full rounded-full text-red-600 hover:text-red-700"
+                className="w-full rounded-full"
               >
                 Annulla
               </Button>
@@ -477,6 +476,19 @@ function AcceptedAppointments({
                       userRole="athlete"
                       compact
                     />
+                    <ActionForm
+                      action={cancelBookingAction}
+                      confirmMessage="Vuoi davvero annullare questa sessione?"
+                    >
+                      <input type="hidden" name="bookingId" value={b.id} />
+                      <Button
+                        type="submit"
+                        variant="destructive"
+                        className="rounded-full"
+                      >
+                        Annulla
+                      </Button>
+                    </ActionForm>
                   </>
                 )
               }
@@ -491,19 +503,6 @@ function AcceptedAppointments({
                     <DropdownMenuItem asChild className="cursor-pointer">
                       <Link href={`/coaches/${b.coachSlug}`}>Vedi coach</Link>
                     </DropdownMenuItem>
-                  )}
-                  {!past && (
-                    <ActionForm action={cancelBookingAction} className="w-full">
-                      <input type="hidden" name="bookingId" value={b.id} />
-                      <button type="submit" className="flex w-full">
-                        <DropdownMenuItem
-                          variant="destructive"
-                          className="w-full flex-1 cursor-pointer"
-                        >
-                          Annulla
-                        </DropdownMenuItem>
-                      </button>
-                    </ActionForm>
                   )}
                 </>
               }

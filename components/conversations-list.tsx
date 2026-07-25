@@ -19,8 +19,7 @@ export function ConversationsList({
         <MessageSquare className="mx-auto h-8 w-8 text-gray-300" />
         <p className="mt-3 text-gray-600">Nessuna conversazione.</p>
         <p className="mt-1 text-sm text-gray-400">
-          La chat si apre quando una sessione viene accettata e resta
-          disponibile con i coach con cui hai già lavorato.
+          La chat si apre appena invii o ricevi una richiesta di sessione.
         </p>
       </div>
     );
@@ -52,11 +51,18 @@ export function ConversationsList({
                 >
                   {c.otherName ?? 'Utente'}
                 </span>
-                {c.lastAt && (
-                  <span className="shrink-0 text-xs text-gray-400">
-                    {formatDateTime(c.lastAt)}
-                  </span>
-                )}
+                <span className="flex shrink-0 items-center gap-2">
+                  {c.readOnly && (
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-500">
+                      Storico
+                    </span>
+                  )}
+                  {c.lastAt && (
+                    <span className="text-xs text-gray-400">
+                      {formatDateTime(c.lastAt)}
+                    </span>
+                  )}
+                </span>
               </span>
               <span className="mt-0.5 flex items-center justify-between gap-2">
                 <span

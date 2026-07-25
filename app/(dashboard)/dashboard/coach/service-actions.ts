@@ -9,18 +9,22 @@ import {
   deleteCoachService,
   type ServiceInput,
 } from '@/lib/core/services';
+import { DEFAULT_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
 import type { ActionState } from '@/lib/auth/middleware';
 
 const serviceSchema = z.object({
   title: z.string().trim().min(1, 'Il titolo è obbligatorio.').max(160),
   description: z.string().trim().max(4000).optional(),
   // duration in whole minutes
-  durationMin: z.coerce
-    .number()
-    .int('La durata deve essere un numero intero di minuti.')
-    .min(0)
-    .max(100000)
-    .optional(),
+  durationMin: z.preprocess(
+    (value) =>
+      value === undefined ? DEFAULT_SERVICE_DURATION_MIN : Number(value),
+    z
+      .number()
+      .int('La durata deve essere un numero intero di minuti.')
+      .min(1, 'La durata deve essere di almeno 1 minuto.')
+      .max(1440, 'La durata non può superare 24 ore.')
+  ),
   // price entered in euros (decimals allowed), stored as cents
   price: z.coerce
     .number()
@@ -55,7 +59,7 @@ function parseServiceInput(formData: FormData): ParseResult {
     value: {
       title: d.title,
       description: d.description ?? null,
-      durationMin: d.durationMin ?? null,
+      durationMin: d.durationMin,
       price: d.price != null ? Math.round(d.price * 100) : null,
     },
   };

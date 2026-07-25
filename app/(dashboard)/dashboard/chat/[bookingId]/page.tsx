@@ -22,14 +22,14 @@ export default async function ChatPage({
 
   const chat = await getChat(id, user.id);
   if (!chat) {
-    // Not a participant, not found, or booking not accepted.
+    // Not a participant, not found, or the booking is no longer chattable.
     notFound();
   }
 
   // Opening the chat clears its unread-message counters (bell + widgets).
   await markMessageNotificationsRead(user.id, id);
 
-  const { context, messages } = chat;
+  const { context, messages, readOnly } = chat;
   const isClient = user.id === context.clientId;
   const otherName = isClient
     ? context.coachName ?? 'Coach'
@@ -71,6 +71,7 @@ export default async function ChatPage({
         bookingId={id}
         currentUserId={user.id}
         initialMessages={initialMessages}
+        readOnly={readOnly}
       />
     </section>
   );

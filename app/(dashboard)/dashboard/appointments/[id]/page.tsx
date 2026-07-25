@@ -4,10 +4,12 @@ import {
   CalendarCheck,
   Clock3,
   MessageSquare,
+  X,
   UserRound,
   Video,
 } from 'lucide-react';
 import { AddToGoogleCalendarButton } from '@/components/add-to-google-calendar-button';
+import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
 import { getUser } from '@/lib/db/queries';
 import {
@@ -20,6 +22,9 @@ import {
 } from '@/lib/core/booking-calendar';
 import { getAppBaseUrl } from '@/lib/core/app-url';
 import { formatDateTime, formatMinutes } from '@/lib/core/format';
+import { isSessionJoinable } from '@/lib/core/sessions';
+import { cancelBookingAction as cancelAthleteBookingAction } from '../../athlete/actions';
+import { cancelBookingAction as cancelCoachBookingAction } from '../../coach/actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,6 +68,19 @@ export default async function AppointmentDetailPage({
       ? '/dashboard/athlete'
       : '/dashboard/coach';
   const isOpen = ['requested', 'accepted'].includes(booking.status);
+  const canCancel =
+    isOpen && isSessionJoinable(booking.scheduledFor);
+  const cancelAction =
+    booking.viewerRole === 'athlete'
+      ? cancelAthleteBookingAction
+      : cancelCoachBookingAction;
+  const calendarUnavailableMessage = !booking.scheduledFor
+    ? 'La sessione non ha ancora una data e un orario concordati.'
+    : !booking.serviceTitle
+      ? 'Questa richiesta è stata creata senza un servizio associato. Il coach deve configurare un servizio con durata; poi annulla questa richiesta e inviane una nuova.'
+      : !booking.serviceDurationMin
+        ? 'Il servizio associato non ha una durata. Il coach deve completarlo prima di una nuova prenotazione.'
+        : 'La sessione è già trascorsa e non può più essere aggiunta al calendario.';
 
   return (
     <section className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6 lg:py-10">
@@ -144,8 +162,7 @@ export default async function AppointmentDetailPage({
 
           {!calendarEvent && isOpen && (
             <p className="text-sm text-gray-500">
-              Il collegamento a Google Calendar non è disponibile perché data,
-              ora o durata non sono complete, oppure la sessione è già trascorsa.
+              {calendarUnavailableMessage}
             </p>
           )}
           {!isOpen && (
@@ -157,19 +174,36 @@ export default async function AppointmentDetailPage({
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">
+          {isOpen && (
+            <Button asChild className="rounded-full">
+              <Link href={`/dashboard/chat/${booking.id}`}>
+                <MessageSquare className="h-4 w-4" /> Manda un messaggio
+              </Link>
+            </Button>
+          )}
           {booking.status === 'accepted' && calendarEvent?.videoUrl && (
             <>
-              <Button asChild variant="outline" className="rounded-full">
-                <Link href={`/dashboard/chat/${booking.id}`}>
-                  <MessageSquare className="h-4 w-4" /> Apri chat
-                </Link>
-              </Button>
               <Button asChild variant="outline" className="rounded-full">
                 <Link href={`/dashboard/video/${booking.id}`}>
                   <Video className="h-4 w-4" /> Apri videochiamata
                 </Link>
               </Button>
             </>
+          )}
+          {canCancel && (
+            <ActionForm
+              action={cancelAction}
+              confirmMessage="Vuoi davvero annullare questa sessione?"
+            >
+              <input type="hidden" name="bookingId" value={booking.id} />
+              <Button
+                type="submit"
+                variant="destructive"
+                className="rounded-full"
+              >
+                <X className="h-4 w-4" /> Annulla
+              </Button>
+            </ActionForm>
           )}
           <Button asChild variant="outline" className="rounded-full">
             <Link href={dashboardPath}>Torna alla dashboard</Link>
@@ -179,4 +213,3 @@ export default async function AppointmentDetailPage({
     </section>
   );
 }
-

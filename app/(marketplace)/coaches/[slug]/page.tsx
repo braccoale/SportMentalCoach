@@ -158,8 +158,12 @@ export default async function CoachDetailPage({
       </Link>
 
       {/* HERO — identity + proof + primary action */}
-      <header className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-start">
-        <CoachAvatar name={name} src={coach.avatarUrl} className="size-24" />
+      <header className="mt-4 flex flex-col gap-7 sm:flex-row sm:items-start">
+        <CoachAvatar
+          name={name}
+          src={coach.avatarUrl}
+          className="size-36 sm:size-44 lg:size-52"
+        />
         <div className="flex-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <h1 className="text-3xl font-bold text-gray-900">{name}</h1>

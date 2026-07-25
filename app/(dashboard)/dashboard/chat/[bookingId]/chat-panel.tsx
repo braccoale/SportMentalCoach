@@ -25,10 +25,12 @@ export function ChatPanel({
   bookingId,
   currentUserId,
   initialMessages,
+  readOnly,
 }: {
   bookingId: number;
   currentUserId: number;
   initialMessages: SerializedMessage[];
+  readOnly: boolean;
 }) {
   const [messages, setMessages] = useState<SerializedMessage[]>(initialMessages);
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
@@ -56,6 +58,7 @@ export function ChatPanel({
 
   // Optional realtime subscription (Supabase Broadcast — a content-free nudge).
   useEffect(() => {
+    if (readOnly) return;
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
     const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const channel = client.channel(`chat-${bookingId}`, {
@@ -71,7 +74,7 @@ export function ChatPanel({
       client.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [bookingId, refetch]);
+  }, [bookingId, readOnly, refetch]);
 
   // After a successful send: clear, refetch our own list, and nudge the peer.
   useEffect(() => {
@@ -120,6 +123,12 @@ export function ChatPanel({
         )}
       </div>
 
+      {readOnly ? (
+        <p className="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+          Conversazione archiviata: puoi consultare i messaggi, ma non inviarne
+          di nuovi perché l’appuntamento è stato chiuso.
+        </p>
+      ) : (
       <form ref={formRef} action={formAction} className="mt-4 flex flex-col gap-2">
         <input type="hidden" name="bookingId" value={bookingId} />
         <textarea
@@ -142,6 +151,7 @@ export function ChatPanel({
           </span>
         </div>
       </form>
+      )}
     </>
   );
 }

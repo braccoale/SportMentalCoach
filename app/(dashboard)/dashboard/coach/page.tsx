@@ -124,7 +124,15 @@ export default async function CoachDashboardPage() {
   // the profile — not merely when it's been submitted (pending still counts as
   // not-yet-usable). The submit CTA lives right on the dashboard.
   const coachOnboarding = provider
-    ? computeCoachOnboarding(provider, coachServices.length)
+    ? computeCoachOnboarding(
+        provider,
+        coachServices.filter(
+          (service) =>
+            service.isActive &&
+            Number.isInteger(service.durationMin) &&
+            (service.durationMin ?? 0) > 0
+        ).length
+      )
     : null;
   const isApproved = provider?.status === 'approved';
   const isPending = provider?.status === 'pending';
@@ -183,8 +191,18 @@ export default async function CoachDashboardPage() {
             <CoachNewAppointmentButton
               athletes={athletes}
               services={coachServices
-                .filter((s) => s.isActive && s.title)
-                .map((s) => ({ id: s.id, title: s.title as string }))}
+                .filter(
+                  (s) =>
+                    s.isActive &&
+                    s.title &&
+                    Number.isInteger(s.durationMin) &&
+                    (s.durationMin ?? 0) > 0
+                )
+                .map((s) => ({
+                  id: s.id,
+                  title: s.title as string,
+                  durationMin: s.durationMin as number,
+                }))}
               availabilityHint={availabilityHint}
               bookableDays={bookableDays}
             />
@@ -237,8 +255,9 @@ export default async function CoachDashboardPage() {
       {/* Submitted, awaiting the admin decision — still not usable yet. */}
       {isPending && (
         <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
-          Profilo inviato: è in revisione. Potrai creare appuntamenti dopo
-          l’approvazione dell’admin.
+          Profilo inviato il{' '}
+          {formatDate(provider.submittedAt ?? provider.updatedAt)}: è in
+          revisione. Potrai creare appuntamenti dopo l’approvazione dell’admin.
         </div>
       )}
 
@@ -393,6 +412,23 @@ export default async function CoachDashboardPage() {
                       userRole="coach"
                       compact
                     />
+                    <ActionForm
+                      action={cancelBookingAction}
+                      confirmMessage="Vuoi davvero annullare questa sessione?"
+                    >
+                      <input
+                        type="hidden"
+                        name="bookingId"
+                        value={booking.id}
+                      />
+                      <Button
+                        type="submit"
+                        variant="destructive"
+                        className="rounded-full"
+                      >
+                        Annulla
+                      </Button>
+                    </ActionForm>
                   </>
                 ) : (
                   <p className="text-sm text-gray-400">Sessione trascorsa</p>
@@ -418,19 +454,6 @@ export default async function CoachDashboardPage() {
                     <DropdownMenuItem disabled>
                       Completabile dopo la videochiamata
                     </DropdownMenuItem>
-                  )}
-                  {isSessionJoinable(booking.scheduledFor) && (
-                    <ActionForm action={cancelBookingAction} className="w-full">
-                      <input type="hidden" name="bookingId" value={booking.id} />
-                      <button type="submit" className="flex w-full">
-                        <DropdownMenuItem
-                          variant="destructive"
-                          className="w-full flex-1 cursor-pointer"
-                        >
-                          Annulla
-                        </DropdownMenuItem>
-                      </button>
-                    </ActionForm>
                   )}
                 </>
               }
