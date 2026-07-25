@@ -25,6 +25,7 @@ export function PasswordInput({
       />
       <button
         type="button"
+        tabIndex={-1}
         onClick={() => setShow((v) => !v)}
         aria-label={show ? 'Nascondi password' : 'Mostra password'}
         title={show ? 'Nascondi password' : 'Mostra password'}

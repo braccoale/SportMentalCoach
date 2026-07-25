@@ -173,7 +173,7 @@ export function CoachWizard({
             type="button"
             onClick={() => finish(false)}
             disabled={pending}
-            className="text-sm text-gray-400 underline-offset-2 transition-colors hover:text-gray-700 hover:underline disabled:opacity-50"
+            className="text-sm font-medium text-gray-900 underline-offset-2 transition-colors hover:underline disabled:opacity-50"
           >
             Salta per ora
           </button>

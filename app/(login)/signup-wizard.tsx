@@ -188,8 +188,8 @@ export function SignupWizard() {
                 key={r.value}
                 className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition-colors ${
                   role === r.value
-                    ? 'border-red-500 bg-red-50'
-                    : 'border-gray-200 bg-white hover:border-red-300'
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-gray-200 bg-white hover:border-green-300'
                 }`}
               >
                 <input
@@ -203,7 +203,7 @@ export function SignupWizard() {
                 <span
                   className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
                     role === r.value
-                      ? 'bg-red-100 text-red-600'
+                      ? 'bg-green-100 text-green-600'
                       : 'bg-gray-100 text-gray-500'
                   }`}
                 >
