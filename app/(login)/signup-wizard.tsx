@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { Loader2, User, Users, Building2, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { signUp } from './actions';
 import type { ActionState } from '@/lib/auth/middleware';
@@ -132,8 +133,16 @@ export function SignupWizard() {
     track(underMin ? 'signup_blocked_underage' : 'signup_age_verified');
   }, [step, isAthlete, age, underMin]);
 
+  // The "Registrati" button only enables once every required field is valid —
+  // role, credentials, name + surname, legal consents (and, for athletes, a
+  // valid non-underage birth date).
   const canSubmit =
     !!role &&
+    EMAIL_RE.test(email) &&
+    password.length >= 8 &&
+    password === confirm &&
+    !!name.trim() &&
+    !!lastName.trim() &&
     terms &&
     privacy &&
     (!isAthlete || (!!birthDate && !underMin));
@@ -236,10 +245,9 @@ export function SignupWizard() {
                 Password
                 <Req />
               </Label>
-              <Input
+              <PasswordInput
                 id="password"
                 name="password"
-                type="password"
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -254,9 +262,8 @@ export function SignupWizard() {
                 Conferma password
                 <Req />
               </Label>
-              <Input
+              <PasswordInput
                 id="confirm"
-                type="password"
                 autoComplete="new-password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}

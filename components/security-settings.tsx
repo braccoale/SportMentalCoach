@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Lock, Trash2, Loader2 } from 'lucide-react';
@@ -46,10 +46,9 @@ export function SecuritySettings() {
               <Label htmlFor="current-password" className="mb-2">
                 Password attuale
               </Label>
-              <Input
+              <PasswordInput
                 id="current-password"
                 name="currentPassword"
-                type="password"
                 autoComplete="current-password"
                 required
                 minLength={8}
@@ -61,10 +60,9 @@ export function SecuritySettings() {
               <Label htmlFor="new-password" className="mb-2">
                 Nuova password
               </Label>
-              <Input
+              <PasswordInput
                 id="new-password"
                 name="newPassword"
-                type="password"
                 autoComplete="new-password"
                 required
                 minLength={8}
@@ -76,10 +74,9 @@ export function SecuritySettings() {
               <Label htmlFor="confirm-password" className="mb-2">
                 Confirm Nuova password
               </Label>
-              <Input
+              <PasswordInput
                 id="confirm-password"
                 name="confirmPassword"
-                type="password"
                 required
                 minLength={8}
                 maxLength={100}
@@ -125,10 +122,9 @@ export function SecuritySettings() {
               <Label htmlFor="delete-password" className="mb-2">
                 Conferma password
               </Label>
-              <Input
+              <PasswordInput
                 id="delete-password"
                 name="password"
-                type="password"
                 required
                 minLength={8}
                 maxLength={100}

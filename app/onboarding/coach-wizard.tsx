@@ -166,6 +166,20 @@ export function CoachWizard({
 
   return (
     <div>
+      {/* Skip — onboarding is optional; the profile can be completed later. */}
+      <div className="mb-3 flex justify-end">
+        {step < TOTAL - 1 && (
+          <button
+            type="button"
+            onClick={() => finish(false)}
+            disabled={pending}
+            className="text-sm text-gray-400 underline-offset-2 transition-colors hover:text-gray-700 hover:underline disabled:opacity-50"
+          >
+            Salta per ora
+          </button>
+        )}
+      </div>
+
       <div className="mb-6">
         <div className="flex items-center justify-between text-sm">
           <span className="font-medium text-gray-900">{STEP_LABELS[step]}</span>

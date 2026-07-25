@@ -5,6 +5,7 @@ import { useActionState, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { signIn, signUp } from './actions';
@@ -138,10 +139,9 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
               Password
             </Label>
             <div className="mt-1">
-              <Input
+              <PasswordInput
                 id="password"
                 name="password"
-                type="password"
                 autoComplete={
                   mode === 'signin' ? 'current-password' : 'new-password'
                 }
