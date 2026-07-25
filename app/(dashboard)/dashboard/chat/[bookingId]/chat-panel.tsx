@@ -88,7 +88,7 @@ export function ChatPanel({
 
   return (
     <>
-      <div className="mt-6 flex flex-col gap-3 rounded-lg border border-gray-200 p-4">
+      <div className="mt-6 flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-4">
         {messages.length === 0 ? (
           <p className="text-sm text-gray-500">
             Nessun messaggio. Inizia la conversazione.
@@ -99,16 +99,16 @@ export function ChatPanel({
             return (
               <div
                 key={m.id}
-                className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
                   mine
-                    ? 'self-end bg-red-600 text-white'
-                    : 'self-start bg-gray-100 text-gray-800'
+                    ? 'self-end rounded-br-sm bg-[#dcf8c6] text-gray-900'
+                    : 'self-start rounded-bl-sm border border-gray-200 bg-white text-gray-800'
                 }`}
               >
                 <p className="whitespace-pre-line">{m.body}</p>
                 <p
                   className={`mt-1 text-[11px] ${
-                    mine ? 'text-red-100' : 'text-gray-400'
+                    mine ? 'text-green-800/60' : 'text-gray-400'
                   }`}
                 >
                   {mine ? 'Tu' : m.senderName ?? m.senderEmail} ·{' '}
