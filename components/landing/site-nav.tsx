@@ -112,7 +112,7 @@ export function SiteNav() {
                 href="/sign-up"
                 className="kp-cta rounded-full px-4 py-2 text-sm font-semibold text-white"
               >
-                Inizia ora
+                Inizia gratis
               </Link>
             </>
           )}
@@ -182,7 +182,7 @@ export function SiteNav() {
                   onClick={() => setOpen(false)}
                   className="kp-cta rounded-full px-5 py-3.5 text-center font-semibold text-white"
                 >
-                  Inizia ora
+                  Inizia gratis
                 </Link>
                 <button
                   type="button"
