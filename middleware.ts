@@ -58,6 +58,17 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Already-authenticated visitors don't need the marketing landing page: send
+  // them straight to their dashboard (which itself routes to the right area).
+  if (user && pathname === '/') {
+    const toDashboard = NextResponse.redirect(new URL('/dashboard', request.url));
+    // Carry over any auth cookies the session refresh above just rotated.
+    for (const cookie of response.cookies.getAll()) {
+      toDashboard.cookies.set(cookie);
+    }
+    return toDashboard;
+  }
+
   if (isProtectedRoute && !user) {
     return NextResponse.redirect(new URL('/sign-in', request.url));
   }

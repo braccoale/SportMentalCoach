@@ -10,11 +10,10 @@ import { createCoachBookingAction } from './actions';
 
 /**
  * Coach-side "Nuovo appuntamento": lets the coach create an already-accepted
- * session directly with an athlete they've already worked with. Symmetric to
- * the athlete's quick-rebook button, but scoped to the coach's own client
- * list (no service picker needed if the coach has none). Stays visible even
- * with no athletes yet (disabled, with an explanatory hint) rather than
- * disappearing — otherwise a coach with no bookings yet would never see it.
+ * session directly with any registered athlete (no service picker needed if the
+ * coach has none). Stays visible even when there are no athletes at all
+ * (disabled, with an explanatory hint) rather than disappearing. Safeguarding
+ * is enforced server-side: minors without a confirmed guardian are rejected.
  *
  * The "when" field is the same constrained day+time picker the athlete gets:
  * options are pre-computed server-side in Rome time, so what the coach picks
@@ -67,7 +66,7 @@ export function CoachNewAppointmentButton({
           Nuovo appuntamento
         </Button>
         <p className="text-xs text-gray-400">
-          Disponibile dopo la tua prima sessione con un atleta.
+          Nessun atleta registrato al momento.
         </p>
       </div>
     );
@@ -99,7 +98,7 @@ export function CoachNewAppointmentButton({
                   Nuovo appuntamento
                 </h2>
                 <p className="mt-0.5 text-sm text-gray-500">
-                  Crea una sessione con un atleta con cui hai già lavorato.
+                  Crea una sessione con uno dei tuoi atleti.
                 </p>
               </div>
               <button

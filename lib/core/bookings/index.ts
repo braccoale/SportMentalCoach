@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
   bookings,
@@ -9,6 +9,7 @@ import {
   providerProfiles,
   profiles,
   services,
+  userRoles,
   users,
   type BookingStatus,
 } from '@/lib/db/schema';
@@ -487,6 +488,39 @@ export async function getCoachRelationshipAthletes(
 }
 
 /**
+ * Every athlete registered on the platform — all users holding the `athlete`
+ * role, regardless of whether this coach has worked with them before. Powers
+ * the coach-side "Nuovo appuntamento" picker so a coach can open a session with
+ * any athlete, not only prior clients. Safeguarding is still enforced at
+ * booking time: `createCoachBookingRequest` rejects minors without a confirmed
+ * guardian.
+ */
+export async function getAllAthletes(): Promise<RelationshipAthlete[]> {
+  const rows = await db
+    .select({
+      userId: users.id,
+      name: sql<string | null>`nullif(trim(concat(${users.name}, ' ', coalesce(${users.lastName}, ''))), '')`,
+      email: users.email,
+      avatarUrl: profiles.avatarUrl,
+    })
+    .from(users)
+    .innerJoin(
+      userRoles,
+      and(eq(userRoles.userId, users.id), eq(userRoles.roleKey, 'athlete'))
+    )
+    .leftJoin(profiles, eq(profiles.userId, users.id))
+    .where(isNull(users.deletedAt));
+
+  return rows
+    .map((r) => ({
+      userId: r.userId,
+      name: resolveDisplayName(r.name, r.email),
+      avatarUrl: r.avatarUrl,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
  * Creates a session directly from the coach's side, for an athlete they have
  * already worked with. Unlike `createBookingRequest` (athlete → coach,
  * `requested`), this is created as `accepted` right away: the coach is the
@@ -509,20 +543,21 @@ export async function createCoachBookingRequest(params: {
     return { ok: false, error: 'Profilo coach non trovato.' };
   }
 
-  // Safety: only allow scheduling with an athlete this coach has already
-  // worked with (same relationship the picker is scoped to).
-  const [relationship] = await db
-    .select({ clientId: bookings.clientId })
-    .from(bookings)
+  // Safety: the target must be a registered athlete. The picker now lists every
+  // athlete (not just prior clients), so this guards against scheduling a
+  // session for an arbitrary user id (e.g. another coach or an admin).
+  const [athlete] = await db
+    .select({ userId: userRoles.userId })
+    .from(userRoles)
     .where(
       and(
-        eq(bookings.providerId, provider.id),
-        eq(bookings.clientId, params.clientUserId)
+        eq(userRoles.userId, params.clientUserId),
+        eq(userRoles.roleKey, 'athlete')
       )
     )
     .limit(1);
-  if (!relationship) {
-    return { ok: false, error: 'Puoi creare una sessione solo con un atleta con cui hai già lavorato.' };
+  if (!athlete) {
+    return { ok: false, error: 'Puoi creare una sessione solo con un atleta registrato.' };
   }
 
   // The same authorisation gate as the athlete-initiated path: a coach must

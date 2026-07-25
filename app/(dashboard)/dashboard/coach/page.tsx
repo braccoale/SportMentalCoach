@@ -14,7 +14,7 @@ import {
   bookingStatusLabel,
   bookingStatusTone,
   getCoachBookings,
-  getCoachRelationshipAthletes,
+  getAllAthletes,
   type CoachBooking,
 } from '@/lib/core/bookings';
 import { getCoachServices } from '@/lib/core/services';
@@ -91,14 +91,14 @@ export default async function CoachDashboardPage() {
     provider,
     allBookings,
     unreadMessages,
-    relationshipAthletes,
+    athletes,
     coachServices,
     coachAvailability,
   ] = await Promise.all([
     getProviderProfileByUser(user.id),
     getCoachBookings(user.id),
     getUnreadCountForType(user.id, 'new_message'),
-    getCoachRelationshipAthletes(user.id),
+    getAllAthletes(),
     getCoachServices(user.id),
     getCoachAvailability(user.id),
   ]);
@@ -148,14 +148,26 @@ export default async function CoachDashboardPage() {
 
   return (
     <section className="flex flex-col gap-8 p-6">
-      <div className="max-w-3xl">
-        <h1 className="text-3xl font-bold tracking-tight text-gray-950">
-          Ogni richiesta racconta un atleta, non solo una prenotazione.
-        </h1>
-        <p className="mt-3 text-base leading-7 text-gray-600">
-          Leggi il momento sportivo della persona che ti sta cercando, capisci
-          il suo bisogno e rispondi con il contesto giusto.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="max-w-3xl">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-950">
+            Ogni richiesta racconta un atleta, non solo una prenotazione.
+          </h1>
+          <p className="mt-3 text-base leading-7 text-gray-600">
+            Leggi il momento sportivo della persona che ti sta cercando, capisci
+            il suo bisogno e rispondi con il contesto giusto.
+          </p>
+        </div>
+        <div className="shrink-0">
+          <CoachNewAppointmentButton
+            athletes={athletes}
+            services={coachServices
+              .filter((s) => s.isActive && s.title)
+              .map((s) => ({ id: s.id, title: s.title as string }))}
+            availabilityHint={availabilityHint}
+            bookableDays={bookableDays}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
@@ -259,16 +271,6 @@ export default async function CoachDashboardPage() {
         title="Prossimi Appuntamenti"
         titleClassName="text-green-600"
         subtitle="Sessioni accettate e gia avviate. Qui puoi passare dalla lettura del bisogno alla relazione vera: chat, videochiamata e follow-up."
-        headerAction={
-          <CoachNewAppointmentButton
-            athletes={relationshipAthletes}
-            services={coachServices
-              .filter((s) => s.isActive && s.title)
-              .map((s) => ({ id: s.id, title: s.title as string }))}
-            availabilityHint={availabilityHint}
-            bookableDays={bookableDays}
-          />
-        }
         items={accepted}
         emptyTitle="Nessuna sessione accettata."
         emptySubtitle="Le sessioni confermate compariranno qui appena dai il via a un nuovo percorso."
