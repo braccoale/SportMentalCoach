@@ -170,12 +170,28 @@ const signUpSchema = z.object({
   role: z.enum(['athlete', 'coach', 'club']).optional(),
   // Required for athletes: the platform is offered from 15 up, and between 15
   // and 17 a guardian has to authorise. Neither rule can be applied without it.
-  birthDate: z.string().optional()
+  birthDate: z.string().optional(),
+  // Legal: the two required acceptances arrive as 'on' from the checkboxes.
+  // Marketing is optional and never blocks registration.
+  acceptTerms: z.string().optional(),
+  acceptPrivacy: z.string().optional(),
+  marketing: z.string().optional()
 });
 
 export const signUp = validatedAction(signUpSchema, async (data, formData) => {
   const { email, password, name, lastName, inviteId, role, birthDate } = data;
   const fullName = `${name} ${lastName}`.trim();
+  const marketing = data.marketing === 'on';
+
+  // Required legal acceptances — enforced server-side too, not just in the UI.
+  if (data.acceptTerms !== 'on' || data.acceptPrivacy !== 'on') {
+    return {
+      error:
+        'Per registrarti devi accettare i Termini e dichiarare di aver letto l’Informativa privacy.',
+      email,
+      password
+    };
+  }
 
   // Age gate. Only athletes declare a birth date — a coach or a club signing
   // up is acting in a professional capacity, not as a young athlete.
@@ -275,7 +291,15 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
   // orphaned user / team / profile rows behind.
   const signupResult = await db
     .transaction(async (tx) => {
-      const newUser: NewUser = { email, authId, role: 'owner', name, lastName };
+      const newUser: NewUser = {
+        email,
+        authId,
+        role: 'owner',
+        name,
+        lastName,
+        marketingConsent: marketing,
+        marketingConsentAt: marketing ? new Date() : null
+      };
       const [createdUser] = await tx.insert(users).values(newUser).returning();
 
       let teamId: number;
