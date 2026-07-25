@@ -44,15 +44,15 @@ export function OnboardingProgress({
         </p>
       )}
 
-      <ol className="mt-4 flex flex-col gap-2">
-        {steps.map((step, i) => (
-          <li key={step.key} className="flex items-start gap-2">
-            {step.done ? (
-              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-600" />
-            ) : (
-              <Circle className="mt-0.5 h-5 w-5 shrink-0 text-gray-300" />
-            )}
-            <div>
+      <ol className="mt-4 flex flex-col gap-1">
+        {steps.map((step, i) => {
+          const icon = step.done ? (
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-600" />
+          ) : (
+            <Circle className="mt-0.5 h-5 w-5 shrink-0 text-gray-300" />
+          );
+          const body = (
+            <div className="min-w-0">
               <p
                 className={
                   step.done
@@ -64,8 +64,30 @@ export function OnboardingProgress({
               </p>
               <p className="text-xs text-gray-500">{step.description}</p>
             </div>
-          </li>
-        ))}
+          );
+
+          // Incomplete steps deep-link straight to the section that completes
+          // them (services tab, or the profile editor anchor) — no treasure hunt.
+          return (
+            <li key={step.key}>
+              {step.anchor && !step.done ? (
+                <a
+                  href={step.anchor}
+                  className="group -mx-2 flex items-start gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-gray-50"
+                >
+                  {icon}
+                  {body}
+                  <ArrowRight className="mt-0.5 ml-auto h-4 w-4 shrink-0 text-gray-300 transition-colors group-hover:text-red-600" />
+                </a>
+              ) : (
+                <div className="flex items-start gap-2 px-2 py-1.5">
+                  {icon}
+                  {body}
+                </div>
+              )}
+            </li>
+          );
+        })}
       </ol>
 
       {(canSubmit || !onboarding.isSubmitted) && (

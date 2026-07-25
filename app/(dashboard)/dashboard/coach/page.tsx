@@ -120,13 +120,14 @@ export default async function CoachDashboardPage() {
 
   const reviews = provider ? await getCoachReviews(provider.id) : [];
 
-  // Review/publication gate. A coach must send the profile for approval before
-  // they can create appointments; the submit CTA lives right on the dashboard.
+  // Review/publication gate. Appointments unlock only once the ADMIN APPROVES
+  // the profile — not merely when it's been submitted (pending still counts as
+  // not-yet-usable). The submit CTA lives right on the dashboard.
   const coachOnboarding = provider
     ? computeCoachOnboarding(provider, coachServices.length)
     : null;
-  const isSubmitted =
-    provider?.status === 'pending' || provider?.status === 'approved';
+  const isApproved = provider?.status === 'approved';
+  const isPending = provider?.status === 'pending';
 
   const pending = allBookings.filter((b) => b.status === 'requested');
   const accepted = allBookings.filter((b) => b.status === 'accepted');
@@ -178,7 +179,7 @@ export default async function CoachDashboardPage() {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {isSubmitted ? (
+          {isApproved ? (
             <CoachNewAppointmentButton
               athletes={athletes}
               services={coachServices
@@ -198,7 +199,7 @@ export default async function CoachDashboardPage() {
                 Nuovo appuntamento
               </Button>
               <p className="text-xs text-gray-400">
-                Disponibile dopo l’invio del profilo per l’approvazione.
+                Disponibile dopo l’approvazione del profilo.
               </p>
             </div>
           )}
@@ -206,8 +207,8 @@ export default async function CoachDashboardPage() {
         </div>
       </div>
 
-      {/* Approval gate: not yet submitted → prompt to send for review. */}
-      {provider && !isSubmitted && (
+      {/* Approval gate: not yet submitted (draft/rejected) → prompt to send. */}
+      {provider && !isApproved && !isPending && (
         <div className="flex flex-col items-start justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 sm:flex-row sm:items-center">
           <div>
             <h2 className="text-base font-semibold text-amber-900">
@@ -215,7 +216,7 @@ export default async function CoachDashboardPage() {
             </h2>
             <p className="mt-1 text-sm text-amber-800">
               Invialo alla revisione dell’admin. Potrai creare appuntamenti solo
-              dopo l’invio.
+              dopo l’approvazione.
             </p>
           </div>
           {coachOnboarding?.canSubmit ? (
@@ -233,10 +234,11 @@ export default async function CoachDashboardPage() {
         </div>
       )}
 
-      {/* Submitted, awaiting the admin decision. */}
-      {provider?.status === 'pending' && (
+      {/* Submitted, awaiting the admin decision — still not usable yet. */}
+      {isPending && (
         <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
-          Profilo inviato: è in revisione. Ti avviseremo appena viene approvato.
+          Profilo inviato: è in revisione. Potrai creare appuntamenti dopo
+          l’approvazione dell’admin.
         </div>
       )}
 

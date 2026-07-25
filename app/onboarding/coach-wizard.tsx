@@ -17,7 +17,9 @@ const LEVELS: Taxo[] = [
   { key: 'youth', label: 'Settore giovanile' },
 ];
 
-const STEP_LABELS = ['Informazioni', 'Profilo professionale', 'Fatto'];
+// Name + surname are already collected at registration, so the wizard skips the
+// recap and starts at the professional profile. Everything here is optional.
+const STEP_LABELS = ['Profilo professionale', 'Fatto'];
 const TOTAL = STEP_LABELS.length;
 
 export type CoachInitial = {
@@ -53,7 +55,7 @@ function Chips({
             onClick={() => onToggle(o.key)}
             className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
               on
-                ? 'border-red-500 bg-red-50 text-red-700'
+                ? 'border-green-500 bg-green-50 text-green-700'
                 : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
             }`}
           >
@@ -80,8 +82,6 @@ export function CoachWizard({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const [name, setName] = useState(initial.name);
-  const [lastName, setLastName] = useState(initial.lastName);
   const [headline, setHeadline] = useState(initial.headline);
   const [description, setDescription] = useState(initial.description);
   const [years, setYears] = useState(
@@ -99,8 +99,6 @@ export function CoachWizard({
 
   function payload() {
     return {
-      name,
-      lastName,
       headline,
       description,
       yearsExperience: years.trim() ? Number(years) : null,
@@ -129,10 +127,6 @@ export function CoachWizard({
 
   function next() {
     setError(null);
-    if (step === 0 && (!name.trim() || !lastName.trim())) {
-      setError('Nome e cognome sono obbligatori.');
-      return;
-    }
     const target = step + 1;
     startTransition(async () => {
       try {
@@ -196,40 +190,6 @@ export function CoachWizard({
       </div>
 
       {step === 0 && (
-        <section className="flex flex-col gap-4">
-          <h1 className="text-xl font-semibold text-gray-900">Le tue informazioni</h1>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="c-name">
-                Nome <span className="text-red-600">*</span>
-              </Label>
-              <Input
-                id="c-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                maxLength={100}
-                className="mt-1 rounded-lg"
-              />
-            </div>
-            <div>
-              <Label htmlFor="c-lastName">
-                Cognome <span className="text-red-600">*</span>
-              </Label>
-              <Input
-                id="c-lastName"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                required
-                maxLength={100}
-                className="mt-1 rounded-lg"
-              />
-            </div>
-          </div>
-        </section>
-      )}
-
-      {step === 1 && (
         <section className="flex flex-col gap-5">
           <h1 className="text-xl font-semibold text-gray-900">
             Il tuo profilo professionale
@@ -318,7 +278,7 @@ export function CoachWizard({
         </section>
       )}
 
-      {step === 2 && (
+      {step === 1 && (
         <section className="flex flex-col items-center gap-4 py-6 text-center">
           <span className="flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-green-600">
             <Check className="h-7 w-7" />

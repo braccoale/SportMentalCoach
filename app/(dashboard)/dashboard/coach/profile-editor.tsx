@@ -139,7 +139,7 @@ export function ProfileEditor({
             {sportOptions.map((o) => (
               <label
                 key={o.key}
-                className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-sm has-[:checked]:border-red-500 has-[:checked]:bg-red-50 has-[:checked]:text-red-700"
+                className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-sm has-[:checked]:border-green-500 has-[:checked]:bg-green-50 has-[:checked]:text-green-700"
               >
                 <input
                   type="checkbox"
@@ -162,7 +162,7 @@ export function ProfileEditor({
             {specialtyOptions.map((o) => (
               <label
                 key={o.key}
-                className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-sm has-[:checked]:border-red-500 has-[:checked]:bg-red-50 has-[:checked]:text-red-700"
+                className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-sm has-[:checked]:border-green-500 has-[:checked]:bg-green-50 has-[:checked]:text-green-700"
               >
                 <input
                   type="checkbox"
@@ -186,7 +186,7 @@ export function ProfileEditor({
               {levelOptions.map((o) => (
                 <label
                   key={o.key}
-                  className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-sm has-[:checked]:border-red-500 has-[:checked]:bg-red-50 has-[:checked]:text-red-700"
+                  className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-sm has-[:checked]:border-green-500 has-[:checked]:bg-green-50 has-[:checked]:text-green-700"
                 >
                   <input
                     type="checkbox"
