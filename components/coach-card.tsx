@@ -37,16 +37,19 @@ export function CoachCard({
         />
       </div>
 
-      {/* Photo panel */}
+      {/* Photo panel. The image is absolutely positioned so it never adds to the
+          card's height: the card height is driven only by the text content, and
+          a tall/portrait photo simply stretches (object-cover) to fill and crop
+          — the card stays the same size for everyone. */}
       <div className="relative hidden w-[26%] shrink-0 overflow-hidden bg-gray-900 sm:block">
         {coach.avatarUrl ? (
           <img
             src={coach.avatarUrl}
             alt={name}
-            className="h-full w-full object-cover grayscale"
+            className="absolute inset-0 h-full w-full object-cover"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gray-100 text-4xl font-semibold text-gray-300">
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-4xl font-semibold text-gray-300">
             {name.charAt(0).toUpperCase()}
           </div>
         )}
