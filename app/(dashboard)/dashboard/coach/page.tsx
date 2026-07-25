@@ -8,6 +8,8 @@ import {
   Star,
   Clock,
   Video,
+  CalendarPlus,
+  ArrowRight,
 } from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
 import {
@@ -62,6 +64,8 @@ import {
 } from './actions';
 import { CoachNewAppointmentButton } from './new-appointment-button';
 import { InviteFriendButton } from '@/components/invite/invite-friend-button';
+import { computeCoachOnboarding } from '@/lib/core/onboarding';
+import { submitForReviewAction } from './profile-actions';
 import { AddToGoogleCalendarButton } from '@/components/add-to-google-calendar-button';
 import { buildBookingGoogleCalendarUrl } from '@/lib/core/booking-calendar';
 import { getAppBaseUrl } from '@/lib/core/app-url';
@@ -116,6 +120,14 @@ export default async function CoachDashboardPage() {
 
   const reviews = provider ? await getCoachReviews(provider.id) : [];
 
+  // Review/publication gate. A coach must send the profile for approval before
+  // they can create appointments; the submit CTA lives right on the dashboard.
+  const coachOnboarding = provider
+    ? computeCoachOnboarding(provider, coachServices.length)
+    : null;
+  const isSubmitted =
+    provider?.status === 'pending' || provider?.status === 'approved';
+
   const pending = allBookings.filter((b) => b.status === 'requested');
   const accepted = allBookings.filter((b) => b.status === 'accepted');
   // Archive newest-first by when the session actually happened (real end or
@@ -166,17 +178,67 @@ export default async function CoachDashboardPage() {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <CoachNewAppointmentButton
-            athletes={athletes}
-            services={coachServices
-              .filter((s) => s.isActive && s.title)
-              .map((s) => ({ id: s.id, title: s.title as string }))}
-            availabilityHint={availabilityHint}
-            bookableDays={bookableDays}
-          />
+          {isSubmitted ? (
+            <CoachNewAppointmentButton
+              athletes={athletes}
+              services={coachServices
+                .filter((s) => s.isActive && s.title)
+                .map((s) => ({ id: s.id, title: s.title as string }))}
+              availabilityHint={availabilityHint}
+              bookableDays={bookableDays}
+            />
+          ) : (
+            <div className="flex flex-col items-end gap-1">
+              <Button
+                type="button"
+                disabled
+                className="rounded-full bg-green-600 text-white opacity-50"
+              >
+                <CalendarPlus className="mr-2 h-4 w-4" />
+                Nuovo appuntamento
+              </Button>
+              <p className="text-xs text-gray-400">
+                Disponibile dopo l’invio del profilo per l’approvazione.
+              </p>
+            </div>
+          )}
           <InviteFriendButton />
         </div>
       </div>
+
+      {/* Approval gate: not yet submitted → prompt to send for review. */}
+      {provider && !isSubmitted && (
+        <div className="flex flex-col items-start justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 sm:flex-row sm:items-center">
+          <div>
+            <h2 className="text-base font-semibold text-amber-900">
+              Il tuo profilo non è ancora stato inviato per l’approvazione
+            </h2>
+            <p className="mt-1 text-sm text-amber-800">
+              Invialo alla revisione dell’admin. Potrai creare appuntamenti solo
+              dopo l’invio.
+            </p>
+          </div>
+          {coachOnboarding?.canSubmit ? (
+            <form action={submitForReviewAction} className="shrink-0">
+              <Button type="submit" className="rounded-full">
+                Invia approvazione
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </form>
+          ) : (
+            <Button asChild variant="outline" className="shrink-0 rounded-full">
+              <Link href="/dashboard/coach/profile">Completa il profilo</Link>
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Submitted, awaiting the admin decision. */}
+      {provider?.status === 'pending' && (
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+          Profilo inviato: è in revisione. Ti avviseremo appena viene approvato.
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         <SummaryCard
