@@ -16,6 +16,47 @@ import {
 } from './schema';
 import { hashPassword } from '@/lib/auth/session';
 import { BILLING_ENABLED } from '@/lib/core/flags';
+import { createSupabaseAdmin } from '@/lib/auth/supabase';
+
+let authUsersByEmail: Map<string, string> | null = null;
+
+/**
+ * Demo rows obey the same auth.users -> public.users relationship as real
+ * signups. This keeps db:seed compatible with the NOT NULL cascading auth FK.
+ */
+async function ensureAuthIdentity(
+  email: string,
+  password: string,
+  displayName?: string
+): Promise<string> {
+  const admin = createSupabaseAdmin();
+  if (!authUsersByEmail) {
+    const { data, error } = await admin.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    });
+    if (error) throw error;
+    authUsersByEmail = new Map(
+      data.users.map((user) => [user.email?.toLowerCase() ?? '', user.id])
+    );
+  }
+
+  const key = email.toLowerCase();
+  const existing = authUsersByEmail.get(key);
+  if (existing) return existing;
+
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: displayName ? { display_name: displayName } : undefined,
+  });
+  if (error || !data.user) {
+    throw error ?? new Error(`Impossibile creare l'identità Auth per ${email}`);
+  }
+  authUsersByEmail.set(key, data.user.id);
+  return data.user.id;
+}
 
 // Basic marketplace roles (Phase 1). Catalog is seeded, not user-editable.
 const BASE_ROLES: { key: string; label: string }[] = [
@@ -46,9 +87,10 @@ async function seedAdmin() {
   }
 
   const passwordHash = await hashPassword('admin1234');
+  const authId = await ensureAuthIdentity(email, 'admin1234', 'KaiPai Admin');
   const [user] = await db
     .insert(users)
-    .values({ name: 'KaiPai Admin', email, passwordHash, role: 'owner' })
+    .values({ authId, name: 'KaiPai Admin', email, passwordHash, role: 'owner' })
     .returning();
   await db
     .insert(profiles)
@@ -235,9 +277,20 @@ async function seedDemoCoaches() {
       continue;
     }
 
+    const authId = await ensureAuthIdentity(
+      demo.email,
+      'demo1234',
+      demo.displayName
+    );
     const [user] = await db
       .insert(users)
-      .values({ name: demo.displayName, email: demo.email, passwordHash, role: 'member' })
+      .values({
+        authId,
+        name: demo.displayName,
+        email: demo.email,
+        passwordHash,
+        role: 'member',
+      })
       .returning();
 
     await db.insert(profiles).values({
@@ -354,9 +407,16 @@ async function seedDemoReviews() {
   for (const r of reviewers) {
     let row = await db.query.users.findFirst({ where: eq(users.email, r.email) });
     if (!row) {
+      const authId = await ensureAuthIdentity(r.email, 'demo1234', r.name);
       const [created] = await db
         .insert(users)
-        .values({ name: r.name, email: r.email, passwordHash, role: 'member' })
+        .values({
+          authId,
+          name: r.name,
+          email: r.email,
+          passwordHash,
+          role: 'member',
+        })
         .returning();
       await db
         .insert(profiles)
@@ -436,11 +496,13 @@ async function seed() {
     console.log(`User ${email} already exists, skipping user/team seed.`);
   } else {
     const passwordHash = await hashPassword(password);
+    const authId = await ensureAuthIdentity(email, password);
 
     const [user] = await db
       .insert(users)
       .values([
         {
+          authId,
           email: email,
           passwordHash: passwordHash,
           role: 'owner',

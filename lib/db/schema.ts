@@ -30,7 +30,9 @@ export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   // Supabase Auth identity (auth.users.id). Identities live in Supabase Auth;
   // this table remains the app-level profile keyed by integer id.
-  authId: uuid('auth_id').unique(),
+  // Database FK to auth.users(id) is installed by migration 0020. Kept as a
+  // plain UUID here because Drizzle must not try to manage Supabase's auth schema.
+  authId: uuid('auth_id').notNull().unique(),
   name: varchar('name', { length: 100 }),
   lastName: varchar('last_name', { length: 100 }),
   email: varchar('email', { length: 255 }).notNull().unique(),
@@ -65,7 +67,7 @@ export const teamMembers = pgTable('team_members', {
   id: serial('id').primaryKey(),
   userId: integer('user_id')
     .notNull()
-    .references(() => users.id),
+    .references(() => users.id, { onDelete: 'cascade' }),
   teamId: integer('team_id')
     .notNull()
     .references(() => teams.id),
@@ -81,7 +83,9 @@ export const activityLogs = pgTable('activity_logs', {
   teamId: integer('team_id')
     .notNull()
     .references(() => teams.id),
-  userId: integer('user_id').references(() => users.id),
+  userId: integer('user_id').references(() => users.id, {
+    onDelete: 'set null',
+  }),
   action: text('action').notNull(),
   timestamp: timestamp('timestamp').notNull().defaultNow(),
   ipAddress: varchar('ip_address', { length: 45 }),
@@ -98,8 +102,7 @@ export const invitations = pgTable('invitations', {
   email: varchar('email', { length: 255 }).notNull(),
   role: varchar('role', { length: 50 }).notNull(),
   invitedBy: integer('invited_by')
-    .notNull()
-    .references(() => users.id),
+    .references(() => users.id, { onDelete: 'set null' }),
   invitedAt: timestamp('invited_at').notNull().defaultNow(),
   status: varchar('status', { length: 20 }).notNull().default('pending'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -197,7 +200,7 @@ export const profiles = pgTable('profiles', {
   userId: integer('user_id')
     .notNull()
     .unique()
-    .references(() => users.id),
+    .references(() => users.id, { onDelete: 'cascade' }),
   displayName: varchar('display_name', { length: 120 }),
   avatarUrl: text('avatar_url'),
   bio: text('bio'),
@@ -223,7 +226,7 @@ export const userRoles = pgTable(
     id: serial('id').primaryKey(),
     userId: integer('user_id')
       .notNull()
-      .references(() => users.id),
+      .references(() => users.id, { onDelete: 'cascade' }),
     roleKey: varchar('role_key', { length: 40 })
       .notNull()
       .references(() => roles.key),
@@ -267,7 +270,7 @@ export const providerProfiles = pgTable('provider_profiles', {
   userId: integer('user_id')
     .notNull()
     .unique()
-    .references(() => users.id),
+    .references(() => users.id, { onDelete: 'cascade' }),
   slug: varchar('slug', { length: 120 }).unique(),
   headline: varchar('headline', { length: 160 }),
   description: text('description'),
@@ -292,7 +295,9 @@ export const providerProfiles = pgTable('provider_profiles', {
   certificationsVerified: boolean('certifications_verified')
     .notNull()
     .default(false),
-  reviewedBy: integer('reviewed_by').references(() => users.id),
+  reviewedBy: integer('reviewed_by').references(() => users.id, {
+    onDelete: 'set null',
+  }),
   reviewedAt: timestamp('reviewed_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -305,7 +310,7 @@ export const clientProfiles = pgTable('client_profiles', {
   userId: integer('user_id')
     .notNull()
     .unique()
-    .references(() => users.id),
+    .references(() => users.id, { onDelete: 'cascade' }),
   category: varchar('category', { length: 60 }),
   level: varchar('level', { length: 40 }),
   goals: text('goals'),
@@ -322,7 +327,7 @@ export const services = pgTable('services', {
   id: serial('id').primaryKey(),
   providerId: integer('provider_id')
     .notNull()
-    .references(() => providerProfiles.id),
+    .references(() => providerProfiles.id, { onDelete: 'cascade' }),
   title: varchar('title', { length: 160 }),
   description: text('description'),
   durationMin: integer('duration_min'),
@@ -341,11 +346,13 @@ export const bookings = pgTable(
     id: serial('id').primaryKey(),
     clientId: integer('client_id')
       .notNull()
-      .references(() => users.id),
+      .references(() => users.id, { onDelete: 'cascade' }),
     providerId: integer('provider_id')
       .notNull()
-      .references(() => providerProfiles.id),
-    serviceId: integer('service_id').references(() => services.id),
+      .references(() => providerProfiles.id, { onDelete: 'cascade' }),
+    serviceId: integer('service_id').references(() => services.id, {
+      onDelete: 'set null',
+    }),
     status: varchar('status', { length: 20 }).notNull().default('requested'),
     note: text('note'),
     // Athlete's preferred date/time for the session (nullable: a generic
@@ -376,7 +383,7 @@ export const coachAvailability = pgTable(
     id: serial('id').primaryKey(),
     providerId: integer('provider_id')
       .notNull()
-      .references(() => providerProfiles.id),
+      .references(() => providerProfiles.id, { onDelete: 'cascade' }),
     weekday: integer('weekday').notNull(),
     startMinute: integer('start_minute').notNull(),
     endMinute: integer('end_minute').notNull(),
@@ -402,10 +409,10 @@ export const messages = pgTable(
     id: serial('id').primaryKey(),
     bookingId: integer('booking_id')
       .notNull()
-      .references(() => bookings.id),
+      .references(() => bookings.id, { onDelete: 'cascade' }),
     senderId: integer('sender_id')
       .notNull()
-      .references(() => users.id),
+      .references(() => users.id, { onDelete: 'cascade' }),
     body: text('body').notNull(),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -486,7 +493,7 @@ export const notifications = pgTable(
     id: serial('id').primaryKey(),
     userId: integer('user_id')
       .notNull()
-      .references(() => users.id),
+      .references(() => users.id, { onDelete: 'cascade' }),
     type: varchar('type', { length: 50 }).notNull(),
     title: varchar('title', { length: 200 }).notNull(),
     body: text('body'),
@@ -520,7 +527,7 @@ export const pushSubscriptions = pgTable(
     id: serial('id').primaryKey(),
     userId: integer('user_id')
       .notNull()
-      .references(() => users.id),
+      .references(() => users.id, { onDelete: 'cascade' }),
     endpoint: text('endpoint').notNull().unique(),
     p256dh: text('p256dh').notNull(),
     auth: text('auth').notNull(),
@@ -549,7 +556,7 @@ export const athleteGuardians = pgTable(
     athleteUserId: integer('athlete_user_id')
       .notNull()
       .unique()
-      .references(() => users.id),
+      .references(() => users.id, { onDelete: 'cascade' }),
     guardianName: varchar('guardian_name', { length: 200 }).notNull(),
     guardianEmail: varchar('guardian_email', { length: 255 }).notNull(),
     // Declared relationship: "madre", "padre", "tutore"…
@@ -590,9 +597,9 @@ export const agreementAcceptances = pgTable(
   'agreement_acceptances',
   {
     id: serial('id').primaryKey(),
-    userId: integer('user_id')
-      .notNull()
-      .references(() => users.id),
+    userId: integer('user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
     /** 'platform-terms' (Terms + Privacy + Cookie, at signup) | 'coach' | 'guardian-consent'. */
     agreementKey: varchar('agreement_key', { length: 40 }).notNull(),
     /** Version of the document accepted, e.g. '2026-07-22'. */
@@ -629,7 +636,7 @@ export const notificationPreferences = pgTable(
     id: serial('id').primaryKey(),
     userId: integer('user_id')
       .notNull()
-      .references(() => users.id),
+      .references(() => users.id, { onDelete: 'cascade' }),
     type: varchar('type', { length: 50 }).notNull(),
     emailEnabled: boolean('email_enabled').notNull().default(true),
     createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -663,13 +670,13 @@ export const reviews = pgTable(
     id: serial('id').primaryKey(),
     providerId: integer('provider_id')
       .notNull()
-      .references(() => providerProfiles.id),
+      .references(() => providerProfiles.id, { onDelete: 'cascade' }),
     bookingId: integer('booking_id')
-      .references(() => bookings.id)
+      .references(() => bookings.id, { onDelete: 'cascade' })
       .unique(),
     authorId: integer('author_id')
       .notNull()
-      .references(() => users.id),
+      .references(() => users.id, { onDelete: 'cascade' }),
     rating: integer('rating').notNull(),
     body: text('body'),
     // Optional public reply from the coach (accountability / responsiveness).
@@ -706,10 +713,10 @@ export const favorites = pgTable(
     id: serial('id').primaryKey(),
     userId: integer('user_id')
       .notNull()
-      .references(() => users.id),
+      .references(() => users.id, { onDelete: 'cascade' }),
     providerId: integer('provider_id')
       .notNull()
-      .references(() => providerProfiles.id),
+      .references(() => providerProfiles.id, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
     ...audit,
@@ -788,7 +795,7 @@ export const referralCodes = pgTable(
     userId: integer('user_id')
       .notNull()
       .unique()
-      .references(() => users.id),
+      .references(() => users.id, { onDelete: 'cascade' }),
     // Public, non-guessable, does NOT encode the internal user id. Uppercase
     // base32 (no ambiguous chars). Unique across the whole table.
     code: varchar('code', { length: 16 }).notNull().unique(),
@@ -809,15 +816,15 @@ export const referrals = pgTable(
     id: serial('id').primaryKey(),
     codeId: integer('code_id')
       .notNull()
-      .references(() => referralCodes.id),
+      .references(() => referralCodes.id, { onDelete: 'cascade' }),
     inviterUserId: integer('inviter_user_id')
       .notNull()
-      .references(() => users.id),
+      .references(() => users.id, { onDelete: 'cascade' }),
     // Unique: a signed-up user is attributed to exactly one inviter, once.
     referredUserId: integer('referred_user_id')
       .notNull()
       .unique()
-      .references(() => users.id),
+      .references(() => users.id, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     ...audit,
   },
@@ -851,7 +858,7 @@ export const userOnboarding = pgTable('user_onboarding', {
   userId: integer('user_id')
     .notNull()
     .unique()
-    .references(() => users.id),
+    .references(() => users.id, { onDelete: 'cascade' }),
   status: varchar('status', { length: 20 }).notNull().default('in_progress'),
   /** Furthest wizard step reached (0-based), for resume. */
   step: integer('step').notNull().default(0),

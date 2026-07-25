@@ -141,6 +141,13 @@
       "when": 1784981536567,
       "tag": "0019_onboarding_state",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1784999711714,
+      "tag": "0020_auth-user-cascade",
+      "breakpoints": true
     }
   ]
 }
