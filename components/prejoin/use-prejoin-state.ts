@@ -141,6 +141,8 @@ export type PreJoinState = {
   videoTrack?: LocalVideoTrack;
   previewError: string | null;
   outputSelectionSupported: boolean;
+  audioInputs: MediaDeviceInfo[];
+  videoInputs: MediaDeviceInfo[];
   audioOutputDeviceId: string;
   audioOutputs: MediaDeviceInfo[];
   chooseAudioOutput: (deviceId: string) => void;
@@ -173,6 +175,8 @@ export function usePreJoinState({
     'idle' | 'playing' | 'success' | 'error'
   >('idle');
   const [audioOutputDeviceId, setAudioOutputDeviceId] = useState('default');
+  const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([]);
+  const [videoInputs, setVideoInputs] = useState<MediaDeviceInfo[]>([]);
   const [audioOutputs, setAudioOutputs] = useState<MediaDeviceInfo[]>([]);
   const [networkState, setNetworkState] = useState<
     'idle' | 'checking' | 'complete'
@@ -316,11 +320,10 @@ export function usePreJoinState({
     let active = true;
     const refresh = async () => {
       const devices = await navigator.mediaDevices.enumerateDevices();
-      if (active) {
-        setAudioOutputs(
-          devices.filter((device) => device.kind === 'audiooutput')
-        );
-      }
+      if (!active) return;
+      setAudioInputs(devices.filter((d) => d.kind === 'audioinput'));
+      setVideoInputs(devices.filter((d) => d.kind === 'videoinput'));
+      setAudioOutputs(devices.filter((d) => d.kind === 'audiooutput'));
     };
     void refresh();
     navigator.mediaDevices.addEventListener?.('devicechange', refresh);
@@ -364,6 +367,8 @@ export function usePreJoinState({
     videoTrack,
     previewError,
     outputSelectionSupported,
+    audioInputs,
+    videoInputs,
     audioOutputDeviceId,
     audioOutputs,
     chooseAudioOutput,
