@@ -37,6 +37,8 @@ import {
 } from '@/lib/core/video/technical-events';
 import { useKrispNoiseFilter } from '@livekit/components-react/krisp';
 import { isKrispNoiseFilterSupported } from '@livekit/krisp-noise-filter';
+import { useIsCompact } from '@/lib/hooks/use-is-compact';
+import { PreJoinCompact } from './prejoin/prejoin-compact';
 import { PreJoinDesktop } from './prejoin/prejoin-desktop';
 import {
   AUDIO_OUTPUT_STORAGE_KEY,
@@ -58,6 +60,7 @@ export function KaiPaiPreJoin({
   onDiagnostic,
   onJoin,
   minHeight = '70vh',
+  counterpartName,
 }: {
   participantName: string;
   serverUrl: string;
@@ -65,6 +68,7 @@ export function KaiPaiPreJoin({
   onDiagnostic?: (details: TechnicalEventDetails) => void;
   onJoin: (choices: KaiPaiCallChoices) => void;
   minHeight?: string;
+  counterpartName?: string;
 }) {
   const state = usePreJoinState({
     participantName,
@@ -74,7 +78,25 @@ export function KaiPaiPreJoin({
     onJoin,
   });
 
-  return <PreJoinDesktop state={state} minHeight={minHeight} />;
+  const isCompact = useIsCompact();
+
+  // `null` = non sappiamo ancora se siamo su mobile. Uno sfondo neutro per un
+  // frame è preferibile al layout desktop che poi salta a quello compatto.
+  if (isCompact === null) {
+    return (
+      <div
+        className="rounded-2xl bg-neutral-950"
+        style={{ minHeight }}
+        aria-busy="true"
+      />
+    );
+  }
+
+  return isCompact ? (
+    <PreJoinCompact state={state} counterpartName={counterpartName} />
+  ) : (
+    <PreJoinDesktop state={state} minHeight={minHeight} />
+  );
 }
 
 export function ConnectionQualityNotice() {

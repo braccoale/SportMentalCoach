@@ -152,6 +152,7 @@ export type PreJoinState = {
   networkResult: NetworkDiagnosticResult | null;
   runNetworkDiagnostic: () => Promise<void>;
   join: () => void;
+  flipCamera: () => void;
 };
 
 export function usePreJoinState({
@@ -357,6 +358,15 @@ export function usePreJoinState({
     });
   }, [audioOutputDeviceId, onJoin, participantName, userChoices]);
 
+  const flipCamera = useCallback(() => {
+    if (videoInputs.length < 2) return;
+    const current = videoInputs.findIndex(
+      (device) => device.deviceId === userChoices.videoDeviceId
+    );
+    const next = videoInputs[(current + 1) % videoInputs.length];
+    if (next) saveVideoInputDeviceId(next.deviceId);
+  }, [saveVideoInputDeviceId, userChoices.videoDeviceId, videoInputs]);
+
   return {
     userChoices,
     saveAudioInputEnabled,
@@ -378,5 +388,6 @@ export function usePreJoinState({
     networkResult,
     runNetworkDiagnostic,
     join,
+    flipCamera,
   };
 }
