@@ -317,7 +317,7 @@ export function usePreJoinState({
   ) as LocalVideoTrack | undefined;
 
   useEffect(() => {
-    if (!audioTrack || !navigator.mediaDevices) return;
+    if ((!audioTrack && !videoTrack) || !navigator.mediaDevices) return;
     let active = true;
     const refresh = async () => {
       const devices = await navigator.mediaDevices.enumerateDevices();
@@ -332,7 +332,7 @@ export function usePreJoinState({
       active = false;
       navigator.mediaDevices.removeEventListener?.('devicechange', refresh);
     };
-  }, [audioTrack]);
+  }, [audioTrack, videoTrack]);
 
   const chooseAudioOutput = (deviceId: string) => {
     setAudioOutputDeviceId(deviceId);
@@ -363,7 +363,10 @@ export function usePreJoinState({
     const current = videoInputs.findIndex(
       (device) => device.deviceId === userChoices.videoDeviceId
     );
-    const next = videoInputs[(current + 1) % videoInputs.length];
+    // When the active device can't be identified (browser default in use),
+    // jump to the second device rather than recomputing the first.
+    const nextIndex = current === -1 ? 1 % videoInputs.length : (current + 1) % videoInputs.length;
+    const next = videoInputs[nextIndex];
     if (next) saveVideoInputDeviceId(next.deviceId);
   }, [saveVideoInputDeviceId, userChoices.videoDeviceId, videoInputs]);
 

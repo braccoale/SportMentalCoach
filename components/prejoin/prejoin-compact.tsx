@@ -100,7 +100,7 @@ export function PreJoinCompact({
         </p>
       </div>
 
-      {track && (
+      {track && state.videoInputs.length >= 2 && (
         <button
           type="button"
           onClick={state.flipCamera}
