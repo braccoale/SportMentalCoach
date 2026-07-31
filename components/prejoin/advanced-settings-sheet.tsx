@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { visibleAdvancedSections } from '@/lib/core/video/capabilities';
 import { useCallCapabilities } from '@/lib/core/video/capabilities-client';
@@ -25,6 +25,9 @@ export function AdvancedSettingsSheet({
 }) {
   const caps = useCallCapabilities();
   const sections = visibleAdvancedSections(caps);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
   // Esc chiude il pannello: su tablet con tastiera è il gesto atteso.
   useEffect(() => {
@@ -35,6 +38,53 @@ export function AdvancedSettingsSheet({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
+
+  // All'apertura sposta il focus nel pannello e lo ripristina alla chiusura;
+  // un dialog con aria-modal deve gestire il focus da sé, non solo dichiararlo.
+  useEffect(() => {
+    if (!open) return;
+    previouslyFocusedRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    closeButtonRef.current?.focus();
+    return () => {
+      previouslyFocusedRef.current?.focus();
+    };
+  }, [open]);
+
+  // Intrappola Tab/Shift+Tab dentro il pannello finché è aperto, altrimenti
+  // il focus potrebbe finire sugli elementi dietro il backdrop.
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return;
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((el) => el.offsetParent !== null);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey) {
+        if (active === first || !dialog.contains(active)) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (active === last || !dialog.contains(active)) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open]);
 
   if (!open) return null;
 
@@ -47,6 +97,7 @@ export function AdvancedSettingsSheet({
         className="absolute inset-0 bg-black/60"
       />
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label="Impostazioni avanzate"
@@ -56,6 +107,7 @@ export function AdvancedSettingsSheet({
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold">Impostazioni avanzate</h2>
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={onClose}
             aria-label="Chiudi"
