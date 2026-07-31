@@ -4,8 +4,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import {
   AiSessionReportContent,
   AiSessionReportPanel,
-  canShowAiSessionReport,
 } from './ai-session-report-panel';
+import { canShowAiSessionReport } from '@/lib/core/ai-session-notes/report-visibility';
 import {
   AI_SESSION_REPORT_SCHEMA_VERSION,
   type AiSessionReport,

@@ -23,18 +23,6 @@ type AiSessionReportPanelProps = {
   sessionId: number;
 };
 
-export function canShowAiSessionReport(params: {
-  viewerRole: 'coach' | 'athlete';
-  aiNotesEnabled: boolean;
-  hasAiNotesSession: boolean;
-}): boolean {
-  return (
-    params.viewerRole === 'coach' &&
-    params.aiNotesEnabled &&
-    params.hasAiNotesSession
-  );
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }

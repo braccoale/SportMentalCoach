@@ -9,10 +9,8 @@ import {
   Video,
 } from 'lucide-react';
 import { AddToGoogleCalendarButton } from '@/components/add-to-google-calendar-button';
-import {
-  AiSessionReportPanel,
-  canShowAiSessionReport,
-} from '@/components/ai-session-report-panel';
+import { AiSessionReportPanel } from '@/components/ai-session-report-panel';
+import { canShowAiSessionReport } from '@/lib/core/ai-session-notes/report-visibility';
 import { ActionForm } from '@/components/action-form';
 import { EditAppointmentButton } from '@/components/edit-appointment-button';
 import { Button } from '@/components/ui/button';
