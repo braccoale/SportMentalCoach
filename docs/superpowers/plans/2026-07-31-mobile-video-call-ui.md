@@ -39,7 +39,7 @@
   - `type AdvancedSection = 'microphone' | 'camera' | 'speaker-select' | 'speaker-test' | 'backgrounds' | 'network'`
   - `const COMPACT_MEDIA_QUERY: string`
   - `function visibleRoomControls(caps: CallCapabilities, compact: boolean): RoomControl[]`
-  - `function visibleAdvancedSections(caps: CallCapabilities, compact: boolean): AdvancedSection[]`
+  - `function visibleAdvancedSections(caps: CallCapabilities): AdvancedSection[]`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -103,20 +103,22 @@ test('connection quality and sharing survive on compact', () => {
 });
 
 test('speaker selection hides where unsupported but the test stays', () => {
-  const sections = visibleAdvancedSections(IOS_SAFARI, true);
+  const sections = visibleAdvancedSections(IOS_SAFARI);
   assert.equal(sections.includes('speaker-select'), false);
   assert.equal(sections.includes('speaker-test'), true);
 });
 
-test('backgrounds stay available on mobile when the browser supports them', () => {
-  assert.equal(
-    visibleAdvancedSections(FULL, true).includes('backgrounds'),
-    true
-  );
+test('a browser without background processors loses only that section', () => {
+  assert.deepEqual(visibleAdvancedSections(IOS_SAFARI), [
+    'microphone',
+    'camera',
+    'speaker-test',
+    'network',
+  ]);
 });
 
-test('desktop advanced panel lists every section', () => {
-  assert.deepEqual(visibleAdvancedSections(FULL, false), [
+test('a fully capable browser lists every section', () => {
+  assert.deepEqual(visibleAdvancedSections(FULL), [
     'microphone',
     'camera',
     'speaker-select',
@@ -205,8 +207,7 @@ export function visibleRoomControls(
  * modo che l'utente ha per accorgersi che il telefono è in silenzioso.
  */
 export function visibleAdvancedSections(
-  caps: CallCapabilities,
-  compact: boolean
+  caps: CallCapabilities
 ): AdvancedSection[] {
   const sections: AdvancedSection[] = ['microphone', 'camera'];
   if (caps.audioOutputSelection) sections.push('speaker-select');
@@ -217,7 +218,7 @@ export function visibleAdvancedSections(
 }
 ```
 
-Nota: `compact` non influenza `visibleAdvancedSections` oggi — le differenze mobile derivano tutte dalle capability reali. Il parametro resta nella firma perché è il punto di estensione naturale e i test lo esercitano in entrambi gli stati.
+Nota: `visibleAdvancedSections` non riceve `compact` di proposito. Oggi le differenze fra mobile e desktop nel pannello avanzate derivano **tutte** dalle capability reali del browser, non dalla dimensione dello schermo: un parametro che nessun ramo legge sarebbe codice morto. Si aggiungerà il giorno in cui servirà davvero.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -526,7 +527,7 @@ export function AdvancedSettingsSheet({
   onClose: () => void;
 }) {
   const caps = useCallCapabilities();
-  const sections = visibleAdvancedSections(caps, true);
+  const sections = visibleAdvancedSections(caps);
 
   // Esc chiude il pannello: su tablet con tastiera è il gesto atteso.
   useEffect(() => {
