@@ -20,6 +20,7 @@ import {
   type NetworkDiagnosticStatus,
   type NetworkDiagnosticSummary,
 } from '@/lib/core/video/call-settings';
+import { COMPACT_MEDIA_QUERY } from '@/lib/core/video/capabilities';
 import type { TechnicalEventDetails } from '@/lib/core/video/technical-events';
 import type { KaiPaiCallChoices } from '@/components/livekit-call-controls';
 
@@ -190,8 +191,20 @@ export function usePreJoinState({
     'idle' | 'playing' | 'success' | 'error'
   >('idle');
   const [audioOutputDeviceId, setAudioOutputDeviceId] = useState('default');
-  const [videoFacingMode, setVideoFacingMode] =
-    useState<VideoFacingMode | null>(null);
+  // Su un telefono si parte sempre dalla frontale, e lo si chiede in modo
+  // esplicito: lasciarlo decidere al browser significherebbe subire un
+  // `videoDeviceId` rimasto in localStorage da una sessione precedente, che
+  // può puntare alla posteriore. Su desktop resta `null`, dove comanda la
+  // scelta per dispositivo. Calcolato in modo pigro al primo render client,
+  // così non provoca un secondo avvio della sorgente.
+  const [videoFacingMode, setVideoFacingMode] = useState<
+    VideoFacingMode | null
+  >(() =>
+    typeof window !== 'undefined' &&
+    window.matchMedia(COMPACT_MEDIA_QUERY).matches
+      ? 'user'
+      : null
+  );
   const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([]);
   const [videoInputs, setVideoInputs] = useState<MediaDeviceInfo[]>([]);
   const [audioOutputs, setAudioOutputs] = useState<MediaDeviceInfo[]>([]);

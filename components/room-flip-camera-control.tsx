@@ -49,8 +49,15 @@ export function RoomFlipCameraControl() {
   const flip = useCallback(async () => {
     const track = cameraTrack?.track as LocalVideoTrack | undefined;
     if (!track || pending) return;
+    // Il lato attuale si chiede alla traccia, non lo si ricorda: chi ha già
+    // invertito nel pre-join entra in chiamata sulla posteriore, e uno stato
+    // interno inizializzato per ipotesi sprecherebbe la prima pressione a
+    // richiedere il lato su cui si è già.
+    const settings = track.mediaStreamTrack?.getSettings();
+    const current =
+      (settings?.facingMode as VideoFacingMode | undefined) ?? facingMode;
     const next: VideoFacingMode =
-      facingMode === 'environment' ? 'user' : 'environment';
+      current === 'environment' ? 'user' : 'environment';
     setPending(true);
     try {
       await track.restartTrack({ facingMode: next });
@@ -87,9 +94,9 @@ export function RoomFlipCameraControl() {
           ? 'Torna alla fotocamera frontale'
           : 'Passa alla fotocamera posteriore'
       }
-      className="inline-flex min-h-9 items-center rounded-full border border-white/15 bg-black/45 p-2 text-white/85 hover:bg-black/65 disabled:opacity-50"
+      className="absolute right-3 top-3 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/55 text-white backdrop-blur transition-colors hover:bg-black/75 disabled:opacity-50"
     >
-      <SwitchCamera className="h-4 w-4" aria-hidden="true" />
+      <SwitchCamera className="h-5 w-5" aria-hidden="true" />
     </button>
   );
 }

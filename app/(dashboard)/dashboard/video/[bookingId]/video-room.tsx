@@ -391,7 +391,6 @@ function ConnectedVideoRoom({
               </button>
             )}
             <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-              {controls.includes('flip-camera') && <RoomFlipCameraControl />}
               {controls.includes('fullscreen') && <RoomFullscreenControl />}
               {controls.includes('picture-in-picture') && (
                 <PictureInPictureControl
@@ -406,10 +405,11 @@ function ConnectedVideoRoom({
               )}
             </div>
           </div>
-          <div className="min-h-0 flex-1">
+          <div className="relative min-h-0 flex-1">
             {/* VideoConference renders its own RoomAudioRenderer internally —
                 do not add a second one or remote audio plays twice/garbled. */}
             <VideoConference SettingsComponent={CallDeviceSettings} />
+            {controls.includes('flip-camera') && <RoomFlipCameraControl />}
           </div>
         </div>
         </WaitingRoomGate>
