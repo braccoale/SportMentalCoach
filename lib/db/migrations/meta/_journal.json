@@ -176,6 +176,20 @@
       "when": 1785020400000,
       "tag": "0024_default-notification-preferences",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1785090000000,
+      "tag": "0025_chat-image-attachments",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1785100000000,
+      "tag": "0026_message-reactions",
+      "breakpoints": true
     }
   ]
 }

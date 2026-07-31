@@ -1,11 +1,13 @@
 import 'server-only';
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/lib/db/drizzle';
 import {
   providerProfiles,
   profiles,
   clientProfiles,
+  bookings,
+  services,
   userRoles,
   users,
   type ProviderStatus,
@@ -83,6 +85,9 @@ export type AthleteAdminItem = {
   city: string | null;
   birthDate: string | null;
   goals: string | null;
+  completedSessions: number;
+  scheduledSessions: number;
+  totalMinutes: number;
   createdAt: Date;
 };
 
@@ -111,6 +116,46 @@ export async function getAllAthletesForAdmin(): Promise<AthleteAdminItem[]> {
     .where(isNull(users.deletedAt))
     .orderBy(desc(users.createdAt));
 
+  const userIds = rows.map((row) => row.userId);
+  const statsRows =
+    userIds.length === 0
+      ? []
+      : await db
+          .select({
+            userId: bookings.clientId,
+            completedSessions: sql<number>`count(*) filter (
+              where ${bookings.status} = 'completed'
+            )::int`,
+            scheduledSessions: sql<number>`count(*) filter (
+              where ${bookings.status} in ('requested', 'accepted')
+                and ${bookings.scheduledFor} >= now()
+            )::int`,
+            totalMinutes: sql<number>`coalesce(sum(
+              greatest(
+                case
+                  when ${bookings.sessionStartedAt} is not null and ${bookings.sessionEndedAt} is not null
+                    then extract(epoch from (${bookings.sessionEndedAt} - ${bookings.sessionStartedAt})) / 60
+                  else coalesce(${services.durationMin}, 0)
+                end,
+                0
+              )
+            ) filter (where ${bookings.status} = 'completed'), 0)::int`,
+          })
+          .from(bookings)
+          .leftJoin(services, eq(services.id, bookings.serviceId))
+          .where(inArray(bookings.clientId, userIds))
+          .groupBy(bookings.clientId);
+  const statsByUser = new Map(
+    statsRows.map((row) => [
+      row.userId,
+      {
+        completedSessions: row.completedSessions,
+        scheduledSessions: row.scheduledSessions,
+        totalMinutes: row.totalMinutes,
+      },
+    ])
+  );
+
   return rows.map((r) => ({
     userId: r.userId,
     name: resolveDisplayName(r.rawName, r.email),
@@ -121,6 +166,9 @@ export async function getAllAthletesForAdmin(): Promise<AthleteAdminItem[]> {
     city: r.city,
     birthDate: r.birthDate,
     goals: r.goals,
+    completedSessions: statsByUser.get(r.userId)?.completedSessions ?? 0,
+    scheduledSessions: statsByUser.get(r.userId)?.scheduledSessions ?? 0,
+    totalMinutes: statsByUser.get(r.userId)?.totalMinutes ?? 0,
     createdAt: r.createdAt,
   }));
 }

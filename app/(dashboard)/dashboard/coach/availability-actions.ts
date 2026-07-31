@@ -19,17 +19,32 @@ function timeToMinutes(value: string): number | null {
   return h * 60 + m;
 }
 
+function parseWeekday(value: FormDataEntryValue | null): number | null {
+  const raw = String(value ?? '').trim();
+  if (!raw) return null;
+  const weekday = Number(raw);
+  return Number.isInteger(weekday) && weekday >= 0 && weekday <= 6
+    ? weekday
+    : null;
+}
+
+function revalidateAvailabilityPaths() {
+  revalidatePath('/dashboard/coach/services');
+  revalidatePath('/dashboard/coach');
+  revalidatePath('/coaches');
+}
+
 export async function addAvailabilityAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const user = await requireRole('coach');
 
-  const weekday = Number(formData.get('weekday'));
+  const weekday = parseWeekday(formData.get('weekday'));
   const startMinute = timeToMinutes((formData.get('start') as string) ?? '');
   const endMinute = timeToMinutes((formData.get('end') as string) ?? '');
 
-  if (!Number.isInteger(weekday) || startMinute === null || endMinute === null) {
+  if (weekday === null || startMinute === null || endMinute === null) {
     return { error: 'Compila giorno, inizio e fine.' };
   }
 
@@ -40,7 +55,7 @@ export async function addAvailabilityAction(
   });
   if (!result.ok) return { error: result.error };
 
-  revalidatePath('/dashboard/coach/services');
+  revalidateAvailabilityPaths();
   return { success: 'Fascia aggiunta.' };
 }
 
@@ -51,14 +66,14 @@ export async function updateAvailabilityAction(
   const user = await requireRole('coach');
 
   const slotId = Number(formData.get('slotId'));
-  const weekday = Number(formData.get('weekday'));
+  const weekday = parseWeekday(formData.get('weekday'));
   const startMinute = timeToMinutes((formData.get('start') as string) ?? '');
   const endMinute = timeToMinutes((formData.get('end') as string) ?? '');
 
   if (!Number.isInteger(slotId)) {
     return { error: 'Fascia non valida.' };
   }
-  if (!Number.isInteger(weekday) || startMinute === null || endMinute === null) {
+  if (weekday === null || startMinute === null || endMinute === null) {
     return { error: 'Compila giorno, inizio e fine.' };
   }
 
@@ -69,7 +84,7 @@ export async function updateAvailabilityAction(
   });
   if (!result.ok) return { error: result.error };
 
-  revalidatePath('/dashboard/coach/services');
+  revalidateAvailabilityPaths();
   return { success: 'Fascia aggiornata.' };
 }
 
@@ -87,6 +102,6 @@ export async function deleteAvailabilityAction(
   const result = await deleteAvailabilitySlot(user.id, slotId);
   if (!result.ok) return { error: result.error };
 
-  revalidatePath('/dashboard/coach/services');
+  revalidateAvailabilityPaths();
   return { success: 'Fascia rimossa.' };
 }

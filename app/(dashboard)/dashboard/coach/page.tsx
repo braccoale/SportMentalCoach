@@ -70,8 +70,6 @@ import { AddToGoogleCalendarButton } from '@/components/add-to-google-calendar-b
 import { buildBookingGoogleCalendarUrl } from '@/lib/core/booking-calendar';
 import { getAppBaseUrl } from '@/lib/core/app-url';
 
-const DEFAULT_ATHLETE_AVATAR = '/atleta.png';
-
 /** Sort key for the archive: when the session actually happened, newest first. */
 function archiveRecency(b: CoachBooking): number {
   return (
@@ -687,7 +685,7 @@ function buildCoachRequestCardData(
     statusEyebrow: bookingEyebrow(booking.status),
     athleteName: resolveDisplayName(booking.clientName, booking.clientEmail),
     athleteEmail: booking.clientEmail,
-    athleteAvatarUrl: booking.clientAvatarUrl || DEFAULT_ATHLETE_AVATAR,
+    athleteAvatarUrl: booking.clientAvatarUrl,
     athleteMeta: [sportLabel, levelLabel].filter(Boolean).join(' | ') || null,
     isMinor: booking.athleteIsMinor,
     primaryNeed,
@@ -710,7 +708,7 @@ function buildUpcomingAppointmentData(
   return {
     id: booking.id,
     athleteName: resolveDisplayName(booking.clientName, booking.clientEmail),
-    athleteAvatarUrl: booking.clientAvatarUrl || DEFAULT_ATHLETE_AVATAR,
+    athleteAvatarUrl: booking.clientAvatarUrl,
     eyebrow: bookingEyebrow(booking.status),
     statusLabel: bookingStatusLabel(booking.status),
     date: booking.scheduledFor ? formatBigDateParts(booking.scheduledFor) : null,
@@ -780,7 +778,7 @@ function buildArchiveCardData(
     statusLabel: bookingStatusLabel(booking.status),
     tone: archiveTone(booking.status),
     personName: resolveDisplayName(booking.clientName, booking.clientEmail),
-    personAvatarUrl: booking.clientAvatarUrl || DEFAULT_ATHLETE_AVATAR,
+    personAvatarUrl: booking.clientAvatarUrl,
     personMeta: [sportLabel, levelLabel].filter(Boolean).join(' · ') || null,
     date: big
       ? {

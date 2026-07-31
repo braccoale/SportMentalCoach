@@ -3,7 +3,11 @@
 import { useId, useRef } from 'react';
 import {
   Cake,
+  CalendarCheck2,
+  CalendarClock,
   CalendarDays,
+  ChevronRight,
+  Clock3,
   Mail,
   MapPin,
   Medal,
@@ -12,6 +16,10 @@ import {
   X,
 } from 'lucide-react';
 import { CoachAvatar } from '@/components/coach-visuals';
+import {
+  GaugeRing,
+  gaugeProgress,
+} from '@/components/coach-experience-stats';
 import { Button } from '@/components/ui/button';
 
 export type AthleteProfileDialogData = {
@@ -23,6 +31,9 @@ export type AthleteProfileDialogData = {
   city: string | null;
   birthDate: string | null;
   goals: string | null;
+  completedSessions: number;
+  scheduledSessions: number;
+  totalMinutes: number;
   registeredAt: string;
 };
 
@@ -48,6 +59,99 @@ function ProfileField({
   );
 }
 
+function AthleteActivityStats({
+  completedSessions,
+  scheduledSessions,
+  totalMinutes,
+}: {
+  completedSessions: number;
+  scheduledSessions: number;
+  totalMinutes: number;
+}) {
+  const numberFormat = new Intl.NumberFormat('it-IT');
+
+  return (
+    <section className="relative mt-5 overflow-hidden rounded-2xl border border-green-100 bg-gradient-to-br from-green-50 via-white to-sky-50 p-4">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-green-200/40 blur-3xl"
+      />
+      <div className="relative">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900">
+            Attività su KaiPai
+          </h3>
+          <p className="mt-0.5 text-xs text-gray-500">
+            Sessioni completate, in programma e minuti già svolti.
+          </p>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-3 min-[480px]:grid-cols-3">
+          <div className="flex flex-col items-center rounded-2xl border border-white/80 bg-white/70 p-3 text-center shadow-sm">
+            <div className="relative flex h-[88px] w-[88px] items-center justify-center">
+              <GaugeRing
+                progress={gaugeProgress(completedSessions, 10)}
+                className="stroke-green-500"
+                size={88}
+              />
+              <div className="absolute flex flex-col items-center">
+                <CalendarCheck2 className="h-4 w-4 text-green-600" />
+                <span className="mt-0.5 text-xl font-bold text-gray-950">
+                  {numberFormat.format(completedSessions)}
+                </span>
+              </div>
+            </div>
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+              Sessioni completate
+            </p>
+          </div>
+
+          <div className="flex flex-col items-center rounded-2xl border border-white/80 bg-white/70 p-3 text-center shadow-sm">
+            <div className="relative flex h-[88px] w-[88px] items-center justify-center">
+              <GaugeRing
+                progress={gaugeProgress(scheduledSessions, 10)}
+                className="stroke-amber-500"
+                size={88}
+              />
+              <div className="absolute flex flex-col items-center">
+                <CalendarClock className="h-4 w-4 text-amber-600" />
+                <span className="mt-0.5 text-xl font-bold text-gray-950">
+                  {numberFormat.format(scheduledSessions)}
+                </span>
+              </div>
+            </div>
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+              Sessioni pianificate
+            </p>
+          </div>
+
+          <div className="flex flex-col items-center rounded-2xl border border-white/80 bg-white/70 p-3 text-center shadow-sm">
+            <div className="relative flex h-[88px] w-[88px] items-center justify-center">
+              <GaugeRing
+                progress={gaugeProgress(totalMinutes, 600)}
+                className="stroke-sky-500"
+                size={88}
+              />
+              <div className="absolute flex flex-col items-center">
+                <Clock3 className="h-4 w-4 text-sky-600" />
+                <span className="mt-0.5 text-lg font-bold text-gray-950">
+                  {numberFormat.format(totalMinutes)}
+                </span>
+                <span className="text-[10px] font-medium text-gray-500">
+                  min
+                </span>
+              </div>
+            </div>
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+              Minuti totali
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function AthleteProfileDialog({
   athlete,
 }: {
@@ -68,13 +172,14 @@ export function AthleteProfileDialog({
       <button
         type="button"
         onClick={() => dialogRef.current?.showModal()}
-        className="flex w-full items-center gap-3 rounded-lg border border-gray-200 p-3 text-left transition hover:border-green-300 hover:bg-green-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2"
+        className="flex h-full min-h-28 w-full items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-green-300 hover:bg-green-50/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2"
         aria-haspopup="dialog"
+        aria-label={`Apri la scheda atleta di ${athlete.name}`}
       >
         <CoachAvatar
           name={athlete.name}
           src={athlete.avatarUrl}
-          className="size-10 shrink-0"
+          className="size-14 shrink-0"
         />
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium text-gray-900">
@@ -87,8 +192,12 @@ export function AthleteProfileDialog({
             <span className="block truncate text-xs text-gray-400">{meta}</span>
           )}
         </span>
-        <span className="shrink-0 text-xs text-gray-400">
-          Iscritto il {athlete.registeredAt}
+        <span className="flex shrink-0 flex-col items-end gap-2 text-xs text-gray-400">
+          <span>Iscritto il {athlete.registeredAt}</span>
+          <span className="inline-flex items-center gap-1 font-medium text-green-700">
+            Vedi scheda
+            <ChevronRight className="h-3.5 w-3.5" />
+          </span>
         </span>
       </button>
 
@@ -154,6 +263,12 @@ export function AthleteProfileDialog({
                 value={athlete.goals}
               />
             </dl>
+
+            <AthleteActivityStats
+              completedSessions={athlete.completedSessions}
+              scheduledSessions={athlete.scheduledSessions}
+              totalMinutes={athlete.totalMinutes}
+            />
 
             <div className="mt-6 flex justify-end">
               <Button

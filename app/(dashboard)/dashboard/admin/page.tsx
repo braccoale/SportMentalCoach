@@ -178,11 +178,14 @@ function AthleteRow({
     city: a.city,
     birthDate,
     goals: a.goals,
+    completedSessions: a.completedSessions,
+    scheduledSessions: a.scheduledSessions,
+    totalMinutes: a.totalMinutes,
     registeredAt: formatDate(a.createdAt),
   };
 
   return (
-    <li>
+    <li className="h-full">
       <AthleteProfileDialog athlete={athlete} />
     </li>
   );
@@ -246,6 +249,19 @@ export default async function AdminDashboardPage() {
       </div>
 
       <h2 className="mt-8 text-lg font-medium text-gray-900">
+        Atleti registrati ({athletes.length})
+      </h2>
+      {athletes.length === 0 ? (
+        <p className="mt-2 text-gray-500">Nessun atleta registrato.</p>
+      ) : (
+        <ul className="mt-3 grid items-stretch gap-3 sm:grid-cols-2">
+          {athletes.map((a) => (
+            <AthleteRow key={a.userId} a={a} sportsList={sportsList} />
+          ))}
+        </ul>
+      )}
+
+      <h2 className="mt-8 text-lg font-medium text-gray-900">
         Coda di revisione ({queue.length})
       </h2>
       {queue.length === 0 ? (
@@ -284,18 +300,6 @@ export default async function AdminDashboardPage() {
         </>
       )}
 
-      <h2 className="mt-8 text-lg font-medium text-gray-900">
-        Atleti registrati ({athletes.length})
-      </h2>
-      {athletes.length === 0 ? (
-        <p className="mt-2 text-gray-500">Nessun atleta registrato.</p>
-      ) : (
-        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-          {athletes.map((a) => (
-            <AthleteRow key={a.userId} a={a} sportsList={sportsList} />
-          ))}
-        </ul>
-      )}
     </section>
   );
 }

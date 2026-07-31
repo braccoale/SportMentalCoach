@@ -43,6 +43,13 @@ export default async function ChatPage({
     senderName: m.senderName,
     senderEmail: m.senderEmail,
     body: m.body,
+    attachmentName: m.attachmentName,
+    attachmentMimeType: m.attachmentMimeType,
+    attachmentSize: m.attachmentSize,
+    attachmentUrl: m.hasAttachment
+      ? `/api/chat/${id}/messages/${m.id}/attachment`
+      : null,
+    reactions: m.reactions,
     createdAt: m.createdAt.toISOString(),
   }));
 

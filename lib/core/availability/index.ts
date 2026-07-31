@@ -1,13 +1,26 @@
 import 'server-only';
-import { and, asc, eq } from 'drizzle-orm';
-import { db } from '@/lib/db/drizzle';
+import { and, asc, eq, gt, inArray, ne, sql } from 'drizzle-orm';
+import { db, type DbOrTx } from '@/lib/db/drizzle';
 import {
+  bookings,
   coachAvailability,
   providerProfiles,
   type CoachAvailability,
 } from '@/lib/db/schema';
 import type { Result } from '@/lib/core/result';
-import { WEEKDAY_LABELS, formatMinutesOfDay } from '@/lib/core/format';
+import {
+  WEEKDAY_LABELS,
+  formatDateTime,
+  formatMinutesOfDay,
+} from '@/lib/core/format';
+import {
+  isScheduledDateWithinSlot,
+  romeWeekdayAndMinute,
+  validateAvailabilitySchedule,
+  type AvailabilityInput,
+} from './validation';
+
+export type { AvailabilityInput } from './validation';
 
 export type AvailabilitySlot = Pick<
   CoachAvailability,
@@ -20,6 +33,32 @@ const slotColumns = {
   startMinute: coachAvailability.startMinute,
   endMinute: coachAvailability.endMinute,
 };
+
+async function findFirstFutureBookingInSlot(
+  exec: DbOrTx,
+  providerId: number,
+  slot: AvailabilityInput
+): Promise<Date | null> {
+  const futureBookings = await exec
+    .select({ scheduledFor: bookings.scheduledFor })
+    .from(bookings)
+    .where(
+      and(
+        eq(bookings.providerId, providerId),
+        gt(bookings.scheduledFor, new Date()),
+        inArray(bookings.status, ['requested', 'accepted'])
+      )
+    )
+    .orderBy(asc(bookings.scheduledFor));
+
+  return (
+    futureBookings.find(
+      (booking) =>
+        booking.scheduledFor &&
+        isScheduledDateWithinSlot(booking.scheduledFor, slot)
+    )?.scheduledFor ?? null
+  );
+}
 
 async function resolveProviderId(userId: number): Promise<number | null> {
   const [row] = await db
@@ -53,17 +92,6 @@ export async function getCoachAvailabilityByProviderId(
     .where(eq(coachAvailability.providerId, providerId))
     .orderBy(asc(coachAvailability.weekday), asc(coachAvailability.startMinute));
 }
-
-/** Maps Intl short weekday names to 0=Sun…6=Sat (matching `WEEKDAY_LABELS`). */
-const WEEKDAY_INDEX: Record<string, number> = {
-  Sun: 0,
-  Mon: 1,
-  Tue: 2,
-  Wed: 3,
-  Thu: 4,
-  Fri: 5,
-  Sat: 6,
-};
 
 type RomeDay = {
   year: string;
@@ -107,28 +135,6 @@ function romeDayAt(from: Date, offset: number): RomeDay {
     day: String(at.getUTCDate()).padStart(2, '0'),
     weekday: at.getUTCDay(),
     at,
-  };
-}
-
-/**
- * Weekday (0=Sun…6=Sat) and minute-of-day for a `Date`, read in the app's
- * fixed display timezone (Europe/Rome) — not the server process's timezone,
- * which the Vercel runtime otherwise defaults to UTC. Availability slots are
- * configured in local (Rome) wall-clock time, so comparisons must use the
- * same zone.
- */
-function romeWeekdayAndMinute(d: Date): { weekday: number; minuteOfDay: number } {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Europe/Rome',
-    weekday: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(d);
-  const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
-  return {
-    weekday: WEEKDAY_INDEX[map.weekday] ?? 0,
-    minuteOfDay: Number(map.hour) * 60 + Number(map.minute),
   };
 }
 
@@ -290,11 +296,40 @@ export async function getApprovedCoachAvailabilityBySlug(
     .orderBy(asc(coachAvailability.weekday), asc(coachAvailability.startMinute));
 }
 
-export type AvailabilityInput = {
-  weekday: number;
-  startMinute: number;
-  endMinute: number;
-};
+/**
+ * Replaces the coach's complete weekly schedule atomically. Either every
+ * add/change/removal is persisted, or none is, so the UI cannot display a
+ * partially saved week.
+ */
+export async function replaceCoachAvailability(
+  userId: number,
+  input: unknown
+): Promise<Result> {
+  const providerId = await resolveProviderId(userId);
+  if (!providerId) return { ok: false, error: 'Profilo coach non trovato.' };
+
+  const validated = validateAvailabilitySchedule(input);
+  if (!validated.ok) return { ok: false, error: validated.error };
+
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(coachAvailability)
+      .where(eq(coachAvailability.providerId, providerId));
+
+    if (validated.slots.length > 0) {
+      await tx.insert(coachAvailability).values(
+        validated.slots.map((slot) => ({
+          providerId,
+          ...slot,
+          createdBy: userId,
+          updatedBy: userId,
+        }))
+      );
+    }
+  });
+
+  return { ok: true };
+}
 
 /** Adds a weekly slot for the coach. Ownership + range validated. */
 export async function addAvailabilitySlot(
@@ -304,34 +339,30 @@ export async function addAvailabilitySlot(
   const providerId = await resolveProviderId(userId);
   if (!providerId) return { ok: false, error: 'Profilo coach non trovato.' };
 
-  const { weekday, startMinute, endMinute } = input;
-  if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
-    return { ok: false, error: 'Giorno non valido.' };
-  }
-  if (
-    ![startMinute, endMinute].every(
-      (n) => Number.isInteger(n) && n >= 0 && n <= 1440
-    )
-  ) {
-    return { ok: false, error: 'Orario non valido.' };
-  }
-  if (endMinute <= startMinute) {
-    return { ok: false, error: 'L’orario di fine deve essere dopo l’inizio.' };
-  }
+  return db.transaction(async (tx) => {
+    // Availability writes for the same coach are serialized so simultaneous
+    // requests cannot both pass the overlap check and then insert.
+    await tx.execute(sql`select pg_advisory_xact_lock(${providerId})`);
 
-  const [created] = await db
-    .insert(coachAvailability)
-    .values({ providerId, weekday, startMinute, endMinute, createdBy: userId })
-    .onConflictDoNothing()
-    .returning({ id: coachAvailability.id });
+    const current = await tx
+      .select({
+        weekday: coachAvailability.weekday,
+        startMinute: coachAvailability.startMinute,
+        endMinute: coachAvailability.endMinute,
+      })
+      .from(coachAvailability)
+      .where(eq(coachAvailability.providerId, providerId));
+    const validated = validateAvailabilitySchedule([...current, input]);
+    if (!validated.ok) return { ok: false, error: validated.error };
 
-  if (!created) {
-    return {
-      ok: false,
-      error: 'Esiste già una fascia con questo orario di inizio in quel giorno.',
-    };
-  }
-  return { ok: true };
+    await tx.insert(coachAvailability).values({
+      providerId,
+      ...input,
+      createdBy: userId,
+      updatedBy: userId,
+    });
+    return { ok: true };
+  });
 }
 
 /** Updates one of the coach's own slots (day/time). Ownership + range validated. */
@@ -343,34 +374,63 @@ export async function updateAvailabilitySlot(
   const providerId = await resolveProviderId(userId);
   if (!providerId) return { ok: false, error: 'Profilo coach non trovato.' };
 
-  const { weekday, startMinute, endMinute } = input;
-  if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
-    return { ok: false, error: 'Giorno non valido.' };
-  }
-  if (
-    ![startMinute, endMinute].every(
-      (n) => Number.isInteger(n) && n >= 0 && n <= 1440
-    )
-  ) {
-    return { ok: false, error: 'Orario non valido.' };
-  }
-  if (endMinute <= startMinute) {
-    return { ok: false, error: 'L’orario di fine deve essere dopo l’inizio.' };
-  }
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(${providerId})`);
 
-  const [updated] = await db
-    .update(coachAvailability)
-    .set({ weekday, startMinute, endMinute, updatedBy: userId })
-    .where(
-      and(
-        eq(coachAvailability.id, slotId),
-        eq(coachAvailability.providerId, providerId)
+    const [owned] = await tx
+      .select(slotColumns)
+      .from(coachAvailability)
+      .where(
+        and(
+          eq(coachAvailability.id, slotId),
+          eq(coachAvailability.providerId, providerId)
+        )
       )
-    )
-    .returning({ id: coachAvailability.id });
+      .limit(1);
+    if (!owned) return { ok: false, error: 'Fascia non trovata.' };
 
-  if (!updated) return { ok: false, error: 'Fascia non trovata.' };
-  return { ok: true };
+    const plannedFor = await findFirstFutureBookingInSlot(
+      tx,
+      providerId,
+      owned
+    );
+    if (
+      plannedFor &&
+      !isScheduledDateWithinSlot(plannedFor, input)
+    ) {
+      return {
+        ok: false,
+        error: `Non puoi modificare questa fascia perché contiene una sessione futura pianificata per ${formatDateTime(plannedFor)}. Annulla o riprogramma prima l’appuntamento.`,
+      };
+    }
+
+    const otherSlots = await tx
+      .select({
+        weekday: coachAvailability.weekday,
+        startMinute: coachAvailability.startMinute,
+        endMinute: coachAvailability.endMinute,
+      })
+      .from(coachAvailability)
+      .where(
+        and(
+          eq(coachAvailability.providerId, providerId),
+          ne(coachAvailability.id, slotId)
+        )
+      );
+    const validated = validateAvailabilitySchedule([...otherSlots, input]);
+    if (!validated.ok) return { ok: false, error: validated.error };
+
+    await tx
+      .update(coachAvailability)
+      .set({ ...input, updatedBy: userId })
+      .where(
+        and(
+          eq(coachAvailability.id, slotId),
+          eq(coachAvailability.providerId, providerId)
+        )
+      );
+    return { ok: true };
+  });
 }
 
 /** Deletes one of the coach's own slots. */
@@ -381,16 +441,41 @@ export async function deleteAvailabilitySlot(
   const providerId = await resolveProviderId(userId);
   if (!providerId) return { ok: false, error: 'Profilo coach non trovato.' };
 
-  const [deleted] = await db
-    .delete(coachAvailability)
-    .where(
-      and(
-        eq(coachAvailability.id, slotId),
-        eq(coachAvailability.providerId, providerId)
-      )
-    )
-    .returning({ id: coachAvailability.id });
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(${providerId})`);
 
-  if (!deleted) return { ok: false, error: 'Fascia non trovata.' };
-  return { ok: true };
+    const [slot] = await tx
+      .select(slotColumns)
+      .from(coachAvailability)
+      .where(
+        and(
+          eq(coachAvailability.id, slotId),
+          eq(coachAvailability.providerId, providerId)
+        )
+      )
+      .limit(1);
+    if (!slot) return { ok: false, error: 'Fascia non trovata.' };
+
+    const plannedFor = await findFirstFutureBookingInSlot(
+      tx,
+      providerId,
+      slot
+    );
+    if (plannedFor) {
+      return {
+        ok: false,
+        error: `Non puoi eliminare questa fascia: è presente una sessione futura pianificata per ${formatDateTime(plannedFor)}. Annulla o riprogramma prima l’appuntamento.`,
+      };
+    }
+
+    await tx
+      .delete(coachAvailability)
+      .where(
+        and(
+          eq(coachAvailability.id, slotId),
+          eq(coachAvailability.providerId, providerId)
+        )
+      );
+    return { ok: true };
+  });
 }

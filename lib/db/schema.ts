@@ -417,6 +417,12 @@ export const messages = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     body: text('body').notNull(),
+    // Optional private image attachment. The object key is never exposed
+    // directly; authenticated participants read it through the chat API.
+    attachmentKey: text('attachment_key'),
+    attachmentName: varchar('attachment_name', { length: 255 }),
+    attachmentMimeType: varchar('attachment_mime_type', { length: 80 }),
+    attachmentSize: integer('attachment_size'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
     ...audit,
@@ -426,6 +432,32 @@ export const messages = pgTable(
       table.bookingId,
       table.createdAt
     ),
+  ]
+);
+
+// One WhatsApp-style reaction per user and message. Re-selecting the same
+// emoji removes it; choosing another emoji replaces the previous reaction.
+export const messageReactions = pgTable(
+  'message_reactions',
+  {
+    id: serial('id').primaryKey(),
+    messageId: integer('message_id')
+      .notNull()
+      .references(() => messages.id, { onDelete: 'cascade' }),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    emoji: varchar('emoji', { length: 16 }).notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    ...audit,
+  },
+  (table) => [
+    unique('message_reactions_message_user_unique').on(
+      table.messageId,
+      table.userId
+    ),
+    index('message_reactions_message_id_idx').on(table.messageId),
   ]
 );
 
@@ -476,7 +508,7 @@ export const coachAvailabilityRelations = relations(
   })
 );
 
-export const messagesRelations = relations(messages, ({ one }) => ({
+export const messagesRelations = relations(messages, ({ one, many }) => ({
   booking: one(bookings, {
     fields: [messages.bookingId],
     references: [bookings.id],
@@ -485,7 +517,22 @@ export const messagesRelations = relations(messages, ({ one }) => ({
     fields: [messages.senderId],
     references: [users.id],
   }),
+  reactions: many(messageReactions),
 }));
+
+export const messageReactionsRelations = relations(
+  messageReactions,
+  ({ one }) => ({
+    message: one(messages, {
+      fields: [messageReactions.messageId],
+      references: [messages.id],
+    }),
+    user: one(users, {
+      fields: [messageReactions.userId],
+      references: [users.id],
+    }),
+  })
+);
 
 // Generic, framework-level notifications. Vertical-agnostic: `type` is a stable
 // key, `title`/`body` are pre-rendered strings, `data` carries arbitrary JSON
