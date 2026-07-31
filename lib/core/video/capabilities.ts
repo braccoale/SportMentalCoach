@@ -25,6 +25,7 @@ export type CallCapabilities = {
 
 export type RoomControl =
   | 'exit'
+  | 'flip-camera'
   | 'fullscreen'
   | 'picture-in-picture'
   | 'connection-quality'
@@ -51,6 +52,9 @@ export function visibleRoomControls(
 ): RoomControl[] {
   const controls: RoomControl[] = [];
   if (compact) controls.push('exit');
+  // Invertire la fotocamera ha senso solo dove esiste un davanti e un dietro:
+  // su desktop la scelta fra più webcam resta nelle impostazioni.
+  if (compact) controls.push('flip-camera');
   if (!compact && caps.fullscreen) controls.push('fullscreen');
   if (caps.pictureInPicture) controls.push('picture-in-picture');
   controls.push('connection-quality');

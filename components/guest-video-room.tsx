@@ -27,6 +27,7 @@ import {
   WaitingRoomGate,
 } from './livekit-call-extras';
 import { BackgroundSelectionApplier } from './livekit-background-controls';
+import { RoomFlipCameraControl } from './room-flip-camera-control';
 import { useIsCompact } from '@/lib/hooks/use-is-compact';
 import { useCallCapabilities } from '@/lib/core/video/capabilities-client';
 import { visibleRoomControls } from '@/lib/core/video/capabilities';
@@ -120,6 +121,7 @@ function ConnectedGuestVideoRoom({
           <div className="flex h-full flex-col">
             <div className="flex flex-wrap items-start justify-between gap-2 border-b border-white/10 bg-black/40 px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))]">
               <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+                {controls.includes('flip-camera') && <RoomFlipCameraControl />}
                 {controls.includes('fullscreen') && <RoomFullscreenControl />}
                 {controls.includes('picture-in-picture') && (
                   <PictureInPictureControl />

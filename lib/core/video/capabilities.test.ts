@@ -51,7 +51,17 @@ test('picture-in-picture disappears on iOS Safari', () => {
 
 test('connection quality and sharing survive on compact', () => {
   const controls = visibleRoomControls(IOS_SAFARI, true);
-  assert.deepEqual(controls, ['exit', 'connection-quality', 'share']);
+  assert.deepEqual(controls, [
+    'exit',
+    'flip-camera',
+    'connection-quality',
+    'share',
+  ]);
+});
+
+test('flipping the camera is offered on compact and nowhere else', () => {
+  assert.equal(visibleRoomControls(FULL, true).includes('flip-camera'), true);
+  assert.equal(visibleRoomControls(FULL, false).includes('flip-camera'), false);
 });
 
 test('speaker selection hides where unsupported but the test stays', () => {
