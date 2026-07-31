@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { visibleAdvancedSections } from '@/lib/core/video/capabilities';
 import { useCallCapabilities } from '@/lib/core/video/capabilities-client';
@@ -28,6 +28,46 @@ export function AdvancedSettingsSheet({
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
+  // Swipe verso il basso per chiudere, come promesso dalla maniglia. La presa
+  // parte dalla fascia superiore (maniglia + titolo), che non scorre: così il
+  // gesto non entra in conflitto con lo scroll del contenuto sottostante.
+  const DISMISS_THRESHOLD_PX = 120;
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartYRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setDragOffset(0);
+      setIsDragging(false);
+      dragStartYRef.current = null;
+    }
+  }, [open]);
+
+  const handleGrabPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    dragStartYRef.current = event.clientY;
+    setIsDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleGrabPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (dragStartYRef.current === null) return;
+    const delta = event.clientY - dragStartYRef.current;
+    setDragOffset(Math.max(0, delta));
+  };
+
+  const endGrabDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (dragStartYRef.current === null) return;
+    const delta = event.clientY - dragStartYRef.current;
+    dragStartYRef.current = null;
+    setIsDragging(false);
+    if (delta > DISMISS_THRESHOLD_PX) {
+      onClose();
+    } else {
+      setDragOffset(0);
+    }
+  };
 
   // Esc chiude il pannello: su tablet con tastiera è il gesto atteso.
   useEffect(() => {
@@ -102,19 +142,31 @@ export function AdvancedSettingsSheet({
         aria-modal="true"
         aria-label="Impostazioni avanzate"
         className="relative max-h-[80%] overflow-y-auto rounded-t-3xl border-t border-white/10 bg-neutral-950 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 text-white"
+        style={{
+          transform: dragOffset ? `translateY(${dragOffset}px)` : undefined,
+          transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+        }}
       >
-        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/25" />
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold">Impostazioni avanzate</h2>
-          <button
-            ref={closeButtonRef}
-            type="button"
-            onClick={onClose}
-            aria-label="Chiudi"
-            className="rounded-full bg-white/10 p-2 hover:bg-white/20"
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
+        <div
+          onPointerDown={handleGrabPointerDown}
+          onPointerMove={handleGrabPointerMove}
+          onPointerUp={endGrabDrag}
+          onPointerCancel={endGrabDrag}
+          style={{ touchAction: 'none' }}
+        >
+          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/25" />
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-base font-semibold">Impostazioni avanzate</h2>
+            <button
+              ref={closeButtonRef}
+              type="button"
+              onClick={onClose}
+              aria-label="Chiudi"
+              className="rounded-full bg-white/10 p-2 hover:bg-white/20"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
         </div>
 
         <div className="space-y-4">
@@ -129,6 +181,7 @@ export function AdvancedSettingsSheet({
                 aria-label="Scegli microfono"
                 className="mt-2 h-11 w-full rounded-xl border border-white/15 bg-neutral-900 px-3 text-sm"
               >
+                <option value="default">Predefinito</option>
                 {state.audioInputs.map((device, index) => (
                   <option key={device.deviceId} value={device.deviceId}>
                     {device.label || `Microfono ${index + 1}`}
@@ -149,6 +202,7 @@ export function AdvancedSettingsSheet({
                 aria-label="Scegli camera"
                 className="mt-2 h-11 w-full rounded-xl border border-white/15 bg-neutral-900 px-3 text-sm"
               >
+                <option value="default">Predefinito</option>
                 {state.videoInputs.map((device, index) => (
                   <option key={device.deviceId} value={device.deviceId}>
                     {device.label || `Camera ${index + 1}`}

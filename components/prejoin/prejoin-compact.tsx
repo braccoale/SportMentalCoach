@@ -45,12 +45,17 @@ export function PreJoinCompact({
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [isRearCamera, setIsRearCamera] = useState(false);
   const track = state.userChoices.videoEnabled ? state.videoTrack : undefined;
 
   useEffect(() => {
     const element = videoRef.current;
     if (!element || !track) return;
     track.attach(element);
+    // La fotocamera posteriore non va specchiata: farlo renderebbe illeggibile
+    // qualunque testo inquadrato. `facingMode` manca sulla maggior parte delle
+    // webcam desktop, che restano specchiate come oggi.
+    setIsRearCamera(track.mediaStreamTrack.getSettings().facingMode === 'environment');
     return () => {
       track.detach(element);
     };
@@ -69,12 +74,14 @@ export function PreJoinCompact({
           autoPlay
           muted
           playsInline
-          className="absolute inset-0 h-full w-full -scale-x-100 object-cover"
+          className={`absolute inset-0 h-full w-full object-cover ${
+            isRearCamera ? '' : '-scale-x-100'
+          }`}
         />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center bg-neutral-900">
           <span className="flex h-24 w-24 items-center justify-center rounded-full bg-white/10 text-3xl font-semibold">
-            {initials(state.userChoices.username)}
+            {initials(state.participantName)}
           </span>
         </div>
       )}

@@ -33,6 +33,33 @@ function detectIosSafari(): boolean {
   return isWebkit && isIos;
 }
 
+/**
+ * Safari desktop non implementa la PiP standard ma espone
+ * `HTMLVideoElement.prototype.webkitSetPresentationMode`. Questa logica
+ * rispecchia esattamente quella di `PictureInPictureControl` in
+ * `components/livekit-call-extras.tsx`, l'unico altro punto che decide se il
+ * comando va mostrato.
+ */
+type PictureInPictureVideoPrototype = {
+  webkitSetPresentationMode?: (mode: string) => void;
+};
+
+function standardPictureInPictureSupported(): boolean {
+  return (
+    typeof document !== 'undefined' &&
+    'pictureInPictureEnabled' in document &&
+    Boolean(document.pictureInPictureEnabled)
+  );
+}
+
+function detectPictureInPictureSupport(): boolean {
+  if (standardPictureInPictureSupported()) return true;
+  if (typeof HTMLVideoElement === 'undefined') return false;
+  const prototype =
+    HTMLVideoElement.prototype as PictureInPictureVideoPrototype;
+  return typeof prototype.webkitSetPresentationMode === 'function';
+}
+
 export function readCallCapabilities(): CallCapabilities {
   if (typeof window === 'undefined') return UNKNOWN;
 
@@ -47,9 +74,7 @@ export function readCallCapabilities(): CallCapabilities {
     audioOutputSelection:
       typeof HTMLMediaElement !== 'undefined' &&
       'setSinkId' in HTMLMediaElement.prototype,
-    pictureInPicture:
-      'pictureInPictureEnabled' in document &&
-      Boolean(document.pictureInPictureEnabled),
+    pictureInPicture: detectPictureInPictureSupport(),
     backgroundProcessors,
     fullscreen:
       typeof HTMLElement.prototype.requestFullscreen === 'function' ||

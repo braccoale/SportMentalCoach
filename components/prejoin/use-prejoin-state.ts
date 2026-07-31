@@ -132,6 +132,12 @@ export type PreJoinStateOptions = {
 };
 
 export type PreJoinState = {
+  /**
+   * Nome del partecipante deciso dall'app, non quello di `userChoices`: quel
+   * campo viene fuso da LiveKit con un valore rimasto in `localStorage`, che
+   * su un dispositivo condiviso può appartenere a un'altra persona.
+   */
+  participantName: string;
   userChoices: LocalUserChoices;
   saveAudioInputEnabled: (value: boolean) => void;
   saveVideoInputEnabled: (value: boolean) => void;
@@ -317,7 +323,7 @@ export function usePreJoinState({
   ) as LocalVideoTrack | undefined;
 
   useEffect(() => {
-    if ((!audioTrack && !videoTrack) || !navigator.mediaDevices) return;
+    if (!navigator.mediaDevices) return;
     let active = true;
     const refresh = async () => {
       const devices = await navigator.mediaDevices.enumerateDevices();
@@ -371,6 +377,7 @@ export function usePreJoinState({
   }, [saveVideoInputDeviceId, userChoices.videoDeviceId, videoInputs]);
 
   return {
+    participantName,
     userChoices,
     saveAudioInputEnabled,
     saveVideoInputEnabled,
