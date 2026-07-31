@@ -472,7 +472,16 @@ async function startRecording(params: {
     params.enforceCoach, executor
   );
   const config = storageConfiguration();
-  await ensureAudioBucketPrivate(config).catch(() => {
+  await ensureAudioBucketPrivate(config).catch((error: unknown) => {
+    // Il messaggio all'utente resta generico, ma la causa va nei log: senza,
+    // un rifiuto specifico di Supabase (per esempio un limite di dimensione
+    // superiore al tetto del progetto) diventa indistinguibile da una chiave
+    // sbagliata o da un bucket pubblico, e si indaga alla cieca.
+    console.error(
+      '[ai-notes] preparazione bucket audio fallita',
+      { bucket: config.bucket, maxBytes: config.maxBytes },
+      error
+    );
     throw new AiNotesDomainError(
       'STORAGE_NOT_CONFIGURED',
       'Il bucket audio privato non è disponibile.'
