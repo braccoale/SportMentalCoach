@@ -9,8 +9,8 @@ import {
   validateAvailabilitySchedule,
 } from './validation';
 
-test('appointment start times use quarter-hour intervals', () => {
-  assert.equal(BOOKING_START_STEP_MINUTES, 15);
+test('appointment start times use ten-minute intervals', () => {
+  assert.equal(BOOKING_START_STEP_MINUTES, 10);
 });
 
 test('appointment starts that overlap an occupied session are unavailable', () => {

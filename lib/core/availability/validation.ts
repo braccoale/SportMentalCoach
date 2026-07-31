@@ -13,7 +13,7 @@ export type BusyInterval = {
 
 export const MAX_AVAILABILITY_SLOTS = 50;
 /** Interval between selectable appointment start times across every booking flow. */
-export const BOOKING_START_STEP_MINUTES = 15;
+export const BOOKING_START_STEP_MINUTES = 10;
 
 const WEEKDAY_INDEX: Record<string, number> = {
   Sun: 0,
