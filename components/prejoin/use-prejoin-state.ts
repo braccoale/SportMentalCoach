@@ -131,6 +131,9 @@ export type PreJoinStateOptions = {
   onJoin: (choices: KaiPaiCallChoices) => void;
 };
 
+/** Lato del telefono da cui riprendere: frontale o posteriore. */
+export type VideoFacingMode = 'user' | 'environment';
+
 export type PreJoinState = {
   /**
    * Nome del partecipante deciso dall'app, non quello di `userChoices`: quel
@@ -159,6 +162,11 @@ export type PreJoinState = {
   runNetworkDiagnostic: () => Promise<void>;
   join: () => void;
   flipCamera: () => void;
+  /**
+   * Lato del dispositivo richiesto per la camera, oppure `null` se non è mai
+   * stato scelto (caso desktop, dove vale la selezione per dispositivo).
+   */
+  videoFacingMode: VideoFacingMode | null;
 };
 
 export function usePreJoinState({
@@ -182,6 +190,8 @@ export function usePreJoinState({
     'idle' | 'playing' | 'success' | 'error'
   >('idle');
   const [audioOutputDeviceId, setAudioOutputDeviceId] = useState('default');
+  const [videoFacingMode, setVideoFacingMode] =
+    useState<VideoFacingMode | null>(null);
   const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([]);
   const [videoInputs, setVideoInputs] = useState<MediaDeviceInfo[]>([]);
   const [audioOutputs, setAudioOutputs] = useState<MediaDeviceInfo[]>([]);
@@ -298,10 +308,15 @@ export function usePreJoinState({
             deviceId: userChoices.audioDeviceId,
           }
         : false,
+      // Appena l'utente sceglie un lato del telefono si smette di chiedere un
+      // dispositivo per identificativo: sui browser mobili `deviceId` è una
+      // preferenza che il browser può ignorare — e lo fa — restituendo
+      // comunque la camera predefinita. `facingMode` è la domanda che
+      // rispettano.
       video: userChoices.videoEnabled
-        ? {
-            deviceId: userChoices.videoDeviceId,
-          }
+        ? videoFacingMode
+          ? { facingMode: videoFacingMode }
+          : { deviceId: userChoices.videoDeviceId }
         : false,
     }),
     [
@@ -309,6 +324,7 @@ export function usePreJoinState({
       userChoices.audioEnabled,
       userChoices.videoDeviceId,
       userChoices.videoEnabled,
+      videoFacingMode,
     ]
   );
   const previewTracks = usePreviewTracks(
@@ -361,20 +377,24 @@ export function usePreJoinState({
       ...userChoices,
       username: participantName,
       audioOutputDeviceId,
+      // Senza questo, chi inverte la camera nel pre-join entrerebbe comunque
+      // in chiamata con la frontale: la stanza ricrea le tracce per conto suo.
+      videoFacingMode: videoFacingMode ?? undefined,
     });
-  }, [audioOutputDeviceId, onJoin, participantName, userChoices]);
+  }, [
+    audioOutputDeviceId,
+    onJoin,
+    participantName,
+    userChoices,
+    videoFacingMode,
+  ]);
 
   const flipCamera = useCallback(() => {
-    if (videoInputs.length < 2) return;
-    const current = videoInputs.findIndex(
-      (device) => device.deviceId === userChoices.videoDeviceId
+    // Alla prima pressione si passa alla posteriore; poi si alterna.
+    setVideoFacingMode((current) =>
+      current === 'environment' ? 'user' : 'environment'
     );
-    // When the active device can't be identified (browser default in use),
-    // jump to the second device rather than recomputing the first.
-    const nextIndex = current === -1 ? 1 % videoInputs.length : (current + 1) % videoInputs.length;
-    const next = videoInputs[nextIndex];
-    if (next) saveVideoInputDeviceId(next.deviceId);
-  }, [saveVideoInputDeviceId, userChoices.videoDeviceId, videoInputs]);
+  }, []);
 
   return {
     participantName,
@@ -397,6 +417,7 @@ export function usePreJoinState({
     networkState,
     networkResult,
     runNetworkDiagnostic,
+    videoFacingMode,
     join,
     flipCamera,
   };

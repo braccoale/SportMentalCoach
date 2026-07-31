@@ -51,6 +51,12 @@ const KRISP_STORAGE_KEY = 'kaipai-livekit-krisp-enabled';
 
 export type KaiPaiCallChoices = LocalUserChoices & {
   audioOutputDeviceId: string;
+  /**
+   * Lato del telefono scelto nel pre-join. Quando è presente prevale su
+   * `videoDeviceId`: sui browser mobili l'identificativo del dispositivo è una
+   * preferenza ignorabile, il lato no.
+   */
+  videoFacingMode?: 'user' | 'environment';
 };
 
 export function KaiPaiPreJoin({

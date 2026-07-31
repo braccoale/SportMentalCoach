@@ -69,11 +69,13 @@ function ConnectedGuestVideoRoom({
           ...KAIPAI_AUDIO_CAPTURE_DEFAULTS,
           deviceId: choices.audioDeviceId,
         },
-        videoCaptureDefaults: {
-          deviceId: choices.videoDeviceId,
-        },
+        // Se nel pre-join è stato scelto un lato del telefono, quello comanda:
+        // su mobile il vincolo per identificativo viene ignorato dal browser.
+        videoCaptureDefaults: choices.videoFacingMode
+          ? { facingMode: choices.videoFacingMode }
+          : { deviceId: choices.videoDeviceId },
       }),
-    [choices.audioDeviceId, choices.videoDeviceId]
+    [choices.audioDeviceId, choices.videoDeviceId, choices.videoFacingMode]
   );
   const { isReconnecting, handleRoomError } =
     useLiveKitRoomResilience(room);
