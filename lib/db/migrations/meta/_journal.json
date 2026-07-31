@@ -190,6 +190,69 @@
       "when": 1785100000000,
       "tag": "0026_message-reactions",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1785248652213,
+      "tag": "0027_appointment-notification-types",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1785312000000,
+      "tag": "0028_video-session-technical-events",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1785409200000,
+      "tag": "0029_ai-session-notes-phase-1",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1785412800000,
+      "tag": "0030_ai-session-notes-rls-policy-helpers",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1785416400000,
+      "tag": "0031_ai-session-notes-client-grants-hardening",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1785502800000,
+      "tag": "0032_ai-session-notes-phase-2a",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1785589200000,
+      "tag": "0033_ai-session-notes-phase-2b",
+      "breakpoints": true
+    }
+    ,{
+      "idx": 34,
+      "version": "7",
+      "when": 1785675600000,
+      "tag": "0034_ai-session-notes-phase-3a",
+      "breakpoints": true
+    }
+    ,{
+      "idx": 35,
+      "version": "7",
+      "when": 1785762000000,
+      "tag": "0035_ai-session-notes-phase-3b",
+      "breakpoints": true
     }
   ]
 }

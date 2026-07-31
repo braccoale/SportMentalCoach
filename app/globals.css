@@ -543,3 +543,17 @@
 [data-lk-theme] .lk-chat {
   min-width: min(320px, 80vw);
 }
+
+/* LiveKit defaults this modal to at least 50vw. Keep the device settings
+   intentionally compact while preserving a safe mobile gutter. */
+[data-lk-theme] .lk-settings-menu-modal {
+  width: min(22rem, calc(100vw - 1.5rem));
+  min-width: 0;
+  min-height: 0;
+  max-height: calc(100dvh - 1.5rem);
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}

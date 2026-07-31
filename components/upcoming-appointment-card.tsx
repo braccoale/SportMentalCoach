@@ -1,5 +1,6 @@
 'use client';
 
+import { ShareButton } from '@/components/share-button';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import {
@@ -43,12 +44,14 @@ export function UpcomingAppointmentCard({
   primaryActions,
   overflowActions,
   detailContent,
+  isCoachView,
   className,
 }: {
   data: UpcomingAppointmentData;
   primaryActions?: ReactNode;
   overflowActions?: ReactNode;
   detailContent?: ReactNode;
+  isCoachView?: boolean;
   className?: string;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -143,6 +146,8 @@ export function UpcomingAppointmentCard({
         {primaryActions && (
           <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-3">
             {primaryActions}
+            {/* Aggiunto il pulsante di condivisione, visibile solo per il coach */}
+            {isCoachView && <ShareButton bookingId={data.id} />}
           </div>
         )}
 

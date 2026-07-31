@@ -69,3 +69,26 @@ export function canJoinVideoNow(
     scheduledFor.getTime() - VIDEO_JOIN_LEAD_MINUTES * 60 * 1000;
   return now.getTime() >= earliestJoin;
 }
+
+/**
+ * Returns the next instant at which `canJoinVideoNow` may change for a
+ * scheduled session. Client controls use this to update exactly when the
+ * five-minute lead window opens (and when the grace window closes) without
+ * polling or requiring a page refresh.
+ */
+export function nextVideoJoinAvailabilityChange(
+  scheduledFor: Date | null,
+  now: Date = new Date()
+): Date | null {
+  if (!scheduledFor) return null;
+
+  const earliestJoin =
+    scheduledFor.getTime() - VIDEO_JOIN_LEAD_MINUTES * 60 * 1000;
+  if (now.getTime() < earliestJoin) return new Date(earliestJoin);
+
+  const latestJoin =
+    scheduledFor.getTime() + SESSION_JOIN_GRACE_MINUTES * 60 * 1000;
+  if (now.getTime() <= latestJoin) return new Date(latestJoin + 1);
+
+  return null;
+}

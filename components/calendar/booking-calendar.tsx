@@ -6,14 +6,14 @@ import {
   ChevronLeft,
   ChevronRight,
   MessageSquare,
-  Video,
   X,
   CalendarDays,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
+import { VideoCallButton } from '@/components/video-call-button';
 import { cn } from '@/lib/utils';
-import { isSessionJoinable, canJoinVideoNow } from '@/lib/core/sessions';
+import { canJoinVideoNow, isSessionJoinable } from '@/lib/core/sessions';
 import type { ActionState } from '@/lib/auth/middleware';
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -660,26 +660,13 @@ function EventDrawer({
                   <MessageSquare className="h-4 w-4" />
                   Apri chat
                 </Link>
-                {canJoinVideoNow(event.when) ? (
-                  <Link
-                    href={`/dashboard/video/${event.id}`}
-                    className="flex items-center justify-center gap-2 rounded-full bg-green-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-green-700"
-                  >
-                    <Video className="h-4 w-4" />
-                    Videochiamata
-                  </Link>
-                ) : (
-                  <span title="Videochiamata disponibile 5 min prima">
-                    <button
-                      type="button"
-                      disabled
-                      className="flex w-full items-center justify-center gap-2 rounded-full bg-kp-line px-4 py-2.5 text-sm font-medium text-kp-low"
-                    >
-                      <Video className="h-4 w-4" />
-                      Videochiamata
-                    </button>
-                  </span>
-                )}
+                <VideoCallButton
+                  bookingId={event.id}
+                  enabled={canJoinVideoNow(event.when)}
+                  scheduledFor={event.when?.toISOString() ?? null}
+                  variant="calendar"
+                  label="Videochiamata"
+                />
               </div>
             ) : (
               <p className="text-xs text-kp-low">

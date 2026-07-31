@@ -1,95 +1,114 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  Copy,
-  Link as LinkIcon,
-  Loader2,
-  Mail,
-  Share2,
-  UserPlus,
-} from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { createGuestInviteLink } from '@/app/(dashboard)/dashboard/video/actions';
+import { Check, Loader2, Share2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { createGuestInviteLink } from '@/components/actions';
 
-export function ShareButton({ bookingId }: { bookingId: number }) {
-  const [loading, setLoading] = useState(false);
-  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+async function copyText(value: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+  const textarea = document.createElement('textarea');
+  textarea.value = value;
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  document.body.removeChild(textarea);
+}
 
-  async function generateLink() {
-    setLoading(true);
-    setInviteUrl(null);
-    setCopied(false);
+export function ShareButton({
+  bookingId,
+  appearance = 'standard',
+}: {
+  bookingId: number;
+  appearance?: 'standard' | 'room';
+}) {
+  const [pending, setPending] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const inRoom = appearance === 'room';
+
+  async function shareCall() {
+    setPending(true);
+    setMessage(null);
+    setError(null);
     try {
       const result = await createGuestInviteLink(bookingId);
-      if (result.ok) {
-        setInviteUrl(result.url);
-      } else {
-        alert(result.error);
+      if (!result.ok) {
+        setError(result.error);
+        return;
       }
+
+      const shareData = {
+        title: 'Invito alla videochiamata KaiPai',
+        text: 'Puoi partecipare come ospite alla videochiamata KaiPai da questo link riservato.',
+        url: result.url,
+      };
+      if (navigator.share) {
+        try {
+          await navigator.share(shareData);
+          setMessage('Invito condiviso.');
+        } catch (shareError) {
+          if (
+            shareError instanceof DOMException &&
+            shareError.name === 'AbortError'
+          ) {
+            return;
+          }
+          await copyText(result.url);
+          setMessage('Link copiato.');
+        }
+      } else {
+        await copyText(result.url);
+        setMessage('Link copiato.');
+      }
+    } catch {
+      setError('Non è stato possibile creare il link. Riprova.');
     } finally {
-      setLoading(false);
+      setPending(false);
     }
   }
 
-  function copyToClipboard() {
-    if (!inviteUrl) return;
-    navigator.clipboard.writeText(inviteUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  const whatsAppUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(
-    `Ciao, puoi unirti alla videochiamata da questo link: ${inviteUrl}`
-  )}`;
-
-  const mailUrl = `mailto:?subject=${encodeURIComponent(
-    'Invito alla videochiamata'
-  )}&body=${encodeURIComponent(
-    `Ciao, puoi unirti alla videochiamata da questo link:\n\n${inviteUrl}`
-  )}`;
-
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/20">
-        <UserPlus className="h-4 w-4" />
-        Invita
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="flex flex-col gap-1 p-2">
-        {!inviteUrl && (
-          <DropdownMenuItem onClick={generateLink} disabled={loading}>
-            {loading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <LinkIcon className="mr-2 h-4 w-4" />
-            )}
-            Genera link d'invito
-          </DropdownMenuItem>
+    <div
+      className={`flex min-w-0 flex-col items-start gap-1 ${
+        inRoom ? 'shrink-0' : ''
+      }`}
+    >
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => void shareCall()}
+        disabled={pending}
+        className={`rounded-full ${
+          inRoom
+            ? 'border-white/30 bg-white/10 text-white shadow-none hover:bg-white/20 hover:text-white'
+            : ''
+        }`}
+      >
+        {pending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : message ? (
+          <Check className="h-4 w-4 text-green-700" />
+        ) : (
+          <Share2 className="h-4 w-4" />
         )}
-        {inviteUrl && (
-          <>
-            <DropdownMenuItem onClick={copyToClipboard}>
-              <Copy className="mr-2 h-4 w-4" /> {copied ? 'Copiato!' : 'Copia link'}
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <a href={whatsAppUrl} target="_blank" rel="noopener noreferrer">
-                <Share2 className="mr-2 h-4 w-4" /> Condividi su WhatsApp
-              </a>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <a href={mailUrl}>
-                <Mail className="mr-2 h-4 w-4" /> Invia via email
-              </a>
-            </DropdownMenuItem>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+        {pending ? 'Creazione link…' : message ?? 'Condividi chiamata'}
+      </Button>
+      {error && (
+        <span
+          className={`max-w-64 text-xs font-medium ${
+            inRoom ? 'text-red-300' : 'text-red-600'
+          }`}
+          role="alert"
+        >
+          {error}
+        </span>
+      )}
+    </div>
   );
 }

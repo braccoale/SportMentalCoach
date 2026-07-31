@@ -33,7 +33,11 @@ type Data = {
   items: Item[];
 };
 
-export function NotificationBell() {
+export function NotificationBell({
+  appearance = 'dark',
+}: {
+  appearance?: 'dark' | 'light';
+} = {}) {
   const { data, mutate } = useSWR<Data>('/api/notifications', fetcher, {
     refreshInterval: 30000,
   });
@@ -62,7 +66,13 @@ export function NotificationBell() {
 
   return (
     <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-      <DropdownMenuTrigger className="relative rounded-full p-1.5 text-gray-300 hover:bg-white/10 hover:text-white">
+      <DropdownMenuTrigger
+        className={`relative rounded-full p-1.5 ${
+          appearance === 'light'
+            ? 'text-gray-600 hover:bg-gray-100 hover:text-gray-950'
+            : 'text-gray-300 hover:bg-white/10 hover:text-white'
+        }`}
+      >
         <Bell className="h-5 w-5" />
         {unread > 0 && (
           <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">

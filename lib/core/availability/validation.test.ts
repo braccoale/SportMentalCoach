@@ -1,11 +1,56 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  BOOKING_START_STEP_MINUTES,
+  appointmentIntervalsOverlap,
   isScheduledDateWithinSlot,
   romeWeekdayAndMinute,
   timeValueToMinutes,
   validateAvailabilitySchedule,
 } from './validation';
+
+test('appointment start times use quarter-hour intervals', () => {
+  assert.equal(BOOKING_START_STEP_MINUTES, 15);
+});
+
+test('appointment starts that overlap an occupied session are unavailable', () => {
+  const busy = {
+    scheduledFor: new Date('2026-07-28T08:00:00.000Z'),
+    durationMin: 40,
+  };
+  assert.equal(
+    appointmentIntervalsOverlap(
+      new Date('2026-07-28T07:15:00.000Z'),
+      40,
+      busy
+    ),
+    false
+  );
+  assert.equal(
+    appointmentIntervalsOverlap(
+      new Date('2026-07-28T07:30:00.000Z'),
+      40,
+      busy
+    ),
+    true
+  );
+  assert.equal(
+    appointmentIntervalsOverlap(
+      new Date('2026-07-28T08:30:00.000Z'),
+      15,
+      busy
+    ),
+    true
+  );
+  assert.equal(
+    appointmentIntervalsOverlap(
+      new Date('2026-07-28T08:40:00.000Z'),
+      40,
+      busy
+    ),
+    false
+  );
+});
 
 test('accepts multiple days and non-overlapping ranges on the same day', () => {
   const result = validateAvailabilitySchedule([

@@ -171,7 +171,12 @@ export async function getCoachBySlug(slug: string): Promise<CoachDetail | null> 
 
 // --- Discovery (matching) ---------------------------------------------------
 
-export type DiscoverySort = 'recommended' | 'rating' | 'price' | 'experience';
+export type DiscoverySort =
+  | 'activity'
+  | 'recommended'
+  | 'rating'
+  | 'price'
+  | 'experience';
 
 export type DiscoveryFilters = {
   sport?: string;
@@ -329,12 +334,21 @@ export async function getCoachDiscovery(
     };
   });
 
-  const sort = filters.sort ?? 'recommended';
+  const sort = filters.sort ?? 'activity';
   scored.sort((a, b) => {
-    // A user's own favourites always float to the top, regardless of sort —
-    // "your" coaches shouldn't hide behind whatever ranking is active.
-    if (a.isFavorite !== b.isFavorite) return a.isFavorite ? -1 : 1;
+    // Favourites float to the top for the subjective ranking options.
+    // The activity order is the exception: it stays objective for every visitor.
+    if (sort !== 'activity' && a.isFavorite !== b.isFavorite) {
+      return a.isFavorite ? -1 : 1;
+    }
     switch (sort) {
+      case 'activity':
+        return (
+          b.totalMinutes - a.totalMinutes ||
+          b.athletesCount - a.athletesCount ||
+          b._score - a._score ||
+          (a.displayName ?? '').localeCompare(b.displayName ?? '', 'it')
+        );
       case 'rating':
         return (
           (b.rating.average ?? -1) - (a.rating.average ?? -1) ||

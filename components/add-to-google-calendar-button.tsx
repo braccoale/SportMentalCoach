@@ -117,7 +117,7 @@ export function AddToGoogleCalendarButton({
         onClick={handleClick}
         className={cn(
           'rounded-full',
-          compact ? 'w-full sm:w-auto' : 'w-full sm:w-auto'
+          compact ? 'w-auto' : 'w-full sm:w-auto'
         )}
         aria-label="Aggiungi a Google Calendar"
       >

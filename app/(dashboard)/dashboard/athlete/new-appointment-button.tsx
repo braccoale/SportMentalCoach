@@ -9,6 +9,10 @@ import { ActionForm } from '@/components/action-form';
 import type { RelationshipCoach } from '@/lib/core/bookings';
 import { createBookingRequestAction } from './actions';
 
+function firstFreeTime(day?: RelationshipCoach['bookableDays'][number]): string {
+  return day?.times.find((time) => !day.busyTimes.includes(time)) ?? '';
+}
+
 /**
  * "Nuovo appuntamento" quick-rebook. Scoped on purpose: the coach dropdown only
  * lists coaches the athlete already knows (booked before / favourited), so this
@@ -44,7 +48,7 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
   function resetWhenFor(coachSlug: string) {
     const first = coaches.find((c) => c.slug === coachSlug)?.bookableDays[0];
     setDay(first?.value ?? '');
-    setTime(first?.times[0] ?? '');
+    setTime(firstFreeTime(first));
   }
 
   function openDialog() {
@@ -181,7 +185,9 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                           const nextDay = e.target.value;
                           setDay(nextDay);
                           setTime(
-                            days.find((d) => d.value === nextDay)?.times[0] ?? ''
+                            firstFreeTime(
+                              days.find((d) => d.value === nextDay)
+                            )
                           );
                         }}
                         className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
@@ -198,13 +204,29 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                       <select
                         value={time}
                         onChange={(e) => setTime(e.target.value)}
+                        required
                         className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
                       >
-                        {selectedDay?.times.map((t) => (
-                          <option key={t} value={t}>
-                            {t}
+                        {!time && (
+                          <option value="" disabled>
+                            Nessun orario libero
                           </option>
-                        ))}
+                        )}
+                        {selectedDay?.times.map((t) => {
+                          const busy = selectedDay.busyTimes.includes(t);
+                          return (
+                            <option
+                              key={t}
+                              value={t}
+                              disabled={busy}
+                              className={busy ? 'text-red-600' : undefined}
+                              style={busy ? { color: '#dc2626' } : undefined}
+                            >
+                              {t}
+                              {busy ? ' · Occupato' : ''}
+                            </option>
+                          );
+                        })}
                       </select>
                     </label>
                   </div>
@@ -245,7 +267,11 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                 </Button>
                 <Button
                   type="submit"
-                  disabled={!selected || selected.services.length === 0}
+                  disabled={
+                    !selected ||
+                    selected.services.length === 0 ||
+                    (days.length > 0 && !scheduledFor)
+                  }
                   className="rounded-full bg-green-600 text-white hover:bg-green-700"
                 >
                   Invia richiesta

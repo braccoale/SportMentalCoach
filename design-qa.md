@@ -108,3 +108,61 @@ La regione critica è il nuovo popup con giorno inizialmente vuoto, orari `00:00
 Nessuna raccomandazione P3 finché non è disponibile la cattura renderizzata.
 
 final result: blocked
+
+---
+
+# Design QA — Modifica appuntamento e gerarchia CTA
+
+- Source visual truth: screenshot fornito dall’utente della card “Appuntamento confermato”.
+- Implementation screenshot: non disponibile; il collegamento al browser integrato è stato bloccato dall’ambiente prima dell’apertura della pagina locale.
+- Viewport: riferimento desktop compatto, circa 620 × 500 px.
+- State: dettaglio di una sessione accettata e popup “Modifica appuntamento”.
+- Primary interactions: tooltip video, apertura popup e salvataggio verificati tramite codice, TypeScript, test e build; click-through autenticato non disponibile.
+- Console errors: non verificabili senza browser integrato.
+
+## Full-view comparison evidence
+
+La gerarchia della card è stata invertita come richiesto: “Apri videochiamata” è ora la CTA verde a tutta larghezza, mentre Google Calendar è un’azione secondaria compatta. Il resto della card conserva struttura, spaziatura e componenti KaiPai esistenti.
+
+## Focused region comparison evidence
+
+La nuova regione azioni comprende CTA video con tooltip, chat, modifica, calendario, annullamento e ritorno alla dashboard. Il popup di modifica riusa il linguaggio visivo dei popup KaiPai e presenta giorno, orario a intervalli di 15 minuti, slot occupati rossi e azioni Annulla/Salva modifica.
+
+## Findings
+
+- [P2] Confronto raster autenticato non eseguito.
+  - Location: `/dashboard/appointments/[id]` e card “Prossimi appuntamenti”.
+  - Evidence: screenshot sorgente disponibile; cattura implementazione assente per indisponibilità del browser integrato.
+  - Impact: wrapping e posizione esatta del tooltip non sono attestabili alle diverse larghezze.
+  - Fix: aprire una sessione accettata con account atleta e coach, catturare dettaglio, tooltip e popup su desktop e mobile.
+
+## Required fidelity surfaces
+
+- Fonts and typography: font e gerarchie esistenti conservati.
+- Spacing and layout rhythm: CTA principale separata dalle azioni secondarie; popup responsive.
+- Colors and visual tokens: verde KaiPai per video/salvataggio, rosso semantico per occupato/annulla.
+- Image quality and asset fidelity: nessuna nuova immagine; icone dalla libreria già adottata.
+- Copy and content: tooltip dei 5 minuti, “Modifica appuntamento”, slot “Occupato” e messaggi di errore presenti.
+
+## Comparison history
+
+- Iterazione 1: implementazione completata; 41 test, TypeScript e build superati; cattura browser bloccata dall’ambiente.
+
+## Implementation checklist
+
+- [x] Google Calendar reso secondario e compatto.
+- [x] “Apri videochiamata” reso CTA principale nel dettaglio.
+- [x] Tooltip accessibile sull’apertura video.
+- [x] Pulsante Modifica nel dettaglio.
+- [x] Pulsante Modifica nelle card “Prossimi appuntamenti”.
+- [x] Popup con giorno/orario e slot occupati.
+- [x] Controlli server su partecipazione, disponibilità e conflitti.
+- [x] Notifica all’altro partecipante dopo la modifica.
+- [x] Test automatici, TypeScript e build.
+- [ ] Confronto visivo autenticato desktop/mobile.
+
+## Follow-up polish
+
+Nessuna raccomandazione P3 prima della cattura autenticata.
+
+final result: blocked

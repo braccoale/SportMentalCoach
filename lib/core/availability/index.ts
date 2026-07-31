@@ -5,6 +5,7 @@ import {
   bookings,
   coachAvailability,
   providerProfiles,
+  services,
   type CoachAvailability,
 } from '@/lib/db/schema';
 import type { Result } from '@/lib/core/result';
@@ -14,11 +15,15 @@ import {
   formatMinutesOfDay,
 } from '@/lib/core/format';
 import {
+  BOOKING_START_STEP_MINUTES,
+  appointmentIntervalsOverlap,
   isScheduledDateWithinSlot,
   romeWeekdayAndMinute,
   validateAvailabilitySchedule,
   type AvailabilityInput,
+  type BusyInterval,
 } from './validation';
+import { DEFAULT_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
 
 export type { AvailabilityInput } from './validation';
 
@@ -26,6 +31,8 @@ export type AvailabilitySlot = Pick<
   CoachAvailability,
   'id' | 'weekday' | 'startMinute' | 'endMinute'
 >;
+
+export type CoachBusyInterval = BusyInterval;
 
 const slotColumns = {
   id: coachAvailability.id,
@@ -190,7 +197,8 @@ function romeOffsetMinutes(at: Date): number {
  */
 export function isWithinAvailability(
   slots: AvailabilitySlot[],
-  date: Date
+  date: Date,
+  durationMin = 1
 ): boolean {
   if (slots.length === 0) return true;
   const { weekday, minuteOfDay } = romeWeekdayAndMinute(date);
@@ -198,7 +206,7 @@ export function isWithinAvailability(
     (s) =>
       s.weekday === weekday &&
       minuteOfDay >= s.startMinute &&
-      minuteOfDay < s.endMinute
+      minuteOfDay + durationMin <= s.endMinute
   );
 }
 
@@ -209,7 +217,48 @@ export type BookableDay = {
   label: string;
   /** Selectable start times ("HH:mm"), only inside the coach's slots for that day. */
   times: string[];
+  /** Starts whose default-length session overlaps a requested/accepted one. */
+  busyTimes: string[];
 };
+
+/**
+ * Future requested/accepted sessions grouped by coach. Durations come from the
+ * coach-owned service and use the platform default only for legacy rows.
+ */
+export async function getCoachBusyIntervalsByProviderIds(
+  providerIds: number[]
+): Promise<Map<number, CoachBusyInterval[]>> {
+  if (providerIds.length === 0) return new Map();
+
+  const rows = await db
+    .select({
+      providerId: bookings.providerId,
+      scheduledFor: bookings.scheduledFor,
+      durationMin: services.durationMin,
+    })
+    .from(bookings)
+    .leftJoin(services, eq(services.id, bookings.serviceId))
+    .where(
+      and(
+        inArray(bookings.providerId, providerIds),
+        inArray(bookings.status, ['requested', 'accepted']),
+        sql`${bookings.scheduledFor} + coalesce(${services.durationMin}, ${DEFAULT_SERVICE_DURATION_MIN}) * interval '1 minute' > now()`
+      )
+    )
+    .orderBy(asc(bookings.scheduledFor));
+
+  const grouped = new Map<number, CoachBusyInterval[]>();
+  for (const row of rows) {
+    if (!row.scheduledFor) continue;
+    const list = grouped.get(row.providerId) ?? [];
+    list.push({
+      scheduledFor: row.scheduledFor,
+      durationMin: row.durationMin ?? DEFAULT_SERVICE_DURATION_MIN,
+    });
+    grouped.set(row.providerId, list);
+  }
+  return grouped;
+}
 
 /**
  * Concrete upcoming appointment options derived from the coach's weekly
@@ -220,12 +269,18 @@ export type BookableDay = {
  */
 export function getBookableDays(
   slots: Pick<AvailabilitySlot, 'weekday' | 'startMinute' | 'endMinute'>[],
-  opts: { daysAhead?: number; stepMinutes?: number; from?: Date } = {}
+  opts: {
+    daysAhead?: number;
+    stepMinutes?: number;
+    from?: Date;
+    busyIntervals?: CoachBusyInterval[];
+  } = {}
 ): BookableDay[] {
   if (slots.length === 0) return [];
   const daysAhead = opts.daysAhead ?? 21;
-  const step = opts.stepMinutes ?? 30;
+  const step = opts.stepMinutes ?? BOOKING_START_STEP_MINUTES;
   const from = opts.from ?? new Date();
+  const busyIntervals = opts.busyIntervals ?? [];
   const { minuteOfDay: nowMinute } =
     romeWeekdayAndMinute(from);
 
@@ -256,10 +311,25 @@ export function getBookableDays(
       day: 'numeric',
       month: 'short',
     }).format(d.at);
+    const value = `${d.year}-${d.month}-${d.day}`;
+    const uniqueTimes = [...new Set(times)];
+    const busyTimes = uniqueTimes.filter((time) => {
+      const candidate = parseRomeLocalDateTime(`${value}T${time}`);
+      if (!candidate) return false;
+      return busyIntervals.some((interval) =>
+        appointmentIntervalsOverlap(
+          candidate,
+          DEFAULT_SERVICE_DURATION_MIN,
+          interval
+        )
+      );
+    });
+
     days.push({
-      value: `${d.year}-${d.month}-${d.day}`,
+      value,
       label: label.charAt(0).toUpperCase() + label.slice(1),
-      times: [...new Set(times)],
+      times: uniqueTimes,
+      busyTimes,
     });
   }
   return days;

@@ -10,6 +10,10 @@ import type { RelationshipAthlete } from '@/lib/core/bookings';
 import type { BookableDay } from '@/lib/core/availability';
 import { createCoachBookingAction } from './actions';
 
+function firstFreeTime(day?: BookableDay): string {
+  return day?.times.find((time) => !day.busyTimes.includes(time)) ?? '';
+}
+
 /**
  * Coach-side "Nuovo appuntamento": lets the coach create an already-accepted
  * session directly with any registered athlete using one of the coach's
@@ -39,7 +43,7 @@ export function CoachNewAppointmentButton({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [day, setDay] = useState(bookableDays[0]?.value ?? '');
-  const [time, setTime] = useState(bookableDays[0]?.times[0] ?? '');
+  const [time, setTime] = useState(firstFreeTime(bookableDays[0]));
 
   const selectedDay = useMemo(
     () => bookableDays.find((d) => d.value === day),
@@ -53,7 +57,7 @@ export function CoachNewAppointmentButton({
   // sitting open doesn't start on a slot that has since passed.
   function openDialog() {
     setDay(bookableDays[0]?.value ?? '');
-    setTime(bookableDays[0]?.times[0] ?? '');
+    setTime(firstFreeTime(bookableDays[0]));
     setOpen(true);
   }
 
@@ -199,8 +203,9 @@ export function CoachNewAppointmentButton({
                           const nextDay = e.target.value;
                           setDay(nextDay);
                           setTime(
-                            bookableDays.find((d) => d.value === nextDay)
-                              ?.times[0] ?? ''
+                            firstFreeTime(
+                              bookableDays.find((d) => d.value === nextDay)
+                            )
                           );
                         }}
                         className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
@@ -217,13 +222,29 @@ export function CoachNewAppointmentButton({
                       <select
                         value={time}
                         onChange={(e) => setTime(e.target.value)}
+                        required
                         className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
                       >
-                        {selectedDay?.times.map((t) => (
-                          <option key={t} value={t}>
-                            {t}
+                        {!time && (
+                          <option value="" disabled>
+                            Nessun orario libero
                           </option>
-                        ))}
+                        )}
+                        {selectedDay?.times.map((t) => {
+                          const busy = selectedDay.busyTimes.includes(t);
+                          return (
+                            <option
+                              key={t}
+                              value={t}
+                              disabled={busy}
+                              className={busy ? 'text-red-600' : undefined}
+                              style={busy ? { color: '#dc2626' } : undefined}
+                            >
+                              {t}
+                              {busy ? ' · Occupato' : ''}
+                            </option>
+                          );
+                        })}
                       </select>
                     </label>
                   </div>
@@ -264,6 +285,7 @@ export function CoachNewAppointmentButton({
                 </Button>
                 <Button
                   type="submit"
+                  disabled={bookableDays.length > 0 && !scheduledFor}
                   className="rounded-full bg-green-600 text-white hover:bg-green-700"
                 >
                   Crea sessione

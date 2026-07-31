@@ -1,50 +1,52 @@
 'use server';
 
-import { AccessToken } from 'livekit-server-sdk';
-import { requireRole } from '@/lib/core/auth';
-import { getBookingById } from '@/lib/core/bookings';
-import { isVideoConfigured } from '@/lib/core/flags';
+import { getUser } from '@/lib/db/queries';
+import { getAppBaseUrl } from '@/lib/core/app-url';
+import { createGuestInviteToken } from '@/lib/core/video';
 
-const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY;
-const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET;
+type GuestLinkResult =
+  | { ok: true; url: string; expiresAt: string }
+  | { ok: false; error: string };
 
-type GuestLinkResult = {
-  ok: true;
-  url: string;
-};
-
-type ErrorResult = {
-  ok: false;
-  error: string;
-};
+const ERROR_BY_REASON = {
+  unauthorized: 'Sessione non trovata o non autorizzata.',
+  closed: 'Puoi invitare un ospite solo a una sessione confermata.',
+  past: 'Questa sessione è già trascorsa.',
+  not_configured: 'La funzione video non è configurata.',
+} as const;
 
 /**
- * Genera un link d'invito per un ospite a una sessione video.
- * Solo il coach della sessione può generare questo link.
+ * Generates a signed guest invitation for either booking participant.
+ * The shared URL never contains a LiveKit credential; the guest exchanges it
+ * for a short-lived room token only when the call window is open.
  */
 export async function createGuestInviteLink(
   bookingId: number
-): Promise<GuestLinkResult | ErrorResult> {
-  if (!isVideoConfigured()) {
-    return { ok: false, error: 'La funzione video non è configurata.' };
+): Promise<GuestLinkResult> {
+  const user = await getUser();
+  if (!user) return { ok: false, error: 'Accedi per condividere la chiamata.' };
+  if (!Number.isInteger(bookingId) || bookingId <= 0) {
+    return { ok: false, error: 'Sessione non valida.' };
   }
 
-  const user = await requireRole('coach');
-  const booking = await getBookingById(bookingId);
-
-  if (!booking || booking.providerId !== user.id) {
-    return { ok: false, error: 'Sessione non trovata o non autorizzata.' };
+  const baseUrl = getAppBaseUrl();
+  if (!baseUrl) {
+    return {
+      ok: false,
+      error: 'Indirizzo pubblico di KaiPai non configurato.',
+    };
   }
 
-  const roomName = `booking-${bookingId}`;
-  const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
-    identity: `guest-${crypto.randomUUID()}`,
-    ttl: '2h', // Il link scade dopo 2 ore
-  });
-  at.addGrant({ room: roomName, roomJoin: true, canPublish: true, canSubscribe: true });
+  const result = await createGuestInviteToken(bookingId, user.id);
+  if (!result.ok) {
+    return { ok: false, error: ERROR_BY_REASON[result.reason] };
+  }
 
-  const url = new URL('/video/join', process.env.BASE_URL);
-  url.searchParams.set('token', at.toJwt());
-
-  return { ok: true, url: url.toString() };
+  const url = new URL('/video/join', baseUrl);
+  url.searchParams.set('invite', result.token);
+  return {
+    ok: true,
+    url: url.toString(),
+    expiresAt: result.expiresAt.toISOString(),
+  };
 }

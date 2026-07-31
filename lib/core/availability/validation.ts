@@ -6,7 +6,14 @@ export type AvailabilityInput = {
   endMinute: number;
 };
 
+export type BusyInterval = {
+  scheduledFor: Date;
+  durationMin: number;
+};
+
 export const MAX_AVAILABILITY_SLOTS = 50;
+/** Interval between selectable appointment start times across every booking flow. */
+export const BOOKING_START_STEP_MINUTES = 15;
 
 const WEEKDAY_INDEX: Record<string, number> = {
   Sun: 0,
@@ -97,6 +104,29 @@ export function timeValueToMinutes(value: string): number | null {
   const minute = Number(match[2]);
   if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
   return hour * 60 + minute;
+}
+
+/** Whether a proposed appointment overlaps one existing open appointment. */
+export function appointmentIntervalsOverlap(
+  scheduledFor: Date,
+  durationMin: number,
+  busy: BusyInterval
+): boolean {
+  if (
+    Number.isNaN(scheduledFor.getTime()) ||
+    !Number.isInteger(durationMin) ||
+    durationMin <= 0 ||
+    Number.isNaN(busy.scheduledFor.getTime()) ||
+    !Number.isInteger(busy.durationMin) ||
+    busy.durationMin <= 0
+  ) {
+    return false;
+  }
+  const proposedStart = scheduledFor.getTime();
+  const proposedEnd = proposedStart + durationMin * 60_000;
+  const busyStart = busy.scheduledFor.getTime();
+  const busyEnd = busyStart + busy.durationMin * 60_000;
+  return proposedStart < busyEnd && proposedEnd > busyStart;
 }
 
 /** Reads weekday and minute-of-day in the platform timezone (Europe/Rome). */

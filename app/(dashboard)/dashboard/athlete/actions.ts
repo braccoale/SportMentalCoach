@@ -7,6 +7,7 @@ import { parseRomeLocalDateTime } from '@/lib/core/availability';
 import { updateClientProfile } from '@/lib/core/profiles';
 import { inviteGuardian } from '@/lib/core/guardians';
 import { LEGAL_CONTACT_EMAIL } from '@/lib/core/legal/processors';
+import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
 import type { ActionState } from '@/lib/auth/middleware';
 
 export async function cancelBookingAction(
@@ -17,7 +18,11 @@ export async function cancelBookingAction(
   const bookingId = Number(formData.get('bookingId'));
   if (!Number.isInteger(bookingId)) return { error: 'Prenotazione non valida.' };
 
-  const result = await cancelBooking({ bookingId, userId: user.id });
+  const dependencies = createProductionAiSessionNotesDependencies();
+  const result = await cancelBooking(
+    { bookingId, userId: user.id },
+    dependencies.liveKit
+  );
   if (!result.ok) return { error: result.error };
 
   revalidatePath('/dashboard/athlete');

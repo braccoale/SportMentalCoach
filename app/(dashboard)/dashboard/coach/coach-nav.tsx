@@ -36,7 +36,6 @@ export function CoachNav({
 
   return (
     <div className="relative border-b border-gray-200">
-      {/* Coach badge — decorative, hangs on the right of the header */}
       <CoachBadge
         name={coachName}
         className="pointer-events-none absolute -top-1 right-10 z-10 hidden md:block"

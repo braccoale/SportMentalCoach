@@ -4,6 +4,7 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import { UserMenu } from '@/components/user-menu';
+import { NotificationBell } from '@/components/notification-bell';
 import { fetcher } from '@/lib/fetcher';
 
 type SessionUser = {
@@ -24,6 +25,7 @@ export function MarketplaceAuthNav() {
   if (user) {
     return (
       <div className="flex items-center gap-2.5">
+        <NotificationBell appearance="light" />
         <Link
           href="/dashboard"
           className="hidden text-sm font-medium text-gray-700 transition-colors hover:text-gray-900 sm:inline"

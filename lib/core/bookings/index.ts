@@ -7,12 +7,15 @@ import {
   eq,
   gt,
   inArray,
+  isNotNull,
   isNull,
+  lt,
   lte,
+  ne,
   or,
   sql,
 } from 'drizzle-orm';
-import { db } from '@/lib/db/drizzle';
+import { db, type DbOrTx } from '@/lib/db/drizzle';
 import {
   bookings,
   clientProfiles,
@@ -28,6 +31,8 @@ import {
 import { getVerticalConfig, t } from '@/lib/core/config';
 import { resolveDisplayName } from '@/lib/core/format';
 import { notify } from '@/lib/core/notifications';
+import { stopBookingAiNotesRecordings } from '@/lib/core/ai-session-notes/recording';
+import type { LiveKitSessionControl } from '@/lib/core/ai-session-notes/livekit-session-control';
 import {
   REQUEST_RESPONSE_WINDOW_HOURS,
   isSessionJoinable,
@@ -37,6 +42,7 @@ import {
   isWithinAvailability,
   describeAvailability,
   getBookableDays,
+  getCoachBusyIntervalsByProviderIds,
   type BookableDay,
 } from '@/lib/core/availability';
 import {
@@ -45,7 +51,41 @@ import {
   requiresGuardian,
 } from '@/lib/core/guardians';
 import type { Result } from '@/lib/core/result';
-import { MAX_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
+import {
+  DEFAULT_SERVICE_DURATION_MIN,
+  MAX_SERVICE_DURATION_MIN,
+} from '@/lib/core/services/validation';
+import { bookingEndsAfter } from './conflict-query';
+
+async function hasOpenBookingConflict(
+  exec: DbOrTx,
+  providerId: number,
+  scheduledFor: Date,
+  durationMin: number,
+  excludeBookingId?: number
+): Promise<boolean> {
+  const proposedEnd = new Date(
+    scheduledFor.getTime() + durationMin * 60_000
+  );
+  const [conflict] = await exec
+    .select({ id: bookings.id })
+    .from(bookings)
+    .leftJoin(services, eq(bookings.serviceId, services.id))
+    .where(
+      and(
+        eq(bookings.providerId, providerId),
+        excludeBookingId
+          ? ne(bookings.id, excludeBookingId)
+          : sql`true`,
+        inArray(bookings.status, ['requested', 'accepted']),
+        isNotNull(bookings.scheduledFor),
+        lt(bookings.scheduledFor, proposedEnd),
+        bookingEndsAfter(scheduledFor)
+      )
+    )
+    .limit(1);
+  return Boolean(conflict);
+}
 
 /** Localized label for a booking status (from the vertical copy). */
 export function bookingStatusLabel(status: string): string {
@@ -260,7 +300,11 @@ export async function createBookingRequest(params: {
     return { ok: false, error: 'Seleziona un servizio.' };
   }
   const [svc] = await db
-    .select({ id: services.id, title: services.title })
+    .select({
+      id: services.id,
+      title: services.title,
+      durationMin: services.durationMin,
+    })
     .from(services)
     .where(
       and(
@@ -279,25 +323,48 @@ export async function createBookingRequest(params: {
     };
   }
 
-  const [created] = await db
-    .insert(bookings)
-    .values({
-      clientId: params.clientUserId,
-      providerId: provider.id,
-      serviceId: svc.id,
-      status: 'requested',
-      note: params.note ?? null,
-      scheduledFor: params.scheduledFor ?? null,
-      createdBy: params.clientUserId,
-    })
-    .returning({ id: bookings.id });
+  const creation = await db.transaction(async (tx) => {
+    // Serialize bookings for the same coach: two people cannot reserve the
+    // same free slot between the overlap check and the insert.
+    await tx.execute(sql`select pg_advisory_xact_lock(${provider.id})`);
+    if (
+      params.scheduledFor &&
+      (await hasOpenBookingConflict(
+        tx,
+        provider.id,
+        params.scheduledFor,
+        svc.durationMin
+      ))
+    ) {
+      return {
+        ok: false as const,
+        error:
+          'Questo orario è già occupato. Scegli uno degli orari disponibili.',
+      };
+    }
+
+    const [created] = await tx
+      .insert(bookings)
+      .values({
+        clientId: params.clientUserId,
+        providerId: provider.id,
+        serviceId: svc.id,
+        status: 'requested',
+        note: params.note ?? null,
+        scheduledFor: params.scheduledFor ?? null,
+        createdBy: params.clientUserId,
+      })
+      .returning({ id: bookings.id });
+    return { ok: true as const, bookingId: created.id };
+  });
+  if (!creation.ok) return creation;
 
   await notify('booking_requested', provider.userId, {
     serviceTitle: svc.title,
-    bookingId: created.id,
+    bookingId: creation.bookingId,
   });
 
-  return { ok: true, bookingId: created.id };
+  return { ok: true, bookingId: creation.bookingId };
 }
 
 export type AthleteBooking = {
@@ -318,8 +385,10 @@ export type AthleteBooking = {
 
 export type ParticipantBooking = {
   id: number;
+  providerId: number;
   status: string;
   scheduledFor: Date | null;
+  sessionStartedAt: Date | null;
   serviceTitle: string | null;
   serviceDurationMin: number | null;
   coachName: string | null;
@@ -341,8 +410,10 @@ export async function getParticipantBooking(
   const [booking] = await db
     .select({
       id: bookings.id,
+      providerId: bookings.providerId,
       status: bookings.status,
       scheduledFor: bookings.scheduledFor,
+      sessionStartedAt: bookings.sessionStartedAt,
       serviceTitle: services.title,
       serviceDurationMin: services.durationMin,
       clientId: bookings.clientId,
@@ -381,8 +452,10 @@ export async function getParticipantBooking(
 
   return {
     id: booking.id,
+    providerId: booking.providerId,
     status: booking.status,
     scheduledFor: booking.scheduledFor,
+    sessionStartedAt: booking.sessionStartedAt,
     serviceTitle: booking.serviceTitle,
     serviceDurationMin: booking.serviceDurationMin,
     coachName: coach?.name ?? null,
@@ -443,7 +516,7 @@ export async function getAthleteRelationshipCoaches(
   ];
   if (providerIds.length === 0) return [];
 
-  const [coaches, svc, avail] = await Promise.all([
+  const [coaches, svc, avail, busyByProvider] = await Promise.all([
     db
       .select({
         id: providerProfiles.id,
@@ -485,6 +558,7 @@ export async function getAthleteRelationshipCoaches(
       .from(coachAvailability)
       .where(inArray(coachAvailability.providerId, providerIds))
       .orderBy(asc(coachAvailability.weekday), asc(coachAvailability.startMinute)),
+    getCoachBusyIntervalsByProviderIds(providerIds),
   ]);
 
   const servicesByProvider = new Map<
@@ -513,7 +587,9 @@ export async function getAthleteRelationshipCoaches(
       avatarUrl: c.avatarUrl,
       services: servicesByProvider.get(c.id) ?? [],
       availabilityHint: describeAvailability(availByProvider.get(c.id) ?? []),
-      bookableDays: getBookableDays(availByProvider.get(c.id) ?? []),
+      bookableDays: getBookableDays(availByProvider.get(c.id) ?? [], {
+        busyIntervals: busyByProvider.get(c.id) ?? [],
+      }),
       _favorite: favedIds.has(c.id),
       _recency: lastByProvider.get(c.id) ?? 0,
     }))
@@ -686,7 +762,11 @@ export async function createCoachBookingRequest(params: {
     return { ok: false, error: 'Seleziona un servizio.' };
   }
   const [svc] = await db
-    .select({ id: services.id, title: services.title })
+    .select({
+      id: services.id,
+      title: services.title,
+      durationMin: services.durationMin,
+    })
     .from(services)
     .where(
       and(
@@ -705,26 +785,47 @@ export async function createCoachBookingRequest(params: {
     };
   }
 
-  const [created] = await db
-    .insert(bookings)
-    .values({
-      clientId: params.clientUserId,
-      providerId: provider.id,
-      serviceId: svc.id,
-      status: 'accepted',
-      note: params.note ?? null,
-      scheduledFor: params.scheduledFor ?? null,
-      createdBy: params.coachUserId,
-      decidedAt: new Date(),
-    })
-    .returning({ id: bookings.id });
+  const creation = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(${provider.id})`);
+    if (
+      params.scheduledFor &&
+      (await hasOpenBookingConflict(
+        tx,
+        provider.id,
+        params.scheduledFor,
+        svc.durationMin
+      ))
+    ) {
+      return {
+        ok: false as const,
+        error:
+          'Questo orario è già occupato. Scegli uno degli orari disponibili.',
+      };
+    }
 
-  await notify('booking_accepted', params.clientUserId, {
+    const [created] = await tx
+      .insert(bookings)
+      .values({
+        clientId: params.clientUserId,
+        providerId: provider.id,
+        serviceId: svc.id,
+        status: 'accepted',
+        note: params.note ?? null,
+        scheduledFor: params.scheduledFor ?? null,
+        createdBy: params.coachUserId,
+        decidedAt: new Date(),
+      })
+      .returning({ id: bookings.id });
+    return { ok: true as const, bookingId: created.id };
+  });
+  if (!creation.ok) return creation;
+
+  await notify('booking_created_by_coach', params.clientUserId, {
     serviceTitle: svc.title,
-    bookingId: created.id,
+    bookingId: creation.bookingId,
   });
 
-  return { ok: true, bookingId: created.id };
+  return { ok: true, bookingId: creation.bookingId };
 }
 
 /** Bookings made by an athlete, with coach + service display info. */
@@ -889,7 +990,7 @@ export async function decideBooking(params: {
 export async function completeBooking(params: {
   bookingId: number;
   coachUserId: number;
-}): Promise<Result> {
+}, liveKit: LiveKitSessionControl): Promise<Result> {
   const [provider] = await db
     .select({ id: providerProfiles.id })
     .from(providerProfiles)
@@ -958,6 +1059,11 @@ export async function completeBooking(params: {
     })
     .where(eq(bookings.id, params.bookingId));
 
+  await stopBookingAiNotesRecordings({
+    bookingId: params.bookingId,
+    actorUserId: params.coachUserId,
+    reason: 'booking_completed',
+  }, liveKit);
   await notify('booking_completed', booking.clientId, { bookingId: booking.id });
 
   return { ok: true };
@@ -970,7 +1076,7 @@ export async function completeBooking(params: {
 export async function cancelBooking(params: {
   bookingId: number;
   userId: number;
-}): Promise<Result> {
+}, liveKit: LiveKitSessionControl): Promise<Result> {
   const [row] = await db
     .select({
       id: bookings.id,
@@ -1005,11 +1111,113 @@ export async function cancelBooking(params: {
     .set({ status: 'cancelled', updatedAt: new Date(), updatedBy: params.userId })
     .where(eq(bookings.id, params.bookingId));
 
+  await stopBookingAiNotesRecordings({
+    bookingId: params.bookingId,
+    actorUserId: params.userId,
+    reason: 'booking_cancelled',
+  }, liveKit);
   // Notify the other participant.
   const recipientId =
     params.userId === row.clientId ? row.coachUserId : row.clientId;
   await notify('booking_cancelled', recipientId, {
     audience: recipientId === row.coachUserId ? 'coach' : 'athlete',
+    bookingId: row.id,
+  });
+
+  return { ok: true };
+}
+
+/**
+ * Either participant can correct the date/time of a future open booking.
+ * Availability, full service duration and collisions are checked atomically.
+ */
+export async function rescheduleBooking(params: {
+  bookingId: number;
+  userId: number;
+  scheduledFor: Date;
+}): Promise<Result> {
+  const [row] = await db
+    .select({
+      id: bookings.id,
+      status: bookings.status,
+      providerId: bookings.providerId,
+      clientId: bookings.clientId,
+      coachUserId: providerProfiles.userId,
+      durationMin: services.durationMin,
+    })
+    .from(bookings)
+    .innerJoin(providerProfiles, eq(bookings.providerId, providerProfiles.id))
+    .leftJoin(services, eq(bookings.serviceId, services.id))
+    .where(eq(bookings.id, params.bookingId))
+    .limit(1);
+
+  if (
+    !row ||
+    (params.userId !== row.clientId && params.userId !== row.coachUserId)
+  ) {
+    return { ok: false, error: 'Prenotazione non trovata.' };
+  }
+  if (!['requested', 'accepted'].includes(row.status)) {
+    return { ok: false, error: 'Questa prenotazione non è più modificabile.' };
+  }
+  if (params.scheduledFor.getTime() < Date.now() - 2 * 60_000) {
+    return { ok: false, error: 'Scegli una data e un orario futuri.' };
+  }
+
+  const durationMin = row.durationMin ?? DEFAULT_SERVICE_DURATION_MIN;
+  const slots = await getCoachAvailabilityByProviderId(row.providerId);
+  if (!isWithinAvailability(slots, params.scheduledFor, durationMin)) {
+    return {
+      ok: false,
+      error:
+        'La sessione non rientra interamente nella disponibilità del coach. Scegli un altro orario.',
+    };
+  }
+
+  const updated = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(${row.providerId})`);
+    if (
+      await hasOpenBookingConflict(
+        tx,
+        row.providerId,
+        params.scheduledFor,
+        durationMin,
+        row.id
+      )
+    ) {
+      return false;
+    }
+
+    const changed = await tx
+      .update(bookings)
+      .set({
+        scheduledFor: params.scheduledFor,
+        updatedAt: new Date(),
+        updatedBy: params.userId,
+      })
+      .where(
+        and(
+          eq(bookings.id, row.id),
+          inArray(bookings.status, ['requested', 'accepted'])
+        )
+      )
+      .returning({ id: bookings.id });
+    return changed.length > 0;
+  });
+
+  if (!updated) {
+    return {
+      ok: false,
+      error:
+        'Questo orario è occupato oppure la prenotazione non è più modificabile.',
+    };
+  }
+
+  const recipientId =
+    params.userId === row.clientId ? row.coachUserId : row.clientId;
+  await notify('booking_rescheduled', recipientId, {
+    audience: recipientId === row.coachUserId ? 'coach' : 'athlete',
+    actor: params.userId === row.coachUserId ? 'coach' : 'athlete',
     bookingId: row.id,
   });
 
