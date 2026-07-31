@@ -25,6 +25,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ShareButton } from '@/components/share-button';
 import { AiSessionNotesControl } from '@/components/ai-session-notes-control';
+import { X } from 'lucide-react';
 import {
   ApplyInitialAudioOutput,
   CallDeviceSettings,
@@ -45,6 +46,9 @@ import {
   WaitingRoomGate,
 } from '@/components/livekit-call-extras';
 import { BackgroundSelectionApplier } from '@/components/livekit-background-controls';
+import { useIsCompact } from '@/lib/hooks/use-is-compact';
+import { useCallCapabilities } from '@/lib/core/video/capabilities-client';
+import { visibleRoomControls } from '@/lib/core/video/capabilities';
 import type {
   ClientVideoEventType,
   TechnicalEventDetails,
@@ -225,6 +229,9 @@ function ConnectedVideoRoom({
   choices: KaiPaiCallChoices;
 }) {
   const router = useRouter();
+  const isCompact = useIsCompact();
+  const caps = useCallCapabilities();
+  const controls = visibleRoomControls(caps, isCompact === true);
   const room = useMemo(
     () =>
       new Room({
@@ -322,7 +329,11 @@ function ConnectedVideoRoom({
     <div
       data-lk-theme="default"
       data-kaipai-video-shell
-      className="relative h-[70vh] overflow-hidden rounded-lg border border-gray-200 bg-neutral-950 fullscreen:h-dvh fullscreen:w-screen fullscreen:rounded-none fullscreen:border-0"
+      className={
+        isCompact
+          ? 'fixed inset-0 z-50 h-dvh w-screen overflow-hidden bg-neutral-950'
+          : 'relative h-[70vh] overflow-hidden rounded-lg border border-gray-200 bg-neutral-950 fullscreen:h-dvh fullscreen:w-screen fullscreen:rounded-none fullscreen:border-0'
+      }
     >
       {isReconnecting && <ReconnectionNotice />}
       <LiveKitRoom
@@ -363,14 +374,30 @@ function ConnectedVideoRoom({
         />
         <SessionTracker bookingId={bookingId} />
         <div className="flex h-full flex-col">
-          <div className="flex flex-wrap items-start justify-between gap-2 border-b border-white/10 bg-black/40 px-3 py-2">
+          <div className="flex flex-wrap items-start justify-between gap-2 border-b border-white/10 bg-black/40 px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))]">
+            {controls.includes('exit') && (
+              <button
+                type="button"
+                onClick={() => router.push(backHref)}
+                aria-label="Esci dalla videochiamata"
+                className="rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+              >
+                <X className="h-5 w-5" aria-hidden="true" />
+              </button>
+            )}
             <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-              <RoomFullscreenControl />
-              <PictureInPictureControl
-                onTechnicalEvent={recordTechnicalEvent}
-              />
-              <ConnectionQualityNotice />
-              <ShareButton bookingId={bookingId} appearance="room" />
+              {controls.includes('fullscreen') && <RoomFullscreenControl />}
+              {controls.includes('picture-in-picture') && (
+                <PictureInPictureControl
+                  onTechnicalEvent={recordTechnicalEvent}
+                />
+              )}
+              {controls.includes('connection-quality') && (
+                <ConnectionQualityNotice compact={isCompact === true} />
+              )}
+              {controls.includes('share') && (
+                <ShareButton bookingId={bookingId} appearance="room" />
+              )}
             </div>
           </div>
           <div className="min-h-0 flex-1">
@@ -404,7 +431,11 @@ function ConnectedVideoRoom({
             >
               Rientra nella call
             </Button>
-            <div className="mt-3 flex gap-3">
+            <div
+              className={
+                isCompact ? 'mt-3 flex flex-col gap-3' : 'mt-3 flex gap-3'
+              }
+            >
               <Button
                 type="button"
                 variant="outline"

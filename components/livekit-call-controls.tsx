@@ -99,12 +99,22 @@ export function KaiPaiPreJoin({
   );
 }
 
-export function ConnectionQualityNotice() {
+export function ConnectionQualityNotice({
+  compact = false,
+}: {
+  compact?: boolean;
+}) {
   const { localParticipant } = useLocalParticipant();
   const { quality } = useConnectionQualityIndicator({
     participant: localParticipant,
   });
   const presentation = connectionQualityPresentation(quality);
+  const dotClasses = {
+    neutral: 'bg-white/60',
+    good: 'bg-emerald-400',
+    warning: 'bg-amber-400',
+    danger: 'bg-red-400',
+  }[presentation.tone];
   const toneClasses = {
     neutral: 'border-white/15 bg-black/45 text-white/75',
     good: 'border-emerald-400/25 bg-emerald-950/75 text-emerald-100',
@@ -117,6 +127,18 @@ export function ConnectionQualityNotice() {
       : quality === ConnectionQuality.Poor
         ? AlertTriangle
         : Wifi;
+
+  if (compact) {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        aria-label={presentation.label}
+        title={presentation.detail}
+        className={`h-3 w-3 shrink-0 rounded-full ${dotClasses}`}
+      />
+    );
+  }
 
   return (
     <div
