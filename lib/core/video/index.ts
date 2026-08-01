@@ -54,7 +54,12 @@ export async function recordSessionHeartbeat(
   await db
     .update(bookings)
     .set({
-      sessionStartedAt: sql`coalesce(${bookings.sessionStartedAt}, ${now})`,
+      // La data va passata come stringa con cast esplicito: dentro un
+      // frammento SQL grezzo Drizzle non conosce il tipo della colonna e
+      // consegna al driver un oggetto Date, che postgres.js non sa
+      // serializzare (ERR_INVALID_ARG_TYPE) — il heartbeat rispondeva 500 a
+      // ogni chiamata e la durata reale della sessione non veniva mai scritta.
+      sessionStartedAt: sql`coalesce(${bookings.sessionStartedAt}, ${now.toISOString()}::timestamp)`,
       sessionEndedAt: now,
       updatedAt: now,
     })
