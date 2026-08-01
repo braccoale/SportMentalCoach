@@ -93,7 +93,7 @@ async function authenticatedRequest(
 function errorResponse(error: unknown): Response {
   if (!(error instanceof CoachSessionReportError)) {
     return Response.json(
-      { code: 'REPORT_GENERATION_FAILED', error: 'Non Ã¨ stato possibile completare la richiesta. Riprova.' },
+      { code: 'REPORT_GENERATION_FAILED', error: 'Non è stato possibile completare la richiesta. Riprova.' },
       { status: 502 }
     );
   }

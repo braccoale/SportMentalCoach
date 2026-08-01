@@ -91,7 +91,7 @@ export async function generateCoachSessionReport(
   if (!dependencies.promptVersion.trim()) {
     throw new CoachSessionReportError(
       'REPORT_GENERATION_UNAVAILABLE',
-      'La configurazione del report AI non Ã¨ disponibile.'
+      'La configurazione del report AI non è disponibile.'
     );
   }
   const generatedAt = dependencies.now().toISOString();
@@ -102,7 +102,7 @@ export async function generateCoachSessionReport(
   } catch {
     throw new CoachSessionReportError(
       'REPORT_GENERATION_UNAVAILABLE',
-      'La configurazione del report AI non Ã¨ disponibile.'
+      'La configurazione del report AI non è disponibile.'
     );
   }
   try {
@@ -129,7 +129,7 @@ function authorizedEligibleSource(
     if (!hasFeatureAccess) {
       throw new CoachSessionReportError(
         'FEATURE_NOT_ENABLED',
-        'Appunti AI non Ã¨ abilitato per questo account.'
+        'Appunti AI non è abilitato per questo account.'
       );
     }
     const source = await dependencies.loadSession(params.sessionId);
@@ -148,13 +148,13 @@ function authorizedEligibleSource(
     if (!['ready_for_review', 'approved'].includes(source.status)) {
       throw new CoachSessionReportError(
         'SESSION_NOT_ELIGIBLE',
-        'Il report AI Ã¨ disponibile quando la trascrizione Ã¨ pronta.'
+        'Il report AI è disponibile quando la trascrizione è pronta.'
       );
     }
     if (!source.transcript.length) {
       throw new CoachSessionReportError(
         'TRANSCRIPT_UNAVAILABLE',
-        'La trascrizione della sessione non Ã¨ ancora disponibile.'
+        'La trascrizione della sessione non è ancora disponibile.'
       );
     }
     return source;
@@ -201,14 +201,14 @@ function participantsFor(transcript: readonly CoachReportTranscriptSource[]) {
     ) {
       throw new CoachSessionReportError(
         'TRANSCRIPT_UNAVAILABLE',
-        'La trascrizione della sessione non Ã¨ disponibile.'
+        'La trascrizione della sessione non è disponibile.'
       );
     }
     const existing = participants.get(String(segment.participantId));
     if (existing && existing.role !== segment.speakerRole) {
       throw new CoachSessionReportError(
         'TRANSCRIPT_UNAVAILABLE',
-        'La trascrizione della sessione non Ã¨ disponibile.'
+        'La trascrizione della sessione non è disponibile.'
       );
     }
     participants.set(String(segment.participantId), {
@@ -229,13 +229,13 @@ function reportGenerationError(error: unknown): CoachSessionReportError {
     return new CoachSessionReportError('REPORT_TIMEOUT', 'Il report AI ha impiegato troppo tempo. Riprova.');
   }
   if (providerCode === 'AUTHENTICATION_FAILED' || providerCode === 'CONFIGURATION') {
-    return new CoachSessionReportError('REPORT_AUTHENTICATION', 'La configurazione del report AI non Ã¨ disponibile.');
+    return new CoachSessionReportError('REPORT_AUTHENTICATION', 'La configurazione del report AI non è disponibile.');
   }
   if (providerCode === 'RATE_LIMITED') {
-    return new CoachSessionReportError('REPORT_RATE_LIMITED', 'Il servizio AI Ã¨ temporaneamente occupato. Riprova tra poco.');
+    return new CoachSessionReportError('REPORT_RATE_LIMITED', 'Il servizio AI è temporaneamente occupato. Riprova tra poco.');
   }
   if (providerCode === 'MALFORMED_OUTPUT') {
-    return new CoachSessionReportError('REPORT_MALFORMED', 'Il report AI non Ã¨ stato restituito in un formato valido. Riprova.');
+    return new CoachSessionReportError('REPORT_MALFORMED', 'Il report AI non è stato restituito in un formato valido. Riprova.');
   }
   if (
     error &&
@@ -247,6 +247,6 @@ function reportGenerationError(error: unknown): CoachSessionReportError {
   }
   return new CoachSessionReportError(
     'REPORT_GENERATION_FAILED',
-    'Non Ã¨ stato possibile generare il report AI. Riprova.'
+    'Non è stato possibile generare il report AI. Riprova.'
   );
 }

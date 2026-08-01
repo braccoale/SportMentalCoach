@@ -31,7 +31,7 @@ function apiErrorMessage(value: unknown): string {
   if (isRecord(value) && typeof value.error === 'string') {
     return value.error;
   }
-  return 'Non Ã¨ stato possibile completare la richiesta. Riprova.';
+  return 'Non è stato possibile completare la richiesta. Riprova.';
 }
 
 async function requestJson(url: string, method: 'GET' | 'POST') {
