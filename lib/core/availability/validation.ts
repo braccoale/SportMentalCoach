@@ -129,6 +129,55 @@ export function appointmentIntervalsOverlap(
   return proposedStart < busyEnd && proposedEnd > busyStart;
 }
 
+/**
+ * Longest session that can start at `scheduledFor` without running into one of
+ * the coach's open appointments — `null` when nothing is booked ahead of it,
+ * `0` when the start itself falls inside an appointment.
+ *
+ * Pickers need this rather than a plain busy/free flag: how far a start is
+ * usable depends on the service being booked, so a 20-minute session can
+ * legitimately start in a gap where a 40-minute one cannot.
+ */
+export function maxSessionMinutesAt(
+  scheduledFor: Date,
+  busy: BusyInterval[]
+): number | null {
+  if (Number.isNaN(scheduledFor.getTime())) return null;
+  const start = scheduledFor.getTime();
+  let max: number | null = null;
+  for (const interval of busy) {
+    if (
+      Number.isNaN(interval.scheduledFor.getTime()) ||
+      !Number.isInteger(interval.durationMin) ||
+      interval.durationMin <= 0
+    ) {
+      continue;
+    }
+    const busyStart = interval.scheduledFor.getTime();
+    const busyEnd = busyStart + interval.durationMin * 60_000;
+    if (start >= busyStart && start < busyEnd) return 0;
+    if (busyStart > start) {
+      const gap = Math.floor((busyStart - start) / 60_000);
+      if (max === null || gap < max) max = gap;
+    }
+  }
+  return max;
+}
+
+/**
+ * Whether a session of `durationMin` cannot start at `time` on a bookable day,
+ * given that day's per-start capacities (see `BookableDay.maxDurationMin`).
+ * A missing entry means no appointment follows: the start is always free.
+ */
+export function isStartBusyForDuration(
+  maxDurationMin: Record<string, number>,
+  time: string,
+  durationMin: number
+): boolean {
+  const max = maxDurationMin[time];
+  return max !== undefined && durationMin > max;
+}
+
 /** Reads weekday and minute-of-day in the platform timezone (Europe/Rome). */
 export function romeWeekdayAndMinute(date: Date): {
   weekday: number;

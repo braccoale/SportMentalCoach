@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { requestBooking } from './actions';
 import type { ActionState } from '@/lib/auth/middleware';
 import type { BookableDay } from '@/lib/core/availability';
+import { isStartBusyForDuration } from '@/lib/core/availability/validation';
+import { DEFAULT_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
 
 type ServiceOption = {
   id: number;
@@ -16,8 +18,31 @@ type ServiceOption = {
 const fieldCls =
   'mt-1.5 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm';
 
-function firstFreeTime(day?: BookableDay): string {
-  return day?.times.find((time) => !day.busyTimes.includes(time)) ?? '';
+/**
+ * Duration the picker reasons with. Before a service is chosen we assume the
+ * shortest one the coach offers, so the list starts permissive and re-narrows
+ * as soon as a longer service is selected.
+ */
+function assumedDuration(services: ServiceOption[], serviceId: string): number {
+  const selected = services.find((s) => String(s.id) === serviceId);
+  if (selected?.durationMin) return selected.durationMin;
+  const durations = services
+    .map((s) => s.durationMin)
+    .filter((d): d is number => typeof d === 'number' && d > 0);
+  return durations.length > 0
+    ? Math.min(...durations)
+    : DEFAULT_SERVICE_DURATION_MIN;
+}
+
+function firstFreeTime(
+  day: BookableDay | undefined,
+  durationMin: number
+): string {
+  return (
+    day?.times.find(
+      (time) => !isStartBusyForDuration(day.maxDurationMin, time, durationMin)
+    ) ?? ''
+  );
 }
 
 /**
@@ -43,7 +68,11 @@ export function BookingRequest({
   );
 
   const [day, setDay] = useState(bookableDays[0]?.value ?? '');
-  const [time, setTime] = useState(firstFreeTime(bookableDays[0]));
+  const [serviceId, setServiceId] = useState('');
+  const [time, setTime] = useState(
+    firstFreeTime(bookableDays[0], assumedDuration(services, ''))
+  );
+  const durationMin = assumedDuration(services, serviceId);
 
   const selectedDay = useMemo(
     () => bookableDays.find((d) => d.value === day),
@@ -77,7 +106,24 @@ export function BookingRequest({
         <select
           id="serviceId"
           name="serviceId"
-          defaultValue=""
+          value={serviceId}
+          onChange={(e) => {
+            const nextServiceId = e.target.value;
+            setServiceId(nextServiceId);
+            // A longer service may no longer fit the chosen start: fall back
+            // to the first one that does.
+            const nextDuration = assumedDuration(services, nextServiceId);
+            if (
+              selectedDay &&
+              isStartBusyForDuration(
+                selectedDay.maxDurationMin,
+                time,
+                nextDuration
+              )
+            ) {
+              setTime(firstFreeTime(selectedDay, nextDuration));
+            }
+          }}
           className={fieldCls}
           required
         >
@@ -109,10 +155,10 @@ export function BookingRequest({
                 onChange={(e) => {
                   const nextDay = e.target.value;
                   setDay(nextDay);
-                  const first =
-                    firstFreeTime(
-                      bookableDays.find((d) => d.value === nextDay)
-                    );
+                  const first = firstFreeTime(
+                    bookableDays.find((d) => d.value === nextDay),
+                    durationMin
+                  );
                   setTime(first);
                 }}
                 className={fieldCls}
@@ -138,7 +184,11 @@ export function BookingRequest({
                   </option>
                 )}
                 {selectedDay?.times.map((t) => {
-                  const busy = selectedDay.busyTimes.includes(t);
+                  const busy = isStartBusyForDuration(
+                    selectedDay.maxDurationMin,
+                    t,
+                    durationMin
+                  );
                   return (
                     <option
                       key={t}

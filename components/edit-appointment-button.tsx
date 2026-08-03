@@ -4,7 +4,10 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CalendarClock, Pencil, X } from 'lucide-react';
 import type { BookableDay } from '@/lib/core/availability';
-import { timeValueToMinutes } from '@/lib/core/availability/validation';
+import {
+  isStartBusyForDuration,
+  timeValueToMinutes,
+} from '@/lib/core/availability/validation';
 import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
 import { rescheduleBookingAction } from '@/app/(dashboard)/dashboard/appointments/actions';
@@ -35,7 +38,7 @@ function isBusy(
   durationMin: number
 ): boolean {
   return (
-    day.busyTimes.includes(time) &&
+    isStartBusyForDuration(day.maxDurationMin, time, durationMin) &&
     !isOwnSessionTime(
       day.value,
       time,

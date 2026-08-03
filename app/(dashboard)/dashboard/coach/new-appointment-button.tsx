@@ -8,10 +8,32 @@ import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
 import type { RelationshipAthlete } from '@/lib/core/bookings';
 import type { BookableDay } from '@/lib/core/availability';
+import { isStartBusyForDuration } from '@/lib/core/availability/validation';
+import { DEFAULT_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
 import { createCoachBookingAction } from './actions';
 
-function firstFreeTime(day?: BookableDay): string {
-  return day?.times.find((time) => !day.busyTimes.includes(time)) ?? '';
+type ServiceOption = { id: number; title: string; durationMin: number };
+
+/**
+ * Duration the picker reasons with. Before a service is chosen we assume the
+ * shortest one on offer so the list starts permissive, then re-narrows as soon
+ * as the coach picks a longer service.
+ */
+function assumedDuration(services: ServiceOption[], serviceId: string): number {
+  const selected = services.find((s) => String(s.id) === serviceId);
+  if (selected) return selected.durationMin;
+  const durations = services.map((s) => s.durationMin);
+  return durations.length > 0
+    ? Math.min(...durations)
+    : DEFAULT_SERVICE_DURATION_MIN;
+}
+
+function firstFreeTime(day: BookableDay | undefined, durationMin: number): string {
+  return (
+    day?.times.find(
+      (time) => !isStartBusyForDuration(day.maxDurationMin, time, durationMin)
+    ) ?? ''
+  );
 }
 
 /**
@@ -34,7 +56,7 @@ export function CoachNewAppointmentButton({
   bookableDays,
 }: {
   athletes: RelationshipAthlete[];
-  services: { id: number; title: string; durationMin: number }[];
+  services: ServiceOption[];
   /** Compact weekly availability summary, e.g. "Lun 09:00–18:00"; empty if none configured. */
   availabilityHint?: string;
   /** Selectable days/times from the coach's own weekly availability; empty if none set. */
@@ -42,8 +64,12 @@ export function CoachNewAppointmentButton({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [serviceId, setServiceId] = useState('');
+  const durationMin = assumedDuration(services, serviceId);
   const [day, setDay] = useState(bookableDays[0]?.value ?? '');
-  const [time, setTime] = useState(firstFreeTime(bookableDays[0]));
+  const [time, setTime] = useState(
+    firstFreeTime(bookableDays[0], assumedDuration(services, ''))
+  );
 
   const selectedDay = useMemo(
     () => bookableDays.find((d) => d.value === day),
@@ -56,8 +82,9 @@ export function CoachNewAppointmentButton({
   // Re-anchor on the first option each time the dialog opens, so a page left
   // sitting open doesn't start on a slot that has since passed.
   function openDialog() {
+    setServiceId('');
     setDay(bookableDays[0]?.value ?? '');
-    setTime(firstFreeTime(bookableDays[0]));
+    setTime(firstFreeTime(bookableDays[0], assumedDuration(services, '')));
     setOpen(true);
   }
 
@@ -172,7 +199,27 @@ export function CoachNewAppointmentButton({
                 </span>
                 <select
                   name="serviceId"
-                  defaultValue=""
+                  value={serviceId}
+                  onChange={(e) => {
+                    const nextServiceId = e.target.value;
+                    setServiceId(nextServiceId);
+                    // A longer service may no longer fit the chosen start:
+                    // fall back to the first one that does.
+                    const nextDuration = assumedDuration(
+                      services,
+                      nextServiceId
+                    );
+                    if (
+                      selectedDay &&
+                      isStartBusyForDuration(
+                        selectedDay.maxDurationMin,
+                        time,
+                        nextDuration
+                      )
+                    ) {
+                      setTime(firstFreeTime(selectedDay, nextDuration));
+                    }
+                  }}
                   required
                   className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
                 >
@@ -204,7 +251,8 @@ export function CoachNewAppointmentButton({
                           setDay(nextDay);
                           setTime(
                             firstFreeTime(
-                              bookableDays.find((d) => d.value === nextDay)
+                              bookableDays.find((d) => d.value === nextDay),
+                              durationMin
                             )
                           );
                         }}
@@ -231,7 +279,11 @@ export function CoachNewAppointmentButton({
                           </option>
                         )}
                         {selectedDay?.times.map((t) => {
-                          const busy = selectedDay.busyTimes.includes(t);
+                          const busy = isStartBusyForDuration(
+                            selectedDay.maxDurationMin,
+                            t,
+                            durationMin
+                          );
                           return (
                             <option
                               key={t}

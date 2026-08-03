@@ -3,7 +3,9 @@ import test from 'node:test';
 import {
   BOOKING_START_STEP_MINUTES,
   appointmentIntervalsOverlap,
+  isStartBusyForDuration,
   isScheduledDateWithinSlot,
+  maxSessionMinutesAt,
   romeWeekdayAndMinute,
   timeValueToMinutes,
   validateAvailabilitySchedule,
@@ -50,6 +52,47 @@ test('appointment starts that overlap an occupied session are unavailable', () =
     ),
     false
   );
+});
+
+test('a start is capped by the gap left before the next session', () => {
+  // One session at 15:50 Rome (13:50Z) lasting 40 minutes.
+  const busy = [
+    { scheduledFor: new Date('2026-08-03T13:50:00.000Z'), durationMin: 40 },
+  ];
+
+  // 15:20 leaves half an hour: fine for a 30-minute service, not for 40.
+  assert.equal(
+    maxSessionMinutesAt(new Date('2026-08-03T13:20:00.000Z'), busy),
+    30
+  );
+  // Inside the session: nothing can start there.
+  assert.equal(
+    maxSessionMinutesAt(new Date('2026-08-03T14:00:00.000Z'), busy),
+    0
+  );
+  // After it ends: unconstrained.
+  assert.equal(
+    maxSessionMinutesAt(new Date('2026-08-03T14:30:00.000Z'), busy),
+    null
+  );
+  // The nearest session ahead wins, not the first one listed.
+  assert.equal(
+    maxSessionMinutesAt(new Date('2026-08-03T13:00:00.000Z'), [
+      ...busy,
+      { scheduledFor: new Date('2026-08-03T13:20:00.000Z'), durationMin: 20 },
+    ]),
+    20
+  );
+});
+
+test('busy start times depend on the duration of the service being booked', () => {
+  const maxDurationMin = { '15:20': 30, '15:50': 0 };
+
+  assert.equal(isStartBusyForDuration(maxDurationMin, '15:20', 30), false);
+  assert.equal(isStartBusyForDuration(maxDurationMin, '15:20', 40), true);
+  assert.equal(isStartBusyForDuration(maxDurationMin, '15:50', 10), true);
+  // No entry at all means no session ahead: always free.
+  assert.equal(isStartBusyForDuration(maxDurationMin, '17:00', 90), false);
 });
 
 test('accepts multiple days and non-overlapping ranges on the same day', () => {

@@ -16,8 +16,8 @@ import {
 } from '@/lib/core/format';
 import {
   BOOKING_START_STEP_MINUTES,
-  appointmentIntervalsOverlap,
   isScheduledDateWithinSlot,
+  maxSessionMinutesAt,
   romeWeekdayAndMinute,
   validateAvailabilitySchedule,
   type AvailabilityInput,
@@ -217,8 +217,14 @@ export type BookableDay = {
   label: string;
   /** Selectable start times ("HH:mm"), only inside the coach's slots for that day. */
   times: string[];
-  /** Starts whose default-length session overlaps a requested/accepted one. */
-  busyTimes: string[];
+  /**
+   * Per start time, the longest session that still fits before the next
+   * requested/accepted one (`0` = the start is inside a session). Times with no
+   * appointment ahead are omitted. The picker turns this into "Occupato" using
+   * the duration of the service actually selected, so a short service is not
+   * blocked by the gap a long one would need.
+   */
+  maxDurationMin: Record<string, number>;
 };
 
 /**
@@ -313,23 +319,19 @@ export function getBookableDays(
     }).format(d.at);
     const value = `${d.year}-${d.month}-${d.day}`;
     const uniqueTimes = [...new Set(times)];
-    const busyTimes = uniqueTimes.filter((time) => {
+    const maxDurationMin: Record<string, number> = {};
+    for (const time of uniqueTimes) {
       const candidate = parseRomeLocalDateTime(`${value}T${time}`);
-      if (!candidate) return false;
-      return busyIntervals.some((interval) =>
-        appointmentIntervalsOverlap(
-          candidate,
-          DEFAULT_SERVICE_DURATION_MIN,
-          interval
-        )
-      );
-    });
+      if (!candidate) continue;
+      const max = maxSessionMinutesAt(candidate, busyIntervals);
+      if (max !== null) maxDurationMin[time] = max;
+    }
 
     days.push({
       value,
       label: label.charAt(0).toUpperCase() + label.slice(1),
       times: uniqueTimes,
-      busyTimes,
+      maxDurationMin,
     });
   }
   return days;
