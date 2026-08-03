@@ -1,5 +1,7 @@
+import { after } from 'next/server';
 import { WebhookReceiver } from 'livekit-server-sdk';
 import { recordLiveKitWebhookEvent } from '@/lib/core/video/technical-events-server';
+import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger';
 import {
   LiveKitWebhookError,
   processVerifiedLiveKitWebhook,
@@ -39,6 +41,19 @@ export async function POST(request: Request) {
       dependencies
     );
     await recordLiveKitWebhookEvent(event);
+
+    // Gli eventi egress sono gli unici che accodano una trascrizione: solo lì
+    // ha senso svegliare il worker. La sveglia parte dopo la risposta, così
+    // LiveKit non attende, e un suo fallimento non invalida la consegna.
+    if (!result.duplicate && (event.event ?? '').startsWith('egress_')) {
+      after(async () => {
+        const outcome = await triggerAiNotesWorker();
+        if (outcome !== 'triggered') {
+          console.warn('[LiveKit webhook] worker non svegliato', { outcome });
+        }
+      });
+    }
+
     return Response.json({
       received: true,
       duplicate: result.duplicate,
