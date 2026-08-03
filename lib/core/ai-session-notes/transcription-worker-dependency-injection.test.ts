@@ -170,6 +170,16 @@ function selectionKeys(selection: unknown): string[] {
     : [];
 }
 
+const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
+
+/**
+ * Raccoglie gli istanti passati come parametri alla query di claim.
+ *
+ * Il driver postgres-js esegue i template `sql` grezzi via `unsafe`, che non
+ * serializza gli oggetti Date: il codice di produzione passa quindi stringhe
+ * ISO con cast a timestamptz. Questo fake deve riconoscere la stessa forma,
+ * altrimenti accetterebbe una scrittura che il database reale rifiuta.
+ */
 function collectDates(
   value: unknown,
   dates: Date[] = [],
@@ -177,6 +187,10 @@ function collectDates(
 ): Date[] {
   if (value instanceof Date) {
     dates.push(value);
+    return dates;
+  }
+  if (typeof value === 'string' && ISO_TIMESTAMP.test(value)) {
+    dates.push(new Date(value));
     return dates;
   }
   if (!value || typeof value !== 'object' || seen.has(value)) {
