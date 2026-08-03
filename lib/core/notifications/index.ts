@@ -11,6 +11,11 @@ import {
 import { isEmailEnabled } from '@/lib/core/flags';
 import { sendNotificationEmail } from '@/lib/core/email';
 import { isPushConfigured, sendPushToUser } from '@/lib/core/push';
+import {
+  coachCreatedAppointmentContent,
+  rescheduledAppointmentContent,
+  type AppointmentNotificationActor,
+} from './appointment-content';
 
 /**
  * Stable notification type keys. Generic marketplace events — any vertical on
@@ -18,10 +23,12 @@ import { isPushConfigured, sendPushToUser } from '@/lib/core/push';
  */
 export const NOTIFICATION_TYPES = [
   'booking_requested',
+  'booking_created_by_coach',
   'booking_accepted',
   'booking_declined',
   'booking_cancelled',
   'booking_completed',
+  'booking_rescheduled',
   'new_message',
   'provider_review_requested',
   'provider_approved',
@@ -37,10 +44,12 @@ export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
  */
 export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   booking_requested: 'Nuova richiesta di sessione',
+  booking_created_by_coach: 'Nuovo appuntamento fissato dal coach',
   booking_accepted: 'Richiesta accettata',
   booking_declined: 'Richiesta rifiutata',
   booking_cancelled: 'Prenotazione annullata',
   booking_completed: 'Sessione completata',
+  booking_rescheduled: 'Orario della sessione modificato',
   new_message: 'Nuovo messaggio',
   provider_review_requested: 'Nuovo profilo coach da approvare',
   provider_approved: 'Profilo approvato',
@@ -296,6 +305,8 @@ export type NotifyContext = {
   expired?: boolean;
   /** For `review_received`: the star rating (1-5) left by the athlete. */
   rating?: number;
+  /** Who changed the appointment, so the recipient gets unambiguous copy. */
+  actor?: AppointmentNotificationActor;
 };
 
 /**
@@ -319,6 +330,8 @@ function buildContent(
           : 'Hai ricevuto una nuova richiesta di sessione.',
         data: { link: '/dashboard/coach', bookingId: ctx.bookingId },
       };
+    case 'booking_created_by_coach':
+      return coachCreatedAppointmentContent(ctx);
     case 'booking_accepted':
       return {
         title: 'Richiesta accettata',
@@ -348,6 +361,12 @@ function buildContent(
         body: 'La tua sessione è stata completata.',
         data: { link: '/dashboard/athlete', bookingId: ctx.bookingId },
       };
+    case 'booking_rescheduled':
+      return rescheduledAppointmentContent({
+        bookingId: ctx.bookingId,
+        actor: ctx.actor ?? 'coach',
+        audience: ctx.audience,
+      });
     case 'new_message':
       return {
         title: 'Nuovo messaggio',

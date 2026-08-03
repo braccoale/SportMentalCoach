@@ -22,6 +22,7 @@ import {
   getApprovedCoachAvailabilityBySlug,
   describeAvailability,
   getBookableDays,
+  getCoachBusyIntervalsByProviderIds,
 } from '@/lib/core/availability';
 import { getReviewSummary, getCoachReviews } from '@/lib/core/reviews';
 import { getCompletedSessionCount } from '@/lib/core/bookings';
@@ -104,10 +105,18 @@ export default async function CoachDetailPage({
     notFound();
   }
 
-  const [user, availability, reviewSummary, reviews, completedSessions] =
+  const [
+    user,
+    availability,
+    busyByProvider,
+    reviewSummary,
+    reviews,
+    completedSessions,
+  ] =
     await Promise.all([
       getUser(),
       getApprovedCoachAvailabilityBySlug(slug),
+      getCoachBusyIntervalsByProviderIds([coach.providerId]),
       getReviewSummary(coach.providerId),
       getCoachReviews(coach.providerId, 12),
       getCompletedSessionCount(coach.providerId),
@@ -138,7 +147,9 @@ export default async function CoachDetailPage({
   // Compact availability hint shown beside the date field in the form.
   const availabilityHint = describeAvailability(availability.slice(0, 3));
   // Concrete day+time options for the constrained booking picker.
-  const bookableDays = getBookableDays(availability);
+  const bookableDays = getBookableDays(availability, {
+    busyIntervals: busyByProvider.get(coach.providerId) ?? [],
+  });
   const memberSince = new Intl.DateTimeFormat('it-IT', {
     month: 'long',
     year: 'numeric',

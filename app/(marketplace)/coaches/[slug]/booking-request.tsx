@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { requestBooking } from './actions';
 import type { ActionState } from '@/lib/auth/middleware';
 import type { BookableDay } from '@/lib/core/availability';
+import { isStartBusyForDuration } from '@/lib/core/availability/validation';
 
 type ServiceOption = {
   id: number;
@@ -15,6 +16,28 @@ type ServiceOption = {
 
 const fieldCls =
   'mt-1.5 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm';
+
+/**
+ * Duration the picker reasons with, or `null` while no service is selected —
+ * see `isStartBusyForDuration`.
+ */
+function selectedDuration(
+  services: ServiceOption[],
+  serviceId: string
+): number | null {
+  return services.find((s) => String(s.id) === serviceId)?.durationMin ?? null;
+}
+
+function firstFreeTime(
+  day: BookableDay | undefined,
+  durationMin: number | null
+): string {
+  return (
+    day?.times.find(
+      (time) => !isStartBusyForDuration(day.maxDurationMin, time, durationMin)
+    ) ?? ''
+  );
+}
 
 /**
  * Booking request form. When the coach has published availability, the "when"
@@ -39,7 +62,9 @@ export function BookingRequest({
   );
 
   const [day, setDay] = useState(bookableDays[0]?.value ?? '');
-  const [time, setTime] = useState(bookableDays[0]?.times[0] ?? '');
+  const [serviceId, setServiceId] = useState('');
+  const [time, setTime] = useState(firstFreeTime(bookableDays[0], null));
+  const durationMin = selectedDuration(services, serviceId);
 
   const selectedDay = useMemo(
     () => bookableDays.find((d) => d.value === day),
@@ -73,7 +98,24 @@ export function BookingRequest({
         <select
           id="serviceId"
           name="serviceId"
-          defaultValue=""
+          value={serviceId}
+          onChange={(e) => {
+            const nextServiceId = e.target.value;
+            setServiceId(nextServiceId);
+            // A longer service may no longer fit the chosen start: fall back
+            // to the first one that does.
+            const nextDuration = selectedDuration(services, nextServiceId);
+            if (
+              selectedDay &&
+              isStartBusyForDuration(
+                selectedDay.maxDurationMin,
+                time,
+                nextDuration
+              )
+            ) {
+              setTime(firstFreeTime(selectedDay, nextDuration));
+            }
+          }}
           className={fieldCls}
           required
         >
@@ -105,8 +147,10 @@ export function BookingRequest({
                 onChange={(e) => {
                   const nextDay = e.target.value;
                   setDay(nextDay);
-                  const first =
-                    bookableDays.find((d) => d.value === nextDay)?.times[0] ?? '';
+                  const first = firstFreeTime(
+                    bookableDays.find((d) => d.value === nextDay),
+                    durationMin
+                  );
                   setTime(first);
                 }}
                 className={fieldCls}
@@ -123,13 +167,33 @@ export function BookingRequest({
               <select
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
+                required
                 className={fieldCls}
               >
-                {selectedDay?.times.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
+                {!time && (
+                  <option value="" disabled>
+                    Nessun orario libero
                   </option>
-                ))}
+                )}
+                {selectedDay?.times.map((t) => {
+                  const busy = isStartBusyForDuration(
+                    selectedDay.maxDurationMin,
+                    t,
+                    durationMin
+                  );
+                  return (
+                    <option
+                      key={t}
+                      value={t}
+                      disabled={busy}
+                      className={busy ? 'text-red-600' : undefined}
+                      style={busy ? { color: '#dc2626' } : undefined}
+                    >
+                      {t}
+                      {busy ? ' · Occupato' : ''}
+                    </option>
+                  );
+                })}
               </select>
             </label>
           </div>
@@ -165,7 +229,7 @@ export function BookingRequest({
         type="submit"
         size="lg"
         className="w-full rounded-full text-base"
-        disabled={pending}
+        disabled={pending || (bookableDays.length > 0 && !scheduledFor)}
       >
         {pending ? (
           <>

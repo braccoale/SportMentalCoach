@@ -3,7 +3,12 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Home, LogOut, UserPlus, ShieldCheck } from 'lucide-react';
+import {
+  Home,
+  LogOut,
+  UserPlus,
+  ShieldCheck,
+} from 'lucide-react';
 import useSWR, { mutate } from 'swr';
 import {
   DropdownMenu,
@@ -40,7 +45,12 @@ export function UserMenu({
   );
   const isAdmin = rolesData?.roles?.includes('admin') ?? false;
 
+  function closeMenu() {
+    setIsMenuOpen(false);
+  }
+
   async function handleSignOut() {
+    closeMenu();
     await signOut();
     mutate('/api/user');
     router.push('/');
@@ -54,33 +64,56 @@ export function UserMenu({
           <UserAvatar name={name || email} className="cursor-pointer size-9" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="flex flex-col gap-1">
-          <DropdownMenuItem className="cursor-pointer">
-            <Link href="/dashboard" className="flex w-full items-center">
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onSelect={closeMenu}
+          >
+            <Link
+              href="/dashboard"
+              onClick={closeMenu}
+              className="flex w-full items-center"
+            >
               <Home className="mr-2 h-4 w-4" />
               <span>Dashboard</span>
             </Link>
           </DropdownMenuItem>
           {isAdmin && (
-            <DropdownMenuItem className="cursor-pointer">
-              <Link
-                href="/dashboard/admin"
-                className="flex w-full items-center"
+            <>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onSelect={closeMenu}
               >
-                <ShieldCheck className="mr-2 h-4 w-4" />
-                <span>Admin</span>
-              </Link>
-            </DropdownMenuItem>
+                <Link
+                  href="/dashboard/admin"
+                  onClick={closeMenu}
+                  className="flex w-full items-center"
+                >
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  <span>Admin</span>
+                </Link>
+              </DropdownMenuItem>
+            </>
           )}
           <DropdownMenuItem
             className="cursor-pointer"
-            onSelect={() => setInviteOpen(true)}
+            onSelect={() => {
+              closeMenu();
+              setInviteOpen(true);
+            }}
           >
             <UserPlus className="mr-2 h-4 w-4" />
             <span>Invita un amico</span>
           </DropdownMenuItem>
           <form action={handleSignOut} className="w-full">
-            <button type="submit" className="flex w-full">
-              <DropdownMenuItem className="w-full flex-1 cursor-pointer">
+            <button
+              type="submit"
+              onClick={closeMenu}
+              className="flex w-full"
+            >
+              <DropdownMenuItem
+                className="w-full flex-1 cursor-pointer"
+                onSelect={closeMenu}
+              >
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Esci</span>
               </DropdownMenuItem>

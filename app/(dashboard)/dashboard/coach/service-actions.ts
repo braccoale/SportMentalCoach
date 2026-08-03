@@ -66,12 +66,15 @@ function parseServiceInput(formData: FormData): ParseResult {
 }
 
 function parseServiceId(formData: FormData): number | null {
-  const id = Number(formData.get('serviceId'));
-  return Number.isInteger(id) ? id : null;
+  const raw = String(formData.get('serviceId') ?? '').trim();
+  if (!raw) return null;
+  const id = Number(raw);
+  return Number.isInteger(id) && id > 0 ? id : null;
 }
 
 function revalidate() {
   revalidatePath('/dashboard/coach/services');
+  revalidatePath('/dashboard/coach');
   revalidatePath('/coaches');
 }
 

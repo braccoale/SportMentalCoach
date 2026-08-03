@@ -7,7 +7,32 @@ import { CalendarPlus, UserRound, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
 import type { RelationshipCoach } from '@/lib/core/bookings';
+import { isStartBusyForDuration } from '@/lib/core/availability/validation';
 import { createBookingRequestAction } from './actions';
+
+type BookableDay = RelationshipCoach['bookableDays'][number];
+
+/**
+ * Duration the picker reasons with, or `null` while no service is selected —
+ * see `isStartBusyForDuration`.
+ */
+function selectedDuration(
+  services: RelationshipCoach['services'],
+  serviceId: string
+): number | null {
+  return services.find((s) => String(s.id) === serviceId)?.durationMin ?? null;
+}
+
+function firstFreeTime(
+  day: BookableDay | undefined,
+  durationMin: number | null
+): string {
+  return (
+    day?.times.find(
+      (time) => !isStartBusyForDuration(day.maxDurationMin, time, durationMin)
+    ) ?? ''
+  );
+}
 
 /**
  * "Nuovo appuntamento" quick-rebook. Scoped on purpose: the coach dropdown only
@@ -33,6 +58,8 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
   const days = selected?.bookableDays ?? [];
   const [day, setDay] = useState('');
   const [time, setTime] = useState('');
+  const [serviceId, setServiceId] = useState('');
+  const durationMin = selectedDuration(selected?.services ?? [], serviceId);
 
   const selectedDay = useMemo(
     () => days.find((d) => d.value === day),
@@ -43,8 +70,9 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
   /** Points day/time at the first option of the given coach (or clears them). */
   function resetWhenFor(coachSlug: string) {
     const first = coaches.find((c) => c.slug === coachSlug)?.bookableDays[0];
+    setServiceId('');
     setDay(first?.value ?? '');
-    setTime(first?.times[0] ?? '');
+    setTime(firstFreeTime(first, null));
   }
 
   function openDialog() {
@@ -145,7 +173,27 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                 <select
                   key={slug}
                   name="serviceId"
-                  defaultValue=""
+                  value={serviceId}
+                  onChange={(e) => {
+                    const nextServiceId = e.target.value;
+                    setServiceId(nextServiceId);
+                    // A longer service may no longer fit the chosen start:
+                    // fall back to the first one that does.
+                    const nextDuration = selectedDuration(
+                      selected?.services ?? [],
+                      nextServiceId
+                    );
+                    if (
+                      selectedDay &&
+                      isStartBusyForDuration(
+                        selectedDay.maxDurationMin,
+                        time,
+                        nextDuration
+                      )
+                    ) {
+                      setTime(firstFreeTime(selectedDay, nextDuration));
+                    }
+                  }}
                   required
                   className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
                 >
@@ -181,7 +229,10 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                           const nextDay = e.target.value;
                           setDay(nextDay);
                           setTime(
-                            days.find((d) => d.value === nextDay)?.times[0] ?? ''
+                            firstFreeTime(
+                              days.find((d) => d.value === nextDay),
+                              durationMin
+                            )
                           );
                         }}
                         className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
@@ -198,13 +249,33 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                       <select
                         value={time}
                         onChange={(e) => setTime(e.target.value)}
+                        required
                         className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
                       >
-                        {selectedDay?.times.map((t) => (
-                          <option key={t} value={t}>
-                            {t}
+                        {!time && (
+                          <option value="" disabled>
+                            Nessun orario libero
                           </option>
-                        ))}
+                        )}
+                        {selectedDay?.times.map((t) => {
+                          const busy = isStartBusyForDuration(
+                            selectedDay.maxDurationMin,
+                            t,
+                            durationMin
+                          );
+                          return (
+                            <option
+                              key={t}
+                              value={t}
+                              disabled={busy}
+                              className={busy ? 'text-red-600' : undefined}
+                              style={busy ? { color: '#dc2626' } : undefined}
+                            >
+                              {t}
+                              {busy ? ' · Occupato' : ''}
+                            </option>
+                          );
+                        })}
                       </select>
                     </label>
                   </div>
@@ -245,7 +316,11 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                 </Button>
                 <Button
                   type="submit"
-                  disabled={!selected || selected.services.length === 0}
+                  disabled={
+                    !selected ||
+                    selected.services.length === 0 ||
+                    (days.length > 0 && !scheduledFor)
+                  }
                   className="rounded-full bg-green-600 text-white hover:bg-green-700"
                 >
                   Invia richiesta

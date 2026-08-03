@@ -1,7 +1,7 @@
 'use client';
 
 import '@livekit/components-styles';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   LiveKitRoom,
@@ -9,13 +9,51 @@ import {
   useLocalParticipant,
   useConnectionState,
 } from '@livekit/components-react';
-import { ConnectionState, type LocalVideoTrack } from 'livekit-client';
+import {
+  ConnectionQuality,
+  ConnectionState,
+  Room,
+  RoomEvent,
+  type LocalVideoTrack,
+  type Participant,
+} from 'livekit-client';
 import {
   BackgroundProcessor,
   supportsBackgroundProcessors,
   type BackgroundProcessorWrapper,
 } from '@livekit/track-processors';
 import { Button } from '@/components/ui/button';
+import { ShareButton } from '@/components/share-button';
+import { AiSessionNotesControl } from '@/components/ai-session-notes-control';
+import { X } from 'lucide-react';
+import {
+  ApplyInitialAudioOutput,
+  CallDeviceSettings,
+  ConnectionQualityNotice,
+  KaiPaiPreJoin,
+  type KaiPaiCallChoices,
+} from '@/components/livekit-call-controls';
+import {
+  KAIPAI_AUDIO_CAPTURE_DEFAULTS,
+} from '@/lib/core/video/call-settings';
+import {
+  ReconnectionNotice,
+  useLiveKitRoomResilience,
+} from '@/components/livekit-room-resilience';
+import {
+  PictureInPictureControl,
+  RoomFullscreenControl,
+  WaitingRoomGate,
+} from '@/components/livekit-call-extras';
+import { BackgroundSelectionApplier } from '@/components/livekit-background-controls';
+import { RoomFlipCameraControl } from '@/components/room-flip-camera-control';
+import { useIsCompact } from '@/lib/hooks/use-is-compact';
+import { useCallCapabilities } from '@/lib/core/video/capabilities-client';
+import { visibleRoomControls } from '@/lib/core/video/capabilities';
+import type {
+  ClientVideoEventType,
+  TechnicalEventDetails,
+} from '@/lib/core/video/technical-events';
 import { completeBookingAction } from '@/app/(dashboard)/dashboard/coach/actions';
 
 /* Background options. Image backgrounds are either a shipped asset (`src`, e.g.
@@ -89,7 +127,7 @@ function BackgroundControls() {
         }
         const opts =
           option.kind === 'blur'
-            ? ({ mode: 'background-blur', blurRadius: 12 } as const)
+            ? ({ mode: 'background-blur', blurRadius: 24 } as const)
             : ({ mode: 'virtual-background', imagePath: images[option.id] } as const);
 
         if (!processorRef.current) {
@@ -114,7 +152,7 @@ function BackgroundControls() {
   if (!supported) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 border-b border-white/10 bg-black/40 px-3 py-2">
+    <div className="flex flex-wrap items-center gap-1.5">
       <span className="mr-1 text-xs font-medium text-white/60">Sfondo</span>
       {BG_OPTIONS.map((o) => (
         <button
@@ -172,34 +210,108 @@ function SessionTracker({ bookingId }: { bookingId: number }) {
  * standard conference UI (camera/mic publish + remote participants), plus a
  * background blur / virtual-background toolbar for the local camera.
  */
-export function VideoRoom({
+function ConnectedVideoRoom({
   serverUrl,
   token,
   bookingId,
   viewerIsCoach,
+  canStartAiNotes,
+  coachIdentity,
   backHref,
+  choices,
 }: {
   serverUrl: string;
   token: string;
   bookingId: number;
   viewerIsCoach: boolean;
+  canStartAiNotes: boolean;
+  coachIdentity: string;
   backHref: string;
+  choices: KaiPaiCallChoices;
 }) {
   const router = useRouter();
-  // When the coach leaves, ask whether to mark the session completed. The
-  // athlete just returns to the dashboard on leave.
-  const [askComplete, setAskComplete] = useState(false);
+  const isCompact = useIsCompact();
+  const caps = useCallCapabilities();
+  const controls = visibleRoomControls(caps, isCompact === true);
+  const room = useMemo(
+    () =>
+      new Room({
+        adaptiveStream: true,
+        dynacast: true,
+        audioCaptureDefaults: {
+          ...KAIPAI_AUDIO_CAPTURE_DEFAULTS,
+          deviceId: choices.audioDeviceId,
+        },
+        // Se nel pre-join è stato scelto un lato del telefono, quello comanda:
+        // su mobile il vincolo per identificativo viene ignorato dal browser.
+        videoCaptureDefaults: choices.videoFacingMode
+          ? { facingMode: choices.videoFacingMode }
+          : { deviceId: choices.videoDeviceId },
+      }),
+    [choices.audioDeviceId, choices.videoDeviceId, choices.videoFacingMode]
+  );
+  const { isReconnecting, handleRoomError } =
+    useLiveKitRoomResilience(room);
+  // A disconnect is not the same as completing the appointment. Keep both
+  // participants on a recovery screen so an accidental exit can be reversed.
+  const [showExitDialog, setShowExitDialog] = useState(false);
   const [pending, setPending] = useState(false);
   const leftRef = useRef(false);
+  const recordTechnicalEvent = useCallback(
+    (
+      eventType: ClientVideoEventType,
+      details: TechnicalEventDetails = {}
+    ) => {
+      void fetch(`/api/video/${bookingId}/events`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ eventType, details }),
+        keepalive: true,
+      }).catch(() => {});
+    },
+    [bookingId]
+  );
 
-  function handleDisconnected() {
+  useEffect(() => {
+    const reconnecting = () => recordTechnicalEvent('reconnecting');
+    const reconnected = () => recordTechnicalEvent('reconnected');
+    const mediaDeviceError = (error: Error) =>
+      recordTechnicalEvent('media_device_error', {
+        reason: error.name,
+      });
+    const qualityChanged = (
+      quality: ConnectionQuality,
+      participant: Participant
+    ) => {
+      if (
+        participant.identity === room.localParticipant.identity &&
+        (quality === ConnectionQuality.Poor ||
+          quality === ConnectionQuality.Lost)
+      ) {
+        recordTechnicalEvent('connection_quality', { quality });
+      }
+    };
+    room.on(RoomEvent.Reconnecting, reconnecting);
+    room.on(RoomEvent.Reconnected, reconnected);
+    room.on(RoomEvent.MediaDevicesError, mediaDeviceError);
+    room.on(RoomEvent.ConnectionQualityChanged, qualityChanged);
+    return () => {
+      room.off(RoomEvent.Reconnecting, reconnecting);
+      room.off(RoomEvent.Reconnected, reconnected);
+      room.off(RoomEvent.MediaDevicesError, mediaDeviceError);
+      room.off(RoomEvent.ConnectionQualityChanged, qualityChanged);
+    };
+  }, [recordTechnicalEvent, room]);
+
+  const handleDisconnected = useCallback(() => {
     if (leftRef.current) return;
     leftRef.current = true;
-    if (viewerIsCoach) {
-      setAskComplete(true);
-    } else {
-      router.push(backHref);
-    }
+    setShowExitDialog(true);
+  }, []);
+
+  function rejoin() {
+    // Reloading obtains a fresh short-lived token and a fresh Room instance.
+    window.location.reload();
   }
 
   async function finish(markCompleted: boolean) {
@@ -219,30 +331,91 @@ export function VideoRoom({
   return (
     <div
       data-lk-theme="default"
-      style={{ height: '70vh' }}
-      className="relative overflow-hidden rounded-lg border border-gray-200"
+      data-kaipai-video-shell
+      className={
+        isCompact
+          ? 'fixed inset-0 z-50 h-dvh w-screen overflow-hidden bg-neutral-950'
+          : 'relative h-[70vh] overflow-hidden rounded-lg border border-gray-200 bg-neutral-950 fullscreen:h-dvh fullscreen:w-screen fullscreen:rounded-none fullscreen:border-0'
+      }
     >
+      {isReconnecting && <ReconnectionNotice />}
       <LiveKitRoom
+        room={room}
         serverUrl={serverUrl}
         token={token}
         connect
-        video
-        audio
+        video={
+          viewerIsCoach && choices.videoEnabled
+            ? choices.videoFacingMode
+              ? { facingMode: choices.videoFacingMode }
+              : { deviceId: choices.videoDeviceId }
+            : false
+        }
+        audio={
+          viewerIsCoach && choices.audioEnabled
+            ? {
+                ...KAIPAI_AUDIO_CAPTURE_DEFAULTS,
+                deviceId: choices.audioDeviceId,
+              }
+            : false
+        }
         onDisconnected={handleDisconnected}
+        onError={handleRoomError}
         style={{ height: '100%' }}
       >
+        <ApplyInitialAudioOutput
+          deviceId={choices.audioOutputDeviceId}
+        />
+        <BackgroundSelectionApplier />
+        <WaitingRoomGate
+          isCoach={viewerIsCoach}
+          coachIdentity={coachIdentity}
+          choices={choices}
+          onTechnicalEvent={recordTechnicalEvent}
+        >
+        <AiSessionNotesControl
+          bookingId={bookingId}
+          canStart={canStartAiNotes}
+        />
         <SessionTracker bookingId={bookingId} />
         <div className="flex h-full flex-col">
-          <BackgroundControls />
-          <div className="min-h-0 flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-2 border-b border-white/10 bg-black/40 px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))]">
+            {controls.includes('exit') && (
+              <button
+                type="button"
+                onClick={() => router.push(backHref)}
+                aria-label="Esci dalla videochiamata"
+                className="rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+              >
+                <X className="h-5 w-5" aria-hidden="true" />
+              </button>
+            )}
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+              {controls.includes('fullscreen') && <RoomFullscreenControl />}
+              {controls.includes('picture-in-picture') && (
+                <PictureInPictureControl
+                  onTechnicalEvent={recordTechnicalEvent}
+                />
+              )}
+              {controls.includes('connection-quality') && (
+                <ConnectionQualityNotice compact={isCompact === true} />
+              )}
+              {controls.includes('share') && (
+                <ShareButton bookingId={bookingId} appearance="room" />
+              )}
+            </div>
+          </div>
+          <div className="relative min-h-0 flex-1">
             {/* VideoConference renders its own RoomAudioRenderer internally —
                 do not add a second one or remote audio plays twice/garbled. */}
-            <VideoConference />
+            <VideoConference SettingsComponent={CallDeviceSettings} />
+            {controls.includes('flip-camera') && <RoomFlipCameraControl />}
           </div>
         </div>
+        </WaitingRoomGate>
       </LiveKitRoom>
 
-      {askComplete && (
+      {showExitDialog && (
         <div
           className="absolute inset-0 z-10 flex items-center justify-center bg-black/70 p-4"
           role="dialog"
@@ -250,12 +423,25 @@ export function VideoRoom({
         >
           <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-2xl">
             <h2 className="text-lg font-semibold text-gray-900">
-              Sessione terminata
+              Sei uscito dalla call
             </h2>
             <p className="mt-2 text-sm text-gray-600">
-              Vuoi segnare questa sessione come <strong>completata</strong>?
+              Puoi rientrare subito: l’appuntamento resta attivo finché non
+              viene completato o termina la finestra prevista.
             </p>
-            <div className="mt-6 flex gap-3">
+            <Button
+              type="button"
+              className="mt-6 w-full rounded-full bg-green-600 text-white hover:bg-green-700"
+              disabled={pending}
+              onClick={rejoin}
+            >
+              Rientra nella call
+            </Button>
+            <div
+              className={
+                isCompact ? 'mt-3 flex flex-col gap-3' : 'mt-3 flex gap-3'
+              }
+            >
               <Button
                 type="button"
                 variant="outline"
@@ -263,20 +449,82 @@ export function VideoRoom({
                 disabled={pending}
                 onClick={() => finish(false)}
               >
-                No
+                Torna alla dashboard
               </Button>
-              <Button
-                type="button"
-                className="flex-1 rounded-full"
-                disabled={pending}
-                onClick={() => finish(true)}
-              >
-                Sì, completa
-              </Button>
+              {viewerIsCoach && (
+                <Button
+                  type="button"
+                  className="flex-1 rounded-full"
+                  disabled={pending}
+                  onClick={() => finish(true)}
+                >
+                  Completa sessione
+                </Button>
+              )}
             </div>
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+export function VideoRoom({
+  serverUrl,
+  token,
+  preflightToken,
+  bookingId,
+  viewerIsCoach,
+  canStartAiNotes,
+  coachIdentity,
+  backHref,
+  counterpartName,
+}: {
+  serverUrl: string;
+  token: string;
+  preflightToken: string;
+  bookingId: number;
+  viewerIsCoach: boolean;
+  canStartAiNotes: boolean;
+  coachIdentity: string;
+  backHref: string;
+  counterpartName?: string;
+}) {
+  const [choices, setChoices] = useState<KaiPaiCallChoices | null>(null);
+
+  if (!choices) {
+    return (
+      <KaiPaiPreJoin
+        participantName={viewerIsCoach ? 'Coach' : 'Atleta'}
+        serverUrl={serverUrl}
+        preflightToken={preflightToken}
+        counterpartName={counterpartName}
+        onDiagnostic={(details) => {
+          void fetch(`/api/video/${bookingId}/events`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              eventType: 'preflight_result',
+              details,
+            }),
+            keepalive: true,
+          }).catch(() => {});
+        }}
+        onJoin={setChoices}
+      />
+    );
+  }
+
+  return (
+    <ConnectedVideoRoom
+      serverUrl={serverUrl}
+      token={token}
+      bookingId={bookingId}
+      viewerIsCoach={viewerIsCoach}
+      canStartAiNotes={canStartAiNotes}
+      coachIdentity={coachIdentity}
+      backHref={backHref}
+      choices={choices}
+    />
   );
 }

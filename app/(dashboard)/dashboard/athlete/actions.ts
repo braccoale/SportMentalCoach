@@ -7,6 +7,9 @@ import { parseRomeLocalDateTime } from '@/lib/core/availability';
 import { updateClientProfile } from '@/lib/core/profiles';
 import { inviteGuardian } from '@/lib/core/guardians';
 import { LEGAL_CONTACT_EMAIL } from '@/lib/core/legal/processors';
+import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
+import { submitAthleteCommitmentOutcome } from '@/lib/core/ai-session-notes/athlete-commitments';
+import { SessionCommitmentError } from '@/lib/core/ai-session-notes/session-commitments';
 import type { ActionState } from '@/lib/auth/middleware';
 
 export async function cancelBookingAction(
@@ -17,7 +20,11 @@ export async function cancelBookingAction(
   const bookingId = Number(formData.get('bookingId'));
   if (!Number.isInteger(bookingId)) return { error: 'Prenotazione non valida.' };
 
-  const result = await cancelBooking({ bookingId, userId: user.id });
+  const dependencies = createProductionAiSessionNotesDependencies();
+  const result = await cancelBooking(
+    { bookingId, userId: user.id },
+    dependencies.liveKit
+  );
   if (!result.ok) return { error: result.error };
 
   revalidatePath('/dashboard/athlete');
@@ -140,5 +147,47 @@ export async function inviteGuardianAction(
     success: result.alreadyConfirmed
       ? `Il tuo percorso è già autorizzato, quindi non abbiamo inviato nulla. Per cambiare il genitore o tutore di riferimento scrivi a ${LEGAL_CONTACT_EMAIL}.`
       : 'Richiesta inviata. Appena il tuo genitore o tutore conferma, potrai prenotare.',
+  };
+}
+
+/**
+ * L'atleta dichiara l'esito di un impegno concordato in sessione. Può agire
+ * solo sugli impegni di cui è owner: la verifica avviene nel dominio, a
+ * partire dall'utente autenticato e mai da un id passato dal client.
+ */
+export async function updateCommitmentOutcomeAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const user = await requireRole('athlete');
+  const commitmentId = Number(formData.get('commitmentId'));
+  const status = String(formData.get('status') ?? '');
+  if (!Number.isInteger(commitmentId) || commitmentId <= 0) {
+    return { error: 'Impegno non valido.' };
+  }
+  if (status !== 'completed' && status !== 'skipped') {
+    return { error: 'Esito non valido.' };
+  }
+
+  try {
+    await submitAthleteCommitmentOutcome({
+      commitmentId,
+      actorUserId: user.id,
+      status,
+      note: String(formData.get('note') ?? ''),
+    });
+  } catch (error) {
+    return {
+      error:
+        error instanceof SessionCommitmentError
+          ? error.message
+          : 'Non è stato possibile aggiornare l’impegno.',
+    };
+  }
+
+  revalidatePath('/dashboard/athlete');
+  return {
+    success:
+      status === 'completed' ? 'Impegno segnato come completato.' : 'Grazie, ne parlerai col coach.',
   };
 }

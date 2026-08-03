@@ -1,0 +1,4 @@
+import assert from 'node:assert/strict'; import test from 'node:test';
+import { InMemoryAudioStorage } from './audio-storage'; import { requireTestDatabaseUrl } from './test-database';
+test('in-memory storage replaces private transport without network', async () => { const storage=new InMemoryAudioStorage(); storage.put('x.ogg',Buffer.from('ogg')); assert.equal((await storage.inspect('x.ogg')).sizeBytes,3); assert.equal((await storage.download('x.ogg')).toString(),'ogg'); });
+test('test database URL is mandatory and cannot equal production', () => { assert.throws(()=>requireTestDatabaseUrl({}),/TEST_DATABASE_URL_REQUIRED/); assert.throws(()=>requireTestDatabaseUrl({TEST_DATABASE_URL:'postgres://x/test',POSTGRES_URL:'postgres://x/test'}),/MATCHES/); assert.equal(requireTestDatabaseUrl({TEST_DATABASE_URL:'postgres://x/ai_notes_test'}),'postgres://x/ai_notes_test'); });

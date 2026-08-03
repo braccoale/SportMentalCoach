@@ -7,7 +7,10 @@ import { SWRConfig } from 'swr';
 export const metadata: Metadata = {
   title: 'KaiPai — Coaching mentale per atleti e squadre',
   description:
-    'KaiPai: trova il tuo mental coach e richiedi una sessione. Coaching mentale per atleti, coach e club.'
+    'KaiPai: trova il tuo mental coach e richiedi una sessione. Coaching mentale per atleti, coach e club.',
+  other: {
+    google: 'notranslate'
+  }
 };
 
 export const viewport: Viewport = {
@@ -23,10 +26,11 @@ export default function RootLayout({
 }) {
   return (
     <html
-      lang="en"
+      lang="it"
+      translate="no"
       className={`bg-white dark:bg-gray-950 text-black dark:text-white ${manrope.className}`}
     >
-      <body className="min-h-[100dvh] bg-gray-50">
+      <body className="notranslate min-h-[100dvh] bg-gray-50">
         <SWRConfig
           value={{
             fallback: {

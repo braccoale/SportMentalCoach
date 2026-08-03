@@ -21,12 +21,6 @@ export default function MarketplaceLayout({
             </span>
           </Link>
           <nav className="flex items-center space-x-4">
-            <Link
-              href="/coaches"
-              className="text-sm font-medium text-gray-700 hover:text-gray-900"
-            >
-              {t('role.provider.plural', config)}
-            </Link>
             <MarketplaceAuthNav />
           </nav>
         </div>

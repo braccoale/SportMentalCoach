@@ -51,6 +51,20 @@ export function formatTime(d: Date, locale = 'it-IT'): string {
   }).format(d);
 }
 
+/** Europe/Rome calendar date in the stable form value `YYYY-MM-DD`. */
+export function formatRomeDateValue(d: Date): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: DISPLAY_TIME_ZONE,
+  }).formatToParts(d);
+  const values = Object.fromEntries(
+    parts.map((part) => [part.type, part.value])
+  );
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 /**
  * Splits a date into the three pieces a "big date" hero display needs — huge
  * day number, short month + year, and time — all in the app's fixed display

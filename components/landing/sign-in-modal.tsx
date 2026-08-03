@@ -115,6 +115,7 @@ export function SignInModal({
               {email && (
                 <button
                   type="button"
+                  tabIndex={-1}
                   onClick={() => setEmail('')}
                   aria-label="Cancella email"
                   className="absolute inset-y-0 right-0 flex items-center pr-4 text-kp-low transition-colors hover:text-kp-hi"
@@ -147,6 +148,7 @@ export function SignInModal({
               />
               <button
                 type="button"
+                tabIndex={-1}
                 onClick={() => setShowPassword((v) => !v)}
                 aria-label={
                   showPassword ? 'Nascondi password' : 'Mostra password'

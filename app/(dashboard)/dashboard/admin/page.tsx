@@ -178,11 +178,14 @@ function AthleteRow({
     city: a.city,
     birthDate,
     goals: a.goals,
+    completedSessions: a.completedSessions,
+    scheduledSessions: a.scheduledSessions,
+    totalMinutes: a.totalMinutes,
     registeredAt: formatDate(a.createdAt),
   };
 
   return (
-    <li>
+    <li className="h-full">
       <AthleteProfileDialog athlete={athlete} />
     </li>
   );
@@ -209,9 +212,28 @@ export default async function AdminDashboardPage() {
         </Link>
         .
       </p>
+      <Link
+        href="/dashboard/admin/ai-notes"
+        className="mt-3 inline-flex rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-medium text-violet-700 hover:bg-violet-100"
+      >
+        Configura Appunti AI · BETA
+      </Link>
+
+      <h2 className="mt-8 text-lg font-medium text-gray-900">
+        Atleti registrati ({athletes.length})
+      </h2>
+      {athletes.length === 0 ? (
+        <p className="mt-2 text-gray-500">Nessun atleta registrato.</p>
+      ) : (
+        <ul className="mt-3 grid items-stretch gap-3 sm:grid-cols-2">
+          {athletes.map((a) => (
+            <AthleteRow key={a.userId} a={a} sportsList={sportsList} />
+          ))}
+        </ul>
+      )}
 
       {/* Quick stats */}
-      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
+      <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <div className="flex items-center gap-2 text-gray-500">
             <Hourglass className="h-4 w-4" />
@@ -284,18 +306,6 @@ export default async function AdminDashboardPage() {
         </>
       )}
 
-      <h2 className="mt-8 text-lg font-medium text-gray-900">
-        Atleti registrati ({athletes.length})
-      </h2>
-      {athletes.length === 0 ? (
-        <p className="mt-2 text-gray-500">Nessun atleta registrato.</p>
-      ) : (
-        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-          {athletes.map((a) => (
-            <AthleteRow key={a.userId} a={a} sportsList={sportsList} />
-          ))}
-        </ul>
-      )}
     </section>
   );
 }

@@ -9,8 +9,12 @@ import {
   Video,
 } from 'lucide-react';
 import { AddToGoogleCalendarButton } from '@/components/add-to-google-calendar-button';
+import { SessionCompassPanel } from '@/components/session-compass-panel';
+import { canShowAiSessionReport } from '@/lib/core/ai-session-notes/report-visibility';
 import { ActionForm } from '@/components/action-form';
+import { EditAppointmentButton } from '@/components/edit-appointment-button';
 import { Button } from '@/components/ui/button';
+import { VideoCallButton } from '@/components/video-call-button';
 import { getUser } from '@/lib/db/queries';
 import {
   bookingStatusLabel,
@@ -21,8 +25,24 @@ import {
   BOOKING_TIME_ZONE,
 } from '@/lib/core/booking-calendar';
 import { getAppBaseUrl } from '@/lib/core/app-url';
-import { formatDateTime, formatMinutes } from '@/lib/core/format';
-import { isSessionJoinable } from '@/lib/core/sessions';
+import {
+  formatDateTime,
+  formatMinutes,
+  formatRomeDateValue,
+  formatTime,
+} from '@/lib/core/format';
+import { canJoinVideoNow, isSessionJoinable } from '@/lib/core/sessions';
+import { getAiNotesSessionForBooking } from '@/lib/core/ai-session-notes';
+import {
+  FEATURE_CODES,
+  hasFeatureEntitlement,
+} from '@/lib/core/features';
+import {
+  getBookableDays,
+  getCoachAvailabilityByProviderId,
+  getCoachBusyIntervalsByProviderIds,
+} from '@/lib/core/availability';
+import { DEFAULT_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
 import { cancelBookingAction as cancelAthleteBookingAction } from '../../athlete/actions';
 import { cancelBookingAction as cancelCoachBookingAction } from '../../coach/actions';
 
@@ -45,6 +65,19 @@ export default async function AppointmentDetailPage({
   const bookingId = Number(rawId);
   const booking = await getParticipantBooking(bookingId, user.id);
   if (!booking) notFound();
+  const [availability, busyByProvider, aiNotesSession, aiNotesEnabled] = await Promise.all([
+    getCoachAvailabilityByProviderId(booking.providerId),
+    getCoachBusyIntervalsByProviderIds([booking.providerId]),
+    booking.viewerRole === 'coach'
+      ? getAiNotesSessionForBooking(booking.id, user.id)
+      : Promise.resolve(null),
+    booking.viewerRole === 'coach'
+      ? hasFeatureEntitlement(user.id, FEATURE_CODES.AI_SESSION_NOTES)
+      : Promise.resolve(false),
+  ]);
+  const bookableDays = getBookableDays(availability, {
+    busyIntervals: busyByProvider.get(booking.providerId) ?? [],
+  });
 
   const created = (await searchParams).created === '1';
   const calendarEvent = buildBookingCalendarEvent({
@@ -154,11 +187,19 @@ export default async function AppointmentDetailPage({
         </dl>
 
         <div className="mt-6 flex flex-col gap-3 border-t border-gray-100 pt-6">
-          <AddToGoogleCalendarButton
-            url={calendarEvent?.url ?? null}
-            uiSource={created ? 'booking_confirmation' : 'appointment_detail'}
-            userRole={booking.viewerRole}
-          />
+          {booking.status === 'accepted' && calendarEvent?.videoUrl && (
+            <VideoCallButton
+              bookingId={booking.id}
+              enabled={canJoinVideoNow(booking.scheduledFor)}
+              scheduledFor={booking.scheduledFor?.toISOString() ?? null}
+              label={
+                booking.sessionStartedAt
+                  ? 'Rientra nella call'
+                  : 'Apri videochiamata'
+              }
+              prominent
+            />
+          )}
 
           {!calendarEvent && isOpen && (
             <p className="text-sm text-gray-500">
@@ -173,7 +214,7 @@ export default async function AppointmentDetailPage({
           )}
         </div>
 
-        <div className="mt-6 flex flex-wrap gap-3">
+        <div className="mt-4 flex flex-wrap items-start gap-3">
           {isOpen && (
             <Button asChild className="rounded-full">
               <Link href={`/dashboard/chat/${booking.id}`}>
@@ -181,15 +222,23 @@ export default async function AppointmentDetailPage({
               </Link>
             </Button>
           )}
-          {booking.status === 'accepted' && calendarEvent?.videoUrl && (
-            <>
-              <Button asChild variant="outline" className="rounded-full">
-                <Link href={`/dashboard/video/${booking.id}`}>
-                  <Video className="h-4 w-4" /> Apri videochiamata
-                </Link>
-              </Button>
-            </>
+          {isOpen && booking.scheduledFor && (
+            <EditAppointmentButton
+              bookingId={booking.id}
+              bookableDays={bookableDays}
+              currentDay={formatRomeDateValue(booking.scheduledFor)}
+              currentTime={formatTime(booking.scheduledFor)}
+              durationMin={
+                booking.serviceDurationMin ?? DEFAULT_SERVICE_DURATION_MIN
+              }
+            />
           )}
+          <AddToGoogleCalendarButton
+            url={calendarEvent?.url ?? null}
+            uiSource={created ? 'booking_confirmation' : 'appointment_detail'}
+            userRole={booking.viewerRole}
+            compact
+          />
           {canCancel && (
             <ActionForm
               action={cancelAction}
@@ -210,6 +259,13 @@ export default async function AppointmentDetailPage({
           </Button>
         </div>
       </div>
+      {canShowAiSessionReport({
+        viewerRole: booking.viewerRole,
+        aiNotesEnabled,
+        hasAiNotesSession: !!aiNotesSession,
+      }) && aiNotesSession ? (
+        <SessionCompassPanel sessionId={aiNotesSession.id} />
+      ) : null}
     </section>
   );
 }

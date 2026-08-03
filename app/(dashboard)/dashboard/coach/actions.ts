@@ -9,6 +9,7 @@ import {
   createCoachBookingRequest,
 } from '@/lib/core/bookings';
 import { parseRomeLocalDateTime } from '@/lib/core/availability';
+import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
 import type { ActionState } from '@/lib/auth/middleware';
 
 function revalidateBookings() {
@@ -66,7 +67,11 @@ export async function completeBookingAction(
   const bookingId = Number(formData.get('bookingId'));
   if (!Number.isInteger(bookingId)) return { error: 'Richiesta non valida.' };
 
-  const result = await completeBooking({ bookingId, coachUserId: user.id });
+  const dependencies = createProductionAiSessionNotesDependencies();
+  const result = await completeBooking(
+    { bookingId, coachUserId: user.id },
+    dependencies.liveKit
+  );
   if (!result.ok) return { error: result.error };
 
   revalidateBookings();
@@ -81,7 +86,11 @@ export async function cancelBookingAction(
   const bookingId = Number(formData.get('bookingId'));
   if (!Number.isInteger(bookingId)) return { error: 'Richiesta non valida.' };
 
-  const result = await cancelBooking({ bookingId, userId: user.id });
+  const dependencies = createProductionAiSessionNotesDependencies();
+  const result = await cancelBooking(
+    { bookingId, userId: user.id },
+    dependencies.liveKit
+  );
   if (!result.ok) return { error: result.error };
 
   revalidateBookings();

@@ -29,6 +29,7 @@ export const dynamic = 'force-dynamic';
 
 const LANGUAGES = ['Italiano', 'Inglese', 'Spagnolo', 'Francese', 'Tedesco'];
 const SORTS: { value: DiscoverySort; label: string }[] = [
+  { value: 'activity', label: 'Ore e atleti seguiti' },
   { value: 'recommended', label: 'Consigliati' },
   { value: 'rating', label: 'Valutazione' },
   { value: 'price', label: 'Prezzo crescente' },
@@ -77,7 +78,7 @@ export default async function CoachesPage({
 
   const sort: DiscoverySort = SORTS.some((s) => s.value === sortParam)
     ? (sortParam as DiscoverySort)
-    : 'recommended';
+    : 'activity';
   const filters: DiscoveryFilters = {
     sport: sport || undefined,
     specialty: specialty || undefined,
@@ -559,6 +560,8 @@ function filterAndRankCoachesForNeeds(
     .filter((coach) => coachMatchesAnyNeed(coach, needs))
     .sort(
       (a, b) =>
+        b.totalMinutes - a.totalMinutes ||
+        b.athletesCount - a.athletesCount ||
         matchedNeedsCount(b, needs) - matchedNeedsCount(a, needs) ||
         totalNeedMatchCount(b, needs) - totalNeedMatchCount(a, needs)
     );

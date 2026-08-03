@@ -10,18 +10,21 @@ export async function mintAccessToken(opts: {
   room: string;
   identity: string;
   name?: string;
+  ttl?: string;
+  canPublish?: boolean;
+  canSubscribe?: boolean;
 }): Promise<string> {
   const at = new AccessToken(opts.apiKey, opts.apiSecret, {
     identity: opts.identity,
     name: opts.name,
     // short-lived token; the page re-mints on load
-    ttl: '1h',
+    ttl: opts.ttl ?? '1h',
   });
   at.addGrant({
     roomJoin: true,
     room: opts.room,
-    canPublish: true,
-    canSubscribe: true,
+    canPublish: opts.canPublish ?? true,
+    canSubscribe: opts.canSubscribe ?? true,
   });
   return at.toJwt();
 }

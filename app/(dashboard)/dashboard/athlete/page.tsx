@@ -4,7 +4,6 @@ import {
   CalendarCheck,
   CheckCircle2,
   MessageSquare,
-  Video,
 } from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
 import {
@@ -13,6 +12,7 @@ import {
   bookingStatusLabel,
   bookingStatusTone,
   type AthleteBooking,
+  type RelationshipCoach,
 } from '@/lib/core/bookings';
 import { isSessionJoinable, canJoinVideoNow } from '@/lib/core/sessions';
 import { getUnreadCountForType } from '@/lib/core/notifications';
@@ -24,6 +24,7 @@ import {
   formatTime,
   formatBigDateParts,
   formatMinutes,
+  formatRomeDateValue,
   getSessionDurationMinutes,
   scheduledForLabel,
 } from '@/lib/core/format';
@@ -44,12 +45,22 @@ import { ReviewForm } from './review-form';
 import { NewAppointmentButton } from './new-appointment-button';
 import { InviteFriendButton } from '@/components/invite/invite-friend-button';
 import { InviteFriendLink } from '@/components/invite/invite-friend-link';
-import { cancelBookingAction, inviteGuardianAction } from './actions';
+import {
+  cancelBookingAction,
+  inviteGuardianAction,
+  updateCommitmentOutcomeAction,
+} from './actions';
+import { AthleteNextSteps } from '@/components/athlete-next-steps';
+import { getAthleteNextSteps } from '@/lib/core/ai-session-notes/athlete-commitments';
 import { getGuardianStatus } from '@/lib/core/guardians';
 import { GuardianBanner } from '@/components/guardian-banner';
 import { AddToGoogleCalendarButton } from '@/components/add-to-google-calendar-button';
 import { buildBookingGoogleCalendarUrl } from '@/lib/core/booking-calendar';
 import { getAppBaseUrl } from '@/lib/core/app-url';
+import { ShareButton } from '@/components/share-button';
+import { EditAppointmentButton } from '@/components/edit-appointment-button';
+import { VideoCallButton } from '@/components/video-call-button';
+import { DEFAULT_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
 
 /** Sort key for the archive: when the session actually happened, newest first. */
 function archiveRecency(b: AthleteBooking): number {
@@ -83,6 +94,7 @@ function buildAthleteUpcomingData(b: AthleteBooking): UpcomingAppointmentData {
 
 function archiveTone(status: string): CompletedSessionData['tone'] {
   if (status === 'completed') return 'green';
+  if (status === 'accepted') return 'amber';
   if (status === 'cancelled') return 'gray';
   return 'red'; // expired, declined
 }
@@ -91,6 +103,8 @@ function archiveHeaderLabel(status: string): string {
   switch (status) {
     case 'completed':
       return 'Sessione completata';
+    case 'accepted':
+      return 'Sessione trascorsa';
     case 'expired':
       return 'Richiesta scaduta';
     case 'declined':
@@ -159,6 +173,8 @@ function archiveReason(status: string): string {
       return 'Richiesta rifiutata dal coach.';
     case 'cancelled':
       return 'Sessione annullata.';
+    case 'accepted':
+      return 'In attesa che il coach registri l’esito della sessione.';
     default:
       return '';
   }
@@ -250,28 +266,13 @@ function BookingRow({
                   Apri chat
                 </Link>
               </Button>
-              {canJoinVideoNow(b.scheduledFor) ? (
-                <Button
-                  asChild
-                  size="sm"
-                  className="w-full rounded-full"
-                >
-                  <Link href={`/dashboard/video/${b.id}`}>
-                    <Video className="mr-2 h-4 w-4" />
-                    Apri videochiamata
-                  </Link>
-                </Button>
-              ) : (
-                <span
-                  title="Videochiamata disponibile 5 min prima"
-                  className="block"
-                >
-                  <Button disabled size="sm" className="w-full rounded-full">
-                    <Video className="mr-2 h-4 w-4" />
-                    Apri videochiamata
-                  </Button>
-                </span>
-              )}
+              <VideoCallButton
+                bookingId={b.id}
+                enabled={canJoinVideoNow(b.scheduledFor)}
+                scheduledFor={b.scheduledFor?.toISOString() ?? null}
+                variant="compact"
+                label={b.sessionStartedAt ? 'Rientra nella call' : undefined}
+              />
             </>
           ) : null}
 
@@ -414,10 +415,12 @@ function AcceptedAppointments({
   items,
   athleteName,
   appBaseUrl,
+  relationshipCoaches,
 }: {
   items: AthleteBooking[];
   athleteName: string | null;
   appBaseUrl: string | null;
+  relationshipCoaches: RelationshipCoach[];
 }) {
   if (items.length === 0) return null;
   return (
@@ -428,6 +431,9 @@ function AcceptedAppointments({
       <div className="mt-3 grid items-start gap-4 xl:grid-cols-2">
         {items.map((b) => {
           const past = !isSessionJoinable(b.scheduledFor);
+          const editDays =
+            relationshipCoaches.find((coach) => coach.slug === b.coachSlug)
+              ?.bookableDays ?? [];
           const calendarUrl = buildBookingGoogleCalendarUrl({
             id: b.id,
             status: b.status,
@@ -455,20 +461,28 @@ function AcceptedAppointments({
                     >
                       <MessageSquare className="h-4 w-4" /> Apri chat
                     </Link>
-                    {canJoinVideoNow(b.scheduledFor) ? (
-                      <Link
-                        href={`/dashboard/video/${b.id}`}
-                        className="inline-flex items-center gap-2 rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700"
-                      >
-                        <Video className="h-4 w-4" /> Apri videochiamata
-                      </Link>
-                    ) : (
-                      <span
-                        title="Videochiamata disponibile 5 min prima"
-                        className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-400"
-                      >
-                        <Video className="h-4 w-4" /> Apri videochiamata
-                      </span>
+                    <VideoCallButton
+                      bookingId={b.id}
+                      enabled={canJoinVideoNow(b.scheduledFor)}
+                      scheduledFor={b.scheduledFor?.toISOString() ?? null}
+                      label={
+                        b.sessionStartedAt
+                          ? 'Rientra nella call'
+                          : undefined
+                      }
+                    />
+                    {b.scheduledFor && (
+                      <EditAppointmentButton
+                        bookingId={b.id}
+                        bookableDays={editDays}
+                        currentDay={formatRomeDateValue(b.scheduledFor)}
+                        currentTime={formatTime(b.scheduledFor)}
+                        durationMin={
+                          b.serviceDurationMin ??
+                          DEFAULT_SERVICE_DURATION_MIN
+                        }
+                        compact
+                      />
                     )}
                     <AddToGoogleCalendarButton
                       url={calendarUrl}
@@ -476,6 +490,7 @@ function AcceptedAppointments({
                       userRole="athlete"
                       compact
                     />
+                    <ShareButton bookingId={b.id} />
                     <ActionForm
                       action={cancelBookingAction}
                       confirmMessage="Vuoi davvero annullare questa sessione?"
@@ -525,22 +540,36 @@ export default async function AthleteDashboardPage() {
     unreadMessages,
     relationshipCoaches,
     guardianStatus,
+    nextSteps,
   ] = await Promise.all([
     getAthleteBookings(user.id),
     getReviewedBookingIds(user.id),
     getUnreadCountForType(user.id, 'new_message'),
     getAthleteRelationshipCoaches(user.id),
     getGuardianStatus(user.id),
+    getAthleteNextSteps(user.id),
   ]);
 
   const waiting = requests.filter((b) => b.status === 'requested');
   const accepted = requests.filter((b) => b.status === 'accepted');
+  const upcomingAccepted = accepted
+    .filter((booking) => isSessionJoinable(booking.scheduledFor))
+    .sort(
+      (a, b) =>
+        (a.scheduledFor?.getTime() ?? Number.MAX_SAFE_INTEGER) -
+        (b.scheduledFor?.getTime() ?? Number.MAX_SAFE_INTEGER)
+    );
+  const pastAccepted = accepted.filter(
+    (booking) => !isSessionJoinable(booking.scheduledFor)
+  );
   const completed = requests.filter((b) => b.status === 'completed');
   // Archive newest-first by when the session actually happened (real end or
   // scheduled time), not by when it was first requested.
   const archive = requests
-    .filter((b) =>
-      ['declined', 'expired', 'cancelled', 'completed'].includes(b.status)
+    .filter(
+      (b) =>
+        ['declined', 'expired', 'cancelled', 'completed'].includes(b.status) ||
+        pastAccepted.some((past) => past.id === b.id)
     )
     .sort((a, b) => archiveRecency(b) - archiveRecency(a));
 
@@ -551,7 +580,7 @@ export default async function AthleteDashboardPage() {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
   const newToday = waiting.filter((b) => b.requestedAt >= startOfToday).length;
-  const confirmedThisWeek = accepted.filter(
+  const confirmedThisWeek = upcomingAccepted.filter(
     (b) => b.decidedAt && b.decidedAt >= startOfWeek
   ).length;
   const completedThisMonth = completed.filter(
@@ -595,7 +624,7 @@ export default async function AthleteDashboardPage() {
         <SummaryCard
           icon={CalendarCheck}
           label="Sessioni confermate"
-          value={accepted.length}
+          value={upcomingAccepted.length}
           tone="green"
           note={
             confirmedThisWeek > 0
@@ -629,6 +658,11 @@ export default async function AthleteDashboardPage() {
         />
       </div>
 
+      <AthleteNextSteps
+        commitments={nextSteps}
+        action={updateCommitmentOutcomeAction}
+      />
+
       <h2 className="text-lg font-medium text-gray-900">Le tue sessioni</h2>
 
       {requests.length === 0 ? (
@@ -650,9 +684,10 @@ export default async function AthleteDashboardPage() {
             reviewedIds={reviewedIds}
           />
           <AcceptedAppointments
-            items={accepted}
+            items={upcomingAccepted}
             athleteName={athleteName}
             appBaseUrl={appBaseUrl}
+            relationshipCoaches={relationshipCoaches}
           />
           <ArchiveSection items={archive} reviewedIds={reviewedIds} />
           {/* Discreet nudge after a concluded session — never a hard sell. */}

@@ -17,9 +17,11 @@ import {
   bookingStatusTone,
   getCoachBookings,
   getAllAthletes,
+  getCoachRelationshipAthletes,
   type CoachBooking,
 } from '@/lib/core/bookings';
 import { getCoachServices } from '@/lib/core/services';
+import { DEFAULT_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
 import {
   getCoachAvailability,
   describeAvailability,
@@ -34,6 +36,7 @@ import {
   formatDateTime,
   formatBigDateParts,
   formatMinutes,
+  formatRomeDateValue,
   formatTime,
   resolveDisplayName,
   getSessionDurationMinutes,
@@ -54,6 +57,7 @@ import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
 import { RatingStars } from '@/components/rating-stars';
 import { SummaryCard } from '@/components/summary-card';
+import { MentalJourneyLinks } from '@/components/mental-journey-links';
 import { CoachRequestCard, type CoachRequestCardData } from '@/components/coach-request-card';
 import { replyToReviewAction } from './review-reply-actions';
 import {
@@ -69,8 +73,9 @@ import { submitForReviewAction } from './profile-actions';
 import { AddToGoogleCalendarButton } from '@/components/add-to-google-calendar-button';
 import { buildBookingGoogleCalendarUrl } from '@/lib/core/booking-calendar';
 import { getAppBaseUrl } from '@/lib/core/app-url';
-
-const DEFAULT_ATHLETE_AVATAR = '/atleta.png';
+import { ShareButton } from '@/components/share-button';
+import { EditAppointmentButton } from '@/components/edit-appointment-button';
+import { VideoCallButton } from '@/components/video-call-button';
 
 /** Sort key for the archive: when the session actually happened, newest first. */
 function archiveRecency(b: CoachBooking): number {
@@ -103,6 +108,7 @@ export default async function CoachDashboardPage() {
     allBookings,
     unreadMessages,
     athletes,
+    journeyAthletes,
     coachServices,
     coachAvailability,
   ] = await Promise.all([
@@ -110,13 +116,27 @@ export default async function CoachDashboardPage() {
     getCoachBookings(user.id),
     getUnreadCountForType(user.id, 'new_message'),
     getAllAthletes(),
+    getCoachRelationshipAthletes(user.id),
     getCoachServices(user.id),
     getCoachAvailability(user.id),
   ]);
   const availabilityHint = describeAvailability(coachAvailability);
   // Same Rome-derived day/time options the athlete sees, so the coach can't
   // pick a slot their own availability would reject on submit.
-  const bookableDays = getBookableDays(coachAvailability);
+  const bookableDays = getBookableDays(coachAvailability, {
+    busyIntervals: allBookings
+      .filter(
+        (booking) =>
+          booking.scheduledFor &&
+          booking.scheduledFor > new Date() &&
+          ['requested', 'accepted'].includes(booking.status)
+      )
+      .map((booking) => ({
+        scheduledFor: booking.scheduledFor!,
+        durationMin:
+          booking.serviceDurationMin ?? DEFAULT_SERVICE_DURATION_MIN,
+      })),
+  });
 
   const reviews = provider ? await getCoachReviews(provider.id) : [];
 
@@ -139,11 +159,23 @@ export default async function CoachDashboardPage() {
 
   const pending = allBookings.filter((b) => b.status === 'requested');
   const accepted = allBookings.filter((b) => b.status === 'accepted');
+  const upcomingAccepted = accepted
+    .filter((booking) => isSessionJoinable(booking.scheduledFor))
+    .sort(
+      (a, b) =>
+        (a.scheduledFor?.getTime() ?? Number.MAX_SAFE_INTEGER) -
+        (b.scheduledFor?.getTime() ?? Number.MAX_SAFE_INTEGER)
+    );
+  const pastAccepted = accepted.filter(
+    (booking) => !isSessionJoinable(booking.scheduledFor)
+  );
   // Archive newest-first by when the session actually happened (real end or
   // scheduled time), not by when it was first requested.
   const archive = allBookings
-    .filter((b) =>
-      ['declined', 'expired', 'cancelled', 'completed'].includes(b.status)
+    .filter(
+      (b) =>
+        ['declined', 'expired', 'cancelled', 'completed'].includes(b.status) ||
+        pastAccepted.some((past) => past.id === b.id)
     )
     .sort((a, b) => archiveRecency(b) - archiveRecency(a));
 
@@ -321,6 +353,8 @@ export default async function CoachDashboardPage() {
         />
       </div>
 
+      <MentalJourneyLinks athletes={journeyAthletes} />
+
       <DashboardSection
         id="richieste-in-attesa"
         title="Nuove richieste da valutare"
@@ -361,8 +395,8 @@ export default async function CoachDashboardPage() {
         id="atleti-in-percorso"
         title="Prossimi Appuntamenti"
         titleClassName="text-green-600"
-        subtitle="Sessioni accettate e gia avviate. Qui puoi passare dalla lettura del bisogno alla relazione vera: chat, videochiamata e follow-up."
-        items={accepted}
+        subtitle="Sessioni confermate ancora da svolgere o attualmente in corso."
+        items={upcomingAccepted}
         emptyTitle="Nessuna sessione accettata."
         emptySubtitle="Le sessioni confermate compariranno qui appena dai il via a un nuovo percorso."
         renderCard={(booking) => {
@@ -391,20 +425,32 @@ export default async function CoachDashboardPage() {
                     >
                       <MessageSquare className="h-4 w-4" /> Apri chat
                     </Link>
-                    {canJoinVideoNow(booking.scheduledFor) ? (
-                      <Link
-                        href={`/dashboard/video/${booking.id}`}
-                        className="inline-flex items-center gap-2 rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700"
-                      >
-                        <Video className="h-4 w-4" /> Apri videochiamata
-                      </Link>
-                    ) : (
-                      <span
-                        title="Videochiamata disponibile 5 min prima"
-                        className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-400"
-                      >
-                        <Video className="h-4 w-4" /> Apri videochiamata
-                      </span>
+                    <VideoCallButton
+                      bookingId={booking.id}
+                      enabled={canJoinVideoNow(booking.scheduledFor)}
+                      scheduledFor={
+                        booking.scheduledFor?.toISOString() ?? null
+                      }
+                      label={
+                        booking.sessionStartedAt
+                          ? 'Rientra nella call'
+                          : undefined
+                      }
+                    />
+                    {booking.scheduledFor && (
+                      <EditAppointmentButton
+                        bookingId={booking.id}
+                        bookableDays={bookableDays}
+                        currentDay={formatRomeDateValue(
+                          booking.scheduledFor
+                        )}
+                        currentTime={formatTime(booking.scheduledFor)}
+                        durationMin={
+                          booking.serviceDurationMin ??
+                          DEFAULT_SERVICE_DURATION_MIN
+                        }
+                        compact
+                      />
                     )}
                     <AddToGoogleCalendarButton
                       url={calendarUrl}
@@ -412,6 +458,7 @@ export default async function CoachDashboardPage() {
                       userRole="coach"
                       compact
                     />
+                    <ShareButton bookingId={booking.id} />
                     <ActionForm
                       action={cancelBookingAction}
                       confirmMessage="Vuoi davvero annullare questa sessione?"
@@ -476,6 +523,24 @@ export default async function CoachDashboardPage() {
           <CompletedSessionCard
             key={booking.id}
             data={buildArchiveCardData(booking, config)}
+            overflowActions={
+              booking.status === 'accepted' ? (
+                booking.sessionStartedAt ? (
+                  <ActionForm action={completeBookingAction} className="w-full">
+                    <input type="hidden" name="bookingId" value={booking.id} />
+                    <button type="submit" className="flex w-full">
+                      <DropdownMenuItem className="w-full flex-1 cursor-pointer">
+                        Completa
+                      </DropdownMenuItem>
+                    </button>
+                  </ActionForm>
+                ) : (
+                  <DropdownMenuItem disabled>
+                    Nessuna videochiamata registrata
+                  </DropdownMenuItem>
+                )
+              ) : undefined
+            }
             detailContent={
               <CoachRequestDetails booking={booking} config={config} />
             }
@@ -687,7 +752,7 @@ function buildCoachRequestCardData(
     statusEyebrow: bookingEyebrow(booking.status),
     athleteName: resolveDisplayName(booking.clientName, booking.clientEmail),
     athleteEmail: booking.clientEmail,
-    athleteAvatarUrl: booking.clientAvatarUrl || DEFAULT_ATHLETE_AVATAR,
+    athleteAvatarUrl: booking.clientAvatarUrl,
     athleteMeta: [sportLabel, levelLabel].filter(Boolean).join(' | ') || null,
     isMinor: booking.athleteIsMinor,
     primaryNeed,
@@ -710,7 +775,7 @@ function buildUpcomingAppointmentData(
   return {
     id: booking.id,
     athleteName: resolveDisplayName(booking.clientName, booking.clientEmail),
-    athleteAvatarUrl: booking.clientAvatarUrl || DEFAULT_ATHLETE_AVATAR,
+    athleteAvatarUrl: booking.clientAvatarUrl,
     eyebrow: bookingEyebrow(booking.status),
     statusLabel: bookingStatusLabel(booking.status),
     date: booking.scheduledFor ? formatBigDateParts(booking.scheduledFor) : null,
@@ -724,6 +789,7 @@ function buildUpcomingAppointmentData(
 
 function archiveTone(status: string): CompletedSessionData['tone'] {
   if (status === 'completed') return 'green';
+  if (status === 'accepted') return 'amber';
   if (status === 'cancelled') return 'gray';
   return 'red'; // expired, declined
 }
@@ -732,6 +798,8 @@ function archiveHeaderLabel(status: string): string {
   switch (status) {
     case 'completed':
       return 'Sessione completata';
+    case 'accepted':
+      return 'Sessione trascorsa';
     case 'expired':
       return 'Richiesta scaduta';
     case 'declined':
@@ -780,7 +848,7 @@ function buildArchiveCardData(
     statusLabel: bookingStatusLabel(booking.status),
     tone: archiveTone(booking.status),
     personName: resolveDisplayName(booking.clientName, booking.clientEmail),
-    personAvatarUrl: booking.clientAvatarUrl || DEFAULT_ATHLETE_AVATAR,
+    personAvatarUrl: booking.clientAvatarUrl,
     personMeta: [sportLabel, levelLabel].filter(Boolean).join(' · ') || null,
     date: big
       ? {
@@ -816,6 +884,8 @@ function archiveReason(status: string): string {
       return 'Richiesta rifiutata.';
     case 'cancelled':
       return 'Sessione annullata.';
+    case 'accepted':
+      return 'La sessione è trascorsa e deve ancora essere completata.';
     default:
       return '';
   }

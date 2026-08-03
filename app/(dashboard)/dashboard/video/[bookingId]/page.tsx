@@ -2,6 +2,10 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getUser } from '@/lib/db/queries';
 import { createRoomToken } from '@/lib/core/video';
+import {
+  FEATURE_CODES,
+  hasFeatureEntitlement,
+} from '@/lib/core/features';
 import { formatDateTime } from '@/lib/core/format';
 import { VideoRoom } from './video-room';
 import { StartCallSignal } from './start-call-signal';
@@ -27,6 +31,13 @@ export default async function VideoPage({
     notFound();
   }
 
+  const canStartAiNotes =
+    result.ok &&
+    result.viewerIsCoach &&
+    (await hasFeatureEntitlement(
+      user.id,
+      FEATURE_CODES.AI_SESSION_NOTES
+    ));
   const { backHref, otherName } = result;
 
   return (
@@ -60,9 +71,13 @@ export default async function VideoPage({
             <VideoRoom
               serverUrl={result.url}
               token={result.token}
+              preflightToken={result.preflightToken}
               bookingId={id}
               viewerIsCoach={result.viewerIsCoach}
+              canStartAiNotes={canStartAiNotes}
+              coachIdentity={result.coachIdentity}
               backHref={result.backHref}
+              counterpartName={otherName}
             />
           </>
         ) : result.reason === 'past' ? (

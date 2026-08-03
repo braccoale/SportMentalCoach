@@ -30,6 +30,7 @@ yarn-error.log*
 
 # vercel
 .vercel
+.local-storage
 
 # typescript
 *.tsbuildinfo
@@ -55,3 +56,6 @@ Image/
 
 # Worktree scratch space used by agent sessions (never part of the project)
 .claude/worktrees/
+
+# Brainstorming companion mockups (session scratch, not project content)
+.superpowers/

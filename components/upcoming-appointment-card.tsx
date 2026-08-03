@@ -1,5 +1,6 @@
 'use client';
 
+import { ShareButton } from '@/components/share-button';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import {
@@ -43,12 +44,14 @@ export function UpcomingAppointmentCard({
   primaryActions,
   overflowActions,
   detailContent,
+  isCoachView,
   className,
 }: {
   data: UpcomingAppointmentData;
   primaryActions?: ReactNode;
   overflowActions?: ReactNode;
   detailContent?: ReactNode;
+  isCoachView?: boolean;
   className?: string;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -71,9 +74,12 @@ export function UpcomingAppointmentCard({
             className="absolute inset-0 h-full w-full object-cover"
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-700 to-gray-900 text-5xl font-bold text-white/80">
-            {data.athleteName.charAt(0).toUpperCase()}
-          </div>
+          <img
+            src="/logo-transparent-clean.png"
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full object-cover object-[12%_center]"
+          />
         )}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 p-4">
@@ -140,6 +146,8 @@ export function UpcomingAppointmentCard({
         {primaryActions && (
           <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-3">
             {primaryActions}
+            {/* Aggiunto il pulsante di condivisione, visibile solo per il coach */}
+            {isCoachView && <ShareButton bookingId={data.id} />}
           </div>
         )}
 
