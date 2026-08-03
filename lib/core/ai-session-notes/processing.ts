@@ -239,13 +239,16 @@ export async function claimNextAiProcessingJob(params: {
     throw new AiNotesProcessingError('INVALID_JOB', 'Worker non valido.');
   }
   const now = dependencies.clock.now();
+  // Il driver postgres-js esegue i template `sql` grezzi via `unsafe`, che non
+  // serializza gli oggetti Date: si passa l'ISO con cast esplicito.
+  const nowIso = now.toISOString();
   const claimed = await dependencies.db.transaction(async (tx) => {
     const rows = await tx.execute(sql`
       WITH candidate AS (
         SELECT j.id
         FROM session_ai_processing_jobs j
         WHERE j.status = 'queued'
-          AND j.available_after <= ${now}
+          AND j.available_after <= ${nowIso}::timestamptz
           AND j.attempt_count < j.max_attempts
           AND EXISTS (
             SELECT 1 FROM session_ai_notes s
@@ -265,12 +268,12 @@ export async function claimNextAiProcessingJob(params: {
       SET
         status = 'processing',
         attempt_count = j.attempt_count + 1,
-        started_at = COALESCE(j.started_at, ${now}),
-        locked_at = ${now},
+        started_at = COALESCE(j.started_at, ${nowIso}::timestamptz),
+        locked_at = ${nowIso}::timestamptz,
         locked_by = ${params.workerId},
         error_code = NULL,
         error_message_sanitized = NULL,
-        updateddate = ${now}
+        updateddate = ${nowIso}::timestamptz
       FROM candidate
       WHERE j.id = candidate.id
       RETURNING
