@@ -8,31 +8,24 @@ import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
 import type { RelationshipCoach } from '@/lib/core/bookings';
 import { isStartBusyForDuration } from '@/lib/core/availability/validation';
-import { DEFAULT_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
 import { createBookingRequestAction } from './actions';
 
 type BookableDay = RelationshipCoach['bookableDays'][number];
 
 /**
- * Duration the picker reasons with. Before a service is chosen we assume the
- * coach's shortest one, so the list starts permissive and re-narrows as soon as
- * a longer service is selected.
+ * Duration the picker reasons with, or `null` while no service is selected —
+ * see `isStartBusyForDuration`.
  */
-function assumedDuration(
+function selectedDuration(
   services: RelationshipCoach['services'],
   serviceId: string
-): number {
-  const selected = services.find((s) => String(s.id) === serviceId);
-  if (selected) return selected.durationMin;
-  const durations = services.map((s) => s.durationMin);
-  return durations.length > 0
-    ? Math.min(...durations)
-    : DEFAULT_SERVICE_DURATION_MIN;
+): number | null {
+  return services.find((s) => String(s.id) === serviceId)?.durationMin ?? null;
 }
 
 function firstFreeTime(
   day: BookableDay | undefined,
-  durationMin: number
+  durationMin: number | null
 ): string {
   return (
     day?.times.find(
@@ -66,7 +59,7 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
   const [day, setDay] = useState('');
   const [time, setTime] = useState('');
   const [serviceId, setServiceId] = useState('');
-  const durationMin = assumedDuration(selected?.services ?? [], serviceId);
+  const durationMin = selectedDuration(selected?.services ?? [], serviceId);
 
   const selectedDay = useMemo(
     () => days.find((d) => d.value === day),
@@ -76,11 +69,10 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
 
   /** Points day/time at the first option of the given coach (or clears them). */
   function resetWhenFor(coachSlug: string) {
-    const coach = coaches.find((c) => c.slug === coachSlug);
-    const first = coach?.bookableDays[0];
+    const first = coaches.find((c) => c.slug === coachSlug)?.bookableDays[0];
     setServiceId('');
     setDay(first?.value ?? '');
-    setTime(firstFreeTime(first, assumedDuration(coach?.services ?? [], '')));
+    setTime(firstFreeTime(first, null));
   }
 
   function openDialog() {
@@ -187,7 +179,7 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                     setServiceId(nextServiceId);
                     // A longer service may no longer fit the chosen start:
                     // fall back to the first one that does.
-                    const nextDuration = assumedDuration(
+                    const nextDuration = selectedDuration(
                       selected?.services ?? [],
                       nextServiceId
                     );

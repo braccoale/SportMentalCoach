@@ -93,6 +93,11 @@ test('busy start times depend on the duration of the service being booked', () =
   assert.equal(isStartBusyForDuration(maxDurationMin, '15:50', 10), true);
   // No entry at all means no session ahead: always free.
   assert.equal(isStartBusyForDuration(maxDurationMin, '17:00', 90), false);
+
+  // No service picked yet: only starts inside a session are blocked.
+  assert.equal(isStartBusyForDuration(maxDurationMin, '15:20', null), false);
+  assert.equal(isStartBusyForDuration(maxDurationMin, '15:50', null), true);
+  assert.equal(isStartBusyForDuration(maxDurationMin, '17:00', null), false);
 });
 
 test('accepts multiple days and non-overlapping ranges on the same day', () => {

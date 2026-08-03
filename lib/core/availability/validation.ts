@@ -168,14 +168,20 @@ export function maxSessionMinutesAt(
  * Whether a session of `durationMin` cannot start at `time` on a bookable day,
  * given that day's per-start capacities (see `BookableDay.maxDurationMin`).
  * A missing entry means no appointment follows: the start is always free.
+ *
+ * `durationMin: null` = no service picked yet. Only starts sitting *inside* an
+ * appointment are blocked then: guessing a length would grey out perfectly
+ * bookable earlier starts (a start 30 minutes before a session is fine for a
+ * short service), and the picker re-narrows once a service is chosen.
  */
 export function isStartBusyForDuration(
   maxDurationMin: Record<string, number>,
   time: string,
-  durationMin: number
+  durationMin: number | null
 ): boolean {
   const max = maxDurationMin[time];
-  return max !== undefined && durationMin > max;
+  if (max === undefined) return false;
+  return durationMin === null ? max === 0 : durationMin > max;
 }
 
 /** Reads weekday and minute-of-day in the platform timezone (Europe/Rome). */
