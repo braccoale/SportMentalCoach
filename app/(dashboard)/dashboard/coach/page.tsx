@@ -17,6 +17,7 @@ import {
   bookingStatusTone,
   getCoachBookings,
   getAllAthletes,
+  getCoachRelationshipAthletes,
   type CoachBooking,
 } from '@/lib/core/bookings';
 import { getCoachServices } from '@/lib/core/services';
@@ -56,6 +57,7 @@ import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
 import { RatingStars } from '@/components/rating-stars';
 import { SummaryCard } from '@/components/summary-card';
+import { MentalJourneyLinks } from '@/components/mental-journey-links';
 import { CoachRequestCard, type CoachRequestCardData } from '@/components/coach-request-card';
 import { replyToReviewAction } from './review-reply-actions';
 import {
@@ -106,6 +108,7 @@ export default async function CoachDashboardPage() {
     allBookings,
     unreadMessages,
     athletes,
+    journeyAthletes,
     coachServices,
     coachAvailability,
   ] = await Promise.all([
@@ -113,6 +116,7 @@ export default async function CoachDashboardPage() {
     getCoachBookings(user.id),
     getUnreadCountForType(user.id, 'new_message'),
     getAllAthletes(),
+    getCoachRelationshipAthletes(user.id),
     getCoachServices(user.id),
     getCoachAvailability(user.id),
   ]);
@@ -348,6 +352,8 @@ export default async function CoachDashboardPage() {
           href="/dashboard/coach/messages"
         />
       </div>
+
+      <MentalJourneyLinks athletes={journeyAthletes} />
 
       <DashboardSection
         id="richieste-in-attesa"

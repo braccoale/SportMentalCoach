@@ -254,5 +254,19 @@
       "tag": "0035_ai-session-notes-phase-3b",
       "breakpoints": true
     }
+    ,{
+      "idx": 36,
+      "version": "7",
+      "when": 1785848400000,
+      "tag": "0036_ai-session-notes-session-compass-v1",
+      "breakpoints": true
+    }
+    ,{
+      "idx": 37,
+      "version": "7",
+      "when": 1785934800000,
+      "tag": "0037_ai-session-notes-commitment-follow-through",
+      "breakpoints": true
+    }
   ]
 }

@@ -55,6 +55,7 @@ try {
         'session_ai_consents',
         'session_transcript_segments',
         'session_ai_reports',
+        'session_ai_commitments',
         'session_ai_audit_events',
         'session_participant_recordings',
         'session_audio_recordings',
@@ -183,6 +184,37 @@ try {
       ) values (
         ${session.id}, 'rls-private-test', ${booking.coach_user_id},
         ${booking.coach_user_id}
+      )
+      returning id
+    `;
+    // Un impegno per owner: la policy deve mostrare all'atleta solo il suo.
+    const [athleteCommitment] = await tx`
+      insert into public.session_ai_commitments (
+        session_ai_notes_id, source_report_id, source_report_version,
+        athlete_user_id, coach_user_id, commitment_key, title, owner, status,
+        source_transcript_segment_id, source_timestamp_ms, source_excerpt,
+        createdby, updatedby
+      ) values (
+        ${session.id}, ${report.id}, 1, ${booking.client_id},
+        ${booking.coach_user_id}, ${`athlete-${Date.now()}`},
+        'Impegno atleta', 'athlete', 'pending',
+        null, 120000, 'estratto riservato al coach',
+        ${booking.coach_user_id}, ${booking.coach_user_id}
+      )
+      returning id
+    `;
+    const [coachCommitment] = await tx`
+      insert into public.session_ai_commitments (
+        session_ai_notes_id, source_report_id, source_report_version,
+        athlete_user_id, coach_user_id, commitment_key, title, owner, status,
+        source_transcript_segment_id, source_timestamp_ms, source_excerpt,
+        createdby, updatedby
+      ) values (
+        ${session.id}, ${report.id}, 1, ${booking.client_id},
+        ${booking.coach_user_id}, ${`coach-${Date.now()}`},
+        'Impegno coach', 'coach', 'pending',
+        null, 130000, 'estratto riservato al coach',
+        ${booking.coach_user_id}, ${booking.coach_user_id}
       )
       returning id
     `;
@@ -349,6 +381,14 @@ try {
       where id = ${report.id}
     `;
     assert(coachReport.length === 1, 'Il coach non legge il proprio report.');
+    const coachCommitments = await tx`
+      select id from public.session_ai_commitments
+      where session_ai_notes_id = ${session.id}
+    `;
+    assert(
+      coachCommitments.length === 2,
+      'Il coach non legge tutti gli impegni della propria sessione.'
+    );
     await expectDenied(
       tx,
       () =>
@@ -497,6 +537,31 @@ try {
       athleteReport.length === 0,
       'L’atleta può leggere le note private del coach.'
     );
+    const athleteCommitments = await tx`
+      select id, owner, source_excerpt
+      from public.session_ai_commitments
+      where session_ai_notes_id = ${session.id}
+    `;
+    assert(
+      athleteCommitments.length === 1 &&
+        athleteCommitments[0].id === athleteCommitment.id &&
+        athleteCommitments[0].owner === 'athlete',
+      'L’atleta deve leggere soltanto gli impegni di cui è owner.'
+    );
+    await expectDenied(
+      tx,
+      () =>
+        tx`update public.session_ai_commitments
+           set status = 'completed' where id = ${athleteCommitment.id}`,
+      'Scrittura diretta impegno atleta'
+    );
+    await expectDenied(
+      tx,
+      () =>
+        tx`delete from public.session_ai_commitments
+           where id = ${coachCommitment.id}`,
+      'Cancellazione diretta impegno coach'
+    );
     const athleteConsents = await tx`
       select user_id from public.session_ai_consents
       where session_ai_notes_id = ${session.id}
@@ -526,10 +591,15 @@ try {
     const outsiderReports = await tx`
       select id from public.session_ai_reports where id = ${report.id}
     `;
+    const outsiderCommitments = await tx`
+      select id from public.session_ai_commitments
+      where session_ai_notes_id = ${session.id}
+    `;
     assert(
       outsiderEntitlements.length === 0 &&
         outsiderConsents.length === 0 &&
-        outsiderReports.length === 0,
+        outsiderReports.length === 0 &&
+        outsiderCommitments.length === 0,
       'Un non partecipante vede dati AI riservati.'
     );
 
@@ -541,12 +611,15 @@ try {
         (select count(*)::int from public.session_ai_notes
           where id = ${session.id}) as sessions,
         (select count(*)::int from public.session_ai_reports
-          where id = ${report.id}) as reports
+          where id = ${report.id}) as reports,
+        (select count(*)::int from public.session_ai_commitments
+          where session_ai_notes_id = ${session.id}) as commitments
     `;
     assert(
       adminRows[0].entitlements === 1 &&
         adminRows[0].sessions === 1 &&
-        adminRows[0].reports === 1,
+        adminRows[0].reports === 1 &&
+        adminRows[0].commitments === 2,
       'Le policy non riconoscono il ruolo admin esistente.'
     );
 

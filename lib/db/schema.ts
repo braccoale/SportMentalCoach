@@ -1158,18 +1158,27 @@ export const AI_REPORT_STATUSES = [
 ] as const;
 export type AiReportStatus = (typeof AI_REPORT_STATUSES)[number];
 
-// Reports stay server-only in Phase 1. Athlete-facing sharing must later
-// project shared_report_json and must never return private_coach_notes.
+export const AI_REPORT_KINDS = ['session_compass_v1'] as const;
+export type AiReportKind = (typeof AI_REPORT_KINDS)[number];
+
+// Reports stay server-only. Athlete-facing sharing must later project
+// shared_report_json and must never return private_coach_notes.
+// Session Compass v1 is versioned per session: report_version grows when a
+// draft is regenerated after approval, so an approved report stays immutable.
 export const sessionAiReports = pgTable(
   'session_ai_reports',
   {
     id: serial('id').primaryKey(),
     sessionAiNotesId: integer('session_ai_notes_id')
       .notNull()
-      .unique()
       .references(() => sessionAiNotes.id, { onDelete: 'cascade' }),
+    reportKind: varchar('report_kind', { length: 40 })
+      .notNull()
+      .default('session_compass_v1'),
     status: varchar('status', { length: 24 }).notNull().default('pending'),
     reportVersion: integer('report_version').notNull().default(1),
+    /** SHA-256 della timeline sorgente: guida idempotenza e rigenerazione. */
+    sourceFingerprint: varchar('source_fingerprint', { length: 64 }),
     generatedReportJson: jsonb('generated_report_json').$type<
       Record<string, unknown>
     >(),
@@ -1206,13 +1215,132 @@ export const sessionAiReports = pgTable(
     }),
   },
   (table) => [
+    unique('session_ai_reports_session_kind_version_unique').on(
+      table.sessionAiNotesId,
+      table.reportKind,
+      table.reportVersion
+    ),
+    uniqueIndex('session_ai_reports_one_open_draft_idx')
+      .on(table.sessionAiNotesId, table.reportKind)
+      .where(
+        sql`${table.status} in ('pending', 'generating', 'ready_for_review', 'failed')`
+      ),
+    index('session_ai_reports_session_kind_version_idx').on(
+      table.sessionAiNotesId,
+      table.reportKind,
+      table.reportVersion
+    ),
     check(
       'session_ai_reports_status_check',
       sql`${table.status} in ('pending', 'generating', 'ready_for_review', 'approved', 'shared', 'failed')`
     ),
     check(
+      'session_ai_reports_kind_check',
+      sql`${table.reportKind} in ('session_compass_v1')`
+    ),
+    check(
       'session_ai_reports_version_check',
       sql`${table.reportVersion} >= 1`
+    ),
+  ]
+);
+
+export const AI_COMMITMENT_OWNERS = ['coach', 'athlete'] as const;
+export type AiCommitmentOwner = (typeof AI_COMMITMENT_OWNERS)[number];
+
+export const AI_COMMITMENT_STATUSES = [
+  'pending',
+  'in_progress',
+  'completed',
+  'skipped',
+] as const;
+export type AiCommitmentStatus = (typeof AI_COMMITMENT_STATUSES)[number];
+
+/**
+ * Impegni operativi nati da un report Session Compass approvato.
+ *
+ * Vivono fuori dal JSON del report perché hanno un ciclo di vita proprio: il
+ * report approvato resta immutabile, mentre stato, scadenza e note evolvono
+ * qui. `commitment_key` deriva dall'evidenza transcript e rende la
+ * sincronizzazione idempotente fra versioni successive del report.
+ */
+export const sessionAiCommitments = pgTable(
+  'session_ai_commitments',
+  {
+    id: serial('id').primaryKey(),
+    sessionAiNotesId: integer('session_ai_notes_id')
+      .notNull()
+      .references(() => sessionAiNotes.id, { onDelete: 'cascade' }),
+    sourceReportId: integer('source_report_id')
+      .notNull()
+      .references(() => sessionAiReports.id, { onDelete: 'cascade' }),
+    sourceReportVersion: integer('source_report_version').notNull(),
+    athleteUserId: integer('athlete_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    coachUserId: integer('coach_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    commitmentKey: varchar('commitment_key', { length: 64 }).notNull(),
+    title: text('title').notNull(),
+    owner: varchar('owner', { length: 16 }).notNull(),
+    status: varchar('status', { length: 16 }).notNull().default('pending'),
+    dueDate: date('due_date'),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    /** Nota facoltativa dell'atleta quando dichiara di non esserci riuscito. */
+    athleteNote: text('athlete_note'),
+    sourceTranscriptSegmentId: integer('source_transcript_segment_id').references(
+      () => sessionTranscriptSegments.id,
+      { onDelete: 'set null' }
+    ),
+    sourceTimestampMs: integer('source_timestamp_ms').notNull(),
+    sourceExcerpt: text('source_excerpt').notNull(),
+    /** Una modifica umana prevale sempre su una successiva bozza AI. */
+    manuallyEdited: boolean('manually_edited').notNull().default(false),
+    /** Impegno non più presente in una versione approvata successiva. */
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    updatedDate: timestamp('updateddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedBy: integer('updatedby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    unique('session_ai_commitments_session_key_unique').on(
+      table.sessionAiNotesId,
+      table.commitmentKey
+    ),
+    index('session_ai_commitments_athlete_owner_idx').on(
+      table.athleteUserId,
+      table.owner,
+      table.status
+    ),
+    index('session_ai_commitments_session_idx').on(
+      table.sessionAiNotesId,
+      table.owner
+    ),
+    check(
+      'session_ai_commitments_owner_check',
+      sql`${table.owner} in ('coach', 'athlete')`
+    ),
+    check(
+      'session_ai_commitments_status_check',
+      sql`${table.status} in ('pending', 'in_progress', 'completed', 'skipped')`
+    ),
+    check(
+      'session_ai_commitments_completed_check',
+      sql`(${table.status} = 'completed') = (${table.completedAt} is not null)`
+    ),
+    check(
+      'session_ai_commitments_timestamp_check',
+      sql`${table.sourceTimestampMs} >= 0`
     ),
   ]
 );
@@ -1246,6 +1374,16 @@ export const AI_AUDIT_EVENT_TYPES = [
   'processing_job_failed',
   'processing_job_cancelled',
   'processing_job_recovered',
+  'compass_report_generated',
+  'compass_report_regenerated',
+  'compass_report_approved',
+  'compass_report_failed',
+  'compass_note_updated',
+  'compass_commitment_updated',
+  'commitment_synced',
+  'commitment_archived',
+  'commitment_updated_by_coach',
+  'commitment_updated_by_athlete',
 ] as const;
 export type AiAuditEventType = (typeof AI_AUDIT_EVENT_TYPES)[number];
 
@@ -1287,7 +1425,7 @@ export const sessionAiAuditEvents = pgTable(
     ),
     check(
       'session_ai_audit_events_type_check',
-      sql`${table.eventType} in ('feature_requested', 'consent_accepted', 'consent_rejected', 'consent_revoked', 'session_activated', 'session_cancelled', 'entitlement_denied', 'entitlement_granted', 'entitlement_trial_started', 'entitlement_revoked', 'status_transitioned', 'recording_start_requested', 'recording_started', 'recording_stop_requested', 'recording_recorded', 'recording_failed', 'recording_deletion_requested', 'recording_deleted', 'recording_deletion_failed', 'recording_reconciled', 'unverified_participant_blocked', 'participant_recording_grouped', 'processing_job_queued', 'processing_job_claimed', 'processing_job_completed', 'processing_job_failed', 'processing_job_cancelled', 'processing_job_recovered')`
+      sql`${table.eventType} in ('feature_requested', 'consent_accepted', 'consent_rejected', 'consent_revoked', 'session_activated', 'session_cancelled', 'entitlement_denied', 'entitlement_granted', 'entitlement_trial_started', 'entitlement_revoked', 'status_transitioned', 'recording_start_requested', 'recording_started', 'recording_stop_requested', 'recording_recorded', 'recording_failed', 'recording_deletion_requested', 'recording_deleted', 'recording_deletion_failed', 'recording_reconciled', 'unverified_participant_blocked', 'participant_recording_grouped', 'processing_job_queued', 'processing_job_claimed', 'processing_job_completed', 'processing_job_failed', 'processing_job_cancelled', 'processing_job_recovered', 'compass_report_generated', 'compass_report_regenerated', 'compass_report_approved', 'compass_report_failed', 'compass_note_updated', 'compass_commitment_updated', 'commitment_synced', 'commitment_archived', 'commitment_updated_by_coach', 'commitment_updated_by_athlete')`
     ),
   ]
 );
@@ -1885,6 +2023,8 @@ export type NewSessionTranscriptSegment =
   typeof sessionTranscriptSegments.$inferInsert;
 export type SessionAiReport = typeof sessionAiReports.$inferSelect;
 export type NewSessionAiReport = typeof sessionAiReports.$inferInsert;
+export type SessionAiCommitment = typeof sessionAiCommitments.$inferSelect;
+export type NewSessionAiCommitment = typeof sessionAiCommitments.$inferInsert;
 export type SessionAiAuditEvent = typeof sessionAiAuditEvents.$inferSelect;
 export type NewSessionAiAuditEvent =
   typeof sessionAiAuditEvents.$inferInsert;

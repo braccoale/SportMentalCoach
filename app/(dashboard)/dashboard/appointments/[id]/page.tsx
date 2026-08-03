@@ -9,7 +9,7 @@ import {
   Video,
 } from 'lucide-react';
 import { AddToGoogleCalendarButton } from '@/components/add-to-google-calendar-button';
-import { AiSessionReportPanel } from '@/components/ai-session-report-panel';
+import { SessionCompassPanel } from '@/components/session-compass-panel';
 import { canShowAiSessionReport } from '@/lib/core/ai-session-notes/report-visibility';
 import { ActionForm } from '@/components/action-form';
 import { EditAppointmentButton } from '@/components/edit-appointment-button';
@@ -264,7 +264,7 @@ export default async function AppointmentDetailPage({
         aiNotesEnabled,
         hasAiNotesSession: !!aiNotesSession,
       }) && aiNotesSession ? (
-        <AiSessionReportPanel sessionId={aiNotesSession.id} />
+        <SessionCompassPanel sessionId={aiNotesSession.id} />
       ) : null}
     </section>
   );

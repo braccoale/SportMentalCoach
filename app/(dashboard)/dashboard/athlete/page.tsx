@@ -45,7 +45,13 @@ import { ReviewForm } from './review-form';
 import { NewAppointmentButton } from './new-appointment-button';
 import { InviteFriendButton } from '@/components/invite/invite-friend-button';
 import { InviteFriendLink } from '@/components/invite/invite-friend-link';
-import { cancelBookingAction, inviteGuardianAction } from './actions';
+import {
+  cancelBookingAction,
+  inviteGuardianAction,
+  updateCommitmentOutcomeAction,
+} from './actions';
+import { AthleteNextSteps } from '@/components/athlete-next-steps';
+import { getAthleteNextSteps } from '@/lib/core/ai-session-notes/athlete-commitments';
 import { getGuardianStatus } from '@/lib/core/guardians';
 import { GuardianBanner } from '@/components/guardian-banner';
 import { AddToGoogleCalendarButton } from '@/components/add-to-google-calendar-button';
@@ -534,12 +540,14 @@ export default async function AthleteDashboardPage() {
     unreadMessages,
     relationshipCoaches,
     guardianStatus,
+    nextSteps,
   ] = await Promise.all([
     getAthleteBookings(user.id),
     getReviewedBookingIds(user.id),
     getUnreadCountForType(user.id, 'new_message'),
     getAthleteRelationshipCoaches(user.id),
     getGuardianStatus(user.id),
+    getAthleteNextSteps(user.id),
   ]);
 
   const waiting = requests.filter((b) => b.status === 'requested');
@@ -649,6 +657,11 @@ export default async function AthleteDashboardPage() {
           href="/dashboard/athlete/messages"
         />
       </div>
+
+      <AthleteNextSteps
+        commitments={nextSteps}
+        action={updateCommitmentOutcomeAction}
+      />
 
       <h2 className="text-lg font-medium text-gray-900">Le tue sessioni</h2>
 
