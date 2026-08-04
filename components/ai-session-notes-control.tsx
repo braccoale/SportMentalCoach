@@ -1,8 +1,19 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import { ChevronDown, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
+/**
+ * Posizione dell'overlay Appunti AI dentro la stanza video.
+ *
+ * Non parte da `top-3`: quella riga è occupata dall'header della chiamata, e il
+ * pannello finiva sopra il pulsante di uscita — praticamente inevitabile su
+ * mobile, dove la larghezza dello schermo non lascia scampo. Parte quindi sotto
+ * la barra, tenendo conto della safe area dei telefoni con notch.
+ */
+const OVERLAY_POSITION =
+  'absolute left-3 z-20 top-[calc(3.75rem+env(safe-area-inset-top))]';
 
 type AiNotesSession = {
   id: number;
@@ -50,6 +61,67 @@ function BetaBadge() {
     <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-violet-700">
       BETA
     </span>
+  );
+}
+
+/**
+ * Overlay comprimibile.
+ *
+ * Su schermo piccolo il pannello resta chiuso: si vede solo una pastiglia con
+ * l'icona e il pallino di stato, che occupa pochi millimetri e non copre nulla.
+ * Un tocco lo apre. Da `sm` in su c'è spazio, quindi è sempre aperto e il
+ * pulsante di apertura sparisce.
+ *
+ * Lo stato è gestito in CSS e non con un media query in JavaScript: così al
+ * primo render la dimensione è già quella giusta, senza sfarfallii.
+ */
+function CollapsibleOverlay({
+  label,
+  tone,
+  indicator,
+  children,
+}: {
+  /** Testo letto dagli screen reader e mostrato accanto all'icona da `sm`. */
+  label: string;
+  tone: 'neutral' | 'active' | 'error';
+  /** Pallino di stato, visibile anche quando il pannello è chiuso. */
+  indicator?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const toneClass =
+    tone === 'error'
+      ? 'border-red-300/40 bg-red-950/90'
+      : tone === 'active'
+        ? 'border-emerald-300/40 bg-emerald-950/90'
+        : 'border-white/15 bg-black/75';
+
+  return (
+    <div className={`${OVERLAY_POSITION} max-w-[calc(100vw-1.5rem)] sm:max-w-sm`}>
+      {/* Pastiglia: unico elemento visibile su mobile quando è chiuso. */}
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        aria-label={open ? `Chiudi ${label}` : `Apri ${label}`}
+        className={`flex items-center gap-1.5 rounded-full border p-2 text-white shadow-xl backdrop-blur sm:hidden ${toneClass}`}
+      >
+        <Sparkles className="size-4 text-violet-300" aria-hidden="true" />
+        {indicator}
+        {open ? (
+          <X className="size-3.5 opacity-70" aria-hidden="true" />
+        ) : (
+          <ChevronDown className="size-3.5 opacity-70" aria-hidden="true" />
+        )}
+      </button>
+
+      <div
+        className={`${open ? 'mt-2 block' : 'hidden'} rounded-xl border p-3 text-white shadow-xl backdrop-blur sm:mt-0 sm:block ${toneClass}`}
+      >
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -155,44 +227,46 @@ export function AiSessionNotesControl({
 
   if (!session || terminal) {
     return (
-      <div
-        className="absolute left-3 top-3 z-20 flex max-w-sm items-center gap-2 rounded-xl border border-white/15 bg-black/75 p-2.5 text-white shadow-xl backdrop-blur"
-        aria-busy={loading}
-      >
-        <Sparkles className="size-4 text-violet-300" />
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">
-              {terminal ? 'Appunti AI non attivi' : 'Appunti AI'}
-            </span>
-            <BetaBadge />
+      <CollapsibleOverlay label="Appunti AI" tone="neutral">
+        <div aria-busy={loading} className="flex items-center gap-2">
+          <Sparkles className="size-4 shrink-0 text-violet-300" aria-hidden="true" />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium">
+                {terminal ? 'Appunti AI non attivi' : 'Appunti AI'}
+              </span>
+              <BetaBadge />
+            </div>
+            {error && <p className="mt-1 text-xs text-red-300">{error}</p>}
           </div>
-          {error && <p className="mt-1 text-xs text-red-300">{error}</p>}
+          {canStart && (
+            <Button
+              type="button"
+              size="sm"
+              className="ml-2 shrink-0 rounded-full bg-violet-600 hover:bg-violet-700"
+              disabled={loading}
+              onClick={start}
+            >
+              <Sparkles className="size-3.5" />
+              {loading
+                ? 'Attivazione…'
+                : terminal
+                  ? 'Nuova richiesta'
+                  : 'Attiva appunti AI'}
+            </Button>
+          )}
         </div>
-        {canStart && (
-          <Button
-            type="button"
-            size="sm"
-            className="ml-2 rounded-full bg-violet-600 hover:bg-violet-700"
-            disabled={loading}
-            onClick={start}
-          >
-            <Sparkles className="size-3.5" />
-            {loading
-              ? 'Attivazione…'
-              : terminal
-                ? 'Nuova richiesta'
-                : 'Attiva appunti AI'}
-          </Button>
-        )}
-      </div>
+      </CollapsibleOverlay>
     );
   }
 
   if (session.status === 'waiting_for_consent') {
     return (
+      // Il consenso non si comprime: richiede una decisione, e nasconderlo
+      // dietro un'icona significherebbe bloccare la sessione senza spiegare
+      // perché. Viene solo spostato sotto l'header e limitato in larghezza.
       <div
-        className="absolute left-3 top-3 z-20 w-[min(24rem,calc(100%-1.5rem))] rounded-2xl border border-violet-200 bg-white p-4 text-gray-900 shadow-2xl"
+        className={`${OVERLAY_POSITION} w-[calc(100vw-1.5rem)] max-w-sm rounded-2xl border border-violet-200 bg-white p-4 text-gray-900 shadow-2xl`}
         role="dialog"
         aria-label="Consenso Appunti AI"
         aria-busy={loading}
@@ -294,23 +368,28 @@ export function AiSessionNotesControl({
           ),
         ]
       : [];
-    return (
-      <div
-        className={`absolute left-3 top-3 z-20 max-w-sm rounded-xl border p-3 text-white shadow-xl backdrop-blur ${
-          recording?.state === 'failed'
-            ? 'border-red-300/40 bg-red-950/90'
-            : 'border-emerald-300/40 bg-emerald-950/90'
+    // Il pallino resta visibile anche a pannello chiuso: "sta registrando" è
+    // l'informazione che non può mai sparire, nemmeno su uno schermo piccolo.
+    const dot = (
+      <span
+        className={`size-2 shrink-0 rounded-full ${
+          recording?.state === 'recording'
+            ? 'animate-pulse bg-red-400'
+            : 'bg-amber-300'
         }`}
-        aria-busy={loading}
+        aria-hidden="true"
+      />
+    );
+
+    return (
+      <CollapsibleOverlay
+        label={recordingLabel}
+        tone={recording?.state === 'failed' ? 'error' : 'active'}
+        indicator={dot}
       >
-        <div className="flex items-center gap-2">
-          <span
-            className={`size-2 rounded-full ${
-              recording?.state === 'recording'
-                ? 'animate-pulse bg-red-400'
-                : 'bg-amber-300'
-            }`}
-          />
+        <div aria-busy={loading}>
+        <div className="flex flex-wrap items-center gap-2">
+          {dot}
           <span className="text-sm font-semibold">{recordingLabel}</span>
           <BetaBadge />
         </div>
@@ -351,15 +430,18 @@ export function AiSessionNotesControl({
           {loading ? 'Revoca in corso…' : 'Revoca il mio consenso'}
         </button>
         {error && <p className="mt-1 text-xs text-red-300">{error}</p>}
-      </div>
+        </div>
+      </CollapsibleOverlay>
     );
   }
 
   return (
-    <div className="absolute left-3 top-3 z-20 flex items-center gap-2 rounded-xl border border-white/15 bg-black/75 px-3 py-2 text-sm text-white shadow-xl">
-      <Sparkles className="size-4 text-violet-300" />
-      Appunti AI · {session.status.replaceAll('_', ' ')}
-      <BetaBadge />
-    </div>
+    <CollapsibleOverlay label="Appunti AI" tone="neutral">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <Sparkles className="size-4 shrink-0 text-violet-300" aria-hidden="true" />
+        <span>Appunti AI · {session.status.replaceAll('_', ' ')}</span>
+        <BetaBadge />
+      </div>
+    </CollapsibleOverlay>
   );
 }
