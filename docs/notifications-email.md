@@ -183,15 +183,37 @@ registrati a log. `RESEND_FROM_EMAIL` resta accettata come fallback.
 
 ## Promemoria appuntamenti
 
-`/api/internal/notifications/reminders`, protetta da `CRON_SECRET`, cron
-orario in `vercel.json`. Ogni corsa guarda una finestra di ±35 minuti attorno
-a −24h e −1h dall'appuntamento: la finestra è più larga dell'intervallo del
-cron perché saltare un promemoria è peggio che selezionarlo due volte, e il
-ledger toglie i doppioni.
+`/api/internal/notifications/reminders`, protetta da `CRON_SECRET`. Ogni corsa
+guarda una finestra di ±35 minuti attorno a −24h e −1h dall'appuntamento: la
+finestra è più larga dell'intervallo di esecuzione perché saltare un promemoria
+è peggio che selezionarlo due volte, e il ledger toglie i doppioni.
 
-> **Piano Vercel**: il cron orario richiede un piano a pagamento. Sul piano
-> Hobby i cron scattano una volta al giorno, quindi il promemoria a 1 ora non
-> funziona finché il piano non viene aggiornato.
+### Chi la chiama
+
+**GitHub Actions**, ogni ora: [.github/workflows/notification-reminders.yml](../.github/workflows/notification-reminders.yml).
+
+Non i cron di Vercel, e non per scelta estetica: il piano Hobby ammette **un
+solo cron al giorno**, e uno schedule più frequente in `vercel.json` non
+degrada — **fa fallire il deploy** con
+`Hobby accounts are limited to daily cron jobs`. Un promemoria "un'ora prima"
+con una sola esecuzione giornaliera non esiste, quindi lo schedule sta fuori.
+
+Da configurare in Settings → Secrets and variables → Actions:
+
+| Tipo | Nome | Valore |
+|---|---|---|
+| secret | `CRON_SECRET` | lo stesso delle env di Vercel |
+| variable | `APP_BASE_URL` | origine di produzione |
+
+Finché mancano, il job esce pulito senza chiamare nulla e senza diventare
+rosso: un workflow fallito ogni ora sarebbe solo rumore.
+
+Passando al piano Pro di Vercel si può eliminare il workflow e rimettere in
+`vercel.json`:
+
+```json
+{ "path": "/api/internal/notifications/reminders", "schedule": "0 * * * *" }
+```
 
 ## Eventi con API pronta ma non ancora collegata
 

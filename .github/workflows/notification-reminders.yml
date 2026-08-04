@@ -1,0 +1,63 @@
+# Promemoria appuntamento (24 ore e 1 ora prima).
+#
+# Perché qui e non nei cron di Vercel. Il piano Hobby ammette un solo cron al
+# giorno, e uno schedule più frequente in `vercel.json` non degrada: fa fallire
+# il deploy. Un promemoria "un'ora prima" con una sola esecuzione giornaliera
+# però non esiste — servono controlli frequenti.
+#
+# GitHub Actions offre lo schedule gratuitamente, e la rotta è già pensata per
+# essere chiamata dall'esterno: è protetta da CRON_SECRET e il ledger di
+# deduplica rende innocua qualsiasi esecuzione ripetuta o sovrapposta.
+#
+# Passando al piano Pro di Vercel, questo workflow si può eliminare e la voce
+# torna in `vercel.json` con schedule "0 * * * *".
+#
+# CONFIGURAZIONE (Settings → Secrets and variables → Actions):
+#   secret  CRON_SECRET    lo stesso valore impostato nelle env di Vercel
+#   var     APP_BASE_URL   origine di produzione, es. https://kaipai.vercel.app
+#
+# Finché mancano, il job si ferma con un messaggio e NON fallisce: un workflow
+# rosso ogni ora sarebbe solo rumore nella casella di posta.
+
+name: Promemoria appuntamenti
+
+on:
+  schedule:
+    # Ogni ora. GitHub può ritardare l'esecuzione sotto carico: la rotta
+    # guarda una finestra di ±35 minuti proprio per assorbire questi scarti.
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  # Una corsa alla volta: se la precedente è ancora in volo, questa aspetta
+  # invece di sovrapporsi.
+  group: notification-reminders
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Invia i promemoria in scadenza
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_BASE_URL: ${{ vars.APP_BASE_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$APP_BASE_URL" ]; then
+            echo "::notice::CRON_SECRET o APP_BASE_URL non configurati: nessuna chiamata."
+            exit 0
+          fi
+
+          status=$(curl -sS -o response.json -w '%{http_code}' \
+            --max-time 120 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_BASE_URL/api/internal/notifications/reminders")
+
+          echo "HTTP $status"
+          cat response.json || true
+
+          if [ "$status" != "200" ]; then
+            echo "::error::La rotta dei promemoria ha risposto $status"
+            exit 1
+          fi
