@@ -366,7 +366,11 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
       // we cannot show anyone agreed to anything.
       await recordPlatformTermsAcceptance(
         createdUser.id,
-        { ipAddress: signupIp, userAgent: signupUserAgent },
+        {
+          ipAddress: signupIp,
+          userAgent: signupUserAgent,
+          acceptedVexatious: isProfessional,
+        },
         tx
       );
 

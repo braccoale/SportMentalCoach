@@ -15,6 +15,15 @@ export const PLATFORM_TERMS_KEY = 'platform-terms';
 export type AcceptanceContext = {
   ipAddress?: string | null;
   userAgent?: string | null;
+  /**
+   * Approvazione specifica delle clausole onerose (artt. 1341-1342 c.c.),
+   * richiesta a chi si registra come professionista.
+   *
+   * Va registrata, non solo verificata: per un'approvazione specifica la prova
+   * è l'intero scopo. Una spunta imposta al momento della registrazione e poi
+   * non conservata, in giudizio, vale quanto non averla mai chiesta.
+   */
+  acceptedVexatious?: boolean;
 };
 
 /**
@@ -40,6 +49,7 @@ export async function recordPlatformTermsAcceptance(
     version: LEGAL_VERSION,
     documentHash: LEGAL_CONTENT_HASH,
     acceptedTerms: true,
+    acceptedVexatious: ctx.acceptedVexatious ?? false,
     ipAddress: ctx.ipAddress?.slice(0, 64) ?? null,
     userAgent: ctx.userAgent?.slice(0, 1000) ?? null,
   });
