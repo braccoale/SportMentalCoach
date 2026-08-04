@@ -3,6 +3,7 @@
 import '@livekit/components-styles';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useBackGuard } from '@/lib/hooks/use-back-guard';
 import {
   LiveKitRoom,
   VideoConference,
@@ -257,6 +258,10 @@ function ConnectedVideoRoom({
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [pending, setPending] = useState(false);
   const leftRef = useRef(false);
+  // Su Android il tasto Indietro e' a un millimetro dai controlli della
+  // chiamata, e senza guardia la fa cadere senza chiedere nulla. Attiva solo
+  // finche' si e' davvero in chiamata: dopo l'uscita l'Indietro torna normale.
+  const backGuard = useBackGuard(!showExitDialog);
   const recordTechnicalEvent = useCallback(
     (
       eventType: ClientVideoEventType,
@@ -414,6 +419,43 @@ function ConnectedVideoRoom({
         </div>
         </WaitingRoomGate>
       </LiveKitRoom>
+
+      {/* Conferma sul tasto Indietro. Sta sopra tutto (z-30) perche' compare
+          mentre la chiamata e' ancora viva: la connessione non si e' chiusa,
+          l'utente puo' semplicemente restare. */}
+      {backGuard.confirming && !showExitDialog && (
+        <div
+          className="absolute inset-0 z-30 flex items-center justify-center bg-black/70 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Uscire dalla videochiamata?"
+        >
+          <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-2xl">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Vuoi uscire dalla videochiamata?
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              La sessione è ancora in corso. Se esci, la chiamata si chiude per
+              te e dovrai rientrare.
+            </p>
+            <Button
+              type="button"
+              className="mt-6 w-full rounded-full bg-green-600 text-white hover:bg-green-700"
+              onClick={backGuard.stay}
+            >
+              Resta nella call
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-3 w-full rounded-full border-gray-300 bg-white text-gray-900 hover:bg-gray-50 hover:text-gray-900"
+              onClick={() => backGuard.leave(() => router.push(backHref))}
+            >
+              Esci dalla call
+            </Button>
+          </div>
+        </div>
+      )}
 
       {showExitDialog && (
         <div
