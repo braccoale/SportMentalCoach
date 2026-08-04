@@ -1,5 +1,6 @@
 import { LegalPage } from '../legal-layout';
 import {
+  AI_AUDIO_RETENTION_DAYS,
   SUB_PROCESSORS,
   LEGAL_LAST_UPDATED,
   INACTIVITY_MONTHS,
@@ -129,6 +130,15 @@ export default function PrivacyPage() {
         informazioni cliniche</strong>, né tue né di terzi.
       </p>
       <p>
+        Se attivi gli Appunti AI, la conversazione viene registrata e trascritta
+        così com’è: può quindi capitare che vi finisca, per tua libera scelta di
+        parlarne, un contenuto che rivela il tuo stato psicologico o di salute.
+        Non lo chiediamo e non lo cerchiamo, ma è la ragione per cui quella
+        funzione richiede un consenso esplicito e separato, revocabile in ogni
+        momento, e per cui il report resta invisibile finché il coach non lo ha
+        rivisto.
+      </p>
+      <p>
         Se durante il percorso emerge un bisogno di natura clinica, il coach non
         è la figura appropriata: il suo compito è fermarsi e indirizzarti verso
         un professionista sanitario, coinvolgendo la famiglia quando l’atleta è
@@ -198,22 +208,95 @@ export default function PrivacyPage() {
 
       <h2>8. Videochiamate e chat</h2>
       <p>
-        Le videochiamate si svolgono attraverso un’infrastruttura specializzata
-        e <strong>non vengono registrate</strong>: audio e video transitano per
-        il tempo della sessione e non sono conservati. Della sessione restano
-        solo l’orario di inizio e di fine. I messaggi di chat sono invece
-        conservati, per permettere a entrambi di rileggere gli accordi presi, e
-        sono accessibili unicamente ai due partecipanti alla conversazione.
+        Le videochiamate si svolgono attraverso un’infrastruttura specializzata.
+        Il <strong>video non viene mai registrato</strong>: transita per il tempo
+        della sessione e non viene conservato. Della sessione restano l’orario di
+        inizio e di fine.
+      </p>
+      <p>
+        L’<strong>audio</strong> viene registrato in un solo caso, descritto nel
+        dettaglio al paragrafo successivo: quando entrambi i partecipanti hanno
+        attivato gli <strong>Appunti AI</strong>. Senza quel consenso non viene
+        registrato nulla.
+      </p>
+      <p>
+        I messaggi di chat sono conservati, per permettere a entrambi di
+        rileggere gli accordi presi, e sono accessibili unicamente ai due
+        partecipanti alla conversazione.
       </p>
 
-      <h2>9. Email e notifiche push</h2>
+      <h2>9. Appunti AI della sessione</h2>
+      <p>
+        Gli <strong>Appunti AI</strong> sono una funzione facoltativa, spenta per
+        impostazione predefinita. Quando è attiva, l’audio della sessione viene
+        registrato, trascritto automaticamente e usato per preparare una bozza di
+        report che il coach rivede prima di qualsiasi condivisione.
+      </p>
+      <p>
+        <strong>Serve il consenso di entrambi.</strong> La registrazione parte
+        solo se coach e atleta accettano, ciascuno per sé, prima che cominci. Se
+        anche uno solo rifiuta, non viene registrato nulla. Il consenso è la base
+        giuridica del trattamento (art. 6.1.a e, per quanto la conversazione
+        possa rivelare, art. 9.2.a GDPR) ed è{' '}
+        <strong>revocabile in ogni momento</strong>, anche a sessione in corso:
+        dal momento della revoca la registrazione si interrompe.
+      </p>
+      <p>Cosa viene conservato, e per quanto:</p>
+      <ul>
+        <li>
+          la <strong>registrazione audio grezza</strong>, in un archivio privato,
+          per <strong>{AI_AUDIO_RETENTION_DAYS} giorni</strong>, dopodiché viene
+          cancellata automaticamente. Serve solo a produrre la trascrizione;
+        </li>
+        <li>
+          la <strong>trascrizione</strong> e il <strong>report</strong> restano
+          legati alla sessione e seguono i tempi di conservazione del paragrafo
+          sulla conservazione;
+        </li>
+        <li>
+          il video <strong>non viene mai registrato</strong>, in nessun caso.
+        </li>
+      </ul>
+      <p>
+        L’audio viene registrato su tracce separate, una per partecipante: serve
+        a distinguere con certezza chi ha detto cosa, senza doverlo dedurre.
+      </p>
+      <p>
+        La trascrizione è prodotta da <strong>Deepgram</strong> e la bozza di
+        report da <strong>OpenAI</strong>, entrambi elencati fra i responsabili
+        del trattamento. I contenuti{' '}
+        <strong>non vengono usati per addestrare i loro modelli</strong>.
+      </p>
+      <p>
+        <strong>Il report non è mai automatico.</strong> L’AI produce una bozza
+        visibile al solo coach, che la corregge, elimina ciò che non deve
+        restare e decide che cosa condividere con te. Esistono due piani
+        distinti: le <em>note condivise</em>, che vedi anche tu, e le{' '}
+        <em>note private del coach</em>, che restano sue. Nessun contenuto della
+        sessione ti viene mostrato prima che il coach lo abbia approvato.
+      </p>
+      <p>
+        Il contenuto della trascrizione e del report{' '}
+        <strong>non viene mai inserito nelle email</strong> che ti inviamo: la
+        notifica dice soltanto che qualcosa è pronto, e si consulta accedendo
+        alla piattaforma.
+      </p>
+      <p>
+        Se sei minorenne, la funzione richiede che l’account sia già stato
+        autorizzato da un genitore o tutore, oltre al tuo consenso e a quello del
+        coach.
+      </p>
+
+      <h2>10. Email e notifiche push</h2>
       <p>
         Le email che inviamo sono esclusivamente di servizio, legate a fatti che
         ti riguardano: una richiesta ricevuta, una sessione confermata o
         annullata, un nuovo messaggio. Non inviamo comunicazioni commerciali.
-        Puoi disattivarle per singola tipologia dalle preferenze di notifica del
-        tuo account; le notifiche all’interno della piattaforma restano sempre
-        attive.
+        Dalle preferenze di notifica del tuo account puoi scegliere, per ogni
+        tipo di evento, se riceverlo nell’applicazione, via email, in entrambi i
+        modi o in nessuno. Fanno eccezione gli avvisi di sicurezza e le email che
+        contengono un link necessario ad accedere: quelli non sono
+        disattivabili.
       </p>
       <p>
         Le notifiche push sono facoltative e disattivate finché non le attivi
@@ -225,7 +308,7 @@ export default function PrivacyPage() {
         archivi.
       </p>
 
-      <h2>10. Il Coach come destinatario dei tuoi dati</h2>
+      <h2>11. Il Coach come destinatario dei tuoi dati</h2>
       <p>
         {/* DA COMPLETARE: far confermare al legale la qualificazione scelta.
             L'alternativa è la contitolarità ex art. 26 GDPR, che tutela di più
@@ -254,7 +337,7 @@ export default function PrivacyPage() {
         già svolta.
       </p>
 
-      <h2>11. Responsabili del trattamento</h2>
+      <h2>12. Responsabili del trattamento</h2>
       <p>
         Ci avvaliamo inoltre dei seguenti fornitori, che trattano i dati per
         nostro conto e su nostra istruzione, in qualità di responsabili del
@@ -292,7 +375,7 @@ export default function PrivacyPage() {
         ricorso effettivi.
       </p>
 
-      <h2>12. Conservazione</h2>
+      <h2>13. Conservazione</h2>
       <p>
         Un account si considera <strong>cessato</strong> dopo{' '}
         {INACTIVITY_MONTHS} mesi senza alcuna attività sulla piattaforma, oppure
@@ -316,6 +399,19 @@ export default function PrivacyPage() {
           {POST_CLOSURE_RETENTION_MONTHS} mesi dalla cessazione di entrambi.
         </li>
         <li>
+          <strong>Registrazione audio degli Appunti AI</strong>:{' '}
+          {AI_AUDIO_RETENTION_DAYS} giorni dalla sessione, poi cancellata
+          automaticamente. È il termine più breve di tutti perché l’audio serve
+          soltanto a produrre la trascrizione: una volta ottenuta, non ha più
+          ragione di esistere.
+        </li>
+        <li>
+          <strong>Trascrizione e report della sessione</strong>: seguono lo
+          storico delle sessioni, quindi{' '}
+          {POST_CLOSURE_RETENTION_MONTHS} mesi dalla cessazione. Puoi chiederne
+          la cancellazione anticipata anche senza chiudere l’account.
+        </li>
+        <li>
           <strong>Iscrizioni alle notifiche push</strong>: fino alla revoca, o
           fino a quando il servizio push segnala il dispositivo come non più
           raggiungibile — nel qual caso l’iscrizione viene rimossa
@@ -328,7 +424,7 @@ export default function PrivacyPage() {
         </li>
       </ul>
 
-      <h2>13. Chiusura dell’account</h2>
+      <h2>14. Chiusura dell’account</h2>
       <p>
         Dalla sezione Sicurezza puoi chiudere il tuo account in autonomia.
         L’operazione disattiva immediatamente l’accesso: le credenziali di
@@ -344,7 +440,7 @@ export default function PrivacyPage() {
         limiti degli obblighi di conservazione previsti dalla legge.
       </p>
 
-      <h2>14. Atleti minorenni</h2>
+      <h2>15. Atleti minorenni</h2>
       <p>
         La piattaforma è offerta agli atleti dai {MIN_SIGNUP_AGE} anni in su.
         Poiché la soglia italiana per il consenso digitale è fissata a 14 anni
@@ -371,7 +467,7 @@ export default function PrivacyPage() {
         riguardano il minore e può esercitarne i diritti in sua vece.
       </p>
 
-      <h2>15. Diritti dell’interessato</h2>
+      <h2>16. Diritti dell’interessato</h2>
       <p>
         {/* DA COMPLETARE: attivare una casella dedicata (es. privacy@kaipai.com)
             e sostituirla a info@. Un indirizzo generico rende più difficile
@@ -416,7 +512,7 @@ export default function PrivacyPage() {
         risiedi o lavori.
       </p>
 
-      <h2>16. Come proteggiamo i dati</h2>
+      <h2>17. Come proteggiamo i dati</h2>
       <p>
         Il trattamento avviene con strumenti informatici, secondo i principi di
         liceità, minimizzazione ed esattezza, e con misure tecniche e
@@ -451,7 +547,7 @@ export default function PrivacyPage() {
         diritti, te ne daremo comunicazione secondo l’art. 34 GDPR.
       </p>
 
-      <h2>17. Modifiche a questa informativa</h2>
+      <h2>18. Modifiche a questa informativa</h2>
       <p>
         Questa informativa può essere aggiornata quando cambiano il servizio, i
         fornitori o la normativa. La data di ultimo aggiornamento è indicata in
