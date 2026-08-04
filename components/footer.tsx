@@ -46,8 +46,8 @@ export function Footer() {
           <ul className="mt-3 space-y-2 text-sm text-kp-mid">
             <li className="flex items-center gap-2">
               <Mail className="h-4 w-4 text-kp-low" />
-              <a href="mailto:info@kaipai.it" className="hover:text-kp-hi">
-                info@kaipai.it
+              <a href="mailto:info@kaipaicoaching.com" className="hover:text-kp-hi">
+                info@kaipaicoaching.com
               </a>
             </li>
             <li className="flex items-center gap-2">

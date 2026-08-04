@@ -16,7 +16,7 @@ let configured = false;
 function ensureVapid() {
   if (configured || !isPushConfigured()) return;
   webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT || 'mailto:info@kaipai.it',
+    process.env.VAPID_SUBJECT || 'mailto:info@kaipaicoaching.com',
     process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
     process.env.VAPID_PRIVATE_KEY!
   );
