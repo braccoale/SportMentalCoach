@@ -7,8 +7,13 @@ import {
 import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
 import { updateAiNotesEntitlementAction } from './actions';
+import { AiPipelineHealthPanel } from '@/components/admin/ai-pipeline-health';
+import { getAiPipelineHealth } from '@/lib/core/ai-session-notes/queue-health';
 
 export const dynamic = 'force-dynamic';
+// Il worker gira dentro questa rotta quando l'admin lo lancia a mano: serve
+// tutto il tempo che il piano concede, non i pochi secondi di default.
+export const maxDuration = 60;
 
 function statusLabel(status: string | null) {
   switch (status) {
@@ -29,10 +34,10 @@ function statusLabel(status: string | null) {
 
 export default async function AiNotesAdminPage() {
   const admin = await requireRole('admin');
-  const users = await getFeatureAdminUsers(
-    admin.id,
-    FEATURE_CODES.AI_SESSION_NOTES
-  );
+  const [users, health] = await Promise.all([
+    getFeatureAdminUsers(admin.id, FEATURE_CODES.AI_SESSION_NOTES),
+    getAiPipelineHealth(),
+  ]);
 
   return (
     <section className="p-6">
@@ -59,7 +64,12 @@ export default async function AiNotesAdminPage() {
         </div>
       </div>
 
-      <div className="mt-6 overflow-x-auto rounded-xl border border-gray-200 bg-white">
+      <AiPipelineHealthPanel health={health} />
+
+      <h2 className="mt-8 text-lg font-semibold text-gray-900">
+        Utenti abilitati
+      </h2>
+      <div className="mt-4 overflow-x-auto rounded-xl border border-gray-200 bg-white">
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
             <tr>

@@ -8,7 +8,63 @@ import {
   setFeatureEntitlement,
 } from '@/lib/core/features';
 import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
+import {
+  processAiNotesBatch,
+  recoverStaleAiProcessingJobs,
+} from '@/lib/core/ai-session-notes/processing';
 import type { ActionState } from '@/lib/auth/middleware';
+
+/**
+ * Esegue il worker Appunti AI su richiesta dell'amministratore.
+ *
+ * Perché una server action e non una chiamata alla rotta interna. La rotta
+ * `/api/internal/ai-notes/process` esiste per gli scheduler ed è protetta da
+ * `CRON_SECRET`: farla invocare a mano significa procurarsi il segreto,
+ * copiarlo in un terminale e sperare di non lasciarlo nella cronologia. Qui
+ * siamo già dentro il server, con un amministratore già autenticato: il worker
+ * si chiama direttamente, senza HTTP e senza segreti in giro.
+ *
+ * Serve a due cose, e resteranno entrambe valide: sbloccare una coda ferma
+ * senza aspettare lo scheduler, e misurare quanto impiega davvero una
+ * trascrizione — dato che finora non abbiamo mai avuto.
+ */
+export async function runAiNotesWorkerAction(
+  _previous: ActionState,
+  _formData: FormData
+): Promise<ActionState> {
+  await requireRole('admin');
+
+  const startedAt = Date.now();
+  try {
+    const dependencies = createProductionAiSessionNotesDependencies();
+    const recovered = await recoverStaleAiProcessingJobs({ limit: 10 });
+    const result = await processAiNotesBatch(
+      { workerId: `admin-${Date.now().toString(36)}`, limit: 5 },
+      dependencies
+    );
+    const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
+
+    revalidatePath('/dashboard/admin/ai-notes');
+
+    if (result.claimed === 0) {
+      return {
+        success: `Nessun job da elaborare (${seconds}s). Job recuperati: ${recovered}.`,
+      };
+    }
+    return {
+      success:
+        `Eseguito in ${seconds}s — presi ${result.claimed}, completati ${result.completed}, ` +
+        `falliti ${result.failed}, annullati ${result.cancelled}, recuperati ${recovered}.`,
+    };
+  } catch (error) {
+    // Il messaggio del provider non arriva mai al browser: resta nei log.
+    console.error('[admin] esecuzione worker fallita', error);
+    const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
+    return {
+      error: `Il worker si è interrotto dopo ${seconds}s. Il dettaglio è nei log del server.`,
+    };
+  }
+}
 
 export async function updateAiNotesEntitlementAction(
   _previous: ActionState,
