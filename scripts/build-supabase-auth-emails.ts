@@ -25,7 +25,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { wrapEmailHtml, wrapEmailText } from '@/lib/core/email/layout';
 
 const OUT_DIR = 'tmp/supabase-auth-emails';
-const BASE_URL = process.env.BASE_URL?.trim() || 'https://www.kaipaicoach.com';
+const BASE_URL = process.env.BASE_URL?.trim() || 'https://www.kaipaicoaching.com';
 
 /** Segnaposto Supabase, protetti dal rendering: inseriti a valle. */
 const CONFIRMATION_URL = '{{ .ConfirmationURL }}';
@@ -59,7 +59,7 @@ const EMAILS = [
     ],
     actionLabel: 'Scegli una nuova password',
     outro:
-      'Se non hai richiesto tu il cambio password, ignora questa email: la password attuale resta valida. Se il dubbio persiste, scrivici a info@kaipaicoach.com.',
+      'Se non hai richiesto tu il cambio password, ignora questa email: la password attuale resta valida. Se il dubbio persiste, scrivici a info@kaipaicoaching.com.',
   },
   {
     file: 'magic-link',
@@ -87,7 +87,7 @@ const EMAILS = [
     ],
     actionLabel: 'Conferma il nuovo indirizzo',
     outro:
-      'Se non hai richiesto tu questa modifica, scrivici subito a info@kaipaicoach.com.',
+      'Se non hai richiesto tu questa modifica, scrivici subito a info@kaipaicoaching.com.',
   },
 ] as const;
 

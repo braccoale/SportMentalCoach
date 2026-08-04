@@ -34,7 +34,7 @@ export { escapeHtml };
  * keep working unchanged.
  *
  * Deliberately not `noreply@`: replies to KaiPai should reach a human. A
- * future `notifications@kaipaicoach.com` only needs the env var changed.
+ * future `notifications@kaipaicoaching.com` only needs the env var changed.
  */
 export function getEmailSender(): {
   from: string;

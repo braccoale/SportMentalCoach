@@ -34,7 +34,7 @@ import {
 } from '@/lib/core/notifications/catalog';
 
 const OUT_DIR = 'tmp/email-preview';
-const BASE_URL = 'https://www.kaipaicoach.com';
+const BASE_URL = 'https://www.kaipaicoaching.com';
 
 /**
  * Origine usata solo per risolvere il logo nell'anteprima: punta alla cartella
