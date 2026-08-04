@@ -81,7 +81,7 @@ export const LEGAL_LAST_UPDATED = '22 luglio 2026';
  * window, and both are far easier to prove met when they land in a single
  * monitored mailbox than when they scatter across general enquiries.
  */
-export const LEGAL_CONTACT_EMAIL = 'privacy@kaipai.it';
+export const LEGAL_CONTACT_EMAIL = 'privacy@kaipaicoaching.com';
 
 /**
  * Machine-readable version of the legal documents, stored with every

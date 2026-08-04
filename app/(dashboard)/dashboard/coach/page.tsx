@@ -355,12 +355,10 @@ export default async function CoachDashboardPage() {
 
       <MentalJourneyLinks athletes={journeyAthletes} />
 
-      {/* Sezione mostrata solo quando c'è davvero qualcosa da valutare: uno
-          stato vuoto permanente in cima alla dashboard occupa spazio e non
-          dice nulla. Il conteggio resta comunque nella KPI qui sopra, che si
-          collega a questa sezione solo quando è maggiore di zero. */}
-      {pending.length > 0 && (
+      {/* Il conteggio resta nella KPI qui sopra, che si collega a questa
+          sezione solo quando è maggiore di zero: nessuna ancora morta. */}
       <DashboardSection
+        hideWhenEmpty
         id="richieste-in-attesa"
         title="Nuove richieste da valutare"
         subtitle="Atleti in attesa di una tua risposta. Qui vedi il loro momento, il bisogno principale e il tipo di supporto che stanno cercando."
@@ -395,9 +393,9 @@ export default async function CoachDashboardPage() {
           />
         )}
       />
-      )}
 
       <DashboardSection
+        hideWhenEmpty
         id="atleti-in-percorso"
         title="Prossimi Appuntamenti"
         titleClassName="text-green-600"
@@ -635,6 +633,7 @@ function DashboardSection({
   emptySubtitle,
   renderCard,
   cardsLayout = 'grid',
+  hideWhenEmpty = false,
 }: {
   id?: string;
   title: string;
@@ -648,7 +647,18 @@ function DashboardSection({
   renderCard: (booking: CoachBooking) => ReactNode;
   /** "list" for wide landscape cards that need the full row width (e.g. upcoming appointments); "grid" (default) pairs compact cards two-up. */
   cardsLayout?: 'grid' | 'list';
+  /**
+   * Nasconde del tutto la sezione quando non c'è niente da mostrare.
+   *
+   * Uno stato vuoto è utile finché insegna qualcosa a chi è appena arrivato;
+   * su una dashboard in uso quotidiano diventa rumore, e un titolo che dice
+   * "(0)" occupa spazio per comunicare un'assenza. Si attiva dove il vuoto è
+   * la normalità, non dove segnala che manca un passo di configurazione.
+   */
+  hideWhenEmpty?: boolean;
 }) {
+  if (hideWhenEmpty && items.length === 0) return null;
+
   return (
     <div id={id} className="scroll-mt-24">
       <div className="flex items-start justify-between gap-3">
