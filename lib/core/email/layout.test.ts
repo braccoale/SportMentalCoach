@@ -131,19 +131,19 @@ const baseLayout = {
   title: 'Hai ricevuto una richiesta di sessione',
   bodyHtml: '<p>Alessandro Bracco ti ha inviato una richiesta.</p>',
   card: fullCard,
-  action: { label: 'Apri la richiesta', url: 'https://www.kaipaicoach.com/dashboard' },
-  preferencesUrl: 'https://www.kaipaicoach.com/dashboard/notifications/preferences',
-  privacyUrl: 'https://www.kaipaicoach.com/privacy',
-  baseUrl: 'https://www.kaipaicoach.com',
+  action: { label: 'Apri la richiesta', url: 'https://www.kaipaicoaching.com/dashboard' },
+  preferencesUrl: 'https://www.kaipaicoaching.com/dashboard/notifications/preferences',
+  privacyUrl: 'https://www.kaipaicoaching.com/privacy',
+  baseUrl: 'https://www.kaipaicoaching.com',
 };
 
 test('l’HTML contiene logo, marca, CTA e footer', () => {
   const html = wrapEmailHtml(baseLayout);
-  assert.ok(html.includes(logoUrl('https://www.kaipaicoach.com')));
+  assert.ok(html.includes(logoUrl('https://www.kaipaicoaching.com')));
   assert.ok(html.includes('alt="KaiPai"'));
   assert.ok(html.includes('Apri la richiesta'));
-  assert.ok(html.includes('kaipaicoach.com'));
-  assert.ok(html.includes('info@kaipaicoach.com'));
+  assert.ok(html.includes('kaipaicoaching.com'));
+  assert.ok(html.includes('info@kaipaicoaching.com'));
   assert.ok(html.includes('Preferenze notifiche'));
   assert.ok(html.includes('Il team KaiPai'));
 });
@@ -152,7 +152,7 @@ test('la CTA porta sempre anche l’URL in chiaro', () => {
   const html = wrapEmailHtml(baseLayout);
   assert.ok(html.includes('Se il pulsante non funziona'));
   // L'indirizzo compare come testo, non solo dentro href.
-  assert.ok(html.includes('>https://www.kaipaicoach.com/dashboard</a>'));
+  assert.ok(html.includes('>https://www.kaipaicoaching.com/dashboard</a>'));
 });
 
 test('la CTA usa il rosso profondo, non quello degli accenti', () => {
@@ -202,7 +202,7 @@ test('la versione testo riporta titolo, card, CTA e footer', () => {
   assert.ok(text.includes('NUOVA RICHIESTA'));
   assert.ok(text.includes('Hai ricevuto una richiesta di sessione'));
   assert.ok(text.includes('Alessandro Bracco'));
-  assert.ok(text.includes('https://www.kaipaicoach.com/dashboard'));
+  assert.ok(text.includes('https://www.kaipaicoaching.com/dashboard'));
   assert.ok(text.includes('Preferenze notifiche:'));
   assert.ok(!text.includes('<'));
 });

@@ -40,9 +40,9 @@ export const BRAND = {
   border: '#ebebee',
   surface: '#ffffff',
   canvas: '#f4f4f6',
-  site: 'https://www.kaipaicoach.com',
-  siteLabel: 'kaipaicoach.com',
-  contactEmail: 'info@kaipaicoach.com',
+  site: 'https://www.kaipaicoaching.com',
+  siteLabel: 'kaipaicoaching.com',
+  contactEmail: 'info@kaipaicoaching.com',
   /** Percorso dell'asset generato da scripts/build-email-logo.ts (440×139). */
   logoPath: '/email/kaipai-logo.png',
   logoDisplayWidth: 220,

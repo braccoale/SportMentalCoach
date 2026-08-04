@@ -255,7 +255,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
       'Abbiamo rilevato questa attività sul tuo account: {{security.event}}.',
     ],
     outro:
-      'Se sei stato tu, non devi fare nulla. Se non riconosci questa attività, cambia subito la password e scrivici a info@kaipaicoach.com.',
+      'Se sei stato tu, non devi fare nulla. Se non riconosci questa attività, cambia subito la password e scrivici a info@kaipaicoaching.com.',
     actionLabel: 'Controlla il tuo account',
   }),
 };
