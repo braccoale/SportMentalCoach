@@ -355,6 +355,11 @@ export default async function CoachDashboardPage() {
 
       <MentalJourneyLinks athletes={journeyAthletes} />
 
+      {/* Sezione mostrata solo quando c'è davvero qualcosa da valutare: uno
+          stato vuoto permanente in cima alla dashboard occupa spazio e non
+          dice nulla. Il conteggio resta comunque nella KPI qui sopra, che si
+          collega a questa sezione solo quando è maggiore di zero. */}
+      {pending.length > 0 && (
       <DashboardSection
         id="richieste-in-attesa"
         title="Nuove richieste da valutare"
@@ -390,6 +395,7 @@ export default async function CoachDashboardPage() {
           />
         )}
       />
+      )}
 
       <DashboardSection
         id="atleti-in-percorso"

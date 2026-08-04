@@ -109,11 +109,13 @@ export function UpcomingAppointmentCard({
         <div className="mt-2">
           {data.date ? (
             <div className="flex items-stretch gap-2">
-              <span className="text-7xl font-bold leading-none tracking-tighter text-gray-950">
+              {/* Giorno, mese e anno in blu: è la data a doversi leggere per
+                  prima, e il blu la stacca dall'orario senza aggiungere peso. */}
+              <span className="text-7xl font-bold leading-none tracking-tighter text-blue-800">
                 {data.date.day}
               </span>
               <div className="flex flex-col justify-between py-0.5">
-                <span className="text-lg font-bold uppercase tracking-tight text-gray-800">
+                <span className="text-lg font-bold uppercase tracking-tight text-blue-800">
                   {data.date.monthYear}
                 </span>
                 <span className="text-4xl font-bold leading-none tracking-tight text-gray-950">
