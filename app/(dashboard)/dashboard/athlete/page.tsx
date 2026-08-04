@@ -86,8 +86,6 @@ function buildAthleteUpcomingData(b: AthleteBooking): UpcomingAppointmentData {
       goal ??
       b.serviceTitle ??
       'Obiettivo da mettere a fuoco insieme al coach.',
-    completionHint:
-      'Puoi entrare in videochiamata da qualche minuto prima dell’inizio.',
     requestedAtLabel: formatDate(b.requestedAt),
   };
 }
@@ -493,7 +491,9 @@ function AcceptedAppointments({
                     <ShareButton bookingId={b.id} />
                     <ActionForm
                       action={cancelBookingAction}
-                      confirmMessage="Vuoi davvero annullare questa sessione?"
+                      confirmTitle="Annullare la sessione?"
+                      confirmMessage="La sessione verrà annullata. Potrai prenotarne una nuova in qualsiasi momento."
+                      confirmActionLabel="Annulla sessione"
                     >
                       <input type="hidden" name="bookingId" value={b.id} />
                       <Button

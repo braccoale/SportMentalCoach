@@ -467,7 +467,9 @@ export default async function CoachDashboardPage() {
                     <ShareButton bookingId={booking.id} />
                     <ActionForm
                       action={cancelBookingAction}
-                      confirmMessage="Vuoi davvero annullare questa sessione?"
+                      confirmTitle="Annullare la sessione?"
+                      confirmMessage="La sessione verrà annullata. Potrai prenotarne una nuova in qualsiasi momento."
+                      confirmActionLabel="Annulla sessione"
                     >
                       <input
                         type="hidden"
@@ -786,9 +788,6 @@ function buildUpcomingAppointmentData(
     statusLabel: bookingStatusLabel(booking.status),
     date: booking.scheduledFor ? formatBigDateParts(booking.scheduledFor) : null,
     primaryNeed: derivePrimaryNeed(booking) ?? 'Da chiarire insieme nel primo confronto.',
-    completionHint: booking.sessionStartedAt
-      ? 'Puoi segnare la sessione come completata dal menu "…".'
-      : 'La sessione potrà essere completata dopo la videochiamata.',
     requestedAtLabel: formatDate(booking.requestedAt),
   };
 }

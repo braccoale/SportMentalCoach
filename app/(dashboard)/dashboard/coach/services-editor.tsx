@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ConfirmationDialog } from '@/components/action-form';
 import type { Service } from '@/lib/db/schema';
 import {
   createServiceAction,
@@ -54,6 +55,7 @@ export function ServicesEditor({ services }: { services: Service[] }) {
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
   const [pageMessage, setPageMessage] = useState<string | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
@@ -123,11 +125,6 @@ export function ServicesEditor({ services }: { services: Service[] }) {
   }
 
   async function removeService(service: Service) {
-    const confirmed = window.confirm(
-      `Vuoi eliminare il servizio “${service.title ?? 'Senza titolo'}”?`
-    );
-    if (!confirmed) return;
-
     setDeletingId(service.id);
     setPageMessage(null);
     setPageError(null);
@@ -224,7 +221,7 @@ export function ServicesEditor({ services }: { services: Service[] }) {
                     type="button"
                     variant="outline"
                     size="icon"
-                    onClick={() => void removeService(service)}
+                    onClick={() => setServiceToDelete(service)}
                     disabled={saving || deletingId !== null}
                     className="text-red-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
                     aria-label={`Elimina servizio ${index + 1}`}
@@ -409,6 +406,20 @@ export function ServicesEditor({ services }: { services: Service[] }) {
           </footer>
         </form>
       </dialog>
+
+      <ConfirmationDialog
+        open={serviceToDelete !== null}
+        title="Eliminare il servizio?"
+        message={`Il servizio “${serviceToDelete?.title ?? 'Senza titolo'}” verrà eliminato definitivamente.`}
+        actionLabel="Elimina servizio"
+        onCancel={() => setServiceToDelete(null)}
+        onConfirm={() => {
+          if (!serviceToDelete) return;
+          const service = serviceToDelete;
+          setServiceToDelete(null);
+          void removeService(service);
+        }}
+      />
     </section>
   );
 }

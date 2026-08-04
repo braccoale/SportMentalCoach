@@ -155,12 +155,23 @@ test('la CTA porta sempre anche l’URL in chiaro', () => {
   assert.ok(html.includes('>https://www.kaipaicoach.com/dashboard</a>'));
 });
 
-test('il pulsante è antracite, non rosso', () => {
+test('la CTA usa il rosso profondo, non quello degli accenti', () => {
   const html = wrapEmailHtml(baseLayout);
-  const button = html.slice(html.indexOf('border-radius:9999px'));
-  assert.ok(button.includes(BRAND.ink));
-  // Il rosso resta accento (banda, eyebrow, bordo card), non colore del CTA.
+  assert.ok(html.includes(`background:${BRAND.redDeep}`));
+  // Il rosso chiaro resta sulla banda e sull'eyebrow.
   assert.ok(html.includes(`background:${BRAND.red}`));
+});
+
+test('l’azione secondaria è in outline, non un secondo pulsante pieno', () => {
+  const html = wrapEmailHtml({
+    ...baseLayout,
+    secondaryAction: {
+      label: 'Aggiungi a Google Calendar',
+      url: 'https://calendar.google.com/calendar/render?x=1',
+    },
+  });
+  assert.ok(html.includes('Aggiungi a Google Calendar'));
+  assert.ok(html.includes(`border:1px solid ${BRAND.border}`));
 });
 
 test('è compatibile con i client email: tabelle, stili inline, niente script', () => {

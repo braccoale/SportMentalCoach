@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useActionState, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Loader2, User, Users, Building2, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Loader2, User, Users, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -37,12 +37,6 @@ const ROLES = [
     icon: Users,
     title: 'Sono un mental coach',
     desc: 'Voglio presentare il mio profilo e lavorare con nuovi atleti.',
-  },
-  {
-    value: 'club',
-    icon: Building2,
-    title: 'Rappresento un team',
-    desc: 'Voglio gestire atleti, coach e percorsi di mental coaching.',
   },
 ] as const;
 

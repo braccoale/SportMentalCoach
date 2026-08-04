@@ -11,11 +11,14 @@
  * esterno, nessun web font, nessun JavaScript, larghezza massima 600px, e ogni
  * CTA accompagnata dall'URL in chiaro per chi non può cliccare il pulsante.
  *
- * Scelta cromatica. Il pulsante è antracite, non rosso: un pill rosso isolato
- * su fondo bianco viene letto come allarme, e lo stesso pulsante deve reggere
- * sia "Sessione confermata" sia "Sessione annullata". Il rosso resta il sistema
- * di accento — banda sotto l'header, eyebrow, bordo della card — dove
- * costruisce marca invece di segnalare un problema.
+ * Scelta cromatica. La CTA è nel rosso di marca, in una tonalità più profonda
+ * del `red` usato per gli accenti: quel rosso con testo bianco sopra non
+ * raggiunge il contrasto minimo, questa sì. Il rosso non viene letto come
+ * allarme perché non è isolato — la banda sotto l'header, l'eyebrow e il bordo
+ * della card lo ripetono, e un colore ripetuto è marca, non segnale.
+ *
+ * L'azione secondaria resta in outline: deve leggersi come alternativa, non
+ * competere con la principale.
  */
 
 import { renderDetailsCardHtml, renderDetailsCardText, isEmptyCard, type DetailsCard } from './details-card';
@@ -25,6 +28,12 @@ export const BRAND = {
   name: 'KaiPai',
   tagline: 'Alleniamo la mente. Miglioriamo le prestazioni.',
   red: '#e11d2a',
+  /**
+   * Rosso della CTA. Più profondo del rosso di marca: su bianco il #e11d2a con
+   * testo bianco sopra sta sotto il 4.5:1 richiesto, questo arriva a 5.3:1 e
+   * resta pienamente leggibile senza perdere in vivacità.
+   */
+  redDeep: '#c81824',
   ink: '#111111',
   body: '#3f3f46',
   muted: '#8a8a91',
@@ -58,6 +67,12 @@ export type EmailLayoutInput = {
   /** Chiusura dopo la CTA: cosa fare, avvertenze. Già renderizzata. */
   outroHtml?: string | null;
   action?: EmailAction | null;
+  /**
+   * Azione secondaria accanto alla principale, es. "Aggiungi a Google
+   * Calendar". Resa come pulsante in outline: deve leggersi come alternativa,
+   * non competere con la CTA.
+   */
+  secondaryAction?: EmailAction | null;
   preferencesUrl?: string | null;
   privacyUrl?: string | null;
   /** Origine assoluta usata per risolvere il logo. */
@@ -91,17 +106,38 @@ export function wrapEmailHtml(input: EmailLayoutInput): string {
   // Pulsante + URL in chiaro. Il fallback non è cosmetico: molti client
   // aziendali riscrivono o disattivano i link, e senza l'indirizzo visibile
   // l'email diventa un vicolo cieco.
-  const action = input.action
-    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:2px 0 8px">
-         <tr><td style="border-radius:9999px;background:${BRAND.ink}">
-           <a href="${input.action.url}"
-              style="display:inline-block;padding:14px 30px;color:#ffffff;font-family:${FONT_STACK};font-size:15px;font-weight:600;line-height:1;text-decoration:none;border-radius:9999px">${escapeHtml(input.action.label)}</a>
-         </td></tr>
-       </table>
-       <p style="margin:0 0 20px;color:${BRAND.muted};font-size:12px;line-height:1.5;word-break:break-all">
-         Se il pulsante non funziona, copia questo indirizzo nel browser:<br />
-         <a href="${input.action.url}" style="color:${BRAND.muted};text-decoration:underline">${escapeHtml(input.action.url)}</a>
-       </p>`
+  // I due pulsanti stanno in celle affiancate di una tabella: e' l'unico
+  // costrutto che Outlook allinea in modo prevedibile, e su schermo stretto le
+  // celle vanno a capo invece di uscire dal riquadro.
+  const buttons = [
+    input.action
+      ? `<td style="padding:0 8px 8px 0"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+           <td style="border-radius:9999px;background:${BRAND.redDeep}">
+             <a href="${input.action.url}"
+                style="display:inline-block;padding:14px 30px;color:#ffffff;font-family:${FONT_STACK};font-size:15px;font-weight:600;line-height:1;text-decoration:none;border-radius:9999px">${escapeHtml(input.action.label)}</a>
+           </td></tr></table></td>`
+      : '',
+    input.secondaryAction
+      ? `<td style="padding:0 0 8px"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+           <td style="border-radius:9999px;border:1px solid ${BRAND.border};background:${BRAND.surface}">
+             <a href="${input.secondaryAction.url}"
+                style="display:inline-block;padding:13px 24px;color:${BRAND.ink};font-family:${FONT_STACK};font-size:14px;font-weight:600;line-height:1;text-decoration:none;border-radius:9999px">${escapeHtml(input.secondaryAction.label)}</a>
+           </td></tr></table></td>`
+      : '',
+  ]
+    .filter(Boolean)
+    .join('');
+
+  const action = buttons
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:2px 0 4px"><tr>${buttons}</tr></table>
+       ${
+         input.action
+           ? `<p style="margin:0 0 20px;color:${BRAND.muted};font-size:12px;line-height:1.5;word-break:break-all">
+                Se il pulsante non funziona, copia questo indirizzo nel browser:<br />
+                <a href="${input.action.url}" style="color:${BRAND.muted};text-decoration:underline">${escapeHtml(input.action.url)}</a>
+              </p>`
+           : ''
+       }`
     : '';
 
   const outro = input.outroHtml
@@ -200,6 +236,7 @@ export function wrapEmailText(input: {
   card?: DetailsCard | null;
   outroText?: string | null;
   action?: EmailAction | null;
+  secondaryAction?: EmailAction | null;
   preferencesUrl?: string | null;
 }): string {
   const parts: string[] = [];
@@ -217,6 +254,12 @@ export function wrapEmailText(input: {
 
   if (input.action) {
     parts.push(`${input.action.label}:\n${input.action.url}`);
+  }
+
+  if (input.secondaryAction) {
+    parts.push(
+      `${input.secondaryAction.label}:\n${input.secondaryAction.url}`
+    );
   }
 
   const outro = input.outroText?.trim();
