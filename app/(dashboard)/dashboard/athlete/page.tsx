@@ -493,7 +493,9 @@ function AcceptedAppointments({
                     <ShareButton bookingId={b.id} />
                     <ActionForm
                       action={cancelBookingAction}
-                      confirmMessage="Vuoi davvero annullare questa sessione?"
+                      confirmTitle="Annullare la sessione?"
+                      confirmMessage="La sessione verrà annullata. Potrai prenotarne una nuova in qualsiasi momento."
+                      confirmActionLabel="Annulla sessione"
                     >
                       <input type="hidden" name="bookingId" value={b.id} />
                       <Button

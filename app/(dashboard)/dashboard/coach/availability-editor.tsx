@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ConfirmationDialog } from '@/components/action-form';
 import { WEEKDAY_LABELS, formatMinutesOfDay } from '@/lib/core/format';
 import type { AvailabilitySlot } from '@/lib/core/availability';
 import {
@@ -48,6 +49,7 @@ export function AvailabilityEditor({ slots }: { slots: AvailabilitySlot[] }) {
   const [end, setEnd] = useState('00:00');
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [slotToDelete, setSlotToDelete] = useState<AvailabilitySlot | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
   const [pageMessage, setPageMessage] = useState<string | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
@@ -112,13 +114,6 @@ export function AvailabilityEditor({ slots }: { slots: AvailabilitySlot[] }) {
   }
 
   async function removeSlot(slot: AvailabilitySlot) {
-    const confirmed = window.confirm(
-      `Vuoi eliminare la fascia di ${WEEKDAY_LABELS[slot.weekday]} dalle ${formatMinutesOfDay(
-        slot.startMinute
-      )} alle ${formatMinutesOfDay(slot.endMinute)}?`
-    );
-    if (!confirmed) return;
-
     setDeletingId(slot.id);
     setPageError(null);
     setPageMessage(null);
@@ -219,7 +214,7 @@ export function AvailabilityEditor({ slots }: { slots: AvailabilitySlot[] }) {
                   type="button"
                   variant="outline"
                   size="icon"
-                  onClick={() => void removeSlot(slot)}
+                  onClick={() => setSlotToDelete(slot)}
                   disabled={saving || deletingId !== null}
                   className="text-red-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
                   aria-label={`Elimina fascia ${index + 1}`}
@@ -384,6 +379,24 @@ export function AvailabilityEditor({ slots }: { slots: AvailabilitySlot[] }) {
           </footer>
         </form>
       </dialog>
+
+      <ConfirmationDialog
+        open={slotToDelete !== null}
+        title="Eliminare la fascia oraria?"
+        message={
+          slotToDelete
+            ? `La disponibilità di ${WEEKDAY_LABELS[slotToDelete.weekday]} dalle ${formatMinutesOfDay(slotToDelete.startMinute)} alle ${formatMinutesOfDay(slotToDelete.endMinute)} verrà eliminata.`
+            : ''
+        }
+        actionLabel="Elimina fascia"
+        onCancel={() => setSlotToDelete(null)}
+        onConfirm={() => {
+          if (!slotToDelete) return;
+          const slot = slotToDelete;
+          setSlotToDelete(null);
+          void removeSlot(slot);
+        }}
+      />
     </section>
   );
 }
