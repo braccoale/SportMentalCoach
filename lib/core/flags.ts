@@ -36,13 +36,16 @@ export function isRealtimeConfigured(): boolean {
   );
 }
 
-// Email notifications (Resend) are optional and OFF by default. Enabled only
-// when EMAIL_NOTIFICATIONS_ENABLED=true AND the Resend key + from-address are
-// present. Read lazily so Resend is never required at startup.
+// Email notifications are optional and OFF by default. Enabled only when
+// EMAIL_NOTIFICATIONS_ENABLED=true AND the provider key + a from-address are
+// present. Read lazily so the provider is never required at startup.
+//
+// EMAIL_FROM_ADDRESS is the current variable; RESEND_FROM_EMAIL is still
+// accepted so deployments configured before the split keep working.
 export function isEmailEnabled(): boolean {
   return (
     process.env.EMAIL_NOTIFICATIONS_ENABLED === 'true' &&
     !!process.env.RESEND_API_KEY &&
-    !!process.env.RESEND_FROM_EMAIL
+    !!(process.env.EMAIL_FROM_ADDRESS || process.env.RESEND_FROM_EMAIL)
   );
 }

@@ -221,6 +221,8 @@ export async function createReview(params: {
 
   await notify('review_received', booking.coachUserId, {
     rating: params.rating,
+    bookingId: booking.id,
+    actorUserId: booking.clientId,
   });
 
   return { ok: true };

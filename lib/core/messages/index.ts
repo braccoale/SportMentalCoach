@@ -524,7 +524,11 @@ export async function sendMessage(
   const senderName = isClient
     ? context.clientName ?? context.clientEmail
     : context.coachName;
-  await notify('new_message', recipientId, { senderName, bookingId });
+  await notify('new_message', recipientId, {
+    senderName,
+    bookingId,
+    actorUserId: userId,
+  });
 
   return { ok: true };
 }

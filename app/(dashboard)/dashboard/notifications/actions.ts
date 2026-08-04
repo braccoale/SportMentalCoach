@@ -5,9 +5,10 @@ import { getUser } from '@/lib/db/queries';
 import {
   markAsRead,
   markAllAsRead,
-  setEmailPreferences,
+  setChannelPreferences,
+  isMandatoryEmail,
   NOTIFICATION_TYPES,
-  type EmailPreferences,
+  type NotificationType,
 } from '@/lib/core/notifications';
 import type { ActionState } from '@/lib/auth/middleware';
 
@@ -34,14 +35,27 @@ export async function saveNotificationPreferencesAction(
   const user = await getUser();
   if (!user) return { error: 'Non autenticato.' };
 
-  // A checkbox is present in formData only when checked. In-app stays on; this
-  // only controls email per type.
-  const prefs = NOTIFICATION_TYPES.reduce((acc, type) => {
-    acc[type] = formData.has(type);
-    return acc;
-  }, {} as EmailPreferences);
+  // A checkbox is present in formData only when checked — and a disabled one is
+  // never submitted, so mandatory events would read as "off". They are excluded
+  // here, and `setChannelPreferences` drops them again server-side: a
+  // hand-crafted POST cannot switch off a security alert either.
+  //
+  // The two channels are independent: `in_app:<key>` and `email:<key>` are
+  // separate fields, so a user can keep one and drop the other.
+  const prefs = NOTIFICATION_TYPES.filter(
+    (type) => !isMandatoryEmail(type)
+  ).reduce(
+    (acc, type) => {
+      acc[type] = {
+        inApp: formData.has(`in_app:${type}`),
+        email: formData.has(`email:${type}`),
+      };
+      return acc;
+    },
+    {} as Record<NotificationType, { inApp: boolean; email: boolean }>
+  );
 
-  await setEmailPreferences(user.id, prefs);
+  await setChannelPreferences(user.id, prefs);
   revalidatePath('/dashboard/notifications/preferences');
   return { success: 'Preferenze salvate.' };
 }

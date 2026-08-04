@@ -1741,6 +1741,10 @@ export const notificationPreferences = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     type: varchar('type', { length: 50 }).notNull(),
     emailEnabled: boolean('email_enabled').notNull().default(true),
+    // Added by migration 0038. The in-app channel is effectively always on for
+    // mandatory events; this column exists so the preferences UI can expose the
+    // two channels separately without a second table.
+    inAppEnabled: boolean('in_app_enabled').notNull().default(true),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
     ...audit,
@@ -1762,6 +1766,144 @@ export const notificationPreferencesRelations = relations(
     }),
   })
 );
+
+// --- Email notifications (migration 0038) ----------------------------------
+
+/**
+ * Editable email content, keyed by the notification event. Holds ONLY the
+ * message-specific parts: the KaiPai shell (logo, colours, header, signature,
+ * footer) lives in `lib/core/email/layout.ts` and is never database-driven.
+ *
+ * Templates are versioned and never mutated in place: publishing new copy
+ * inserts `version + 1` and flips `is_active`. A partial unique index enforces
+ * at most one active version per `(key, locale)`.
+ *
+ * `variables` documents the placeholders the copy may use; the authoritative
+ * whitelist is the code catalog, so a template can never widen what it may read.
+ * `is_mandatory` mirrors the catalog for display purposes only — the catalog
+ * decides whether a user can actually opt out.
+ */
+export const emailTemplates = pgTable(
+  'email_templates',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    key: text('key').notNull(),
+    category: text('category').notNull(),
+    subject: text('subject').notNull(),
+    // Structured content (migration 0041). The database holds prose; the layout
+    // in `lib/core/email/layout.ts` decides how it looks, so a restyling never
+    // has to migrate stored content.
+    eyebrow: text('eyebrow'),
+    title: text('title'),
+    outro: text('outro'),
+    /** From v2 on: paragraphs separated by a blank line, not markup. */
+    htmlBody: text('html_body').notNull(),
+    textBody: text('text_body'),
+    variables: jsonb('variables').notNull().default(sql`'[]'::jsonb`),
+    locale: text('locale').notNull().default('it-IT'),
+    isActive: boolean('is_active').notNull().default(true),
+    isMandatory: boolean('is_mandatory').notNull().default(false),
+    version: integer('version').notNull().default(1),
+    // users.id is a serial integer in this project; auth_id (uuid) is only the
+    // Supabase Auth link, so authorship points at the app-level user.
+    createdBy: integer('created_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    unique('email_templates_key_locale_version_unique').on(
+      table.key,
+      table.locale,
+      table.version
+    ),
+    // Only one active version per (key, locale) — see migration 0038 for the
+    // `WHERE is_active` clause Drizzle cannot express here.
+    uniqueIndex('email_templates_active_key_locale_idx')
+      .on(table.key, table.locale)
+      .where(sql`${table.isActive}`),
+    index('email_templates_key_idx').on(table.key),
+  ]
+);
+
+/**
+ * One row per attempted notification email: the delivery log AND the
+ * deduplication ledger.
+ *
+ * `idempotencyKey` is deterministic over (event, channel, recipient, concrete
+ * subject of the event) — never over a time window. Two chat messages produce
+ * two in-app notifications, hence two distinct keys, hence two emails. A retry
+ * of the same event produces the same key, the insert conflicts, and the send
+ * is skipped.
+ */
+export const notificationEmailDeliveries = pgTable(
+  'notification_email_deliveries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    // notifications.id is `serial`, so this stays integer. Nullable because
+    // some transactional emails (invitations, reminders) have no in-app twin.
+    notificationId: integer('notification_id').references(
+      () => notifications.id,
+      { onDelete: 'set null' }
+    ),
+    recipientUserId: integer('recipient_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    recipientEmail: text('recipient_email').notNull(),
+    templateKey: text('template_key').notNull(),
+    templateVersion: integer('template_version'),
+    idempotencyKey: text('idempotency_key').notNull(),
+    providerMessageId: text('provider_message_id'),
+    // queued | sent | failed | skipped
+    status: text('status').notNull().default('queued'),
+    attemptCount: integer('attempt_count').notNull().default(0),
+    lastError: text('last_error'),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    unique('notification_email_deliveries_idempotency_key_unique').on(
+      table.idempotencyKey
+    ),
+    index('notification_email_deliveries_recipient_idx').on(
+      table.recipientUserId,
+      table.createdAt
+    ),
+    index('notification_email_deliveries_status_idx').on(
+      table.status,
+      table.createdAt
+    ),
+  ]
+);
+
+export const notificationEmailDeliveriesRelations = relations(
+  notificationEmailDeliveries,
+  ({ one }) => ({
+    notification: one(notifications, {
+      fields: [notificationEmailDeliveries.notificationId],
+      references: [notifications.id],
+    }),
+    recipient: one(users, {
+      fields: [notificationEmailDeliveries.recipientUserId],
+      references: [users.id],
+    }),
+  })
+);
+
+export type EmailTemplate = typeof emailTemplates.$inferSelect;
+export type NewEmailTemplate = typeof emailTemplates.$inferInsert;
+export type NotificationEmailDelivery =
+  typeof notificationEmailDeliveries.$inferSelect;
 
 // Verified athlete reviews of a coach. A review is tied to a completed booking
 // (one per booking) so it cannot be faked. Seeded demo reviews may have a null
