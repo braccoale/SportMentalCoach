@@ -72,6 +72,7 @@ export function SignupWizard() {
 
   const [step, setStep] = useState(0);
   const [role, setRole] = useState('');
+  const [vexatious, setVexatious] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -92,6 +93,9 @@ export function SignupWizard() {
   }, [ref]);
 
   const isAthlete = role === 'athlete';
+  // Coach e Club si registrano come professionisti: solo verso di loro
+  // l'approvazione specifica dell'art. 1341 produce un effetto reale.
+  const isProfessional = role === 'coach' || role === 'club';
   const age = useMemo(() => ageFrom(birthDate), [birthDate]);
   const underMin = isAthlete && age != null && age < MIN_AGE;
   const needsGuardian = isAthlete && age != null && age >= MIN_AGE && age < ADULT_AGE;
@@ -137,6 +141,7 @@ export function SignupWizard() {
     password === confirm &&
     !!name.trim() &&
     !!lastName.trim() &&
+    (!isProfessional || vexatious) &&
     terms &&
     privacy &&
     (!isAthlete || (!!birthDate && !underMin));
@@ -345,40 +350,70 @@ export function SignupWizard() {
               </p>
             )}
 
+            {/* Un'unica accettazione per Termini e Informativa: restano due
+                atti distinti - un contratto che si accetta e un'informativa di
+                cui si prende atto - ma per l'utente sono un passaggio solo, ed
+                entrambi sono comunque obbligatori. I due campi continuano ad
+                arrivare separati al server, che li verifica uno per uno. */}
             <label className="flex items-start gap-2 text-sm text-gray-700">
               <input
                 type="checkbox"
-                name="acceptTerms"
                 checked={terms}
-                onChange={(e) => setTerms(e.target.checked)}
+                onChange={(e) => {
+                  setTerms(e.target.checked);
+                  setPrivacy(e.target.checked);
+                }}
                 className="mt-0.5 accent-red-600"
               />
               <span>
-                Accetto i{' '}
+                Ho letto e accetto i{' '}
                 <Link href="/terms" target="_blank" className="underline hover:text-gray-900">
-                  Termini e condizioni
+                  Termini e Condizioni
                 </Link>{' '}
-                di KaiPai.
-                <Req />
-              </span>
-            </label>
-            <label className="flex items-start gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                name="acceptPrivacy"
-                checked={privacy}
-                onChange={(e) => setPrivacy(e.target.checked)}
-                className="mt-0.5 accent-red-600"
-              />
-              <span>
-                Dichiaro di aver letto l’{' '}
+                e l’{' '}
                 <Link href="/privacy" target="_blank" className="underline hover:text-gray-900">
-                  Informativa privacy
+                  Informativa Privacy
                 </Link>
                 .
                 <Req />
               </span>
             </label>
+            <input type="hidden" name="acceptTerms" value={terms ? 'on' : ''} />
+            <input
+              type="hidden"
+              name="acceptPrivacy"
+              value={privacy ? 'on' : ''}
+            />
+
+            {/* Approvazione specifica ex artt. 1341-1342 c.c., richiesta solo a
+                chi si registra come professionista.
+                Verso un consumatore non servirebbe a nulla: l'art. 36 del
+                Codice del Consumo rende nulle le clausole vessatorie anche se
+                specificamente approvate, e chiedere quella spunta a un atleta
+                darebbe l'apparenza di un'approvazione valida che non c'e'. */}
+            {isProfessional && (
+              <label className="flex items-start gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  name="acceptVexatious"
+                  checked={vexatious}
+                  onChange={(e) => setVexatious(e.target.checked)}
+                  className="mt-0.5 accent-red-600"
+                />
+                <span>
+                  Approvo specificamente, ai sensi degli artt. 1341 e 1342 c.c.,
+                  le clausole dei{' '}
+                  <Link href="/terms" target="_blank" className="underline hover:text-gray-900">
+                    Termini e Condizioni
+                  </Link>{' '}
+                  relative a chiusura dell’account e cancellazione dei dati
+                  (art. 19), sospensione e risoluzione (art. 20), disponibilità
+                  del servizio (art. 21) e limitazione di responsabilità
+                  (art. 22).
+                  <Req />
+                </span>
+              </label>
+            )}
             <label className="flex items-start gap-2 text-sm text-gray-700">
               <input
                 type="checkbox"

@@ -10,8 +10,13 @@
  * Only services that are actually wired up belong here. Notably absent:
  *   - Stripe — the dependency and key exist, but billing is off
  *     (`BILLING_ENABLED` unset), so no payment data is processed today.
- *   - OpenAI — listed in the project's stack docs but not integrated.
  *   - Analytics/advertising — none, which is why no cookie banner is needed.
+ *
+ * Deepgram and OpenAI joined the list when the AI session notes shipped: until
+ * then the policy said audio was never recorded, which stopped being true the
+ * moment track egress started writing files to storage. A sub-processor list
+ * that lags behind the code is worse than no list — it is a statement to users
+ * that has quietly become false.
  */
 export type SubProcessor = {
   name: string;
@@ -27,7 +32,8 @@ export const SUB_PROCESSORS: SubProcessor[] = [
   {
     name: 'Supabase (su AWS)',
     purpose: 'Database, autenticazione, archiviazione file e aggiornamenti in tempo reale',
-    data: 'Dati di account e profilo, prenotazioni, messaggi, immagini e video caricati',
+    data:
+      'Dati di account e profilo, prenotazioni, messaggi, immagini e video caricati e, se gli Appunti AI sono attivi, registrazioni audio, trascrizioni e report',
     location: 'Unione Europea (AWS, Francoforte)',
   },
   {
@@ -38,8 +44,25 @@ export const SUB_PROCESSORS: SubProcessor[] = [
   },
   {
     name: 'LiveKit Cloud',
-    purpose: 'Infrastruttura per le videochiamate delle sessioni',
-    data: 'Audio e video in transito durante la sessione, non registrati né conservati',
+    purpose:
+      'Infrastruttura per le videochiamate e, solo se gli Appunti AI sono attivi, registrazione della traccia audio',
+    data:
+      'Audio e video in transito durante la sessione. Il video non viene mai registrato; l’audio viene registrato solo con il consenso di entrambi i partecipanti',
+    location: 'Stati Uniti (clausole contrattuali standard)',
+  },
+  {
+    name: 'Deepgram',
+    purpose:
+      'Trascrizione automatica dell’audio delle sessioni, solo se gli Appunti AI sono attivi',
+    data: 'Registrazione audio della sessione e testo che ne deriva',
+    location: 'Stati Uniti (clausole contrattuali standard)',
+  },
+  {
+    name: 'OpenAI',
+    purpose:
+      'Generazione della bozza di report della sessione a partire dalla trascrizione, solo se gli Appunti AI sono attivi',
+    data:
+      'Testo della trascrizione. I dati non vengono usati per addestrare modelli',
     location: 'Stati Uniti (clausole contrattuali standard)',
   },
   {
@@ -70,7 +93,7 @@ export const SUB_PROCESSORS: SubProcessor[] = [
  * different dates for the same revision looks like an oversight, because it
  * usually is one.
  */
-export const LEGAL_LAST_UPDATED = '22 luglio 2026';
+export const LEGAL_LAST_UPDATED = '4 agosto 2026';
 
 /**
  * The address cited across every legal document — informativa, Termini and
@@ -89,7 +112,7 @@ export const LEGAL_CONTACT_EMAIL = 'privacy@kaipaicoaching.com';
  * changes substantively: users who accepted an older version are then asked to
  * accept again, and the old rows keep proving what they actually agreed to.
  */
-export const LEGAL_VERSION = '2026-07-22';
+export const LEGAL_VERSION = '2026-08-04';
 
 /**
  * After how many months without any activity an account is treated as closed,
@@ -104,6 +127,17 @@ export const INACTIVITY_MONTHS = 24;
 
 /** How long records are kept after closure, to defend a claim in court. */
 export const POST_CLOSURE_RETENTION_MONTHS = 36;
+
+/**
+ * Giorni di conservazione della registrazione audio grezza di una sessione,
+ * quando gli Appunti AI sono attivi.
+ *
+ * Deve restare allineato ad `AI_NOTES_AUDIO_RETENTION_DAYS`: qui è il numero
+ * dichiarato all'utente, là quello che il software applica. Se divergono,
+ * l'informativa mente — ed è il tipo di divergenza che nessuno nota finché
+ * qualcuno non chiede conto proprio di quel dato.
+ */
+export const AI_AUDIO_RETENTION_DAYS = 7;
 
 /**
  * Notice given before a change to the Terms takes effect. "Continued use means

@@ -1,5 +1,6 @@
 import { LegalPage } from '../legal-layout';
 import {
+  AI_AUDIO_RETENTION_DAYS,
   LEGAL_LAST_UPDATED,
   INACTIVITY_MONTHS,
   TERMS_CHANGE_NOTICE_DAYS,
@@ -229,8 +230,9 @@ export default function TermsPage() {
         La Sessione si svolge in videochiamata all’interno della Piattaforma. La
         stanza virtuale si apre pochi minuti prima dell’orario concordato e
         resta accessibile per una finestra ragionevole successiva, così da
-        assorbire piccoli ritardi. Le videochiamate{' '}
-        <strong>non vengono registrate</strong>.
+        assorbire piccoli ritardi. Il video{' '}
+        <strong>non viene mai registrato</strong>. L’audio viene registrato solo
+        se entrambi attivano gli Appunti AI, alle condizioni dell’art. 11.
       </p>
       <p>
         La Sessione va svolta da un luogo che ne garantisca la riservatezza,{' '}
@@ -249,7 +251,49 @@ export default function TermsPage() {
         sospendere immediatamente l’account, fermo il risarcimento del danno.
       </p>
 
-      <h2>11. Natura del servizio e limiti dell’intervento</h2>
+      <h2>11. Appunti AI della Sessione</h2>
+      <p>
+        Gli <strong>Appunti AI</strong> sono una funzione facoltativa e
+        disattivata per impostazione predefinita. Quando è attiva, l’audio della
+        Sessione viene registrato e trascritto automaticamente, e da quella
+        trascrizione viene preparata una bozza di report.
+      </p>
+      <p>
+        <strong>
+          La registrazione richiede il consenso di entrambi i partecipanti
+        </strong>
+        , raccolto separatamente prima dell’inizio. Se anche uno solo rifiuta,
+        non viene registrato nulla. Il consenso è revocabile in qualsiasi
+        momento, anche a Sessione in corso: dalla revoca la registrazione si
+        interrompe. Il rifiuto non pregiudica in alcun modo lo svolgimento della
+        Sessione né la qualità del servizio.
+      </p>
+      <p>
+        <strong>Il report non viene mai pubblicato automaticamente.</strong> La
+        bozza è visibile al solo Coach, che ha l’obbligo di rivederla prima di
+        qualsiasi condivisione: deve correggere ciò che è impreciso, eliminare
+        ciò che non deve restare e decidere che cosa condividere con l’Atleta.
+        Il Coach distingue fra note condivise e note private; l’Atleta vede
+        soltanto le prime.
+      </p>
+      <p>
+        La trascrizione è generata automaticamente e{' '}
+        <strong>può contenere errori</strong>: non è un verbale, non fa fede fra
+        le parti e non sostituisce il ricordo o il giudizio del Coach. Il report
+        non costituisce documento clinico né valutazione diagnostica, e vale
+        quanto detto all’articolo seguente sulla natura del servizio.
+      </p>
+      <p>
+        Tempi di conservazione, fornitori coinvolti e diritti esercitabili sono
+        descritti nell’Informativa Privacy. La registrazione audio grezza viene
+        cancellata automaticamente decorsi {AI_AUDIO_RETENTION_DAYS} giorni.
+      </p>
+      <p>
+        Se l’Atleta è minorenne, la funzione richiede che l’account sia già
+        autorizzato dal genitore o tutore, in aggiunta ai consensi di cui sopra.
+      </p>
+
+      <h2>12. Natura del servizio e limiti dell’intervento</h2>
       <p>
         Il coaching mentale sportivo non costituisce prestazione sanitaria né
         sostituisce percorsi clinici, psicoterapeutici o medici.{' '}
@@ -278,7 +322,7 @@ export default function TermsPage() {
         la famiglia se l’Atleta è minorenne.
       </p>
 
-      <h2>12. Obblighi del Coach verso l’Atleta</h2>
+      <h2>13. Obblighi del Coach verso l’Atleta</h2>
       <p>
         Il Coach è un professionista indipendente e, per la propria attività,
         tratta i dati dell’Atleta in qualità di autonomo titolare. Accettando
@@ -313,7 +357,7 @@ export default function TermsPage() {
         area personale.
       </p>
 
-      <h2>13. Recensioni</h2>
+      <h2>14. Recensioni</h2>
       <p>
         Solo l’Atleta che ha effettivamente svolto una Sessione può recensirla,
         e può farlo una sola volta per Sessione: ogni recensione pubblicata
@@ -323,7 +367,7 @@ export default function TermsPage() {
         richiesta del Coach recensito.
       </p>
 
-      <h2>14. Condotta degli utenti</h2>
+      <h2>15. Condotta degli utenti</h2>
       <ul>
         <li>È vietato pubblicare contenuti offensivi, falsi o illeciti.</li>
         <li>
@@ -340,7 +384,7 @@ export default function TermsPage() {
         </li>
       </ul>
 
-      <h2>15. Contenuti che carichi tu</h2>
+      <h2>16. Contenuti che carichi tu</h2>
       <p>
         I contenuti che carichi — fotografia, video di presentazione, biografia,
         descrizioni dei servizi — restano di tua proprietà. Caricandoli concedi a
@@ -351,7 +395,7 @@ export default function TermsPage() {
         delle persone eventualmente ritratte.
       </p>
 
-      <h2>16. Proprietà intellettuale di KaiPai</h2>
+      <h2>17. Proprietà intellettuale di KaiPai</h2>
       <p>
         La Piattaforma, il suo codice, la struttura, le interfacce, i testi, la
         grafica, il marchio e il nome «KaiPai» sono protetti da diritti di
@@ -385,7 +429,7 @@ export default function TermsPage() {
         </li>
       </ul>
 
-      <h2>17. Diritto di recesso</h2>
+      <h2>18. Diritto di recesso</h2>
       <p>
         Se agisci come consumatore hai diritto di recedere dal contratto entro{' '}
         <strong>14 giorni</strong> dalla registrazione, senza doverne indicare
@@ -407,7 +451,7 @@ export default function TermsPage() {
         Sessione secondo l’art. 8.
       </p>
 
-      <h2>18. Chiusura dell’account e inattività</h2>
+      <h2>19. Chiusura dell’account e inattività</h2>
       <p>
         Puoi chiudere il tuo account in qualsiasi momento dalla sezione
         Sicurezza. Un account resta inoltre soggetto a chiusura dopo{' '}
@@ -426,7 +470,7 @@ export default function TermsPage() {
         .
       </p>
 
-      <h2>19. Sospensione e risoluzione</h2>
+      <h2>20. Sospensione e risoluzione</h2>
       <p>
         Gli obblighi previsti dagli articoli 4 (registrazione e veridicità dei
         dati), 10 (divieto di registrazione e diffusione delle Sessioni), 14
@@ -442,7 +486,7 @@ export default function TermsPage() {
         la risoluzione non danno diritto ad alcun rimborso.
       </p>
 
-      <h2>20. Disponibilità del servizio e forza maggiore</h2>
+      <h2>21. Disponibilità del servizio e forza maggiore</h2>
       <p>
         KaiPai cura la manutenzione della Piattaforma perché il servizio
         funzioni, ma può doverla sospendere temporaneamente per interventi di
@@ -457,7 +501,7 @@ export default function TermsPage() {
         Sessioni interessate vengono riprogrammate.
       </p>
 
-      <h2>21. Limitazione di responsabilità</h2>
+      <h2>22. Limitazione di responsabilità</h2>
       <p>
         KaiPai non garantisce specifici risultati sportivi o personali derivanti
         dalle Sessioni. Nei limiti consentiti dalla legge, KaiPai non risponde
@@ -472,14 +516,14 @@ export default function TermsPage() {
         consumatore.
       </p>
 
-      <h2>22. Nullità parziale</h2>
+      <h2>23. Nullità parziale</h2>
       <p>
         Se una clausola di questi Termini fosse dichiarata nulla, illegittima o
         inefficace, ciò non pregiudica la validità e l’efficacia delle restanti
         previsioni, che continuano ad applicarsi.
       </p>
 
-      <h2>23. Legge applicabile e controversie</h2>
+      <h2>24. Legge applicabile e controversie</h2>
       <p>
         {/* DA COMPLETARE: indicare il foro competente. Attenzione: verso un
             consumatore è inderogabilmente competente il giudice del suo luogo
@@ -499,7 +543,7 @@ export default function TermsPage() {
         quello competente.
       </p>
 
-      <h2>24. Contatti</h2>
+      <h2>25. Contatti</h2>
       <p>Per qualsiasi domanda su questi Termini: {LEGAL_CONTACT_EMAIL}.</p>
     </LegalPage>
   );

@@ -175,6 +175,7 @@ const signUpSchema = z.object({
   // Marketing is optional and never blocks registration.
   acceptTerms: z.string().optional(),
   acceptPrivacy: z.string().optional(),
+  acceptVexatious: z.string().optional(),
   marketing: z.string().optional()
 });
 
@@ -188,6 +189,20 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
     return {
       error:
         'Per registrarti devi accettare i Termini e dichiarare di aver letto l’Informativa privacy.',
+      email,
+      password
+    };
+  }
+
+  // Approvazione specifica ex artt. 1341-1342 c.c.: richiesta solo a chi si
+  // registra come professionista, perché solo lì produce un effetto. Verso un
+  // consumatore l'art. 36 del Codice del Consumo rende nulle le clausole
+  // vessatorie anche se specificamente approvate.
+  const isProfessional = role === 'coach' || role === 'club';
+  if (isProfessional && data.acceptVexatious !== 'on') {
+    return {
+      error:
+        'Per registrarti come professionista devi approvare specificamente le clausole indicate.',
       email,
       password
     };
