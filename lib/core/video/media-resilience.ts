@@ -52,6 +52,39 @@ async function restorePublication(
 }
 
 /**
+ * Mette in pausa la camera quando la pagina va in secondo piano.
+ *
+ * Perché serve. Su mobile il browser sospende la cattura video appena l'utente
+ * cambia app: la traccia resta pubblicata ma smette di produrre fotogrammi, e
+ * l'altra persona vede un'immagine congelata mentre continua a sentire la voce.
+ * È l'esito peggiore: sembra un difetto della piattaforma, e chi guarda non
+ * capisce se l'interlocutore c'è ancora.
+ *
+ * Non è aggirabile — nessuna pagina web può tenere viva la telecamera in
+ * secondo piano, ed è una scelta di privacy dei browser, non un limite tecnico
+ * da superare. Quello che si può fare è dirlo: mettendo in muto la traccia,
+ * LiveKit informa l'altro lato e al posto del fotogramma congelato compare il
+ * segnaposto del partecipante. Uno stato onesto invece di un'immagine che
+ * mente.
+ *
+ * Il ritorno in primo piano non richiede nulla di nuovo:
+ * `restoreLocalMediaIfNeeded` considera già una traccia in muto come da
+ * ripristinare.
+ */
+export async function pauseCameraWhileHidden(room: Room): Promise<boolean> {
+  if (room.state !== ConnectionState.Connected) return false;
+
+  const publication = getPublication(room, Track.Source.Camera);
+  const localTrack = publication?.track;
+  // Già in muto: o l'ha fatto l'utente, o ci siamo già passati. In entrambi i
+  // casi non c'è nulla da fare, e rimutare cancellerebbe l'intento dell'utente.
+  if (!publication || !localTrack || publication.isMuted) return false;
+
+  await localTrack.mute();
+  return true;
+}
+
+/**
  * Restores only local media the user still intends to publish. It never
  * connects a room and never turns a user-muted device back on.
  */

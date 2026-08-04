@@ -12,6 +12,7 @@ import {
 } from 'livekit-client';
 import {
   getLocalMediaDiagnostics,
+  pauseCameraWhileHidden,
   restoreLocalMediaIfNeeded,
   type LocalMediaPreferences,
 } from '@/lib/core/video/media-resilience';
@@ -157,7 +158,14 @@ export function useLiveKitRoomResilience(room: Room) {
       );
       if (document.visibilityState === 'visible') {
         void restoreMedia('visibility');
+        return;
       }
+      // In secondo piano il browser congela i fotogrammi ma la traccia resta
+      // pubblicata: l'altra persona vedrebbe un'immagine ferma continuando a
+      // sentire la voce. Meglio dichiarare la pausa.
+      void pauseCameraWhileHidden(room).catch((error) => {
+        console.error('[LiveKit] Failed pausing camera in background', error);
+      });
     };
 
     room

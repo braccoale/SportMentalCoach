@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { mock } from 'node:test';
 import { ConnectionState, Room, Track } from 'livekit-client';
 import {
+  pauseCameraWhileHidden,
   restoreLocalMediaIfNeeded,
   type LocalMediaPreferences,
 } from './media-resilience';
@@ -152,4 +153,54 @@ test('media is not touched while the room is disconnected', async () => {
   assert.deepEqual(restored, { camera: false, microphone: false });
   assert.equal(calls.cameraEnabled, 0);
   assert.equal(calls.microphoneEnabled, 0);
+});
+
+// --- Pausa della camera in secondo piano ------------------------------------
+
+function fakeRoom(camera: { muted: boolean; hasTrack?: boolean } | null) {
+  const mute = mock.fn(async () => {});
+  const publication = camera
+    ? {
+        isMuted: camera.muted,
+        track: camera.hasTrack === false ? undefined : { mute },
+      }
+    : undefined;
+  return {
+    mute,
+    room: {
+      state: ConnectionState.Connected,
+      localParticipant: {
+        getTrackPublication: (source: Track.Source) =>
+          source === Track.Source.Camera ? publication : undefined,
+      },
+    } as unknown as Room,
+  };
+}
+
+test('mette in muto la camera quando la pagina va in secondo piano', async () => {
+  const { room, mute } = fakeRoom({ muted: false });
+  assert.equal(await pauseCameraWhileHidden(room), true);
+  assert.equal(mute.mock.callCount(), 1);
+});
+
+test('non tocca una camera che l’utente ha già spento', async () => {
+  const { room, mute } = fakeRoom({ muted: true });
+  assert.equal(await pauseCameraWhileHidden(room), false);
+  assert.equal(mute.mock.callCount(), 0);
+});
+
+test('non fa nulla senza una traccia camera pubblicata', async () => {
+  const { room, mute } = fakeRoom(null);
+  assert.equal(await pauseCameraWhileHidden(room), false);
+  assert.equal(mute.mock.callCount(), 0);
+});
+
+test('non fa nulla se la stanza non è connessa', async () => {
+  const { room, mute } = fakeRoom({ muted: false });
+  const disconnected = {
+    ...room,
+    state: ConnectionState.Disconnected,
+  } as unknown as Room;
+  assert.equal(await pauseCameraWhileHidden(disconnected), false);
+  assert.equal(mute.mock.callCount(), 0);
 });
