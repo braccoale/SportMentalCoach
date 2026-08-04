@@ -59,3 +59,6 @@ Image/
 
 # Brainstorming companion mockups (session scratch, not project content)
 .superpowers/
+
+# Anteprime email generate (pnpm email:preview / email:supabase-auth)
+/tmp

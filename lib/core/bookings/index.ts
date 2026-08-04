@@ -362,6 +362,7 @@ export async function createBookingRequest(params: {
   await notify('booking_requested', provider.userId, {
     serviceTitle: svc.title,
     bookingId: creation.bookingId,
+    actorUserId: params.clientUserId,
   });
 
   return { ok: true, bookingId: creation.bookingId };
@@ -823,6 +824,7 @@ export async function createCoachBookingRequest(params: {
   await notify('booking_created_by_coach', params.clientUserId, {
     serviceTitle: svc.title,
     bookingId: creation.bookingId,
+    actorUserId: params.coachUserId,
   });
 
   return { ok: true, bookingId: creation.bookingId };
@@ -973,10 +975,12 @@ export async function decideBooking(params: {
   if (params.decision === 'accepted') {
     await notify('booking_accepted', booking.clientId, {
       bookingId: booking.id,
+      actorUserId: params.coachUserId,
     });
   } else {
     await notify('booking_declined', booking.clientId, {
       bookingId: booking.id,
+      actorUserId: params.coachUserId,
     });
   }
 
@@ -1122,6 +1126,7 @@ export async function cancelBooking(params: {
   await notify('booking_cancelled', recipientId, {
     audience: recipientId === row.coachUserId ? 'coach' : 'athlete',
     bookingId: row.id,
+    actorUserId: params.userId,
   });
 
   return { ok: true };
@@ -1219,6 +1224,7 @@ export async function rescheduleBooking(params: {
     audience: recipientId === row.coachUserId ? 'coach' : 'athlete',
     actor: params.userId === row.coachUserId ? 'coach' : 'athlete',
     bookingId: row.id,
+    actorUserId: params.userId,
   });
 
   return { ok: true };

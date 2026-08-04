@@ -239,33 +239,61 @@
       "when": 1785589200000,
       "tag": "0033_ai-session-notes-phase-2b",
       "breakpoints": true
-    }
-    ,{
+    },
+    {
       "idx": 34,
       "version": "7",
       "when": 1785675600000,
       "tag": "0034_ai-session-notes-phase-3a",
       "breakpoints": true
-    }
-    ,{
+    },
+    {
       "idx": 35,
       "version": "7",
       "when": 1785762000000,
       "tag": "0035_ai-session-notes-phase-3b",
       "breakpoints": true
-    }
-    ,{
+    },
+    {
       "idx": 36,
       "version": "7",
       "when": 1785848400000,
       "tag": "0036_ai-session-notes-session-compass-v1",
       "breakpoints": true
-    }
-    ,{
+    },
+    {
       "idx": 37,
       "version": "7",
       "when": 1785934800000,
       "tag": "0037_ai-session-notes-commitment-follow-through",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1786021200000,
+      "tag": "0038_email-notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1786107600000,
+      "tag": "0039_notification-preferences-catalog-v2",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1786194000000,
+      "tag": "0040_email-templates-security",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1786280400000,
+      "tag": "0041_email-templates-structured-content",
       "breakpoints": true
     }
   ]

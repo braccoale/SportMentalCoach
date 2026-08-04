@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  Bell,
   Home,
   LogOut,
   UserPlus,
@@ -75,6 +76,18 @@ export function UserMenu({
             >
               <Home className="mr-2 h-4 w-4" />
               <span>Dashboard</span>
+            </Link>
+          </DropdownMenuItem>
+          {/* Reuses the existing preferences page — there is deliberately no
+              separate /profile/notifications route. */}
+          <DropdownMenuItem className="cursor-pointer" onSelect={closeMenu}>
+            <Link
+              href="/dashboard/notifications/preferences"
+              onClick={closeMenu}
+              className="flex w-full items-center"
+            >
+              <Bell className="mr-2 h-4 w-4" />
+              <span>Notifiche</span>
             </Link>
           </DropdownMenuItem>
           {isAdmin && (
