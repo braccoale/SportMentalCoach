@@ -15,6 +15,7 @@ import type { DetailsCard } from '@/lib/core/email/details-card';
 import { roleLabelIt } from '@/lib/core/email/format';
 import {
   buildBookingCard,
+  buildCalendarAction,
   loadBookingEmailData,
   participantRole,
   sessionLabel,
@@ -680,7 +681,11 @@ async function buildEmailPayload(
   recipientUserId: number,
   ctx: NotifyContext,
   recipient: EmailRecipient
-): Promise<{ context: TemplateContext; card: DetailsCard | null }> {
+): Promise<{
+  context: TemplateContext;
+  card: DetailsCard | null;
+  secondaryAction: { label: string; url: string } | null;
+}> {
   const base: TemplateContext = {
     recipient: {
       firstName: recipient.firstName,
@@ -701,6 +706,7 @@ async function buildEmailPayload(
     return {
       context: { ...base, ...(ctx.emailContext ?? {}) },
       card: null,
+      secondaryAction: null,
     };
   }
 
@@ -739,6 +745,11 @@ async function buildEmailPayload(
       data,
       actorUserId,
       occurredAt,
+      recipientRole,
+    }),
+    secondaryAction: buildCalendarAction({
+      eventKey: type,
+      data,
       recipientRole,
     }),
   };
@@ -808,6 +819,7 @@ export async function notify(
           idempotencyKey,
           context: payload.context,
           card: payload.card,
+          secondaryAction: payload.secondaryAction,
           actionUrl: data.link,
         });
 

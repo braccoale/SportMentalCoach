@@ -29,7 +29,6 @@ export type UpcomingAppointmentData = {
   /** Huge-date hero; null when there's no fixed time yet. */
   date: { day: string; monthYear: string; time: string } | null;
   primaryNeed: string;
-  completionHint: string;
   requestedAtLabel: string;
 };
 
@@ -136,12 +135,6 @@ export function UpcomingAppointmentCard({
               <MessageSquare className="h-3.5 w-3.5" />
             </span>
             <span className="line-clamp-1">{data.primaryNeed}</span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-500">
-              <Video className="h-3.5 w-3.5" />
-            </span>
-            <span className="line-clamp-1">{data.completionHint}</span>
           </div>
         </div>
 

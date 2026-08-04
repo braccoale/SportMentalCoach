@@ -90,7 +90,8 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     body: [
       '{{coach.fullName}} ha messo in calendario {{session.label}} con te.',
     ],
-    outro: 'Aggiungi l’appuntamento al tuo calendario per non dimenticarlo.',
+    outro:
+      'Riceverai un promemoria il giorno prima e un’ora prima della sessione.',
     actionLabel: 'Vedi l’appuntamento',
   }),
 

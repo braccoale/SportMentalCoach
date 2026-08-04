@@ -21,7 +21,11 @@ import {
   splitParagraphs,
   type TemplateContext,
 } from '@/lib/core/email/render';
-import { buildBookingCard, type BookingEmailData } from '@/lib/core/email/booking-context';
+import {
+  buildBookingCard,
+  buildCalendarAction,
+  type BookingEmailData,
+} from '@/lib/core/email/booking-context';
 import { roleLabelIt } from '@/lib/core/email/format';
 import {
   NOTIFICATION_EVENTS,
@@ -42,6 +46,7 @@ const ASSET_BASE = `file://${resolve('public').replace(/\\/g, '/')}`;
 /** Dati finti ma plausibili, con Europe/Rome esplicito. */
 const bookingData: BookingEmailData = {
   bookingId: 128,
+  status: 'accepted',
   requestedAt: new Date('2026-08-04T10:18:00Z'), // 12:18 a Roma
   scheduledFor: new Date('2026-08-05T16:00:00Z'), // 18:00 a Roma
   serviceTitle: 'Conoscitiva',
@@ -140,6 +145,14 @@ function render(
     ? { label: tpl.actionLabel, url: actionUrl }
     : null;
 
+  // Il pulsante calendario compare solo dove il catalogo lo prevede e la
+  // sessione e' futura: l'anteprima usa una data del 2026, quindi si vede.
+  const secondaryAction = buildCalendarAction({
+    eventKey,
+    data,
+    recipientRole,
+  });
+
   return {
     subject,
     html: wrapEmailHtml({
@@ -150,6 +163,7 @@ function render(
       card,
       outroHtml,
       action,
+      secondaryAction,
       preferencesUrl: `${BASE_URL}/dashboard/notifications/preferences`,
       privacyUrl: `${BASE_URL}/privacy`,
       baseUrl: ASSET_BASE,
@@ -161,6 +175,7 @@ function render(
       card,
       outroText,
       action,
+      secondaryAction,
       preferencesUrl: `${BASE_URL}/dashboard/notifications/preferences`,
     }),
   };

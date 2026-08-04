@@ -169,6 +169,8 @@ export type SendEventEmailInput = {
   context: TemplateContext;
   /** Where the call-to-action button points. Relative paths are resolved. */
   actionUrl?: string | null;
+  /** Azione secondaria gia' pronta, es. "Aggiungi a Google Calendar". */
+  secondaryAction?: { label: string; url: string } | null;
   /**
    * Structured details. Built in code from the event's data, so rows without a
    * value disappear instead of blocking the send (see `details-card.ts`).
@@ -282,6 +284,7 @@ export async function sendEventEmail(
       card: input.card ?? null,
       outroHtml,
       action,
+      secondaryAction: input.secondaryAction ?? null,
       preferencesUrl,
       privacyUrl,
       baseUrl,
@@ -293,6 +296,7 @@ export async function sendEventEmail(
       card: input.card ?? null,
       outroText,
       action,
+      secondaryAction: input.secondaryAction ?? null,
       preferencesUrl,
     }),
   });

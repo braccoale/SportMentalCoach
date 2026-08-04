@@ -788,9 +788,6 @@ function buildUpcomingAppointmentData(
     statusLabel: bookingStatusLabel(booking.status),
     date: booking.scheduledFor ? formatBigDateParts(booking.scheduledFor) : null,
     primaryNeed: derivePrimaryNeed(booking) ?? 'Da chiarire insieme nel primo confronto.',
-    completionHint: booking.sessionStartedAt
-      ? 'Puoi segnare la sessione come completata dal menu "…".'
-      : 'La sessione potrà essere completata dopo la videochiamata.',
     requestedAtLabel: formatDate(booking.requestedAt),
   };
 }

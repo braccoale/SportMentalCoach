@@ -86,8 +86,6 @@ function buildAthleteUpcomingData(b: AthleteBooking): UpcomingAppointmentData {
       goal ??
       b.serviceTitle ??
       'Obiettivo da mettere a fuoco insieme al coach.',
-    completionHint:
-      'Puoi entrare in videochiamata da qualche minuto prima dell’inizio.',
     requestedAtLabel: formatDate(b.requestedAt),
   };
 }

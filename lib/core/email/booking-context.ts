@@ -16,6 +16,8 @@ import {
   formatDurationIt,
   roleLabelIt,
 } from './format';
+import { buildBookingGoogleCalendarUrl } from '@/lib/core/booking-calendar';
+import { getAppBaseUrl } from '@/lib/core/app-url';
 import type { DetailsCard } from './details-card';
 
 /**
@@ -39,6 +41,7 @@ export type BookingParticipant = {
 
 export type BookingEmailData = {
   bookingId: number;
+  status: string;
   /** Quando l'atleta ha inviato la richiesta. */
   requestedAt: Date;
   /** Quando si terrà la sessione. Nullable: esistono richieste senza orario. */
@@ -59,6 +62,7 @@ export async function loadBookingEmailData(
   const [row] = await db
     .select({
       bookingId: bookings.id,
+      status: bookings.status,
       requestedAt: bookings.requestedAt,
       scheduledFor: bookings.scheduledFor,
       note: bookings.note,
@@ -90,6 +94,7 @@ export async function loadBookingEmailData(
 
   return {
     bookingId: row.bookingId,
+    status: row.status,
     requestedAt: row.requestedAt,
     scheduledFor: row.scheduledFor,
     serviceTitle: row.serviceTitle?.trim() || null,
@@ -312,6 +317,56 @@ export function buildBookingCard(input: {
     default:
       return { rows: [] };
   }
+}
+
+/**
+ * Eventi in cui ha senso offrire "Aggiungi a Google Calendar": c'è un orario
+ * confermato e l'utente sta per doverlo ricordare.
+ *
+ * Esclusi i promemoria: a 24 ore, e ancora di più a un'ora, l'appuntamento o è
+ * già in calendario o non serve più metterlo.
+ */
+const CALENDAR_EVENTS = new Set([
+  'booking_created_by_coach',
+  'booking_accepted',
+  'booking_rescheduled',
+]);
+
+/**
+ * Pulsante "Aggiungi a Google Calendar" per l'email.
+ *
+ * Delega a `buildBookingCalendarEvent`, lo stesso costruttore usato dal
+ * pulsante nell'app: titolo, descrizione, fuso e link alla videochiamata
+ * restano identici ovunque, e le sue guardie valgono anche qui — niente
+ * pulsante se la sessione è già passata, se manca la durata o se lo stato non
+ * lo prevede.
+ *
+ * Restituisce null, e il pulsante sparisce, ogni volta che qualcosa non torna:
+ * un'email senza pulsante resta utile, una con un pulsante rotto no.
+ */
+export function buildCalendarAction(input: {
+  eventKey: string;
+  data: BookingEmailData;
+  recipientRole: 'athlete' | 'coach' | null;
+}): { label: string; url: string } | null {
+  if (!CALENDAR_EVENTS.has(input.eventKey)) return null;
+
+  const { data } = input;
+  const url = buildBookingGoogleCalendarUrl({
+    id: data.bookingId,
+    status: data.status,
+    scheduledFor: data.scheduledFor,
+    durationMin: data.durationMin,
+    coachName: data.coach.displayName,
+    athleteName: data.athlete.displayName,
+    viewerRole: input.recipientRole ?? 'athlete',
+    appBaseUrl: getAppBaseUrl(),
+    // L'autorizzazione è già stata decisa: si arriva qui solo per un
+    // destinatario che partecipa a questa prenotazione.
+    canView: true,
+  });
+
+  return url ? { label: 'Aggiungi a Google Calendar', url } : null;
 }
 
 function joinRole(
