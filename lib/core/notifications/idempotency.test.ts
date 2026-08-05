@@ -131,14 +131,42 @@ test('ogni evento con notifica in-app è configurabile su entrambi i canali', ()
   }
 });
 
+/**
+ * Eventi per cui i due canali partono deliberatamente diversi.
+ *
+ * `call_started` annuncia una videochiamata già in corso: la notifica sul
+ * dispositivo arriva in tempo per rispondere, l'email quasi certamente no.
+ * Accenderla di default significherebbe mandare "entra nella chiamata" a
+ * chiamata finita. Resta comunque attivabile dalle preferenze — è un default
+ * diverso, non un canale sottratto.
+ */
+const CHANNEL_DEFAULTS_DIFFER_ON_PURPOSE = ['call_started'];
+
 test('i due canali sono indipendenti: nessun default li lega', () => {
   // Nessun evento deve avere l'in-app subordinata all'email o viceversa:
-  // l'utente può tenerne uno, l'altro, entrambi o nessuno.
+  // l'utente può tenerne uno, l'altro, entrambi o nessuno. Dove i default
+  // divergono deve essere una scelta dichiarata, non una svista.
   const linked = NOTIFICATION_EVENT_KEYS.filter((key) => {
     const e = NOTIFICATION_EVENTS[key];
-    return e.hasInApp && e.inAppDefault !== e.emailDefault;
+    return (
+      e.hasInApp &&
+      e.inAppDefault !== e.emailDefault &&
+      !CHANNEL_DEFAULTS_DIFFER_ON_PURPOSE.includes(key)
+    );
   });
   assert.deepEqual(linked, []);
+});
+
+test('anche gli eventi con default diversi restano attivabili su entrambi i canali', () => {
+  for (const key of CHANNEL_DEFAULTS_DIFFER_ON_PURPOSE) {
+    const e = NOTIFICATION_EVENTS[key as keyof typeof NOTIFICATION_EVENTS];
+    assert.equal(e.hasInApp, true, `${key}: deve avere il canale in-app`);
+    assert.equal(
+      e.mandatoryEmail,
+      false,
+      `${key}: l'email deve restare disattivabile`
+    );
+  }
 });
 
 test('solo coach_invitation non ha una notifica in-app', () => {

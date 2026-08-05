@@ -7,6 +7,10 @@ import { requestBooking } from './actions';
 import type { ActionState } from '@/lib/auth/middleware';
 import type { BookableDay } from '@/lib/core/availability';
 import { isStartBusyForDuration } from '@/lib/core/availability/validation';
+import {
+  DEFAULT_SESSION_DURATION_MIN,
+  SESSION_DURATION_OPTIONS,
+} from '@/lib/core/bookings/duration';
 
 type ServiceOption = {
   id: number;
@@ -16,17 +20,6 @@ type ServiceOption = {
 
 const fieldCls =
   'mt-1.5 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm';
-
-/**
- * Duration the picker reasons with, or `null` while no service is selected —
- * see `isStartBusyForDuration`.
- */
-function selectedDuration(
-  services: ServiceOption[],
-  serviceId: string
-): number | null {
-  return services.find((s) => String(s.id) === serviceId)?.durationMin ?? null;
-}
 
 function firstFreeTime(
   day: BookableDay | undefined,
@@ -63,8 +56,12 @@ export function BookingRequest({
 
   const [day, setDay] = useState(bookableDays[0]?.value ?? '');
   const [serviceId, setServiceId] = useState('');
-  const [time, setTime] = useState(firstFreeTime(bookableDays[0], null));
-  const durationMin = selectedDuration(services, serviceId);
+  const [time, setTime] = useState(
+    firstFreeTime(bookableDays[0], DEFAULT_SESSION_DURATION_MIN)
+  );
+  const [durationMin, setDurationMin] = useState<number>(
+    DEFAULT_SESSION_DURATION_MIN
+  );
 
   const selectedDay = useMemo(
     () => bookableDays.find((d) => d.value === day),
@@ -99,23 +96,7 @@ export function BookingRequest({
           id="serviceId"
           name="serviceId"
           value={serviceId}
-          onChange={(e) => {
-            const nextServiceId = e.target.value;
-            setServiceId(nextServiceId);
-            // A longer service may no longer fit the chosen start: fall back
-            // to the first one that does.
-            const nextDuration = selectedDuration(services, nextServiceId);
-            if (
-              selectedDay &&
-              isStartBusyForDuration(
-                selectedDay.maxDurationMin,
-                time,
-                nextDuration
-              )
-            ) {
-              setTime(firstFreeTime(selectedDay, nextDuration));
-            }
-          }}
+          onChange={(e) => setServiceId(e.target.value)}
           className={fieldCls}
           required
         >
@@ -129,9 +110,37 @@ export function BookingRequest({
             </option>
           ))}
         </select>
-        <p className="mt-1 text-xs text-gray-500">
-          La durata è stabilita dal coach per ciascun servizio.
-        </p>
+      </div>
+
+      <div className="flex flex-col">
+        <label htmlFor="durationMin" className="text-sm font-medium text-gray-900">
+          Quanto vuoi che duri?
+        </label>
+        <select
+          id="durationMin"
+          name="durationMin"
+          value={durationMin}
+          onChange={(e) => {
+            const next = Number(e.target.value);
+            setDurationMin(next);
+            // Una sessione più lunga può non entrare più nell'orario scelto:
+            // si ricade sul primo che la contiene.
+            if (
+              selectedDay &&
+              isStartBusyForDuration(selectedDay.maxDurationMin, time, next)
+            ) {
+              setTime(firstFreeTime(selectedDay, next));
+            }
+          }}
+          className={fieldCls}
+          required
+        >
+          {SESSION_DURATION_OPTIONS.map((minutes) => (
+            <option key={minutes} value={minutes}>
+              {minutes} minuti
+            </option>
+          ))}
+        </select>
       </div>
 
       {bookableDays.length > 0 ? (

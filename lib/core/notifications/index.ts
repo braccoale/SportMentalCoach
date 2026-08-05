@@ -22,6 +22,7 @@ import {
 } from '@/lib/core/email/booking-context';
 import { isPushConfigured, sendPushToUser } from '@/lib/core/push';
 import {
+  callStartedContent,
   coachCreatedAppointmentContent,
   rescheduledAppointmentContent,
   type AppointmentNotificationActor,
@@ -543,6 +544,8 @@ function buildContent(
       };
     case 'booking_created_by_coach':
       return coachCreatedAppointmentContent(ctx);
+    case 'call_started':
+      return callStartedContent(ctx);
     case 'booking_accepted':
       return {
         title: 'Richiesta accettata',

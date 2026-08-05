@@ -265,8 +265,18 @@ export async function createBookingRequest(params: {
   clientUserId: number;
   providerSlug: string;
   serviceId: number;
+  durationMin: SessionDurationMin;
   note?: string | null;
   scheduledFor?: Date | null;
+  /**
+   * L'atleta sta chiamando il coach adesso. A differenza del lato coach qui la
+   * disponibilità settimanale NON viene saltata, è anzi il cancello: un atleta
+   * non può far squillare il coach fuori dagli orari che il coach ha
+   * pubblicato. La sessione nasce `accepted` e non `requested` perché una
+   * chiamata in corso non ha nulla da accettare — o il coach risponde, o non
+   * risponde.
+   */
+  startingNow?: boolean;
 }): Promise<Result<{ bookingId: number }>> {
   const [provider] = await db
     .select({ id: providerProfiles.id, userId: providerProfiles.userId })
@@ -298,9 +308,15 @@ export async function createBookingRequest(params: {
     if (!isWithinAvailability(slots, params.scheduledFor)) {
       return {
         ok: false,
-        error: `Il coach è disponibile solo in questi orari: ${describeAvailability(slots)}. Scegli un orario in questa fascia.`,
+        error: params.startingNow
+          ? `Il coach in questo momento non è disponibile. I suoi orari sono: ${describeAvailability(slots)}.`
+          : `Il coach è disponibile solo in questi orari: ${describeAvailability(slots)}. Scegli un orario in questa fascia.`,
       };
     }
+  }
+
+  if (!isSessionDuration(params.durationMin)) {
+    return { ok: false, error: 'Scegli una durata per la sessione.' };
   }
 
   if (!Number.isInteger(params.serviceId) || params.serviceId <= 0) {
@@ -340,13 +356,14 @@ export async function createBookingRequest(params: {
         tx,
         provider.id,
         params.scheduledFor,
-        svc.durationMin
+        params.durationMin
       ))
     ) {
       return {
         ok: false as const,
-        error:
-          'Questo orario è già occupato. Scegli uno degli orari disponibili.',
+        error: params.startingNow
+          ? 'Il coach ha già una sessione in corso in questo momento.'
+          : 'Questo orario è già occupato. Scegli uno degli orari disponibili.',
       };
     }
 
@@ -356,21 +373,30 @@ export async function createBookingRequest(params: {
         clientId: params.clientUserId,
         providerId: provider.id,
         serviceId: svc.id,
-        status: 'requested',
+        status: params.startingNow ? 'accepted' : 'requested',
         note: params.note ?? null,
         scheduledFor: params.scheduledFor ?? null,
+        durationMin: params.durationMin,
         createdBy: params.clientUserId,
+        decidedAt: params.startingNow ? new Date() : null,
       })
       .returning({ id: bookings.id });
     return { ok: true as const, bookingId: created.id };
   });
   if (!creation.ok) return creation;
 
-  await notify('booking_requested', provider.userId, {
-    serviceTitle: svc.title,
-    bookingId: creation.bookingId,
-    actorUserId: params.clientUserId,
-  });
+  await notify(
+    params.startingNow ? 'call_started' : 'booking_requested',
+    provider.userId,
+    {
+      serviceTitle: svc.title,
+      bookingId: creation.bookingId,
+      actorUserId: params.clientUserId,
+      // Solo per la chiamata: dice a chi sta arrivando la notifica, e quindi
+      // chi è dall'altra parte a chiamare.
+      ...(params.startingNow ? { audience: 'coach' as const } : {}),
+    }
+  );
 
   return { ok: true, bookingId: creation.bookingId };
 }
@@ -481,6 +507,14 @@ export type RelationshipCoach = {
   availabilityHint: string;
   /** Selectable day/time options from that availability; empty if none configured. */
   bookableDays: BookableDay[];
+  /**
+   * Se in questo momento il coach è dentro le sue fasce settimanali, e quindi
+   * l'atleta può avviare una chiamata subito. Calcolato sul server: l'orologio
+   * del browser potrebbe essere in un altro fuso, e la fascia è espressa in ora
+   * di Roma. Un coach senza disponibilità configurata è sempre chiamabile, la
+   * stessa regola già applicata alle prenotazioni.
+   */
+  canCallNow: boolean;
 };
 
 /**
@@ -587,6 +621,10 @@ export async function getAthleteRelationshipCoaches(
     availByProvider.set(a.providerId, list);
   }
 
+  // Un solo istante per tutti i coach della lista: due letture dell'orologio
+  // potrebbero cadere a cavallo di un minuto e rendere la lista incoerente.
+  const now = new Date();
+
   return coaches
     .filter((c) => c.slug)
     .map((c) => ({
@@ -598,6 +636,7 @@ export async function getAthleteRelationshipCoaches(
       bookableDays: getBookableDays(availByProvider.get(c.id) ?? [], {
         busyIntervals: busyByProvider.get(c.id) ?? [],
       }),
+      canCallNow: isWithinAvailability(availByProvider.get(c.id) ?? [], now),
       _favorite: favedIds.has(c.id),
       _recency: lastByProvider.get(c.id) ?? 0,
     }))
@@ -846,11 +885,18 @@ export async function createCoachBookingRequest(params: {
   });
   if (!creation.ok) return creation;
 
-  await notify('booking_created_by_coach', params.clientUserId, {
-    serviceTitle: svc.title,
-    bookingId: creation.bookingId,
-    actorUserId: params.coachUserId,
-  });
+  // Una chiamata avviata adesso non è un appuntamento da segnare in agenda:
+  // l'atleta deve poter entrare con un tocco, quindi riceve un evento suo che
+  // punta direttamente alla stanza.
+  await notify(
+    params.startingNow ? 'call_started' : 'booking_created_by_coach',
+    params.clientUserId,
+    {
+      serviceTitle: svc.title,
+      bookingId: creation.bookingId,
+      actorUserId: params.coachUserId,
+    }
+  );
 
   return { ok: true, bookingId: creation.bookingId };
 }
