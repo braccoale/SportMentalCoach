@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   buildCoachAthletes,
   bookingsForAthlete,
+  lastServiceByAthlete,
 } from './coach-athletes';
 import type { CoachBooking } from './index';
 
@@ -23,8 +24,9 @@ function booking(over: Partial<CoachBooking> & { id: number; clientId: number })
     athleteSport: 'calcio',
     athleteLevel: null,
     athleteGoals: null,
+    serviceId: 1,
     serviceTitle: 'Conoscitiva',
-    serviceDurationMin: 40,
+    durationMin: 40,
     athleteIsMinor: false,
     ...over,
   };
@@ -161,6 +163,71 @@ test('chi ha una sessione imminente viene prima', () => {
     NOW
   );
   assert.equal(athletes[0].userId, 9);
+});
+
+test('l’ultimo servizio è quello della richiesta più recente, per atleta', () => {
+  const last = lastServiceByAthlete([
+    booking({
+      id: 1,
+      clientId: 7,
+      serviceId: 3,
+      requestedAt: new Date('2026-07-01T10:00:00Z'),
+    }),
+    booking({
+      id: 2,
+      clientId: 7,
+      serviceId: 5,
+      requestedAt: new Date('2026-08-01T10:00:00Z'),
+    }),
+    booking({
+      id: 3,
+      clientId: 9,
+      serviceId: 2,
+      requestedAt: new Date('2026-07-15T10:00:00Z'),
+    }),
+  ]);
+  assert.deepEqual(last, { 7: 5, 9: 2 });
+});
+
+test('una sessione annullata dice comunque quale servizio è in uso', () => {
+  const last = lastServiceByAthlete([
+    booking({
+      id: 1,
+      clientId: 7,
+      serviceId: 5,
+      status: 'cancelled',
+      requestedAt: new Date('2026-08-01T10:00:00Z'),
+    }),
+    booking({
+      id: 2,
+      clientId: 7,
+      serviceId: 3,
+      requestedAt: new Date('2026-07-01T10:00:00Z'),
+    }),
+  ]);
+  assert.equal(last[7], 5);
+});
+
+test('le prenotazioni senza servizio non sovrascrivono il default', () => {
+  const last = lastServiceByAthlete([
+    booking({
+      id: 1,
+      clientId: 7,
+      serviceId: null,
+      requestedAt: new Date('2026-08-01T10:00:00Z'),
+    }),
+    booking({
+      id: 2,
+      clientId: 7,
+      serviceId: 4,
+      requestedAt: new Date('2026-07-01T10:00:00Z'),
+    }),
+  ]);
+  assert.equal(last[7], 4);
+});
+
+test('un atleta senza storico non ha default', () => {
+  assert.deepEqual(lastServiceByAthlete([]), {});
 });
 
 test('lo storico di un atleta esclude quello degli altri', () => {

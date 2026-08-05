@@ -20,6 +20,7 @@ import {
   getCoachRelationshipAthletes,
   type CoachBooking,
 } from '@/lib/core/bookings';
+import { lastServiceByAthlete } from '@/lib/core/bookings/coach-athletes';
 import { getCoachServices } from '@/lib/core/services';
 import { DEFAULT_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
 import {
@@ -134,7 +135,7 @@ export default async function CoachDashboardPage() {
       .map((booking) => ({
         scheduledFor: booking.scheduledFor!,
         durationMin:
-          booking.serviceDurationMin ?? DEFAULT_SERVICE_DURATION_MIN,
+          booking.durationMin ?? DEFAULT_SERVICE_DURATION_MIN,
       })),
   });
 
@@ -237,6 +238,7 @@ export default async function CoachDashboardPage() {
                 }))}
               availabilityHint={availabilityHint}
               bookableDays={bookableDays}
+              lastServiceByAthlete={lastServiceByAthlete(allBookings)}
             />
           ) : (
             <div className="flex flex-col items-end gap-1">
@@ -408,7 +410,7 @@ export default async function CoachDashboardPage() {
             id: booking.id,
             status: booking.status,
             scheduledFor: booking.scheduledFor,
-            durationMin: booking.serviceDurationMin,
+            durationMin: booking.durationMin,
             coachName,
             athleteName: booking.clientName,
             viewerRole: 'coach',
@@ -450,7 +452,7 @@ export default async function CoachDashboardPage() {
                         )}
                         currentTime={formatTime(booking.scheduledFor)}
                         durationMin={
-                          booking.serviceDurationMin ??
+                          booking.durationMin ??
                           DEFAULT_SERVICE_DURATION_MIN
                         }
                         compact
@@ -783,7 +785,7 @@ function buildCoachRequestCardData(
     serviceLabel: booking.serviceTitle,
     sessionStart: booking.sessionStartedAt,
     sessionEnd: booking.sessionEndedAt,
-    fallbackMinutes: booking.serviceDurationMin,
+    fallbackMinutes: booking.durationMin,
   };
 }
 
@@ -847,7 +849,7 @@ function buildArchiveCardData(
   const end = booking.sessionEndedAt;
   const durationMin =
     getSessionDurationMinutes(booking.sessionStartedAt, booking.sessionEndedAt) ??
-    booking.serviceDurationMin ??
+    booking.durationMin ??
     null;
   // Both completed and non-completed render the big date hero (session date, or
   // the scheduled date for closed-without-session states) so every archive card

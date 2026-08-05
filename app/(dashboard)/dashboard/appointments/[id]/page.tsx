@@ -84,7 +84,7 @@ export default async function AppointmentDetailPage({
     id: booking.id,
     status: booking.status,
     scheduledFor: booking.scheduledFor,
-    durationMin: booking.serviceDurationMin,
+    durationMin: booking.durationMin,
     coachName: booking.coachName,
     athleteName: booking.athleteName,
     viewerRole: booking.viewerRole,
@@ -111,7 +111,7 @@ export default async function AppointmentDetailPage({
     ? 'La sessione non ha ancora una data e un orario concordati.'
     : !booking.serviceTitle
       ? 'Questa richiesta è stata creata senza un servizio associato. Il coach deve configurare un servizio con durata; poi annulla questa richiesta e inviane una nuova.'
-      : !booking.serviceDurationMin
+      : !booking.durationMin
         ? 'Il servizio associato non ha una durata. Il coach deve completarlo prima di una nuova prenotazione.'
         : 'La sessione è già trascorsa e non può più essere aggiunta al calendario.';
 
@@ -155,8 +155,8 @@ export default async function AppointmentDetailPage({
               <CalendarCheck className="h-4 w-4" /> Durata
             </dt>
             <dd className="mt-1 font-medium text-gray-900">
-              {booking.serviceDurationMin
-                ? formatMinutes(booking.serviceDurationMin)
+              {booking.durationMin
+                ? formatMinutes(booking.durationMin)
                 : 'Non definita'}
             </dd>
           </div>
@@ -229,7 +229,7 @@ export default async function AppointmentDetailPage({
               currentDay={formatRomeDateValue(booking.scheduledFor)}
               currentTime={formatTime(booking.scheduledFor)}
               durationMin={
-                booking.serviceDurationMin ?? DEFAULT_SERVICE_DURATION_MIN
+                booking.durationMin ?? DEFAULT_SERVICE_DURATION_MIN
               }
             />
           )}

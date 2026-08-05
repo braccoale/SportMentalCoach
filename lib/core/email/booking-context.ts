@@ -16,6 +16,7 @@ import {
   formatDurationIt,
   roleLabelIt,
 } from './format';
+import { effectiveBookingDurationMin } from '@/lib/core/bookings/conflict-query';
 import { buildBookingGoogleCalendarUrl } from '@/lib/core/booking-calendar';
 import { getAppBaseUrl } from '@/lib/core/app-url';
 import type { DetailsCard } from './details-card';
@@ -67,7 +68,9 @@ export async function loadBookingEmailData(
       scheduledFor: bookings.scheduledFor,
       note: bookings.note,
       serviceTitle: services.title,
-      durationMin: services.durationMin,
+      // La durata concordata per questa sessione, non quella del servizio:
+      // l'email deve dire la stessa cosa che il coach ha scelto nel form.
+      durationMin: effectiveBookingDurationMin,
       athleteUserId: users.id,
       athleteName: users.name,
       athleteLastName: users.lastName,
