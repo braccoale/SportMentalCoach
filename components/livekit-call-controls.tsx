@@ -65,6 +65,7 @@ export function KaiPaiPreJoin({
   preflightToken,
   onDiagnostic,
   onJoin,
+  onCancel,
   minHeight = '70vh',
   counterpartName,
 }: {
@@ -73,6 +74,12 @@ export function KaiPaiPreJoin({
   preflightToken: string;
   onDiagnostic?: (details: TechnicalEventDetails) => void;
   onJoin: (choices: KaiPaiCallChoices) => void;
+  /**
+   * Uscita dal controllo dispositivi senza entrare. Senza questa via chi si
+   * ferma qui — cambia idea, sbaglia appuntamento — è costretto a entrare in
+   * chiamata solo per poterne uscire.
+   */
+  onCancel?: () => void;
   minHeight?: string;
   counterpartName?: string;
 }) {
@@ -99,9 +106,13 @@ export function KaiPaiPreJoin({
   }
 
   return isCompact ? (
-    <PreJoinCompact state={state} counterpartName={counterpartName} />
+    <PreJoinCompact
+      state={state}
+      counterpartName={counterpartName}
+      onCancel={onCancel}
+    />
   ) : (
-    <PreJoinDesktop state={state} minHeight={minHeight} />
+    <PreJoinDesktop state={state} minHeight={minHeight} onCancel={onCancel} />
   );
 }
 

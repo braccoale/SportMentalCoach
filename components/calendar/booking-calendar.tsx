@@ -32,6 +32,8 @@ export type CalendarEvent = {
   /** Counterpart display name: athlete (coach view) or coach (athlete view). */
   title: string;
   serviceTitle: string | null;
+  /** Durata concordata in minuti: decide quando la sessione diventa passata. */
+  durationMin: number | null;
   note: string | null;
 };
 
@@ -563,7 +565,7 @@ function EventDrawer({
 }) {
   const counterpartLabel = role === 'coach' ? 'Atleta' : 'Coach';
   const isAccepted = event.status === 'accepted';
-  const isPast = !isSessionJoinable(event.when);
+  const isPast = !isSessionJoinable(event.when, event.durationMin);
   const canJoin = isAccepted && !isPast;
   const canManage = role === 'coach' && isAccepted;
 
@@ -662,7 +664,7 @@ function EventDrawer({
                 </Link>
                 <VideoCallButton
                   bookingId={event.id}
-                  enabled={canJoinVideoNow(event.when)}
+                  enabled={canJoinVideoNow(event.when, event.durationMin)}
                   scheduledFor={event.when?.toISOString() ?? null}
                   variant="calendar"
                   label="Videochiamata"

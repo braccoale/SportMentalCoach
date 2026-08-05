@@ -17,11 +17,14 @@ export function VideoCallButton({
   scheduledFor,
   prominent = false,
   variant = 'default',
+  durationMin,
   label = 'Apri videochiamata',
 }: {
   bookingId: number;
   enabled: boolean;
   scheduledFor?: string | null;
+  /** Durata concordata: la finestra per entrare si chiude quando finisce. */
+  durationMin?: number | null;
   prominent?: boolean;
   variant?: 'default' | 'compact' | 'calendar';
   label?: string;
@@ -44,10 +47,11 @@ export function VideoCallButton({
     const synchronize = () => {
       if (timer) clearTimeout(timer);
       const now = new Date();
-      setIsEnabled(canJoinVideoNow(appointment, now));
+      setIsEnabled(canJoinVideoNow(appointment, durationMin, now));
 
       const nextChange = nextVideoJoinAvailabilityChange(
         appointment,
+        durationMin,
         now
       );
       if (nextChange) {
@@ -79,7 +83,7 @@ export function VideoCallButton({
         synchronizeWhenVisible
       );
     };
-  }, [enabled, scheduledFor]);
+  }, [durationMin, enabled, scheduledFor]);
 
   const tooltip =
     'La videochiamata sarà disponibile 5 minuti prima dell’orario previsto.';

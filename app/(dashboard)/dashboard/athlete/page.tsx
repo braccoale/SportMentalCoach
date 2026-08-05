@@ -187,7 +187,7 @@ function BookingRow({
 }) {
   const canReview = b.status === 'completed' && !reviewedIds.has(b.id);
   // A past session (scheduled time elapsed) is over: no live tools, no cancel.
-  const isPast = !isSessionJoinable(b.scheduledFor);
+  const isPast = !isSessionJoinable(b.scheduledFor, b.durationMin);
   const canCancel =
     (b.status === 'requested' || b.status === 'accepted') && !isPast;
   const isPastSession = b.status === 'accepted' && isPast;
@@ -266,7 +266,7 @@ function BookingRow({
               </Button>
               <VideoCallButton
                 bookingId={b.id}
-                enabled={canJoinVideoNow(b.scheduledFor)}
+                enabled={canJoinVideoNow(b.scheduledFor, b.durationMin)}
                 scheduledFor={b.scheduledFor?.toISOString() ?? null}
                 variant="compact"
                 label={b.sessionStartedAt ? 'Rientra nella call' : undefined}
@@ -428,7 +428,7 @@ function AcceptedAppointments({
       </h2>
       <div className="mt-3 grid items-start gap-4 xl:grid-cols-2">
         {items.map((b) => {
-          const past = !isSessionJoinable(b.scheduledFor);
+          const past = !isSessionJoinable(b.scheduledFor, b.durationMin);
           const editDays =
             relationshipCoaches.find((coach) => coach.slug === b.coachSlug)
               ?.bookableDays ?? [];
@@ -461,7 +461,7 @@ function AcceptedAppointments({
                     </Link>
                     <VideoCallButton
                       bookingId={b.id}
-                      enabled={canJoinVideoNow(b.scheduledFor)}
+                      enabled={canJoinVideoNow(b.scheduledFor, b.durationMin)}
                       scheduledFor={b.scheduledFor?.toISOString() ?? null}
                       label={
                         b.sessionStartedAt
@@ -553,14 +553,14 @@ export default async function AthleteDashboardPage() {
   const waiting = requests.filter((b) => b.status === 'requested');
   const accepted = requests.filter((b) => b.status === 'accepted');
   const upcomingAccepted = accepted
-    .filter((booking) => isSessionJoinable(booking.scheduledFor))
+    .filter((booking) => isSessionJoinable(booking.scheduledFor, booking.durationMin))
     .sort(
       (a, b) =>
         (a.scheduledFor?.getTime() ?? Number.MAX_SAFE_INTEGER) -
         (b.scheduledFor?.getTime() ?? Number.MAX_SAFE_INTEGER)
     );
   const pastAccepted = accepted.filter(
-    (booking) => !isSessionJoinable(booking.scheduledFor)
+    (booking) => !isSessionJoinable(booking.scheduledFor, booking.durationMin)
   );
   const completed = requests.filter((b) => b.status === 'completed');
   // Archive newest-first by when the session actually happened (real end or

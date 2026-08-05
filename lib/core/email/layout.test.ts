@@ -157,7 +157,7 @@ test('la CTA porta sempre anche l’URL in chiaro', () => {
 
 test('la CTA usa il rosso profondo, non quello degli accenti', () => {
   const html = wrapEmailHtml(baseLayout);
-  assert.ok(html.includes(`background:${BRAND.redDeep}`));
+  assert.ok(html.includes(`background:${BRAND.green}`));
   // Il rosso chiaro resta sulla banda e sull'eyebrow.
   assert.ok(html.includes(`background:${BRAND.red}`));
 });

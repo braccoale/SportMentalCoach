@@ -8,11 +8,28 @@
 export const REQUEST_RESPONSE_WINDOW_HOURS = 48;
 
 /**
- * Grace period after a session's scheduled start during which the call can
- * still be joined. Beyond this the session is considered past. Sessions with no
- * fixed time are always joinable.
+ * Quanto dura una sessione quando non lo dice nessuno: prenotazioni vecchie,
+ * senza servizio, o create prima che la durata fosse una scelta esplicita.
  */
-export const SESSION_JOIN_GRACE_MINUTES = 120;
+export const FALLBACK_SESSION_DURATION_MIN = 40;
+
+/**
+ * Per quanto una sessione resta raggiungibile dopo l'orario di inizio: per la
+ * sua durata, e basta.
+ *
+ * Prima era una finestra fissa di due ore uguale per tutte, il che rendeva una
+ * sessione da 40 minuti ancora "in corso" un'ora e venti dopo la fine. Legarla
+ * alla durata concordata è ciò che rende vera la parola "scaduta": passati i
+ * suoi minuti la sessione appartiene al passato e il link non apre più nulla.
+ */
+export function sessionEndsAt(
+  scheduledFor: Date,
+  durationMin: number | null | undefined
+): Date {
+  const minutes =
+    durationMin && durationMin > 0 ? durationMin : FALLBACK_SESSION_DURATION_MIN;
+  return new Date(scheduledFor.getTime() + minutes * 60_000);
+}
 
 /**
  * How long before a session's scheduled start the video call can be entered.
@@ -40,16 +57,15 @@ export function isRequestExpired(
 /**
  * Whether a video call for a session may be started/joined now. A session with
  * no fixed time is always joinable; a scheduled session stays joinable until
- * its start plus the grace period, after which it is in the past.
+ * its start plus its own duration, after which it is in the past.
  */
 export function isSessionJoinable(
   scheduledFor: Date | null,
+  durationMin: number | null | undefined,
   now: Date = new Date()
 ): boolean {
   if (!scheduledFor) return true;
-  const end =
-    scheduledFor.getTime() + SESSION_JOIN_GRACE_MINUTES * 60 * 1000;
-  return end >= now.getTime();
+  return sessionEndsAt(scheduledFor, durationMin).getTime() >= now.getTime();
 }
 
 /**
@@ -61,10 +77,11 @@ export function isSessionJoinable(
  */
 export function canJoinVideoNow(
   scheduledFor: Date | null,
+  durationMin: number | null | undefined,
   now: Date = new Date()
 ): boolean {
   if (!scheduledFor) return true;
-  if (!isSessionJoinable(scheduledFor, now)) return false;
+  if (!isSessionJoinable(scheduledFor, durationMin, now)) return false;
   const earliestJoin =
     scheduledFor.getTime() - VIDEO_JOIN_LEAD_MINUTES * 60 * 1000;
   return now.getTime() >= earliestJoin;
@@ -78,6 +95,7 @@ export function canJoinVideoNow(
  */
 export function nextVideoJoinAvailabilityChange(
   scheduledFor: Date | null,
+  durationMin: number | null | undefined,
   now: Date = new Date()
 ): Date | null {
   if (!scheduledFor) return null;
@@ -86,8 +104,7 @@ export function nextVideoJoinAvailabilityChange(
     scheduledFor.getTime() - VIDEO_JOIN_LEAD_MINUTES * 60 * 1000;
   if (now.getTime() < earliestJoin) return new Date(earliestJoin);
 
-  const latestJoin =
-    scheduledFor.getTime() + SESSION_JOIN_GRACE_MINUTES * 60 * 1000;
+  const latestJoin = sessionEndsAt(scheduledFor, durationMin).getTime();
   if (now.getTime() <= latestJoin) return new Date(latestJoin + 1);
 
   return null;

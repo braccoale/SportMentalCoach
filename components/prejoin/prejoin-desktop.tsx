@@ -85,9 +85,11 @@ function DeviceMenuButton({
 export function PreJoinDesktop({
   state,
   minHeight,
+  onCancel,
 }: {
   state: PreJoinState;
   minHeight: string;
+  onCancel?: () => void;
 }) {
   const {
     userChoices,
@@ -363,6 +365,15 @@ export function PreJoinDesktop({
             >
               Entra nella videochiamata
             </button>
+            {onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                className="mt-3 h-11 w-full rounded-full border border-white/15 px-5 text-sm font-semibold text-white/75 hover:bg-white/10 hover:text-white"
+              >
+                Esci senza entrare
+              </button>
+            )}
           </div>
         </div>
       </div>

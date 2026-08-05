@@ -38,10 +38,12 @@ const NETWORK_DOT: Record<NetworkDiagnosticSummary['grade'], string> = {
 export function PreJoinCompact({
   state,
   counterpartName,
+  onCancel,
 }: {
   state: PreJoinState;
   /** Nome di chi si sta per incontrare. Assente nel flusso ospite. */
   counterpartName?: string;
+  onCancel?: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -194,6 +196,15 @@ export function PreJoinCompact({
         >
           Entra nella videochiamata
         </button>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="mt-3 h-12 w-full rounded-full border border-white/20 text-sm font-semibold text-white/80 active:bg-white/10"
+          >
+            Esci senza entrare
+          </button>
+        )}
       </div>
 
       <AdvancedSettingsSheet

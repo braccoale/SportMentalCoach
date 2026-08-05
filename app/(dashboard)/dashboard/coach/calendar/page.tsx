@@ -17,6 +17,7 @@ export default async function CoachCalendarPage() {
     requestedAt: b.requestedAt.toISOString(),
     title: b.clientName || b.clientEmail,
     serviceTitle: b.serviceTitle,
+    durationMin: b.durationMin,
     note: b.note,
   }));
 
