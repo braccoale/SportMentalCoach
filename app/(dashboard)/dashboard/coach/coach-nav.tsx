@@ -9,12 +9,14 @@ import {
   Shield,
   CalendarDays,
   MessageSquare,
+  Users2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CoachBadge } from '@/components/coach-badge';
 
 const TABS = [
   { href: '/dashboard/coach', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/dashboard/coach/athletes', label: 'I miei Atleti', icon: Users2 },
   { href: '/dashboard/coach/calendar', label: 'Calendario', icon: CalendarDays },
   { href: '/dashboard/coach/messages', label: 'Messaggi', icon: MessageSquare },
   { href: '/dashboard/coach/profile', label: 'Profilo', icon: UserRound },
