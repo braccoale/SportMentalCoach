@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/core/auth';
 import { cancelBooking, createBookingRequest } from '@/lib/core/bookings';
+import { parseSessionDuration } from '@/lib/core/bookings/duration';
 import { parseRomeLocalDateTime } from '@/lib/core/availability';
 import { updateClientProfile } from '@/lib/core/profiles';
 import { inviteGuardian } from '@/lib/core/guardians';
@@ -55,26 +56,41 @@ export async function createBookingRequestAction(
     return { error: 'Seleziona un servizio valido.' };
   }
 
+  const durationMin = parseSessionDuration(formData.get('durationMin'));
+  if (durationMin === null) {
+    return { error: 'Scegli una durata per la sessione.' };
+  }
+
   const note = String(formData.get('note') ?? '').trim() || null;
 
-  const whenRaw = String(formData.get('scheduledFor') ?? '').trim();
+  // "Avvia sessione ora": l'orario è quello del server, non uno slot scelto.
+  const startingNow = String(formData.get('startNow') ?? '') === '1';
+
   let scheduledFor: Date | null = null;
-  if (whenRaw) {
-    const d = parseRomeLocalDateTime(whenRaw);
-    if (!d || Number.isNaN(d.getTime())) return { error: 'Data/ora non valida.' };
-    // Small grace so a "now" prefill doesn't fail while the user is submitting.
-    if (d.getTime() < Date.now() - 2 * 60 * 1000) {
-      return { error: 'Scegli una data/ora futura.' };
+  if (startingNow) {
+    scheduledFor = new Date();
+  } else {
+    const whenRaw = String(formData.get('scheduledFor') ?? '').trim();
+    if (whenRaw) {
+      const d = parseRomeLocalDateTime(whenRaw);
+      if (!d || Number.isNaN(d.getTime()))
+        return { error: 'Data/ora non valida.' };
+      // Small grace so a "now" prefill doesn't fail while the user is submitting.
+      if (d.getTime() < Date.now() - 2 * 60 * 1000) {
+        return { error: 'Scegli una data/ora futura.' };
+      }
+      scheduledFor = d;
     }
-    scheduledFor = d;
   }
 
   const result = await createBookingRequest({
     clientUserId: user.id,
     providerSlug: slug,
     serviceId,
+    durationMin,
     note,
     scheduledFor,
+    startingNow,
   });
   if (!result.ok) return { error: result.error };
 
@@ -82,8 +98,11 @@ export async function createBookingRequestAction(
   revalidatePath('/dashboard/athlete/calendar');
   revalidatePath('/dashboard/coach');
   return {
-    success: 'Richiesta inviata al coach.',
+    success: startingNow
+      ? 'Chiamata avviata: stiamo aprendo la stanza.'
+      : 'Richiesta inviata al coach.',
     bookingId: result.bookingId,
+    startedNow: startingNow,
   };
 }
 

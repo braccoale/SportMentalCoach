@@ -3,25 +3,18 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { CalendarPlus, UserRound, X } from 'lucide-react';
+import { CalendarPlus, UserRound, Video, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
 import type { RelationshipCoach } from '@/lib/core/bookings';
+import {
+  DEFAULT_SESSION_DURATION_MIN,
+  SESSION_DURATION_OPTIONS,
+} from '@/lib/core/bookings/duration';
 import { isStartBusyForDuration } from '@/lib/core/availability/validation';
 import { createBookingRequestAction } from './actions';
 
 type BookableDay = RelationshipCoach['bookableDays'][number];
-
-/**
- * Duration the picker reasons with, or `null` while no service is selected —
- * see `isStartBusyForDuration`.
- */
-function selectedDuration(
-  services: RelationshipCoach['services'],
-  serviceId: string
-): number | null {
-  return services.find((s) => String(s.id) === serviceId)?.durationMin ?? null;
-}
 
 function firstFreeTime(
   day: BookableDay | undefined,
@@ -59,7 +52,9 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
   const [day, setDay] = useState('');
   const [time, setTime] = useState('');
   const [serviceId, setServiceId] = useState('');
-  const durationMin = selectedDuration(selected?.services ?? [], serviceId);
+  const [durationMin, setDurationMin] = useState<number>(
+    DEFAULT_SESSION_DURATION_MIN
+  );
 
   const selectedDay = useMemo(
     () => days.find((d) => d.value === day),
@@ -67,18 +62,36 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
   );
   const scheduledFor = day && time ? `${day}T${time}` : '';
 
+  /**
+   * Switch duration and keep the start valid: a longer session may no longer
+   * fit the chosen start, so fall back to the first one that does.
+   */
+  function pickDuration(next: number) {
+    setDurationMin(next);
+    if (
+      selectedDay &&
+      isStartBusyForDuration(selectedDay.maxDurationMin, time, next)
+    ) {
+      setTime(firstFreeTime(selectedDay, next));
+    }
+  }
+
   /** Points day/time at the first option of the given coach (or clears them). */
   function resetWhenFor(coachSlug: string) {
     const first = coaches.find((c) => c.slug === coachSlug)?.bookableDays[0];
     setServiceId('');
     setDay(first?.value ?? '');
-    setTime(firstFreeTime(first, null));
+    setTime(firstFreeTime(first, durationMin));
   }
 
   function openDialog() {
     const first = coaches[0]?.slug ?? '';
+    const firstDay = coaches[0]?.bookableDays[0];
     setSlug(first);
-    resetWhenFor(first);
+    setServiceId('');
+    setDurationMin(DEFAULT_SESSION_DURATION_MIN);
+    setDay(firstDay?.value ?? '');
+    setTime(firstFreeTime(firstDay, DEFAULT_SESSION_DURATION_MIN));
     setOpen(true);
   }
 
@@ -139,11 +152,14 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
               action={createBookingRequestAction}
               className="mt-5 flex flex-col gap-4"
               onSuccess={(state) => {
-                if (typeof state.bookingId === 'number') {
-                  router.push(
-                    `/dashboard/appointments/${state.bookingId}?created=1`
-                  );
-                }
+                if (typeof state.bookingId !== 'number') return;
+                // Chiamata avviata: si entra direttamente nella stanza, ed è
+                // l'ingresso dell'atleta a far squillare l'app del coach.
+                router.push(
+                  state.startedNow
+                    ? `/dashboard/video/${state.bookingId}`
+                    : `/dashboard/appointments/${state.bookingId}?created=1`
+                );
               }}
             >
               <label className="flex flex-col gap-1.5">
@@ -174,26 +190,7 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                   key={slug}
                   name="serviceId"
                   value={serviceId}
-                  onChange={(e) => {
-                    const nextServiceId = e.target.value;
-                    setServiceId(nextServiceId);
-                    // A longer service may no longer fit the chosen start:
-                    // fall back to the first one that does.
-                    const nextDuration = selectedDuration(
-                      selected?.services ?? [],
-                      nextServiceId
-                    );
-                    if (
-                      selectedDay &&
-                      isStartBusyForDuration(
-                        selectedDay.maxDurationMin,
-                        time,
-                        nextDuration
-                      )
-                    ) {
-                      setTime(firstFreeTime(selectedDay, nextDuration));
-                    }
-                  }}
+                  onChange={(e) => setServiceId(e.target.value)}
                   required
                   className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
                 >
@@ -293,6 +290,23 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
               )}
 
               <label className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium text-gray-700">Durata</span>
+                <select
+                  name="durationMin"
+                  value={durationMin}
+                  onChange={(e) => pickDuration(Number(e.target.value))}
+                  required
+                  className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+                >
+                  {SESSION_DURATION_OPTIONS.map((minutes) => (
+                    <option key={minutes} value={minutes}>
+                      {minutes} minuti
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="flex flex-col gap-1.5">
                 <span className="text-sm font-medium text-gray-700">
                   Messaggio <span className="text-gray-400">(opzionale)</span>
                 </span>
@@ -314,6 +328,9 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                 >
                   Annulla
                 </Button>
+                {/* Primo submit del form, quindi anche quello che scatta
+                    premendo Invio in un campo: deve essere l'azione normale,
+                    non l'avvio di una chiamata. */}
                 <Button
                   type="submit"
                   disabled={
@@ -325,6 +342,36 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                 >
                   Invia richiesta
                 </Button>
+              </div>
+
+              {/* Chiamare adesso non passa dall'accettazione del coach, quindi
+                  resta possibile solo dentro le fasce che il coach ha
+                  pubblicato: è lui a decidere quando può essere chiamato. */}
+              <div className="border-t border-gray-100 pt-4">
+                <Button
+                  type="submit"
+                  name="startNow"
+                  value="1"
+                  variant="outline"
+                  disabled={
+                    !selected ||
+                    selected.services.length === 0 ||
+                    !selected.canCallNow
+                  }
+                  className="w-full rounded-full border-green-600 text-green-700 hover:bg-green-50 hover:text-green-800"
+                >
+                  <Video className="mr-2 h-4 w-4" />
+                  Avvia sessione ora
+                </Button>
+                <p className="mt-2 text-center text-xs text-gray-500">
+                  {selected && !selected.canCallNow
+                    ? `${selected.name} non è disponibile in questo momento${
+                        selected.availabilityHint
+                          ? `: ${selected.availabilityHint}`
+                          : ''
+                      }.`
+                    : 'Chiama subito il coach e apre la videochiamata: giorno e ora qui sopra non vengono usati.'}
+                </p>
               </div>
             </ActionForm>
           </div>

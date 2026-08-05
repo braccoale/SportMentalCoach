@@ -94,6 +94,7 @@ const BOOKING_VARIABLES = [
 export type NotificationEventKey =
   | 'booking_requested'
   | 'booking_created_by_coach'
+  | 'call_started'
   | 'booking_accepted'
   | 'booking_declined'
   | 'booking_cancelled'
@@ -166,6 +167,24 @@ export const NOTIFICATION_EVENTS: Record<
     templateKey: 'booking_created_by_coach',
     mandatoryEmail: false,
     emailDefault: true,
+    inAppDefault: true,
+    hasInApp: true,
+    variables: [...COMMON_VARIABLES, ...BOOKING_VARIABLES],
+  }),
+  /**
+   * Il coach ha aperto la stanza adesso e l'atleta è atteso subito. È un
+   * evento a sé, non una variante di `booking_created_by_coach`: quello
+   * annuncia un appuntamento da segnare in agenda, questo è un telefono che
+   * squilla. Per questo l'email è spenta di default — arriverebbe a chiamata
+   * finita — mentre la notifica sul dispositivo è il canale che conta.
+   */
+  call_started: event({
+    key: 'call_started',
+    category: 'appointments',
+    label: 'Il coach ti sta chiamando',
+    templateKey: 'call_started',
+    mandatoryEmail: false,
+    emailDefault: false,
     inAppDefault: true,
     hasInApp: true,
     variables: [...COMMON_VARIABLES, ...BOOKING_VARIABLES],

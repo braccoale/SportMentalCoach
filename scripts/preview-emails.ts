@@ -185,6 +185,7 @@ function render(
 const RECIPIENT: Record<NotificationEventKey, 'athlete' | 'coach'> = {
   booking_requested: 'coach',
   booking_created_by_coach: 'athlete',
+  call_started: 'athlete',
   booking_accepted: 'athlete',
   booking_declined: 'athlete',
   booking_cancelled: 'coach',

@@ -95,6 +95,19 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     actionLabel: 'Vedi l’appuntamento',
   }),
 
+  // Spenta di default nel catalogo: un'email su una chiamata in corso arriva a
+  // chiamata finita. Esiste perché chi la riaccende dalle preferenze deve
+  // trovare un testo, non un errore di invio.
+  call_started: template('call_started', {
+    eyebrow: 'Chiamata in corso',
+    subject: 'Il tuo coach ti sta chiamando',
+    title: '{{coach.fullName}} ha avviato la videochiamata',
+    body: ['La sessione è iniziata adesso. Entra nella stanza per partecipare.'],
+    outro:
+      'Se non riesci a partecipare ora, scrivilo in chat: il coach ti sta aspettando.',
+    actionLabel: 'Entra nella chiamata',
+  }),
+
   booking_accepted: template('booking_accepted', {
     eyebrow: 'Richiesta confermata',
     subject: 'La tua sessione è confermata',

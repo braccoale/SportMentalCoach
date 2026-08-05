@@ -197,7 +197,9 @@ function romeOffsetMinutes(at: Date): number {
  * time is allowed — the constraint only kicks in once they've set a schedule.
  */
 export function isWithinAvailability(
-  slots: AvailabilitySlot[],
+  // Solo le tre colonne che servono davvero: così la funzione è usabile anche
+  // da query che non selezionano l'id della fascia.
+  slots: Pick<AvailabilitySlot, 'weekday' | 'startMinute' | 'endMinute'>[],
   date: Date,
   durationMin = 1
 ): boolean {

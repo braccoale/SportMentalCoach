@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/db/queries';
 import { hasRole } from '@/lib/core/auth';
 import { createBookingRequest } from '@/lib/core/bookings';
+import { parseSessionDuration } from '@/lib/core/bookings/duration';
 import { parseRomeLocalDateTime } from '@/lib/core/availability';
 import type { ActionState } from '@/lib/auth/middleware';
 
@@ -63,10 +64,16 @@ export async function requestBooking(
     return { error: when.error };
   }
 
+  const durationMin = parseSessionDuration(formData.get('durationMin'));
+  if (durationMin === null) {
+    return { error: 'Scegli una durata per la sessione.' };
+  }
+
   const result = await createBookingRequest({
     clientUserId: user.id,
     providerSlug: slug,
     serviceId: sid,
+    durationMin,
     note: note?.trim() || null,
     scheduledFor: when.value,
   });
