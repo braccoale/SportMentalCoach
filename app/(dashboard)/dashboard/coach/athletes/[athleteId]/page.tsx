@@ -16,6 +16,10 @@ import {
 import { CoachAvatar } from '@/components/coach-visuals';
 import { formatDate, formatDateTime, formatMinutes } from '@/lib/core/format';
 import { getVerticalConfig, findTaxonomyItem } from '@/lib/core/config';
+import {
+  FEATURE_CODES,
+  hasFeatureEntitlement,
+} from '@/lib/core/features';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,7 +52,10 @@ export default async function CoachAthletePage({
   if (!Number.isInteger(targetId) || targetId <= 0) notFound();
 
   const config = getVerticalConfig();
-  const bookings = await getCoachBookings(user.id);
+  const [bookings, hasAiSessionNotes] = await Promise.all([
+    getCoachBookings(user.id),
+    hasFeatureEntitlement(user.id, FEATURE_CODES.AI_SESSION_NOTES),
+  ]);
 
   // L'autorizzazione nasce dai dati: `getCoachBookings` restituisce solo le
   // prenotazioni di questo coach, quindi un atleta che non compare qui non ha
@@ -133,7 +140,11 @@ export default async function CoachAthletePage({
         )}
       </section>
 
-      {/* Percorso mentale — si popola dai report che il coach ha approvato. */}
+      {/* Percorso mentale — si popola dai report che il coach ha approvato.
+          Visibile solo con la funzionalità AI attiva: i dati sono comunque
+          protetti dall'entitlement, ma mostrare la porta di una stanza chiusa
+          promette qualcosa che non c'è. */}
+      {hasAiSessionNotes && (
       <section className="mt-4 rounded-2xl border border-violet-200 bg-violet-50/40 p-5">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
           <Compass className="h-4 w-4 text-violet-600" />
@@ -151,6 +162,7 @@ export default async function CoachAthletePage({
           Apri il percorso
         </Link>
       </section>
+      )}
 
       {/* Storico */}
       <section className="mt-4">

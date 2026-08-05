@@ -29,6 +29,10 @@ import {
   getBookableDays,
 } from '@/lib/core/availability';
 import { getProviderProfileByUser } from '@/lib/core/profiles';
+import {
+  FEATURE_CODES,
+  hasFeatureEntitlement,
+} from '@/lib/core/features';
 import { isSessionJoinable, canJoinVideoNow } from '@/lib/core/sessions';
 import { getUnreadCountForType } from '@/lib/core/notifications';
 import { getCoachReviews } from '@/lib/core/reviews';
@@ -112,6 +116,7 @@ export default async function CoachDashboardPage() {
     journeyAthletes,
     coachServices,
     coachAvailability,
+    hasAiSessionNotes,
   ] = await Promise.all([
     getProviderProfileByUser(user.id),
     getCoachBookings(user.id),
@@ -120,6 +125,7 @@ export default async function CoachDashboardPage() {
     getCoachRelationshipAthletes(user.id),
     getCoachServices(user.id),
     getCoachAvailability(user.id),
+    hasFeatureEntitlement(user.id, FEATURE_CODES.AI_SESSION_NOTES),
   ]);
   const availabilityHint = describeAvailability(coachAvailability);
   // Same Rome-derived day/time options the athlete sees, so the coach can't
@@ -355,7 +361,7 @@ export default async function CoachDashboardPage() {
         />
       </div>
 
-      <MentalJourneyLinks athletes={journeyAthletes} />
+      <MentalJourneyLinks athletes={journeyAthletes} enabled={hasAiSessionNotes} />
 
       {/* Il conteggio resta nella KPI qui sopra, che si collega a questa
           sezione solo quando è maggiore di zero: nessuna ancora morta. */}

@@ -7,12 +7,22 @@ import type { RelationshipAthlete } from '@/lib/core/bookings';
  * Punto d'ingresso alla Mental Journey dalla dashboard coach: un elenco
  * essenziale degli atleti seguiti, senza anticipare alcun contenuto del
  * percorso.
+ *
+ * `enabled` è obbligatoria di proposito. I dati del percorso sono già protetti
+ * dall'entitlement, quindi un coach senza la funzionalità non potrebbe comunque
+ * leggerli — ma vedeva la sezione, e mostrare la porta di una stanza chiusa è
+ * un modo per promettere qualcosa che non c'è. Richiedere la prop fa sì che un
+ * nuovo punto di ingresso non possa nascere senza che qualcuno decida.
  */
 export function MentalJourneyLinks({
   athletes,
+  enabled,
 }: {
   athletes: readonly RelationshipAthlete[];
+  /** Se il coach ha la funzionalità AI Session Notes attiva sul suo account. */
+  enabled: boolean;
 }) {
+  if (!enabled) return null;
   if (!athletes.length) return null;
 
   return (
