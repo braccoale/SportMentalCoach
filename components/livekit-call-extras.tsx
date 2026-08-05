@@ -374,12 +374,20 @@ export function WaitingRoomGate({
   choices,
   children,
   onTechnicalEvent,
+  onLeave,
 }: {
   isCoach: boolean;
   coachIdentity: string;
   choices: KaiPaiCallChoices;
   children: ReactNode;
   onTechnicalEvent?: TechnicalEventHandler;
+  /**
+   * Cosa fare quando si esce dalla sala d'attesa. Chi ha un posto dove tornare
+   * lo passa qui e ci viene portato: chiudere e basta la connessione lascia la
+   * persona davanti alla stessa schermata, che è esattamente il contrario di
+   * quello che ha chiesto. Senza handler resta la sola disconnessione.
+   */
+  onLeave?: () => void;
 }) {
   const room = useRoomContext();
   const connectionState = useConnectionState();
@@ -521,8 +529,12 @@ export function WaitingRoomGate({
   ]);
 
   const leave = useCallback(() => {
+    // Prima l'handler, poi la disconnessione: chi ascolta `onDisconnected` deve
+    // sapere che l'uscita è voluta prima che l'evento arrivi, altrimenti fa in
+    // tempo a mostrare il dialog "sei uscito dalla call" a chi sta già uscendo.
+    onLeave?.();
     void room.disconnect();
-  }, [room]);
+  }, [onLeave, room]);
 
   const disablePreview = useCallback(() => {
     previewTrack?.stop();

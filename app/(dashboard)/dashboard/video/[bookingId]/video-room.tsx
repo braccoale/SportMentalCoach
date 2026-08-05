@@ -314,6 +314,17 @@ function ConnectedVideoRoom({
     setShowExitDialog(true);
   }, []);
 
+  /**
+   * Uscita dalla sala d'attesa: si torna da dove si è arrivati, senza passare
+   * per il dialog "sei uscito dalla call". Chi lascia la sala ha già deciso, e
+   * proporgli "rientra" sarebbe rifargli la stessa domanda. `leftRef` viene
+   * alzato prima di chiudere la connessione proprio per zittire quel dialog.
+   */
+  const leaveWaitingRoom = useCallback(() => {
+    leftRef.current = true;
+    router.push(backHref);
+  }, [backHref, router]);
+
   function rejoin() {
     // Reloading obtains a fresh short-lived token and a fresh Room instance.
     window.location.reload();
@@ -377,6 +388,7 @@ function ConnectedVideoRoom({
           coachIdentity={coachIdentity}
           choices={choices}
           onTechnicalEvent={recordTechnicalEvent}
+          onLeave={leaveWaitingRoom}
         >
         <AiSessionNotesControl
           bookingId={bookingId}
@@ -457,9 +469,12 @@ function ConnectedVideoRoom({
         </div>
       )}
 
+      {/* Sopra la sala d'attesa (z-30): la connessione può cadere prima di
+          essere ammessi, e un dialog nascosto dietro l'overlay lascerebbe la
+          persona davanti a "Connessione alla sala…" senza via d'uscita. */}
       {showExitDialog && (
         <div
-          className="absolute inset-0 z-10 flex items-center justify-center bg-black/70 p-4"
+          className="absolute inset-0 z-40 flex items-center justify-center bg-black/70 p-4"
           role="dialog"
           aria-modal="true"
         >
