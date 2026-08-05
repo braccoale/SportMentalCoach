@@ -1,6 +1,7 @@
 'use client';
 
-import { startTransition, useActionState, useRef, useState } from 'react';
+import { startTransition, useActionState, useEffect, useRef, useState } from 'react';
+import { mutate } from 'swr';
 import { Loader2, Upload, BadgeCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CoachAvatar } from '@/components/coach-visuals';
@@ -25,6 +26,10 @@ export function PhotoForm({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (state?.success) void mutate('/api/user');
+  }, [state]);
 
   function submitUrl(url: string) {
     const fd = new FormData();

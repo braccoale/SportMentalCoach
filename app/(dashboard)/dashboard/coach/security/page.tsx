@@ -1,9 +1,5 @@
-import { SecuritySettings } from '@/components/security-settings';
+import { redirect } from 'next/navigation';
 
-export default function CoachSecurityPage() {
-  return (
-    <section className="flex flex-col p-6">
-      <SecuritySettings />
-    </section>
-  );
+export default function LegacyCoachSecurityPage() {
+  redirect('/dashboard/settings?section=password');
 }

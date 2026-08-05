@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { UserMenu } from '@/components/user-menu';
-import { User } from '@/lib/db/schema';
+import type { SessionUser } from '@/lib/auth/session-user';
 import { BILLING_ENABLED } from '@/lib/core/flags';
 import { Footer } from '@/components/footer';
 import { NotificationBell } from '@/components/notification-bell';
@@ -13,7 +13,7 @@ import { fetcher } from '@/lib/fetcher';
 import useSWR from 'swr';
 
 function HeaderUserMenu() {
-  const { data: user } = useSWR<User>('/api/user', fetcher);
+  const { data: user } = useSWR<SessionUser>('/api/user', fetcher);
 
   if (!user) {
     return (
@@ -37,6 +37,7 @@ function HeaderUserMenu() {
     <UserMenu
       name={[user.name, user.lastName].filter(Boolean).join(' ') || null}
       email={user.email}
+      avatarUrl={user.avatarUrl}
     />
   );
 }

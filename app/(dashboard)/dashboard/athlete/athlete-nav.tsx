@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   CalendarDays,
   MessageSquare,
-  Shield,
   UserRound,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -28,11 +27,6 @@ const TABS = [
     href: '/dashboard/athlete/profile',
     label: 'Profilo',
     icon: UserRound,
-  },
-  {
-    href: '/dashboard/athlete/security',
-    label: 'Sicurezza',
-    icon: Shield,
   },
 ];
 

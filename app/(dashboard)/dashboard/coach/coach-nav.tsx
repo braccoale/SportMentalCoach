@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   UserRound,
   Briefcase,
-  Shield,
   CalendarDays,
   MessageSquare,
   Users2,
@@ -21,7 +20,6 @@ const TABS = [
   { href: '/dashboard/coach/messages', label: 'Messaggi', icon: MessageSquare },
   { href: '/dashboard/coach/profile', label: 'Profilo', icon: UserRound },
   { href: '/dashboard/coach/services', label: 'Servizi', icon: Briefcase },
-  { href: '/dashboard/coach/security', label: 'Sicurezza', icon: Shield },
 ];
 
 export function CoachNav({

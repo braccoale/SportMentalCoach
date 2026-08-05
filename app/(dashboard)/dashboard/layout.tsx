@@ -1,8 +1,8 @@
 /**
  * Dashboard shell. The old template sidebar (role links / Dashboard /
  * Attività / Sicurezza) was removed: navigation lives in each area's tabs
- * (coach and athlete), and account security is a tab in both areas. Content
- * runs full width.
+ * (coach and athlete), while account settings live in the global user menu.
+ * Content runs full width.
  */
 export default function DashboardLayout({
   children

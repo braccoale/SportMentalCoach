@@ -4,9 +4,9 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Bell,
   Home,
   LogOut,
+  Settings,
   UserPlus,
   ShieldCheck,
 } from 'lucide-react';
@@ -23,16 +23,18 @@ import { fetcher } from '@/lib/fetcher';
 import { signOut } from '@/app/(login)/actions';
 
 /**
- * Authenticated user menu: the initials avatar as trigger, with a dropdown
+ * Authenticated user menu: the profile photo (or initials fallback) as trigger, with a dropdown
  * (Dashboard / Sign out). Shared by the dashboard, landing and marketplace
  * headers so the account entry point looks and behaves the same everywhere.
  */
 export function UserMenu({
   name,
   email,
+  avatarUrl,
 }: {
   name: string | null;
   email: string;
+  avatarUrl?: string | null;
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -61,8 +63,11 @@ export function UserMenu({
     <>
       <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
         <DropdownMenuTrigger>
-          {/* Initials (first + last name, uppercase) on the brand-red disc. */}
-          <UserAvatar name={name || email} className="cursor-pointer size-9" />
+          <UserAvatar
+            name={name || email}
+            src={avatarUrl}
+            className="cursor-pointer size-9"
+          />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="flex flex-col gap-1">
           <DropdownMenuItem
@@ -78,16 +83,14 @@ export function UserMenu({
               <span>Dashboard</span>
             </Link>
           </DropdownMenuItem>
-          {/* Reuses the existing preferences page — there is deliberately no
-              separate /profile/notifications route. */}
           <DropdownMenuItem className="cursor-pointer" onSelect={closeMenu}>
             <Link
-              href="/dashboard/notifications/preferences"
+              href="/dashboard/settings"
               onClick={closeMenu}
               className="flex w-full items-center"
             >
-              <Bell className="mr-2 h-4 w-4" />
-              <span>Notifiche</span>
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Impostazioni</span>
             </Link>
           </DropdownMenuItem>
           {isAdmin && (

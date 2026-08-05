@@ -1,6 +1,6 @@
-import { getUser } from '@/lib/db/queries';
+import { getSessionUser } from '@/lib/db/queries';
 
 export async function GET() {
-  const user = await getUser();
+  const user = await getSessionUser();
   return Response.json(user);
 }

@@ -57,5 +57,6 @@ export async function saveNotificationPreferencesAction(
 
   await setChannelPreferences(user.id, prefs);
   revalidatePath('/dashboard/notifications/preferences');
+  revalidatePath('/dashboard/settings');
   return { success: 'Preferenze salvate.' };
 }

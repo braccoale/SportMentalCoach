@@ -27,7 +27,7 @@ export default async function NotificationsPage() {
         <h1 className="text-2xl font-semibold text-gray-900">Notifiche</h1>
         <div className="flex items-center gap-3">
           <Link
-            href="/dashboard/notifications/preferences"
+            href="/dashboard/settings?section=notifications"
             className="text-sm font-medium text-red-600 hover:text-red-700"
           >
             Preferenze

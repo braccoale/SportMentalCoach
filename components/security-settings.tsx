@@ -72,7 +72,7 @@ export function SecuritySettings() {
             </div>
             <div>
               <Label htmlFor="confirm-password" className="mb-2">
-                Confirm Nuova password
+                Conferma nuova password
               </Label>
               <PasswordInput
                 id="confirm-password"

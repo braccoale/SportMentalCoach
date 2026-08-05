@@ -1,9 +1,10 @@
 import { cache } from 'react';
 import { desc, and, eq, isNull } from 'drizzle-orm';
 import { db } from './drizzle';
-import { activityLogs, teamMembers, teams, users } from './schema';
+import { activityLogs, profiles, teamMembers, teams, users } from './schema';
 import { unstable_rethrow } from 'next/navigation';
 import { createSupabaseServer } from '@/lib/auth/supabase';
+import type { SessionUser } from '@/lib/auth/session-user';
 
 /**
  * Resolves the current user: Supabase Auth session (cookie) → app profile
@@ -42,6 +43,20 @@ export const getUser = cache(async () => {
   }
 
   return user[0];
+});
+
+/** Current account plus the profile photo used by authenticated navigation. */
+export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
+  const user = await getUser();
+  if (!user) return null;
+
+  const [profile] = await db
+    .select({ avatarUrl: profiles.avatarUrl })
+    .from(profiles)
+    .where(eq(profiles.userId, user.id))
+    .limit(1);
+
+  return { ...user, avatarUrl: profile?.avatarUrl ?? null };
 });
 
 export async function getTeamByStripeCustomerId(customerId: string) {

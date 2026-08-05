@@ -10,13 +10,7 @@ import { UserMenu } from '@/components/user-menu';
 import { UserAvatar } from '@/components/user-avatar';
 import { NotificationBell } from '@/components/notification-bell';
 import { fetcher } from '@/lib/fetcher';
-
-type SessionUser = {
-  id: number;
-  name: string | null;
-  lastName?: string | null;
-  email: string;
-};
+import type { SessionUser } from '@/lib/auth/session-user';
 
 const LINKS = [
   { href: '#ecosistema-atleta', label: 'Ecosistema' },
@@ -97,7 +91,11 @@ export function SiteNav() {
                 {user.name ?? 'Dashboard'}
               </Link>
               <NotificationBell />
-              <UserMenu name={[user.name, user.lastName].filter(Boolean).join(' ') || null} email={user.email} />
+              <UserMenu
+                name={[user.name, user.lastName].filter(Boolean).join(' ') || null}
+                email={user.email}
+                avatarUrl={user.avatarUrl}
+              />
             </div>
           ) : (
             <>
@@ -129,6 +127,7 @@ export function SiteNav() {
               <Link href="/dashboard" aria-label="Dashboard">
                 <UserAvatar
                   name={[user.name, user.lastName].filter(Boolean).join(' ') || user.email}
+                  src={user.avatarUrl}
                 />
               </Link>
             </>

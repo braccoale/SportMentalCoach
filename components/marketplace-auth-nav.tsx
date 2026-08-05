@@ -6,13 +6,7 @@ import { Button } from '@/components/ui/button';
 import { UserMenu } from '@/components/user-menu';
 import { NotificationBell } from '@/components/notification-bell';
 import { fetcher } from '@/lib/fetcher';
-
-type SessionUser = {
-  id: number;
-  name: string | null;
-  lastName?: string | null;
-  email: string;
-};
+import type { SessionUser } from '@/lib/auth/session-user';
 
 /**
  * Auth-aware call to action for the marketplace header. Shows the user's
@@ -32,7 +26,11 @@ export function MarketplaceAuthNav() {
         >
           {user.name ?? 'Dashboard'}
         </Link>
-        <UserMenu name={[user.name, user.lastName].filter(Boolean).join(' ') || null} email={user.email} />
+        <UserMenu
+          name={[user.name, user.lastName].filter(Boolean).join(' ') || null}
+          email={user.email}
+          avatarUrl={user.avatarUrl}
+        />
       </div>
     );
   }
