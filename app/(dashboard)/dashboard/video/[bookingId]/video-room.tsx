@@ -547,6 +547,7 @@ export function VideoRoom({
   backHref: string;
   counterpartName?: string;
 }) {
+  const router = useRouter();
   const [choices, setChoices] = useState<KaiPaiCallChoices | null>(null);
 
   if (!choices) {
@@ -568,6 +569,7 @@ export function VideoRoom({
           }).catch(() => {});
         }}
         onJoin={setChoices}
+        onCancel={() => router.push(backHref)}
       />
     );
   }

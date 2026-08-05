@@ -25,6 +25,7 @@ import {
   isBookingChatAvailable,
 } from './policy';
 import { validateChatImageAttachment } from './attachments';
+import { effectiveBookingDurationMin } from '@/lib/core/bookings/conflict-query';
 
 export type BookingChatContext = {
   bookingId: number;
@@ -37,6 +38,8 @@ export type BookingChatContext = {
   coachSlug: string | null;
   serviceTitle: string | null;
   scheduledFor: Date | null;
+  /** Durata concordata: decide fino a quando la sessione è raggiungibile. */
+  durationMin: number;
 };
 
 export type ChatMessage = {
@@ -105,6 +108,7 @@ export async function getConversations(userId: number): Promise<Conversation[]> 
       )`,
       serviceTitle: services.title,
       scheduledFor: bookings.scheduledFor,
+      durationMin: effectiveBookingDurationMin,
     })
     .from(bookings)
     .innerJoin(providerProfiles, eq(bookings.providerId, providerProfiles.id))
@@ -206,6 +210,7 @@ export async function getBookingChatContext(
       coachSlug: providerProfiles.slug,
       serviceTitle: services.title,
       scheduledFor: bookings.scheduledFor,
+      durationMin: effectiveBookingDurationMin,
     })
     .from(bookings)
     .innerJoin(providerProfiles, eq(bookings.providerId, providerProfiles.id))

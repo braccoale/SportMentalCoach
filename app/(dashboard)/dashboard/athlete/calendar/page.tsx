@@ -23,6 +23,7 @@ export default async function AthleteCalendarPage() {
     requestedAt: b.requestedAt.toISOString(),
     title: b.coachName ?? 'Coach',
     serviceTitle: b.serviceTitle,
+    durationMin: b.durationMin,
     note: b.note,
   }));
 

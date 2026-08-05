@@ -102,7 +102,7 @@ export default async function AppointmentDetailPage({
       : '/dashboard/coach';
   const isOpen = ['requested', 'accepted'].includes(booking.status);
   const canCancel =
-    isOpen && isSessionJoinable(booking.scheduledFor);
+    isOpen && isSessionJoinable(booking.scheduledFor, booking.durationMin);
   const cancelAction =
     booking.viewerRole === 'athlete'
       ? cancelAthleteBookingAction
@@ -190,7 +190,7 @@ export default async function AppointmentDetailPage({
           {booking.status === 'accepted' && calendarEvent?.videoUrl && (
             <VideoCallButton
               bookingId={booking.id}
-              enabled={canJoinVideoNow(booking.scheduledFor)}
+              enabled={canJoinVideoNow(booking.scheduledFor, booking.durationMin)}
               scheduledFor={booking.scheduledFor?.toISOString() ?? null}
               label={
                 booking.sessionStartedAt

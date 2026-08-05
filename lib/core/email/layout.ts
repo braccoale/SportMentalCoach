@@ -11,11 +11,11 @@
  * esterno, nessun web font, nessun JavaScript, larghezza massima 600px, e ogni
  * CTA accompagnata dall'URL in chiaro per chi non può cliccare il pulsante.
  *
- * Scelta cromatica. La CTA è nel rosso di marca, in una tonalità più profonda
- * del `red` usato per gli accenti: quel rosso con testo bianco sopra non
- * raggiunge il contrasto minimo, questa sì. Il rosso non viene letto come
- * allarme perché non è isolato — la banda sotto l'header, l'eyebrow e il bordo
- * della card lo ripetono, e un colore ripetuto è marca, non segnale.
+ * Scelta cromatica. La CTA è verde, lo stesso verde delle azioni positive
+ * nell'app: il pulsante di un'email invita a fare qualcosa — entrare in
+ * chiamata, vedere l'appuntamento — e il verde è il colore con cui il prodotto
+ * dice "prosegui". Il rosso di marca resta negli accenti (eyebrow, banda
+ * dell'header, bordi), dove non è un'azione da compiere.
  *
  * L'azione secondaria resta in outline: deve leggersi come alternativa, non
  * competere con la principale.
@@ -29,11 +29,12 @@ export const BRAND = {
   tagline: 'Alleniamo la mente. Miglioriamo le prestazioni.',
   red: '#e11d2a',
   /**
-   * Rosso della CTA. Più profondo del rosso di marca: su bianco il #e11d2a con
-   * testo bianco sopra sta sotto il 4.5:1 richiesto, questo arriva a 5.3:1 e
-   * resta pienamente leggibile senza perdere in vivacità.
+   * Verde della CTA. È il `green-700` dell'app e non il `green-600` dei
+   * pulsanti a schermo: quest'ultimo con testo bianco sopra sta sotto il 4.5:1
+   * richiesto, questo arriva a 4.6:1. Nelle email non c'è modo di rimediare
+   * con uno stato hover o un bordo, quindi il contrasto deve reggere da fermo.
    */
-  redDeep: '#c81824',
+  green: '#15803d',
   ink: '#111111',
   body: '#3f3f46',
   muted: '#8a8a91',
@@ -112,7 +113,7 @@ export function wrapEmailHtml(input: EmailLayoutInput): string {
   const buttons = [
     input.action
       ? `<td style="padding:0 8px 8px 0"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-           <td style="border-radius:9999px;background:${BRAND.redDeep}">
+           <td style="border-radius:9999px;background:${BRAND.green}">
              <a href="${input.action.url}"
                 style="display:inline-block;padding:14px 30px;color:#ffffff;font-family:${FONT_STACK};font-size:15px;font-weight:600;line-height:1;text-decoration:none;border-radius:9999px">${escapeHtml(input.action.label)}</a>
            </td></tr></table></td>`

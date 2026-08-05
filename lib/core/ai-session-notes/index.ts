@@ -12,6 +12,7 @@ import { db, type DbOrTx } from '@/lib/db/drizzle';
 import {
   bookings,
   providerProfiles,
+  services,
   sessionAiAuditEvents,
   sessionAiConsents,
   sessionAiNotes,
@@ -33,6 +34,7 @@ import {
   isSessionJoinable,
 } from '@/lib/core/sessions';
 import { parseBookingRoomName } from '@/lib/core/video/technical-events';
+import { effectiveBookingDurationMin } from '@/lib/core/bookings/conflict-query';
 import {
   authorizeAiNotesStart,
   type StartAuthorizationResult,
@@ -94,6 +96,8 @@ type BookingParticipants = {
   bookingId: number;
   status: string;
   scheduledFor: Date | null;
+  /** Durata concordata: decide fino a quando la sessione è raggiungibile. */
+  durationMin: number;
   clientUserId: number;
   coachUserId: number;
 };
@@ -107,6 +111,7 @@ async function getBookingParticipants(
       bookingId: bookings.id,
       status: bookings.status,
       scheduledFor: bookings.scheduledFor,
+      durationMin: effectiveBookingDurationMin,
       clientUserId: bookings.clientId,
       coachUserId: providerProfiles.userId,
     })
@@ -115,6 +120,7 @@ async function getBookingParticipants(
       providerProfiles,
       eq(providerProfiles.id, bookings.providerId)
     )
+    .leftJoin(services, eq(services.id, bookings.serviceId))
     .where(eq(bookings.id, bookingId))
     .limit(1);
   return row ?? null;
@@ -286,8 +292,8 @@ export async function startAiNotesSession(params: {
         videoConfigured: isVideoConfigured(),
         withinCallWindow:
           !!booking &&
-          isSessionJoinable(booking.scheduledFor) &&
-          canJoinVideoNow(booking.scheduledFor),
+          isSessionJoinable(booking.scheduledFor, booking.durationMin) &&
+          canJoinVideoNow(booking.scheduledFor, booking.durationMin),
         featureAccess,
         hasOpenSession: !!openSession,
       });

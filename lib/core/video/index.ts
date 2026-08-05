@@ -5,7 +5,7 @@ import { bookings } from '@/lib/db/schema';
 import { getBookingChatContext } from '@/lib/core/messages';
 import { isVideoConfigured } from '@/lib/core/flags';
 import {
-  SESSION_JOIN_GRACE_MINUTES,
+  sessionEndsAt,
   isSessionJoinable,
   canJoinVideoNow,
 } from '@/lib/core/sessions';
@@ -69,6 +69,19 @@ export async function recordSessionHeartbeat(
 
 export type RoomTokenResult =
   | { ok: false; reason: 'unauthorized' }
+  /**
+   * La prenotazione esiste e chi bussa ne fa parte, ma la sessione non è più
+   * aperta: completata dal coach, annullata o rifiutata. Distinta da
+   * `unauthorized` perché merita una spiegazione, non un 404: chi arriva qui
+   * ha in mano un link legittimo che semplicemente non serve più.
+   */
+  | {
+      ok: false;
+      reason: 'closed';
+      status: string;
+      backHref: string;
+      otherName: string;
+    }
   | { ok: false; reason: 'past'; backHref: string; otherName: string }
   | {
       ok: false;
@@ -115,7 +128,7 @@ export async function createGuestInviteToken(
   const ctx = await getBookingChatContext(bookingId, userId);
   if (!ctx) return { ok: false, reason: 'unauthorized' };
   if (ctx.status !== 'accepted') return { ok: false, reason: 'closed' };
-  if (!isSessionJoinable(ctx.scheduledFor)) {
+  if (!isSessionJoinable(ctx.scheduledFor, ctx.durationMin)) {
     return { ok: false, reason: 'past' };
   }
   if (!isVideoConfigured()) {
@@ -123,11 +136,13 @@ export async function createGuestInviteToken(
   }
 
   const now = Date.now();
+  // L'invito non può sopravvivere alla sessione: scade con lei, con un minimo
+  // di 15 minuti perché un link nato pochi istanti prima della fine sia almeno
+  // utilizzabile da chi lo riceve.
   const expiresAt = ctx.scheduledFor
     ? new Date(
         Math.max(
-          ctx.scheduledFor.getTime() +
-            SESSION_JOIN_GRACE_MINUTES * 60_000,
+          sessionEndsAt(ctx.scheduledFor, ctx.durationMin).getTime(),
           now + 15 * 60_000
         )
       )
@@ -185,10 +200,10 @@ export async function createGuestRoomToken(
   );
   if (!ctx) return { ok: false, reason: 'invalid' };
   if (ctx.status !== 'accepted') return { ok: false, reason: 'closed' };
-  if (!isSessionJoinable(ctx.scheduledFor)) {
+  if (!isSessionJoinable(ctx.scheduledFor, ctx.durationMin)) {
     return { ok: false, reason: 'past' };
   }
-  if (!canJoinVideoNow(ctx.scheduledFor)) {
+  if (!canJoinVideoNow(ctx.scheduledFor, ctx.durationMin)) {
     return {
       ok: false,
       reason: 'too_early',
@@ -232,7 +247,7 @@ export async function createRoomToken(
   userId: number
 ): Promise<RoomTokenResult> {
   const ctx = await getBookingChatContext(bookingId, userId);
-  if (!ctx || ctx.status !== 'accepted') {
+  if (!ctx) {
     return { ok: false, reason: 'unauthorized' };
   }
 
@@ -242,13 +257,19 @@ export async function createRoomToken(
     ? ctx.coachName ?? 'Coach'
     : ctx.clientName ?? ctx.clientEmail;
 
+  // Sessione chiusa: chi ha il link non ha sbagliato indirizzo, la stanza non
+  // esiste più. Va detto, non nascosto dietro una pagina non trovata.
+  if (ctx.status !== 'accepted') {
+    return { ok: false, reason: 'closed', status: ctx.status, backHref, otherName };
+  }
+
   // Cannot start/join a call for a session in the past.
-  if (!isSessionJoinable(ctx.scheduledFor)) {
+  if (!isSessionJoinable(ctx.scheduledFor, ctx.durationMin)) {
     return { ok: false, reason: 'past', backHref, otherName };
   }
 
   // Nor before the join window opens (a few minutes ahead of the scheduled start).
-  if (!canJoinVideoNow(ctx.scheduledFor)) {
+  if (!canJoinVideoNow(ctx.scheduledFor, ctx.durationMin)) {
     return {
       ok: false,
       reason: 'too_early',

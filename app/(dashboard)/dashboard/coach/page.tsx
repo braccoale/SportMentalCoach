@@ -161,14 +161,14 @@ export default async function CoachDashboardPage() {
   const pending = allBookings.filter((b) => b.status === 'requested');
   const accepted = allBookings.filter((b) => b.status === 'accepted');
   const upcomingAccepted = accepted
-    .filter((booking) => isSessionJoinable(booking.scheduledFor))
+    .filter((booking) => isSessionJoinable(booking.scheduledFor, booking.durationMin))
     .sort(
       (a, b) =>
         (a.scheduledFor?.getTime() ?? Number.MAX_SAFE_INTEGER) -
         (b.scheduledFor?.getTime() ?? Number.MAX_SAFE_INTEGER)
     );
   const pastAccepted = accepted.filter(
-    (booking) => !isSessionJoinable(booking.scheduledFor)
+    (booking) => !isSessionJoinable(booking.scheduledFor, booking.durationMin)
   );
   // Archive newest-first by when the session actually happened (real end or
   // scheduled time), not by when it was first requested.
@@ -423,7 +423,7 @@ export default async function CoachDashboardPage() {
               key={booking.id}
               data={buildUpcomingAppointmentData(booking)}
               primaryActions={
-                isSessionJoinable(booking.scheduledFor) ? (
+                isSessionJoinable(booking.scheduledFor, booking.durationMin) ? (
                   <>
                     <Link
                       href={`/dashboard/chat/${booking.id}`}
@@ -433,7 +433,7 @@ export default async function CoachDashboardPage() {
                     </Link>
                     <VideoCallButton
                       bookingId={booking.id}
-                      enabled={canJoinVideoNow(booking.scheduledFor)}
+                      enabled={canJoinVideoNow(booking.scheduledFor, booking.durationMin)}
                       scheduledFor={
                         booking.scheduledFor?.toISOString() ?? null
                       }

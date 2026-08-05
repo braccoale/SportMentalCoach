@@ -1163,11 +1163,13 @@ export async function cancelBooking(params: {
       id: bookings.id,
       status: bookings.status,
       scheduledFor: bookings.scheduledFor,
+      durationMin: effectiveBookingDurationMin,
       clientId: bookings.clientId,
       coachUserId: providerProfiles.userId,
     })
     .from(bookings)
     .innerJoin(providerProfiles, eq(bookings.providerId, providerProfiles.id))
+    .leftJoin(services, eq(bookings.serviceId, services.id))
     .where(eq(bookings.id, params.bookingId))
     .limit(1);
 
@@ -1180,7 +1182,7 @@ export async function cancelBooking(params: {
   }
 
   // A session that has already taken place can no longer be cancelled.
-  if (!isSessionJoinable(row.scheduledFor)) {
+  if (!isSessionJoinable(row.scheduledFor, row.durationMin)) {
     return {
       ok: false,
       error: 'La sessione è già trascorsa e non può essere annullata.',
