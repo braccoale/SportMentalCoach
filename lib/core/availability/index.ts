@@ -24,6 +24,7 @@ import {
   type BusyInterval,
 } from './validation';
 import { DEFAULT_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
+import { effectiveBookingDurationMin } from '@/lib/core/bookings/conflict-query';
 
 export type { AvailabilityInput } from './validation';
 
@@ -229,7 +230,8 @@ export type BookableDay = {
 
 /**
  * Future requested/accepted sessions grouped by coach. Durations come from the
- * coach-owned service and use the platform default only for legacy rows.
+ * length agreed for that session, then from the coach-owned service, and use
+ * the platform default only for legacy rows.
  */
 export async function getCoachBusyIntervalsByProviderIds(
   providerIds: number[]
@@ -240,7 +242,7 @@ export async function getCoachBusyIntervalsByProviderIds(
     .select({
       providerId: bookings.providerId,
       scheduledFor: bookings.scheduledFor,
-      durationMin: services.durationMin,
+      durationMin: effectiveBookingDurationMin,
     })
     .from(bookings)
     .leftJoin(services, eq(services.id, bookings.serviceId))
@@ -248,7 +250,7 @@ export async function getCoachBusyIntervalsByProviderIds(
       and(
         inArray(bookings.providerId, providerIds),
         inArray(bookings.status, ['requested', 'accepted']),
-        sql`${bookings.scheduledFor} + coalesce(${services.durationMin}, ${DEFAULT_SERVICE_DURATION_MIN}) * interval '1 minute' > now()`
+        sql`${bookings.scheduledFor} + ${effectiveBookingDurationMin} * interval '1 minute' > now()`
       )
     )
     .orderBy(asc(bookings.scheduledFor));

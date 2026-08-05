@@ -121,7 +121,7 @@ function buildAthleteArchiveData(b: AthleteBooking): CompletedSessionData {
   const end = b.sessionEndedAt;
   const durationMin =
     getSessionDurationMinutes(b.sessionStartedAt, b.sessionEndedAt) ??
-    b.serviceDurationMin ??
+    b.durationMin ??
     null;
   const dayFrom = b.scheduledFor ?? b.sessionStartedAt;
   const big = dayFrom ? formatBigDateParts(dayFrom) : null;
@@ -239,7 +239,7 @@ function BookingRow({
           <SessionSummary
             start={b.sessionStartedAt}
             end={b.sessionEndedAt}
-            fallbackMinutes={b.serviceDurationMin}
+            fallbackMinutes={b.durationMin}
             className="shrink-0"
           />
         ) : null}
@@ -436,7 +436,7 @@ function AcceptedAppointments({
             id: b.id,
             status: b.status,
             scheduledFor: b.scheduledFor,
-            durationMin: b.serviceDurationMin,
+            durationMin: b.durationMin,
             coachName: b.coachName,
             athleteName,
             viewerRole: 'athlete',
@@ -476,7 +476,7 @@ function AcceptedAppointments({
                         currentDay={formatRomeDateValue(b.scheduledFor)}
                         currentTime={formatTime(b.scheduledFor)}
                         durationMin={
-                          b.serviceDurationMin ??
+                          b.durationMin ??
                           DEFAULT_SERVICE_DURATION_MIN
                         }
                         compact

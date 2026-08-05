@@ -172,8 +172,8 @@ export default async function CoachAthletePage({
                 <p className="mt-0.5 text-xs text-gray-500">
                   {[
                     booking.serviceTitle,
-                    booking.serviceDurationMin
-                      ? formatMinutes(booking.serviceDurationMin)
+                    booking.durationMin
+                      ? formatMinutes(booking.durationMin)
                       : null,
                     bookingStatusLabel(booking.status),
                   ]

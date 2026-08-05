@@ -55,7 +55,14 @@ import {
   DEFAULT_SERVICE_DURATION_MIN,
   MAX_SERVICE_DURATION_MIN,
 } from '@/lib/core/services/validation';
-import { bookingEndsAfter } from './conflict-query';
+import {
+  bookingEndsAfter,
+  effectiveBookingDurationMin,
+} from './conflict-query';
+import {
+  isSessionDuration,
+  type SessionDurationMin,
+} from './duration';
 
 async function hasOpenBookingConflict(
   exec: DbOrTx,
@@ -381,7 +388,7 @@ export type AthleteBooking = {
   coachAvatarUrl: string | null;
   coachSlug: string | null;
   serviceTitle: string | null;
-  serviceDurationMin: number | null;
+  durationMin: number | null;
 };
 
 export type ParticipantBooking = {
@@ -391,7 +398,7 @@ export type ParticipantBooking = {
   scheduledFor: Date | null;
   sessionStartedAt: Date | null;
   serviceTitle: string | null;
-  serviceDurationMin: number | null;
+  durationMin: number | null;
   coachName: string | null;
   athleteName: string | null;
   viewerRole: 'athlete' | 'coach';
@@ -416,7 +423,7 @@ export async function getParticipantBooking(
       scheduledFor: bookings.scheduledFor,
       sessionStartedAt: bookings.sessionStartedAt,
       serviceTitle: services.title,
-      serviceDurationMin: services.durationMin,
+      durationMin: effectiveBookingDurationMin,
       clientId: bookings.clientId,
       providerUserId: providerProfiles.userId,
     })
@@ -458,7 +465,7 @@ export async function getParticipantBooking(
     scheduledFor: booking.scheduledFor,
     sessionStartedAt: booking.sessionStartedAt,
     serviceTitle: booking.serviceTitle,
-    serviceDurationMin: booking.serviceDurationMin,
+    durationMin: booking.durationMin,
     coachName: coach?.name ?? null,
     athleteName: athlete?.name ?? null,
     viewerRole: booking.clientId === userId ? 'athlete' : 'coach',
@@ -704,13 +711,25 @@ export async function getAllAthletes(): Promise<RelationshipAthlete[]> {
  * `requested`), this is created as `accepted` right away: the coach is the
  * one being booked, so there's nothing to accept. The athlete is notified and
  * can still cancel via the normal flow if the time doesn't work for them.
+ *
+ * `durationMin` is the length agreed for this session and overrides the
+ * service's own duration, both when checking for overlaps and everywhere the
+ * session's end is computed later.
+ *
+ * `startingNow` marks a call the coach is opening on the spot. It skips the
+ * weekly-availability check — and only that one: the coach is deliberately
+ * working outside their published hours, and refusing would be the software
+ * arguing with a decision already taken. Overlap with another session and the
+ * guardian consent gate still apply, because those protect other people.
  */
 export async function createCoachBookingRequest(params: {
   coachUserId: number;
   clientUserId: number;
   serviceId: number;
+  durationMin: SessionDurationMin;
   note?: string | null;
   scheduledFor?: Date | null;
+  startingNow?: boolean;
 }): Promise<Result<{ bookingId: number }>> {
   const [provider] = await db
     .select({ id: providerProfiles.id })
@@ -749,7 +768,7 @@ export async function createCoachBookingRequest(params: {
     };
   }
 
-  if (params.scheduledFor) {
+  if (params.scheduledFor && !params.startingNow) {
     const slots = await getCoachAvailabilityByProviderId(provider.id);
     if (!isWithinAvailability(slots, params.scheduledFor)) {
       return {
@@ -757,6 +776,10 @@ export async function createCoachBookingRequest(params: {
         error: `Questo orario è fuori dalla tua disponibilità settimanale: ${describeAvailability(slots)}. Scegli un orario in questa fascia o aggiornala in "Disponibilità".`,
       };
     }
+  }
+
+  if (!isSessionDuration(params.durationMin)) {
+    return { ok: false, error: 'Scegli una durata per la sessione.' };
   }
 
   if (!Number.isInteger(params.serviceId) || params.serviceId <= 0) {
@@ -794,13 +817,14 @@ export async function createCoachBookingRequest(params: {
         tx,
         provider.id,
         params.scheduledFor,
-        svc.durationMin
+        params.durationMin
       ))
     ) {
       return {
         ok: false as const,
-        error:
-          'Questo orario è già occupato. Scegli uno degli orari disponibili.',
+        error: params.startingNow
+          ? 'Hai già una sessione in corso in questo momento.'
+          : 'Questo orario è già occupato. Scegli uno degli orari disponibili.',
       };
     }
 
@@ -813,6 +837,7 @@ export async function createCoachBookingRequest(params: {
         status: 'accepted',
         note: params.note ?? null,
         scheduledFor: params.scheduledFor ?? null,
+        durationMin: params.durationMin,
         createdBy: params.coachUserId,
         decidedAt: new Date(),
       })
@@ -849,7 +874,7 @@ export async function getAthleteBookings(
       coachAvatarUrl: profiles.avatarUrl,
       coachSlug: providerProfiles.slug,
       serviceTitle: services.title,
-      serviceDurationMin: services.durationMin,
+      durationMin: effectiveBookingDurationMin,
     })
     .from(bookings)
     .innerJoin(providerProfiles, eq(bookings.providerId, providerProfiles.id))
@@ -876,8 +901,10 @@ export type CoachBooking = {
   athleteSport: string | null;
   athleteLevel: string | null;
   athleteGoals: string | null;
+  /** Which of the coach's services was booked: powers the "last used" default. */
+  serviceId: number | null;
   serviceTitle: string | null;
-  serviceDurationMin: number | null;
+  durationMin: number | null;
   /** True when the athlete is 15-17. The coach needs to know before the call. */
   athleteIsMinor: boolean;
 };
@@ -913,8 +940,9 @@ export async function getCoachBookings(
       athleteLevel: clientProfiles.level,
       athleteGoals: clientProfiles.goals,
       athleteBirthDate: clientProfiles.birthDate,
+      serviceId: bookings.serviceId,
       serviceTitle: services.title,
-      serviceDurationMin: services.durationMin,
+      durationMin: effectiveBookingDurationMin,
     })
     .from(bookings)
     .innerJoin(users, eq(bookings.clientId, users.id))
@@ -1017,7 +1045,7 @@ export async function completeBooking(params: {
       scheduledFor: bookings.scheduledFor,
       sessionStartedAt: bookings.sessionStartedAt,
       sessionEndedAt: bookings.sessionEndedAt,
-      serviceDurationMin: services.durationMin,
+      durationMin: effectiveBookingDurationMin,
     })
     .from(bookings)
     .leftJoin(services, eq(bookings.serviceId, services.id))
@@ -1035,9 +1063,9 @@ export async function completeBooking(params: {
   const now = new Date();
   // Ensure the session always has a start/end on record. If a video call was
   // tracked, those real times are kept; otherwise we derive a plausible span
-  // from the scheduled time + booked duration (default 50') so the history can
+  // from the scheduled time + the session's agreed duration, so the history can
   // always show "iniziata … terminata …".
-  const durationMs = (booking.serviceDurationMin ?? 50) * 60_000;
+  const durationMs = booking.durationMin * 60_000;
   // A scheduled time in the future can't be the real start (the coach is
   // completing it early) — falling back to it would put the start after the
   // end and feed a *negative* span into `getCoachExperienceStats`.
@@ -1151,7 +1179,7 @@ export async function rescheduleBooking(params: {
       providerId: bookings.providerId,
       clientId: bookings.clientId,
       coachUserId: providerProfiles.userId,
-      durationMin: services.durationMin,
+      durationMin: effectiveBookingDurationMin,
     })
     .from(bookings)
     .innerJoin(providerProfiles, eq(bookings.providerId, providerProfiles.id))

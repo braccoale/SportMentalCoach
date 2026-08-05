@@ -363,6 +363,10 @@ export const bookings = pgTable(
     // Athlete's preferred date/time for the session (nullable: a generic
     // request without a specific time is still allowed).
     scheduledFor: timestamp('scheduled_for'),
+    // Actual length agreed for THIS session, overriding the service default.
+    // Nullable: bookings created before the coach could choose a duration (and
+    // athlete-initiated requests) still inherit the service's duration.
+    durationMin: integer('duration_min'),
     requestedAt: timestamp('requested_at').notNull().defaultNow(),
     decidedAt: timestamp('decided_at'),
     completedAt: timestamp('completed_at'),

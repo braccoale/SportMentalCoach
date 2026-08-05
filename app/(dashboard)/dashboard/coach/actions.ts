@@ -8,6 +8,7 @@ import {
   cancelBooking,
   createCoachBookingRequest,
 } from '@/lib/core/bookings';
+import { parseSessionDuration } from '@/lib/core/bookings/duration';
 import { parseRomeLocalDateTime } from '@/lib/core/availability';
 import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
 import type { ActionState } from '@/lib/auth/middleware';
@@ -122,31 +123,51 @@ export async function createCoachBookingAction(
     return { error: 'Seleziona un servizio valido.' };
   }
 
+  const durationMin = parseSessionDuration(formData.get('durationMin'));
+  if (durationMin === null) {
+    return { error: 'Scegli una durata per la sessione.' };
+  }
+
   const note = String(formData.get('note') ?? '').trim() || null;
 
-  const whenRaw = String(formData.get('scheduledFor') ?? '').trim();
+  // "Avvia sessione ora": the start is the server's clock, not a picked slot,
+  // so the coach can't land on a time that has already passed between opening
+  // the dialog and pressing the button.
+  const startingNow = String(formData.get('startNow') ?? '') === '1';
+
   let scheduledFor: Date | null = null;
-  if (whenRaw) {
-    const d = parseRomeLocalDateTime(whenRaw);
-    if (!d || Number.isNaN(d.getTime())) return { error: 'Data/ora non valida.' };
-    if (d.getTime() < Date.now() - 2 * 60 * 1000) {
-      return { error: 'Scegli una data/ora futura.' };
+  if (startingNow) {
+    scheduledFor = new Date();
+  } else {
+    const whenRaw = String(formData.get('scheduledFor') ?? '').trim();
+    if (whenRaw) {
+      const d = parseRomeLocalDateTime(whenRaw);
+      if (!d || Number.isNaN(d.getTime()))
+        return { error: 'Data/ora non valida.' };
+      if (d.getTime() < Date.now() - 2 * 60 * 1000) {
+        return { error: 'Scegli una data/ora futura.' };
+      }
+      scheduledFor = d;
     }
-    scheduledFor = d;
   }
 
   const result = await createCoachBookingRequest({
     coachUserId: user.id,
     clientUserId,
     serviceId,
+    durationMin,
     note,
     scheduledFor,
+    startingNow,
   });
   if (!result.ok) return { error: result.error };
 
   revalidateBookings();
   return {
-    success: 'Sessione creata e atleta avvisato.',
+    success: startingNow
+      ? 'Sessione avviata: stiamo aprendo la stanza.'
+      : 'Sessione creata e atleta avvisato.',
     bookingId: result.bookingId,
+    startedNow: startingNow,
   };
 }

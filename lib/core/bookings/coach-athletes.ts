@@ -121,6 +121,32 @@ export function buildCoachAthletes(
   });
 }
 
+/**
+ * Ultimo servizio usato con ciascun atleta, indicizzato per `userId`.
+ *
+ * Serve a precompilare "Nuovo appuntamento": con la stessa persona un coach
+ * ripete quasi sempre lo stesso servizio, quindi il default giusto è l'ultimo
+ * concordato. "Ultimo" si misura sulla data della richiesta — anche una
+ * sessione poi annullata o rifiutata dice qual è il servizio in uso in quel
+ * percorso.
+ */
+export function lastServiceByAthlete(
+  bookings: readonly CoachBooking[]
+): Record<number, number> {
+  const latestAt = new Map<number, number>();
+  const serviceByAthlete: Record<number, number> = {};
+
+  for (const booking of bookings) {
+    if (booking.serviceId == null) continue;
+    const at = booking.requestedAt.getTime();
+    if (at <= (latestAt.get(booking.clientId) ?? -Infinity)) continue;
+    latestAt.set(booking.clientId, at);
+    serviceByAthlete[booking.clientId] = booking.serviceId;
+  }
+
+  return serviceByAthlete;
+}
+
 /** Tutte le prenotazioni di un singolo atleta, dalla più recente. */
 export function bookingsForAthlete(
   bookings: readonly CoachBooking[],
