@@ -861,6 +861,8 @@ export async function getAthleteBookings(
 
 export type CoachBooking = {
   id: number;
+  /** Athlete's user id: lets the coach-side views group bookings per person. */
+  clientId: number;
   status: string;
   note: string | null;
   scheduledFor: Date | null;
@@ -896,6 +898,7 @@ export async function getCoachBookings(
   const rows = await db
     .select({
       id: bookings.id,
+      clientId: bookings.clientId,
       status: bookings.status,
       note: bookings.note,
       scheduledFor: bookings.scheduledFor,
