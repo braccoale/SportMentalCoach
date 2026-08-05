@@ -131,42 +131,24 @@ test('ogni evento con notifica in-app è configurabile su entrambi i canali', ()
   }
 });
 
-/**
- * Eventi per cui i due canali partono deliberatamente diversi.
- *
- * `call_started` annuncia una videochiamata già in corso: la notifica sul
- * dispositivo arriva in tempo per rispondere, l'email quasi certamente no.
- * Accenderla di default significherebbe mandare "entra nella chiamata" a
- * chiamata finita. Resta comunque attivabile dalle preferenze — è un default
- * diverso, non un canale sottratto.
- */
-const CHANNEL_DEFAULTS_DIFFER_ON_PURPOSE = ['call_started'];
-
 test('i due canali sono indipendenti: nessun default li lega', () => {
   // Nessun evento deve avere l'in-app subordinata all'email o viceversa:
-  // l'utente può tenerne uno, l'altro, entrambi o nessuno. Dove i default
-  // divergono deve essere una scelta dichiarata, non una svista.
+  // l'utente può tenerne uno, l'altro, entrambi o nessuno.
   const linked = NOTIFICATION_EVENT_KEYS.filter((key) => {
     const e = NOTIFICATION_EVENTS[key];
-    return (
-      e.hasInApp &&
-      e.inAppDefault !== e.emailDefault &&
-      !CHANNEL_DEFAULTS_DIFFER_ON_PURPOSE.includes(key)
-    );
+    return e.hasInApp && e.inAppDefault !== e.emailDefault;
   });
   assert.deepEqual(linked, []);
 });
 
-test('anche gli eventi con default diversi restano attivabili su entrambi i canali', () => {
-  for (const key of CHANNEL_DEFAULTS_DIFFER_ON_PURPOSE) {
-    const e = NOTIFICATION_EVENTS[key as keyof typeof NOTIFICATION_EVENTS];
-    assert.equal(e.hasInApp, true, `${key}: deve avere il canale in-app`);
-    assert.equal(
-      e.mandatoryEmail,
-      false,
-      `${key}: l'email deve restare disattivabile`
-    );
-  }
+test('una chiamata avviata avvisa su entrambi i canali, e resta disattivabile', () => {
+  // Il caso che ha portato qui: la notifica in-app partiva, l'email no, e
+  // l'atleta si ritrovava senza traccia scritta di una sessione avviata.
+  const call = NOTIFICATION_EVENTS.call_started;
+  assert.equal(call.emailDefault, true);
+  assert.equal(call.inAppDefault, true);
+  assert.equal(call.mandatoryEmail, false, 'deve restare spegnibile');
+  assert.equal(call.hasInApp, true);
 });
 
 test('solo coach_invitation non ha una notifica in-app', () => {

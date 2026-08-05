@@ -175,8 +175,12 @@ export const NOTIFICATION_EVENTS: Record<
    * Il coach ha aperto la stanza adesso e l'atleta è atteso subito. È un
    * evento a sé, non una variante di `booking_created_by_coach`: quello
    * annuncia un appuntamento da segnare in agenda, questo è un telefono che
-   * squilla. Per questo l'email è spenta di default — arriverebbe a chiamata
-   * finita — mentre la notifica sul dispositivo è il canale che conta.
+   * squilla, e il link porta dentro la stanza invece che alla scheda.
+   *
+   * Entrambi i canali sono accesi di default. La notifica sul dispositivo è
+   * quella che arriva in tempo per rispondere; l'email può arrivare a chiamata
+   * già finita, ma resta la traccia scritta per chi in quel momento non era
+   * davanti al telefono — e chi non la vuole la spegne dal centro notifiche.
    */
   call_started: event({
     key: 'call_started',
@@ -184,7 +188,7 @@ export const NOTIFICATION_EVENTS: Record<
     label: 'Il coach ti sta chiamando',
     templateKey: 'call_started',
     mandatoryEmail: false,
-    emailDefault: false,
+    emailDefault: true,
     inAppDefault: true,
     hasInApp: true,
     variables: [...COMMON_VARIABLES, ...BOOKING_VARIABLES],

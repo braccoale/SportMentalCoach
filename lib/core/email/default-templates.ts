@@ -95,16 +95,19 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     actionLabel: 'Vedi l’appuntamento',
   }),
 
-  // Spenta di default nel catalogo: un'email su una chiamata in corso arriva a
-  // chiamata finita. Esiste perché chi la riaccende dalle preferenze deve
-  // trovare un testo, non un errore di invio.
+  // La traccia scritta di una sessione avviata al volo, per chi in quel
+  // momento non era davanti al telefono. Il testo non promette che la chiamata
+  // sia ancora in corso: l'email può arrivare dopo, e dirlo evita che chi
+  // apre il link dieci minuti dopo pensi di aver sbagliato qualcosa.
   call_started: template('call_started', {
-    eyebrow: 'Chiamata in corso',
+    eyebrow: 'Sessione avviata',
     subject: 'Il tuo coach ti sta chiamando',
     title: '{{coach.fullName}} ha avviato la videochiamata',
-    body: ['La sessione è iniziata adesso. Entra nella stanza per partecipare.'],
+    body: [
+      'La sessione è stata avviata: il pulsante qui sotto porta direttamente nella stanza.',
+    ],
     outro:
-      'Se non riesci a partecipare ora, scrivilo in chat: il coach ti sta aspettando.',
+      'Se leggi questo messaggio in ritardo e la chiamata è già finita, scrivi in chat per concordare quando rivedervi.',
     actionLabel: 'Entra nella chiamata',
   }),
 
