@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   COMPACT_MEDIA_QUERY,
+  detectInAppBrowser,
   visibleAdvancedSections,
   visibleRoomControls,
   type CallCapabilities,
@@ -88,4 +89,49 @@ test('a fully capable browser lists every section', () => {
     'backgrounds',
     'network',
   ]);
+});
+
+// --- Browser interni delle app social ----------------------------------------
+
+const IOS_INSTAGRAM =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 330.0.0.0.0 (iPhone14,5; iOS 17_5; it_IT)';
+const ANDROID_FACEBOOK =
+  'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36 [FB_IAB/FB4A;FBAV/468.0.0.35.109;]';
+const IPHONE_SAFARI =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
+const ANDROID_CHROME =
+  'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36';
+
+test('i browser interni delle app social vengono riconosciuti per nome', () => {
+  assert.equal(detectInAppBrowser(IOS_INSTAGRAM)?.label, 'Instagram');
+  assert.equal(detectInAppBrowser(ANDROID_FACEBOOK)?.label, 'Facebook');
+  assert.equal(
+    detectInAppBrowser('… musical_ly_2023 BytedanceWebview/d8a21c')?.label,
+    'TikTok'
+  );
+  assert.equal(
+    detectInAppBrowser('… MicroMessenger/8.0.49')?.label,
+    'WeChat'
+  );
+});
+
+test('Safari e Chrome veri non vengono scambiati per browser interni', () => {
+  assert.equal(detectInAppBrowser(IPHONE_SAFARI), null);
+  assert.equal(detectInAppBrowser(ANDROID_CHROME), null);
+  assert.equal(detectInAppBrowser(''), null);
+});
+
+test('su iOS il browser interno impedisce la chiamata, su Android la degrada', () => {
+  // WKWebView dentro le app social non dà accesso a camera e microfono: lì
+  // l'avviso deve fermare l'utente, non solo preoccuparlo.
+  assert.equal(detectInAppBrowser(IOS_INSTAGRAM)?.severity, 'blocking');
+  assert.equal(detectInAppBrowser(ANDROID_FACEBOOK)?.severity, 'warning');
+});
+
+test('ogni browser interno riconosciuto spiega come uscirne', () => {
+  for (const ua of [IOS_INSTAGRAM, ANDROID_FACEBOOK]) {
+    const detected = detectInAppBrowser(ua);
+    assert.ok(detected);
+    assert.match(detected.howToExit, /Safari|Chrome|browser/);
+  }
 });

@@ -18,9 +18,15 @@ import {
   KaiPaiPreJoin,
   type KaiPaiCallChoices,
 } from './livekit-call-controls';
-import { KAIPAI_AUDIO_CAPTURE_DEFAULTS } from '@/lib/core/video/call-settings';
 import {
+  KAIPAI_AUDIO_CAPTURE_DEFAULTS,
+  videoPublishSettings,
+} from '@/lib/core/video/call-settings';
+import {
+  CameraSuspendedNotice,
+  OfflineNotice,
   ReconnectionNotice,
+  ScreenLockHint,
   useLiveKitRoomResilience,
 } from './livekit-room-resilience';
 import {
@@ -30,7 +36,8 @@ import {
 } from './livekit-call-extras';
 import { BackgroundSelectionApplier } from './livekit-background-controls';
 import { RoomFlipCameraControl } from './room-flip-camera-control';
-import { useIsCompact } from '@/lib/hooks/use-is-compact';
+import { readIsCompact, useIsCompact } from '@/lib/hooks/use-is-compact';
+import { useWakeLock } from '@/lib/hooks/use-wake-lock';
 import { useCallCapabilities } from '@/lib/core/video/capabilities-client';
 import { visibleRoomControls } from '@/lib/core/video/capabilities';
 
@@ -114,24 +121,40 @@ function ConnectedGuestVideoRoom({
   choices: KaiPaiCallChoices;
 }) {
   const room = useMemo(
-    () =>
-      new Room({
+    () => {
+      // Come nella stanza principale: la configurazione si decide una volta
+      // sola, quindi lo schermo si legge qui e non dal primo effetto.
+      const { resolution, publishDefaults } = videoPublishSettings(
+        readIsCompact()
+      );
+      return new Room({
         adaptiveStream: true,
         dynacast: true,
+        publishDefaults,
         audioCaptureDefaults: {
           ...KAIPAI_AUDIO_CAPTURE_DEFAULTS,
           deviceId: choices.audioDeviceId,
         },
         // Se nel pre-join è stato scelto un lato del telefono, quello comanda:
         // su mobile il vincolo per identificativo viene ignorato dal browser.
-        videoCaptureDefaults: choices.videoFacingMode
-          ? { facingMode: choices.videoFacingMode }
-          : { deviceId: choices.videoDeviceId },
-      }),
+        videoCaptureDefaults: {
+          resolution,
+          ...(choices.videoFacingMode
+            ? { facingMode: choices.videoFacingMode }
+            : { deviceId: choices.videoDeviceId }),
+        },
+      });
+    },
     [choices.audioDeviceId, choices.videoDeviceId, choices.videoFacingMode]
   );
-  const { isReconnecting, handleRoomError } =
-    useLiveKitRoomResilience(room);
+  const {
+    isReconnecting,
+    isCameraSuspended,
+    isOffline,
+    reactivateCamera,
+    handleRoomError,
+  } = useLiveKitRoomResilience(room);
+  useWakeLock(true);
   // `null` finché si è dentro. L'uscita voluta viene registrata dal gate
   // prima che arrivi `onDisconnected`, così non viene riscritta in "caduta".
   const [exitReason, setExitReason] = useState<GuestExitReason | null>(null);
@@ -165,7 +188,14 @@ function ConnectedGuestVideoRoom({
         className="relative"
         style={{ height: '100%' }}
       >
-        {isReconnecting && <ReconnectionNotice />}
+        {isOffline ? (
+          <OfflineNotice />
+        ) : isReconnecting ? (
+          <ReconnectionNotice />
+        ) : isCameraSuspended ? (
+          <CameraSuspendedNotice onReactivate={reactivateCamera} />
+        ) : null}
+        {isCompact === true && <ScreenLockHint />}
         <SetParticipantName name={name} />
         <ApplyInitialAudioOutput
           deviceId={choices.audioOutputDeviceId}

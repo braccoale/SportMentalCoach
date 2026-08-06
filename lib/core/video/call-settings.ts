@@ -1,5 +1,9 @@
-import type { AudioCaptureOptions } from 'livekit-client';
-import { ConnectionQuality } from 'livekit-client';
+import type {
+  AudioCaptureOptions,
+  TrackPublishDefaults,
+  VideoPreset,
+} from 'livekit-client';
+import { ConnectionQuality, VideoPresets } from 'livekit-client';
 
 export const KAIPAI_AUDIO_CAPTURE_DEFAULTS = {
   autoGainControl: true,
@@ -7,6 +11,47 @@ export const KAIPAI_AUDIO_CAPTURE_DEFAULTS = {
   noiseSuppression: true,
   voiceIsolation: true,
 } satisfies AudioCaptureOptions;
+
+export type VideoPublishSettings = {
+  /** Cosa si chiede alla telecamera di catturare. */
+  resolution: VideoPreset;
+  /** Cosa si pubblica verso gli altri partecipanti. */
+  publishDefaults: TrackPublishDefaults;
+};
+
+/**
+ * Quanto video catturare e pubblicare, secondo il tipo di schermo.
+ *
+ * Su un telefono i 720p del desktop sono sprecati tre volte: la finestra in cui
+ * l'altro appare è alta poche centinaia di pixel, la codifica scalda il
+ * dispositivo (e un telefono caldo abbassa da solo il framerate, con l'utente
+ * che vede scatti senza capirne il motivo), e la rete è quasi sempre mobile.
+ * 360p a 24 fps sono più che sufficienti per un volto che parla.
+ *
+ * Anche i livelli simulcast scendono a due: pubblicarne tre significa
+ * codificare tre volte lo stesso flusso, ed è proprio il costo che si sta
+ * cercando di evitare.
+ */
+export function videoPublishSettings(compact: boolean): VideoPublishSettings {
+  if (compact) {
+    return {
+      resolution: VideoPresets.h360,
+      publishDefaults: {
+        simulcast: true,
+        videoSimulcastLayers: [VideoPresets.h180],
+        videoCodec: 'vp8',
+      },
+    };
+  }
+  return {
+    resolution: VideoPresets.h720,
+    publishDefaults: {
+      simulcast: true,
+      videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360],
+      videoCodec: 'vp8',
+    },
+  };
+}
 
 export type ConnectionQualityPresentation = {
   label: string;

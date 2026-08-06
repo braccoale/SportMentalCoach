@@ -36,11 +36,16 @@ import {
 } from '@/components/livekit-call-controls';
 import {
   KAIPAI_AUDIO_CAPTURE_DEFAULTS,
+  videoPublishSettings,
 } from '@/lib/core/video/call-settings';
 import {
+  CameraSuspendedNotice,
+  OfflineNotice,
   ReconnectionNotice,
+  ScreenLockHint,
   useLiveKitRoomResilience,
 } from '@/components/livekit-room-resilience';
+import { useWakeLock } from '@/lib/hooks/use-wake-lock';
 import {
   PictureInPictureControl,
   RoomFullscreenControl,
@@ -48,7 +53,7 @@ import {
 } from '@/components/livekit-call-extras';
 import { BackgroundSelectionApplier } from '@/components/livekit-background-controls';
 import { RoomFlipCameraControl } from '@/components/room-flip-camera-control';
-import { useIsCompact } from '@/lib/hooks/use-is-compact';
+import { readIsCompact, useIsCompact } from '@/lib/hooks/use-is-compact';
 import { useCallCapabilities } from '@/lib/core/video/capabilities-client';
 import { visibleRoomControls } from '@/lib/core/video/capabilities';
 import type {
@@ -235,24 +240,43 @@ function ConnectedVideoRoom({
   const caps = useCallCapabilities();
   const controls = visibleRoomControls(caps, isCompact === true);
   const room = useMemo(
-    () =>
-      new Room({
+    () => {
+      // Letto qui e non da `useIsCompact`: la stanza si configura una volta
+      // sola, alla creazione, e attendere il primo effetto significherebbe
+      // ricrearla a chiamata avviata.
+      const { resolution, publishDefaults } = videoPublishSettings(
+        readIsCompact()
+      );
+      return new Room({
         adaptiveStream: true,
         dynacast: true,
+        publishDefaults,
         audioCaptureDefaults: {
           ...KAIPAI_AUDIO_CAPTURE_DEFAULTS,
           deviceId: choices.audioDeviceId,
         },
         // Se nel pre-join è stato scelto un lato del telefono, quello comanda:
         // su mobile il vincolo per identificativo viene ignorato dal browser.
-        videoCaptureDefaults: choices.videoFacingMode
-          ? { facingMode: choices.videoFacingMode }
-          : { deviceId: choices.videoDeviceId },
-      }),
+        videoCaptureDefaults: {
+          resolution,
+          ...(choices.videoFacingMode
+            ? { facingMode: choices.videoFacingMode }
+            : { deviceId: choices.videoDeviceId }),
+        },
+      });
+    },
     [choices.audioDeviceId, choices.videoDeviceId, choices.videoFacingMode]
   );
-  const { isReconnecting, handleRoomError } =
-    useLiveKitRoomResilience(room);
+  const {
+    isReconnecting,
+    isCameraSuspended,
+    isOffline,
+    reactivateCamera,
+    handleRoomError,
+  } = useLiveKitRoomResilience(room);
+  // Lo schermo che si spegne sospende la cattura: si chiede al sistema di
+  // tenerlo acceso finché si è in stanza.
+  useWakeLock(true);
   // A disconnect is not the same as completing the appointment. Keep both
   // participants on a recovery screen so an accidental exit can be reversed.
   const [showExitDialog, setShowExitDialog] = useState(false);
@@ -354,7 +378,16 @@ function ConnectedVideoRoom({
           : 'relative h-[70vh] overflow-hidden rounded-lg border border-gray-200 bg-neutral-950 fullscreen:h-dvh fullscreen:w-screen fullscreen:rounded-none fullscreen:border-0'
       }
     >
-      {isReconnecting && <ReconnectionNotice />}
+      {/* Un avviso alla volta, dal più grave: sovrapporli su un telefono
+          coprirebbe il video con più cartelli che immagine. */}
+      {isOffline ? (
+        <OfflineNotice />
+      ) : isReconnecting ? (
+        <ReconnectionNotice />
+      ) : isCameraSuspended ? (
+        <CameraSuspendedNotice onReactivate={reactivateCamera} />
+      ) : null}
+      {isCompact === true && <ScreenLockHint />}
       <LiveKitRoom
         room={room}
         serverUrl={serverUrl}

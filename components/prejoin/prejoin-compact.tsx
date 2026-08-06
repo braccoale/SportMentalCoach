@@ -10,6 +10,7 @@ import {
   SwitchCamera,
 } from 'lucide-react';
 import type { NetworkDiagnosticSummary } from '@/lib/core/video/call-settings';
+import { InAppBrowserNotice } from '@/components/in-app-browser-notice';
 import { AdvancedSettingsSheet } from './advanced-settings-sheet';
 import type { PreJoinState } from './use-prejoin-state';
 
@@ -129,6 +130,11 @@ export function PreJoinCompact({
         </p>
       )}
 
+      {/* Prima di entrare, non dopo: dentro un browser interno la chiamata
+          fallisce all'accesso a camera e microfono, e a quel punto l'utente ha
+          già perso l'inizio della sessione. */}
+      <InAppBrowserNotice className="absolute inset-x-4 top-[calc(7rem+env(safe-area-inset-top))] shadow-xl" />
+
       <div className="absolute inset-x-0 bottom-0 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
         <div className="mb-4 flex justify-center gap-4">
           <button
@@ -188,6 +194,16 @@ export function PreJoinCompact({
             <Settings2 className="h-6 w-6" aria-hidden="true" />
           </button>
         </div>
+
+        {/* L'istruzione sta qui, sopra al pulsante d'ingresso: è l'ultimo
+            momento in cui viene letta, e riguarda ciò che sta per iniziare. */}
+        <p
+          data-testid="screen-lock-instruction"
+          className="mb-3 text-center text-xs leading-5 text-white/70"
+        >
+          Durante la sessione non bloccare lo schermo e non cambiare
+          applicazione: la videocamera verrebbe sospesa dal telefono.
+        </p>
 
         <button
           type="button"

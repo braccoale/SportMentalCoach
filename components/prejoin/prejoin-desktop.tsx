@@ -18,6 +18,7 @@ import {
   Wifi,
 } from 'lucide-react';
 import { PreviewBackgroundControls } from '@/components/livekit-background-controls';
+import { InAppBrowserNotice } from '@/components/in-app-browser-notice';
 import type { PreJoinState } from './use-prejoin-state';
 
 function CameraPreview({ track }: { track?: LocalVideoTrack }) {
@@ -130,6 +131,10 @@ export function PreJoinDesktop({
             Verifica immagine, voce e altoparlante prima di entrare.
           </p>
         </div>
+
+        {/* Anche qui, non solo su mobile: un tablet in un browser interno
+            arriva a questo layout e fallisce allo stesso modo. */}
+        <InAppBrowserNotice className="mb-5" />
 
         <div className="grid gap-5 lg:grid-cols-[1.35fr_1fr]">
           <div className="space-y-4">

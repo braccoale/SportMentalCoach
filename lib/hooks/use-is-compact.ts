@@ -54,3 +54,17 @@ export function useIsCompact(): boolean | null {
     () => null as boolean | null
   );
 }
+
+/**
+ * Lettura immediata, fuori da React.
+ *
+ * Serve dove la risposta va data una volta sola e subito — la configurazione
+ * della `Room` LiveKit, decisa alla creazione e mai più: aspettare il primo
+ * effetto significherebbe ricreare la stanza a chiamata avviata. Lato server
+ * risponde `false`, che è anche il valore giusto per un rendering senza
+ * schermo.
+ */
+export function readIsCompact(): boolean {
+  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  return getMediaQueryList().matches;
+}
