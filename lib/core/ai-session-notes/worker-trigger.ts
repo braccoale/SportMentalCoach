@@ -18,51 +18,52 @@ export type WorkerTriggerOutcome = 'triggered' | 'skipped' | 'failed';
 /** La chiamata è asincrona lato worker, quindi risponde in millisecondi. */
 const TRIGGER_TIMEOUT_MS = 5_000;
 
-function workerOrigin(): string | null {
-  const configured = getAppBaseUrl();
-  if (configured) return configured;
+function workerOrigins(): string[] {
+  const origins = [
+    /*
+     * Prima scelta: l'alias diretto e stabile del progetto Vercel, per esempio
+     * https://sport-mental-coach-arge.vercel.app. Non passa dal redirect
+     * kaipaicoaching.com -> www.kaipaicoaching.com che può eliminare
+     * l'Authorization header prima di raggiungere la rotta protetta.
+     */
+    process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim()
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.trim()}`
+      : null,
+    getAppBaseUrl(),
+    process.env.VERCEL_URL?.trim() ? `https://${process.env.VERCEL_URL.trim()}` : null,
+  ].filter((value): value is string => Boolean(value));
 
-  /*
-   * Il dominio stabile di produzione prima dell'URL del singolo deployment.
-   *
-   * `VERCEL_URL` punta al deployment specifico, che sta dietro la protezione
-   * di Vercel: una richiesta lì riceve un 302 verso la pagina di accesso e non
-   * raggiunge mai la rotta. Il worker non veniva svegliato e i job restavano
-   * in coda fino al cron del giorno dopo — verificato dall'esterno, il
-   * dominio del deployment risponde 302 mentre l'alias di produzione risponde
-   * 404 (cioè la rotta c'è, e rifiuta perché manca il segreto).
-   *
-   * `VERCEL_PROJECT_PRODUCTION_URL` è quell'alias stabile, e non è protetto.
-   */
-  const productionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
-  if (productionUrl) return `https://${productionUrl}`;
-
-  const vercelUrl = process.env.VERCEL_URL?.trim();
-  return vercelUrl ? `https://${vercelUrl}` : null;
+  return [...new Set(origins)];
 }
 
 export async function triggerAiNotesWorker(
   fetcher: typeof fetch = fetch
 ): Promise<WorkerTriggerOutcome> {
   const secret = process.env.CRON_SECRET?.trim();
-  const origin = workerOrigin();
-  if (!secret || !origin) return 'skipped';
+  const origins = workerOrigins();
+  if (!secret || origins.length === 0) return 'skipped';
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TRIGGER_TIMEOUT_MS);
-  try {
-    const response = await fetcher(
-      `${origin}/api/internal/ai-notes/process?mode=async`,
-      {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${secret}` },
-        signal: controller.signal,
-      }
-    );
-    return response.ok ? 'triggered' : 'failed';
-  } catch {
-    return 'failed';
-  } finally {
-    clearTimeout(timer);
+  for (const origin of origins) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TRIGGER_TIMEOUT_MS);
+    try {
+      const response = await fetcher(
+        `${origin}/api/internal/ai-notes/process?mode=async`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${secret}` },
+          // Non inoltrare mai il segreto attraverso redirect fra domini.
+          redirect: 'manual',
+          signal: controller.signal,
+        }
+      );
+      if (response.ok) return 'triggered';
+    } catch {
+      // Prova l'origine successiva; il webhook resta sempre best effort.
+    } finally {
+      clearTimeout(timer);
+    }
   }
+
+  return 'failed';
 }
