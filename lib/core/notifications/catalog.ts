@@ -106,6 +106,7 @@ export type NotificationEventKey =
   | 'ai_report_ready'
   | 'coach_invitation'
   | 'security_alert'
+  | 'provider_registered'
   | 'provider_review_requested'
   | 'provider_approved'
   | 'provider_rejected'
@@ -312,6 +313,18 @@ export const NOTIFICATION_EVENTS: Record<
     // The recipient may not have an account yet, so there is no in-app twin.
     hasInApp: false,
     variables: [...COMMON_VARIABLES, 'inviter.name'],
+  }),
+  provider_registered: event({
+    key: 'provider_registered',
+    category: 'account',
+    label: 'Nuovo coach registrato',
+    hint: 'Solo per gli amministratori. Il profilo può essere ancora in bozza.',
+    templateKey: 'provider_registered',
+    mandatoryEmail: false,
+    emailDefault: true,
+    inAppDefault: true,
+    hasInApp: true,
+    variables: [...COMMON_VARIABLES, 'coach.fullName'],
   }),
   provider_review_requested: event({
     key: 'provider_review_requested',

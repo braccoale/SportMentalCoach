@@ -1,15 +1,72 @@
 import 'server-only';
 import { eq } from 'drizzle-orm';
 import { db, type DbOrTx } from '@/lib/db/drizzle';
-import { yearsSince } from '@/lib/core/format';
+import { resolveDisplayName, yearsSince } from '@/lib/core/format';
 import { notify } from '@/lib/core/notifications';
 import {
   profiles,
   userRoles,
+  users,
   clientProfiles,
   providerProfiles,
   type ProviderProfile,
 } from '@/lib/db/schema';
+
+type ProviderAdminEvent =
+  | 'provider_registered'
+  | 'provider_review_requested';
+
+async function getProviderAdminNotificationDetails(userId: number) {
+  const [row] = await db
+    .select({
+      providerId: providerProfiles.id,
+      displayName: profiles.displayName,
+      email: users.email,
+      registeredAt: users.createdAt,
+    })
+    .from(providerProfiles)
+    .innerJoin(users, eq(users.id, providerProfiles.userId))
+    .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
+    .where(eq(providerProfiles.userId, userId))
+    .limit(1);
+
+  if (!row) return null;
+  return {
+    providerId: row.providerId,
+    coachName: resolveDisplayName(row.displayName, row.email),
+    registeredAt: row.registeredAt,
+  };
+}
+
+async function notifyAdminsOfProviderEvent(
+  event: ProviderAdminEvent,
+  details: {
+    providerId: number;
+    coachName: string;
+    registeredAt: Date;
+    submittedAt?: Date;
+  }
+): Promise<void> {
+  const admins = await db
+    .select({ userId: userRoles.userId })
+    .from(userRoles)
+    .where(eq(userRoles.roleKey, 'admin'));
+
+  await Promise.all(
+    admins.map(({ userId: adminUserId }) =>
+      notify(event, adminUserId, details)
+    )
+  );
+}
+
+/** Alerts every admin as soon as a coach account has been created. */
+export async function notifyAdminsOfProviderRegistration(
+  coachUserId: number
+): Promise<void> {
+  const details = await getProviderAdminNotificationDetails(coachUserId);
+  if (!details) return;
+  await notifyAdminsOfProviderEvent('provider_registered', details);
+}
 
 /** Marketplace roles a user can self-select at signup (never `admin`). */
 export type SignupRole = 'athlete' | 'coach' | 'club';
@@ -268,15 +325,13 @@ export async function submitProviderForReview(
       })
       .where(eq(providerProfiles.userId, userId));
 
-    const admins = await db
-      .select({ userId: userRoles.userId })
-      .from(userRoles)
-      .where(eq(userRoles.roleKey, 'admin'));
-    await Promise.all(
-      admins.map(({ userId: adminUserId }) =>
-        notify('provider_review_requested', adminUserId)
-      )
-    );
+    const details = await getProviderAdminNotificationDetails(userId);
+    if (details) {
+      await notifyAdminsOfProviderEvent('provider_review_requested', {
+        ...details,
+        submittedAt,
+      });
+    }
 
     return 'pending';
   }

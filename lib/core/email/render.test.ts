@@ -7,7 +7,11 @@ import {
   TemplateVariableError,
   validateTemplateVariables,
 } from './render';
-import { validateDefaultTemplates } from './default-templates';
+import {
+  DEFAULT_EMAIL_TEMPLATES,
+  validateDefaultTemplates,
+} from './default-templates';
+import { NOTIFICATION_EVENTS } from '@/lib/core/notifications/catalog';
 
 const ALLOWED = ['recipient.firstName', 'booking.date', 'actionUrl'] as const;
 
@@ -113,4 +117,24 @@ test('deriva una versione testuale leggibile dall’HTML', () => {
 
 test('ogni template di default usa solo segnaposto consentiti', () => {
   assert.deepEqual(validateDefaultTemplates(), []);
+});
+
+test('le email admin distinguono registrazione e richiesta di revisione', () => {
+  const context = { coach: { fullName: 'Emanuele Orlandi' } };
+  const registered = renderTemplate(
+    DEFAULT_EMAIL_TEMPLATES.provider_registered.subject,
+    context,
+    NOTIFICATION_EVENTS.provider_registered.variables,
+    'text'
+  );
+  const submitted = renderTemplate(
+    DEFAULT_EMAIL_TEMPLATES.provider_review_requested.subject,
+    context,
+    NOTIFICATION_EVENTS.provider_review_requested.variables,
+    'text'
+  );
+
+  assert.match(registered, /si è registrato/);
+  assert.match(submitted, /ha inviato/);
+  assert.notEqual(registered, submitted);
 });

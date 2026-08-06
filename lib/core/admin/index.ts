@@ -30,7 +30,8 @@ export type ProviderReviewItem = {
   certificationsVerified: boolean;
   reviewedByName: string | null;
   reviewedAt: Date | null;
-  createdAt: Date;
+  registeredAt: Date;
+  submittedAt: Date | null;
 };
 
 export type VerificationField = 'identity' | 'certifications';
@@ -66,13 +67,14 @@ export async function getProviderProfilesForReview(): Promise<
         ${reviewer.email}
       )`,
       reviewedAt: providerProfiles.reviewedAt,
-      createdAt: providerProfiles.createdAt,
+      registeredAt: users.createdAt,
+      submittedAt: providerProfiles.submittedAt,
     })
     .from(providerProfiles)
     .innerJoin(users, eq(providerProfiles.userId, users.id))
     .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
     .leftJoin(reviewer, eq(reviewer.id, providerProfiles.reviewedBy))
-    .orderBy(desc(providerProfiles.createdAt));
+    .orderBy(desc(users.createdAt));
 }
 
 export type AthleteAdminItem = {

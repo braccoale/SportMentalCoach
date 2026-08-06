@@ -1,5 +1,12 @@
 import Link from 'next/link';
-import { ShieldCheck, Award, Users, Hourglass } from 'lucide-react';
+import {
+  Award,
+  CalendarDays,
+  Hourglass,
+  Send,
+  ShieldCheck,
+  Users,
+} from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
 import {
   getProviderProfilesForReview,
@@ -10,7 +17,7 @@ import {
 import { getVerticalConfig, findTaxonomyItem, t } from '@/lib/core/config';
 import { getAllSports } from '@/lib/core/taxonomies';
 import type { TaxonomyItem } from '@/lib/core/config/types';
-import { formatDate } from '@/lib/core/format';
+import { formatDate, formatDateTime } from '@/lib/core/format';
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
 import { CoachAvatar } from '@/components/coach-visuals';
@@ -58,7 +65,10 @@ function ProviderRow({ p, sportsList }: { p: ProviderReviewItem; sportsList: Tax
     .join(', ');
 
   return (
-    <li className="flex flex-col gap-3 rounded-lg border border-gray-200 p-4 sm:flex-row sm:items-center sm:justify-between">
+    <li
+      id={`coach-${p.id}`}
+      className="flex scroll-mt-24 flex-col gap-3 rounded-lg border border-gray-200 p-4 sm:flex-row sm:items-center sm:justify-between"
+    >
       <div className="flex items-start gap-3">
         <CoachAvatar name={p.displayName} src={p.avatarUrl} className="size-12" />
         <div>
@@ -75,6 +85,22 @@ function ProviderRow({ p, sportsList }: { p: ProviderReviewItem; sportsList: Tax
           {sportLabels && (
             <p className="mt-1 text-xs text-gray-400">{sportLabels}</p>
           )}
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+            <span className="inline-flex items-center gap-1">
+              <CalendarDays className="h-3.5 w-3.5" />
+              Registrato il {formatDateTime(p.registeredAt)}
+            </span>
+            <span
+              className={`inline-flex items-center gap-1 ${
+                p.submittedAt ? 'text-emerald-700' : 'text-amber-700'
+              }`}
+            >
+              <Send className="h-3.5 w-3.5" />
+              {p.submittedAt
+                ? `Richiesta inviata il ${formatDateTime(p.submittedAt)}`
+                : 'Richiesta non ancora inviata'}
+            </span>
+          </div>
           {p.status === 'approved' && (
             <p className="mt-1 text-xs font-medium text-green-700">
               Approvato da {p.reviewedByName ?? 'amministratore'}
@@ -125,29 +151,35 @@ function ProviderRow({ p, sportsList }: { p: ProviderReviewItem; sportsList: Tax
         </div>
       </div>
 
-      <div className="flex gap-2">
-        <ActionForm action={approveProviderAction}>
-          <input type="hidden" name="providerId" value={p.id} />
-          <Button
-            type="submit"
-            className="rounded-full"
-            disabled={p.status === 'approved'}
-          >
-            Approva
-          </Button>
-        </ActionForm>
-        <ActionForm action={rejectProviderAction}>
-          <input type="hidden" name="providerId" value={p.id} />
-          <Button
-            type="submit"
-            variant="outline"
-            className="rounded-full"
-            disabled={p.status === 'rejected'}
-          >
-            Rifiuta
-          </Button>
-        </ActionForm>
-      </div>
+      {p.status === 'draft' ? (
+        <span className="text-sm font-medium text-amber-700">
+          In attesa del coach
+        </span>
+      ) : (
+        <div className="flex gap-2">
+          <ActionForm action={approveProviderAction}>
+            <input type="hidden" name="providerId" value={p.id} />
+            <Button
+              type="submit"
+              className="rounded-full"
+              disabled={p.status === 'approved'}
+            >
+              Approva
+            </Button>
+          </ActionForm>
+          <ActionForm action={rejectProviderAction}>
+            <input type="hidden" name="providerId" value={p.id} />
+            <Button
+              type="submit"
+              variant="outline"
+              className="rounded-full"
+              disabled={p.status === 'rejected'}
+            >
+              Rifiuta
+            </Button>
+          </ActionForm>
+        </div>
+      )}
     </li>
   );
 }
@@ -198,7 +230,8 @@ export default async function AdminDashboardPage() {
     getAllSports(),
     getAllAthletesForAdmin(),
   ]);
-  const queue = all.filter((p) => p.status === 'draft' || p.status === 'pending');
+  const queue = all.filter((p) => p.status === 'pending');
+  const drafts = all.filter((p) => p.status === 'draft');
   const approved = all.filter((p) => p.status === 'approved');
   const rejected = all.filter((p) => p.status === 'rejected');
 
@@ -278,6 +311,27 @@ export default async function AdminDashboardPage() {
             <ProviderRow key={p.id} p={p} sportsList={sportsList} />
           ))}
         </ul>
+      )}
+
+      <h2 className="mt-8 text-lg font-medium text-gray-900">
+        Coach registrati · profilo non inviato ({drafts.length})
+      </h2>
+      {drafts.length === 0 ? (
+        <p className="mt-2 text-gray-500">
+          Nessun coach con il profilo ancora in bozza.
+        </p>
+      ) : (
+        <>
+          <p className="mt-1 text-sm text-gray-500">
+            Questi coach si sono registrati, ma non hanno ancora inviato il
+            profilo per la revisione.
+          </p>
+          <ul className="mt-3 flex flex-col gap-3">
+            {drafts.map((p) => (
+              <ProviderRow key={p.id} p={p} sportsList={sportsList} />
+            ))}
+          </ul>
+        </>
       )}
 
       <h2 className="mt-8 text-lg font-medium text-gray-900">

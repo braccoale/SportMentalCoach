@@ -151,6 +151,14 @@ test('una chiamata avviata avvisa su entrambi i canali, e resta disattivabile', 
   assert.equal(call.hasInApp, true);
 });
 
+test('la registrazione coach avvisa gli admin su entrambi i canali', () => {
+  const event = NOTIFICATION_EVENTS.provider_registered;
+  assert.equal(event.emailDefault, true);
+  assert.equal(event.inAppDefault, true);
+  assert.equal(event.hasInApp, true);
+  assert.ok(event.variables.includes('coach.fullName'));
+});
+
 test('solo coach_invitation non ha una notifica in-app', () => {
   const emailOnly = NOTIFICATION_EVENT_KEYS.filter(
     (k) => !NOTIFICATION_EVENTS[k].hasInApp

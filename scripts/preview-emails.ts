@@ -196,6 +196,7 @@ const RECIPIENT: Record<NotificationEventKey, 'athlete' | 'coach'> = {
   new_message: 'athlete',
   ai_report_ready: 'athlete',
   coach_invitation: 'athlete',
+  provider_registered: 'coach',
   provider_review_requested: 'coach',
   provider_approved: 'coach',
   provider_rejected: 'coach',

@@ -43,6 +43,7 @@ import {
   ensureProfile,
   syncDisplayName,
   provisionMarketplaceRole,
+  notifyAdminsOfProviderRegistration,
   type SignupRole
 } from '@/lib/core/profiles';
 
@@ -436,6 +437,15 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
 
   // Welcome email (best-effort; never blocks the signup).
   await sendWelcomeEmail({ to: email }).catch(() => {});
+
+  // Admin lifecycle alert: registration is distinct from the later request
+  // for review, so an unfinished draft is visible without pretending that it
+  // has already been submitted.
+  if (marketplaceRole === 'coach') {
+    await notifyAdminsOfProviderRegistration(createdUser.id).catch((error) => {
+      console.error('Coach registration notification failed:', error);
+    });
+  }
 
   const redirectTo = formData.get('redirect') as string | null;
   if (redirectTo === 'checkout') {

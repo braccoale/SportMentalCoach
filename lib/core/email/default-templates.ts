@@ -220,11 +220,23 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     actionLabel: 'Accetta l’invito',
   }),
 
+  provider_registered: template('provider_registered', {
+    eyebrow: 'Nuovo coach',
+    subject: '{{coach.fullName}} si è registrato come coach',
+    title: 'Un nuovo coach si è registrato',
+    body: [
+      '{{coach.fullName}} ha creato un account coach su KaiPai.',
+      'Il profilo è ancora in bozza. Riceverai un secondo avviso quando verrà inviato per la revisione.',
+    ],
+    outro: null,
+    actionLabel: 'Apri l’area admin',
+  }),
+
   provider_review_requested: template('provider_review_requested', {
     eyebrow: 'Da approvare',
-    subject: 'Un profilo coach è in attesa di approvazione',
+    subject: '{{coach.fullName}} ha inviato il profilo per l’approvazione',
     title: 'Un profilo coach attende la revisione',
-    body: ['Un coach ha inviato il proprio profilo per la revisione.'],
+    body: ['{{coach.fullName}} ha inviato il proprio profilo per la revisione.'],
     outro: null,
     actionLabel: 'Apri l’area admin',
   }),

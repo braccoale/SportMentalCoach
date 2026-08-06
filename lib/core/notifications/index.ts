@@ -12,7 +12,7 @@ import { isEmailEnabled } from '@/lib/core/flags';
 import { sendEventEmail } from '@/lib/core/email';
 import type { TemplateContext } from '@/lib/core/email/render';
 import type { DetailsCard } from '@/lib/core/email/details-card';
-import { roleLabelIt } from '@/lib/core/email/format';
+import { formatDateTimeIt, roleLabelIt } from '@/lib/core/email/format';
 import {
   buildBookingCard,
   buildCalendarAction,
@@ -499,6 +499,10 @@ export type NotifyContext = {
   /** Counterpart names, for templates that address them explicitly. */
   coachName?: string | null;
   athleteName?: string | null;
+  /** Provider lifecycle details shown to admins. */
+  providerId?: number;
+  registeredAt?: Date;
+  submittedAt?: Date;
   /**
    * Who performed the action. Lets the email say "Marco Rossi ha spostato la
    * sessione" instead of the passive, anonymous version. Optional: when absent
@@ -589,11 +593,25 @@ function buildContent(
           : 'Hai ricevuto un nuovo messaggio.',
         data: { link: bookingLink ?? '/dashboard', bookingId: ctx.bookingId },
       };
+    case 'provider_registered':
+      return {
+        title: 'Nuovo coach registrato',
+        body: `${ctx.coachName?.trim() || 'Un nuovo coach'} si è registrato. Il profilo è ancora in bozza.`,
+        data: {
+          link: ctx.providerId
+            ? `/dashboard/admin#coach-${ctx.providerId}`
+            : '/dashboard/admin',
+        },
+      };
     case 'provider_review_requested':
       return {
         title: 'Nuovo profilo coach da approvare',
-        body: 'Un coach ha inviato il proprio profilo per la revisione.',
-        data: { link: '/dashboard/admin' },
+        body: `${ctx.coachName?.trim() || 'Un coach'} ha inviato il proprio profilo per la revisione.`,
+        data: {
+          link: ctx.providerId
+            ? `/dashboard/admin#coach-${ctx.providerId}`
+            : '/dashboard/admin',
+        },
       };
     case 'provider_approved':
       return {
@@ -696,6 +714,8 @@ async function buildEmailPayload(
     },
     sender: { fullName: ctx.senderName ?? undefined },
     inviter: { name: ctx.senderName ?? undefined },
+    coach: { fullName: ctx.coachName ?? undefined },
+    athlete: { fullName: ctx.athleteName ?? undefined },
     review: { rating: ctx.rating },
     security: {
       event: ctx.securityEvent,
@@ -706,9 +726,30 @@ async function buildEmailPayload(
   const data = ctx.bookingId ? await loadBookingEmailData(ctx.bookingId) : null;
 
   if (!data) {
+    const providerCard =
+      type === 'provider_registered' || type === 'provider_review_requested'
+        ? {
+            rows: [
+              { label: 'Coach', value: ctx.coachName ?? null },
+              {
+                label: 'Registrato',
+                value: formatDateTimeIt(ctx.registeredAt),
+              },
+              ...(type === 'provider_review_requested'
+                ? [
+                    {
+                      label: 'Richiesta inviata',
+                      value: formatDateTimeIt(ctx.submittedAt),
+                      emphasis: true,
+                    },
+                  ]
+                : []),
+            ],
+          }
+        : null;
     return {
       context: { ...base, ...(ctx.emailContext ?? {}) },
-      card: null,
+      card: providerCard,
       secondaryAction: null,
     };
   }
