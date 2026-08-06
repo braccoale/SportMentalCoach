@@ -347,7 +347,10 @@ export function AiSessionNotesControl({
           : recording?.state === 'stopping'
             ? 'Arresto registrazione audio…'
             : recording?.state === 'recorded'
-              ? 'Registrazione audio terminata'
+              ? // La sessione è ancora in corso: "terminata" suonava
+                // definitivo e lasciava credere che non ci fosse altro da
+                // fare, che è l'opposto della verità.
+                'Registrazione audio interrotta'
               : recording?.state === 'failed'
                 ? 'Errore registrazione audio'
                 : recording?.state === 'deleted'
@@ -368,6 +371,14 @@ export function AiSessionNotesControl({
           ),
         ]
       : [];
+    // Si può riprendere quando non sta già succedendo qualcosa: `starting`,
+    // `recording` e `stopping` sono transizioni in corso, e un secondo comando
+    // sopra creerebbe solo confusione.
+    const canRestartRecording =
+      !recording ||
+      ['not_started', 'recorded', 'failed', 'deleted'].includes(
+        recording.state
+      );
     // Il pallino resta visibile anche a pannello chiuso: "sta registrando" è
     // l'informazione che non può mai sparire, nemmeno su uno schermo piccolo.
     const dot = (
@@ -401,22 +412,29 @@ export function AiSessionNotesControl({
         <p className="mt-1 text-xs text-emerald-100">
           Puoi revocare il consenso in qualsiasi momento.
         </p>
-        {session.viewerRole === 'coach' &&
-          (recording?.state === 'not_started' ||
-            recording?.state === 'failed') && (
-            <button
-              type="button"
-              className="mt-2 mr-3 text-xs font-medium text-white underline"
-              disabled={loading}
-              onClick={() =>
-                void mutate(
-                  `/api/ai-session-notes/${session.id}/recording/start`
-                )
-              }
-            >
-              {loading ? 'Avvio…' : 'Riprova avvio registrazione'}
-            </button>
-          )}
+        {/* Il riavvio va offerto in ogni stato fermo, non solo dopo un
+            errore: una registrazione conclusa a metà sessione — perché la
+            traccia è caduta, o perché era stata fermata — lasciava il resto
+            dell'incontro senza audio e senza un modo per riprenderlo. Restano
+            esclusi solo gli stati in cui sta già succedendo qualcosa. */}
+        {session.viewerRole === 'coach' && canRestartRecording && (
+          <button
+            type="button"
+            className="mt-2 mr-3 text-xs font-medium text-white underline"
+            disabled={loading}
+            onClick={() =>
+              void mutate(
+                `/api/ai-session-notes/${session.id}/recording/start`
+              )
+            }
+          >
+            {loading
+              ? 'Avvio…'
+              : recording?.state === 'not_started'
+                ? 'Avvia registrazione'
+                : 'Riprendi registrazione'}
+          </button>
+        )}
         <button
           type="button"
           className="mt-2 text-xs font-medium text-white underline"

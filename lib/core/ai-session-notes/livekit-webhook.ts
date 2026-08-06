@@ -17,7 +17,10 @@ import {
   getAudioRecordingConfig,
   getLiveKitWebhookMaxAgeSeconds,
 } from './recording-config';
-import { isWebhookTimestampAcceptable } from './recording-policy';
+import {
+  isIntruderParticipant,
+  isWebhookTimestampAcceptable,
+} from './recording-policy';
 import { enqueueAiProcessingJob } from './processing';
 import type { AiSessionNotesDependencies } from './dependencies';
 import {
@@ -383,6 +386,34 @@ async function handleEgressEvent(event: WebhookEvent, executor: DbOrTx = db): Pr
   });
 }
 
+/**
+ * Se la sessione ha una registrazione avviata o in corso in questo momento.
+ *
+ * È la condizione che rende legittimo l'egress presente in stanza: senza una
+ * registrazione richiesta da noi, un egress non ha titolo per esserci.
+ */
+async function hasRecordingInProgress(
+  sessionId: number,
+  executor: DbOrTx = db
+): Promise<boolean> {
+  const [row] = await executor
+    .select({ id: sessionAudioRecordings.id })
+    .from(sessionAudioRecordings)
+    .where(
+      and(
+        eq(sessionAudioRecordings.sessionAiNotesId, sessionId),
+        inArray(sessionAudioRecordings.status, [
+          'pending',
+          'starting',
+          'recording',
+          'stopping',
+        ])
+      )
+    )
+    .limit(1);
+  return Boolean(row);
+}
+
 export async function processLiveKitWebhookEvent(
   event: WebhookEvent,
   dependencies: AiSessionNotesDependencies
@@ -399,11 +430,22 @@ export async function processLiveKitWebhookEvent(
 
   if (
     eventName === 'participant_joined' &&
-    event.participant?.identity &&
-    ![
-      `user-${session.coachUserId}`,
-      `user-${session.athleteUserId}`,
-    ].includes(event.participant.identity)
+    isIntruderParticipant({
+      identity: event.participant?.identity,
+      kind: event.participant?.kind,
+      expectedIdentities: [
+        `user-${session.coachUserId}`,
+        `user-${session.athleteUserId}`,
+      ],
+      // La registrazione di LiveKit entra in stanza come partecipante: se
+      // l'abbiamo chiesta noi, quello è il nostro registratore e non un
+      // intruso. Senza questo controllo la guardia fermava la registrazione
+      // circa trecento millisecondi dopo averla avviata.
+      recordingInProgress: await hasRecordingInProgress(
+        session.id,
+        executor
+      ),
+    })
   ) {
     await executor.insert(sessionAiAuditEvents).values({
       sessionAiNotesId: session.id,

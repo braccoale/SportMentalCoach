@@ -765,7 +765,13 @@ export const sessionAudioRecordings = pgTable(
       () => sessionParticipantRecordings.id,
       { onDelete: 'cascade' }
     ),
-    segmentOrder: integer('segment_order'),
+    /**
+     * Progressivo dei segmenti dello stesso partecipante, assegnato dal
+     * trigger `attach_audio_segment_to_participant_recording`. Una
+     * registrazione ripresa dopo un'interruzione è un segmento in più, non
+     * una registrazione nuova.
+     */
+    segmentOrder: integer('segment_order').notNull().default(0),
     sessionAiNotesId: integer('session_ai_notes_id')
       .notNull()
       .references(() => sessionAiNotes.id, { onDelete: 'cascade' }),
@@ -834,9 +840,10 @@ export const sessionAudioRecordings = pgTable(
     }),
   },
   (table) => [
-    unique('session_audio_recordings_session_track_unique').on(
+    unique('session_audio_recordings_session_track_segment_unique').on(
       table.sessionAiNotesId,
-      table.livekitTrackSid
+      table.livekitTrackSid,
+      table.segmentOrder
     ),
     unique('session_audio_recordings_storage_object_unique').on(
       table.storageBucket,
