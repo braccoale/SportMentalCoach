@@ -6,6 +6,7 @@ import {
   useId,
   useRef,
   useState,
+  useTransition,
 } from 'react';
 import { TriangleAlert, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -141,6 +142,14 @@ export function ConfirmationDialog({
  * Minimal client wrapper for a server action that returns an `ActionState`.
  * Renders the form children and surfaces `error` / `success` inline, so
  * form-action buttons no longer swallow domain failures.
+ *
+ * The action is dispatched by hand from `onSubmit` rather than through
+ * `<form action={…}>`: React resets the form natively after an action passed
+ * that way, and a native reset snaps every `<select>` back to its first option
+ * without telling React. On a failed submit the fields would silently disagree
+ * with the state driving them — the coach saw "Nuovo appuntamento" jump back to
+ * the first athlete and the earliest hour, while the hidden date/time still
+ * carried what they had picked before.
  */
 export function ActionForm({
   action,
@@ -150,6 +159,7 @@ export function ActionForm({
   confirmMessage,
   confirmTitle = 'Conferma operazione',
   confirmActionLabel = 'Conferma',
+  messageFirst = false,
 }: {
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
   children: React.ReactNode;
@@ -160,8 +170,16 @@ export function ActionForm({
   confirmMessage?: string;
   confirmTitle?: string;
   confirmActionLabel?: string;
+  /**
+   * Renders the error/success line at the top of the form instead of after the
+   * children. For tall forms — a dialog that fills the screen on a phone — a
+   * message at the bottom is off-screen, and the submit reads as "nothing
+   * happened". Requires a flex-column form.
+   */
+  messageFirst?: boolean;
 }) {
   const [state, formAction] = useActionState<ActionState, FormData>(action, {});
+  const [, startTransition] = useTransition();
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const submitterRef = useRef<HTMLElement | null>(null);
@@ -190,34 +208,53 @@ export function ActionForm({
     }
   }
 
+  function dispatch(form: HTMLFormElement, submitter: HTMLElement | null) {
+    const formData = new FormData(form);
+    // `FormData(form)` never includes buttons, so the submitter's own
+    // name/value (e.g. `startNow=1`) has to be carried over by hand.
+    const button = submitter as HTMLButtonElement | null;
+    if (button?.name && !formData.has(button.name)) {
+      formData.append(button.name, button.value);
+    }
+    startTransition(() => formAction(formData));
+  }
+
+  const message = state?.error ? (
+    <p className={`text-sm text-red-500 ${messageFirst ? '' : 'mt-1'}`}>
+      {state.error}
+    </p>
+  ) : state?.success ? (
+    <p className={`text-sm text-green-600 ${messageFirst ? '' : 'mt-1'}`}>
+      {state.success}
+    </p>
+  ) : null;
+
   return (
     <>
       <form
         ref={formRef}
-        action={formAction}
         className={className}
         onSubmit={(event) => {
-          if (!confirmMessage) return;
-          if (confirmedRef.current) {
-            confirmedRef.current = false;
-            return;
-          }
-
           event.preventDefault();
-          submitterRef.current =
+          const form = event.currentTarget;
+          const submitter =
             event.nativeEvent instanceof SubmitEvent
               ? (event.nativeEvent.submitter as HTMLElement | null)
               : null;
-          setConfirmationOpen(true);
+
+          if (confirmMessage && !confirmedRef.current) {
+            submitterRef.current = submitter;
+            setConfirmationOpen(true);
+            return;
+          }
+
+          confirmedRef.current = false;
+          dispatch(form, submitter);
         }}
       >
+        {messageFirst && message}
         {children}
-        {state?.error && (
-          <p className="mt-1 text-sm text-red-500">{state.error}</p>
-        )}
-        {state?.success && (
-          <p className="mt-1 text-sm text-green-600">{state.success}</p>
-        )}
+        {!messageFirst && message}
       </form>
 
       {confirmMessage && (

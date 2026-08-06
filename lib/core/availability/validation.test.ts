@@ -3,6 +3,8 @@ import test from 'node:test';
 import {
   BOOKING_START_STEP_MINUTES,
   appointmentIntervalsOverlap,
+  busyIntervalsAt,
+  dropPastStarts,
   isStartBusyForDuration,
   isScheduledDateWithinSlot,
   maxSessionMinutesAt,
@@ -186,5 +188,47 @@ test('matches future appointments against weekly slots in Europe/Rome', () => {
       endMinute: 720,
     }),
     false
+  );
+});
+
+test('a session already underway keeps blocking the starts it overlaps', () => {
+  // 08:00–09:00 Rome, seen at 08:17: already started, still occupying the hour.
+  const running = {
+    scheduledFor: new Date('2026-08-06T06:00:00.000Z'),
+    durationMin: 60,
+  };
+  const now = new Date('2026-08-06T06:17:00.000Z');
+  assert.deepEqual(busyIntervalsAt([running], now), [running]);
+
+  // Finished sessions are irrelevant and must not shrink the picker.
+  const finished = {
+    scheduledFor: new Date('2026-08-06T04:00:00.000Z'),
+    durationMin: 60,
+  };
+  assert.deepEqual(busyIntervalsAt([finished, running], now), [running]);
+});
+
+test('starts already passed are dropped from a page rendered earlier', () => {
+  // Page rendered at 07:00 Rome, dialog opened at 08:17 Rome.
+  const days = [
+    { value: '2026-08-06', times: ['07:10', '08:10', '08:20', '09:00'] },
+    { value: '2026-08-07', times: ['07:10', '08:10'] },
+  ];
+  const now = new Date('2026-08-06T06:17:00.000Z');
+
+  assert.deepEqual(dropPastStarts(days, now), [
+    { value: '2026-08-06', times: ['08:20', '09:00'] },
+    { value: '2026-08-07', times: ['07:10', '08:10'] },
+  ]);
+});
+
+test('a day whose starts have all passed disappears from the picker', () => {
+  const days = [
+    { value: '2026-08-06', times: ['07:10'] },
+    { value: '2026-08-07', times: ['07:10'] },
+  ];
+  assert.deepEqual(
+    dropPastStarts(days, new Date('2026-08-06T06:17:00.000Z')),
+    [{ value: '2026-08-07', times: ['07:10'] }]
   );
 });

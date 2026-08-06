@@ -11,7 +11,10 @@ import {
   DEFAULT_SESSION_DURATION_MIN,
   SESSION_DURATION_OPTIONS,
 } from '@/lib/core/bookings/duration';
-import { isStartBusyForDuration } from '@/lib/core/availability/validation';
+import {
+  dropPastStarts,
+  isStartBusyForDuration,
+} from '@/lib/core/availability/validation';
 import { createBookingRequestAction } from './actions';
 
 type BookableDay = RelationshipCoach['bookableDays'][number];
@@ -48,7 +51,15 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
   // zone `parseRomeLocalDateTime` reads them back in. A free `datetime-local`
   // would be interpreted in the browser's timezone and silently shift for an
   // athlete outside Italy.
-  const days = selected?.bookableDays ?? [];
+  // Gli orari di oggi sono filtrati sull'orologio del server al momento del
+  // render: se la pagina è rimasta aperta, quelli passati vanno tolti davvero,
+  // altrimenti il picker propone un orario che il server rifiuta. Si ricalcola
+  // all'apertura del dialog, mai al primo render (idratazione).
+  const [openedAt, setOpenedAt] = useState<Date | null>(null);
+  const days = useMemo(() => {
+    const all = selected?.bookableDays ?? [];
+    return openedAt ? dropPastStarts(all, openedAt) : all;
+  }, [selected, openedAt]);
   const [day, setDay] = useState('');
   const [time, setTime] = useState('');
   const [serviceId, setServiceId] = useState('');
@@ -76,17 +87,25 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
     }
   }
 
+  /** Bookable days of a coach, senza gli orari già passati. */
+  function freshDaysFor(coachSlug: string, at: Date | null) {
+    const all = coaches.find((c) => c.slug === coachSlug)?.bookableDays ?? [];
+    return at ? dropPastStarts(all, at) : all;
+  }
+
   /** Points day/time at the first option of the given coach (or clears them). */
   function resetWhenFor(coachSlug: string) {
-    const first = coaches.find((c) => c.slug === coachSlug)?.bookableDays[0];
+    const first = freshDaysFor(coachSlug, openedAt)[0];
     setServiceId('');
     setDay(first?.value ?? '');
     setTime(firstFreeTime(first, durationMin));
   }
 
   function openDialog() {
+    const at = new Date();
     const first = coaches[0]?.slug ?? '';
-    const firstDay = coaches[0]?.bookableDays[0];
+    const firstDay = freshDaysFor(first, at)[0];
+    setOpenedAt(at);
     setSlug(first);
     setServiceId('');
     setDurationMin(DEFAULT_SESSION_DURATION_MIN);
@@ -128,7 +147,9 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
             onClick={() => setOpen(false)}
             className="absolute inset-0 cursor-default bg-black/40"
           />
-          <div className="absolute left-1/2 top-1/2 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl">
+          {/* Il pannello scorre: su telefono il form supera l'altezza dello
+              schermo, e senza scroll pulsanti ed errori restano irraggiungibili. */}
+          <div className="absolute left-1/2 top-1/2 max-h-[90vh] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto overscroll-contain rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">
@@ -150,6 +171,7 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
 
             <ActionForm
               action={createBookingRequestAction}
+              messageFirst
               className="mt-5 flex flex-col gap-4"
               onSuccess={(state) => {
                 if (typeof state.bookingId !== 'number') return;
@@ -282,6 +304,11 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                     </span>
                   )}
                 </div>
+              ) : (selected?.bookableDays.length ?? 0) > 0 ? (
+                <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  Gli orari proposti sono nel frattempo passati. Ricarica la
+                  pagina per vedere quelli ancora disponibili.
+                </p>
               ) : (
                 <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-600">
                   {selected?.name ?? 'Il coach'} non ha ancora pubblicato la sua
@@ -336,7 +363,10 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                   disabled={
                     !selected ||
                     selected.services.length === 0 ||
-                    (days.length > 0 && !scheduledFor)
+                    // Un coach con disponibilità pubblicata va sempre prenotato
+                    // su uno slot: se la lista è scaduta si ricarica, non si
+                    // ripiega su una richiesta senza orario.
+                    (selected.bookableDays.length > 0 && !scheduledFor)
                   }
                   className="rounded-full bg-green-600 text-white hover:bg-green-700"
                 >

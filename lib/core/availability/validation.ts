@@ -184,6 +184,79 @@ export function isStartBusyForDuration(
   return durationMin === null ? max === 0 : durationMin > max;
 }
 
+/**
+ * The appointments that still occupy the coach's calendar at `now` — including
+ * one that started before `now` and is not over yet.
+ *
+ * Filtering on the *start* instead would hide a session already underway, and
+ * the picker would offer starts the server then rejects as occupied: the
+ * overlap check on insert compares against each session's end, so this must
+ * too.
+ */
+export function busyIntervalsAt(
+  intervals: BusyInterval[],
+  now: Date
+): BusyInterval[] {
+  return intervals.filter(
+    (interval) =>
+      interval.scheduledFor.getTime() + interval.durationMin * 60_000 >
+      now.getTime()
+  );
+}
+
+/**
+ * Removes start times that have gone by since the options were computed.
+ *
+ * The day/time options are built server-side, so today's list stops being
+ * accurate the moment the page has been sitting open (or was served from the
+ * router cache): re-anchoring the picker on the first option isn't enough,
+ * because that option itself may now be in the past and the server would
+ * reject it. Callers pass the current instant at the moment the picker opens.
+ */
+export function dropPastStarts<T extends { value: string; times: string[] }>(
+  days: T[],
+  now: Date
+): T[] {
+  const { date: today, minuteOfDay } = romeDateAndMinute(now);
+  const result: T[] = [];
+  for (const day of days) {
+    if (day.value < today) continue;
+    if (day.value > today) {
+      result.push(day);
+      continue;
+    }
+    // Same rule as the server-side generator: the current minute is already
+    // too late to be a usable start.
+    const times = day.times.filter((time) => {
+      const minutes = timeValueToMinutes(time);
+      return minutes !== null && minutes > minuteOfDay + 1;
+    });
+    if (times.length > 0) result.push({ ...day, times });
+  }
+  return result;
+}
+
+/** Reads the Rome-local date ("YYYY-MM-DD") and minute-of-day of an instant. */
+export function romeDateAndMinute(date: Date): {
+  date: string;
+  minuteOfDay: number;
+} {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Rome',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return {
+    date: `${map.year}-${map.month}-${map.day}`,
+    minuteOfDay: Number(map.hour) * 60 + Number(map.minute),
+  };
+}
+
 /** Reads weekday and minute-of-day in the platform timezone (Europe/Rome). */
 export function romeWeekdayAndMinute(date: Date): {
   weekday: number;
