@@ -4,10 +4,51 @@ export type VerifiableTrack = {
   source: 'microphone' | 'camera' | 'screen_share' | string;
 };
 
+/**
+ * `ParticipantInfo.Kind` di LiveKit. Il valore lo assegna il server e arriva
+ * dentro un webhook firmato: non è manipolabile dal browser, quindi ci si può
+ * basare sopra per distinguere una persona da un servizio.
+ */
+export const PARTICIPANT_KIND_STANDARD = 0;
+export const PARTICIPANT_KIND_EGRESS = 2;
+
 export type VerifiableParticipant = {
   identity: string;
   tracks: VerifiableTrack[];
+  kind?: number;
 };
+
+/**
+ * Se un partecipante comparso in stanza va trattato come intruso.
+ *
+ * La registrazione di LiveKit **entra nella stanza come partecipante**, con
+ * un'identità generata che non è né quella del coach né quella dell'atleta.
+ * Senza questa eccezione la guardia scambiava per intruso il registratore che
+ * avevamo appena avviato e fermava la registrazione dopo un secondo: la
+ * protezione sparava sul proprio registratore.
+ *
+ * L'eccezione è la più stretta possibile: vale solo per gli egress e solo
+ * mentre una registrazione è davvero in corso. Un egress che compare quando
+ * non abbiamo chiesto nulla è esattamente ciò da cui questa guardia protegge —
+ * qualcuno che registra la sessione senza titolo — e resta un intruso. Ingress,
+ * SIP e agent non li avviamo mai, quindi non sono esentati.
+ */
+export function isIntruderParticipant(params: {
+  identity: string | undefined;
+  kind: number | undefined;
+  expectedIdentities: string[];
+  recordingInProgress: boolean;
+}): boolean {
+  if (!params.identity) return false;
+  if (params.expectedIdentities.includes(params.identity)) return false;
+  if (
+    params.kind === PARTICIPANT_KIND_EGRESS &&
+    params.recordingInProgress
+  ) {
+    return false;
+  }
+  return true;
+}
 
 export type ExpectedRecordingParticipant = {
   userId: number;
@@ -36,15 +77,28 @@ export type RoomVerificationResult =
  */
 export function verifyRoomForTrackEgress(
   present: VerifiableParticipant[],
-  expected: ExpectedRecordingParticipant[]
+  expected: ExpectedRecordingParticipant[],
+  options: { recordingInProgress?: boolean } = {}
 ): RoomVerificationResult {
   const expectedByIdentity = new Map(
     expected.map((participant) => [participant.identity, participant])
   );
+  const expectedIdentities = expected.map(
+    (participant) => participant.identity
+  );
 
+  // Stessa eccezione della guardia sui webhook: riavviando una registrazione
+  // mentre un egress precedente è ancora in stanza, senza questo controllo il
+  // riavvio verrebbe rifiutato per "presenza non verificata" — cioè per colpa
+  // della registrazione stessa.
   if (
-    present.some(
-      (participant) => !expectedByIdentity.has(participant.identity)
+    present.some((participant) =>
+      isIntruderParticipant({
+        identity: participant.identity,
+        kind: participant.kind,
+        expectedIdentities,
+        recordingInProgress: options.recordingInProgress ?? false,
+      })
     )
   ) {
     return { ok: false, code: 'UNVERIFIED_PARTICIPANT_PRESENT' };
@@ -109,19 +163,28 @@ export type AggregateRecordingState =
   | 'failed'
   | 'deleted';
 
+/**
+ * Lo stato da mostrare per una sessione fatta di più segmenti.
+ *
+ * Ciò che sta accadendo *adesso* viene prima di ciò che è andato storto
+ * prima: da quando una registrazione interrotta si può riprendere, un
+ * segmento fallito resta nello storico per sempre, e se vincesse lui l'utente
+ * leggerebbe "errore" mentre il microfono sta registrando. L'errore torna a
+ * essere l'informazione principale appena non c'è più nulla in corso.
+ */
 export function aggregateRecordingState(
   statuses: string[]
 ): AggregateRecordingState {
   if (statuses.length === 0) return 'not_started';
-  if (statuses.some((status) => ['failed', 'deletion_failed'].includes(status))) {
-    return 'failed';
-  }
-  if (statuses.every((status) => status === 'deleted')) return 'deleted';
   if (statuses.some((status) => status === 'stopping')) return 'stopping';
   if (statuses.some((status) => status === 'recording')) return 'recording';
   if (statuses.some((status) => ['pending', 'starting'].includes(status))) {
     return 'starting';
   }
+  if (statuses.some((status) => ['failed', 'deletion_failed'].includes(status))) {
+    return 'failed';
+  }
+  if (statuses.every((status) => status === 'deleted')) return 'deleted';
   return 'recorded';
 }
 

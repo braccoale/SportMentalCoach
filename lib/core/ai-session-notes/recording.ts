@@ -244,9 +244,29 @@ async function verifyLiveRoom(
   } catch {
     throw verificationError('REQUIRED_PARTICIPANT_MISSING');
   }
+  // Riavviando una registrazione, l'egress fermato poco prima può essere
+  // ancora in stanza: senza questa informazione la verifica lo scambierebbe
+  // per un estraneo e rifiuterebbe il riavvio.
+  const [pending] = await executor
+    .select({ id: sessionAudioRecordings.id })
+    .from(sessionAudioRecordings)
+    .where(
+      and(
+        eq(sessionAudioRecordings.sessionAiNotesId, context.sessionId),
+        inArray(sessionAudioRecordings.status, [
+          'pending',
+          'starting',
+          'recording',
+          'stopping',
+        ])
+      )
+    )
+    .limit(1);
+
   const result = verifyRoomForTrackEgress(
     participants.map((participant) => ({
       identity: participant.identity,
+      kind: participant.kind,
       tracks: participant.tracks,
     })),
     [
@@ -260,7 +280,8 @@ async function verifyLiveRoom(
         role: 'athlete',
         identity: `user-${context.athleteUserId}`,
       },
-    ]
+    ],
+    { recordingInProgress: Boolean(pending) }
   );
   if (!result.ok) {
     if (result.code === 'UNVERIFIED_PARTICIPANT_PRESENT') {
@@ -326,7 +347,35 @@ async function reserveTracks(
 
     const now = new Date();
     const reserved: ReservedRecording[] = [];
+
+    /**
+     * Tracce già in registrazione: non se ne apre una seconda sopra.
+     *
+     * Prima questo ruolo lo faceva un `ON CONFLICT DO NOTHING` sull'unicità
+     * (sessione, traccia), che però impediva anche di **riprendere** dopo
+     * un'interruzione — la traccia pubblicata è la stessa, e il riavvio
+     * spariva in silenzio. La regola vera è questa: una traccia già in corso
+     * non si duplica, una traccia ferma si può riprendere. Le prenotazioni
+     * concorrenti restano serializzate dal `FOR UPDATE` qui sopra.
+     */
+    const busy = await tx
+      .select({ trackSid: sessionAudioRecordings.livekitTrackSid })
+      .from(sessionAudioRecordings)
+      .where(
+        and(
+          eq(sessionAudioRecordings.sessionAiNotesId, context.sessionId),
+          inArray(sessionAudioRecordings.status, [
+            'pending',
+            'starting',
+            'recording',
+            'stopping',
+          ])
+        )
+      );
+    const busyTracks = new Set(busy.map((row) => row.trackSid));
+
     for (const track of tracks) {
+      if (busyTracks.has(track.trackSid)) continue;
       const objectKey =
         `audio-recordings/${context.sessionId}/${track.role}/` +
         `${randomUUID()}.ogg`;
@@ -351,12 +400,6 @@ async function reserveTracks(
           },
           createdBy: actorUserId ?? context.requestedBy,
           updatedBy: actorUserId ?? context.requestedBy,
-        })
-        .onConflictDoNothing({
-          target: [
-            sessionAudioRecordings.sessionAiNotesId,
-            sessionAudioRecordings.livekitTrackSid,
-          ],
         })
         .returning({
           id: sessionAudioRecordings.id,
