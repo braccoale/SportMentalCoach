@@ -564,3 +564,34 @@ test('la bozza si genera già in `processing`, appena la trascrizione è pronta'
   );
   assert.ok(draft);
 });
+
+test('non approva una bozza generata con una versione prompt non più corrente', async () => {
+  const { store, dependencies } = harness();
+  await ensureSessionCompassDraft({ sessionId: SESSION_ID, actorUserId: COACH_ID }, dependencies);
+  const changedPromptDependencies = { ...dependencies, promptVersion: 'compass-v2' };
+
+  const stale = await getSessionCompass(
+    { sessionId: SESSION_ID, actorUserId: COACH_ID },
+    changedPromptDependencies
+  );
+  assert.equal(stale?.isStale, true);
+
+  await assert.rejects(
+    () => approveSessionCompass({ sessionId: SESSION_ID, actorUserId: COACH_ID }, changedPromptDependencies),
+    (error: unknown) =>
+      error instanceof SessionCompassError && error.code === 'COMPASS_INVALID'
+  );
+  assert.equal(store.reports[0]?.status, 'ready_for_review');
+});
+
+test('un errore del provider non attiva retry automatici', async () => {
+  const { dependencies } = harness();
+  const failingProvider = new FakeSessionCompassReportProvider({ rejection: new Error('provider down') });
+  dependencies.createProvider = () => failingProvider;
+
+  await assert.rejects(
+    () => ensureSessionCompassDraft({ sessionId: SESSION_ID, actorUserId: COACH_ID }, dependencies),
+    (error: unknown) => error instanceof SessionCompassError && error.code === 'COMPASS_FAILED'
+  );
+  assert.equal(failingProvider.invocationCount, 1);
+});

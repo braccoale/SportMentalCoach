@@ -270,6 +270,10 @@ test('gli impegni sono modificabili solo finché il report non è approvato', ()
 test('le evidenze puntano all’ancora del segmento di transcript', () => {
   assert.equal(segmentAnchorId(42), 'compass-segment-42');
   assert.equal(evidenceLabel(evidence(2, 3, 'estratto')), 'Dichiarazione atleta · 03:00');
+  assert.equal(
+    evidenceLabel({ ...evidence(3, 1, 'passaggio coach'), speaker: 'coach' }),
+    'Passaggio del coach · 01:00'
+  );
 });
 
 test('mostra lo stato di caricamento prima che la fetch del client completi', () => {

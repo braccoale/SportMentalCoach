@@ -455,6 +455,17 @@ export async function approveSessionCompass(
   }
 
   const alreadyApproved = stored.status === 'approved';
+  const fingerprint = await currentFingerprint(session.sessionId, dependencies);
+  const isCurrent =
+    fingerprint !== null &&
+    stored.sourceFingerprint === fingerprint &&
+    stored.promptVersion === requiredPromptVersion(dependencies);
+  if (!alreadyApproved && !isCurrent) {
+    throw new SessionCompassError(
+      'COMPASS_INVALID',
+      'Il report non è allineato alla trascrizione o alle istruzioni AI correnti. Rigenera la bozza prima di approvarla.'
+    );
+  }
   const now = dependencies.now();
   const saved = alreadyApproved
     ? stored
@@ -487,7 +498,7 @@ export async function approveSessionCompass(
     now,
   });
 
-  return viewOf(saved, authorization, await currentFingerprint(session.sessionId, dependencies), dependencies);
+  return viewOf(saved, authorization, fingerprint, dependencies);
 }
 
 async function generateDocument(

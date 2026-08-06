@@ -65,7 +65,37 @@ function evidenceLevel(value: SessionMetric['confidence']): string {
 }
 
 function evidenceOrigin(speaker: 'coach' | 'athlete'): string {
-  return speaker === 'athlete' ? 'Dichiarazione atleta' : 'Osservazione coach';
+  return speaker === 'athlete' ? 'Dichiarazione atleta' : 'Passaggio del coach';
+}
+
+const MIN_EMOTIONAL_POINT_GAP_MS = 15_000;
+const MIN_EMOTIONAL_TIMELINE_SPAN_MS = 60_000;
+
+function hasReliableEmotionalDistribution(points: readonly EmotionalTrendPoint[]): boolean {
+  if (points.length < 3) return false;
+  const ordered = [...points].sort((left, right) => left.evidence.startMs - right.evidence.startMs);
+  const timestamps = ordered.map((point) => point.evidence.startMs);
+  if (new Set(timestamps).size < 3) return false;
+  if (timestamps.at(-1)! - timestamps[0]! < MIN_EMOTIONAL_TIMELINE_SPAN_MS) return false;
+  return timestamps.every((timestamp, index) => index === 0 || timestamp - timestamps[index - 1]! >= MIN_EMOTIONAL_POINT_GAP_MS);
+}
+
+function EmotionalPointTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload?: { timestamp: string; speaker: string; label: string; quote: string } }>;
+}) {
+  const point = payload?.[0]?.payload;
+  if (!active || !point) return null;
+  return (
+    <div className="max-w-72 rounded-lg border border-violet-200 bg-white p-3 text-sm shadow-lg">
+      <p className="font-bold text-violet-800">{point.timestamp} · {point.speaker}</p>
+      <p className="mt-1 font-semibold text-gray-900">{point.label}</p>
+      <p className="mt-1 italic leading-5 text-gray-700">«{point.quote}»</p>
+    </div>
+  );
 }
 
 /**
@@ -159,7 +189,7 @@ export function SessionMetricGauges({
           ) : null}
         </div>
       ) : null}
-      <p className="mt-4 text-sm leading-6 text-gray-600">Autovalutazione strutturata: dato non disponibile. Le dichiarazioni dell’atleta restano distinguibili dagli insight AI e dalle osservazioni del coach.</p>
+      <p className="mt-4 text-sm leading-6 text-gray-600">Autovalutazione strutturata: dato non disponibile. Le dichiarazioni dell’atleta restano distinguibili dagli insight AI e dai passaggi del coach.</p>
     </section>
   );
 }
@@ -228,25 +258,27 @@ export function EmotionalTrendChart({
   onOpenEvidence: (segmentId: number) => void;
 }) {
   if (!points.length) return null;
-  const data = points.map((point) => ({
+  const orderedPoints = [...points].sort((left, right) => left.evidence.startMs - right.evidence.startMs);
+  const data = orderedPoints.map((point) => ({
     id: point.id,
     timestamp: formatTranscriptTimestamp(point.evidence.startMs),
     value: point.value,
     label: point.label,
-    speaker: point.evidence.speaker === 'athlete' ? 'Dichiarazione atleta' : 'Osservazione coach',
+    speaker: evidenceOrigin(point.evidence.speaker),
+    quote: point.evidence.quote,
     transcriptSegmentId: point.evidence.transcriptSegmentId,
   }));
-  if (points.length < 3) {
+  if (!hasReliableEmotionalDistribution(orderedPoints)) {
     return (
       <section className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-7" aria-labelledby="emotion-timeline-title">
         <p className="text-sm font-bold text-violet-700">Durante la conversazione</p>
         <h3 id="emotion-timeline-title" className="mt-1 text-xl font-bold text-gray-950">Segnali narrativi con evidenza</h3>
-        <p className="mt-2 text-base leading-7 text-gray-700">I dati non sono sufficienti per una curva affidabile. Mostriamo i passaggi documentati, non una misura psicologica.</p>
+        <p className="mt-2 text-base leading-7 text-gray-700">I dati non sono sufficienti o abbastanza distribuiti per un grafico affidabile. Mostriamo i passaggi documentati, non una misura psicologica.</p>
         <ol className="mt-5 space-y-3">
-          {points.map((point) => (
+          {orderedPoints.map((point) => (
             <li key={point.id}>
               <button type="button" className="w-full rounded-xl border border-gray-200 bg-gray-50/70 p-4 text-left transition hover:border-violet-300 hover:bg-violet-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500" onClick={() => onOpenEvidence(point.evidence.transcriptSegmentId)}>
-                <span className="text-sm font-bold text-violet-700">{formatTranscriptTimestamp(point.evidence.startMs)} · {point.evidence.speaker === 'athlete' ? 'Dichiarazione atleta' : 'Osservazione coach'}</span>
+                <span className="text-sm font-bold text-violet-700">{formatTranscriptTimestamp(point.evidence.startMs)} · {evidenceOrigin(point.evidence.speaker)}</span>
                 <span className="mt-1 block text-base font-semibold text-gray-950">{EMOTION_LABEL[point.value]}</span>
                 <span className="mt-1 block text-base leading-7 text-gray-700">{point.label}</span>
                 <span className="mt-2 block text-sm italic text-gray-600">«{point.evidence.quote}»</span>
@@ -261,20 +293,20 @@ export function EmotionalTrendChart({
     <section className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-7" aria-labelledby="emotion-trend-title">
       <p className="text-sm font-bold text-violet-700">Durante la conversazione</p>
       <h3 id="emotion-trend-title" className="mt-1 text-xl font-bold text-gray-950">Andamento narrativo sostenuto da estratti</h3>
-      <p className="mt-2 text-base leading-7 text-gray-700">Rappresenta segnali riferiti nella conversazione, non uno stato psicologico misurato.</p>
-      <div className="mt-5 h-64" role="img" aria-label="Grafico dei segnali narrativi nel tempo; dettagli ed estratti sono elencati sotto">
+      <p id="emotion-trend-description" className="mt-2 text-base leading-7 text-gray-700">Punti reali della conversazione, non una curva né uno stato psicologico misurato. L’elenco accessibile riporta timestamp, speaker ed estratto per ogni punto.</p>
+      <div className="mt-5 h-64" role="img" aria-label="Grafico dei segnali narrativi in punti discreti nel tempo" aria-describedby="emotion-trend-description emotion-trend-evidence">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 10, right: 20, bottom: 4, left: 6 }}>
             <CartesianGrid stroke="#e5e7eb" vertical={false} />
             <XAxis dataKey="timestamp" tick={{ fontSize: 12 }} />
             <YAxis domain={[-2, 2]} ticks={[-2, -1, 0, 1, 2]} width={78} tickFormatter={(value) => EMOTION_LABEL[value] ?? String(value)} tick={{ fontSize: 10 }} />
-            <Tooltip labelFormatter={(value) => `Timestamp ${value}`} formatter={(value, _name, item) => [item.payload.label, `${EMOTION_LABEL[Number(value)] ?? 'Segnale'} · ${item.payload.speaker}`]} />
-            <Line type="monotone" dataKey="value" stroke="#7c3aed" strokeWidth={3} dot={{ r: 5, fill: '#7c3aed' }} activeDot={{ r: 7 }} isAnimationActive={false} />
+            <Tooltip content={<EmotionalPointTooltip />} />
+            <Line type="linear" dataKey="value" stroke="transparent" dot={{ r: 6, fill: '#7c3aed', stroke: '#5b21b6', strokeWidth: 2 }} activeDot={{ r: 8, fill: '#7c3aed' }} isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <ol className="mt-5 grid gap-3 sm:grid-cols-2">
-        {points.map((point) => (
+      <ol id="emotion-trend-evidence" className="mt-5 grid gap-3 sm:grid-cols-2">
+        {orderedPoints.map((point) => (
           <li key={point.id}>
             <button
               type="button"
@@ -282,7 +314,7 @@ export function EmotionalTrendChart({
               onClick={() => onOpenEvidence(point.evidence.transcriptSegmentId)}
             >
               <span className="shrink-0 font-bold text-violet-700">{formatTranscriptTimestamp(point.evidence.startMs)}</span>
-              <span><span className="block font-semibold text-gray-900">{EMOTION_LABEL[point.value]} · {point.evidence.speaker === 'athlete' ? 'Dichiarazione atleta' : 'Osservazione coach'}</span><span className="block leading-6 text-gray-700">{point.label}</span><span className="mt-1 block text-sm italic text-gray-600">«{point.evidence.quote}»</span></span>
+              <span><span className="block font-semibold text-gray-900">{EMOTION_LABEL[point.value]} · {evidenceOrigin(point.evidence.speaker)}</span><span className="block leading-6 text-gray-700">{point.label}</span><span className="mt-1 block text-sm italic text-gray-600">«{point.evidence.quote}»</span></span>
             </button>
           </li>
         ))}

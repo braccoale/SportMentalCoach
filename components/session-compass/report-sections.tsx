@@ -62,7 +62,7 @@ const TRACKED_STATUS_ORDER: TrackedCommitmentStatus[] = [
 ];
 
 export function evidenceLabel(evidence: CompassEvidence): string {
-  const source = evidence.speaker === 'athlete' ? 'Dichiarazione atleta' : 'Osservazione coach';
+  const source = evidence.speaker === 'athlete' ? 'Dichiarazione atleta' : 'Passaggio del coach';
   return `${source} · ${formatTranscriptTimestamp(evidence.startMs)}`;
 }
 

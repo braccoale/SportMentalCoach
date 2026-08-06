@@ -314,6 +314,7 @@ test('l’adapter OpenAI invia schema strict e non memorizza la richiesta', asyn
   assert.equal(sent?.text.format.name, 'session_compass_v1');
   assert.match(sent?.instructions ?? '', /Non è visibile all'atleta|non è visibile all'atleta/i);
   assert.match(sent?.instructions ?? '', /La lingua è vincolante/);
+  assert.equal(JSON.parse(sent?.input ?? '{}').language, 'it');
   assert.doesNotMatch(sent?.input ?? '', /test-key/);
   assert.equal(report.generation.provider, 'openai');
   assert.equal(report.generation.model, 'gpt-5-mini');
@@ -325,6 +326,25 @@ test('l’adapter OpenAI invia schema strict e non memorizza la richiesta', asyn
     }),
     []
   );
+});
+
+test('l’adapter passa la lingua selezionata del coach al modello e al report', async () => {
+  let sent: OpenAiCompassRequest | undefined;
+  const provider = new OpenAiSessionCompassReportProvider({
+    apiKey: 'test-key',
+    model: 'gpt-5-mini',
+    promptVersion: 'compass-v1',
+    client: {
+      async create(request) {
+        sent = request;
+        return { output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify(CONTENT) }] }] };
+      },
+    },
+  });
+
+  const report = await provider.generateReport(input({ language: 'en' }));
+  assert.equal(JSON.parse(sent?.input ?? '{}').language, 'en');
+  assert.equal(report.language, 'en');
 });
 
 test('l’adapter OpenAI rifiuta output non strutturato senza esporre il payload', async () => {
