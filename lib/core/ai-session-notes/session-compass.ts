@@ -185,7 +185,22 @@ export type SessionCompassView = {
   trackedCommitments: TrackedCommitment[];
 };
 
-const ELIGIBLE_SESSION_STATUSES = ['ready_for_review', 'approved', 'shared'];
+/**
+ * Stati in cui una bozza si può produrre.
+ *
+ * `processing` è il primo: è lo stato in cui la trascrizione esiste e il
+ * report non ancora, cioè esattamente il momento in cui la bozza va generata.
+ * Pretendere `ready_for_review` era un vicolo cieco — a quello stato si arriva
+ * solo *generando* la bozza, quindi non se ne generava mai una e il pulsante
+ * rispondeva "disponibile quando la trascrizione è pronta" anche con la
+ * trascrizione sotto gli occhi.
+ */
+const ELIGIBLE_SESSION_STATUSES = [
+  'processing',
+  'ready_for_review',
+  'approved',
+  'shared',
+];
 
 /**
  * Fingerprint dell'intelligence sorgente. Copre il contenuto della timeline e
