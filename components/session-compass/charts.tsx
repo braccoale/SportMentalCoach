@@ -27,6 +27,7 @@ import type {
   SessionMetricKey,
 } from '@/lib/core/ai-session-notes/session-compass-contract';
 import { METRIC_META, buildMetricTrendNarrative, metricValueLabel } from './metric-model';
+import { formatTranscriptTimestamp } from './time';
 
 const EMOTION_LABEL: Record<number, string> = {
   [-2]: 'Tensione forte',
@@ -57,6 +58,16 @@ function formatTalkTime(milliseconds: number): string {
   return `${Math.floor(seconds / 60)} min`;
 }
 
+function evidenceLevel(value: SessionMetric['confidence']): string {
+  if (value === 'high') return 'forte';
+  if (value === 'medium') return 'moderata';
+  return 'debole';
+}
+
+function evidenceOrigin(speaker: 'coach' | 'athlete'): string {
+  return speaker === 'athlete' ? 'Dichiarazione atleta' : 'Osservazione coach';
+}
+
 /**
  * La striscia sintetica riprende i gauge richiesti senza trasformare le
  * metriche in diagnosi. Ogni metrica AI resta apribile sulla sua evidenza.
@@ -65,11 +76,13 @@ export function SessionMetricGauges({
   metrics,
   participation,
   tone,
+  isApproved,
   onOpenEvidence,
 }: {
   metrics: readonly SessionMetric[];
   participation: ConversationParticipation | null | undefined;
   tone: ConversationTone | null | undefined;
+  isApproved: boolean;
   onOpenEvidence: (segmentId: number) => void;
 }) {
   if (!metrics.length && !participation && !tone) return null;
@@ -93,7 +106,7 @@ export function SessionMetricGauges({
               onClick={() => onOpenEvidence(metric.evidence.transcriptSegmentId)}
               aria-label={`${meta.label}: ${metric.value} su 5. Vai all'evidenza nella trascrizione.`}
             >
-              <p className="truncate text-xs font-semibold text-gray-700">{meta.label}</p>
+              <p className="truncate text-sm font-semibold text-gray-800">{meta.label}</p>
               <div className="relative mx-auto mt-2 h-20 w-20" aria-hidden="true">
                 <ResponsiveContainer width="100%" height="100%">
                   <RadialBarChart
@@ -109,13 +122,15 @@ export function SessionMetricGauges({
                 </ResponsiveContainer>
                 <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-gray-950">{metric.value}/5</span>
               </div>
-              <p className="mt-1 text-center text-[11px] text-gray-500">{metricValueLabel(metric.value)}</p>
+              <p className="mt-1 text-center text-xs text-gray-600">{metricValueLabel(metric.value)}</p>
+              <p className="mt-2 text-xs leading-4 text-gray-600">Evidenza {evidenceLevel(metric.confidence)} · {evidenceOrigin(metric.evidence.speaker)}</p>
+              <p className="mt-1 text-xs font-semibold text-gray-700">{isApproved ? 'Validata nel report' : 'Da validare dal coach'}</p>
             </button>
           );
         })}
         {participation ? (
           <div className="min-w-0 rounded-xl border border-sky-100 bg-sky-50/60 p-3">
-            <p className="truncate text-xs font-semibold text-sky-950">Parola atleta</p>
+            <p className="truncate text-sm font-semibold text-sky-950">Parola atleta</p>
             <div className="relative mx-auto mt-2 h-20 w-20" aria-hidden="true">
               <ResponsiveContainer width="100%" height="100%">
                 <RadialBarChart data={[{ value: participation.athleteSharePercent, fill: '#0ea5e9' }]} innerRadius="68%" outerRadius="100%" startAngle={90} endAngle={-270}>
@@ -144,6 +159,7 @@ export function SessionMetricGauges({
           ) : null}
         </div>
       ) : null}
+      <p className="mt-4 text-sm leading-6 text-gray-600">Autovalutazione strutturata: dato non disponibile. Le dichiarazioni dell’atleta restano distinguibili dagli insight AI e dalle osservazioni del coach.</p>
     </section>
   );
 }
@@ -211,40 +227,62 @@ export function EmotionalTrendChart({
   points: readonly EmotionalTrendPoint[];
   onOpenEvidence: (segmentId: number) => void;
 }) {
-  if (points.length < 2) return null;
+  if (!points.length) return null;
   const data = points.map((point) => ({
     id: point.id,
-    minute: point.evidence.minute,
+    timestamp: formatTranscriptTimestamp(point.evidence.startMs),
     value: point.value,
     label: point.label,
+    speaker: point.evidence.speaker === 'athlete' ? 'Dichiarazione atleta' : 'Osservazione coach',
     transcriptSegmentId: point.evidence.transcriptSegmentId,
   }));
+  if (points.length < 3) {
+    return (
+      <section className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-7" aria-labelledby="emotion-timeline-title">
+        <p className="text-sm font-bold text-violet-700">Durante la conversazione</p>
+        <h3 id="emotion-timeline-title" className="mt-1 text-xl font-bold text-gray-950">Segnali narrativi con evidenza</h3>
+        <p className="mt-2 text-base leading-7 text-gray-700">I dati non sono sufficienti per una curva affidabile. Mostriamo i passaggi documentati, non una misura psicologica.</p>
+        <ol className="mt-5 space-y-3">
+          {points.map((point) => (
+            <li key={point.id}>
+              <button type="button" className="w-full rounded-xl border border-gray-200 bg-gray-50/70 p-4 text-left transition hover:border-violet-300 hover:bg-violet-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500" onClick={() => onOpenEvidence(point.evidence.transcriptSegmentId)}>
+                <span className="text-sm font-bold text-violet-700">{formatTranscriptTimestamp(point.evidence.startMs)} · {point.evidence.speaker === 'athlete' ? 'Dichiarazione atleta' : 'Osservazione coach'}</span>
+                <span className="mt-1 block text-base font-semibold text-gray-950">{EMOTION_LABEL[point.value]}</span>
+                <span className="mt-1 block text-base leading-7 text-gray-700">{point.label}</span>
+                <span className="mt-2 block text-sm italic text-gray-600">«{point.evidence.quote}»</span>
+              </button>
+            </li>
+          ))}
+        </ol>
+      </section>
+    );
+  }
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6" aria-labelledby="emotion-trend-title">
-      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-600">Durante la conversazione</p>
-      <h3 id="emotion-trend-title" className="mt-1 text-base font-bold text-gray-950">Andamento emotivo stimato dall’AI</h3>
-      <p className="mt-1 text-sm leading-6 text-gray-600">Rappresenta segnali riferiti nella conversazione, non uno stato psicologico misurato.</p>
-      <div className="mt-5 h-64" aria-hidden="true">
+    <section className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-7" aria-labelledby="emotion-trend-title">
+      <p className="text-sm font-bold text-violet-700">Durante la conversazione</p>
+      <h3 id="emotion-trend-title" className="mt-1 text-xl font-bold text-gray-950">Andamento narrativo sostenuto da estratti</h3>
+      <p className="mt-2 text-base leading-7 text-gray-700">Rappresenta segnali riferiti nella conversazione, non uno stato psicologico misurato.</p>
+      <div className="mt-5 h-64" role="img" aria-label="Grafico dei segnali narrativi nel tempo; dettagli ed estratti sono elencati sotto">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 10, right: 20, bottom: 4, left: 6 }}>
             <CartesianGrid stroke="#e5e7eb" vertical={false} />
-            <XAxis dataKey="minute" tickFormatter={(value) => `${value}’`} tick={{ fontSize: 12 }} />
+            <XAxis dataKey="timestamp" tick={{ fontSize: 12 }} />
             <YAxis domain={[-2, 2]} ticks={[-2, -1, 0, 1, 2]} width={78} tickFormatter={(value) => EMOTION_LABEL[value] ?? String(value)} tick={{ fontSize: 10 }} />
-            <Tooltip labelFormatter={(value) => `Minuto ${value}`} formatter={(value, _name, item) => [item.payload.label, EMOTION_LABEL[Number(value)] ?? 'Segnale']} />
+            <Tooltip labelFormatter={(value) => `Timestamp ${value}`} formatter={(value, _name, item) => [item.payload.label, `${EMOTION_LABEL[Number(value)] ?? 'Segnale'} · ${item.payload.speaker}`]} />
             <Line type="monotone" dataKey="value" stroke="#7c3aed" strokeWidth={3} dot={{ r: 5, fill: '#7c3aed' }} activeDot={{ r: 7 }} isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <ol className="mt-4 grid gap-2 sm:grid-cols-2">
+      <ol className="mt-5 grid gap-3 sm:grid-cols-2">
         {points.map((point) => (
           <li key={point.id}>
             <button
               type="button"
-              className="flex min-h-14 w-full items-start gap-3 rounded-xl border border-gray-200 p-3 text-left text-sm hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+              className="flex min-h-16 w-full items-start gap-3 rounded-xl border border-gray-200 p-4 text-left text-base hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
               onClick={() => onOpenEvidence(point.evidence.transcriptSegmentId)}
             >
-              <span className="shrink-0 font-bold text-violet-700">min {point.evidence.minute}</span>
-              <span><span className="block font-semibold text-gray-900">{EMOTION_LABEL[point.value]}</span><span className="block leading-5 text-gray-600">{point.label}</span></span>
+              <span className="shrink-0 font-bold text-violet-700">{formatTranscriptTimestamp(point.evidence.startMs)}</span>
+              <span><span className="block font-semibold text-gray-900">{EMOTION_LABEL[point.value]} · {point.evidence.speaker === 'athlete' ? 'Dichiarazione atleta' : 'Osservazione coach'}</span><span className="block leading-6 text-gray-700">{point.label}</span><span className="mt-1 block text-sm italic text-gray-600">«{point.evidence.quote}»</span></span>
             </button>
           </li>
         ))}

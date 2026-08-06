@@ -5,6 +5,7 @@ import {
   bookings,
   clientProfiles,
   providerProfiles,
+  profiles,
   sessionAiAuditEvents,
   sessionAiNotes,
   sessionAiReports,
@@ -37,12 +38,14 @@ export function createSessionCompassStore(): SessionCompassStore {
           coachHeadline: providerProfiles.headline,
           coachFirstName: users.name,
           coachLastName: users.lastName,
+          coachLocale: profiles.locale,
           athleteUserId: bookings.clientId,
         })
         .from(sessionAiNotes)
         .innerJoin(bookings, eq(bookings.id, sessionAiNotes.bookingId))
         .innerJoin(providerProfiles, eq(providerProfiles.id, bookings.providerId))
         .innerJoin(users, eq(users.id, providerProfiles.userId))
+        .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
         .where(eq(sessionAiNotes.id, sessionId))
         .limit(1);
       if (!row) return null;
@@ -58,7 +61,9 @@ export function createSessionCompassStore(): SessionCompassStore {
         coachUserId: row.coachUserId,
         athleteUserId: row.athleteUserId,
         sessionStatus: row.sessionStatus,
-        language: 'it',
+        // La sessione non ha ancora una lingua propria: usa la preferenza del
+        // coach e ricade sull'italiano, lingua dell'interfaccia KaiPai.
+        language: compassLanguage(row.coachLocale),
         coachName: [row.coachFirstName, row.coachLastName].filter(Boolean).join(' ').trim() || 'Coach',
         coachRole: row.coachHeadline?.trim() || 'Mental coach sportivo',
         athleteSport: athlete?.sport?.trim() || null,
@@ -197,6 +202,14 @@ export function createSessionCompassStore(): SessionCompassStore {
       });
     },
   };
+}
+
+function compassLanguage(locale: string | null): string {
+  const language = locale?.trim().toLocaleLowerCase() ?? '';
+  if (language.startsWith('en')) return 'en';
+  if (language.startsWith('es')) return 'es';
+  if (language.startsWith('fr')) return 'fr';
+  return 'it';
 }
 
 /** Estratto minimo del report approvato: nessuno storico grezzo di sessione. */

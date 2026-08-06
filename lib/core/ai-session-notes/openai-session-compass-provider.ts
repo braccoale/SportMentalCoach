@@ -32,7 +32,7 @@ const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 // report. Un timeout uguale a quello della function poteva interrompere il
 // processo prima che il job venisse chiuso correttamente.
 const DEFAULT_TIMEOUT_MS = 45_000;
-export const SESSION_COMPASS_PROMPT_REVISION = 'engagement-v3' as const;
+export const SESSION_COMPASS_PROMPT_REVISION = 'language-ux-v4' as const;
 
 export function effectiveSessionCompassPromptVersion(value: string): string {
   const base = value.trim();
@@ -281,6 +281,7 @@ sessionOverview.conversationTone: un solo tono linguistico dell'atleta fra ${CON
 keyMoments: massimo ${MAX_KEY_MOMENTS} momenti significativi, con titolo, spiegazione prudente, speaker, category fra ${KEY_MOMENT_CATEGORIES.join(', ')}, tema sintetico o null e relevance 1–3.
 commitments: solo azioni concrete effettivamente concordate, con owner "coach" oppure "athlete". Indica dueDate (YYYY-MM-DD) solo se la scadenza è detta esplicitamente, altrimenti null.
 nextSessionPrep: massimo ${MAX_NEXT_SESSION_PREP} punti che il coach può verificare o esplorare alla prossima sessione, derivati da temi, impegni o incertezze emerse. Nessun consiglio clinico generico.
+La lingua è vincolante: se language è "it", ogni testo prodotto (sintesi, temi, titoli, spiegazioni, azioni e descrizioni) deve essere in italiano. Non tradurre solo le etichette e non alternare italiano e inglese. Applica lo stesso vincolo alla lingua indicata per ogni altro valore di language.
 Rispondi nella lingua indicata da language. Restituisci solo il contenuto strutturato richiesto.`;
 }
 

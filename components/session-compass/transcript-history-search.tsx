@@ -8,6 +8,7 @@ import {
   type TranscriptHistorySearchHit,
   type TranscriptHistorySearchResult,
 } from './types';
+import { formatTranscriptTimestamp } from './time';
 
 export function TranscriptHistorySearch({
   athleteUserId,
@@ -115,7 +116,7 @@ export function TranscriptHistorySearch({
               </span>
               <span>
                 <span className="block text-xs font-bold text-violet-700">
-                  {SPEAKER_LABEL[item.speaker]} · min {item.minute}{item.focus ? ` · ${item.focus}` : ''}
+                  {SPEAKER_LABEL[item.speaker]} · {formatTranscriptTimestamp(item.startMs)}{item.focus ? ` · ${item.focus}` : ''}
                 </span>
                 <span className="mt-1 block text-sm leading-6 text-gray-800">{item.text}</span>
               </span>

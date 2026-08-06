@@ -697,9 +697,10 @@ async function viewOf(
     sourceFingerprint: stored.sourceFingerprint,
     isApproved: stored.status === 'approved',
     isStale:
-      fingerprint !== null &&
-      stored.sourceFingerprint !== null &&
-      stored.sourceFingerprint !== fingerprint,
+      (fingerprint !== null &&
+        stored.sourceFingerprint !== null &&
+        stored.sourceFingerprint !== fingerprint) ||
+      stored.promptVersion !== requiredPromptVersion(dependencies),
     approvedAt: stored.approvedAt?.toISOString() ?? null,
     errorCode: stored.errorCode,
     updatedAt: stored.updatedDate.toISOString(),

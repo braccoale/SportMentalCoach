@@ -4,6 +4,7 @@ import { Check, Copy, Loader2, Search, UserRound, UsersRound } from 'lucide-reac
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { SPEAKER_LABEL, segmentAnchorId, type CompassTranscriptSegment } from './types';
+import { formatTranscriptTimestamp } from './time';
 
 type SpeakerFilter = 'all' | 'coach' | 'athlete';
 
@@ -47,7 +48,7 @@ export function TranscriptPanel({
 
   async function copySegment(segment: CompassTranscriptSegment) {
     await navigator.clipboard.writeText(
-      `${SPEAKER_LABEL[segment.speaker]} · min ${segment.minute}\n${segment.text}`
+      `${SPEAKER_LABEL[segment.speaker]} · ${formatTranscriptTimestamp(segment.startMs)}\n${segment.text}`
     );
     setCopiedId(segment.transcriptSegmentId);
     window.setTimeout(() => setCopiedId(null), 1600);
@@ -123,14 +124,14 @@ export function TranscriptPanel({
                     highlighted ? 'rounded-xl bg-violet-50 px-3 ring-1 ring-violet-200' : ''
                   }`}
                 >
-                  <span className="text-xs font-bold text-violet-700">min {segment.minute}</span>
+                  <span className="text-sm font-bold text-violet-700">{formatTranscriptTimestamp(segment.startMs)}</span>
                   <span className="text-xs font-semibold text-gray-700">{SPEAKER_LABEL[segment.speaker]}</span>
                   <p className="text-sm leading-6 text-gray-800">{segment.text}</p>
                   <button
                     type="button"
                     className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
                     onClick={() => copySegment(segment)}
-                    aria-label={`Copia estratto del minuto ${segment.minute}`}
+                    aria-label={`Copia estratto al timestamp ${formatTranscriptTimestamp(segment.startMs)}`}
                   >
                     {copiedId === segment.transcriptSegmentId ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
                   </button>

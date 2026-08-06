@@ -22,6 +22,7 @@ export async function GET(
       transcript: segments.map((segment) => ({
         transcriptSegmentId: segment.transcriptSegmentId,
         startMs: segment.startMs,
+        endMs: segment.endMs,
         minute: minuteFromMs(segment.startMs),
         speaker: segment.speaker,
         text: segment.text,

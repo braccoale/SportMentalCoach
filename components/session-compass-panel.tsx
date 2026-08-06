@@ -123,9 +123,12 @@ export function SessionCompassStatusBanner({ report }: { report: SessionCompassV
   }
   if (report.isApproved) {
     return (
-      <StatusMessage tone="success">
+      <StatusMessage tone={report.isStale ? 'warning' : 'success'}>
         Report approvato (versione {report.reportVersion}). È immutabile: una rigenerazione crea
         una nuova bozza.
+        {report.isStale
+          ? ' La trascrizione o le istruzioni AI sono cambiate: rigenera per ottenere una bozza aggiornata.'
+          : ''}
       </StatusMessage>
     );
   }
@@ -133,7 +136,7 @@ export function SessionCompassStatusBanner({ report }: { report: SessionCompassV
     <StatusMessage tone={report.isStale ? 'warning' : 'violet'}>
       Bozza pronta da verificare (versione {report.reportVersion}).
       {report.isStale
-        ? ' La trascrizione è cambiata: rigenera la bozza prima di approvarla.'
+        ? ' La trascrizione o le istruzioni AI sono cambiate: rigenera la bozza prima di approvarla.'
         : ''}
     </StatusMessage>
   );

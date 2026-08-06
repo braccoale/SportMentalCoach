@@ -24,7 +24,8 @@ import type {
   SessionCompassReport,
 } from '@/lib/core/ai-session-notes/session-compass-contract';
 import { SessionContinuityCard } from './journey-panel';
-import { EmotionalTrendChart, SessionMetricGauges, SessionMetricsChart } from './charts';
+import { EmotionalTrendChart, SessionMetricGauges } from './charts';
+import { formatTranscriptTimestamp } from './time';
 import {
   SPEAKER_LABEL,
   type TrackedCommitmentChange,
@@ -61,7 +62,8 @@ const TRACKED_STATUS_ORDER: TrackedCommitmentStatus[] = [
 ];
 
 export function evidenceLabel(evidence: CompassEvidence): string {
-  return `${SPEAKER_LABEL[evidence.speaker]} · min ${evidence.minute}`;
+  const source = evidence.speaker === 'athlete' ? 'Dichiarazione atleta' : 'Osservazione coach';
+  return `${source} · ${formatTranscriptTimestamp(evidence.startMs)}`;
 }
 
 function Surface({
@@ -220,42 +222,58 @@ export function SessionOverview({
   onOpenNotes: () => void;
 }) {
   const overview = report.sessionOverview;
-  const actionCount = report.commitments.length;
+  const centralTheme = overview.themes[0] ?? null;
+  const mainInsight = overview.emergingResource?.text ?? overview.summary;
+  const mainInsightEvidence = overview.emergingResource?.evidence ?? overview.summaryEvidence[0] ?? null;
+  const nextStep = report.nextSessionPrep[0] ?? report.commitments[0] ?? null;
+  const supportingEvidence = [
+    ...overview.summaryEvidence,
+    centralTheme?.evidence,
+    mainInsightEvidence,
+    nextStep?.evidence,
+  ].filter((item): item is CompassEvidence => Boolean(item));
+  const uniqueEvidence = Array.from(
+    new Map(supportingEvidence.map((item) => [item.transcriptSegmentId, item])).values()
+  ).slice(0, 3);
 
   return (
     <div className="space-y-5">
-      <Surface className="overflow-hidden border-violet-200 bg-gradient-to-br from-white via-white to-violet-50/70">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-          <div className="max-w-3xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-2.5 py-1 text-xs font-bold text-violet-700">
-                <Sparkles className="h-3.5 w-3.5" /> Sintesi AI
-              </span>
-              <span
-                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                  isApproved
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : 'bg-amber-100 text-amber-900'
-                }`}
-              >
-                {isApproved ? 'Approvato dal coach' : 'Bozza da verificare'}
-              </span>
-            </div>
-            <p className="mt-4 text-base leading-7 text-gray-800 sm:text-lg">{overview.summary}</p>
+      <Surface className="overflow-hidden border-violet-200 bg-gradient-to-br from-white via-white to-violet-50/70 p-6 sm:p-7">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-3 py-1.5 text-sm font-bold text-violet-700">
+            <Sparkles className="h-4 w-4" /> Lettura AI da verificare
+          </span>
+          <span className={`rounded-full px-3 py-1.5 text-sm font-semibold ${isApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'}`}>
+            {isApproved ? 'Approvata dal coach' : 'In attesa di validazione coach'}
+          </span>
+        </div>
+        <div className="mt-6 grid gap-4 lg:grid-cols-3">
+          <div className="rounded-2xl border border-violet-100 bg-white/90 p-5">
+            <p className="text-sm font-bold text-violet-700">Problema centrale</p>
+            <p className="mt-2 text-lg font-bold leading-7 text-gray-950">{centralTheme?.text ?? 'Dato non disponibile'}</p>
+            <p className="mt-2 text-base leading-7 text-gray-600">Tema emerso dalla conversazione; non è una diagnosi.</p>
+            {centralTheme ? <EvidenceButton evidence={centralTheme.evidence} onOpenEvidence={onOpenEvidence} /> : null}
           </div>
-          <div className="grid shrink-0 grid-cols-2 gap-2 sm:min-w-64">
-            <div className="rounded-xl border border-white/80 bg-white/80 p-3">
-              <p className="text-xs font-semibold text-gray-500">Temi emersi</p>
-              <p className="mt-1 text-2xl font-bold text-gray-950">{overview.themes.length}</p>
-            </div>
-            <div className="rounded-xl border border-white/80 bg-white/80 p-3">
-              <p className="text-xs font-semibold text-gray-500">Azioni definite</p>
-              <p className="mt-1 text-2xl font-bold text-gray-950">{actionCount}</p>
-            </div>
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-5">
+            <p className="text-sm font-bold text-emerald-800">Insight principale · inferenza AI</p>
+            <p className="mt-2 text-lg font-bold leading-7 text-emerald-950">{mainInsight || 'Dato non disponibile'}</p>
+            <p className="mt-2 text-base leading-7 text-emerald-900">Da confrontare con il giudizio del coach, non presentato come fatto.</p>
+            {mainInsightEvidence ? <EvidenceButton evidence={mainInsightEvidence} onOpenEvidence={onOpenEvidence} /> : null}
+          </div>
+          <div className="rounded-2xl border border-sky-100 bg-sky-50/70 p-5">
+            <p className="text-sm font-bold text-sky-800">Prossimo passo suggerito</p>
+            <p className="mt-2 text-lg font-bold leading-7 text-sky-950">{nextStep?.text ?? 'Dato non disponibile'}</p>
+            <p className="mt-2 text-base leading-7 text-sky-900">{nextStep ? 'Azione già presente nel report, da decidere e validare dal coach.' : 'Non è stata definita un’azione verificabile.'}</p>
+            {nextStep ? <EvidenceButton evidence={nextStep.evidence} onOpenEvidence={onOpenEvidence} /> : null}
           </div>
         </div>
-        {overview.summaryEvidence[0] ? (
-          <EvidenceButton evidence={overview.summaryEvidence[0]} onOpenEvidence={onOpenEvidence} />
+        {uniqueEvidence.length ? (
+          <div className="mt-5">
+            <p className="text-sm font-bold text-gray-800">Estratti a supporto dell’interpretazione</p>
+            <div className="mt-3 grid gap-3 lg:grid-cols-3">
+              {uniqueEvidence.map((evidence) => <EvidenceButton key={`${evidence.transcriptSegmentId}-${evidence.startMs}`} evidence={evidence} onOpenEvidence={onOpenEvidence} />)}
+            </div>
+          </div>
         ) : null}
       </Surface>
 
@@ -263,15 +281,11 @@ export function SessionOverview({
         metrics={overview.metrics ?? []}
         participation={overview.conversationParticipation}
         tone={overview.conversationTone}
+        isApproved={isApproved}
         onOpenEvidence={onOpenEvidence}
       />
 
-      {(overview.metrics?.length || (overview.emotionalTrend?.length ?? 0) >= 2) ? (
-        <div className="grid gap-5 xl:grid-cols-2">
-          <SessionMetricsChart metrics={overview.metrics ?? []} onOpenEvidence={onOpenEvidence} />
-          <EmotionalTrendChart points={overview.emotionalTrend ?? []} onOpenEvidence={onOpenEvidence} />
-        </div>
-      ) : null}
+      {(overview.emotionalTrend?.length ?? 0) > 0 ? <EmotionalTrendChart points={overview.emotionalTrend ?? []} onOpenEvidence={onOpenEvidence} /> : null}
 
       <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
         <Surface>
@@ -335,7 +349,7 @@ export function SessionOverview({
               {report.keyMoments.slice(0, 2).map((moment) => (
                 <li key={moment.id} className="relative border-l-2 border-violet-200 pl-4">
                   <span className="absolute -left-[5px] top-1 h-2 w-2 rounded-full bg-violet-600" />
-                  <p className="text-xs font-semibold text-violet-700">min {moment.evidence.minute}</p>
+                  <p className="text-sm font-semibold text-violet-700">{formatTranscriptTimestamp(moment.evidence.startMs)}</p>
                   <p className="mt-1 text-sm font-bold text-gray-950">{moment.title}</p>
                   <p className="mt-1 line-clamp-2 text-sm leading-6 text-gray-600">
                     {moment.explanation}
@@ -598,7 +612,7 @@ export function KeyMomentsPanel({
                 {filteredMoments.map((moment) => (
                   <li key={moment.id} className="grid gap-3 sm:grid-cols-[5rem_1fr]">
                     <div className="flex items-center gap-2 text-sm font-bold text-violet-700 sm:items-start">
-                      <Clock3 className="h-4 w-4" /> min {moment.evidence.minute}
+                      <Clock3 className="h-4 w-4" /> {formatTranscriptTimestamp(moment.evidence.startMs)}
                     </div>
                     <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4">
                       <div className="flex flex-wrap items-center gap-2">
@@ -641,7 +655,7 @@ export function KeyMomentsPanel({
                 onClick={() => onOpenTranscript(moment.sessionId, moment.transcriptSegmentId)}
               >
                 <span className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500">
-                  {formatCompactDate(moment.sessionDate)} · min {moment.minute}
+                  {formatCompactDate(moment.sessionDate)}
                 </span>
                 <span className="mt-1 block font-bold text-gray-950">{moment.title}</span>
                 <span className="mt-1 block text-sm leading-5 text-gray-600">{moment.focus ?? moment.explanation}</span>
@@ -888,7 +902,7 @@ export function TrackedCommitmentsSection({
           >
             <MessageSquareQuote className="h-4 w-4 shrink-0 text-violet-500" />
             <span>
-              <strong className="text-gray-800">min {Math.floor(commitment.sourceTimestampMs / 60_000)}</strong>
+              <strong className="text-gray-800">{formatTranscriptTimestamp(commitment.sourceTimestampMs)}</strong>
               <span className="mt-1 block italic">«{commitment.sourceExcerpt}»</span>
             </span>
           </button>

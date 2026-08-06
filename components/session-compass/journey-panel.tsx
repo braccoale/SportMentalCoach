@@ -392,7 +392,7 @@ function SessionComparison({
           <ol className="mt-3 grid gap-3 sm:grid-cols-2">
             {selected.keyMoments.map((moment) => (
               <li key={moment.id} className="rounded-xl border border-gray-200 p-4">
-                <p className="text-xs font-bold text-violet-700">min {moment.minute} · {moment.speaker === 'coach' ? 'Coach' : 'Atleta'}</p>
+                <p className="text-xs font-bold text-violet-700">{moment.speaker === 'coach' ? 'Coach' : 'Atleta'} · secondo non disponibile nello storico</p>
                 <p className="mt-1 text-sm font-bold text-gray-950">{moment.title}</p>
                 <p className="mt-1 line-clamp-2 text-sm leading-5 text-gray-600">{moment.explanation}</p>
                 <button

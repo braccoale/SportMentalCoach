@@ -42,6 +42,7 @@ export type SessionCompassView = {
 export type CompassTranscriptSegment = {
   transcriptSegmentId: number;
   startMs: number;
+  endMs: number;
   minute: number;
   speaker: CompassSpeaker;
   text: string;

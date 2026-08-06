@@ -17,6 +17,7 @@ import {
   SESSION_COMPASS_SCHEMA_VERSION,
   type SessionCompassReport,
 } from '@/lib/core/ai-session-notes/session-compass-contract';
+import { SessionOverview } from './session-compass/report-sections';
 
 function evidence(segmentId: number, minute: number, quote: string) {
   return {
@@ -112,7 +113,7 @@ test('rende tutte le sezioni di Session Compass con le evidenze', () => {
   assert.match(html, /Momenti chiave/);
   assert.match(html, /Impegni concordati/);
   assert.match(html, /Preparazione prossima sessione/);
-  assert.match(html, /Atleta · min 2/);
+  assert.match(html, /Dichiarazione atleta · 02:00/);
   assert.match(html, /resto teso prima delle gare/);
   assert.match(html, /Scadenza 2026-08-07/);
 });
@@ -141,6 +142,84 @@ test('omette le sezioni prive di contenuto supportato', () => {
   assert.doesNotMatch(html, /Preparazione prossima sessione/);
 });
 
+test('la panoramica segnala i dati non disponibili senza inventare metriche', () => {
+  const html = renderToStaticMarkup(
+    <SessionOverview
+      report={document({
+        commitments: [],
+        nextSessionPrep: [],
+        sessionOverview: {
+          summary: '',
+          summaryEvidence: [],
+          themes: [],
+          emergingResource: null,
+          metrics: [],
+          emotionalTrend: [],
+          conversationParticipation: null,
+          conversationTone: null,
+        },
+      })}
+      isApproved={false}
+      previousJourneyEntry={null}
+      onOpenEvidence={() => undefined}
+      onOpenMoments={() => undefined}
+      onOpenNotes={() => undefined}
+    />
+  );
+
+  assert.match(html, /Dato non disponibile/);
+  assert.doesNotMatch(html, />0\/5</);
+});
+
+test('le metriche mostrano livello di evidenza, origine e validazione senza diventare micro-card su mobile', () => {
+  const html = renderToStaticMarkup(
+    <SessionOverview
+      report={document({
+        sessionOverview: {
+          ...document().sessionOverview,
+          metrics: [
+            {
+              id: 'metric-confidence',
+              key: 'confidence',
+              value: 4,
+              confidence: 'high',
+              evidence: evidence(4, 2, 'mi sento più pronto'),
+            },
+          ],
+        },
+      })}
+      isApproved={false}
+      previousJourneyEntry={null}
+      onOpenEvidence={() => undefined}
+      onOpenMoments={() => undefined}
+      onOpenNotes={() => undefined}
+    />
+  );
+
+  assert.match(html, /Evidenza forte/);
+  assert.match(html, /Dichiarazione atleta/);
+  assert.match(html, /Da validare dal coach/);
+  assert.match(html, /Autovalutazione strutturata: dato non disponibile/);
+  assert.match(html, /grid-cols-2 sm:grid-cols-3 xl:grid-cols-6/);
+});
+
+test('la panoramica conserva gerarchia e griglia responsive', () => {
+  const html = renderToStaticMarkup(
+    <SessionOverview
+      report={document()}
+      isApproved={false}
+      previousJourneyEntry={null}
+      onOpenEvidence={() => undefined}
+      onOpenMoments={() => undefined}
+      onOpenNotes={() => undefined}
+    />
+  );
+
+  assert.match(html, /lg:grid-cols-3/);
+  assert.match(html, /text-lg font-bold leading-7/);
+  assert.match(html, /text-base leading-7/);
+});
+
 test('rende gli stati elaborazione, errore, bozza e approvato', () => {
   assert.match(
     renderToStaticMarkup(<SessionCompassStatusBanner report={view({ status: 'generating' })} />),
@@ -162,7 +241,11 @@ test('rende gli stati elaborazione, errore, bozza e approvato', () => {
   );
   assert.match(
     renderToStaticMarkup(<SessionCompassStatusBanner report={view({ isStale: true })} />),
-    /La trascrizione è cambiata/
+    /La trascrizione o le istruzioni AI sono cambiate/
+  );
+  assert.match(
+    renderToStaticMarkup(<SessionCompassStatusBanner report={view({ isStale: true, status: 'approved', isApproved: true })} />),
+    /rigenera per ottenere una bozza aggiornata/
   );
   assert.match(
     renderToStaticMarkup(<SessionCompassStatusBanner report={null} />),
@@ -186,7 +269,7 @@ test('gli impegni sono modificabili solo finché il report non è approvato', ()
 
 test('le evidenze puntano all’ancora del segmento di transcript', () => {
   assert.equal(segmentAnchorId(42), 'compass-segment-42');
-  assert.equal(evidenceLabel(evidence(2, 3, 'estratto')), 'Atleta · min 3');
+  assert.equal(evidenceLabel(evidence(2, 3, 'estratto')), 'Dichiarazione atleta · 03:00');
 });
 
 test('mostra lo stato di caricamento prima che la fetch del client completi', () => {
@@ -246,7 +329,7 @@ test('mostra gli impegni operativi con evidenza e scadenza', () => {
   assert.match(html, /Le tue modifiche prevalgono sulla bozza AI/);
   assert.match(html, /value="2026-08-20"/);
   assert.match(html, /ripreso ad allenarmi/);
-  assert.match(html, /min 2/);
+  assert.match(html, /02:00/);
 });
 
 test('evidenzia l’esito dichiarato dall’atleta', () => {

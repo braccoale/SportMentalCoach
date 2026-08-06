@@ -22,9 +22,9 @@ import {
   type OpenAiCompassRequest,
 } from './openai-session-compass-provider';
 
-test('la revisione prompt con engagement è stabile e non si duplica', () => {
-  assert.equal(effectiveSessionCompassPromptVersion('compass-v1'), 'compass-v1:engagement-v3');
-  assert.equal(effectiveSessionCompassPromptVersion('compass-v1:engagement-v3'), 'compass-v1:engagement-v3');
+test('la revisione prompt lingua e UX è stabile e non si duplica', () => {
+  assert.equal(effectiveSessionCompassPromptVersion('compass-v1'), 'compass-v1:language-ux-v4');
+  assert.equal(effectiveSessionCompassPromptVersion('compass-v1:language-ux-v4'), 'compass-v1:language-ux-v4');
   assert.equal(effectiveSessionCompassPromptVersion('  '), '');
 });
 
@@ -313,6 +313,7 @@ test('l’adapter OpenAI invia schema strict e non memorizza la richiesta', asyn
   assert.equal(sent?.text.format.strict, true);
   assert.equal(sent?.text.format.name, 'session_compass_v1');
   assert.match(sent?.instructions ?? '', /Non è visibile all'atleta|non è visibile all'atleta/i);
+  assert.match(sent?.instructions ?? '', /La lingua è vincolante/);
   assert.doesNotMatch(sent?.input ?? '', /test-key/);
   assert.equal(report.generation.provider, 'openai');
   assert.equal(report.generation.model, 'gpt-5-mini');
