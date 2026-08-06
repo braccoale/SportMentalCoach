@@ -85,6 +85,19 @@ export async function pauseCameraWhileHidden(room: Room): Promise<boolean> {
 }
 
 /**
+ * Se in questo momento la camera sta davvero producendo immagine.
+ *
+ * Serve a distinguere "ripristino tentato" da "ripristino riuscito": dopo un
+ * rientro dal secondo piano il browser può rifiutare di riavviare la cattura
+ * (permesso revocato, dispositivo occupato da un'altra app), e in quel caso
+ * l'utente va avvisato invece di essere lasciato a parlare a una camera spenta.
+ */
+export function isCameraLive(room: Room): boolean {
+  const publication = getPublication(room, Track.Source.Camera);
+  return !needsRestore(publication);
+}
+
+/**
  * Restores only local media the user still intends to publish. It never
  * connects a room and never turns a user-muted device back on.
  */

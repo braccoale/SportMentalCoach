@@ -23,6 +23,75 @@ export type CallCapabilities = {
   isIosSafari: boolean;
 };
 
+export type InAppBrowserSeverity = 'blocking' | 'warning';
+
+export type InAppBrowser = {
+  /** Nome dell'app che ospita la pagina, da mostrare all'utente. */
+  label: string;
+  /**
+   * `blocking` quando la videochiamata lì dentro non può funzionare,
+   * `warning` quando funziona ma con difetti frequenti.
+   */
+  severity: InAppBrowserSeverity;
+  /** Come uscirne, nelle parole dell'app ospite. */
+  howToExit: string;
+};
+
+/**
+ * Firme dei browser interni: frammenti di user-agent che quelle app aggiungono
+ * al proprio WebView. È l'unico modo per riconoscerli — nessuna feature
+ * detection distingue un WebView dal browser di sistema prima di aver già
+ * chiesto camera e microfono, cioè troppo tardi per avvisare.
+ */
+const IN_APP_SIGNATURES: { label: string; patterns: RegExp[] }[] = [
+  { label: 'Instagram', patterns: [/Instagram/i] },
+  { label: 'Facebook', patterns: [/FBAN|FBAV|FB_IAB|FB4A/i] },
+  // Il confine iniziale evita che "MicroMessenger" (WeChat) finisca qui.
+  { label: 'Messenger', patterns: [/(?:^|[^A-Za-z])Messenger(?:Lite)?\//i] },
+  { label: 'TikTok', patterns: [/musical_ly|BytedanceWebview|Bytedance/i] },
+  { label: 'Threads', patterns: [/Barcelona\//i] },
+  { label: 'Snapchat', patterns: [/Snapchat/i] },
+  { label: 'LinkedIn', patterns: [/LinkedInApp/i] },
+  { label: 'X (Twitter)', patterns: [/Twitter(?:Android)?/i] },
+  { label: 'WhatsApp', patterns: [/WhatsApp/i] },
+  { label: 'WeChat', patterns: [/MicroMessenger/i] },
+  { label: 'LINE', patterns: [/\bLine\//i] },
+  { label: 'Pinterest', patterns: [/Pinterest/i] },
+];
+
+/** iOS/iPadOS: lì il WebView delle app social non concede camera e microfono. */
+function looksLikeIos(userAgent: string): boolean {
+  return /iPad|iPhone|iPod/i.test(userAgent);
+}
+
+/**
+ * Riconosce il browser interno di un'app che sta ospitando la pagina.
+ *
+ * Aprire un link da Instagram o Facebook non apre Safari o Chrome: apre un
+ * WebView dell'app, che su iOS non ha accesso a camera e microfono e su Android
+ * lo perde spesso a metà chiamata. È il modo più comune in cui una sessione
+ * fallisce senza che l'utente capisca perché, e l'unico rimedio è aprire il
+ * link nel browser di sistema. Restituisce `null` per i browser veri.
+ */
+export function detectInAppBrowser(userAgent: string): InAppBrowser | null {
+  if (!userAgent) return null;
+
+  for (const signature of IN_APP_SIGNATURES) {
+    if (!signature.patterns.some((pattern) => pattern.test(userAgent))) {
+      continue;
+    }
+    const ios = looksLikeIos(userAgent);
+    return {
+      label: signature.label,
+      severity: ios ? 'blocking' : 'warning',
+      howToExit: ios
+        ? `Tocca i tre puntini in alto a destra e scegli "Apri in Safari": dentro ${signature.label} il browser non può usare camera e microfono.`
+        : `Tocca i tre puntini in alto a destra e scegli "Apri in Chrome": dentro ${signature.label} camera e microfono possono interrompersi durante la sessione.`,
+    };
+  }
+  return null;
+}
+
 export type RoomControl =
   | 'exit'
   | 'flip-camera'

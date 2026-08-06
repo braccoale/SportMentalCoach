@@ -3,6 +3,7 @@ import test from 'node:test';
 import { ConnectionQuality } from 'livekit-client';
 import {
   KAIPAI_AUDIO_CAPTURE_DEFAULTS,
+  videoPublishSettings,
   connectionQualityPresentation,
   mediaDeviceErrorMessage,
   summarizeNetworkDiagnostic,
@@ -61,4 +62,36 @@ test('pre-call diagnostics distinguish ready and blocked networks', () => {
     }).grade,
     'poor'
   );
+});
+
+test('su schermo compatto la cattura video è più leggera che su desktop', () => {
+  const compact = videoPublishSettings(true);
+  const desktop = videoPublishSettings(false);
+
+  assert.ok(
+    compact.resolution.height <= 360,
+    'un telefono non deve catturare più di 360p'
+  );
+  assert.ok(desktop.resolution.height >= 540);
+  assert.ok(
+    (compact.resolution.encoding?.maxBitrate ?? 0) <
+      (desktop.resolution.encoding?.maxBitrate ?? 0)
+  );
+  assert.ok(
+    (compact.resolution.encoding?.maxFramerate ?? 99) <=
+      (desktop.resolution.encoding?.maxFramerate ?? 99)
+  );
+});
+
+test('il telefono pubblica meno livelli simulcast del desktop', () => {
+  const compact = videoPublishSettings(true);
+  const desktop = videoPublishSettings(false);
+  assert.ok(
+    (compact.publishDefaults.videoSimulcastLayers?.length ?? 0) <
+      (desktop.publishDefaults.videoSimulcastLayers?.length ?? 0)
+  );
+  // Il livello più alto pubblicato non può superare ciò che si cattura.
+  for (const layer of compact.publishDefaults.videoSimulcastLayers ?? []) {
+    assert.ok(layer.height <= compact.resolution.height);
+  }
 });

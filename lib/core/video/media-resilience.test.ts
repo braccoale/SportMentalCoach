@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test, { mock } from 'node:test';
 import { ConnectionState, Room, Track } from 'livekit-client';
 import {
+  isCameraLive,
   pauseCameraWhileHidden,
   restoreLocalMediaIfNeeded,
   type LocalMediaPreferences,
@@ -203,4 +204,58 @@ test('non fa nulla se la stanza non è connessa', async () => {
   } as unknown as Room;
   assert.equal(await pauseCameraWhileHidden(disconnected), false);
   assert.equal(mute.mock.callCount(), 0);
+});
+
+// --- Stato reale della camera ------------------------------------------------
+
+function roomWithCamera(
+  camera:
+    | { muted: boolean; readyState: MediaStreamTrackState; enabled: boolean }
+    | null
+) {
+  const publication = camera
+    ? {
+        isMuted: camera.muted,
+        track: {
+          mediaStreamTrack: {
+            readyState: camera.readyState,
+            enabled: camera.enabled,
+          },
+        },
+      }
+    : undefined;
+  return {
+    localParticipant: {
+      getTrackPublication: (source: Track.Source) =>
+        source === Track.Source.Camera ? publication : undefined,
+    },
+  } as unknown as Room;
+}
+
+test('la camera è viva solo se pubblicata, non in muto, attiva e non terminata', () => {
+  assert.equal(
+    isCameraLive(
+      roomWithCamera({ muted: false, readyState: 'live', enabled: true })
+    ),
+    true
+  );
+  assert.equal(
+    isCameraLive(
+      roomWithCamera({ muted: true, readyState: 'live', enabled: true })
+    ),
+    false
+  );
+  assert.equal(
+    isCameraLive(
+      roomWithCamera({ muted: false, readyState: 'ended', enabled: true })
+    ),
+    false
+  );
+  assert.equal(
+    isCameraLive(
+      roomWithCamera({ muted: false, readyState: 'live', enabled: false })
+    ),
+    false
+  );
+  assert.equal(isCameraLive(roomWithCamera(null)), false);
 });
