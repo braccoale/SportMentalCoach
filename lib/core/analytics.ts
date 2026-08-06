@@ -1,7 +1,7 @@
 /**
- * Minimal analytics seam. The project has no client analytics provider yet, so
- * this is the single, named integration point to wire one later (Plausible,
- * PostHog, GA…). For now it is a safe no-op that only logs in development.
+ * Client analytics seam. In production events are forwarded to GA4 only when
+ * the visitor has explicitly enabled analytics; before consent `window.gtag`
+ * does not exist and this remains a safe no-op.
  *
  * IMPORTANT: never pass personal data (email, name, code owner identity) in the
  * props — event names + coarse context only.
@@ -39,5 +39,8 @@ export function track(
     // eslint-disable-next-line no-console
     console.debug('[analytics]', event, props ?? {});
   }
-  // Future: forward to the chosen provider here.
+
+  if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+    window.gtag('event', event, props ?? {});
+  }
 }

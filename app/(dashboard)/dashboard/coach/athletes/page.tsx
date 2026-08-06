@@ -88,42 +88,23 @@ function AthleteRow({
   );
 }
 
-export default async function CoachAthletesPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ filtro?: string }>;
-}) {
+export default async function CoachAthletesPage() {
   const user = await requireRole('coach');
   const config = getVerticalConfig();
-  const { filtro } = await searchParams;
 
   const bookings = await getCoachBookings(user.id);
-  const all = buildCoachAthletes(bookings);
-
-  const active = all.filter((a) => a.status === 'active');
-  const past = all.filter((a) => a.status === 'past');
-
-  // Il filtro sta nell'URL e non in uno stato locale: così la vista è
-  // condivisibile, sopravvive a un ricaricamento e il tasto Indietro funziona.
-  const filter = filtro === 'conclusi' ? 'conclusi' : filtro === 'tutti' ? 'tutti' : 'percorso';
-  const shown =
-    filter === 'conclusi' ? past : filter === 'tutti' ? all : active;
-
-  const tabs = [
-    { key: 'percorso', label: 'In percorso', count: active.length },
-    { key: 'conclusi', label: 'Conclusi', count: past.length },
-    { key: 'tutti', label: 'Tutti', count: all.length },
-  ] as const;
+  const athletes = buildCoachAthletes(bookings);
 
   return (
     <section className="p-6">
       <h1 className="text-2xl font-semibold text-gray-900">I miei Atleti</h1>
       <p className="mt-1 max-w-2xl text-sm text-gray-600">
-        Le persone che segui o che hai seguito. Apri una scheda per il profilo,
-        lo storico delle sessioni e il percorso mentale.
+        Tutti gli atleti che segui o hai seguito, ordinati per attività recente
+        e numero di sessioni. Apri una scheda per il profilo, lo storico e il
+        percorso mentale.
       </p>
 
-      {all.length === 0 ? (
+      {athletes.length === 0 ? (
         <div className="mt-6 rounded-2xl border border-dashed border-gray-300 p-8 text-center">
           <p className="font-medium text-gray-700">
             Non hai ancora nessun atleta.
@@ -134,54 +115,30 @@ export default async function CoachAthletesPage({
           </p>
         </div>
       ) : (
-        <>
-          <nav className="mt-6 flex gap-1 border-b border-gray-200">
-            {tabs.map((tab) => (
-              <Link
-                key={tab.key}
-                href={`/dashboard/coach/athletes?filtro=${tab.key}`}
-                className={`border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
-                  filter === tab.key
-                    ? 'border-blue-900 text-blue-900'
-                    : 'border-transparent text-gray-500 hover:text-gray-900'
-                }`}
-              >
-                {tab.label} ({tab.count})
-              </Link>
-            ))}
-          </nav>
-
-          {shown.length === 0 ? (
-            <p className="mt-6 text-sm text-gray-500">
-              Nessun atleta in questa vista.
-            </p>
-          ) : (
-            <ul className="mt-4 flex flex-col gap-3">
-              {shown.map((athlete) => (
-                <AthleteRow
-                  key={athlete.userId}
-                  athlete={athlete}
-                  levelLabel={
-                    athlete.level
-                      ? (findTaxonomyItem(
-                          config.taxonomies.levels ?? [],
-                          athlete.level
-                        )?.label ?? athlete.level)
-                      : null
-                  }
-                  sportLabel={
-                    athlete.sport
-                      ? (findTaxonomyItem(
-                          config.taxonomies.categories,
-                          athlete.sport
-                        )?.label ?? athlete.sport)
-                      : null
-                  }
-                />
-              ))}
-            </ul>
-          )}
-        </>
+        <ul className="mt-6 flex flex-col gap-3">
+          {athletes.map((athlete) => (
+            <AthleteRow
+              key={athlete.userId}
+              athlete={athlete}
+              levelLabel={
+                athlete.level
+                  ? (findTaxonomyItem(
+                      config.taxonomies.levels ?? [],
+                      athlete.level
+                    )?.label ?? athlete.level)
+                  : null
+              }
+              sportLabel={
+                athlete.sport
+                  ? (findTaxonomyItem(
+                      config.taxonomies.categories,
+                      athlete.sport
+                    )?.label ?? athlete.sport)
+                  : null
+              }
+            />
+          ))}
+        </ul>
       )}
     </section>
   );

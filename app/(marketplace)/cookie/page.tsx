@@ -12,9 +12,8 @@ export default function CookiePage() {
       <h2>1. Cosa sono i cookie</h2>
       <p>
         I cookie sono piccoli file di testo che un sito salva nel browser per
-        ricordare informazioni fra una pagina e l’altra. KaiPai utilizza
-        esclusivamente cookie tecnici, indispensabili al funzionamento della
-        piattaforma.
+        ricordare informazioni fra una pagina e l’altra. KaiPai utilizza cookie
+        tecnici indispensabili e, solo dopo il tuo consenso, cookie analytics.
       </p>
 
       <h2>2. Cookie utilizzati</h2>
@@ -25,6 +24,18 @@ export default function CookiePage() {
           l’altra e permettono di rinnovare la sessione senza chiederti la
           password a ogni passaggio. Durata: la sessione di lavoro, con rinnovo
           automatico finché resti attivo.
+        </li>
+        <li>
+          <strong>kp_analytics_consent</strong> (KaiPai): ricorda se hai
+          accettato o rifiutato Google Analytics, evitando di ripresentare il
+          banner a ogni visita. È un cookie tecnico e dura 6 mesi.
+        </li>
+        <li>
+          <strong>_ga</strong> e <strong>_ga_773FBGVP7J</strong> (Google
+          Analytics): distinguono in modo pseudonimo un browser e mantengono lo
+          stato della sessione per produrre statistiche aggregate. Vengono
+          creati soltanto se accetti e scadono dopo 6 mesi senza rinnovo a ogni
+          visita.
         </li>
       </ul>
 
@@ -49,13 +60,19 @@ export default function CookiePage() {
         </li>
       </ul>
 
-      <h2>4. Cookie di profilazione e di terze parti</h2>
+      <h2>4. Google Analytics e cookie di terze parti</h2>
       <p>
-        KaiPai <strong>non utilizza</strong> cookie di profilazione, cookie
-        pubblicitari, pixel di tracciamento o strumenti di statistica di terze
-        parti. Non essendo presenti cookie che richiedono il consenso, non viene
-        mostrato alcun banner: i cookie tecnici sono esenti ai sensi dell’art.
-        122 del Codice Privacy.
+        KaiPai utilizza Google Analytics 4 (misurazione{' '}
+        <strong>G-773FBGVP7J</strong>) per capire, in forma aggregata, quali
+        pagine vengono visitate e come viene usato il servizio. Il tag Google
+        non viene caricato e nessun dato viene inviato a Google finché non premi
+        «Accetta analytics».
+      </p>
+      <p>
+        Le funzioni pubblicitarie, Google Signals e la personalizzazione degli
+        annunci sono disattivate. Non inviamo a Google nome, email o
+        identificativi dell’account. Puoi continuare senza analytics usando il
+        pulsante di rifiuto o la X del banner, senza perdere alcuna funzione.
       </p>
 
       <h2>5. Video di presentazione dei coach</h2>
@@ -72,7 +89,8 @@ export default function CookiePage() {
         YouTube o Vimeo ricevono i tuoi dati e possono impostare cookie propri,
         soggetti alle loro informative. Se non premi, non li contatti mai — ed è
         la ragione per cui questa pagina può ancora dire, con verità, che non ci
-        sono cookie di terze parti da consentire.
+        sono ulteriori cookie di terze parti attivati dalla tua azione sul
+        video, indipendenti dalla scelta relativa a Google Analytics.
       </p>
       <p>
         Per lo stesso motivo i caratteri tipografici del sito sono ospitati sui
@@ -81,7 +99,12 @@ export default function CookiePage() {
 
       <h2>6. Gestione dei cookie</h2>
       <p>
-        Puoi cancellare o bloccare i cookie dalle impostazioni del tuo browser.
+        Puoi cambiare in qualsiasi momento la scelta analytics dal collegamento{' '}
+        <strong>«Preferenze cookie»</strong> presente nel footer di ogni pagina.
+        Se revochi il consenso, KaiPai disattiva Analytics e cancella dal
+        browser i cookie <strong>_ga</strong> e{' '}
+        <strong>_ga_773FBGVP7J</strong>. Puoi inoltre cancellare o bloccare i
+        cookie dalle impostazioni del tuo browser.
         Tieni presente che, senza i cookie tecnici di autenticazione, l’accesso
         all’area personale non può funzionare: resteresti scollegato a ogni
         cambio di pagina. Le notifiche push si disattivano invece dall’apposito

@@ -165,6 +165,38 @@ test('chi ha una sessione imminente viene prima', () => {
   assert.equal(athletes[0].userId, 9);
 });
 
+test('a parità di attività viene prima chi ha svolto più sessioni', () => {
+  const sameSessionDate = new Date('2026-08-04T10:00:00Z');
+  const athletes = buildCoachAthletes(
+    [
+      booking({
+        id: 1,
+        clientId: 7,
+        clientName: 'Anna Bianchi',
+        sessionEndedAt: sameSessionDate,
+      }),
+      booking({
+        id: 2,
+        clientId: 9,
+        clientName: 'Marco Rossi',
+        sessionEndedAt: sameSessionDate,
+      }),
+      booking({
+        id: 3,
+        clientId: 9,
+        clientName: 'Marco Rossi',
+        sessionEndedAt: sameSessionDate,
+      }),
+    ],
+    NOW
+  );
+
+  assert.deepEqual(
+    athletes.map((athlete) => athlete.userId),
+    [9, 7]
+  );
+});
+
 test('l’ultimo servizio è quello della richiesta più recente, per atleta', () => {
   const last = lastServiceByAthlete([
     booking({

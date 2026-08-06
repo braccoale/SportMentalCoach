@@ -10,7 +10,6 @@
  * Only services that are actually wired up belong here. Notably absent:
  *   - Stripe — the dependency and key exist, but billing is off
  *     (`BILLING_ENABLED` unset), so no payment data is processed today.
- *   - Analytics/advertising — none, which is why no cookie banner is needed.
  *
  * Deepgram and OpenAI joined the list when the AI session notes shipped: until
  * then the policy said audio was never recorded, which stopped being true the
@@ -72,6 +71,15 @@ export const SUB_PROCESSORS: SubProcessor[] = [
     location: 'Stati Uniti (clausole contrattuali standard)',
   },
   {
+    name: 'Google Analytics (Google Ireland Limited)',
+    purpose:
+      'Statistiche aggregate sull’uso del sito, esclusivamente dopo il consenso ai cookie analytics',
+    data:
+      'Pagine visitate, eventi di utilizzo, dati del browser e del dispositivo, indirizzo IP e identificativi pseudonimi dei cookie',
+    location:
+      'Unione Europea e Stati Uniti (Data Privacy Framework e clausole contrattuali standard)',
+  },
+  {
     name: 'YouTube / Vimeo (solo su tuo clic)',
     purpose:
       'Riproduzione del video di presentazione di un coach, quando è ospitato su queste piattaforme',
@@ -93,7 +101,7 @@ export const SUB_PROCESSORS: SubProcessor[] = [
  * different dates for the same revision looks like an oversight, because it
  * usually is one.
  */
-export const LEGAL_LAST_UPDATED = '4 agosto 2026';
+export const LEGAL_LAST_UPDATED = '6 agosto 2026';
 
 /**
  * The address cited across every legal document — informativa, Termini and
@@ -112,7 +120,7 @@ export const LEGAL_CONTACT_EMAIL = 'privacy@kaipaicoaching.com';
  * changes substantively: users who accepted an older version are then asked to
  * accept again, and the old rows keep proving what they actually agreed to.
  */
-export const LEGAL_VERSION = '2026-08-04';
+export const LEGAL_VERSION = '2026-08-06';
 
 /**
  * After how many months without any activity an account is treated as closed,

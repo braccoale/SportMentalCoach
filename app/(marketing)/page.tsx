@@ -36,6 +36,7 @@ import { MethodDiamond } from '@/components/landing/method';
 import { Reveal } from '@/components/landing/reveal';
 import { CountUp } from '@/components/landing/count-up';
 import { ImageSlot, AvatarSlot } from '@/components/landing/image-slot';
+import { CookieSettingsButton } from '@/components/google-analytics';
 
 /** First-letter monogram from a display name (drops trailing ", 17 anni" etc). */
 function initials(name: string) {
@@ -1204,7 +1205,7 @@ function SiteFooter() {
           {/* Real links: these were `span`s that looked and hovered like links
               but went nowhere — the landing is the main public entry point, so
               it can't be the one page where the legal pages are unreachable. */}
-          <div className="flex gap-6">
+          <div className="flex flex-wrap justify-center gap-6">
             <Link href="/privacy" className="hover:text-kp-mid">
               Privacy
             </Link>
@@ -1214,6 +1215,7 @@ function SiteFooter() {
             <Link href="/cookie" className="hover:text-kp-mid">
               Cookie
             </Link>
+            <CookieSettingsButton className="hover:text-kp-mid" />
           </div>
         </div>
       </div>

@@ -106,17 +106,23 @@ export function buildCoachAthletes(
     });
   }
 
-  // Chi ha una sessione imminente per primo, poi chi ha lavorato di recente:
-  // è l'ordine in cui un coach cerca le persone.
+  // Prima chi sta lavorando con il coach in questo periodo: sessione imminente,
+  // poi ultima sessione svolta. A parità di attività, il percorso con più
+  // sessioni completate viene prima.
   return summaries.sort((a, b) => {
     if (a.nextSessionAt && b.nextSessionAt) {
-      return a.nextSessionAt.getTime() - b.nextSessionAt.getTime();
+      const byNextSession =
+        a.nextSessionAt.getTime() - b.nextSessionAt.getTime();
+      if (byNextSession !== 0) return byNextSession;
     }
     if (a.nextSessionAt) return -1;
     if (b.nextSessionAt) return 1;
     const aLast = a.lastSessionAt?.getTime() ?? 0;
     const bLast = b.lastSessionAt?.getTime() ?? 0;
     if (aLast !== bLast) return bLast - aLast;
+    if (a.completedSessions !== b.completedSessions) {
+      return b.completedSessions - a.completedSessions;
+    }
     return a.name.localeCompare(b.name, 'it');
   });
 }

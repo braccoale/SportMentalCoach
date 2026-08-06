@@ -9,6 +9,7 @@ import {
   Youtube,
 } from 'lucide-react';
 import { getVerticalConfig, t } from '@/lib/core/config';
+import { CookieSettingsButton } from '@/components/google-analytics';
 
 const LEGAL_LINKS = [
   { href: '/terms', label: 'Termini e Condizioni' },
@@ -73,6 +74,9 @@ export function Footer() {
                 </Link>
               </li>
             ))}
+            <li>
+              <CookieSettingsButton className="hover:text-kp-hi" />
+            </li>
           </ul>
         </div>
 

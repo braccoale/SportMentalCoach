@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next';
 import { Manrope } from 'next/font/google';
 import { getSessionUser } from '@/lib/db/queries';
 import { SWRConfig } from 'swr';
+import { GoogleAnalytics } from '@/components/google-analytics';
 
 export const metadata: Metadata = {
   title: 'KaiPai — Coaching mentale per atleti e squadre',
@@ -18,6 +19,10 @@ export const viewport: Viewport = {
 };
 
 const manrope = Manrope({ subsets: ['latin'] });
+
+const googleAnalyticsId =
+  process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID?.trim() ||
+  (process.env.NODE_ENV === 'production' ? 'G-773FBGVP7J' : null);
 
 export default function RootLayout({
   children
@@ -42,6 +47,9 @@ export default function RootLayout({
         >
           {children}
         </SWRConfig>
+        {googleAnalyticsId && (
+          <GoogleAnalytics measurementId={googleAnalyticsId} />
+        )}
       </body>
     </html>
   );

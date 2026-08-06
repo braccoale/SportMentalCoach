@@ -65,6 +65,13 @@ export default function PrivacyPage() {
           browser, trattati dall’infrastruttura di hosting per servire le
           pagine e per la sicurezza.
         </li>
+        <li>
+          <strong>Dati analytics</strong>, solo se presti il consenso: pagine
+          visitate, eventi di utilizzo, informazioni sul browser e dispositivo,
+          area geografica approssimativa e identificativi pseudonimi conservati
+          nei cookie di Google Analytics. Non trasmettiamo a Google nome, email
+          o altri identificativi del tuo account.
+        </li>
       </ul>
 
       <p>
@@ -92,6 +99,14 @@ export default function PrivacyPage() {
         utenti e non prendiamo decisioni automatizzate che producano effetti
         giuridici nei tuoi confronti.
       </p>
+      <p>
+        Con il tuo <strong>consenso</strong> (art. 6.1.a GDPR) utilizziamo Google
+        Analytics per produrre statistiche aggregate e migliorare il sito. Il
+        tag non viene caricato e nessun dato viene inviato a Google prima della
+        tua scelta. Puoi rifiutare senza conseguenze sull’uso di KaiPai e puoi
+        revocare il consenso in qualsiasi momento da «Preferenze cookie» nel
+        footer.
+      </p>
 
       <h2>4. Navigazione del sito pubblico</h2>
       <p>
@@ -102,13 +117,18 @@ export default function PrivacyPage() {
         richiesta, data e ora.
       </p>
       <p>
-        Servono unicamente a consegnare le pagine, a diagnosticare i
-        malfunzionamenti e a difendere il sito dagli abusi; la base giuridica è
-        il nostro legittimo interesse a un servizio funzionante e sicuro (art.
-        6.1.f GDPR). <strong>Non li usiamo per profilare</strong> né per
-        costruire statistiche di comportamento: non abbiamo strumenti di
-        analytics. Questi log sono conservati per il breve periodo necessario
-        alla diagnostica e alla sicurezza, e comunque non oltre 12 mesi.
+        Servono a consegnare le pagine, diagnosticare i malfunzionamenti e
+        difendere il sito dagli abusi; la base giuridica è il nostro legittimo
+        interesse a un servizio funzionante e sicuro (art. 6.1.f GDPR). Questi
+        log sono conservati per il breve periodo necessario alla diagnostica e
+        alla sicurezza, e comunque non oltre 12 mesi.
+      </p>
+      <p>
+        Solo dopo il consenso, Google Analytics misura le visite e le
+        interazioni con il sito. Le funzioni pubblicitarie, Google Signals e la
+        personalizzazione degli annunci restano disattivate; non impostiamo un
+        identificativo utente collegato all’account e non usiamo Analytics per
+        profilare le persone.
       </p>
 
       <h2>5. Dati sulla salute: non li chiediamo</h2>
@@ -416,6 +436,12 @@ export default function PrivacyPage() {
           fino a quando il servizio push segnala il dispositivo come non più
           raggiungibile — nel qual caso l’iscrizione viene rimossa
           automaticamente.
+        </li>
+        <li>
+          <strong>Google Analytics</strong>: i cookie analytics scadono dopo 6
+          mesi e non vengono rinnovati a ogni visita. I dati evento associati
+          sono conservati nella proprietà Analytics per un massimo di 14 mesi;
+          revocando il consenso cancelliamo dal browser i cookie analytics.
         </li>
         <li>
           <strong>Recensioni</strong>: restano pubblicate anche dopo la
