@@ -2,6 +2,7 @@ import 'server-only';
 import { timingSafeEqual } from 'node:crypto';
 import { after } from 'next/server';
 import {
+  enqueueReadySessionCompassJobs,
   processAiNotesBatch,
   recoverStaleAiProcessingJobs,
 } from '@/lib/core/ai-session-notes/processing';
@@ -50,8 +51,12 @@ function requestedLimit(request: Request): number {
 async function drainQueue(workerId: string, limit: number) {
   const dependencies = createProductionAiSessionNotesDependencies();
   const recovered = await recoverStaleAiProcessingJobs({ limit });
+  const compassJobsQueued = await enqueueReadySessionCompassJobs(
+    { limit },
+    dependencies
+  );
   const processed = await processAiNotesBatch({ workerId, limit }, dependencies);
-  return { recovered, ...processed };
+  return { recovered, compassJobsQueued, ...processed };
 }
 
 async function runWorker(request: Request): Promise<Response> {

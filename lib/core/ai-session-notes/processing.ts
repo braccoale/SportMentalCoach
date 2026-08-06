@@ -9,11 +9,11 @@ import {
   sessionAudioRecordings,
   sessionParticipantRecordings,
   sessionTranscriptSegments,
+  sessionTranscriptTimelineSegments,
   type AiProcessingJobStatus,
   type AiProcessingJobType,
 } from '@/lib/db/schema';
 import {
-  getSessionReportProvider,
   getSpeechToTextProvider,
 } from './providers';
 import {
@@ -175,7 +175,9 @@ export async function enqueueAiProcessingJob(params: {
         provider:
           params.jobType === 'transcription'
             ? getSpeechToTextProvider().name
-            : 'disabled',
+            : params.jobType === 'report_generation'
+              ? 'openai'
+              : 'disabled',
         maxAttempts,
         availableAfter: params.availableAfter ?? new Date(),
         idempotencyKey: params.idempotencyKey,
@@ -372,6 +374,60 @@ export async function enqueueNormalizationIfReady(
   return !queued.duplicate;
 }
 
+/**
+ * Accoda il Session Compass appena esiste una timeline normalizzata.
+ * La chiave è per sessione: il worker genera la prima bozza una sola volta;
+ * le rigenerazioni successive restano un'azione esplicita del coach.
+ */
+export async function enqueueSessionCompassIfReady(
+  sessionId: number,
+  dependencies: AiSessionNotesDependencies
+): Promise<boolean> {
+  const [timeline] = await dependencies.db
+    .select({ id: sessionTranscriptTimelineSegments.id })
+    .from(sessionTranscriptTimelineSegments)
+    .where(eq(sessionTranscriptTimelineSegments.sessionAiNotesId, sessionId))
+    .limit(1);
+  if (!timeline) return false;
+  const queued = await enqueueAiProcessingJob({
+    sessionId,
+    jobType: 'report_generation',
+    idempotencyKey: `session-compass:auto:${sessionId}`,
+    availableAfter: dependencies.clock.now(),
+    executor: dependencies.db,
+  });
+  return !queued.duplicate;
+}
+
+/** Recupera sessioni già trascritte che una vecchia corsa ha lasciato a metà. */
+export async function enqueueReadySessionCompassJobs(
+  params: { limit: number },
+  dependencies: AiSessionNotesDependencies
+): Promise<number> {
+  const limit = Math.max(1, Math.min(params.limit, 100));
+  const rows = (await dependencies.db.execute(sql`
+    SELECT s.id
+    FROM session_ai_notes s
+    WHERE s.status = 'processing'
+      AND EXISTS (
+        SELECT 1 FROM session_transcript_timeline_segments t
+        WHERE t.session_ai_notes_id = s.id
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM session_ai_processing_jobs j
+        WHERE j.session_ai_notes_id = s.id
+          AND j.job_type = 'report_generation'
+      )
+    ORDER BY s.processing_started_at, s.id
+    LIMIT ${limit}
+  `)) as unknown as Array<{ id: number }>;
+  let queued = 0;
+  for (const row of rows) {
+    if (await enqueueSessionCompassIfReady(row.id, dependencies)) queued += 1;
+  }
+  return queued;
+}
+
 function sanitizeFailure(error: unknown): { code: string; message: string } {
   if (error instanceof AiNotesProcessingError) {
     return { code: error.code, message: error.message.slice(0, 500) };
@@ -387,7 +443,7 @@ export async function failAiProcessingJob(params: {
   return dependencies.db.transaction(async (tx) => {
     const rows = await tx.execute(sql`
       SELECT j.id, j.session_ai_notes_id, j.attempt_count, j.max_attempts,
-             s.requested_by
+             j.job_type, s.requested_by
       FROM session_ai_processing_jobs j
       JOIN session_ai_notes s ON s.id = j.session_ai_notes_id
       WHERE j.id = ${params.jobId}
@@ -400,6 +456,7 @@ export async function failAiProcessingJob(params: {
       session_ai_notes_id: number;
       attempt_count: number;
       max_attempts: number;
+      job_type: AiProcessingJobType;
       requested_by: number;
     }>)[0];
     if (!job) return null;
@@ -433,6 +490,17 @@ export async function failAiProcessingJob(params: {
       metadata: { errorCode: failure.code, retrying: nextStatus === 'queued' },
       occurredAt: now,
     });
+    if (nextStatus === 'failed') {
+      await advanceAiNotesSessionStatus({
+        sessionId: job.session_ai_notes_id,
+        nextStatus:
+          job.job_type === 'report_generation'
+            ? 'report_failed'
+            : 'transcription_failed',
+        actorUserId: job.requested_by,
+        executor: tx,
+      });
+    }
     return nextStatus;
   });
 }
@@ -607,14 +675,31 @@ export async function processAiNotesBatch(params: {
           );
         }
       } else if (job.job_type === 'report_generation') {
-        const { provider } = getSessionReportProvider();
-        const output = await provider.generate({ sessionId: job.session_ai_notes_id });
+        if (!dependencies.generateSessionCompass) {
+          throw new AiNotesProcessingError(
+            'PROVIDER_NOT_CONFIGURED',
+            'Generatore Session Compass non configurato.'
+          );
+        }
+        const output = await dependencies.generateSessionCompass({
+          sessionId: job.session_ai_notes_id,
+          actorUserId: job.requested_by,
+        });
         if (await completeAiProcessingJob({ jobId: job.id, workerId: params.workerId, providerOperationId: output.providerOperationId }, dependencies)) {
           result.completed += 1;
+          await advanceAiNotesSessionStatus({
+            sessionId: job.session_ai_notes_id,
+            nextStatus: 'ready_for_review',
+            actorUserId: job.requested_by,
+            executor: dependencies.db,
+          });
         }
       } else {
         await rebuildSessionTimeline(job.session_ai_notes_id, job.requested_by);
-        if (await completeAiProcessingJob({ jobId: job.id, workerId: params.workerId }, dependencies)) result.completed += 1;
+        if (await completeAiProcessingJob({ jobId: job.id, workerId: params.workerId }, dependencies)) {
+          result.completed += 1;
+          await enqueueSessionCompassIfReady(job.session_ai_notes_id, dependencies);
+        }
       }
     } catch (error) {
       if (error instanceof AiNotesProcessingError && error.code === 'SESSION_NOT_PROCESSABLE') {
