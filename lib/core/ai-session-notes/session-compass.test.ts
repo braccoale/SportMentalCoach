@@ -551,3 +551,16 @@ test('l’atleta non raggiunge gli impegni operativi attraverso il Compass', asy
     (error: unknown) => error instanceof SessionCompassError && error.code === 'FORBIDDEN'
   );
 });
+
+test('la bozza si genera già in `processing`, appena la trascrizione è pronta', async () => {
+  // `processing` è lo stato in cui la trascrizione esiste e il report non
+  // ancora: è esattamente il momento in cui la bozza va prodotta. Pretendere
+  // `ready_for_review` creava un vicolo cieco — quello stato si raggiunge solo
+  // *generando* la bozza, quindi non si generava mai nulla.
+  const inProgress = harness({ session: session({ sessionStatus: 'processing' }) });
+  const draft = await ensureSessionCompassDraft(
+    { sessionId: SESSION_ID, actorUserId: COACH_ID },
+    inProgress.dependencies
+  );
+  assert.ok(draft);
+});
