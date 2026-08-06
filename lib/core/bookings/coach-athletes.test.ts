@@ -122,6 +122,34 @@ test('l’ultima sessione conta solo quelle davvero completate', () => {
   assert.equal(a.completedSessions, 1);
 });
 
+test('espone il Compass della sessione conclusa più recente con report pronto', () => {
+  const [athlete] = buildCoachAthletes(
+    [
+      booking({
+        id: 1,
+        clientId: 7,
+        sessionEndedAt: new Date('2026-08-01T10:00:00Z'),
+        aiNotesStatus: 'approved',
+      }),
+      booking({
+        id: 2,
+        clientId: 7,
+        sessionEndedAt: new Date('2026-08-04T10:00:00Z'),
+        aiNotesStatus: 'ready_for_review',
+      }),
+      booking({
+        id: 3,
+        clientId: 7,
+        sessionEndedAt: new Date('2026-08-05T10:00:00Z'),
+        aiNotesStatus: 'processing',
+      }),
+    ],
+    NOW
+  );
+
+  assert.equal(athlete.latestCompassBookingId, 2);
+});
+
 test('il profilo viene letto dalla prenotazione più recente', () => {
   const [a] = buildCoachAthletes(
     [

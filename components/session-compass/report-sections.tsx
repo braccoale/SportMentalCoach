@@ -24,7 +24,7 @@ import type {
   SessionCompassReport,
 } from '@/lib/core/ai-session-notes/session-compass-contract';
 import { SessionContinuityCard } from './journey-panel';
-import { EmotionalTrendChart, SessionMetricGauges } from './charts';
+import { EmotionalTrendChart } from './charts';
 import { formatTranscriptTimestamp } from './time';
 import {
   SPEAKER_LABEL,
@@ -276,14 +276,6 @@ export function SessionOverview({
           </div>
         ) : null}
       </Surface>
-
-      <SessionMetricGauges
-        metrics={overview.metrics ?? []}
-        participation={overview.conversationParticipation}
-        tone={overview.conversationTone}
-        isApproved={isApproved}
-        onOpenEvidence={onOpenEvidence}
-      />
 
       {(overview.emotionalTrend?.length ?? 0) > 0 ? <EmotionalTrendChart points={overview.emotionalTrend ?? []} onOpenEvidence={onOpenEvidence} /> : null}
 

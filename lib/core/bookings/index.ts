@@ -431,6 +431,7 @@ export type ParticipantBooking = {
   status: string;
   scheduledFor: Date | null;
   sessionStartedAt: Date | null;
+  sessionEndedAt: Date | null;
   serviceTitle: string | null;
   durationMin: number | null;
   coachName: string | null;
@@ -456,6 +457,7 @@ export async function getParticipantBooking(
       status: bookings.status,
       scheduledFor: bookings.scheduledFor,
       sessionStartedAt: bookings.sessionStartedAt,
+      sessionEndedAt: bookings.sessionEndedAt,
       serviceTitle: services.title,
       durationMin: effectiveBookingDurationMin,
       clientId: bookings.clientId,
@@ -499,6 +501,7 @@ export async function getParticipantBooking(
     status: booking.status,
     scheduledFor: booking.scheduledFor,
     sessionStartedAt: booking.sessionStartedAt,
+    sessionEndedAt: booking.sessionEndedAt,
     serviceTitle: booking.serviceTitle,
     durationMin: booking.durationMin,
     coachName: coach?.name ?? null,

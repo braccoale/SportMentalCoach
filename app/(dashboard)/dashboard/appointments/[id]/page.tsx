@@ -6,14 +6,15 @@ import {
   CheckCircle2,
   Clock3,
   MessageSquare,
-  UserRound,
-  Video,
   X,
 } from 'lucide-react';
 import { ActionForm } from '@/components/action-form';
 import { AddToGoogleCalendarButton } from '@/components/add-to-google-calendar-button';
 import { EditAppointmentButton } from '@/components/edit-appointment-button';
-import { SessionCompassPanel } from '@/components/session-compass-panel';
+import {
+  SessionCompassHeaderGauges,
+  SessionCompassPanel,
+} from '@/components/session-compass-panel';
 import { Button } from '@/components/ui/button';
 import { VideoCallButton } from '@/components/video-call-button';
 import { getAppBaseUrl } from '@/lib/core/app-url';
@@ -22,10 +23,7 @@ import {
   getCoachAvailabilityByProviderId,
   getCoachBusyIntervalsByProviderIds,
 } from '@/lib/core/availability';
-import {
-  buildBookingCalendarEvent,
-  BOOKING_TIME_ZONE,
-} from '@/lib/core/booking-calendar';
+import { buildBookingCalendarEvent } from '@/lib/core/booking-calendar';
 import { bookingStatusLabel, getParticipantBooking } from '@/lib/core/bookings';
 import { FEATURE_CODES, hasFeatureEntitlement } from '@/lib/core/features';
 import {
@@ -33,6 +31,7 @@ import {
   formatMinutes,
   formatRomeDateValue,
   formatTime,
+  getSessionDurationMinutes,
 } from '@/lib/core/format';
 import { getAiNotesSessionForBooking } from '@/lib/core/ai-session-notes';
 import {
@@ -124,6 +123,12 @@ export default async function AppointmentDetailPage({
       aiNotesEnabled,
       hasAiNotesSession: !!aiNotesSession,
     }) && !!aiNotesSession;
+  const realDurationMin = getSessionDurationMinutes(
+    booking.sessionStartedAt,
+    booking.sessionEndedAt
+  );
+  const displayedDurationMin = realDurationMin ?? booking.durationMin;
+  const showCompassGauges = !isOpen && showAiReport && !!aiNotesSession;
 
   return (
     <section
@@ -169,19 +174,10 @@ export default async function AppointmentDetailPage({
                 {booking.scheduledFor ? formatDateTime(booking.scheduledFor) : 'Da concordare'}
               </Meta>
               <Meta icon={<CalendarCheck className="h-4 w-4" />} label="Durata">
-                {booking.durationMin ? formatMinutes(booking.durationMin) : 'Durata non definita'}
+                {displayedDurationMin
+                  ? formatMinutes(displayedDurationMin)
+                  : 'Durata non definita'}
               </Meta>
-              <Meta icon={<UserRound className="h-4 w-4" />} label="Partecipante">
-                {counterpart}
-              </Meta>
-              <Meta icon={<Video className="h-4 w-4" />} label="Modalità">
-                Online · {BOOKING_TIME_ZONE}
-              </Meta>
-              {booking.serviceTitle ? (
-                <Meta icon={<span className="h-1.5 w-1.5 rounded-full bg-violet-500" />} label="Percorso">
-                  {booking.serviceTitle}
-                </Meta>
-              ) : null}
             </dl>
           </div>
 
@@ -205,46 +201,48 @@ export default async function AppointmentDetailPage({
           </div>
         </div>
 
-        <div className="mt-5 flex flex-col gap-3 border-t border-gray-100 pt-5">
-          {!calendarEvent && isOpen ? (
-            <p className="text-sm text-gray-500">{calendarUnavailableMessage}</p>
-          ) : null}
-          {!isOpen ? (
-            <p className="text-sm text-gray-500">
-              Le sessioni concluse, annullate, rifiutate o scadute non possono essere aggiunte al calendario.
-            </p>
-          ) : null}
-          <div className="flex flex-wrap items-start gap-3">
-            {isOpen && booking.scheduledFor ? (
-              <EditAppointmentButton
-                bookingId={booking.id}
-                bookableDays={bookableDays}
-                currentDay={formatRomeDateValue(booking.scheduledFor)}
-                currentTime={formatTime(booking.scheduledFor)}
-                durationMin={booking.durationMin ?? DEFAULT_SERVICE_DURATION_MIN}
-              />
+        {isOpen || showCompassGauges ? (
+          <div className="mt-5 flex flex-col gap-3 border-t border-gray-100 pt-5">
+            {!calendarEvent && isOpen ? (
+              <p className="text-sm text-gray-500">{calendarUnavailableMessage}</p>
             ) : null}
-            <AddToGoogleCalendarButton
-              url={calendarEvent?.url ?? null}
-              uiSource={created ? 'booking_confirmation' : 'appointment_detail'}
-              userRole={booking.viewerRole}
-              compact
-            />
-            {canCancel ? (
-              <ActionForm
-                action={cancelAction}
-                confirmTitle="Annullare la sessione?"
-                confirmMessage="La sessione verrà annullata. Potrai prenotarne una nuova in qualsiasi momento."
-                confirmActionLabel="Annulla sessione"
-              >
-                <input type="hidden" name="bookingId" value={booking.id} />
-                <Button type="submit" variant="destructive" className="rounded-full">
-                  <X className="h-4 w-4" /> Annulla
-                </Button>
-              </ActionForm>
+            {showCompassGauges && aiNotesSession ? (
+              <SessionCompassHeaderGauges sessionId={aiNotesSession.id} />
+            ) : null}
+            {isOpen ? (
+              <div className="flex flex-wrap items-start gap-3">
+                {booking.scheduledFor ? (
+                  <EditAppointmentButton
+                    bookingId={booking.id}
+                    bookableDays={bookableDays}
+                    currentDay={formatRomeDateValue(booking.scheduledFor)}
+                    currentTime={formatTime(booking.scheduledFor)}
+                    durationMin={booking.durationMin ?? DEFAULT_SERVICE_DURATION_MIN}
+                  />
+                ) : null}
+                <AddToGoogleCalendarButton
+                  url={calendarEvent?.url ?? null}
+                  uiSource={created ? 'booking_confirmation' : 'appointment_detail'}
+                  userRole={booking.viewerRole}
+                  compact
+                />
+                {canCancel ? (
+                  <ActionForm
+                    action={cancelAction}
+                    confirmTitle="Annullare la sessione?"
+                    confirmMessage="La sessione verrà annullata. Potrai prenotarne una nuova in qualsiasi momento."
+                    confirmActionLabel="Annulla sessione"
+                  >
+                    <input type="hidden" name="bookingId" value={booking.id} />
+                    <Button type="submit" variant="destructive" className="rounded-full">
+                      <X className="h-4 w-4" /> Annulla
+                    </Button>
+                  </ActionForm>
+                ) : null}
+              </div>
             ) : null}
           </div>
-        </div>
+        ) : null}
       </div>
 
       {showAiReport && aiNotesSession ? (

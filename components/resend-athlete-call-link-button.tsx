@@ -50,14 +50,15 @@ export function ResendAthleteCallLinkButton({
 }: {
   bookingId: number;
   athleteName: string;
-  appearance?: 'standard' | 'room';
+  appearance?: 'standard' | 'room' | 'room-compact';
 }) {
   const [pending, setPending] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [open, setOpen] = useState(false);
-  const inRoom = appearance === 'room';
+  const inRoom = appearance === 'room' || appearance === 'room-compact';
+  const compactRoom = appearance === 'room-compact';
 
   const prepareLink = useCallback(async () => {
     if (url || pending) return;
@@ -69,7 +70,7 @@ export function ResendAthleteCallLinkButton({
         setError(result.error);
         return;
       }
-      setUrl(result.url);
+      setUrl(new URL(result.path, window.location.origin).toString());
     } catch {
       setError('Non è stato possibile preparare il link. Riprova.');
     } finally {
@@ -112,19 +113,24 @@ export function ResendAthleteCallLinkButton({
     : '#';
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenu
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (nextOpen) void prepareLink();
+      }}
+    >
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
           variant="outline"
-          onClick={() => void prepareLink()}
           disabled={pending}
           aria-label={`Invia a ${athleteName} il link per rientrare nella videochiamata`}
           className={`rounded-full ${
             inRoom
               ? 'border-white/30 bg-white/10 text-white shadow-none hover:bg-white/20 hover:text-white'
               : ''
-          }`}
+          } ${compactRoom ? 'w-full justify-center' : ''}`}
         >
           {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           {pending ? 'Preparo il link…' : 'Invia link atleta'}
@@ -170,8 +176,13 @@ export function ResendAthleteCallLinkButton({
             </DropdownMenuItem>
           </>
         ) : (
-          <p className="px-2 py-2 text-sm text-red-600" role="alert">
-            {error ?? 'Link non disponibile.'}
+          <p
+            className={`px-2 py-2 text-sm ${
+              error ? 'text-red-600' : 'text-muted-foreground'
+            }`}
+            role={error ? 'alert' : 'status'}
+          >
+            {error ?? 'Preparo il link sicuro…'}
           </p>
         )}
         {error && url && (

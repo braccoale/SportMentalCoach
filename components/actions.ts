@@ -12,7 +12,7 @@ type GuestLinkResult =
   | { ok: false; error: string };
 
 type AthleteCallLinkResult =
-  | { ok: true; url: string }
+  | { ok: true; path: string }
   | { ok: false; error: string };
 
 const ERROR_BY_REASON = {
@@ -94,16 +94,11 @@ export async function createAthleteCallLink(
     return { ok: false, error: 'La finestra della videochiamata è terminata.' };
   }
 
-  const baseUrl = getAppBaseUrl();
-  if (!baseUrl) {
-    return {
-      ok: false,
-      error: 'Indirizzo pubblico di KaiPai non configurato.',
-    };
-  }
-
   return {
     ok: true,
-    url: new URL(`/dashboard/video/${bookingId}`, baseUrl).toString(),
+    // Deliberately return only an authenticated application path. The browser
+    // resolves it against the active public origin, avoiding a stale/missing
+    // deployment URL while never exposing a room credential.
+    path: `/dashboard/video/${bookingId}`,
   };
 }

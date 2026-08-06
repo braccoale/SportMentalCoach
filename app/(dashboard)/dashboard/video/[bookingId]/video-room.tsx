@@ -458,7 +458,7 @@ function ConnectedVideoRoom({
               {controls.includes('share') && (
                 <ShareButton bookingId={bookingId} appearance="room" />
               )}
-              {controls.includes('share') && viewerIsCoach && (
+              {controls.includes('share') && viewerIsCoach && isCompact !== true && (
                 <ResendAthleteCallLinkButton
                   bookingId={bookingId}
                   athleteName={counterpartName ?? 'l’atleta'}
@@ -466,6 +466,15 @@ function ConnectedVideoRoom({
                 />
               )}
             </div>
+            {controls.includes('share') && viewerIsCoach && isCompact === true && (
+              <div className="order-last w-full">
+                <ResendAthleteCallLinkButton
+                  bookingId={bookingId}
+                  athleteName={counterpartName ?? 'l’atleta'}
+                  appearance="room-compact"
+                />
+              </div>
+            )}
           </div>
           <div className="relative min-h-0 flex-1">
             {/* VideoConference renders its own RoomAudioRenderer internally —

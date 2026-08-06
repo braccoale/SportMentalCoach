@@ -37,6 +37,7 @@ import {
 } from './session-compass/journey-panel';
 import { TranscriptPanel } from './session-compass/transcript-panel';
 import { TranscriptHistorySearch } from './session-compass/transcript-history-search';
+import { SessionMetricGauges } from './session-compass/charts';
 import {
   segmentAnchorId,
   type CompassTabId,
@@ -101,6 +102,67 @@ async function requestJson(
   const payload: unknown = await response.json().catch(() => null);
   if (!response.ok) throw new Error(apiErrorMessage(payload));
   return payload;
+}
+
+const REPORT_UPDATED_EVENT = 'kaipai:session-compass-report-updated';
+const OPEN_EVIDENCE_EVENT = 'kaipai:session-compass-open-evidence';
+
+type CompassReportEventDetail = {
+  sessionId: number;
+  report: SessionCompassView | null;
+};
+
+function readCompassReport(payload: unknown): SessionCompassView | null {
+  return isRecord(payload)
+    ? (payload.report ?? null) as SessionCompassView | null
+    : null;
+}
+
+/** Compact, coach-only placement of the report gauges in the session header. */
+export function SessionCompassHeaderGauges({ sessionId }: { sessionId: number }) {
+  const endpoint = `/api/coach/ai-session-notes/${sessionId}/compass`;
+  const [report, setReport] = useState<SessionCompassView | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void requestJson(endpoint, 'GET')
+      .then((payload) => {
+        if (!cancelled) setReport(readCompassReport(payload));
+      })
+      .catch(() => {
+        if (!cancelled) setReport(null);
+      });
+
+    const onReportUpdated = (event: Event) => {
+      if (!(event instanceof CustomEvent)) return;
+      const detail = event.detail as Partial<CompassReportEventDetail> | null;
+      if (detail?.sessionId === sessionId) setReport(detail.report ?? null);
+    };
+    window.addEventListener(REPORT_UPDATED_EVENT, onReportUpdated);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(REPORT_UPDATED_EVENT, onReportUpdated);
+    };
+  }, [endpoint, sessionId]);
+
+  const overview = report?.document?.sessionOverview;
+  if (!overview) return null;
+
+  return (
+    <SessionMetricGauges
+      metrics={overview.metrics ?? []}
+      participation={overview.conversationParticipation}
+      tone={overview.conversationTone}
+      isApproved={report.isApproved}
+      onOpenEvidence={(segmentId) => {
+        window.dispatchEvent(
+          new CustomEvent(OPEN_EVIDENCE_EVENT, {
+            detail: { sessionId, segmentId },
+          })
+        );
+      }}
+    />
+  );
 }
 
 export function SessionCompassStatusBanner({ report }: { report: SessionCompassView | null }) {
@@ -211,11 +273,15 @@ export function SessionCompassPanel({
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const applyReport = useCallback((payload: unknown) => {
-    if (!isRecord(payload)) return;
-    const next = (payload.report ?? null) as SessionCompassView | null;
+    const next = readCompassReport(payload);
     setReport(next);
     setCoachNote(next?.document?.coachNote ?? '');
-  }, []);
+    window.dispatchEvent(
+      new CustomEvent<CompassReportEventDetail>(REPORT_UPDATED_EVENT, {
+        detail: { sessionId, report: next },
+      })
+    );
+  }, [sessionId]);
 
   const loadReport = useCallback(async () => {
     setLoading(true);
@@ -312,6 +378,22 @@ export function SessionCompassPanel({
     setActiveTab('transcript');
   }
 
+  useEffect(() => {
+    const onOpenEvidence = (event: Event) => {
+      if (!(event instanceof CustomEvent)) return;
+      const detail = event.detail as { sessionId?: unknown; segmentId?: unknown } | null;
+      if (
+        detail?.sessionId !== sessionId ||
+        !Number.isInteger(detail.segmentId)
+      ) {
+        return;
+      }
+      openEvidence(Number(detail.segmentId));
+    };
+    window.addEventListener(OPEN_EVIDENCE_EVENT, onOpenEvidence);
+    return () => window.removeEventListener(OPEN_EVIDENCE_EVENT, onOpenEvidence);
+  }, [sessionId]);
+
   function openTranscript(targetSessionId: number, segmentId?: number) {
     setTranscriptSessionId(targetSessionId);
     setHighlightedSegmentId(segmentId ?? null);
@@ -336,7 +418,11 @@ export function SessionCompassPanel({
   }
 
   return (
-    <section aria-labelledby="session-compass-title" className="min-w-0 w-full max-w-full overflow-hidden">
+    <section
+      id="session-compass"
+      aria-labelledby="session-compass-title"
+      className="min-w-0 w-full max-w-full overflow-hidden"
+    >
       <div className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-sm">
         <div className="flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 items-start gap-4">

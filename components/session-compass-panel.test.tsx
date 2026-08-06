@@ -18,6 +18,7 @@ import {
   type SessionCompassReport,
 } from '@/lib/core/ai-session-notes/session-compass-contract';
 import { SessionOverview } from './session-compass/report-sections';
+import { SessionMetricGauges } from './session-compass/charts';
 
 function evidence(segmentId: number, minute: number, quote: string) {
   return {
@@ -171,28 +172,20 @@ test('la panoramica segnala i dati non disponibili senza inventare metriche', ()
   assert.doesNotMatch(html, />0\/5</);
 });
 
-test('le metriche mostrano livello di evidenza, origine e validazione senza diventare micro-card su mobile', () => {
+test('i gauge mostrano livello di evidenza, origine e validazione senza diventare micro-card su mobile', () => {
   const html = renderToStaticMarkup(
-    <SessionOverview
-      report={document({
-        sessionOverview: {
-          ...document().sessionOverview,
-          metrics: [
-            {
-              id: 'metric-confidence',
-              key: 'confidence',
-              value: 4,
-              confidence: 'high',
-              evidence: evidence(4, 2, 'mi sento più pronto'),
-            },
-          ],
-        },
-      })}
+    <SessionMetricGauges
+      metrics={[{
+        id: 'metric-confidence',
+        key: 'confidence',
+        value: 4,
+        confidence: 'high',
+        evidence: evidence(4, 2, 'mi sento più pronto'),
+      }]}
+      participation={null}
+      tone={null}
       isApproved={false}
-      previousJourneyEntry={null}
       onOpenEvidence={() => undefined}
-      onOpenMoments={() => undefined}
-      onOpenNotes={() => undefined}
     />
   );
 

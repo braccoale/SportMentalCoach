@@ -32,6 +32,8 @@ export type CoachAthleteSummary = {
   nextSessionAt: Date | null;
   /** Ultima sessione svolta, se c'è. */
   lastSessionAt: Date | null;
+  /** Ultima sessione con un Session Compass pronto per la consultazione. */
+  latestCompassBookingId: number | null;
   /**
    * "In percorso" quando esiste almeno una prenotazione aperta — richiesta o
    * confermata. Altrimenti l'atleta ha lavorato con il coach in passato.
@@ -86,6 +88,18 @@ export function buildCoachAthletes(
     const held = list
       .filter((b) => DONE_STATUSES.includes(b.status) && heldAt(b) != null)
       .sort((a, b) => heldAt(b)!.getTime() - heldAt(a)!.getTime())[0];
+    const latestCompass = list
+      .filter(
+        (b) =>
+          DONE_STATUSES.includes(b.status) &&
+          ['ready_for_review', 'approved', 'shared'].includes(
+            b.aiNotesStatus ?? ''
+          )
+      )
+      .sort(
+        (a, b) =>
+          (heldAt(b)?.getTime() ?? 0) - (heldAt(a)?.getTime() ?? 0)
+      )[0];
 
     summaries.push({
       userId,
@@ -100,6 +114,7 @@ export function buildCoachAthletes(
       pendingRequests: list.filter((b) => b.status === 'requested').length,
       nextSessionAt: upcoming?.scheduledFor ?? null,
       lastSessionAt: held ? heldAt(held) : null,
+      latestCompassBookingId: latestCompass?.id ?? null,
       status: list.some((b) => ACTIVE_STATUSES.includes(b.status))
         ? 'active'
         : 'past',

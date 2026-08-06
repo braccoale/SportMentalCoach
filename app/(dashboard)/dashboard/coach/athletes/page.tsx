@@ -1,7 +1,14 @@
 import Link from 'next/link';
-import { ArrowRight, CalendarCheck, Hourglass, ShieldAlert } from 'lucide-react';
+import {
+  ArrowRight,
+  CalendarCheck,
+  Compass,
+  Hourglass,
+  ShieldAlert,
+} from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
 import { getCoachBookings } from '@/lib/core/bookings';
+import { FEATURE_CODES, hasFeatureEntitlement } from '@/lib/core/features';
 import {
   buildCoachAthletes,
   type CoachAthleteSummary,
@@ -18,72 +25,85 @@ function AthleteRow({
   athlete,
   sportLabel,
   levelLabel,
+  canOpenCompass,
 }: {
   athlete: CoachAthleteSummary;
   sportLabel: string | null;
   levelLabel: string | null;
+  canOpenCompass: boolean;
 }) {
   return (
     <li>
-      <Link
-        href={`/dashboard/coach/athletes/${athlete.userId}`}
-        className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 transition hover:border-blue-300 hover:shadow-sm"
-      >
-        <CoachAvatar
-          name={athlete.name}
-          src={athlete.avatarUrl}
-          className="size-12 shrink-0"
-        />
+      <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4 transition hover:border-blue-300 hover:shadow-sm">
+        <Link
+          href={`/dashboard/coach/athletes/${athlete.userId}`}
+          className="flex min-w-0 flex-1 items-center gap-4"
+        >
+          <CoachAvatar
+            name={athlete.name}
+            src={athlete.avatarUrl}
+            className="size-12 shrink-0"
+          />
 
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="truncate font-semibold text-gray-900">
-              {athlete.name}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="truncate font-semibold text-gray-900">
+                {athlete.name}
+              </p>
+              {athlete.isMinor && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
+                  <ShieldAlert className="h-3 w-3" />
+                  Minorenne
+                </span>
+              )}
+              {athlete.pendingRequests > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700">
+                  <Hourglass className="h-3 w-3" />
+                  {athlete.pendingRequests} da valutare
+                </span>
+              )}
+            </div>
+
+            <p className="mt-0.5 truncate text-sm text-gray-500">
+              {[
+                sportLabel,
+                levelLabel,
+                `${athlete.completedSessions} ${
+                  athlete.completedSessions === 1 ? 'sessione' : 'sessioni'
+                }`,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             </p>
-            {athlete.isMinor && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
-                <ShieldAlert className="h-3 w-3" />
-                Minorenne
-              </span>
-            )}
-            {athlete.pendingRequests > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700">
-                <Hourglass className="h-3 w-3" />
-                {athlete.pendingRequests} da valutare
-              </span>
-            )}
+
+            <p className="mt-1 text-sm">
+              {athlete.nextSessionAt ? (
+                <span className="inline-flex items-center gap-1.5 font-medium text-green-700">
+                  <CalendarCheck className="h-4 w-4" />
+                  Prossima: {formatDateTime(athlete.nextSessionAt)}
+                </span>
+              ) : athlete.lastSessionAt ? (
+                <span className="text-gray-500">
+                  Ultima sessione il {formatDate(athlete.lastSessionAt)}
+                </span>
+              ) : (
+                <span className="text-gray-400">Nessuna sessione svolta</span>
+              )}
+            </p>
           </div>
 
-          <p className="mt-0.5 truncate text-sm text-gray-500">
-            {[
-              sportLabel,
-              levelLabel,
-              `${athlete.completedSessions} ${
-                athlete.completedSessions === 1 ? 'sessione' : 'sessioni'
-              }`,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </p>
-
-          <p className="mt-1 text-sm">
-            {athlete.nextSessionAt ? (
-              <span className="inline-flex items-center gap-1.5 font-medium text-green-700">
-                <CalendarCheck className="h-4 w-4" />
-                Prossima: {formatDateTime(athlete.nextSessionAt)}
-              </span>
-            ) : athlete.lastSessionAt ? (
-              <span className="text-gray-500">
-                Ultima sessione il {formatDate(athlete.lastSessionAt)}
-              </span>
-            ) : (
-              <span className="text-gray-400">Nessuna sessione svolta</span>
-            )}
-          </p>
-        </div>
-
-        <ArrowRight className="h-5 w-5 shrink-0 text-gray-300" />
-      </Link>
+          <ArrowRight className="h-5 w-5 shrink-0 text-gray-300" />
+        </Link>
+        {canOpenCompass && athlete.latestCompassBookingId ? (
+          <Link
+            href={`/dashboard/appointments/${athlete.latestCompassBookingId}#session-compass`}
+            className="inline-flex shrink-0 items-center gap-2 rounded-full bg-violet-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
+          >
+            <Compass className="h-4 w-4" />
+            <span className="hidden sm:inline">Apri </span>Session Compass
+          </Link>
+        ) : null}
+      </div>
     </li>
   );
 }
@@ -92,7 +112,10 @@ export default async function CoachAthletesPage() {
   const user = await requireRole('coach');
   const config = getVerticalConfig();
 
-  const bookings = await getCoachBookings(user.id);
+  const [bookings, hasAiSessionNotes] = await Promise.all([
+    getCoachBookings(user.id),
+    hasFeatureEntitlement(user.id, FEATURE_CODES.AI_SESSION_NOTES),
+  ]);
   const athletes = buildCoachAthletes(bookings);
 
   return (
@@ -120,6 +143,7 @@ export default async function CoachAthletesPage() {
             <AthleteRow
               key={athlete.userId}
               athlete={athlete}
+              canOpenCompass={hasAiSessionNotes}
               levelLabel={
                 athlete.level
                   ? (findTaxonomyItem(
