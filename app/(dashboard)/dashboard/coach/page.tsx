@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { after } from 'next/server';
 import type { ReactNode } from 'react';
 import {
   Hourglass,
@@ -82,6 +83,7 @@ import { ShareButton } from '@/components/share-button';
 import { EditAppointmentButton } from '@/components/edit-appointment-button';
 import { VideoCallButton } from '@/components/video-call-button';
 import { buildAiSessionArchiveIndicator } from '@/lib/core/ai-session-notes/archive-indicator';
+import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger';
 
 /** Sort key for the archive: when the session actually happened, newest first. */
 function archiveRecency(b: CoachBooking): number {
@@ -128,6 +130,22 @@ export default async function CoachDashboardPage() {
     getCoachAvailability(user.id),
     hasFeatureEntitlement(user.id, FEATURE_CODES.AI_SESSION_NOTES),
   ]);
+
+  // Rete di sicurezza: se il webhook ha accodato la trascrizione ma il suo
+  // risveglio HTTP è fallito, l'apertura della dashboard del coach riprova.
+  // La coda usa claim atomici/idempotenti, quindi richiami concorrenti non
+  // duplicano il lavoro e la risposta della pagina non resta in attesa.
+  if (
+    hasAiSessionNotes &&
+    allBookings.some((booking) => booking.aiNotesStatus === 'processing')
+  ) {
+    after(async () => {
+      const outcome = await triggerAiNotesWorker();
+      if (outcome !== 'triggered') {
+        console.warn('[Coach dashboard] worker Appunti AI non svegliato', { outcome });
+      }
+    });
+  }
   // Same Rome-derived day/time options the athlete sees, so the coach can't
   // pick a slot their own availability would reject on submit.
   const bookableDays = getBookableDays(coachAvailability, {
