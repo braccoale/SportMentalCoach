@@ -31,6 +31,11 @@ export type CoachOnboarding = {
   isSubmitted: boolean;
 };
 
+export type CoachOnboardingProfile = Pick<
+  ProviderProfile,
+  'headline' | 'description' | 'categories' | 'specialties' | 'status'
+>;
+
 /**
  * Derives the coach's onboarding progress from existing data — no extra
  * columns. Step completion:
@@ -70,7 +75,7 @@ export async function getCoachOnboarding(
  * dashboard) to avoid re-querying.
  */
 export function computeCoachOnboarding(
-  provider: ProviderProfile,
+  provider: CoachOnboardingProfile,
   serviceCount: number
 ): CoachOnboarding {
   const profileDone =

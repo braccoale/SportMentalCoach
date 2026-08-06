@@ -2,6 +2,8 @@ import Link from 'next/link';
 import {
   Award,
   CalendarDays,
+  CheckCircle2,
+  CircleAlert,
   Hourglass,
   Send,
   ShieldCheck,
@@ -58,6 +60,52 @@ function statusBadge(status: string) {
   );
 }
 
+function ProviderRequirements({ p }: { p: ProviderReviewItem }) {
+  if (p.status !== 'draft' && p.status !== 'rejected') return null;
+
+  const contentSteps = p.onboarding.steps.filter(
+    (step) => step.key !== 'submit'
+  );
+  const completed = contentSteps.filter((step) => step.done).length;
+  const missing = contentSteps.filter((step) => !step.done);
+
+  return (
+    <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+      <p className="text-xs font-semibold text-gray-700">
+        Requisiti per inviare la richiesta · {completed}/{contentSteps.length}{' '}
+        completi
+      </p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {contentSteps.map((step) => (
+          <span
+            key={step.key}
+            title={step.description}
+            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${
+              step.done
+                ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                : 'bg-amber-50 text-amber-800 ring-amber-200'
+            }`}
+          >
+            {step.done ? (
+              <CheckCircle2 className="h-3.5 w-3.5" />
+            ) : (
+              <CircleAlert className="h-3.5 w-3.5" />
+            )}
+            {step.done ? step.label : `Manca: ${step.label}`}
+          </span>
+        ))}
+      </div>
+      {missing.length > 0 && (
+        <ul className="mt-2 space-y-1 text-xs text-amber-800">
+          {missing.map((step) => (
+            <li key={step.key}>• {step.description}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function ProviderRow({ p, sportsList }: { p: ProviderReviewItem; sportsList: TaxonomyItem[] }) {
   const config = getVerticalConfig();
   const sportLabels = (p.categories ?? [])
@@ -101,6 +149,7 @@ function ProviderRow({ p, sportsList }: { p: ProviderReviewItem; sportsList: Tax
                 : 'Richiesta non ancora inviata'}
             </span>
           </div>
+          <ProviderRequirements p={p} />
           {p.status === 'approved' && (
             <p className="mt-1 text-xs font-medium text-green-700">
               Approvato da {p.reviewedByName ?? 'amministratore'}

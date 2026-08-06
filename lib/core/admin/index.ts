@@ -1,5 +1,15 @@
 import 'server-only';
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import {
+  and,
+  count,
+  desc,
+  eq,
+  gt,
+  inArray,
+  isNull,
+  lte,
+  sql,
+} from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/lib/db/drizzle';
 import {
@@ -13,8 +23,13 @@ import {
   type ProviderStatus,
 } from '@/lib/db/schema';
 import { notify } from '@/lib/core/notifications';
+import {
+  computeCoachOnboarding,
+  type CoachOnboarding,
+} from '@/lib/core/onboarding';
 import { resolveDisplayName } from '@/lib/core/format';
 import type { Result } from '@/lib/core/result';
+import { MAX_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
 
 export type ProviderReviewItem = {
   id: number;
@@ -32,6 +47,7 @@ export type ProviderReviewItem = {
   reviewedAt: Date | null;
   registeredAt: Date;
   submittedAt: Date | null;
+  onboarding: CoachOnboarding;
 };
 
 export type VerificationField = 'identity' | 'certifications';
@@ -45,7 +61,7 @@ export async function getProviderProfilesForReview(): Promise<
 > {
   const reviewer = alias(users, 'reviewer');
 
-  return db
+  const rows = await db
     .select({
       id: providerProfiles.id,
       slug: providerProfiles.slug,
@@ -53,6 +69,7 @@ export async function getProviderProfilesForReview(): Promise<
       email: users.email,
       avatarUrl: profiles.avatarUrl,
       headline: providerProfiles.headline,
+      description: providerProfiles.description,
       categories: providerProfiles.categories,
       specialties: providerProfiles.specialties,
       status: providerProfiles.status,
@@ -75,6 +92,43 @@ export async function getProviderProfilesForReview(): Promise<
     .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
     .leftJoin(reviewer, eq(reviewer.id, providerProfiles.reviewedBy))
     .orderBy(desc(users.createdAt));
+
+  const providerIds = rows.map((row) => row.id);
+  const serviceCounts =
+    providerIds.length === 0
+      ? []
+      : await db
+          .select({
+            providerId: services.providerId,
+            value: count(),
+          })
+          .from(services)
+          .where(
+            and(
+              inArray(services.providerId, providerIds),
+              eq(services.isActive, true),
+              gt(services.durationMin, 0),
+              lte(services.durationMin, MAX_SERVICE_DURATION_MIN)
+            )
+          )
+          .groupBy(services.providerId);
+  const serviceCountByProvider = new Map(
+    serviceCounts.map((row) => [row.providerId, row.value])
+  );
+
+  return rows.map(({ description, ...row }) => ({
+    ...row,
+    onboarding: computeCoachOnboarding(
+      {
+        headline: row.headline,
+        description,
+        categories: row.categories,
+        specialties: row.specialties,
+        status: row.status,
+      },
+      serviceCountByProvider.get(row.id) ?? 0
+    ),
+  }));
 }
 
 export type AthleteAdminItem = {
