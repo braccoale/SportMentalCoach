@@ -190,7 +190,14 @@ test('le evidenze puntano all’ancora del segmento di transcript', () => {
 });
 
 test('mostra lo stato di caricamento prima che la fetch del client completi', () => {
-  const html = renderToStaticMarkup(<SessionCompassPanel sessionId={5} />);
+  const html = renderToStaticMarkup(
+    <SessionCompassPanel
+      sessionId={5}
+      sessionDate="2026-08-06T12:33:00.000Z"
+      athleteName="Alessandro"
+      initialJourney={null}
+    />
+  );
   assert.match(html, /Session Compass/);
   assert.match(html, /Caricamento Session Compass/);
   assert.match(html, /Non è visibile all’atleta/);

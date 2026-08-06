@@ -426,6 +426,7 @@ export type AthleteBooking = {
 
 export type ParticipantBooking = {
   id: number;
+  athleteUserId: number;
   providerId: number;
   status: string;
   scheduledFor: Date | null;
@@ -493,6 +494,7 @@ export async function getParticipantBooking(
 
   return {
     id: booking.id,
+    athleteUserId: booking.clientId,
     providerId: booking.providerId,
     status: booking.status,
     scheduledFor: booking.scheduledFor,

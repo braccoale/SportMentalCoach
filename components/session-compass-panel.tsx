@@ -1,83 +1,76 @@
 'use client';
 
-import { CheckCircle2, Compass, Loader2, RefreshCw } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  CheckCircle2,
+  Compass,
+  FileText,
+  History,
+  Lightbulb,
+  Loader2,
+  LockKeyhole,
+  MessageSquareText,
+  RefreshCw,
+  Sparkles,
+} from 'lucide-react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
 import { Button } from '@/components/ui/button';
-import type {
-  Commitment,
-  CommitmentStatus,
-  CompassEvidence,
-  CompassSpeaker,
-  SessionCompassReport,
-} from '@/lib/core/ai-session-notes/session-compass-contract';
+import type { MentalJourney } from '@/lib/core/ai-session-notes/mental-journey';
+import {
+  CoachNotesPanel,
+  KeyMomentsPanel,
+  SessionCompassContent,
+  SessionOverview,
+  TrackedCommitmentsSection,
+  evidenceLabel,
+} from './session-compass/report-sections';
+import {
+  AthleteJourneyPanel,
+  TranscriptHistoryNav,
+  selectPreviousJourneyEntry,
+} from './session-compass/journey-panel';
+import { TranscriptPanel } from './session-compass/transcript-panel';
+import {
+  segmentAnchorId,
+  type CompassTabId,
+  type CompassTranscriptSegment,
+  type SessionCompassView,
+  type TrackedCommitmentChange,
+  type TrackedCommitmentView,
+  type TrackedCommitmentStatus,
+} from './session-compass/types';
 
-export type TrackedCommitmentStatus = 'pending' | 'in_progress' | 'completed' | 'skipped';
-
-/** Impegno operativo, così come arriva serializzato dall'API coach. */
-export type TrackedCommitmentView = {
-  id: number;
-  title: string;
-  owner: CompassSpeaker;
-  status: TrackedCommitmentStatus;
-  dueDate: string | null;
-  completedAt: string | null;
-  athleteNote: string | null;
-  sourceTimestampMs: number;
-  sourceTranscriptSegmentId: number | null;
-  sourceExcerpt: string;
-  manuallyEdited: boolean;
+export {
+  SessionCompassContent,
+  TrackedCommitmentsSection,
+  evidenceLabel,
+  segmentAnchorId,
+};
+export type {
+  CompassTranscriptSegment,
+  SessionCompassView,
+  TrackedCommitmentChange,
+  TrackedCommitmentStatus,
+  TrackedCommitmentView,
 };
 
-export type SessionCompassView = {
-  reportId: number;
-  sessionId: number;
-  reportVersion: number;
-  status: 'generating' | 'ready_for_review' | 'approved' | 'failed';
-  sourceFingerprint: string | null;
-  isApproved: boolean;
-  isStale: boolean;
-  approvedAt: string | null;
-  errorCode: string | null;
-  updatedAt: string;
-  document: SessionCompassReport | null;
-  canEditCoachNote: boolean;
-  trackedCommitments: TrackedCommitmentView[];
-};
-
-export type CompassTranscriptSegment = {
-  transcriptSegmentId: number;
-  startMs: number;
-  minute: number;
-  speaker: CompassSpeaker;
-  text: string;
-};
-
-const SPEAKER_LABEL: Record<CompassSpeaker, string> = {
-  coach: 'Coach',
-  athlete: 'Atleta',
-};
-
-const COMMITMENT_STATUS_LABEL: Record<CommitmentStatus, string> = {
-  pending: 'Da fare',
-  in_progress: 'In corso',
-  done: 'Completato',
-  dropped: 'Annullato',
-};
-
-const COMMITMENT_STATUS_ORDER: CommitmentStatus[] = [
-  'pending',
-  'in_progress',
-  'done',
-  'dropped',
+const TABS: Array<{
+  id: CompassTabId;
+  label: string;
+  icon: (props: { className?: string }) => ReactNode;
+}> = [
+  { id: 'overview', label: 'Panoramica', icon: (props) => <Sparkles {...props} /> },
+  { id: 'journey', label: 'Percorso atleta', icon: (props) => <History {...props} /> },
+  { id: 'transcript', label: 'Trascrizione', icon: (props) => <FileText {...props} /> },
+  { id: 'moments', label: 'Momenti chiave', icon: (props) => <Lightbulb {...props} /> },
+  { id: 'notes', label: 'Appunti coach', icon: (props) => <MessageSquareText {...props} /> },
 ];
-
-export function segmentAnchorId(transcriptSegmentId: number): string {
-  return `compass-segment-${transcriptSegmentId}`;
-}
-
-export function evidenceLabel(evidence: CompassEvidence): string {
-  return `${SPEAKER_LABEL[evidence.speaker]} · min ${evidence.minute}`;
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -99,420 +92,119 @@ async function requestJson(
     credentials: 'same-origin',
     ...(body === undefined
       ? {}
-      : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
+      : {
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }),
   });
   const payload: unknown = await response.json().catch(() => null);
   if (!response.ok) throw new Error(apiErrorMessage(payload));
   return payload;
 }
 
-function CompassSection({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description?: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="space-y-2">
-      <h3 className="text-base font-semibold text-gray-950">{title}</h3>
-      {description ? <p className="text-sm text-gray-600">{description}</p> : null}
-      {children}
-    </section>
-  );
-}
-
-function EvidenceButton({
-  evidence,
-  onOpenEvidence,
-}: {
-  evidence: CompassEvidence;
-  onOpenEvidence?: (segmentId: number) => void;
-}) {
-  return (
-    <button
-      type="button"
-      className="mt-2 block w-full rounded-lg border border-gray-200 bg-white p-2 text-left text-xs text-gray-600 hover:border-violet-300 hover:bg-violet-50"
-      onClick={() => onOpenEvidence?.(evidence.transcriptSegmentId)}
-    >
-      <span className="font-semibold text-gray-800">{evidenceLabel(evidence)}</span>
-      <span className="mt-1 block italic">«{evidence.quote}»</span>
-    </button>
-  );
-}
-
-function CommitmentRow({
-  commitment,
-  editable,
-  onChange,
-  onOpenEvidence,
-}: {
-  commitment: Commitment;
-  editable: boolean;
-  onChange: (change: { text?: string; owner?: CompassSpeaker; status?: CommitmentStatus }) => void;
-  onOpenEvidence?: (segmentId: number) => void;
-}) {
-  const [text, setText] = useState(commitment.text);
-
-  useEffect(() => {
-    setText(commitment.text);
-  }, [commitment.text]);
-
-  return (
-    <li className="rounded-xl bg-gray-50 p-3 text-sm text-gray-800">
-      {editable ? (
-        <label className="block">
-          <span className="sr-only">Testo dell’impegno</span>
-          <textarea
-            className="w-full rounded-lg border border-gray-200 p-2 text-sm"
-            rows={2}
-            value={text}
-            onChange={(event) => setText(event.target.value)}
-            onBlur={() => text.trim() && text !== commitment.text && onChange({ text })}
-          />
-        </label>
-      ) : (
-        <p>{commitment.text}</p>
-      )}
-
-      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-        <label className="flex items-center gap-1">
-          <span className="text-gray-600">Responsabile</span>
-          <select
-            className="rounded-lg border border-gray-200 px-2 py-1"
-            value={commitment.owner}
-            disabled={!editable}
-            onChange={(event) => onChange({ owner: event.target.value as CompassSpeaker })}
-          >
-            <option value="coach">Coach</option>
-            <option value="athlete">Atleta</option>
-          </select>
-        </label>
-        <label className="flex items-center gap-1">
-          <span className="text-gray-600">Stato</span>
-          <select
-            className="rounded-lg border border-gray-200 px-2 py-1"
-            value={commitment.status}
-            disabled={!editable}
-            onChange={(event) => onChange({ status: event.target.value as CommitmentStatus })}
-          >
-            {COMMITMENT_STATUS_ORDER.map((status) => (
-              <option key={status} value={status}>
-                {COMMITMENT_STATUS_LABEL[status]}
-              </option>
-            ))}
-          </select>
-        </label>
-        {commitment.dueDate ? (
-          <span className="rounded-full bg-white px-2 py-1 text-gray-700">
-            Scadenza {commitment.dueDate}
-          </span>
-        ) : null}
-      </div>
-      <EvidenceButton evidence={commitment.evidence} onOpenEvidence={onOpenEvidence} />
-    </li>
-  );
-}
-
-/** Contenuto puro del report: reso anche lato server nei test di rendering. */
-export function SessionCompassContent({
-  report,
-  editable = false,
-  hideCommitments = false,
-  onOpenEvidence,
-  onCommitmentChange,
-}: {
-  report: SessionCompassReport;
-  editable?: boolean;
-  /** Dopo l'approvazione gli impegni vivono nell'entità dedicata, non nel JSON. */
-  hideCommitments?: boolean;
-  onOpenEvidence?: (segmentId: number) => void;
-  onCommitmentChange?: (
-    commitmentId: string,
-    change: { text?: string; owner?: CompassSpeaker; status?: CommitmentStatus }
-  ) => void;
-}) {
-  const overview = report.sessionOverview;
-  return (
-    <div className="space-y-6">
-      <CompassSection title="Sintesi della sessione">
-        <p className="rounded-xl bg-gray-50 p-3 text-sm text-gray-800">{overview.summary}</p>
-        {overview.summaryEvidence.map((evidence) => (
-          <EvidenceButton
-            key={`summary-${evidence.transcriptSegmentId}-${evidence.startMs}`}
-            evidence={evidence}
-            onOpenEvidence={onOpenEvidence}
-          />
-        ))}
-      </CompassSection>
-
-      {overview.themes.length ? (
-        <CompassSection title="Temi emersi">
-          <ul className="space-y-3">
-            {overview.themes.map((theme) => (
-              <li key={theme.id} className="rounded-xl bg-gray-50 p-3 text-sm text-gray-800">
-                <p>{theme.text}</p>
-                <EvidenceButton evidence={theme.evidence} onOpenEvidence={onOpenEvidence} />
-              </li>
-            ))}
-          </ul>
-        </CompassSection>
-      ) : null}
-
-      {overview.emergingResource ? (
-        <CompassSection title="Risorsa emersa">
-          <div className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-950">
-            <p>{overview.emergingResource.text}</p>
-            <EvidenceButton
-              evidence={overview.emergingResource.evidence}
-              onOpenEvidence={onOpenEvidence}
-            />
-          </div>
-        </CompassSection>
-      ) : null}
-
-      {report.keyMoments.length ? (
-        <CompassSection title="Momenti chiave">
-          <ul className="space-y-3">
-            {report.keyMoments.map((moment) => (
-              <li key={moment.id} className="rounded-xl bg-gray-50 p-3 text-sm text-gray-800">
-                <p className="font-semibold text-gray-950">{moment.title}</p>
-                <p className="mt-1">{moment.explanation}</p>
-                <EvidenceButton evidence={moment.evidence} onOpenEvidence={onOpenEvidence} />
-              </li>
-            ))}
-          </ul>
-        </CompassSection>
-      ) : null}
-
-      {report.commitments.length && !hideCommitments ? (
-        <CompassSection title="Impegni concordati">
-          <ul className="space-y-3">
-            {report.commitments.map((commitment) => (
-              <CommitmentRow
-                key={commitment.id}
-                commitment={commitment}
-                editable={editable}
-                onChange={(change) => onCommitmentChange?.(commitment.id, change)}
-                onOpenEvidence={onOpenEvidence}
-              />
-            ))}
-          </ul>
-        </CompassSection>
-      ) : null}
-
-      {report.nextSessionPrep.length ? (
-        <CompassSection
-          title="Preparazione prossima sessione"
-          description="Spunti da verificare o esplorare, non indicazioni cliniche."
-        >
-          <ul className="space-y-3">
-            {report.nextSessionPrep.map((item) => (
-              <li key={item.id} className="rounded-xl bg-gray-50 p-3 text-sm text-gray-800">
-                <p>{item.text}</p>
-                <EvidenceButton evidence={item.evidence} onOpenEvidence={onOpenEvidence} />
-              </li>
-            ))}
-          </ul>
-        </CompassSection>
-      ) : null}
-    </div>
-  );
-}
-
-const TRACKED_STATUS_LABEL: Record<TrackedCommitmentStatus, string> = {
-  pending: 'Da fare',
-  in_progress: 'In corso',
-  completed: 'Completato',
-  skipped: 'Non riuscito',
-};
-
-const TRACKED_STATUS_ORDER: TrackedCommitmentStatus[] = [
-  'pending',
-  'in_progress',
-  'completed',
-  'skipped',
-];
-
-export type TrackedCommitmentChange = {
-  title?: string;
-  owner?: CompassSpeaker;
-  status?: TrackedCommitmentStatus;
-  dueDate?: string | null;
-};
-
-/**
- * Gli impegni operativi dopo l'approvazione: qui il coach vede lo stato reale,
- * incluso l'esito dichiarato dall'atleta, e può correggerlo.
- */
-export function TrackedCommitmentsSection({
-  commitments,
-  onChange,
-  onOpenEvidence,
-}: {
-  commitments: readonly TrackedCommitmentView[];
-  onChange?: (commitmentId: number, change: TrackedCommitmentChange) => void;
-  onOpenEvidence?: (segmentId: number) => void;
-}) {
-  if (!commitments.length) return null;
-  return (
-    <CompassSection
-      title="Impegni attivi"
-      description="Sincronizzati all’approvazione. Le tue modifiche prevalgono sulla bozza AI."
-    >
-      <ul className="space-y-3">
-        {commitments.map((commitment) => (
-          <li key={commitment.id} className="rounded-xl border border-gray-200 p-3 text-sm text-gray-800">
-            <label className="block">
-              <span className="sr-only">Testo dell’impegno</span>
-              <input
-                type="text"
-                className="w-full rounded-lg border border-gray-200 p-2 text-sm"
-                defaultValue={commitment.title}
-                onBlur={(event) =>
-                  event.target.value.trim() && event.target.value !== commitment.title
-                    ? onChange?.(commitment.id, { title: event.target.value })
-                    : undefined
-                }
-              />
-            </label>
-
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-              <label className="flex items-center gap-1">
-                <span className="text-gray-600">Responsabile</span>
-                <select
-                  className="rounded-lg border border-gray-200 px-2 py-1"
-                  value={commitment.owner}
-                  onChange={(event) =>
-                    onChange?.(commitment.id, { owner: event.target.value as CompassSpeaker })
-                  }
-                >
-                  <option value="coach">Coach</option>
-                  <option value="athlete">Atleta</option>
-                </select>
-              </label>
-              <label className="flex items-center gap-1">
-                <span className="text-gray-600">Stato</span>
-                <select
-                  className="rounded-lg border border-gray-200 px-2 py-1"
-                  value={commitment.status}
-                  onChange={(event) =>
-                    onChange?.(commitment.id, {
-                      status: event.target.value as TrackedCommitmentStatus,
-                    })
-                  }
-                >
-                  {TRACKED_STATUS_ORDER.map((status) => (
-                    <option key={status} value={status}>
-                      {TRACKED_STATUS_LABEL[status]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex items-center gap-1">
-                <span className="text-gray-600">Scadenza</span>
-                <input
-                  type="date"
-                  className="rounded-lg border border-gray-200 px-2 py-1"
-                  defaultValue={commitment.dueDate ?? ''}
-                  onChange={(event) =>
-                    onChange?.(commitment.id, { dueDate: event.target.value || null })
-                  }
-                />
-              </label>
-              {commitment.manuallyEdited ? (
-                <span className="rounded-full bg-gray-100 px-2 py-1 text-gray-700">
-                  Modificato manualmente
-                </span>
-              ) : null}
-            </div>
-
-            {commitment.status === 'completed' ? (
-              <p className="mt-2 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
-                L’atleta ha completato questo impegno
-              </p>
-            ) : null}
-            {commitment.status === 'skipped' ? (
-              <div className="mt-2">
-                <p className="inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-900">
-                  L’atleta non è riuscito a completarlo
-                </p>
-                {commitment.athleteNote ? (
-                  <p className="mt-1 text-sm text-gray-700">«{commitment.athleteNote}»</p>
-                ) : null}
-              </div>
-            ) : null}
-
-            <button
-              type="button"
-              className="mt-2 block w-full rounded-lg border border-gray-200 bg-white p-2 text-left text-xs text-gray-600 hover:border-violet-300 hover:bg-violet-50"
-              onClick={() =>
-                commitment.sourceTranscriptSegmentId !== null
-                  ? onOpenEvidence?.(commitment.sourceTranscriptSegmentId)
-                  : undefined
-              }
-            >
-              <span className="font-semibold text-gray-800">
-                min {Math.floor(commitment.sourceTimestampMs / 60_000)}
-              </span>
-              <span className="mt-1 block italic">«{commitment.sourceExcerpt}»</span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </CompassSection>
-  );
-}
-
 export function SessionCompassStatusBanner({ report }: { report: SessionCompassView | null }) {
   if (!report) {
     return (
-      <p className="rounded-xl bg-gray-50 p-3 text-sm text-gray-700">
+      <StatusMessage tone="neutral">
         Session Compass non è ancora stato generato per questa sessione.
-      </p>
+      </StatusMessage>
     );
   }
   if (report.status === 'generating') {
-    return (
-      <p className="rounded-xl bg-violet-50 p-3 text-sm text-violet-900">
-        Elaborazione in corso…
-      </p>
-    );
+    return <StatusMessage tone="violet">Elaborazione in corso…</StatusMessage>;
   }
   if (report.status === 'failed') {
     return (
-      <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+      <StatusMessage tone="danger" alert>
         L’elaborazione non è riuscita. Puoi riprovare a generare la bozza.
-      </p>
+      </StatusMessage>
     );
   }
   if (report.isApproved) {
     return (
-      <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-        Report approvato (versione {report.reportVersion}). È immutabile: una rigenerazione crea una nuova bozza.
-      </p>
+      <StatusMessage tone="success">
+        Report approvato (versione {report.reportVersion}). È immutabile: una rigenerazione crea
+        una nuova bozza.
+      </StatusMessage>
     );
   }
   return (
-    <p className="rounded-xl bg-violet-50 p-3 text-sm text-violet-900">
+    <StatusMessage tone={report.isStale ? 'warning' : 'violet'}>
       Bozza pronta da verificare (versione {report.reportVersion}).
-      {report.isStale ? ' La trascrizione è cambiata: puoi rigenerare la bozza.' : ''}
+      {report.isStale
+        ? ' La trascrizione è cambiata: rigenera la bozza prima di approvarla.'
+        : ''}
+    </StatusMessage>
+  );
+}
+
+function StatusMessage({
+  tone,
+  alert = false,
+  children,
+}: {
+  tone: 'neutral' | 'violet' | 'success' | 'warning' | 'danger';
+  alert?: boolean;
+  children: ReactNode;
+}) {
+  const tones = {
+    neutral: 'border-gray-200 bg-gray-50 text-gray-700',
+    violet: 'border-violet-200 bg-violet-50 text-violet-900',
+    success: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+    warning: 'border-amber-200 bg-amber-50 text-amber-950',
+    danger: 'border-red-200 bg-red-50 text-red-800',
+  };
+  return (
+    <p
+      role={alert ? 'alert' : 'status'}
+      className={`rounded-xl border px-4 py-3 text-sm leading-6 ${tones[tone]}`}
+    >
+      {children}
     </p>
   );
 }
 
-export function SessionCompassPanel({ sessionId }: { sessionId: number }) {
+function CompassSkeleton() {
+  return (
+    <div className="space-y-5" role="status" aria-label="Caricamento Session Compass">
+      <div className="h-12 animate-pulse rounded-xl bg-gray-100" />
+      <div className="h-48 animate-pulse rounded-2xl bg-gray-100" />
+      <div className="grid gap-5 sm:grid-cols-2">
+        <div className="h-64 animate-pulse rounded-2xl bg-gray-100" />
+        <div className="h-64 animate-pulse rounded-2xl bg-gray-100" />
+      </div>
+      <span className="sr-only">Caricamento Session Compass…</span>
+    </div>
+  );
+}
+
+export function SessionCompassPanel({
+  sessionId,
+  sessionDate,
+  athleteName,
+  initialJourney,
+}: {
+  sessionId: number;
+  sessionDate: string | null;
+  athleteName: string;
+  initialJourney: MentalJourney | null;
+}) {
   const endpoint = `/api/coach/ai-session-notes/${sessionId}/compass`;
   const [report, setReport] = useState<SessionCompassView | null>(null);
-  const [transcript, setTranscript] = useState<CompassTranscriptSegment[]>([]);
+  const [transcriptBySession, setTranscriptBySession] = useState<Record<number, CompassTranscriptSegment[]>>({});
+  const [transcriptLoadedBySession, setTranscriptLoadedBySession] = useState<Record<number, boolean>>({});
+  const [transcriptErrorBySession, setTranscriptErrorBySession] = useState<Record<number, string | null>>({});
+  const [transcriptSessionId, setTranscriptSessionId] = useState(sessionId);
+  const [activeTab, setActiveTab] = useState<CompassTabId>('overview');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [coachNote, setCoachNote] = useState('');
+  const [transcriptLoadingId, setTranscriptLoadingId] = useState<number | null>(null);
+  const [highlightedSegmentId, setHighlightedSegmentId] = useState<number | null>(null);
   const inFlight = useRef(false);
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const applyReport = useCallback((payload: unknown) => {
     if (!isRecord(payload)) return;
@@ -521,31 +213,76 @@ export function SessionCompassPanel({ sessionId }: { sessionId: number }) {
     setCoachNote(next?.document?.coachNote ?? '');
   }, []);
 
+  const loadReport = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      applyReport(await requestJson(endpoint, 'GET'));
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'Session Compass non è disponibile.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [applyReport, endpoint]);
+
+  const loadTranscript = useCallback(async (targetSessionId: number) => {
+    if (transcriptLoadingId === targetSessionId || transcriptLoadedBySession[targetSessionId]) return;
+    setTranscriptLoadingId(targetSessionId);
+    setTranscriptErrorBySession((current) => ({ ...current, [targetSessionId]: null }));
+    try {
+      const payload = await requestJson(`/api/coach/ai-session-notes/${targetSessionId}/compass/transcript`, 'GET');
+      if (isRecord(payload) && Array.isArray(payload.transcript)) {
+        setTranscriptBySession((current) => ({
+          ...current,
+          [targetSessionId]: payload.transcript as CompassTranscriptSegment[],
+        }));
+      } else {
+        setTranscriptBySession((current) => ({ ...current, [targetSessionId]: [] }));
+      }
+      setTranscriptLoadedBySession((current) => ({ ...current, [targetSessionId]: true }));
+    } catch (requestError) {
+      setTranscriptErrorBySession((current) => ({
+        ...current,
+        [targetSessionId]: requestError instanceof Error
+          ? requestError.message
+          : 'La trascrizione non è disponibile.',
+      }));
+    } finally {
+      setTranscriptLoadingId((current) => current === targetSessionId ? null : current);
+    }
+  }, [transcriptLoadedBySession, transcriptLoadingId]);
+
   useEffect(() => {
-    let active = true;
-    Promise.all([
-      requestJson(endpoint, 'GET'),
-      requestJson(`${endpoint}/transcript`, 'GET').catch(() => null),
-    ])
-      .then(([reportPayload, transcriptPayload]) => {
-        if (!active) return;
-        applyReport(reportPayload);
-        if (isRecord(transcriptPayload) && Array.isArray(transcriptPayload.transcript)) {
-          setTranscript(transcriptPayload.transcript as CompassTranscriptSegment[]);
-        }
-      })
-      .catch((requestError: unknown) => {
-        if (active) {
-          setError(requestError instanceof Error ? requestError.message : 'Session Compass non è disponibile.');
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [endpoint, applyReport]);
+    void loadReport();
+  }, [loadReport]);
+
+  useEffect(() => {
+    if (
+      activeTab === 'transcript' &&
+      !transcriptLoadedBySession[transcriptSessionId] &&
+      transcriptLoadingId !== transcriptSessionId
+    ) {
+      void loadTranscript(transcriptSessionId);
+    }
+  }, [activeTab, loadTranscript, transcriptLoadedBySession, transcriptLoadingId, transcriptSessionId]);
+
+  useEffect(() => {
+    if (
+      activeTab !== 'transcript' ||
+      highlightedSegmentId === null ||
+      !transcriptLoadedBySession[transcriptSessionId]
+    ) return;
+    const timer = window.setTimeout(() => {
+      const element = document.getElementById(segmentAnchorId(highlightedSegmentId));
+      element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      element?.focus({ preventScroll: true });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [activeTab, highlightedSegmentId, transcriptBySession, transcriptLoadedBySession, transcriptSessionId]);
 
   async function run(action: () => Promise<unknown>, onDone?: (payload: unknown) => void) {
     if (inFlight.current) return;
@@ -565,154 +302,253 @@ export function SessionCompassPanel({ sessionId }: { sessionId: number }) {
     }
   }
 
-  function openEvidence(segmentId: number) {
-    document.getElementById(segmentAnchorId(segmentId))?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'center',
-    });
+  function openEvidence(segmentId: number, targetSessionId = sessionId) {
+    setTranscriptSessionId(targetSessionId);
+    setHighlightedSegmentId(segmentId);
+    setActiveTab('transcript');
+  }
+
+  function openTranscript(targetSessionId: number, segmentId?: number) {
+    setTranscriptSessionId(targetSessionId);
+    setHighlightedSegmentId(segmentId ?? null);
+    setActiveTab('transcript');
+  }
+
+  function selectTab(tab: CompassTabId) {
+    setActiveTab(tab);
+    if (tab !== 'transcript') setHighlightedSegmentId(null);
+  }
+
+  function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    let nextIndex: number | null = null;
+    if (event.key === 'ArrowRight') nextIndex = (index + 1) % TABS.length;
+    if (event.key === 'ArrowLeft') nextIndex = (index - 1 + TABS.length) % TABS.length;
+    if (event.key === 'Home') nextIndex = 0;
+    if (event.key === 'End') nextIndex = TABS.length - 1;
+    if (nextIndex === null) return;
+    event.preventDefault();
+    selectTab(TABS[nextIndex].id);
+    tabRefs.current[nextIndex]?.focus();
   }
 
   return (
-    <section
-      className="rounded-3xl border border-violet-200 bg-white p-6 shadow-sm sm:p-8"
-      aria-labelledby="session-compass-title"
-    >
-      <div className="flex items-start gap-4">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-violet-100">
-          <Compass className="h-6 w-6 text-violet-700" />
-        </span>
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-violet-700">Appunti AI</p>
-          <h2 id="session-compass-title" className="mt-1 text-2xl font-bold tracking-tight text-gray-950">
-            Session Compass
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Report riservato al coach. Non è visibile all’atleta e non sostituisce il tuo giudizio professionale.
-          </p>
+    <section aria-labelledby="session-compass-title" className="min-w-0 w-full max-w-full overflow-hidden">
+      <div className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex min-w-0 items-start gap-4">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-100">
+              <Compass className="h-5 w-5 text-violet-700" />
+            </span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-700">
+                  Appunti AI
+                </p>
+                <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-600">
+                  <LockKeyhole className="h-3 w-3" /> Solo coach
+                </span>
+              </div>
+              <h2 id="session-compass-title" className="mt-1 text-2xl font-bold tracking-tight text-gray-950">
+                Session Compass
+              </h2>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-600">
+                Report riservato al coach. Non è visibile all’atleta e non sostituisce il tuo
+                giudizio professionale.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy || loading}
+              onClick={() =>
+                run(
+                  () => requestJson(`${endpoint}/regenerate`, 'POST'),
+                  (payload) => {
+                    if (isRecord(payload) && payload.regenerated === false) {
+                      setNotice('La bozza è già allineata alla trascrizione corrente.');
+                    } else {
+                      setNotice('Nuova bozza generata. Verificala prima di approvarla.');
+                    }
+                  }
+                )
+              }
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              {report ? 'Rigenera bozza' : 'Genera Session Compass'}
+            </Button>
+            {report && !report.isApproved && report.document ? (
+              <Button
+                type="button"
+                disabled={busy}
+                onClick={() =>
+                  run(() => requestJson(`${endpoint}/approve`, 'POST'), () =>
+                    setNotice('Report approvato e impegni sincronizzati.')
+                  )
+                }
+              >
+                <CheckCircle2 className="h-4 w-4" /> Approva report
+              </Button>
+            ) : null}
+          </div>
         </div>
+
+        {report?.document ? (
+          <div className="min-w-0 max-w-full overflow-hidden border-t border-gray-200 px-3 sm:px-5">
+            <div
+              role="tablist"
+              aria-label="Sezioni Session Compass"
+              className="grid grid-cols-2 gap-1 sm:grid-cols-3 lg:flex lg:min-w-max"
+            >
+              {TABS.map((tab, index) => {
+                const selected = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    ref={(element) => {
+                      tabRefs.current[index] = element;
+                    }}
+                    id={`compass-tab-${tab.id}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    aria-controls={`compass-panel-${tab.id}`}
+                    tabIndex={selected ? 0 : -1}
+                    className={`relative inline-flex min-h-12 min-w-0 items-center justify-start gap-2 px-3 text-left text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500 ${
+                      selected ? 'text-violet-700' : 'text-gray-600 hover:text-gray-950'
+                    }`}
+                    onClick={() => selectTab(tab.id)}
+                    onKeyDown={(event) => handleTabKeyDown(event, index)}
+                  >
+                    {tab.icon({ className: 'h-4 w-4' })}
+                    {tab.label}
+                    {selected ? <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-violet-600" /> : null}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
       </div>
 
-      <div className="mt-5 space-y-4">
+      <div className="mt-4 space-y-4">
         {loading ? (
-          <p className="rounded-xl bg-gray-50 p-3 text-sm text-gray-700">Caricamento Session Compass…</p>
-        ) : (
+          <CompassSkeleton />
+        ) : !error ? (
           <SessionCompassStatusBanner report={report} />
-        )}
+        ) : null}
 
         {error ? (
-          <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-            {error}
-          </p>
+          <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            <p>{error}</p>
+            <Button type="button" variant="outline" className="mt-3 bg-white" onClick={() => void loadReport()}>
+              Riprova
+            </Button>
+          </div>
         ) : null}
         {notice ? (
-          <p role="status" className="rounded-xl bg-gray-50 p-3 text-sm text-gray-700">
+          <p role="status" className="rounded-xl border border-gray-200 bg-white p-3 text-sm text-gray-700">
             {notice}
           </p>
         ) : null}
 
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            className="rounded-full"
-            disabled={busy || loading}
-            onClick={() =>
-              run(
-                () => requestJson(`${endpoint}/regenerate`, 'POST'),
-                (payload) => {
-                  if (isRecord(payload) && payload.regenerated === false) {
-                    setNotice('La bozza è già allineata alla trascrizione corrente.');
-                  }
-                }
-              )
-            }
-          >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            {report ? 'Rigenera bozza' : 'Genera Session Compass'}
-          </Button>
-          {report && !report.isApproved && report.document ? (
-            <Button
-              type="button"
-              className="rounded-full"
-              disabled={busy}
-              onClick={() => run(() => requestJson(`${endpoint}/approve`, 'POST'))}
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              Approva report
-            </Button>
-          ) : null}
-        </div>
-
-        {report?.document ? (
-          <div className="space-y-6 border-t border-gray-200 pt-5">
-            <SessionCompassContent
-              report={report.document}
-              editable={!report.isApproved}
-              hideCommitments={report.trackedCommitments.length > 0}
-              onOpenEvidence={openEvidence}
-              onCommitmentChange={(commitmentId, change) =>
-                run(() =>
-                  requestJson(endpoint, 'PATCH', { commitment: { id: commitmentId, ...change } })
-                )
-              }
-            />
-
-            <TrackedCommitmentsSection
-              commitments={report.trackedCommitments}
-              onOpenEvidence={openEvidence}
-              onChange={(commitmentId, change) =>
-                run(() =>
-                  requestJson(`${endpoint}/commitments`, 'PATCH', { commitmentId, ...change })
-                )
-              }
-            />
-
-            <CompassSection
-              title="Nota del coach"
-              description="Campo libero e privato. Una rigenerazione non lo sovrascrive."
-            >
-              <textarea
-                className="w-full rounded-xl border border-gray-200 p-3 text-sm"
-                rows={4}
-                aria-label="Nota del coach"
-                value={coachNote}
-                disabled={!report.canEditCoachNote}
-                onChange={(event) => setCoachNote(event.target.value)}
-              />
-              {report.canEditCoachNote ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="mt-2 rounded-full"
-                  disabled={busy}
-                  onClick={() => run(() => requestJson(endpoint, 'PATCH', { coachNote }))}
-                >
-                  Salva nota
-                </Button>
-              ) : null}
-            </CompassSection>
+        {!loading && !error && !report?.document ? (
+          <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center">
+            <Compass className="mx-auto h-7 w-7 text-violet-500" />
+            <h3 className="mt-3 font-bold text-gray-950">Il report non è ancora disponibile</h3>
+            <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-gray-600">
+              Quando la trascrizione è pronta puoi generare una bozza Session Compass da verificare e approvare.
+            </p>
           </div>
         ) : null}
 
-        {transcript.length ? (
-          <details className="rounded-2xl bg-gray-50 p-4">
-            <summary className="cursor-pointer font-semibold text-gray-950">Trascrizione</summary>
-            <ol className="mt-3 space-y-3">
-              {transcript.map((segment) => (
-                <li
-                  key={segment.transcriptSegmentId}
-                  id={segmentAnchorId(segment.transcriptSegmentId)}
-                  className="border-l-2 border-violet-200 pl-3 text-sm text-gray-800"
-                >
-                  <p className="font-semibold text-gray-950">
-                    {SPEAKER_LABEL[segment.speaker]}{' '}
-                    <span className="font-normal text-gray-500">min {segment.minute}</span>
-                  </p>
-                  <p className="mt-1">{segment.text}</p>
-                </li>
-              ))}
-            </ol>
-          </details>
+        {report?.document ? (
+          <div
+            id={`compass-panel-${activeTab}`}
+            role="tabpanel"
+            aria-labelledby={`compass-tab-${activeTab}`}
+            tabIndex={0}
+            className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+          >
+            {activeTab === 'overview' ? (
+              <SessionOverview
+                report={report.document}
+                isApproved={report.isApproved}
+                previousJourneyEntry={selectPreviousJourneyEntry(
+                  initialJourney?.timeline ?? [],
+                  sessionId,
+                  sessionDate
+                )}
+                onOpenEvidence={openEvidence}
+                onOpenMoments={() => selectTab('moments')}
+                onOpenNotes={() => selectTab('notes')}
+              />
+            ) : null}
+            {activeTab === 'journey' ? (
+              <AthleteJourneyPanel
+                journey={initialJourney}
+                report={report.document}
+                currentSessionId={sessionId}
+                currentSessionDate={sessionDate}
+                athleteName={athleteName}
+                trackedCommitments={report.trackedCommitments}
+                onOpenTranscript={openTranscript}
+              />
+            ) : null}
+            {activeTab === 'transcript' ? (
+              <div className="grid gap-5 lg:grid-cols-[17rem_minmax(0,1fr)]">
+                <TranscriptHistoryNav
+                  journey={initialJourney}
+                  currentSessionId={sessionId}
+                  currentSessionDate={sessionDate}
+                  selectedSessionId={transcriptSessionId}
+                  onSelect={(targetSessionId) => openTranscript(targetSessionId)}
+                />
+                <TranscriptPanel
+                  transcript={transcriptBySession[transcriptSessionId] ?? []}
+                  loading={transcriptLoadingId === transcriptSessionId}
+                  error={transcriptErrorBySession[transcriptSessionId] ?? null}
+                  highlightedSegmentId={highlightedSegmentId}
+                  onRetry={() => void loadTranscript(transcriptSessionId)}
+                  eyebrow={transcriptSessionId === sessionId ? 'Sessione corrente' : 'Sessione passata'}
+                  title={transcriptSessionId === sessionId ? 'Trascrizione' : 'Trascrizione selezionata'}
+                  description={
+                    transcriptSessionId === sessionId
+                      ? 'Cerca nella conversazione oppure filtra per speaker. I momenti chiave aprono il segmento corrispondente.'
+                      : 'La sessione corrente resta disponibile nel pannello laterale. Questa trascrizione è caricata solo su richiesta.'
+                  }
+                />
+              </div>
+            ) : null}
+            {activeTab === 'moments' ? (
+              <KeyMomentsPanel report={report.document} onOpenEvidence={openEvidence} />
+            ) : null}
+            {activeTab === 'notes' ? (
+              <CoachNotesPanel
+                report={report.document}
+                editable={report.canEditCoachNote}
+                reportEditable={!report.isApproved}
+                trackedCommitments={report.trackedCommitments}
+                coachNote={coachNote}
+                busy={busy}
+                onCoachNoteChange={setCoachNote}
+                onSaveCoachNote={() =>
+                  run(() => requestJson(endpoint, 'PATCH', { coachNote }), () =>
+                    setNotice('Nota privata salvata.')
+                  )
+                }
+                onCommitmentChange={(commitmentId, change) =>
+                  run(() => requestJson(endpoint, 'PATCH', { commitment: { id: commitmentId, ...change } }))
+                }
+                onTrackedCommitmentChange={(commitmentId, change) =>
+                  run(() => requestJson(`${endpoint}/commitments`, 'PATCH', { commitmentId, ...change }))
+                }
+                onOpenEvidence={openEvidence}
+              />
+            ) : null}
+          </div>
         ) : null}
       </div>
     </section>

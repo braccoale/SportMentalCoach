@@ -31,6 +31,7 @@ function document(overrides: {
   themes?: string[];
   emergingResource?: string | null;
   nextSessionPrep?: string[];
+  keyMoments?: string[];
 } = {}): SessionCompassReport {
   const evidence = {
     transcriptSegmentId: 1,
@@ -58,7 +59,13 @@ function document(overrides: {
           ? null
           : { id: 'resource-1', text: overrides.emergingResource, evidence },
     },
-    keyMoments: [],
+    keyMoments: (overrides.keyMoments ?? []).map((title, index) => ({
+      id: `moment-${index + 1}`,
+      title,
+      explanation: 'Spiegazione approvata senza riportare la citazione.',
+      speaker: 'athlete' as const,
+      evidence,
+    })),
     commitments: [],
     nextSessionPrep: (overrides.nextSessionPrep ?? []).map((text, index) => ({
       id: `prep-${index + 1}`,
@@ -177,7 +184,7 @@ test('la timeline va dalla sessione più recente alla meno recente', () => {
   assert.equal(journey.summary.lastSessionDate, '2026-08-10T09:00:00.000Z');
 });
 
-test('ogni card porta sintesi, temi, risorsa e link al Session Compass', () => {
+test('ogni card porta sintesi, focus, momenti, preparazione e link al Session Compass', () => {
   const journey = buildMentalJourney({
     athleteUserId: ATHLETE_ID,
     sessions: [
@@ -186,6 +193,8 @@ test('ogni card porta sintesi, temi, risorsa e link al Session Compass', () => {
           summary: 'Sintesi breve già approvata.',
           themes: ['Attivazione pre-gara', 'Routine'],
           emergingResource: 'Costanza negli allenamenti',
+          keyMoments: ['Cambio di prospettiva'],
+          nextSessionPrep: ['Verificare la routine in gara.'],
         }),
       }),
     ],
@@ -195,8 +204,12 @@ test('ogni card porta sintesi, temi, risorsa e link al Session Compass', () => {
 
   const [entry] = journey.timeline;
   assert.equal(entry.summary, 'Sintesi breve già approvata.');
+  assert.equal(entry.focus, 'Attivazione pre-gara');
   assert.deepEqual(entry.themes, ['Attivazione pre-gara', 'Routine']);
   assert.equal(entry.emergingResource, 'Costanza negli allenamenti');
+  assert.equal(entry.keyMoments[0].title, 'Cambio di prospettiva');
+  assert.equal(entry.keyMoments[0].transcriptSegmentId, 1);
+  assert.equal(entry.nextSessionPrep[0].text, 'Verificare la routine in gara.');
   assert.equal(entry.compassHref, '/dashboard/appointments/101');
   assert.equal(entry.commitments.length, 1);
   assert.equal(entry.commitments[0].status, 'pending');
@@ -214,6 +227,7 @@ test('non espone estratti di transcript né la nota privata nelle card', () => {
   assert.doesNotMatch(serialized, /estratto riservato/);
   assert.doesNotMatch(serialized, /Nota privata del coach/);
   assert.doesNotMatch(serialized, /sourceExcerpt|coachNote|summaryEvidence/);
+  assert.doesNotMatch(serialized, /\"quote\"/);
 });
 
 test('conta gli impegni per stato e tace sulla percentuale se sono pochi', () => {

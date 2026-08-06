@@ -43,6 +43,21 @@ export type JourneyCommitment = {
   isOverdue: boolean;
 };
 
+export type JourneyKeyMoment = {
+  id: string;
+  title: string;
+  explanation: string;
+  minute: number;
+  speaker: 'coach' | 'athlete';
+  transcriptSegmentId: number;
+};
+
+export type JourneyPrepItem = {
+  id: string;
+  text: string;
+  origin: 'theme' | 'commitment' | 'open_question';
+};
+
 export type MentalJourneyEntry = {
   sessionId: number;
   bookingId: number;
@@ -52,8 +67,11 @@ export type MentalJourneyEntry = {
   approvedAt: string;
   coachName: string;
   summary: string;
+  focus: string | null;
   themes: string[];
   emergingResource: string | null;
+  keyMoments: JourneyKeyMoment[];
+  nextSessionPrep: JourneyPrepItem[];
   commitments: JourneyCommitment[];
   compassHref: string;
 };
@@ -287,8 +305,22 @@ export function buildMentalJourney(params: {
       approvedAt: session.approvedAt.toISOString(),
       coachName: session.coachName,
       summary: overview.summary,
+      focus: overview.themes[0]?.text ?? null,
       themes: overview.themes.map((theme) => theme.text),
       emergingResource: overview.emergingResource?.text ?? null,
+      keyMoments: session.document.keyMoments.map((moment) => ({
+        id: moment.id,
+        title: moment.title,
+        explanation: moment.explanation,
+        minute: moment.evidence.minute,
+        speaker: moment.speaker,
+        transcriptSegmentId: moment.evidence.transcriptSegmentId,
+      })),
+      nextSessionPrep: session.document.nextSessionPrep.map((item) => ({
+        id: item.id,
+        text: item.text,
+        origin: item.origin,
+      })),
       commitments: (bySession.get(session.sessionId) ?? []).map((commitment) =>
         journeyCommitment(commitment, params.now)
       ),

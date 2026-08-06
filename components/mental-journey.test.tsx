@@ -24,8 +24,11 @@ function entry(overrides: Partial<MentalJourneyEntry> = {}): MentalJourneyEntry 
     approvedAt: '2026-08-02T10:00:00.000Z',
     coachName: 'Giulia Rossi',
     summary: 'Emerge una tensione pre-gara riferita dall’atleta.',
+    focus: 'Attivazione pre-gara',
     themes: ['Attivazione pre-gara'],
     emergingResource: 'Costanza negli allenamenti',
+    keyMoments: [],
+    nextSessionPrep: [],
     commitments: [
       {
         commitmentId: 7,

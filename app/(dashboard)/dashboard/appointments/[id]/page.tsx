@@ -1,48 +1,49 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import {
+  ArrowLeft,
   CalendarCheck,
+  CheckCircle2,
   Clock3,
   MessageSquare,
-  X,
   UserRound,
   Video,
+  X,
 } from 'lucide-react';
-import { AddToGoogleCalendarButton } from '@/components/add-to-google-calendar-button';
-import { SessionCompassPanel } from '@/components/session-compass-panel';
-import { canShowAiSessionReport } from '@/lib/core/ai-session-notes/report-visibility';
 import { ActionForm } from '@/components/action-form';
+import { AddToGoogleCalendarButton } from '@/components/add-to-google-calendar-button';
 import { EditAppointmentButton } from '@/components/edit-appointment-button';
+import { SessionCompassPanel } from '@/components/session-compass-panel';
 import { Button } from '@/components/ui/button';
 import { VideoCallButton } from '@/components/video-call-button';
-import { getUser } from '@/lib/db/queries';
+import { getAppBaseUrl } from '@/lib/core/app-url';
 import {
-  bookingStatusLabel,
-  getParticipantBooking,
-} from '@/lib/core/bookings';
+  getBookableDays,
+  getCoachAvailabilityByProviderId,
+  getCoachBusyIntervalsByProviderIds,
+} from '@/lib/core/availability';
 import {
   buildBookingCalendarEvent,
   BOOKING_TIME_ZONE,
 } from '@/lib/core/booking-calendar';
-import { getAppBaseUrl } from '@/lib/core/app-url';
+import { bookingStatusLabel, getParticipantBooking } from '@/lib/core/bookings';
+import { FEATURE_CODES, hasFeatureEntitlement } from '@/lib/core/features';
 import {
   formatDateTime,
   formatMinutes,
   formatRomeDateValue,
   formatTime,
 } from '@/lib/core/format';
-import { canJoinVideoNow, isSessionJoinable } from '@/lib/core/sessions';
 import { getAiNotesSessionForBooking } from '@/lib/core/ai-session-notes';
 import {
-  FEATURE_CODES,
-  hasFeatureEntitlement,
-} from '@/lib/core/features';
-import {
-  getBookableDays,
-  getCoachAvailabilityByProviderId,
-  getCoachBusyIntervalsByProviderIds,
-} from '@/lib/core/availability';
+  getMentalJourney,
+  MentalJourneyError,
+} from '@/lib/core/ai-session-notes/mental-journey';
+import { mentalJourneyDependencies } from '@/lib/core/ai-session-notes/mental-journey-store';
+import { canShowAiSessionReport } from '@/lib/core/ai-session-notes/report-visibility';
 import { DEFAULT_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
+import { canJoinVideoNow, isSessionJoinable } from '@/lib/core/sessions';
+import { getUser } from '@/lib/db/queries';
 import { cancelBookingAction as cancelAthleteBookingAction } from '../../athlete/actions';
 import { cancelBookingAction as cancelCoachBookingAction } from '../../coach/actions';
 
@@ -58,14 +59,13 @@ export default async function AppointmentDetailPage({
   const user = await getUser();
   const { id: rawId } = await params;
   const detailPath = `/dashboard/appointments/${rawId}`;
-  if (!user) {
-    redirect(`/sign-in?redirect=${encodeURIComponent(detailPath)}`);
-  }
+  if (!user) redirect(`/sign-in?redirect=${encodeURIComponent(detailPath)}`);
 
   const bookingId = Number(rawId);
   const booking = await getParticipantBooking(bookingId, user.id);
   if (!booking) notFound();
-  const [availability, busyByProvider, aiNotesSession, aiNotesEnabled] = await Promise.all([
+
+  const [availability, busyByProvider, aiNotesSession, aiNotesEnabled, mentalJourney] = await Promise.all([
     getCoachAvailabilityByProviderId(booking.providerId),
     getCoachBusyIntervalsByProviderIds([booking.providerId]),
     booking.viewerRole === 'coach'
@@ -74,6 +74,15 @@ export default async function AppointmentDetailPage({
     booking.viewerRole === 'coach'
       ? hasFeatureEntitlement(user.id, FEATURE_CODES.AI_SESSION_NOTES)
       : Promise.resolve(false),
+    booking.viewerRole === 'coach'
+      ? getMentalJourney(
+          { athleteUserId: booking.athleteUserId, actorUserId: user.id },
+          mentalJourneyDependencies()
+        ).catch((error: unknown) => {
+          if (error instanceof MentalJourneyError) return null;
+          throw error;
+        })
+      : Promise.resolve(null),
   ]);
   const bookableDays = getBookableDays(availability, {
     busyIntervals: busyByProvider.get(booking.providerId) ?? [],
@@ -97,16 +106,11 @@ export default async function AppointmentDetailPage({
       ? booking.coachName || 'Coach'
       : booking.athleteName || 'Atleta';
   const dashboardPath =
-    booking.viewerRole === 'athlete'
-      ? '/dashboard/athlete'
-      : '/dashboard/coach';
+    booking.viewerRole === 'athlete' ? '/dashboard/athlete' : '/dashboard/coach';
   const isOpen = ['requested', 'accepted'].includes(booking.status);
-  const canCancel =
-    isOpen && isSessionJoinable(booking.scheduledFor, booking.durationMin);
+  const canCancel = isOpen && isSessionJoinable(booking.scheduledFor, booking.durationMin);
   const cancelAction =
-    booking.viewerRole === 'athlete'
-      ? cancelAthleteBookingAction
-      : cancelCoachBookingAction;
+    booking.viewerRole === 'athlete' ? cancelAthleteBookingAction : cancelCoachBookingAction;
   const calendarUnavailableMessage = !booking.scheduledFor
     ? 'La sessione non ha ancora una data e un orario concordati.'
     : !booking.serviceTitle
@@ -114,160 +118,161 @@ export default async function AppointmentDetailPage({
       : !booking.durationMin
         ? 'Il servizio associato non ha una durata. Il coach deve completarlo prima di una nuova prenotazione.'
         : 'La sessione è già trascorsa e non può più essere aggiunta al calendario.';
+  const showAiReport =
+    canShowAiSessionReport({
+      viewerRole: booking.viewerRole,
+      aiNotesEnabled,
+      hasAiNotesSession: !!aiNotesSession,
+    }) && !!aiNotesSession;
 
   return (
-    <section className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6 lg:py-10">
-      <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-        <div className="flex items-start gap-4">
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-emerald-50">
-            <CalendarCheck className="h-7 w-7 text-emerald-600" />
-          </span>
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-emerald-700">
-              {created
-                ? booking.status === 'accepted'
-                  ? 'Appuntamento confermato'
-                  : 'Richiesta inviata'
-                : 'Dettaglio appuntamento'}
-            </p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-950">
+    <section
+      className={`mx-auto flex w-full flex-col gap-5 p-4 sm:p-6 lg:py-8 ${
+        showAiReport ? 'max-w-7xl' : 'max-w-3xl'
+      }`}
+    >
+      <Link
+        href={dashboardPath}
+        className="inline-flex w-fit items-center gap-2 rounded-lg text-sm font-semibold text-gray-600 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        {booking.viewerRole === 'coach' ? 'Torna alle sessioni' : 'Torna alla dashboard'}
+      </Link>
+
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-gray-500">
+                {created
+                  ? booking.status === 'accepted'
+                    ? 'Appuntamento confermato'
+                    : 'Richiesta inviata'
+                  : 'Dettaglio sessione'}
+              </p>
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${
+                  booking.status === 'completed'
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-gray-100 text-gray-700'
+                }`}
+              >
+                {booking.status === 'completed' ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
+                {bookingStatusLabel(booking.status)}
+              </span>
+            </div>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl">
               Sessione KaiPai con {counterpart}
             </h1>
-            <p className="mt-2 text-sm text-gray-600">
-              Stato: {bookingStatusLabel(booking.status)}
-            </p>
+            <dl className="mt-4 flex flex-wrap gap-x-5 gap-y-3 text-sm text-gray-600">
+              <Meta icon={<Clock3 className="h-4 w-4" />} label="Data e ora">
+                {booking.scheduledFor ? formatDateTime(booking.scheduledFor) : 'Da concordare'}
+              </Meta>
+              <Meta icon={<CalendarCheck className="h-4 w-4" />} label="Durata">
+                {booking.durationMin ? formatMinutes(booking.durationMin) : 'Durata non definita'}
+              </Meta>
+              <Meta icon={<UserRound className="h-4 w-4" />} label="Partecipante">
+                {counterpart}
+              </Meta>
+              <Meta icon={<Video className="h-4 w-4" />} label="Modalità">
+                Online · {BOOKING_TIME_ZONE}
+              </Meta>
+              {booking.serviceTitle ? (
+                <Meta icon={<span className="h-1.5 w-1.5 rounded-full bg-violet-500" />} label="Percorso">
+                  {booking.serviceTitle}
+                </Meta>
+              ) : null}
+            </dl>
           </div>
-        </div>
 
-        <dl className="mt-6 grid gap-4 rounded-2xl bg-gray-50 p-5 sm:grid-cols-2">
-          <div>
-            <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-              <Clock3 className="h-4 w-4" /> Data e ora
-            </dt>
-            <dd className="mt-1 font-medium text-gray-900">
-              {booking.scheduledFor
-                ? formatDateTime(booking.scheduledFor)
-                : 'Da concordare'}
-            </dd>
-          </div>
-          <div>
-            <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-              <CalendarCheck className="h-4 w-4" /> Durata
-            </dt>
-            <dd className="mt-1 font-medium text-gray-900">
-              {booking.durationMin
-                ? formatMinutes(booking.durationMin)
-                : 'Non definita'}
-            </dd>
-          </div>
-          <div>
-            <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-              <UserRound className="h-4 w-4" /> Partecipante
-            </dt>
-            <dd className="mt-1 font-medium text-gray-900">{counterpart}</dd>
-          </div>
-          <div>
-            <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-              <Video className="h-4 w-4" /> Modalità
-            </dt>
-            <dd className="mt-1 font-medium text-gray-900">
-              Online su KaiPai · {BOOKING_TIME_ZONE}
-            </dd>
-          </div>
-          {booking.serviceTitle && (
-            <div className="sm:col-span-2">
-              <dt className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Sessione
-              </dt>
-              <dd className="mt-1 font-medium text-gray-900">
-                {booking.serviceTitle}
-              </dd>
-            </div>
-          )}
-        </dl>
-
-        <div className="mt-6 flex flex-col gap-3 border-t border-gray-100 pt-6">
-          {booking.status === 'accepted' && calendarEvent?.videoUrl && (
-            <VideoCallButton
-              bookingId={booking.id}
-              enabled={canJoinVideoNow(booking.scheduledFor, booking.durationMin)}
-              scheduledFor={booking.scheduledFor?.toISOString() ?? null}
-              label={
-                booking.sessionStartedAt
-                  ? 'Rientra nella call'
-                  : 'Apri videochiamata'
-              }
-              prominent
-            />
-          )}
-
-          {!calendarEvent && isOpen && (
-            <p className="text-sm text-gray-500">
-              {calendarUnavailableMessage}
-            </p>
-          )}
-          {!isOpen && (
-            <p className="text-sm text-gray-500">
-              Le sessioni concluse, annullate, rifiutate o scadute non possono
-              essere aggiunte al calendario.
-            </p>
-          )}
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-start gap-3">
-          {isOpen && (
-            <Button asChild className="rounded-full">
-              <Link href={`/dashboard/chat/${booking.id}`}>
-                <MessageSquare className="h-4 w-4" /> Manda un messaggio
-              </Link>
-            </Button>
-          )}
-          {isOpen && booking.scheduledFor && (
-            <EditAppointmentButton
-              bookingId={booking.id}
-              bookableDays={bookableDays}
-              currentDay={formatRomeDateValue(booking.scheduledFor)}
-              currentTime={formatTime(booking.scheduledFor)}
-              durationMin={
-                booking.durationMin ?? DEFAULT_SERVICE_DURATION_MIN
-              }
-            />
-          )}
-          <AddToGoogleCalendarButton
-            url={calendarEvent?.url ?? null}
-            uiSource={created ? 'booking_confirmation' : 'appointment_detail'}
-            userRole={booking.viewerRole}
-            compact
-          />
-          {canCancel && (
-            <ActionForm
-              action={cancelAction}
-              confirmTitle="Annullare la sessione?"
-              confirmMessage="La sessione verrà annullata. Potrai prenotarne una nuova in qualsiasi momento."
-              confirmActionLabel="Annulla sessione"
-            >
-              <input type="hidden" name="bookingId" value={booking.id} />
-              <Button
-                type="submit"
-                variant="destructive"
-                className="rounded-full"
-              >
-                <X className="h-4 w-4" /> Annulla
+          <div className="flex shrink-0 flex-wrap gap-2">
+            {booking.status === 'accepted' && calendarEvent?.videoUrl ? (
+              <VideoCallButton
+                bookingId={booking.id}
+                enabled={canJoinVideoNow(booking.scheduledFor, booking.durationMin)}
+                scheduledFor={booking.scheduledFor?.toISOString() ?? null}
+                label={booking.sessionStartedAt ? 'Rientra nella call' : 'Apri videochiamata'}
+                prominent
+              />
+            ) : null}
+            {isOpen ? (
+              <Button asChild variant="outline">
+                <Link href={`/dashboard/chat/${booking.id}`}>
+                  <MessageSquare className="h-4 w-4" /> Messaggio
+                </Link>
               </Button>
-            </ActionForm>
-          )}
-          <Button asChild variant="outline" className="rounded-full">
-            <Link href={dashboardPath}>Torna alla dashboard</Link>
-          </Button>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-col gap-3 border-t border-gray-100 pt-5">
+          {!calendarEvent && isOpen ? (
+            <p className="text-sm text-gray-500">{calendarUnavailableMessage}</p>
+          ) : null}
+          {!isOpen ? (
+            <p className="text-sm text-gray-500">
+              Le sessioni concluse, annullate, rifiutate o scadute non possono essere aggiunte al calendario.
+            </p>
+          ) : null}
+          <div className="flex flex-wrap items-start gap-3">
+            {isOpen && booking.scheduledFor ? (
+              <EditAppointmentButton
+                bookingId={booking.id}
+                bookableDays={bookableDays}
+                currentDay={formatRomeDateValue(booking.scheduledFor)}
+                currentTime={formatTime(booking.scheduledFor)}
+                durationMin={booking.durationMin ?? DEFAULT_SERVICE_DURATION_MIN}
+              />
+            ) : null}
+            <AddToGoogleCalendarButton
+              url={calendarEvent?.url ?? null}
+              uiSource={created ? 'booking_confirmation' : 'appointment_detail'}
+              userRole={booking.viewerRole}
+              compact
+            />
+            {canCancel ? (
+              <ActionForm
+                action={cancelAction}
+                confirmTitle="Annullare la sessione?"
+                confirmMessage="La sessione verrà annullata. Potrai prenotarne una nuova in qualsiasi momento."
+                confirmActionLabel="Annulla sessione"
+              >
+                <input type="hidden" name="bookingId" value={booking.id} />
+                <Button type="submit" variant="destructive" className="rounded-full">
+                  <X className="h-4 w-4" /> Annulla
+                </Button>
+              </ActionForm>
+            ) : null}
+          </div>
         </div>
       </div>
-      {canShowAiSessionReport({
-        viewerRole: booking.viewerRole,
-        aiNotesEnabled,
-        hasAiNotesSession: !!aiNotesSession,
-      }) && aiNotesSession ? (
-        <SessionCompassPanel sessionId={aiNotesSession.id} />
+
+      {showAiReport && aiNotesSession ? (
+        <SessionCompassPanel
+          sessionId={aiNotesSession.id}
+          sessionDate={booking.scheduledFor?.toISOString() ?? null}
+          athleteName={counterpart}
+          initialJourney={mentalJourney}
+        />
       ) : null}
     </section>
+  );
+}
+
+function Meta({
+  icon,
+  label,
+  children,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="inline-flex items-center gap-2">
+      <span className="text-gray-400">{icon}</span>
+      <dt className="sr-only">{label}</dt>
+      <dd>{children}</dd>
+    </div>
   );
 }
