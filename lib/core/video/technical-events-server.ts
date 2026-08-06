@@ -79,6 +79,38 @@ export async function recordLiveKitWebhookEvent(
   return true;
 }
 
+/**
+ * Registra se il worker degli Appunti AI è stato svegliato, e con che esito.
+ *
+ * La sveglia parte dopo la risposta al webhook: se fallisce, l'unica traccia
+ * era una riga di log, che su un piano senza conservazione dei log runtime
+ * sparisce prima che qualcuno la cerchi. È esattamente com'è passata
+ * inosservata per giorni una coda che non veniva mai svuotata — con la
+ * trascrizione ferma e nessun segnale da nessuna parte. Qui l'esito resta
+ * nella stessa traccia eventi in cui si legge il resto della sessione.
+ */
+export async function recordAiWorkerTrigger(
+  event: WebhookEvent,
+  outcome: string
+): Promise<boolean> {
+  const roomName =
+    event.room?.name || event.egressInfo?.roomName || event.ingressInfo?.roomName;
+  const bookingId = parseBookingRoomName(roomName ?? '');
+  if (!bookingId) return false;
+
+  await db.insert(videoSessionEvents).values({
+    bookingId,
+    webhookId: null,
+    source: 'server',
+    eventType: 'ai_worker_trigger',
+    roomName: roomName!,
+    participantKind: 'service',
+    details: sanitizeTechnicalEventDetails({ outcome }),
+    occurredAt: new Date(),
+  });
+  return true;
+}
+
 export async function recordClientVideoEvent(
   bookingId: number,
   userId: number,

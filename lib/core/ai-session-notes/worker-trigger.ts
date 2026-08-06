@@ -21,7 +21,22 @@ const TRIGGER_TIMEOUT_MS = 5_000;
 function workerOrigin(): string | null {
   const configured = getAppBaseUrl();
   if (configured) return configured;
-  // Su Vercel l'URL del deployment è sempre disponibile, anche senza BASE_URL.
+
+  /*
+   * Il dominio stabile di produzione prima dell'URL del singolo deployment.
+   *
+   * `VERCEL_URL` punta al deployment specifico, che sta dietro la protezione
+   * di Vercel: una richiesta lì riceve un 302 verso la pagina di accesso e non
+   * raggiunge mai la rotta. Il worker non veniva svegliato e i job restavano
+   * in coda fino al cron del giorno dopo — verificato dall'esterno, il
+   * dominio del deployment risponde 302 mentre l'alias di produzione risponde
+   * 404 (cioè la rotta c'è, e rifiuta perché manca il segreto).
+   *
+   * `VERCEL_PROJECT_PRODUCTION_URL` è quell'alias stabile, e non è protetto.
+   */
+  const productionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+  if (productionUrl) return `https://${productionUrl}`;
+
   const vercelUrl = process.env.VERCEL_URL?.trim();
   return vercelUrl ? `https://${vercelUrl}` : null;
 }
