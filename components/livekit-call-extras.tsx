@@ -721,7 +721,7 @@ export function WaitingRoomGate({
               onClick={leave}
               className="mt-6 rounded-full border border-white/15 px-5 py-2 text-sm font-semibold text-white/80 hover:bg-white/10"
             >
-              Esci dalla sala
+              Chiudi
             </button>
           </div>
         </div>

@@ -97,7 +97,7 @@ export function ShareButton({
         ) : (
           <Share2 className="h-4 w-4" />
         )}
-        {pending ? 'Creazione link…' : message ?? 'Condividi chiamata'}
+        {pending ? 'Creazione link…' : message ?? 'Aggiungi ospite'}
       </Button>
       {error && (
         <span

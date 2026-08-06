@@ -25,7 +25,9 @@ import {
 } from '@livekit/track-processors';
 import { Button } from '@/components/ui/button';
 import { ShareButton } from '@/components/share-button';
+import { ResendAthleteCallLinkButton } from '@/components/resend-athlete-call-link-button';
 import { AiSessionNotesControl } from '@/components/ai-session-notes-control';
+import { LocalizeLiveKitLeaveButton } from '@/components/livekit-call-labels';
 import { X } from 'lucide-react';
 import {
   ApplyInitialAudioOutput,
@@ -224,6 +226,7 @@ function ConnectedVideoRoom({
   canStartAiNotes,
   coachIdentity,
   backHref,
+  counterpartName,
   choices,
 }: {
   serverUrl: string;
@@ -233,6 +236,7 @@ function ConnectedVideoRoom({
   canStartAiNotes: boolean;
   coachIdentity: string;
   backHref: string;
+  counterpartName?: string;
   choices: KaiPaiCallChoices;
 }) {
   const router = useRouter();
@@ -412,6 +416,7 @@ function ConnectedVideoRoom({
         onError={handleRoomError}
         style={{ height: '100%' }}
       >
+        <LocalizeLiveKitLeaveButton />
         <ApplyInitialAudioOutput
           deviceId={choices.audioOutputDeviceId}
         />
@@ -434,7 +439,7 @@ function ConnectedVideoRoom({
               <button
                 type="button"
                 onClick={() => router.push(backHref)}
-                aria-label="Esci dalla videochiamata"
+                aria-label="Chiudi videochiamata"
                 className="rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
               >
                 <X className="h-5 w-5" aria-hidden="true" />
@@ -452,6 +457,13 @@ function ConnectedVideoRoom({
               )}
               {controls.includes('share') && (
                 <ShareButton bookingId={bookingId} appearance="room" />
+              )}
+              {controls.includes('share') && viewerIsCoach && (
+                <ResendAthleteCallLinkButton
+                  bookingId={bookingId}
+                  athleteName={counterpartName ?? 'l’atleta'}
+                  appearance="room"
+                />
               )}
             </div>
           </div>
@@ -496,7 +508,7 @@ function ConnectedVideoRoom({
               className="mt-3 w-full rounded-full border-gray-300 bg-white text-gray-900 hover:bg-gray-50 hover:text-gray-900"
               onClick={() => backGuard.leave(() => router.push(backHref))}
             >
-              Esci dalla call
+              Chiudi
             </Button>
           </div>
         </div>
@@ -616,6 +628,7 @@ export function VideoRoom({
       canStartAiNotes={canStartAiNotes}
       coachIdentity={coachIdentity}
       backHref={backHref}
+      counterpartName={counterpartName}
       choices={choices}
     />
   );

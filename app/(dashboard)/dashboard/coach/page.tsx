@@ -80,6 +80,7 @@ import { AddToGoogleCalendarButton } from '@/components/add-to-google-calendar-b
 import { buildBookingGoogleCalendarUrl } from '@/lib/core/booking-calendar';
 import { getAppBaseUrl } from '@/lib/core/app-url';
 import { ShareButton } from '@/components/share-button';
+import { ResendAthleteCallLinkButton } from '@/components/resend-athlete-call-link-button';
 import { EditAppointmentButton } from '@/components/edit-appointment-button';
 import { VideoCallButton } from '@/components/video-call-button';
 import { buildAiSessionArchiveIndicator } from '@/lib/core/ai-session-notes/archive-indicator';
@@ -492,6 +493,10 @@ export default async function CoachDashboardPage() {
                       compact
                     />
                     <ShareButton bookingId={booking.id} />
+                    <ResendAthleteCallLinkButton
+                      bookingId={booking.id}
+                      athleteName={booking.clientName ?? 'l’atleta'}
+                    />
                     <ActionForm
                       action={cancelBookingAction}
                       confirmTitle="Annullare la sessione?"
