@@ -1,6 +1,9 @@
 import { after } from 'next/server';
 import { WebhookReceiver } from 'livekit-server-sdk';
-import { recordLiveKitWebhookEvent } from '@/lib/core/video/technical-events-server';
+import {
+  recordAiWorkerTrigger,
+  recordLiveKitWebhookEvent,
+} from '@/lib/core/video/technical-events-server';
 import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger';
 import {
   LiveKitWebhookError,
@@ -51,6 +54,9 @@ export async function POST(request: Request) {
         if (outcome !== 'triggered') {
           console.warn('[LiveKit webhook] worker non svegliato', { outcome });
         }
+        // L'esito va anche su disco: un log runtime che nessuno conserva non
+        // è servito a nulla quando la coda è rimasta ferma per giorni.
+        await recordAiWorkerTrigger(event, outcome).catch(() => {});
       });
     }
 

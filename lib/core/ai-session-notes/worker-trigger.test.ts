@@ -73,13 +73,34 @@ test('non chiama nulla se non sa a quale origine rivolgersi', async () => {
   assert.equal(calls.length, 0);
 });
 
-test('su Vercel ricade sull’URL del deployment quando BASE_URL manca', async () => {
+test('su Vercel preferisce il dominio di produzione all’URL del deployment', async () => {
+  // L'URL specifico di un deployment è dietro la protezione di Vercel:
+  // chiamarlo restituisce un 302 verso la pagina di accesso e il worker non
+  // viene mai svegliato. Il dominio stabile di produzione non è protetto.
   const calls: Call[] = [];
   await withEnvironment(
     {
       CRON_SECRET: 'segreto',
       BASE_URL: undefined,
       NEXT_PUBLIC_APP_URL: undefined,
+      VERCEL_PROJECT_PRODUCTION_URL: 'kaipai.example',
+      VERCEL_URL: 'deploy-abc.vercel.app',
+    },
+    async () => {
+      assert.equal(await triggerAiNotesWorker(fakeFetch(calls)), 'triggered');
+    }
+  );
+  assert.match(calls[0].url, /^https:\/\/kaipai\.example\//);
+});
+
+test('senza dominio di produzione resta l’URL del deployment', async () => {
+  const calls: Call[] = [];
+  await withEnvironment(
+    {
+      CRON_SECRET: 'segreto',
+      BASE_URL: undefined,
+      NEXT_PUBLIC_APP_URL: undefined,
+      VERCEL_PROJECT_PRODUCTION_URL: undefined,
       VERCEL_URL: 'deploy-abc.vercel.app',
     },
     async () => {
