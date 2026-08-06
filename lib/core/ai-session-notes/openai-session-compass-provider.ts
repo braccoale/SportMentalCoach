@@ -22,7 +22,10 @@ import {
 import type { SessionCompassReport } from './session-compass-contract';
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
-const DEFAULT_TIMEOUT_MS = 60_000;
+// Lascia margine alla funzione Vercel (60 s) per validare e persistere il
+// report. Un timeout uguale a quello della function poteva interrompere il
+// processo prima che il job venisse chiuso correttamente.
+const DEFAULT_TIMEOUT_MS = 45_000;
 
 export type OpenAiSessionCompassErrorCode =
   | 'CONFIGURATION'
@@ -49,7 +52,12 @@ export type OpenAiCompassRequest = {
   instructions: string;
   input: string;
   store: false;
+  reasoning: {
+    effort: 'minimal';
+  };
+  max_output_tokens: number;
   text: {
+    verbosity: 'low';
     format: {
       type: 'json_schema';
       name: string;
@@ -208,7 +216,13 @@ function requestFor(
     instructions: systemInstructions(promptVersion),
     input: JSON.stringify(promptPayload(input)),
     store: false,
+    // Session Compass è estrazione strutturata e verificabile, non richiede
+    // una catena di ragionamento estesa. Ridurre l'effort abbatte la latenza
+    // di gpt-5-mini senza eliminare schema strict o controlli sulle evidenze.
+    reasoning: { effort: 'minimal' },
+    max_output_tokens: 4_000,
     text: {
+      verbosity: 'low',
       format: {
         type: 'json_schema',
         name: 'session_compass_v1',

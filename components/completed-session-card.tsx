@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   CircleCheck,
   Clock,
@@ -85,6 +86,11 @@ const AI_INDICATOR: Record<
     icon: FileCheck2,
     className: 'bg-blue-50 text-blue-700 ring-blue-100',
   },
+  report_processing: {
+    icon: LoaderCircle,
+    className: 'bg-violet-50 text-violet-700 ring-violet-100',
+    animate: true,
+  },
   ready: {
     icon: FileCheck2,
     className: 'bg-violet-50 text-violet-700 ring-violet-100',
@@ -120,6 +126,7 @@ export function CompletedSessionCard({
   detailContent?: ReactNode;
   className?: string;
 }) {
+  const router = useRouter();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const tone = TONE[data.tone];
   const HeaderIcon = tone.icon;
@@ -127,6 +134,16 @@ export function CompletedSessionCard({
     ? AI_INDICATOR[data.aiIndicator.state]
     : null;
   const AiIndicatorIcon = aiIndicator?.icon;
+
+  // Le card arrivano da un Server Component: mentre il backend elabora,
+  // aggiorna i dati senza costringere il coach a ricaricare la dashboard.
+  // Il timer sparisce automaticamente appena lo stato diventa definitivo.
+  useEffect(() => {
+    const state = data.aiIndicator?.state;
+    if (!state || !['recording', 'processing', 'report_processing'].includes(state)) return;
+    const timer = window.setInterval(() => router.refresh(), 5_000);
+    return () => window.clearInterval(timer);
+  }, [data.aiIndicator?.state, router]);
 
   return (
     <article

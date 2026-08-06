@@ -235,6 +235,9 @@ test('l’adapter OpenAI invia schema strict e non memorizza la richiesta', asyn
   const report = await provider.generateReport(input());
 
   assert.equal(sent?.store, false);
+  assert.equal(sent?.reasoning.effort, 'minimal');
+  assert.equal(sent?.text.verbosity, 'low');
+  assert.equal(sent?.max_output_tokens, 4_000);
   assert.equal(sent?.text.format.strict, true);
   assert.equal(sent?.text.format.name, 'session_compass_v1');
   assert.match(sent?.instructions ?? '', /Non è visibile all'atleta|non è visibile all'atleta/i);

@@ -5,6 +5,7 @@ export type AiSessionArchiveIndicator = {
     | 'recording'
     | 'processing'
     | 'transcript_ready'
+    | 'report_processing'
     | 'ready'
     | 'approved'
     | 'shared'
@@ -16,10 +17,10 @@ function transcriptReadyIndicator(
   viewerRole: 'coach' | 'athlete'
 ): AiSessionArchiveIndicator {
   return {
-    state: 'transcript_ready',
+    state: 'report_processing',
     label:
       viewerRole === 'coach'
-        ? 'Trascrizione pronta · genera Compass'
+        ? 'Trascrizione pronta · Compass in elaborazione'
         : 'Trascrizione pronta · report in preparazione',
   };
 }

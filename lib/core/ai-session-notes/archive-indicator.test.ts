@@ -14,8 +14,8 @@ test('shows recording and processing progress on archived sessions', () => {
   assert.deepEqual(
     buildAiSessionArchiveIndicator('processing', 'coach', true, true),
     {
-      state: 'transcript_ready',
-      label: 'Trascrizione pronta · genera Compass',
+      state: 'report_processing',
+      label: 'Trascrizione pronta · Compass in elaborazione',
     }
   );
   assert.deepEqual(buildAiSessionArchiveIndicator('processing', 'coach', true), {
