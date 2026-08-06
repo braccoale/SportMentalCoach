@@ -23,7 +23,12 @@ declare global {
 
 function gtag(...args: unknown[]) {
   window.dataLayer = window.dataLayer || [];
-  window.gtag = window.gtag || ((...command) => window.dataLayer!.push(command));
+  window.gtag =
+    window.gtag ||
+    function (..._command: unknown[]) {
+      // Google expects the native arguments object, as in its official snippet.
+      window.dataLayer!.push(arguments);
+    };
   window.gtag(...args);
 }
 
