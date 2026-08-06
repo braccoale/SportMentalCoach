@@ -3,6 +3,7 @@
 import {
   type MouseEvent,
   type ReactNode,
+  type RefObject,
   useCallback,
   useEffect,
   useMemo,
@@ -191,6 +192,30 @@ export function RoomFullscreenControl() {
   );
 }
 
+/**
+ * L'elemento su cui si apre il mini video. Tenuto nel DOM con una dimensione
+ * vera e un'opacità quasi nulla — che è diverso da "non renderizzato".
+ * Chromium accetta come sorgente anche un elemento 1×1 trasparente
+ * (verificato), ma è un appoggio fragile su cui gli altri motori non danno
+ * garanzie, e qui non costa nulla non dipenderne.
+ */
+function PictureInPictureSource({
+  videoRef,
+}: {
+  videoRef: RefObject<PictureInPictureVideo | null>;
+}) {
+  return (
+    <video
+      ref={videoRef}
+      autoPlay
+      playsInline
+      muted
+      className="pointer-events-none fixed bottom-0 right-0 -z-10 h-[90px] w-[160px] opacity-[0.01]"
+      aria-hidden="true"
+    />
+  );
+}
+
 export function PictureInPictureControl({
   onTechnicalEvent,
 }: {
@@ -201,7 +226,7 @@ export function PictureInPictureControl({
   const automaticPictureInPicture = useRef(false);
   const [active, setActive] = useState(false);
   /** Il browser ha rifiutato: va detto, altrimenti sembra un pulsante rotto. */
-  const [failed, setFailed] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
   const cameraTrack = useMemo(() => {
     for (const participant of participants) {
       const publication = participant.getTrackPublication(Track.Source.Camera);
@@ -304,38 +329,46 @@ export function PictureInPictureControl({
     };
   }, [cameraTrack]);
 
-  const supported = useMemo(() => {
-    if (standardPictureInPictureSupported()) return true;
+  /**
+   * Il supporto si misura sull'elemento vero, non sul prototipo: su WebKit
+   * `webkitSetPresentationMode` esiste sempre, ma è
+   * `webkitSupportsPresentationMode('picture-in-picture')` a dire se *questo*
+   * video può davvero entrare in mini video — e per un video alimentato da uno
+   * stream WebRTC la risposta non è la stessa di un video con un file dietro.
+   * Mostrare un pulsante che il browser rifiuterà è peggio che non mostrarlo.
+   */
+  const [supported, setSupported] = useState(false);
+  useEffect(() => {
+    if (standardPictureInPictureSupported()) {
+      setSupported(true);
+      return;
+    }
+    const element = videoRef.current;
+    if (typeof element?.webkitSupportsPresentationMode === 'function') {
+      setSupported(
+        element.webkitSupportsPresentationMode('picture-in-picture')
+      );
+      return;
+    }
     const prototype = HTMLVideoElement.prototype as PictureInPictureVideo;
-    return typeof prototype.webkitSetPresentationMode === 'function';
-  }, []);
+    setSupported(typeof prototype.webkitSetPresentationMode === 'function');
+    // Rivalutato quando arriva la traccia: prima che il video abbia una
+    // sorgente, WebKit risponde di no.
+  }, [cameraTrack]);
 
   const toggle = async () => {
     const element = videoRef.current;
     if (!element || !cameraTrack) return;
     try {
-      // Nessun browser apre il mini video da un elemento fermo: se la
-      // riproduzione non è ancora partita (attacco della traccia appena
-      // avvenuto, autoplay rimandato) la richiesta viene rifiutata con un
-      // errore che l'utente vede solo come "il pulsante non fa niente".
-      if (element.readyState === 0) {
-        await new Promise<void>((resolve) => {
-          const done = () => resolve();
-          element.addEventListener('loadeddata', done, { once: true });
-          setTimeout(done, 1500);
-        });
-      }
-      if (element.paused) await element.play().catch(() => {});
-
-      if (standardPictureInPictureSupported()) {
-        if (document.pictureInPictureElement) {
-          await document.exitPictureInPicture();
-        } else {
-          await element.requestPictureInPicture();
+      // WebKit per primo e senza nulla davanti: `webkitSetPresentationMode`
+      // vuole essere chiamato dentro il gesto dell'utente, e su Safari un
+      // `await` prima consuma quel gesto — il mini video non si aprirebbe più,
+      // sempre e solo su iPhone.
+      if (!standardPictureInPictureSupported()) {
+        if (typeof element.webkitSetPresentationMode !== 'function') {
+          setFailure('Il browser non offre il mini video.');
+          return;
         }
-        return;
-      }
-      if (element.webkitSetPresentationMode) {
         const nextMode =
           element.webkitPresentationMode === 'picture-in-picture'
             ? 'inline'
@@ -347,30 +380,53 @@ export function PictureInPictureControl({
             ? 'picture_in_picture_started'
             : 'picture_in_picture_stopped'
         );
+        // WebKit non lancia se rifiuta: si controlla l'esito.
+        setTimeout(() => {
+          const applied =
+            videoRef.current?.webkitPresentationMode === 'picture-in-picture';
+          if (nextMode === 'picture-in-picture' && !applied) {
+            setActive(false);
+            setFailure('Safari ha rifiutato il mini video (WebRTC).');
+          }
+        }, 800);
+        return;
+      }
+
+      // Percorso standard: qui gli `await` sono ammessi, e un elemento fermo
+      // verrebbe rifiutato.
+      if (element.readyState === 0) {
+        await new Promise<void>((resolve) => {
+          const done = () => resolve();
+          element.addEventListener('loadeddata', done, { once: true });
+          setTimeout(done, 1500);
+        });
+      }
+      if (element.paused) await element.play().catch(() => {});
+
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+      } else {
+        await element.requestPictureInPicture();
       }
     } catch (error) {
       console.warn('[LiveKit] Picture-in-Picture unavailable', error);
-      setFailed(true);
+      // Il nome dell'errore del browser è l'unica informazione che dice
+      // *perché*: senza, resta un pulsante che non fa niente.
+      const detail =
+        error instanceof Error ? `${error.name}: ${error.message}` : '';
+      setFailure(`Mini video rifiutato dal browser. ${detail}`.trim());
     }
   };
 
-  if (!supported) return null;
+  if (!supported) {
+    // Il video resta nel DOM anche senza pulsante: è ciò su cui si misura il
+    // supporto, e senza elemento la misura direbbe sempre di no.
+    return <PictureInPictureSource videoRef={videoRef} />;
+  }
 
   return (
     <>
-      {/* Sorgente del mini video. Tenuta nel DOM con una dimensione vera e
-          un'opacità quasi nulla — che è diverso da "non renderizzato".
-          Chromium accetta come sorgente anche un elemento 1×1 trasparente
-          (verificato), ma è un appoggio fragile su cui gli altri motori non
-          danno garanzie, e qui non costa nulla non dipenderne. */}
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
-        className="pointer-events-none fixed bottom-0 right-0 -z-10 h-[90px] w-[160px] opacity-[0.01]"
-        aria-hidden="true"
-      />
+      <PictureInPictureSource videoRef={videoRef} />
       <button
         type="button"
         onClick={toggle}
@@ -385,12 +441,13 @@ export function PictureInPictureControl({
         <PictureInPicture2 className="h-4 w-4" aria-hidden="true" />
         {active ? 'Chiudi mini video' : 'Mini video'}
       </button>
-      {failed && (
+      {failure && (
         <p
           role="status"
-          className="w-full text-right text-[11px] leading-4 text-amber-300"
+          data-testid="pip-failure"
+          className="w-full max-w-[16rem] text-right text-[11px] leading-4 text-amber-300"
         >
-          Il browser ha rifiutato il mini video.
+          {failure}
         </p>
       )}
     </>
