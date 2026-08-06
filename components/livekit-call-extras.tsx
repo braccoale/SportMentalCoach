@@ -200,6 +200,8 @@ export function PictureInPictureControl({
   const videoRef = useRef<PictureInPictureVideo>(null);
   const automaticPictureInPicture = useRef(false);
   const [active, setActive] = useState(false);
+  /** Il browser ha rifiutato: va detto, altrimenti sembra un pulsante rotto. */
+  const [failed, setFailed] = useState(false);
   const cameraTrack = useMemo(() => {
     for (const participant of participants) {
       const publication = participant.getTrackPublication(Track.Source.Camera);
@@ -312,6 +314,19 @@ export function PictureInPictureControl({
     const element = videoRef.current;
     if (!element || !cameraTrack) return;
     try {
+      // Nessun browser apre il mini video da un elemento fermo: se la
+      // riproduzione non è ancora partita (attacco della traccia appena
+      // avvenuto, autoplay rimandato) la richiesta viene rifiutata con un
+      // errore che l'utente vede solo come "il pulsante non fa niente".
+      if (element.readyState === 0) {
+        await new Promise<void>((resolve) => {
+          const done = () => resolve();
+          element.addEventListener('loadeddata', done, { once: true });
+          setTimeout(done, 1500);
+        });
+      }
+      if (element.paused) await element.play().catch(() => {});
+
       if (standardPictureInPictureSupported()) {
         if (document.pictureInPictureElement) {
           await document.exitPictureInPicture();
@@ -335,6 +350,7 @@ export function PictureInPictureControl({
       }
     } catch (error) {
       console.warn('[LiveKit] Picture-in-Picture unavailable', error);
+      setFailed(true);
     }
   };
 
@@ -342,12 +358,17 @@ export function PictureInPictureControl({
 
   return (
     <>
+      {/* Sorgente del mini video. Tenuta nel DOM con una dimensione vera e
+          un'opacità quasi nulla — che è diverso da "non renderizzato".
+          Chromium accetta come sorgente anche un elemento 1×1 trasparente
+          (verificato), ma è un appoggio fragile su cui gli altri motori non
+          danno garanzie, e qui non costa nulla non dipenderne. */}
       <video
         ref={videoRef}
         autoPlay
         playsInline
         muted
-        className="pointer-events-none fixed bottom-0 right-0 h-px w-px opacity-0"
+        className="pointer-events-none fixed bottom-0 right-0 -z-10 h-[90px] w-[160px] opacity-[0.01]"
         aria-hidden="true"
       />
       <button
@@ -364,6 +385,14 @@ export function PictureInPictureControl({
         <PictureInPicture2 className="h-4 w-4" aria-hidden="true" />
         {active ? 'Chiudi mini video' : 'Mini video'}
       </button>
+      {failed && (
+        <p
+          role="status"
+          className="w-full text-right text-[11px] leading-4 text-amber-300"
+        >
+          Il browser ha rifiutato il mini video.
+        </p>
+      )}
     </>
   );
 }

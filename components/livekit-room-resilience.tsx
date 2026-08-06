@@ -28,6 +28,20 @@ function developmentWarn(message: string, details: unknown) {
   if (DEVELOPMENT) console.warn(message, details);
 }
 
+/**
+ * Se il mini video (Picture-in-Picture) è aperto, nei due dialetti esistenti:
+ * lo standard e quello di Safari, che non implementa il primo.
+ */
+function isPictureInPictureActive(): boolean {
+  if (typeof document === 'undefined') return false;
+  if (document.pictureInPictureElement) return true;
+  return Array.from(document.querySelectorAll('video')).some(
+    (video) =>
+      (video as HTMLVideoElement & { webkitPresentationMode?: string })
+        .webkitPresentationMode === 'picture-in-picture'
+  );
+}
+
 function updatePreference(
   preferences: LocalMediaPreferences,
   publication: TrackPublication,
@@ -187,6 +201,13 @@ export function useLiveKitRoomResilience(room: Room) {
      * dal primo (bfcache, blocco schermo, chiusura della scheda).
      */
     const suspendCapture = () => {
+      // Col mini video aperto la pausa non va imposta: su Android la cattura
+      // continua, ed è esattamente ciò che serve a chi ha ridotto la chiamata
+      // per prendere appunti restando visibile. Dove invece il sistema
+      // sospende davvero la sorgente, è LiveKit a dichiararlo da sé quando la
+      // traccia emette `mute`, quindi l'altra persona non resta comunque
+      // davanti a un'immagine ferma.
+      if (isPictureInPictureActive()) return;
       // In secondo piano il browser congela i fotogrammi ma la traccia resta
       // pubblicata: l'altra persona vedrebbe un'immagine ferma continuando a
       // sentire la voce. Meglio dichiarare la pausa.

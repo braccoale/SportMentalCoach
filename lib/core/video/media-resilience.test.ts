@@ -12,6 +12,8 @@ type FakeTrack = {
   mediaStreamTrack: {
     readyState: MediaStreamTrackState;
     enabled: boolean;
+    /** Sospensione decisa dal sistema operativo, non dall'utente. */
+    muted?: boolean;
   };
   restartTrack: () => Promise<void>;
 };
@@ -80,7 +82,7 @@ function healthyPublication(source: Track.Source): FakePublication {
     source,
     isMuted: false,
     track: {
-      mediaStreamTrack: { readyState: 'live', enabled: true },
+      mediaStreamTrack: { readyState: 'live', enabled: true, muted: false },
       restartTrack: async () => {},
     },
   };
@@ -127,8 +129,12 @@ test('ended tracks restart in place', async () => {
   assert.deepEqual(restored, { camera: true, microphone: true });
   assert.equal(calls.cameraRestarted, 1);
   assert.equal(calls.microphoneRestarted, 1);
-  assert.equal(calls.cameraEnabled, 0);
-  assert.equal(calls.microphoneEnabled, 0);
+  // Il riavvio da solo non basta più: `restartTrack()` lascia la
+  // pubblicazione com'era, quindi se era in muto l'altra persona continua a
+  // non vedere nulla. Su una traccia già non in muto togliere il muto è
+  // un'operazione a vuoto, quindi non costa niente farlo sempre.
+  assert.equal(calls.cameraEnabled, 1);
+  assert.equal(calls.microphoneEnabled, 1);
 });
 
 test('user-disabled devices are never restored', async () => {
@@ -258,4 +264,42 @@ test('la camera è viva solo se pubblicata, non in muto, attiva e non terminata'
     false
   );
   assert.equal(isCameraLive(roomWithCamera(null)), false);
+});
+
+test('la camera sospesa dal sistema viene ri-acquisita, non solo riattivata', async () => {
+  // Il caso reale del rientro da un'altra app su telefono: la traccia non è
+  // "ended", è viva ma il sistema ha smesso di darle fotogrammi
+  // (MediaStreamTrack.muted). Riabilitarla non basta: `unmute()` di LiveKit
+  // ri-acquisisce solo il microfono, mai la camera.
+  const camera = healthyPublication(Track.Source.Camera);
+  camera.isMuted = true;
+  camera.track!.mediaStreamTrack.muted = true;
+  const { room, calls } = createRoom({ camera });
+
+  const restored = await restoreLocalMediaIfNeeded(room, wantsAllMedia);
+
+  assert.equal(restored.camera, true);
+  assert.equal(calls.cameraRestarted, 1, 'la traccia va ri-acquisita');
+  assert.equal(calls.cameraEnabled, 1, 'e va anche tolto il muto');
+});
+
+test('una camera spenta dal browser (enabled false) viene ri-acquisita', async () => {
+  const camera = healthyPublication(Track.Source.Camera);
+  camera.track!.mediaStreamTrack.enabled = false;
+  const { room, calls } = createRoom({ camera });
+
+  await restoreLocalMediaIfNeeded(room, wantsAllMedia);
+
+  assert.equal(calls.cameraRestarted, 1);
+});
+
+test('una traccia sana non viene mai ri-acquisita inutilmente', async () => {
+  const camera = healthyPublication(Track.Source.Camera);
+  camera.isMuted = true; // in muto per scelta nostra, ma la sorgente è viva
+  const { room, calls } = createRoom({ camera });
+
+  await restoreLocalMediaIfNeeded(room, wantsAllMedia);
+
+  assert.equal(calls.cameraRestarted, 0, 'basta togliere il muto');
+  assert.equal(calls.cameraEnabled, 1);
 });
