@@ -193,11 +193,13 @@ export function RoomFullscreenControl() {
 }
 
 /**
- * L'elemento su cui si apre il mini video. Tenuto nel DOM con una dimensione
- * vera e un'opacità quasi nulla — che è diverso da "non renderizzato".
- * Chromium accetta come sorgente anche un elemento 1×1 trasparente
- * (verificato), ma è un appoggio fragile su cui gli altri motori non danno
- * garanzie, e qui non costa nulla non dipenderne.
+ * L'elemento su cui si apre il mini video.
+ *
+ * Resta 1×1 e trasparente come è sempre stato: Chromium lo accetta come
+ * sorgente (verificato con una prova diretta), e ingrandirlo non ha portato
+ * alcun vantaggio misurato su nessun motore — mentre cambiare l'unico
+ * elemento in gioco mentre si insegue un difetto su un altro dispositivo
+ * aggiunge solo una variabile.
  */
 function PictureInPictureSource({
   videoRef,
@@ -210,7 +212,7 @@ function PictureInPictureSource({
       autoPlay
       playsInline
       muted
-      className="pointer-events-none fixed bottom-0 right-0 -z-10 h-[90px] w-[160px] opacity-[0.01]"
+      className="pointer-events-none fixed bottom-0 right-0 h-px w-px opacity-0"
       aria-hidden="true"
     />
   );
@@ -330,43 +332,46 @@ export function PictureInPictureControl({
   }, [cameraTrack]);
 
   /**
-   * Il supporto si misura sull'elemento vero, non sul prototipo: su WebKit
-   * `webkitSetPresentationMode` esiste sempre, ma è
-   * `webkitSupportsPresentationMode('picture-in-picture')` a dire se *questo*
-   * video può davvero entrare in mini video — e per un video alimentato da uno
-   * stream WebRTC la risposta non è la stessa di un video con un file dietro.
-   * Mostrare un pulsante che il browser rifiuterà è peggio che non mostrarlo.
+   * Se *questo* elemento può entrare in mini video con l'API di WebKit.
+   *
+   * Si misura sull'elemento e non sul prototipo, perché
+   * `webkitSetPresentationMode` esiste comunque mentre
+   * `webkitSupportsPresentationMode('picture-in-picture')` risponde per il
+   * video che ha davanti — e prima che gli sia stata attaccata una sorgente
+   * risponde di no. Per questo viene rivalutato all'arrivo della traccia.
    */
-  const [supported, setSupported] = useState(false);
+  const [webkitCapable, setWebkitCapable] = useState(false);
   useEffect(() => {
-    if (standardPictureInPictureSupported()) {
-      setSupported(true);
-      return;
-    }
     const element = videoRef.current;
-    if (typeof element?.webkitSupportsPresentationMode === 'function') {
-      setSupported(
+    setWebkitCapable(
+      typeof element?.webkitSupportsPresentationMode === 'function' &&
         element.webkitSupportsPresentationMode('picture-in-picture')
-      );
-      return;
-    }
-    const prototype = HTMLVideoElement.prototype as PictureInPictureVideo;
-    setSupported(typeof prototype.webkitSetPresentationMode === 'function');
-    // Rivalutato quando arriva la traccia: prima che il video abbia una
-    // sorgente, WebKit risponde di no.
+    );
   }, [cameraTrack]);
+
+  const supported = webkitCapable || standardPictureInPictureSupported();
 
   const toggle = async () => {
     const element = videoRef.current;
     if (!element || !cameraTrack) return;
     try {
-      // WebKit per primo e senza nulla davanti: `webkitSetPresentationMode`
-      // vuole essere chiamato dentro il gesto dell'utente, e su Safari un
-      // `await` prima consuma quel gesto — il mini video non si aprirebbe più,
-      // sempre e solo su iPhone.
-      if (!standardPictureInPictureSupported()) {
+      /*
+       * WebKit ha la precedenza dove è disponibile, anche quando l'API
+       * standard risulta presente.
+       *
+       * Su iPhone `document.pictureInPictureEnabled` dice di sì, ma
+       * `requestPictureInPicture()` su un video alimentato da uno stream
+       * WebRTC risponde `NotSupportedError: The video element does not
+       * support the Picture-in-Picture mode`. La via che funziona lì è
+       * `webkitSetPresentationMode`, ed è anche quella che Safari desktop
+       * usa da sempre.
+       *
+       * Va chiamata senza nessun `await` davanti: su Safari un'attesa
+       * consuma il gesto dell'utente, e la richiesta verrebbe ignorata.
+       */
+      if (webkitCapable) {
         if (typeof element.webkitSetPresentationMode !== 'function') {
-          setFailure('Il browser non offre il mini video.');
+          setFailure('Il mini video non è disponibile in questo browser.');
           return;
         }
         const nextMode =
@@ -386,7 +391,7 @@ export function PictureInPictureControl({
             videoRef.current?.webkitPresentationMode === 'picture-in-picture';
           if (nextMode === 'picture-in-picture' && !applied) {
             setActive(false);
-            setFailure('Safari ha rifiutato il mini video (WebRTC).');
+            setFailure('Il mini video non è disponibile in questo browser.');
           }
         }, 800);
         return;
@@ -409,12 +414,31 @@ export function PictureInPictureControl({
         await element.requestPictureInPicture();
       }
     } catch (error) {
+      // Il dettaglio tecnico serve a chi indaga e va nei log; a chi è in
+      // chiamata serve sapere che quella strada è chiusa, non il nome
+      // dell'eccezione in mezzo al video.
       console.warn('[LiveKit] Picture-in-Picture unavailable', error);
-      // Il nome dell'errore del browser è l'unica informazione che dice
-      // *perché*: senza, resta un pulsante che non fa niente.
-      const detail =
-        error instanceof Error ? `${error.name}: ${error.message}` : '';
-      setFailure(`Mini video rifiutato dal browser. ${detail}`.trim());
+
+      // Ultimo tentativo: dove l'API standard si dichiara disponibile ma
+      // rifiuta un video WebRTC, quella di WebKit a volte funziona lo stesso.
+      // Il gesto dell'utente potrebbe essersi già consumato, quindi può non
+      // bastare — ma un tentativo in più non toglie nulla a chi è in chiamata.
+      const element = videoRef.current;
+      if (typeof element?.webkitSetPresentationMode === 'function') {
+        try {
+          element.webkitSetPresentationMode('picture-in-picture');
+          if (
+            element.webkitPresentationMode === 'picture-in-picture'
+          ) {
+            setActive(true);
+            onTechnicalEvent?.('picture_in_picture_started');
+            return;
+          }
+        } catch {
+          // Nessun rimedio: sotto si avvisa e basta.
+        }
+      }
+      setFailure('Il mini video non è disponibile in questo browser.');
     }
   };
 
