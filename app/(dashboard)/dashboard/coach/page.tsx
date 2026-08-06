@@ -902,7 +902,8 @@ function buildArchiveCardData(
     aiIndicator: buildAiSessionArchiveIndicator(
       booking.aiNotesStatus,
       'coach',
-      booking.hasRecordedAudio
+      booking.hasRecordedAudio,
+      booking.hasTranscript
     ),
   };
 }

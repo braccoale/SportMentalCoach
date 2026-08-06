@@ -30,6 +30,7 @@ function booking(over: Partial<CoachBooking> & { id: number; clientId: number })
     athleteIsMinor: false,
     aiNotesStatus: null,
     hasRecordedAudio: false,
+    hasTranscript: false,
     ...over,
   };
 }

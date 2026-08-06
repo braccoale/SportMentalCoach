@@ -25,6 +25,7 @@ import {
   profiles,
   sessionAudioRecordings,
   sessionAiNotes,
+  sessionTranscriptTimelineSegments,
   services,
   userRoles,
   users,
@@ -420,6 +421,7 @@ export type AthleteBooking = {
   durationMin: number | null;
   aiNotesStatus: AiSessionNoteStatus | null;
   hasRecordedAudio: boolean;
+  hasTranscript: boolean;
 };
 
 export type ParticipantBooking = {
@@ -941,6 +943,13 @@ export async function getAthleteBookings(
             'recorded', 'deletion_pending', 'deleted', 'deletion_failed'
           )
       )`,
+      hasTranscript: sql<boolean>`exists (
+        select 1
+        from ${sessionTranscriptTimelineSegments}
+        inner join ${sessionAiNotes}
+          on ${sessionAiNotes.id} = ${sessionTranscriptTimelineSegments.sessionAiNotesId}
+        where ${sessionAiNotes.bookingId} = ${bookings.id}
+      )`,
     })
     .from(bookings)
     .innerJoin(providerProfiles, eq(bookings.providerId, providerProfiles.id))
@@ -975,6 +984,7 @@ export type CoachBooking = {
   athleteIsMinor: boolean;
   aiNotesStatus: AiSessionNoteStatus | null;
   hasRecordedAudio: boolean;
+  hasTranscript: boolean;
 };
 
 /** Incoming bookings for a coach (resolved from their user id). */
@@ -1025,6 +1035,13 @@ export async function getCoachBookings(
           and ${sessionAudioRecordings.status} in (
             'recorded', 'deletion_pending', 'deleted', 'deletion_failed'
           )
+      )`,
+      hasTranscript: sql<boolean>`exists (
+        select 1
+        from ${sessionTranscriptTimelineSegments}
+        inner join ${sessionAiNotes}
+          on ${sessionAiNotes.id} = ${sessionTranscriptTimelineSegments.sessionAiNotesId}
+        where ${sessionAiNotes.bookingId} = ${bookings.id}
       )`,
     })
     .from(bookings)

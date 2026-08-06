@@ -164,7 +164,8 @@ function buildAthleteArchiveData(b: AthleteBooking): CompletedSessionData {
     aiIndicator: buildAiSessionArchiveIndicator(
       b.aiNotesStatus,
       'athlete',
-      b.hasRecordedAudio
+      b.hasRecordedAudio,
+      b.hasTranscript
     ),
   };
 }

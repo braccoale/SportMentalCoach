@@ -1,14 +1,34 @@
 import type { AiSessionNoteStatus } from '@/lib/db/schema';
 
 export type AiSessionArchiveIndicator = {
-  state: 'recording' | 'processing' | 'ready' | 'approved' | 'shared' | 'failed';
+  state:
+    | 'recording'
+    | 'processing'
+    | 'transcript_ready'
+    | 'ready'
+    | 'approved'
+    | 'shared'
+    | 'failed';
   label: string;
 };
+
+function transcriptReadyIndicator(
+  viewerRole: 'coach' | 'athlete'
+): AiSessionArchiveIndicator {
+  return {
+    state: 'transcript_ready',
+    label:
+      viewerRole === 'coach'
+        ? 'Trascrizione pronta · genera Compass'
+        : 'Trascrizione pronta · report in preparazione',
+  };
+}
 
 export function buildAiSessionArchiveIndicator(
   status: AiSessionNoteStatus | null,
   viewerRole: 'coach' | 'athlete',
-  hasRecordedAudio = false
+  hasRecordedAudio = false,
+  hasTranscript = false
 ): AiSessionArchiveIndicator | null {
   switch (status) {
     case 'active':
@@ -16,10 +36,12 @@ export function buildAiSessionArchiveIndicator(
       // file. Fra la chiusura dell'egress e l'avanzamento del worker l'audio è
       // già al sicuro: in quel tratto non va più mostrato come registrazione
       // ancora aperta.
+      if (hasTranscript) return transcriptReadyIndicator(viewerRole);
       return hasRecordedAudio
         ? { state: 'processing', label: 'Registrata · trascrizione in corso' }
         : { state: 'recording', label: 'Registrazione in corso' };
     case 'processing':
+      if (hasTranscript) return transcriptReadyIndicator(viewerRole);
       return {
         state: 'processing',
         label: hasRecordedAudio

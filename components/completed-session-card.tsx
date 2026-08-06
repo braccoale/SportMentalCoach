@@ -81,6 +81,10 @@ const AI_INDICATOR: Record<
     className: 'bg-blue-50 text-blue-700 ring-blue-100',
     animate: true,
   },
+  transcript_ready: {
+    icon: FileCheck2,
+    className: 'bg-blue-50 text-blue-700 ring-blue-100',
+  },
   ready: {
     icon: FileCheck2,
     className: 'bg-violet-50 text-violet-700 ring-violet-100',
