@@ -161,50 +161,48 @@ export function GoogleAnalytics({ measurementId }: { measurementId: string }) {
   if (consent !== null && !settingsOpen) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[100] p-3 sm:p-5">
+    <div className="fixed inset-x-0 bottom-0 z-[100] p-2.5 sm:p-4">
       <section
         role="dialog"
         aria-modal="true"
         aria-labelledby="cookie-consent-title"
-        className="relative mx-auto max-w-3xl rounded-2xl border border-gray-200 bg-white p-5 text-gray-700 shadow-2xl sm:p-6"
+        className="relative mx-auto max-w-xl rounded-xl border border-gray-200 bg-white p-4 text-gray-700 shadow-xl"
       >
         <button
           type="button"
           onClick={() => choose('denied')}
           aria-label="Chiudi e continua senza cookie analytics"
-          className="absolute right-3 top-3 rounded-full p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
+          className="absolute right-2.5 top-2.5 rounded-full p-1.5 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
         >
-          <X className="size-5" />
+          <X className="size-4" />
         </button>
 
-        <h2 id="cookie-consent-title" className="pr-10 text-lg font-semibold text-gray-950">
+        <h2 id="cookie-consent-title" className="pr-8 text-base font-semibold text-gray-950">
           Cookie e misurazione del sito
         </h2>
-        <p className="mt-2 text-sm leading-6">
-          Usiamo cookie tecnici necessari al funzionamento. Con il tuo consenso,
-          Google Analytics ci aiuta a capire in forma aggregata come viene usato
-          KaiPai. Non usiamo questi dati per pubblicità o profilazione.
-        </p>
-        <p className="mt-1 text-sm">
-          Puoi cambiare scelta in qualsiasi momento. Leggi la{' '}
+        <p className="mt-1.5 text-xs leading-5 sm:text-sm">
+          Usiamo cookie tecnici necessari. Solo con il tuo consenso, Google
+          Analytics ci aiuta a capire in forma aggregata come viene usato KaiPai,
+          senza pubblicità o profilazione. Puoi cambiare scelta in qualsiasi
+          momento dalla{' '}
           <Link href="/cookie" className="font-medium text-blue-800 underline">
             Cookie Policy
           </Link>
           .
         </p>
 
-        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={() => choose('denied')}
-            className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-800 transition hover:bg-gray-50"
+            className="rounded-lg border border-gray-300 px-3.5 py-2 text-xs font-semibold text-gray-800 transition hover:bg-gray-50 sm:text-sm"
           >
             Continua senza analytics
           </button>
           <button
             type="button"
             onClick={() => choose('granted')}
-            className="rounded-xl bg-blue-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800"
+            className="rounded-lg bg-blue-900 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-blue-800 sm:text-sm"
           >
             Accetta analytics
           </button>
