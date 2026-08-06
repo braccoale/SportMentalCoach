@@ -28,6 +28,7 @@ import {
   describeAvailability,
   getBookableDays,
 } from '@/lib/core/availability';
+import { busyIntervalsAt } from '@/lib/core/availability/validation';
 import { getProviderProfileByUser } from '@/lib/core/profiles';
 import {
   FEATURE_CODES,
@@ -131,18 +132,22 @@ export default async function CoachDashboardPage() {
   // Same Rome-derived day/time options the athlete sees, so the coach can't
   // pick a slot their own availability would reject on submit.
   const bookableDays = getBookableDays(coachAvailability, {
-    busyIntervals: allBookings
-      .filter(
-        (booking) =>
-          booking.scheduledFor &&
-          booking.scheduledFor > new Date() &&
-          ['requested', 'accepted'].includes(booking.status)
-      )
-      .map((booking) => ({
-        scheduledFor: booking.scheduledFor!,
-        durationMin:
-          booking.durationMin ?? DEFAULT_SERVICE_DURATION_MIN,
-      })),
+    // Le sessioni si scartano in base a quando *finiscono*: una già iniziata
+    // occupa ancora il calendario, ed è esattamente il controllo che il server
+    // rifà al momento dell'inserimento.
+    busyIntervals: busyIntervalsAt(
+      allBookings
+        .filter(
+          (booking) =>
+            booking.scheduledFor &&
+            ['requested', 'accepted'].includes(booking.status)
+        )
+        .map((booking) => ({
+          scheduledFor: booking.scheduledFor!,
+          durationMin: booking.durationMin ?? DEFAULT_SERVICE_DURATION_MIN,
+        })),
+      new Date()
+    ),
   });
 
   const reviews = provider ? await getCoachReviews(provider.id) : [];

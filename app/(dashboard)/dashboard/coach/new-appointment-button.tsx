@@ -12,7 +12,10 @@ import {
   SESSION_DURATION_OPTIONS,
 } from '@/lib/core/bookings/duration';
 import type { BookableDay } from '@/lib/core/availability';
-import { isStartBusyForDuration } from '@/lib/core/availability/validation';
+import {
+  dropPastStarts,
+  isStartBusyForDuration,
+} from '@/lib/core/availability/validation';
 import { createCoachBookingAction } from './actions';
 
 type ServiceOption = { id: number; title: string; durationMin: number };
@@ -80,14 +83,18 @@ export function CoachNewAppointmentButton({
   const [durationMin, setDurationMin] = useState<number>(
     DEFAULT_SESSION_DURATION_MIN
   );
+  // Le opzioni arrivano calcolate dal server: si ripuliscono dagli orari nel
+  // frattempo scaduti a ogni apertura del dialog, non qui, perché al primo
+  // render devono coincidere con l'HTML del server (idratazione).
+  const [days, setDays] = useState(bookableDays);
   const [day, setDay] = useState(bookableDays[0]?.value ?? '');
   const [time, setTime] = useState(
     firstFreeTime(bookableDays[0], DEFAULT_SESSION_DURATION_MIN)
   );
 
   const selectedDay = useMemo(
-    () => bookableDays.find((d) => d.value === day),
-    [bookableDays, day]
+    () => days.find((d) => d.value === day),
+    [days, day]
   );
 
   /**
@@ -118,14 +125,18 @@ export function CoachNewAppointmentButton({
   }
 
   // Re-anchor on the first option each time the dialog opens, so a page left
-  // sitting open doesn't start on a slot that has since passed.
+  // sitting open doesn't start on a slot that has since passed. Gli orari già
+  // passati vanno tolti davvero dalla lista: ri-ancorarsi alla prima opzione
+  // di un elenco vecchio significa proporre un orario che il server rifiuta.
   function openDialog() {
     const athleteUserId = athletes[0]?.userId ?? 0;
+    const freshDays = dropPastStarts(bookableDays, new Date());
     setClientUserId(athleteUserId);
     setServiceId(defaultServiceFor(athleteUserId));
     setDurationMin(DEFAULT_SESSION_DURATION_MIN);
-    setDay(bookableDays[0]?.value ?? '');
-    setTime(firstFreeTime(bookableDays[0], DEFAULT_SESSION_DURATION_MIN));
+    setDays(freshDays);
+    setDay(freshDays[0]?.value ?? '');
+    setTime(firstFreeTime(freshDays[0], DEFAULT_SESSION_DURATION_MIN));
     setOpen(true);
   }
 
@@ -187,7 +198,10 @@ export function CoachNewAppointmentButton({
             onClick={() => setOpen(false)}
             className="absolute inset-0 cursor-default bg-black/40"
           />
-          <div className="absolute left-1/2 top-1/2 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl">
+          {/* Il pannello scorre: su telefono il form è più alto dello schermo,
+              e senza scroll i pulsanti e il messaggio di errore restano
+              irraggiungibili. */}
+          <div className="absolute left-1/2 top-1/2 max-h-[90vh] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto overscroll-contain rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">
@@ -209,6 +223,7 @@ export function CoachNewAppointmentButton({
 
             <ActionForm
               action={createCoachBookingAction}
+              messageFirst
               className="mt-5 flex flex-col gap-4"
               onSuccess={(state) => {
                 if (typeof state.bookingId !== 'number') return;
@@ -269,7 +284,7 @@ export function CoachNewAppointmentButton({
 
               <input type="hidden" name="scheduledFor" value={scheduledFor} />
 
-              {bookableDays.length > 0 ? (
+              {days.length > 0 ? (
                 <div className="flex flex-col gap-1.5">
                   <span className="text-sm font-medium text-gray-700">
                     Data e ora
@@ -284,14 +299,14 @@ export function CoachNewAppointmentButton({
                           setDay(nextDay);
                           setTime(
                             firstFreeTime(
-                              bookableDays.find((d) => d.value === nextDay),
+                              days.find((d) => d.value === nextDay),
                               durationMin
                             )
                           );
                         }}
                         className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
                       >
-                        {bookableDays.map((d) => (
+                        {days.map((d) => (
                           <option key={d.value} value={d.value}>
                             {d.label}
                           </option>
@@ -339,6 +354,11 @@ export function CoachNewAppointmentButton({
                     </span>
                   )}
                 </div>
+              ) : bookableDays.length > 0 ? (
+                <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  Gli orari proposti sono nel frattempo passati. Ricarica la
+                  pagina per vedere quelli ancora disponibili.
+                </p>
               ) : (
                 <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-600">
                   Non hai ancora impostato la tua disponibilità settimanale: la
