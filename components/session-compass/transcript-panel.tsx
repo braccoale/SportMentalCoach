@@ -1,7 +1,7 @@
 'use client';
 
 import { Check, Copy, Loader2, Search, UserRound, UsersRound } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { SPEAKER_LABEL, segmentAnchorId, type CompassTranscriptSegment } from './types';
 
@@ -29,6 +29,7 @@ export function TranscriptPanel({
   const [query, setQuery] = useState('');
   const [speaker, setSpeaker] = useState<SpeakerFilter>('all');
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [visibleLimit, setVisibleLimit] = useState(100);
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase('it');
@@ -37,6 +38,12 @@ export function TranscriptPanel({
       return !normalized || segment.text.toLocaleLowerCase('it').includes(normalized);
     });
   }, [query, speaker, transcript]);
+  useEffect(() => setVisibleLimit(100), [query, speaker, transcript]);
+  const highlightedIndex = highlightedSegmentId === null
+    ? -1
+    : filtered.findIndex((segment) => segment.transcriptSegmentId === highlightedSegmentId);
+  const effectiveLimit = Math.max(visibleLimit, highlightedIndex + 1);
+  const visibleSegments = filtered.slice(0, effectiveLimit);
 
   async function copySegment(segment: CompassTranscriptSegment) {
     await navigator.clipboard.writeText(
@@ -103,8 +110,9 @@ export function TranscriptPanel({
             Nessun segmento corrisponde alla ricerca o al filtro selezionato.
           </div>
         ) : (
+          <>
           <ol className="divide-y divide-gray-100">
-            {filtered.map((segment) => {
+            {visibleSegments.map((segment) => {
               const highlighted = highlightedSegmentId === segment.transcriptSegmentId;
               return (
                 <li
@@ -130,6 +138,17 @@ export function TranscriptPanel({
               );
             })}
           </ol>
+          {effectiveLimit < filtered.length ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-5 w-full"
+              onClick={() => setVisibleLimit((current) => current + 100)}
+            >
+              Mostra altri passaggi ({filtered.length - effectiveLimit})
+            </Button>
+          ) : null}
+          </>
         )}
       </div>
     </section>

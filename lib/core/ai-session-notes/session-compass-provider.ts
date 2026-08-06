@@ -10,8 +10,13 @@ import {
   SESSION_COMPASS_REPORT_KIND,
   SESSION_COMPASS_SCHEMA_VERSION,
   MAX_KEY_MOMENTS,
+  MAX_EMOTIONAL_TREND_POINTS,
   MAX_NEXT_SESSION_PREP,
+  MAX_SESSION_METRICS,
   MAX_THEMES,
+  KEY_MOMENT_CATEGORIES,
+  METRIC_CONFIDENCE_LEVELS,
+  SESSION_METRIC_KEYS,
   containsForbiddenClaim,
   indexSourceSegments,
   resolveEvidence,
@@ -20,10 +25,15 @@ import {
   type CompassEvidence,
   type CompassSourceSegment,
   type CompassSpeaker,
+  type EmotionalTrendPoint,
   type KeyMoment,
+  type KeyMomentCategory,
+  type MetricConfidence,
   type NextSessionPrepItem,
   type NextSessionPrepOrigin,
   type SessionCompassReport,
+  type SessionMetric,
+  type SessionMetricKey,
   type SessionCompassValidationIssue,
   type CompassTheme,
 } from './session-compass-contract';
@@ -89,6 +99,8 @@ export type RawCompassContent = {
     summaryEvidence?: unknown;
     themes?: unknown;
     emergingResource?: unknown;
+    metrics?: unknown;
+    emotionalTrend?: unknown;
   };
   keyMoments?: unknown;
   commitments?: unknown;
@@ -131,6 +143,35 @@ export function assembleSessionCompassReport(
       ? { id: 'resource-1', text: resourceText, evidence: resourceEvidence }
       : null;
 
+  const seenMetricKeys = new Set<SessionMetricKey>();
+  const metrics: SessionMetric[] = withIdentifiers(
+    'metric',
+    asArray(overview.metrics).flatMap((item) => {
+      const record = asRecord(item);
+      const key = asMetricKey(record?.key);
+      const value = asIntegerInRange(record?.value, 1, 5);
+      const confidence = asMetricConfidence(record?.confidence);
+      const evidence = evidenceOf(record?.evidence, segments);
+      if (!record || !key || value === null || !confidence || !evidence || seenMetricKeys.has(key)) return [];
+      seenMetricKeys.add(key);
+      return [{ key, value, confidence, evidence }];
+    })
+  ).slice(0, MAX_SESSION_METRICS);
+
+  const emotionalTrend: EmotionalTrendPoint[] = withIdentifiers(
+    'emotion',
+    asArray(overview.emotionalTrend).flatMap((item) => {
+      const record = asRecord(item);
+      const value = asIntegerInRange(record?.value, -2, 2);
+      const label = asProse(record?.label);
+      const evidence = evidenceOf(record?.evidence, segments);
+      if (!record || value === null || !label || !evidence) return [];
+      return [{ value, label, evidence }];
+    })
+  )
+    .sort((left, right) => left.evidence.startMs - right.evidence.startMs)
+    .slice(0, MAX_EMOTIONAL_TREND_POINTS);
+
   const keyMoments: KeyMoment[] = withIdentifiers(
     'moment',
     asArray(content.keyMoments).flatMap((item) => {
@@ -141,7 +182,15 @@ export function assembleSessionCompassReport(
       if (!record || !title || !explanation || !evidence) return [];
       const speaker = asSpeaker(record.speaker) ?? evidence.speaker;
       if (speaker !== evidence.speaker) return [];
-      return [{ title, explanation, speaker, evidence }];
+      return [{
+        title,
+        explanation,
+        speaker,
+        evidence,
+        category: asMomentCategory(record.category) ?? undefined,
+        theme: asNullableProse(record.theme),
+        relevance: asMomentRelevance(record.relevance) ?? undefined,
+      }];
     })
   ).slice(0, MAX_KEY_MOMENTS);
 
@@ -183,7 +232,7 @@ export function assembleSessionCompassReport(
     sessionId: input.sessionId,
     sourceFingerprint: input.sourceFingerprint,
     language: input.language,
-    sessionOverview: { summary, summaryEvidence, themes, emergingResource },
+    sessionOverview: { summary, summaryEvidence, themes, emergingResource, metrics, emotionalTrend },
     keyMoments,
     commitments,
     nextSessionPrep,
@@ -331,6 +380,39 @@ function asOrigin(value: unknown): NextSessionPrepOrigin | null {
   return value === 'theme' || value === 'commitment' || value === 'open_question'
     ? value
     : null;
+}
+
+function asMetricKey(value: unknown): SessionMetricKey | null {
+  return typeof value === 'string' && SESSION_METRIC_KEYS.includes(value as SessionMetricKey)
+    ? (value as SessionMetricKey)
+    : null;
+}
+
+function asMetricConfidence(value: unknown): MetricConfidence | null {
+  return typeof value === 'string' && METRIC_CONFIDENCE_LEVELS.includes(value as MetricConfidence)
+    ? (value as MetricConfidence)
+    : null;
+}
+
+function asMomentCategory(value: unknown): KeyMomentCategory | null {
+  return typeof value === 'string' && KEY_MOMENT_CATEGORIES.includes(value as KeyMomentCategory)
+    ? (value as KeyMomentCategory)
+    : null;
+}
+
+function asMomentRelevance(value: unknown): 1 | 2 | 3 | null {
+  return value === 1 || value === 2 || value === 3 ? value : null;
+}
+
+function asIntegerInRange(value: unknown, minimum: number, maximum: number): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value >= minimum && value <= maximum
+    ? value
+    : null;
+}
+
+function asNullableProse(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  return asProse(value) || null;
 }
 
 function asCalendarDate(value: unknown): string | null {

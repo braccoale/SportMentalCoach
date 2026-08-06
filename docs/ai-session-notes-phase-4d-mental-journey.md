@@ -15,7 +15,7 @@ La regola di ammissione vive in `isApprovedCompassReport`, funzione pura riappli
 
 `summary` (periodo, sessioni approvate, impegni per stato) — la percentuale di completamento è `null` sotto i 5 impegni, perché sotto quella soglia racconterebbe rumore.
 
-`timeline` — una card per sessione approvata, dalla più recente: data, coach, sintesi già approvata, temi, eventuale risorsa emersa, impegni con stato attuale, link al Session Compass della sessione.
+`timeline` — una card per sessione approvata, dalla più recente: data, coach, sintesi già approvata, temi, eventuale risorsa emersa, metriche strutturate senza citazioni, momenti chiave, impegni con stato attuale, link al Session Compass della sessione.
 
 `recurringThemes` — aggregazione dei soli temi scritti nei report approvati, accorpati per etichetta normalizzata (accenti, punteggiatura, spaziatura), con ricorrenza, prima e ultima comparsa. La formulazione è `Tema emerso in N sessioni`: nessuna direzione, nessun miglioramento o peggioramento attribuito.
 
@@ -34,9 +34,14 @@ Un coach vede soltanto le proprie sessioni con quell'atleta (`coachUserId` nello
 - `GET /api/coach/athletes/[athleteId]/mental-journey`
 - `/dashboard/coach/athletes/[athleteId]/mental-journey` — la pagina legge il dominio direttamente, senza chiamare la propria API
 - Ingresso dalla dashboard coach: sezione "Mental Journey" con gli atleti seguiti
+- `GET /api/coach/athletes/[athleteId]/transcript-search` — ricerca paginata nei soli transcript delle sessioni approvate e autorizzate; gli id ammessi sono derivati server-side dalla Mental Journey
 
 Colori di stato coerenti: completato verde, in corso blu, da fare neutro, da riprendere ambra. Nessun controllo di modifica: ogni azione operativa rimanda al Session Compass.
 
+## Grafici e performance
+
+Il percorso mostra grafici multi-sessione solo per le metriche realmente presenti; il coach può scegliere fino a quattro serie e ha sempre una tabella testuale equivalente. In assenza di metriche viene mostrata la frequenza documentata dei temi, non valori inventati. Timeline, temi e trascrizioni hanno caricamento progressivo; le trascrizioni complete restano lazy/on demand.
+
 ## Fuori scope
 
-Trend, grafici, KPI psicologici, confronti fra atleti, vista atleta.
+Confronti fra atleti, vista atleta, player e download audio.

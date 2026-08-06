@@ -215,6 +215,37 @@ test('ogni card porta sintesi, focus, momenti, preparazione e link al Session Co
   assert.equal(entry.commitments[0].status, 'pending');
 });
 
+test('proietta le metriche strutturate senza esporre la citazione della trascrizione', () => {
+  const report = document();
+  report.sessionOverview.metrics = [{
+    id: 'metric-1',
+    key: 'confidence',
+    value: 4,
+    confidence: 'medium',
+    evidence: {
+      transcriptSegmentId: 1,
+      startMs: 60_000,
+      minute: 1,
+      speaker: 'athlete',
+      quote: 'estratto riservato',
+    },
+  }];
+  const journey = buildMentalJourney({
+    athleteUserId: ATHLETE_ID,
+    sessions: [approvedSession({ document: report })],
+    commitments: [],
+    now: NOW,
+  });
+
+  assert.deepEqual(journey.timeline[0].metrics, [{
+    key: 'confidence',
+    value: 4,
+    confidence: 'medium',
+    transcriptSegmentId: 1,
+  }]);
+  assert.equal(JSON.stringify(journey).includes('estratto riservato'), false);
+});
+
 test('non espone estratti di transcript né la nota privata nelle card', () => {
   const journey = buildMentalJourney({
     athleteUserId: ATHLETE_ID,

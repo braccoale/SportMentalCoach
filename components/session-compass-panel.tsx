@@ -36,6 +36,7 @@ import {
   selectPreviousJourneyEntry,
 } from './session-compass/journey-panel';
 import { TranscriptPanel } from './session-compass/transcript-panel';
+import { TranscriptHistorySearch } from './session-compass/transcript-history-search';
 import {
   segmentAnchorId,
   type CompassTabId,
@@ -498,32 +499,46 @@ export function SessionCompassPanel({
               />
             ) : null}
             {activeTab === 'transcript' ? (
-              <div className="grid gap-5 lg:grid-cols-[17rem_minmax(0,1fr)]">
-                <TranscriptHistoryNav
-                  journey={initialJourney}
-                  currentSessionId={sessionId}
-                  currentSessionDate={sessionDate}
-                  selectedSessionId={transcriptSessionId}
-                  onSelect={(targetSessionId) => openTranscript(targetSessionId)}
-                />
-                <TranscriptPanel
-                  transcript={transcriptBySession[transcriptSessionId] ?? []}
-                  loading={transcriptLoadingId === transcriptSessionId}
-                  error={transcriptErrorBySession[transcriptSessionId] ?? null}
-                  highlightedSegmentId={highlightedSegmentId}
-                  onRetry={() => void loadTranscript(transcriptSessionId)}
-                  eyebrow={transcriptSessionId === sessionId ? 'Sessione corrente' : 'Sessione passata'}
-                  title={transcriptSessionId === sessionId ? 'Trascrizione' : 'Trascrizione selezionata'}
-                  description={
-                    transcriptSessionId === sessionId
-                      ? 'Cerca nella conversazione oppure filtra per speaker. I momenti chiave aprono il segmento corrispondente.'
-                      : 'La sessione corrente resta disponibile nel pannello laterale. Questa trascrizione è caricata solo su richiesta.'
-                  }
-                />
+              <div className="space-y-5">
+                {initialJourney ? (
+                  <TranscriptHistorySearch
+                    athleteUserId={initialJourney.athleteUserId}
+                    onOpenTranscript={openTranscript}
+                  />
+                ) : null}
+                <div className="grid gap-5 lg:grid-cols-[17rem_minmax(0,1fr)]">
+                  <TranscriptHistoryNav
+                    journey={initialJourney}
+                    currentSessionId={sessionId}
+                    currentSessionDate={sessionDate}
+                    selectedSessionId={transcriptSessionId}
+                    onSelect={(targetSessionId) => openTranscript(targetSessionId)}
+                  />
+                  <TranscriptPanel
+                    transcript={transcriptBySession[transcriptSessionId] ?? []}
+                    loading={transcriptLoadingId === transcriptSessionId}
+                    error={transcriptErrorBySession[transcriptSessionId] ?? null}
+                    highlightedSegmentId={highlightedSegmentId}
+                    onRetry={() => void loadTranscript(transcriptSessionId)}
+                    eyebrow={transcriptSessionId === sessionId ? 'Sessione corrente' : 'Sessione passata'}
+                    title={transcriptSessionId === sessionId ? 'Trascrizione' : 'Trascrizione selezionata'}
+                    description={
+                      transcriptSessionId === sessionId
+                        ? 'Cerca nella conversazione oppure filtra per speaker. I momenti chiave aprono il segmento corrispondente.'
+                        : 'La sessione corrente resta disponibile nel pannello laterale. Questa trascrizione è caricata solo su richiesta.'
+                    }
+                  />
+                </div>
               </div>
             ) : null}
             {activeTab === 'moments' ? (
-              <KeyMomentsPanel report={report.document} onOpenEvidence={openEvidence} />
+              <KeyMomentsPanel
+                report={report.document}
+                journey={initialJourney}
+                currentSessionId={sessionId}
+                onOpenEvidence={openEvidence}
+                onOpenTranscript={openTranscript}
+              />
             ) : null}
             {activeTab === 'notes' ? (
               <CoachNotesPanel

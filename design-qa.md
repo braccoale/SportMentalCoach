@@ -45,8 +45,28 @@ The source and current captures were reviewed in the same comparison pass. The i
 - Automated test suite: 398/398 passed after removing the temporary QA route.
 - Production build: passed after removing the temporary QA route.
 
-## Follow-up polish
+## Evolution pass — metrics, charts, filters and long histories
 
-- With unusually long histories, consider optional year grouping or pagination; this is not required for the current release.
+- Comparison source: the previously approved Phase 4 desktop overview was placed side by side with the new rendered overview in `tmp/design-qa-evolutions/reference-current-overview.png`.
+- Current captures:
+  - `tmp/design-qa-evolutions/desktop-overview.png`
+  - `tmp/design-qa-evolutions/desktop-journey.png`
+  - `tmp/design-qa-evolutions/desktop-moments.png`
+  - `tmp/design-qa-evolutions/mobile-overview.png`
+  - `tmp/design-qa-evolutions/mobile-journey.png`
+  - `tmp/design-qa-evolutions/mobile-moments.png`
+- Desktop overview and journey: passed. Session metrics, emotional trend, historical multi-series chart, accessible data tables and evidence labels preserve the existing KaiPai hierarchy and restrained visual language.
+- Mobile overview, journey and moment filters: passed. Document and body widths remain exactly 390 px at a 390 px viewport; there is no horizontal overflow.
+- Charts: passed. Two current-session charts and the historical metric chart render with real structured values; animations are disabled to avoid transient or heavy states.
+- Moment archive: passed. Category filtering retains the matching commitment moment and removes unrelated moments; historical similarity remains available below the current session.
+- Browser console and page errors: passed; none recorded in desktop or mobile flows.
+- [P2 — fixed] The qualitative theme matrix still claimed numeric metrics were unavailable even when the new chart contained them. The note now explains the distinct qualitative purpose of the matrix.
+- No remaining P0, P1 or P2 visual findings.
+
+## Verification status
+
+- TypeScript typecheck: passed.
+- Full automated suite: 401/401 passed.
+- Session Compass evolution suite: passed, including contract, provider, privacy projection, search authorization and metric direction tests.
 
 final result: passed

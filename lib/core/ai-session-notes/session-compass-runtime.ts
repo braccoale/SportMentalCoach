@@ -1,7 +1,10 @@
 import 'server-only';
 import { hasRole } from '@/lib/core/auth/roles';
 import { FEATURE_CODES, hasFeatureEntitlement } from '@/lib/core/features';
-import { openAiSessionCompassProviderFromEnvironment } from './openai-session-compass-provider';
+import {
+  effectiveSessionCompassPromptVersion,
+  openAiSessionCompassProviderFromEnvironment,
+} from './openai-session-compass-provider';
 import { createSessionCompassStore } from './session-compass-store';
 import { createSessionCommitmentStore } from './session-commitments-store';
 import {
@@ -15,7 +18,9 @@ export function sessionCompassDependencies(): SessionCompassDependencies {
     store: createSessionCompassStore(),
     commitments: createSessionCommitmentStore(),
     createProvider: openAiSessionCompassProviderFromEnvironment,
-    promptVersion: process.env.AI_NOTES_COMPASS_PROMPT_VERSION?.trim() ?? '',
+    promptVersion: effectiveSessionCompassPromptVersion(
+      process.env.AI_NOTES_COMPASS_PROMPT_VERSION ?? ''
+    ),
     sourceFingerprint: compassSourceFingerprint,
     isAdmin: (actorUserId: number) => hasRole(actorUserId, 'admin'),
     hasFeatureAccess: (actorUserId: number) =>

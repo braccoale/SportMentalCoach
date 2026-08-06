@@ -16,9 +16,16 @@ import {
 import {
   OpenAiSessionCompassError,
   OpenAiSessionCompassReportProvider,
+  effectiveSessionCompassPromptVersion,
   type OpenAiCompassClient,
   type OpenAiCompassRequest,
 } from './openai-session-compass-provider';
+
+test('la revisione prompt delle metriche è stabile e non si duplica', () => {
+  assert.equal(effectiveSessionCompassPromptVersion('compass-v1'), 'compass-v1:metrics-v2');
+  assert.equal(effectiveSessionCompassPromptVersion('compass-v1:metrics-v2'), 'compass-v1:metrics-v2');
+  assert.equal(effectiveSessionCompassPromptVersion('  '), '');
+});
 
 const SEGMENTS: CompassSourceSegment[] = [
   {
@@ -111,6 +118,39 @@ test('monta un documento valido dal contenuto grezzo del modello', () => {
   assert.equal(report.commitments[0].id, 'commitment-1');
   assert.equal(report.sessionOverview.summaryEvidence[0].minute, 1);
   assert.equal(report.coachNote, null);
+});
+
+test('normalizza metriche, trend emotivo e metadati dei momenti senza inventare evidenze', () => {
+  const report = assembleSessionCompassReport({
+    ...CONTENT,
+    sessionOverview: {
+      ...CONTENT.sessionOverview,
+      metrics: [
+        { key: 'concentration', value: 2, confidence: 'high', evidence: { transcriptSegmentId: 2, quote: 'testa altrove' } },
+        { key: 'concentration', value: 5, confidence: 'low', evidence: { transcriptSegmentId: 2, quote: 'prima parte' } },
+        { key: 'confidence', value: 9, confidence: 'high', evidence: { transcriptSegmentId: 2, quote: 'prima parte' } },
+      ],
+      emotionalTrend: [
+        { label: 'Secondo passaggio', value: 1, evidence: { transcriptSegmentId: 2, quote: 'prima parte' } },
+        { label: 'Apertura', value: 0, evidence: { transcriptSegmentId: 1, quote: 'ultima gara' } },
+      ],
+    },
+    keyMoments: [{
+      title: 'L’atleta descrive la prima parte',
+      explanation: 'L’atleta riferisce una difficoltà di attenzione.',
+      speaker: 'athlete',
+      evidence: { transcriptSegmentId: 2, quote: 'prima parte' },
+      category: 'awareness',
+      theme: 'Attenzione in gara',
+      relevance: 3,
+    }],
+  }, input(), { providerName: 'fake', modelName: 'fake-compass-v1' });
+
+  assert.deepEqual(report.sessionOverview.metrics?.map((metric) => [metric.key, metric.value]), [['concentration', 2]]);
+  assert.deepEqual(report.sessionOverview.emotionalTrend?.map((point) => point.evidence.transcriptSegmentId), [1, 2]);
+  assert.equal(report.keyMoments[0].category, 'awareness');
+  assert.equal(report.keyMoments[0].theme, 'Attenzione in gara');
+  assert.equal(report.keyMoments[0].relevance, 3);
 });
 
 test('omette gli insight privi di evidenza verificabile invece di inventarli', () => {

@@ -105,6 +105,28 @@ test('accetta un report i cui insight sono tutti ancorati al transcript', () => 
   assert.deepEqual(validateSessionCompassReport(report(), context), []);
 });
 
+test('accetta metriche e trend emotivo solo quando hanno valore ed evidenza validi', () => {
+  const valid = report();
+  valid.sessionOverview.metrics = [{
+    id: 'metric-1',
+    key: 'concentration',
+    value: 2,
+    confidence: 'high',
+    evidence: evidence(11, 'non riesco a concentrarmi'),
+  }];
+  valid.sessionOverview.emotionalTrend = [
+    { id: 'emotion-1', value: -1, label: 'Attivazione iniziale', evidence: evidence(11, 'respiro corto') },
+    { id: 'emotion-2', value: 1, label: 'Direzione operativa', evidence: evidence(12, 'routine di respirazione') },
+  ];
+  assert.deepEqual(validateSessionCompassReport(valid, context), []);
+
+  valid.sessionOverview.metrics[0].value = 6;
+  valid.sessionOverview.emotionalTrend[0].value = -3;
+  const codes = validateSessionCompassReport(valid, context).map((issue) => issue.code);
+  assert.ok(codes.includes('INVALID_METRIC_VALUE'));
+  assert.ok(codes.includes('INVALID_EMOTIONAL_VALUE'));
+});
+
 test('rifiuta un insight senza evidenza', () => {
   const invalid = report();
   // @ts-expect-error verifica del comportamento a runtime con dati mancanti

@@ -47,6 +47,17 @@ export type CompassTranscriptSegment = {
   text: string;
 };
 
+export type TranscriptHistorySearchHit = CompassTranscriptSegment & {
+  sessionId: number;
+  sessionDate: string | null;
+  focus: string | null;
+};
+
+export type TranscriptHistorySearchResult = {
+  items: TranscriptHistorySearchHit[];
+  nextCursor: string | null;
+};
+
 export type TrackedCommitmentChange = {
   title?: string;
   owner?: CompassSpeaker;

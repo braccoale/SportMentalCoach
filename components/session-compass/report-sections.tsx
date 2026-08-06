@@ -12,17 +12,19 @@ import {
   Sparkles,
   Target,
 } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import type { MentalJourneyEntry } from '@/lib/core/ai-session-notes/mental-journey';
+import type { MentalJourney, MentalJourneyEntry } from '@/lib/core/ai-session-notes/mental-journey';
 import type {
   Commitment,
   CommitmentStatus,
   CompassEvidence,
   CompassSpeaker,
+  KeyMomentCategory,
   SessionCompassReport,
 } from '@/lib/core/ai-session-notes/session-compass-contract';
 import { SessionContinuityCard } from './journey-panel';
+import { EmotionalTrendChart, SessionMetricsChart } from './charts';
 import {
   SPEAKER_LABEL,
   type TrackedCommitmentChange,
@@ -257,6 +259,13 @@ export function SessionOverview({
         ) : null}
       </Surface>
 
+      {(overview.metrics?.length || (overview.emotionalTrend?.length ?? 0) >= 2) ? (
+        <div className="grid gap-5 xl:grid-cols-2">
+          <SessionMetricsChart metrics={overview.metrics ?? []} onOpenEvidence={onOpenEvidence} />
+          <EmotionalTrendChart points={overview.emotionalTrend ?? []} onOpenEvidence={onOpenEvidence} />
+        </div>
+      ) : null}
+
       <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
         <Surface>
           <SectionHeading
@@ -451,43 +460,243 @@ function JourneyStep({ number, title, text }: { number: string; title: string; t
 
 export function KeyMomentsPanel({
   report,
+  journey,
+  currentSessionId,
   onOpenEvidence,
+  onOpenTranscript,
 }: {
   report: SessionCompassReport;
+  journey: MentalJourney | null;
+  currentSessionId: number;
   onOpenEvidence: (segmentId: number) => void;
+  onOpenTranscript: (sessionId: number, segmentId?: number) => void;
+}) {
+  const [speaker, setSpeaker] = useState<'all' | CompassSpeaker>('all');
+  const [category, setCategory] = useState<'all' | KeyMomentCategory>('all');
+  const [theme, setTheme] = useState('all');
+  const [action, setAction] = useState('all');
+  const [minimumRelevance, setMinimumRelevance] = useState('all');
+  const themes = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          report.keyMoments
+            .map((moment) => moment.theme?.trim())
+            .filter((value): value is string => Boolean(value))
+        )
+      ).sort((left, right) => left.localeCompare(right, 'it')),
+    [report.keyMoments]
+  );
+  const categories = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          report.keyMoments
+            .map((moment) => moment.category)
+            .filter((value): value is KeyMomentCategory => Boolean(value))
+        )
+      ),
+    [report.keyMoments]
+  );
+  const filteredMoments = useMemo(
+    () =>
+      report.keyMoments.filter(
+        (moment) =>
+          (speaker === 'all' || moment.speaker === speaker) &&
+          (category === 'all' || moment.category === category) &&
+          (theme === 'all' || moment.theme === theme) &&
+          (action === 'all' ||
+            (action === 'with_action') === Boolean(moment.category && ACTIONABLE_MOMENT_CATEGORIES.has(moment.category))) &&
+          (minimumRelevance === 'all' ||
+            (moment.relevance ?? 0) >= Number(minimumRelevance))
+      ),
+    [action, category, minimumRelevance, report.keyMoments, speaker, theme]
+  );
+  const similarHistoricalMoments = useMemo(() => {
+    if (!journey || !filteredMoments.length) return [];
+    const selectedCategories = new Set(
+      filteredMoments
+        .map((moment) => moment.category)
+        .filter((value): value is KeyMomentCategory => Boolean(value))
+    );
+    const selectedThemes = new Set(
+      filteredMoments
+        .map((moment) => moment.theme?.trim().toLocaleLowerCase('it'))
+        .filter((value): value is string => Boolean(value))
+    );
+    if (!selectedCategories.size && !selectedThemes.size) return [];
+
+    return journey.timeline
+      .filter((entry) => entry.sessionId !== currentSessionId)
+      .flatMap((entry) =>
+        entry.keyMoments.map((moment) => ({
+          ...moment,
+          sessionId: entry.sessionId,
+          sessionDate: entry.sessionDate,
+          focus: entry.focus,
+        }))
+      )
+      .filter(
+        (moment) =>
+          (moment.category ? selectedCategories.has(moment.category) : false) ||
+          (moment.theme
+            ? selectedThemes.has(moment.theme.trim().toLocaleLowerCase('it'))
+            : false)
+      )
+      .slice(0, 6);
+  }, [currentSessionId, filteredMoments, journey]);
+
+  return (
+    <div className="space-y-5">
+      <Surface>
+        <SectionHeading
+          eyebrow="Timeline della sessione"
+          title="Momenti chiave"
+          description="Filtra i passaggi importanti e apri sempre l’evidenza precisa nella trascrizione."
+        />
+        {report.keyMoments.length ? (
+          <>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              <FilterSelect label="Speaker" value={speaker} onChange={(value) => setSpeaker(value as 'all' | CompassSpeaker)}>
+                <option value="all">Tutti</option>
+                <option value="coach">Coach</option>
+                <option value="athlete">Atleta</option>
+              </FilterSelect>
+              <FilterSelect label="Categoria" value={category} onChange={(value) => setCategory(value as 'all' | KeyMomentCategory)}>
+                <option value="all">Tutte</option>
+                {categories.map((value) => (
+                  <option key={value} value={value}>{MOMENT_CATEGORY_LABEL[value]}</option>
+                ))}
+              </FilterSelect>
+              <FilterSelect label="Tema" value={theme} onChange={setTheme}>
+                <option value="all">Tutti</option>
+                {themes.map((value) => (
+                  <option key={value} value={value}>{value}</option>
+                ))}
+              </FilterSelect>
+              <FilterSelect label="Azione" value={action} onChange={setAction}>
+                <option value="all">Tutte</option>
+                <option value="with_action">Con azione operativa</option>
+                <option value="without_action">Senza azione operativa</option>
+              </FilterSelect>
+              <FilterSelect label="Rilevanza minima" value={minimumRelevance} onChange={setMinimumRelevance}>
+                <option value="all">Qualsiasi</option>
+                <option value="1">1 — utile</option>
+                <option value="2">2 — importante</option>
+                <option value="3">3 — decisivo</option>
+              </FilterSelect>
+            </div>
+            {filteredMoments.length ? (
+              <ol className="mt-6 space-y-5">
+                {filteredMoments.map((moment) => (
+                  <li key={moment.id} className="grid gap-3 sm:grid-cols-[5rem_1fr]">
+                    <div className="flex items-center gap-2 text-sm font-bold text-violet-700 sm:items-start">
+                      <Clock3 className="h-4 w-4" /> min {moment.evidence.minute}
+                    </div>
+                    <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-bold text-gray-950">{moment.title}</p>
+                        <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-gray-600">
+                          {SPEAKER_LABEL[moment.speaker]}
+                        </span>
+                        {moment.category ? <MomentTag>{MOMENT_CATEGORY_LABEL[moment.category]}</MomentTag> : null}
+                        {moment.theme ? <MomentTag>{moment.theme}</MomentTag> : null}
+                        {moment.relevance ? <MomentTag>Rilevanza {moment.relevance}/3</MomentTag> : null}
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-gray-700">{moment.explanation}</p>
+                      <EvidenceButton evidence={moment.evidence} onOpenEvidence={onOpenEvidence} />
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <EmptyState text="Nessun momento corrisponde ai filtri selezionati." />
+            )}
+          </>
+        ) : (
+          <EmptyState text="Nessun momento chiave è stato identificato con evidenza sufficiente." />
+        )}
+      </Surface>
+
+      {similarHistoricalMoments.length ? (
+        <Surface>
+          <SectionHeading
+            eyebrow="Continuità"
+            title="Momenti simili nello storico"
+            description="Passaggi di sessioni precedenti che condividono tema o categoria con la selezione attuale."
+          />
+          <div className="mt-5 grid gap-3 lg:grid-cols-2">
+            {similarHistoricalMoments.map((moment) => (
+              <button
+                key={`${moment.sessionId}-${moment.id}`}
+                type="button"
+                className="rounded-xl border border-gray-200 p-4 text-left transition-colors hover:border-violet-300 hover:bg-violet-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+                onClick={() => onOpenTranscript(moment.sessionId, moment.transcriptSegmentId)}
+              >
+                <span className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500">
+                  {formatCompactDate(moment.sessionDate)} · min {moment.minute}
+                </span>
+                <span className="mt-1 block font-bold text-gray-950">{moment.title}</span>
+                <span className="mt-1 block text-sm leading-5 text-gray-600">{moment.focus ?? moment.explanation}</span>
+              </button>
+            ))}
+          </div>
+        </Surface>
+      ) : null}
+    </div>
+  );
+}
+
+const MOMENT_CATEGORY_LABEL: Record<KeyMomentCategory, string> = {
+  turning_point: 'Svolta',
+  resistance: 'Resistenza',
+  awareness: 'Consapevolezza',
+  goal: 'Obiettivo',
+  exercise: 'Esercizio',
+  commitment: 'Impegno',
+  risk: 'Punto di attenzione',
+  follow_up: 'Da riprendere',
+};
+
+const ACTIONABLE_MOMENT_CATEGORIES = new Set<KeyMomentCategory>([
+  'goal',
+  'exercise',
+  'commitment',
+  'follow_up',
+]);
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  children,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  children: ReactNode;
 }) {
   return (
-    <Surface>
-      <SectionHeading
-        eyebrow="Timeline della sessione"
-        title="Momenti chiave"
-        description="Ogni momento è collegato al passaggio preciso della trascrizione che lo sostiene."
-      />
-      {report.keyMoments.length ? (
-        <ol className="mt-6 space-y-5">
-          {report.keyMoments.map((moment) => (
-            <li key={moment.id} className="grid gap-3 sm:grid-cols-[5rem_1fr]">
-              <div className="flex items-center gap-2 text-sm font-bold text-violet-700 sm:items-start">
-                <Clock3 className="h-4 w-4" /> min {moment.evidence.minute}
-              </div>
-              <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-bold text-gray-950">{moment.title}</p>
-                  <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-gray-600">
-                    {SPEAKER_LABEL[moment.speaker]}
-                  </span>
-                </div>
-                <p className="mt-2 text-sm leading-6 text-gray-700">{moment.explanation}</p>
-                <EvidenceButton evidence={moment.evidence} onOpenEvidence={onOpenEvidence} />
-              </div>
-            </li>
-          ))}
-        </ol>
-      ) : (
-        <EmptyState text="Nessun momento chiave è stato identificato con evidenza sufficiente." />
-      )}
-    </Surface>
+    <label className="text-sm font-semibold text-gray-700">
+      {label}
+      <select
+        className="mt-1.5 w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {children}
+      </select>
+    </label>
   );
+}
+
+function MomentTag({ children }: { children: ReactNode }) {
+  return <span className="text-xs font-semibold text-violet-700">{children}</span>;
+}
+
+function formatCompactDate(value: string | null): string {
+  if (!value) return 'Sessione precedente';
+  return new Intl.DateTimeFormat('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value));
 }
 
 export function CoachNotesPanel({

@@ -14,9 +14,36 @@ export const SESSION_COMPASS_SCHEMA_VERSION = '1.0' as const;
 export const MAX_KEY_MOMENTS = 3;
 export const MAX_THEMES = 3;
 export const MAX_NEXT_SESSION_PREP = 3;
+export const MAX_SESSION_METRICS = 6;
+export const MAX_EMOTIONAL_TREND_POINTS = 8;
 export const MAX_QUOTE_LENGTH = 240;
 
 export type CompassSpeaker = 'coach' | 'athlete';
+
+export const SESSION_METRIC_KEYS = [
+  'energy',
+  'motivation',
+  'concentration',
+  'emotional_management',
+  'confidence',
+  'pre_competition_anxiety',
+] as const;
+export type SessionMetricKey = (typeof SESSION_METRIC_KEYS)[number];
+
+export const METRIC_CONFIDENCE_LEVELS = ['low', 'medium', 'high'] as const;
+export type MetricConfidence = (typeof METRIC_CONFIDENCE_LEVELS)[number];
+
+export const KEY_MOMENT_CATEGORIES = [
+  'turning_point',
+  'resistance',
+  'awareness',
+  'goal',
+  'exercise',
+  'commitment',
+  'risk',
+  'follow_up',
+] as const;
+export type KeyMomentCategory = (typeof KEY_MOMENT_CATEGORIES)[number];
 
 export const COMMITMENT_STATUSES = [
   'pending',
@@ -55,12 +82,35 @@ export type CompassEmergingResource = {
   evidence: CompassEvidence;
 };
 
+/**
+ * Stima operativa AI su scala 1–5, sempre ancorata a una frase esplicita.
+ * Non è una misurazione clinica e l'assenza di evidenza produce assenza del dato.
+ */
+export type SessionMetric = {
+  id: string;
+  key: SessionMetricKey;
+  value: number;
+  confidence: MetricConfidence;
+  evidence: CompassEvidence;
+};
+
+/** Punto qualitativo dell'andamento conversazionale, da -2 a +2. */
+export type EmotionalTrendPoint = {
+  id: string;
+  value: number;
+  label: string;
+  evidence: CompassEvidence;
+};
+
 export type SessionOverview = {
   summary: string;
   summaryEvidence: CompassEvidence[];
   themes: CompassTheme[];
   /** Una sola leva/risorsa emersa, e solo se supportata da evidenza. */
   emergingResource: CompassEmergingResource | null;
+  /** Campi additivi e opzionali per compatibilità con i report v1 già salvati. */
+  metrics?: SessionMetric[];
+  emotionalTrend?: EmotionalTrendPoint[];
 };
 
 export type KeyMoment = {
@@ -69,6 +119,9 @@ export type KeyMoment = {
   explanation: string;
   speaker: CompassSpeaker;
   evidence: CompassEvidence;
+  category?: KeyMomentCategory;
+  theme?: string | null;
+  relevance?: 1 | 2 | 3;
 };
 
 export type Commitment = {
@@ -280,6 +333,43 @@ export function validateSessionCompassReport(
     validateEvidence(overview.emergingResource.evidence, `${path}.evidence`, segments, issues);
   }
 
+  const metricKeys = new Set<SessionMetricKey>();
+  if ((overview?.metrics ?? []).length > MAX_SESSION_METRICS) {
+    add(issues, 'TOO_MANY_METRICS', 'sessionOverview.metrics', `Massimo ${MAX_SESSION_METRICS} metriche.`);
+  }
+  for (const [index, metric] of (overview?.metrics ?? []).entries()) {
+    const path = `sessionOverview.metrics[${index}]`;
+    requireId(metric.id, `${path}.id`, ids, issues);
+    if (!SESSION_METRIC_KEYS.includes(metric.key)) {
+      add(issues, 'INVALID_METRIC_KEY', `${path}.key`, 'Metrica non supportata.');
+    } else if (metricKeys.has(metric.key)) {
+      add(issues, 'DUPLICATE_METRIC_KEY', `${path}.key`, 'Ogni metrica può comparire una sola volta.');
+    } else {
+      metricKeys.add(metric.key);
+    }
+    if (!Number.isInteger(metric.value) || metric.value < 1 || metric.value > 5) {
+      add(issues, 'INVALID_METRIC_VALUE', `${path}.value`, 'Il valore deve essere un intero da 1 a 5.');
+    }
+    if (!METRIC_CONFIDENCE_LEVELS.includes(metric.confidence)) {
+      add(issues, 'INVALID_METRIC_CONFIDENCE', `${path}.confidence`, 'Confidenza non supportata.');
+    }
+    validateEvidence(metric.evidence, `${path}.evidence`, segments, issues);
+  }
+
+  if ((overview?.emotionalTrend ?? []).length > MAX_EMOTIONAL_TREND_POINTS) {
+    add(issues, 'TOO_MANY_EMOTIONAL_POINTS', 'sessionOverview.emotionalTrend', `Massimo ${MAX_EMOTIONAL_TREND_POINTS} punti.`);
+  }
+  for (const [index, point] of (overview?.emotionalTrend ?? []).entries()) {
+    const path = `sessionOverview.emotionalTrend[${index}]`;
+    requireId(point.id, `${path}.id`, ids, issues);
+    if (!Number.isInteger(point.value) || point.value < -2 || point.value > 2) {
+      add(issues, 'INVALID_EMOTIONAL_VALUE', `${path}.value`, 'Il valore deve essere un intero da -2 a 2.');
+    }
+    requireText(point.label, `${path}.label`, issues);
+    requireProseSafety(point.label, `${path}.label`, issues);
+    validateEvidence(point.evidence, `${path}.evidence`, segments, issues);
+  }
+
   if (report.keyMoments.length > MAX_KEY_MOMENTS) {
     add(issues, 'TOO_MANY_KEY_MOMENTS', 'keyMoments', `Massimo ${MAX_KEY_MOMENTS} momenti chiave.`);
   }
@@ -296,6 +386,16 @@ export function validateSessionCompassReport(
     const evidence = validateEvidence(moment.evidence, `${path}.evidence`, segments, issues);
     if (evidence && evidence.speaker !== moment.speaker) {
       add(issues, 'SPEAKER_EVIDENCE_MISMATCH', `${path}.speaker`, 'Lo speaker non corrisponde al segmento citato.');
+    }
+    if (moment.category !== undefined && !KEY_MOMENT_CATEGORIES.includes(moment.category)) {
+      add(issues, 'INVALID_MOMENT_CATEGORY', `${path}.category`, 'Categoria del momento non supportata.');
+    }
+    if (moment.theme !== undefined && moment.theme !== null) {
+      requireText(moment.theme, `${path}.theme`, issues);
+      requireProseSafety(moment.theme, `${path}.theme`, issues);
+    }
+    if (moment.relevance !== undefined && ![1, 2, 3].includes(moment.relevance)) {
+      add(issues, 'INVALID_MOMENT_RELEVANCE', `${path}.relevance`, 'Rilevanza deve essere 1, 2 o 3.');
     }
   }
 

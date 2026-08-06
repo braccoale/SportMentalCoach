@@ -7,10 +7,15 @@
  */
 
 import {
+  KEY_MOMENT_CATEGORIES,
+  MAX_EMOTIONAL_TREND_POINTS,
   MAX_KEY_MOMENTS,
   MAX_NEXT_SESSION_PREP,
   MAX_QUOTE_LENGTH,
+  MAX_SESSION_METRICS,
   MAX_THEMES,
+  METRIC_CONFIDENCE_LEVELS,
+  SESSION_METRIC_KEYS,
   minuteFromMs,
 } from './session-compass-contract';
 import {
@@ -26,6 +31,15 @@ const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 // report. Un timeout uguale a quello della function poteva interrompere il
 // processo prima che il job venisse chiuso correttamente.
 const DEFAULT_TIMEOUT_MS = 45_000;
+export const SESSION_COMPASS_PROMPT_REVISION = 'metrics-v2' as const;
+
+export function effectiveSessionCompassPromptVersion(value: string): string {
+  const base = value.trim();
+  if (!base) return '';
+  return base.endsWith(`:${SESSION_COMPASS_PROMPT_REVISION}`)
+    ? base
+    : `${base}:${SESSION_COMPASS_PROMPT_REVISION}`;
+}
 
 export type OpenAiSessionCompassErrorCode =
   | 'CONFIGURATION'
@@ -201,7 +215,9 @@ export function openAiSessionCompassProviderFromEnvironment(
   return new OpenAiSessionCompassReportProvider({
     apiKey: environment.OPENAI_API_KEY?.trim() ?? '',
     model: environment.AI_NOTES_COMPASS_MODEL?.trim() ?? '',
-    promptVersion: environment.AI_NOTES_COMPASS_PROMPT_VERSION?.trim() ?? '',
+    promptVersion: effectiveSessionCompassPromptVersion(
+      environment.AI_NOTES_COMPASS_PROMPT_VERSION ?? ''
+    ),
     client,
   });
 }
@@ -253,12 +269,14 @@ function promptPayload(input: SessionCompassGenerationInput): Record<string, unk
 function systemInstructions(promptVersion: string): string {
   return `Prompt version: ${promptVersion}
 Prepari "Session Compass", un report post-sessione riservato al coach mentale sportivo. Non è visibile all'atleta.
-Non sei uno psicologo né un medico. Non fare diagnosi, non proporre trattamenti, non produrre punteggi o indicatori psicologici numerici.
+Non sei uno psicologo né un medico. Non fare diagnosi e non proporre trattamenti. Le metriche richieste sono stime operative AI su scala 1–5, non misurazioni cliniche.
 Non presentare mai una relazione causale come un fatto. Non scrivere frasi come "l'infortunio è causato da". Usa un linguaggio prudente: "emerge", "l'atleta riferisce", "possibile associazione da approfondire".
 Usa esclusivamente il transcript fornito e il contesto fornito. Non inventare contenuti, nomi, date o citazioni.
 Ogni elemento deve citare un'evidenza: transcriptSegmentId presente nel transcript e quote copiata alla lettera da quel segmento (massimo ${MAX_QUOTE_LENGTH} caratteri). Se non trovi un'evidenza sufficiente, ometti l'elemento invece di inventarlo.
 sessionOverview.summary: sintesi concisa e neutra. themes: da 2 a ${MAX_THEMES} temi principali emersi. emergingResource: una sola risorsa o leva emersa, oppure null se non supportata.
-keyMoments: massimo ${MAX_KEY_MOMENTS} momenti significativi, con titolo, spiegazione prudente e lo speaker del segmento citato.
+sessionOverview.metrics: massimo ${MAX_SESSION_METRICS} metriche fra ${SESSION_METRIC_KEYS.join(', ')}. Inserisci una metrica solo quando una frase esplicita dell'atleta la sostiene; value è un intero 1–5 e confidence è low, medium o high. Un array vuoto è preferibile a una stima debole. Non dedurre un valore dall'assenza di parole.
+sessionOverview.emotionalTrend: massimo ${MAX_EMOTIONAL_TREND_POINTS} punti ordinati nel tempo, value intero da -2 (forte difficoltà o tensione riferita) a +2 (forte risorsa o slancio riferito), label breve e prudente, sempre con evidenza. Non usare termini diagnostici.
+keyMoments: massimo ${MAX_KEY_MOMENTS} momenti significativi, con titolo, spiegazione prudente, speaker, category fra ${KEY_MOMENT_CATEGORIES.join(', ')}, tema sintetico o null e relevance 1–3.
 commitments: solo azioni concrete effettivamente concordate, con owner "coach" oppure "athlete". Indica dueDate (YYYY-MM-DD) solo se la scadenza è detta esplicitamente, altrimenti null.
 nextSessionPrep: massimo ${MAX_NEXT_SESSION_PREP} punti che il coach può verificare o esplorare alla prossima sessione, derivati da temi, impegni o incertezze emerse. Nessun consiglio clinico generico.
 Rispondi nella lingua indicata da language. Restituisci solo il contenuto strutturato richiesto.`;
@@ -306,7 +324,7 @@ const COMPASS_CONTENT_SCHEMA: Record<string, unknown> = {
     sessionOverview: {
       type: 'object',
       additionalProperties: false,
-      required: ['summary', 'summaryEvidence', 'themes', 'emergingResource'],
+      required: ['summary', 'summaryEvidence', 'themes', 'emergingResource', 'metrics', 'emotionalTrend'],
       properties: {
         summary: { type: 'string' },
         summaryEvidence: { type: 'array', items: evidenceSchema() },
@@ -326,6 +344,35 @@ const COMPASS_CONTENT_SCHEMA: Record<string, unknown> = {
           required: ['text', 'evidence'],
           properties: { text: { type: 'string' }, evidence: evidenceSchema() },
         },
+        metrics: {
+          type: 'array',
+          maxItems: MAX_SESSION_METRICS,
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['key', 'value', 'confidence', 'evidence'],
+            properties: {
+              key: { type: 'string', enum: [...SESSION_METRIC_KEYS] },
+              value: { type: 'integer', minimum: 1, maximum: 5 },
+              confidence: { type: 'string', enum: [...METRIC_CONFIDENCE_LEVELS] },
+              evidence: evidenceSchema(),
+            },
+          },
+        },
+        emotionalTrend: {
+          type: 'array',
+          maxItems: MAX_EMOTIONAL_TREND_POINTS,
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['value', 'label', 'evidence'],
+            properties: {
+              value: { type: 'integer', minimum: -2, maximum: 2 },
+              label: { type: 'string' },
+              evidence: evidenceSchema(),
+            },
+          },
+        },
       },
     },
     keyMoments: {
@@ -334,11 +381,14 @@ const COMPASS_CONTENT_SCHEMA: Record<string, unknown> = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['title', 'explanation', 'speaker', 'evidence'],
+        required: ['title', 'explanation', 'speaker', 'category', 'theme', 'relevance', 'evidence'],
         properties: {
           title: { type: 'string' },
           explanation: { type: 'string' },
           speaker: { type: 'string', enum: ['coach', 'athlete'] },
+          category: { type: 'string', enum: [...KEY_MOMENT_CATEGORIES] },
+          theme: { type: ['string', 'null'] },
+          relevance: { type: 'integer', minimum: 1, maximum: 3 },
           evidence: evidenceSchema(),
         },
       },

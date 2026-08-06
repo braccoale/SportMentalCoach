@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import {
   ArrowRight,
   CalendarDays,
@@ -15,6 +16,8 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { AthleteProgressCharts } from './charts';
+import { compareSessionMetrics } from './metric-model';
 import type {
   MentalJourney,
   MentalJourneyEntry,
@@ -120,6 +123,22 @@ export function SessionContinuityCard({
     report.sessionOverview.themes.map((theme) => theme.text),
     previous.themes
   );
+  const metricComparison = compareSessionMetrics(
+    report.sessionOverview.metrics ?? [],
+    previous.metrics ?? []
+  );
+  const improved = metricComparison
+    .filter((item) => item.direction === 'improved')
+    .map((item) => `${item.label}: ${item.previous}/5 → ${item.current}/5`);
+  const stable = [
+    ...metricComparison
+      .filter((item) => item.direction === 'stable')
+      .map((item) => `${item.label}: ${item.current}/5`),
+    ...metricComparison
+      .filter((item) => item.direction === 'attention')
+      .map((item) => `Da verificare — ${item.label}: ${item.previous}/5 → ${item.current}/5`),
+    ...comparison.common,
+  ];
 
   return (
     <Surface>
@@ -134,13 +153,13 @@ export function SessionContinuityCard({
         <ComparisonColumn
           tone="emerald"
           title="Cosa è migliorato"
-          items={[]}
+          items={improved}
           empty="Non valutabile: i report non contengono metriche strutturate confrontabili."
         />
         <ComparisonColumn
           tone="amber"
-          title="Cosa è rimasto presente"
-          items={comparison.common}
+          title="Cosa è rimasto stabile"
+          items={stable}
           empty="Nessun tema comune esplicito nei due report."
         />
         <ComparisonColumn
@@ -233,6 +252,12 @@ export function AthleteJourneyPanel({
         />
       </div>
 
+      <AthleteProgressCharts
+        journey={journey}
+        report={report}
+        currentSessionId={currentSessionId}
+        currentSessionDate={currentSessionDate}
+      />
       <ThemeEvolution journey={journey} />
       <RecurringThemes themes={journey?.recurringThemes ?? []} timeline={timeline} onOpenTranscript={onOpenTranscript} />
       <JourneyNarrative previous={previous} report={report} currentSessionDate={currentSessionDate} />
@@ -256,6 +281,8 @@ function JourneyTimeline({
   onSelect: (sessionId: number) => void;
 }) {
   const history = timeline.filter((entry) => entry.sessionId !== currentSessionId);
+  const [visibleCount, setVisibleCount] = useState(8);
+  const visibleHistory = history.slice(0, visibleCount);
   return (
     <Surface className="h-fit xl:sticky xl:top-4">
       <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-600">Storico atleta</p>
@@ -269,7 +296,7 @@ function JourneyTimeline({
           <p className="text-xs font-bold text-violet-700">Sessione corrente · {formatDate(currentSessionDate)}</p>
           <p className="mt-1 text-sm font-bold text-gray-950">{currentFocus ?? 'Focus non identificato'}</p>
         </li>
-        {history.map((entry) => {
+        {visibleHistory.map((entry) => {
           const selected = entry.sessionId === selectedId;
           return (
             <li key={entry.sessionId}>
@@ -291,6 +318,11 @@ function JourneyTimeline({
           );
         })}
       </ol>
+      {visibleCount < history.length ? (
+        <Button type="button" variant="outline" className="mt-4 w-full" onClick={() => setVisibleCount((current) => current + 8)}>
+          Mostra altre sessioni ({history.length - visibleCount})
+        </Button>
+      ) : null}
       {!history.length ? <EmptyComparison /> : null}
     </Surface>
   );
@@ -330,9 +362,14 @@ function SessionComparison({
           <h3 className="mt-1 text-base font-bold text-gray-950">Sessione corrente vs {formatDate(selected.sessionDate)}</h3>
           <p className="mt-1 text-sm text-gray-600">Storico approvato di {athleteName}.</p>
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={() => onOpenTranscript(selected.sessionId)}>
-          <FileText className="h-4 w-4" /> Apri trascrizione passata
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href={selected.compassHref}>Apri report completo</Link>
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => onOpenTranscript(selected.sessionId)}>
+            <FileText className="h-4 w-4" /> Apri trascrizione passata
+          </Button>
+        </div>
       </div>
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         <CompareCard label={formatDate(selected.sessionDate)} text={selected.summary} themes={selected.themes} />
@@ -402,7 +439,7 @@ function ThemeEvolution({ journey }: { journey: MentalJourney | null }) {
     <Surface>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-600">Evoluzione nel tempo</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-600">Matrice di evidenza</p>
           <h3 className="mt-1 text-base font-bold text-gray-950">Presenza dei temi nei report approvati</h3>
         </div>
         <span className="inline-flex items-center gap-1.5 text-xs text-gray-500"><CircleDashed className="h-4 w-4" /> Dato qualitativo, non clinico</span>
@@ -442,7 +479,7 @@ function ThemeEvolution({ journey }: { journey: MentalJourney | null }) {
         </div>
       )}
       <div className="mt-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
-        Le metriche psicologiche numeriche non sono disponibili nel report attuale: non vengono mostrate come zero e non viene inventato un trend.
+        Questa matrice mostra soltanto la presenza documentata dei temi. Non attribuisce intensità e non sostituisce le metriche con evidenza mostrate nel grafico del percorso.
       </div>
     </Surface>
   );
@@ -450,6 +487,7 @@ function ThemeEvolution({ journey }: { journey: MentalJourney | null }) {
 
 function RecurringThemes({ themes, timeline, onOpenTranscript }: { themes: readonly RecurringTheme[]; timeline: readonly MentalJourneyEntry[]; onOpenTranscript: (sessionId: number, segmentId?: number) => void }) {
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(6);
   if (!themes.length) return null;
   return (
     <Surface>
@@ -457,9 +495,10 @@ function RecurringThemes({ themes, timeline, onOpenTranscript }: { themes: reado
       <h3 className="mt-1 text-base font-bold text-gray-950">Temi ricorrenti</h3>
       <p className="mt-1 text-sm leading-6 text-gray-600">Conteggi reali nei report approvati, senza attribuire intensità o direzione.</p>
       <div className="mt-5 grid gap-3 lg:grid-cols-2">
-        {themes.map((theme) => {
+        {themes.slice(0, visibleCount).map((theme) => {
           const open = openKey === theme.key;
           const related = timeline.filter((entry) => theme.sessionIds.includes(entry.sessionId));
+          const trend = themeFrequencyTrend(theme, timeline);
           return (
             <article key={theme.key} className="rounded-xl border border-gray-200">
               <button
@@ -468,17 +507,17 @@ function RecurringThemes({ themes, timeline, onOpenTranscript }: { themes: reado
                 className="flex min-h-14 w-full items-center justify-between gap-4 p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500"
                 onClick={() => setOpenKey(open ? null : theme.key)}
               >
-                <span><span className="block text-sm font-bold text-gray-950">{theme.label}</span><span className="mt-1 block text-xs text-gray-500">{theme.description} · ultima {formatDate(theme.lastSeenAt)}</span></span>
+                <span><span className="block text-sm font-bold text-gray-950">{theme.label}</span><span className="mt-1 block text-xs text-gray-500">{theme.description} · ultima {formatDate(theme.lastSeenAt)} · {trend}</span></span>
                 <ChevronDown className={`h-4 w-4 shrink-0 text-gray-500 transition ${open ? 'rotate-180' : ''}`} />
               </button>
               {open ? (
                 <div className="border-t border-gray-100 p-4">
                   <ul className="space-y-3">
                     {related.map((entry) => {
-                      const moment = entry.keyMoments[0];
+                      const moment = entry.keyMoments.find((item) => item.theme && normalizedTheme(item.theme) === theme.key) ?? entry.keyMoments[0];
                       return (
                         <li key={entry.sessionId} className="flex flex-col gap-2 rounded-lg bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between">
-                          <span><span className="block text-xs font-semibold text-gray-500">{formatDate(entry.sessionDate)}</span><span className="block text-sm text-gray-800">{moment?.title ?? entry.focus ?? 'Tema presente nel report'}</span></span>
+                          <span><span className="block text-xs font-semibold text-gray-500">{formatDate(entry.sessionDate)}</span><span className="block text-sm text-gray-800">{moment?.title ?? entry.focus ?? 'Tema presente nel report'}</span><span className="mt-1 block text-xs text-gray-500">{entry.commitments.length} {entry.commitments.length === 1 ? 'azione collegata' : 'azioni collegate'}</span></span>
                           <Button type="button" variant="outline" size="sm" onClick={() => onOpenTranscript(entry.sessionId, moment?.transcriptSegmentId)}>Apri</Button>
                         </li>
                       );
@@ -490,8 +529,24 @@ function RecurringThemes({ themes, timeline, onOpenTranscript }: { themes: reado
           );
         })}
       </div>
+      {visibleCount < themes.length ? (
+        <Button type="button" variant="outline" className="mt-4" onClick={() => setVisibleCount((current) => current + 6)}>
+          Mostra altri temi ({themes.length - visibleCount})
+        </Button>
+      ) : null}
     </Surface>
   );
+}
+
+function themeFrequencyTrend(theme: RecurringTheme, timeline: readonly MentalJourneyEntry[]): string {
+  if (timeline.length < 4) return 'trend non ancora confrontabile';
+  const ordered = [...timeline].sort((left, right) => Date.parse(right.sessionDate ?? '') - Date.parse(left.sessionDate ?? ''));
+  const windowSize = Math.min(3, Math.floor(ordered.length / 2));
+  const recentCount = ordered.slice(0, windowSize).filter((entry) => theme.sessionIds.includes(entry.sessionId)).length;
+  const previousCount = ordered.slice(windowSize, windowSize * 2).filter((entry) => theme.sessionIds.includes(entry.sessionId)).length;
+  if (recentCount > previousCount) return 'più ricorrente nelle sessioni recenti';
+  if (recentCount < previousCount) return 'meno ricorrente nelle sessioni recenti';
+  return 'frequenza stabile';
 }
 
 function JourneyNarrative({ previous, report, currentSessionDate }: { previous: MentalJourneyEntry | null; report: SessionCompassReport; currentSessionDate: string | null }) {
@@ -536,16 +591,23 @@ export function TranscriptHistoryNav({
   onSelect: (sessionId: number) => void;
 }) {
   const sessions = useMemo(() => journey?.timeline.filter((entry) => entry.sessionId !== currentSessionId) ?? [], [journey, currentSessionId]);
+  const [visibleCount, setVisibleCount] = useState(8);
+  const visibleSessions = sessions.slice(0, visibleCount);
   return (
     <aside className="h-fit rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.03)] lg:sticky lg:top-4" aria-label="Trascrizioni disponibili">
       <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-600">Trascrizioni</p>
       <h3 className="mt-1 text-sm font-bold text-gray-950">Sessione corrente e storico</h3>
       <div className="mt-4 space-y-2">
         <TranscriptNavButton current active={selectedSessionId === currentSessionId} date={formatDate(currentSessionDate)} focus="Sessione corrente" moments={null} onClick={() => onSelect(currentSessionId)} />
-        {sessions.map((entry) => (
+        {visibleSessions.map((entry) => (
           <TranscriptNavButton key={entry.sessionId} active={selectedSessionId === entry.sessionId} date={formatDate(entry.sessionDate)} focus={entry.focus ?? 'Focus non identificato'} moments={entry.keyMoments.length} onClick={() => onSelect(entry.sessionId)} />
         ))}
       </div>
+      {visibleCount < sessions.length ? (
+        <Button type="button" variant="outline" className="mt-3 w-full" onClick={() => setVisibleCount((current) => current + 8)}>
+          Altre trascrizioni ({sessions.length - visibleCount})
+        </Button>
+      ) : null}
       {!sessions.length ? <p className="mt-4 text-xs leading-5 text-gray-500">Non ci sono trascrizioni passate nello storico approvato.</p> : null}
     </aside>
   );

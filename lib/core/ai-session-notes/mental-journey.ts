@@ -8,7 +8,12 @@
  */
 
 import { SESSION_COMPASS_REPORT_KIND } from './session-compass-contract';
-import type { SessionCompassReport } from './session-compass-contract';
+import type {
+  KeyMomentCategory,
+  MetricConfidence,
+  SessionCompassReport,
+  SessionMetricKey,
+} from './session-compass-contract';
 import type {
   CommitmentOwner,
   TrackedCommitment,
@@ -50,6 +55,16 @@ export type JourneyKeyMoment = {
   minute: number;
   speaker: 'coach' | 'athlete';
   transcriptSegmentId: number;
+  category?: KeyMomentCategory;
+  theme?: string | null;
+  relevance?: 1 | 2 | 3;
+};
+
+export type JourneyMetric = {
+  key: SessionMetricKey;
+  value: number;
+  confidence: MetricConfidence;
+  transcriptSegmentId: number;
 };
 
 export type JourneyPrepItem = {
@@ -70,6 +85,7 @@ export type MentalJourneyEntry = {
   focus: string | null;
   themes: string[];
   emergingResource: string | null;
+  metrics?: JourneyMetric[];
   keyMoments: JourneyKeyMoment[];
   nextSessionPrep: JourneyPrepItem[];
   commitments: JourneyCommitment[];
@@ -308,6 +324,12 @@ export function buildMentalJourney(params: {
       focus: overview.themes[0]?.text ?? null,
       themes: overview.themes.map((theme) => theme.text),
       emergingResource: overview.emergingResource?.text ?? null,
+      metrics: (overview.metrics ?? []).map((metric) => ({
+        key: metric.key,
+        value: metric.value,
+        confidence: metric.confidence,
+        transcriptSegmentId: metric.evidence.transcriptSegmentId,
+      })),
       keyMoments: session.document.keyMoments.map((moment) => ({
         id: moment.id,
         title: moment.title,
@@ -315,6 +337,9 @@ export function buildMentalJourney(params: {
         minute: moment.evidence.minute,
         speaker: moment.speaker,
         transcriptSegmentId: moment.evidence.transcriptSegmentId,
+        category: moment.category,
+        theme: moment.theme,
+        relevance: moment.relevance,
       })),
       nextSessionPrep: session.document.nextSessionPrep.map((item) => ({
         id: item.id,

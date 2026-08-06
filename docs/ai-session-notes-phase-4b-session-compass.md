@@ -10,14 +10,15 @@ Il fingerprint SHA-256 della timeline (`compassSourceFingerprint`) copre id, tem
 
 ## Contenuto
 
-`session_overview` (sintesi neutra, 2–3 temi, al massimo una risorsa emersa), `key_moments` (max 3), `commitments` (owner `coach` o `athlete`, stato iniziale `pending`, scadenza solo se detta esplicitamente), `next_session_prep` (max 3), `coach_note`.
+`session_overview` (sintesi neutra, 2–3 temi, al massimo una risorsa emersa, metriche facoltative 1–5 e andamento emotivo facoltativo -2…+2), `key_moments` (max 3), `commitments` (owner `coach` o `athlete`, stato iniziale `pending`, scadenza solo se detta esplicitamente), `next_session_prep` (max 3), `coach_note`.
 
 Regole di merito applicate dal codice, non solo dal prompt:
 
 - ogni insight richiede `transcript_segment_id`, `startMs`/minuto e un estratto realmente contenuto nel segmento citato;
 - se l'evidenza non si risolve, l'elemento viene **omesso** in fase di montaggio (`assembleSessionCompassReport`), mai completato;
 - i testi che presentano una causa o una diagnosi come fatto sono scartati (`containsForbiddenClaim`);
-- nessun KPI psicologico numerico è previsto dal contratto.
+- metriche e andamento emotivo sono stime operative AI, non cliniche: ogni valore richiede evidenza esplicita, confidenza e riferimento al transcript; l'assenza di evidenza produce assenza del dato, mai zero;
+- i report precedenti restano validi: i nuovi campi sono opzionali e vengono popolati solo dalle generazioni con revisione prompt `metrics-v2`.
 
 Il contesto passato al modello è limitato a: nome e ruolo del coach, sport dell'atleta, obiettivo del percorso e al massimo gli ultimi due report approvati (in forma sintetica). Nessuno storico grezzo delle sessioni.
 
@@ -47,6 +48,6 @@ Un report approvato è immutabile: la rigenerazione apre `report_version + 1` ri
 
 `AI_NOTES_COMPASS_MODEL` (per l'MVP `gpt-5-mini`) e `AI_NOTES_COMPASS_PROMPT_VERSION`. Il dominio non ha default di modello.
 
-## Fuori scope
+## Evoluzione dashboard
 
-Timeline storiche, trend, dashboard KPI, check-in atleta e nuove funzionalità di registrazione restano alla fase successiva.
+La dashboard visualizza metriche, andamento emotivo, filtri dei momenti e relativi estratti senza modificare la persistenza: il documento è già JSONB. Il player e il download audio restano fuori scope. Check-in atleta e nuove funzionalità di registrazione restano separati dal Compass.
