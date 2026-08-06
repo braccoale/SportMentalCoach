@@ -436,7 +436,11 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
   await supabase.auth.signInWithPassword({ email, password });
 
   // Welcome email (best-effort; never blocks the signup).
-  await sendWelcomeEmail({ to: email }).catch(() => {});
+  await sendWelcomeEmail({
+    to: email,
+    name: createdUser.name,
+    role: marketplaceRole,
+  }).catch(() => {});
 
   // Admin lifecycle alert: registration is distinct from the later request
   // for review, so an unfinished draft is visible without pretending that it

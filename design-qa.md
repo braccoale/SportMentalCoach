@@ -70,3 +70,9 @@ The source and current captures were reviewed in the same comparison pass. The i
 - Session Compass evolution suite: passed, including contract, provider, privacy projection, search authorization and metric direction tests.
 
 final result: passed
+
+## Gauge e partecipazione conversazionale
+
+- I nuovi gauge mostrano esclusivamente metriche AI già supportate da evidenza e una quota descrittiva dei segmenti trascritti (secondi e turni di parola di atleta/coach).
+- La quota di parola non viene mai presentata come prova di interesse, coinvolgimento o efficacia della sessione. Il tono è una lettura del testo con citazione, non un’analisi dell’intonazione vocale.
+- Verifica 6 agosto 2026: `tmp/design-qa-gauges-desktop.png` e `tmp/design-qa-gauges-mobile.png`; desktop 1536/1536 px e mobile 390/390 px, nessun errore console o overflow orizzontale.

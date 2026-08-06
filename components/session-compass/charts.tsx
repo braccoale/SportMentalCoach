@@ -9,6 +9,9 @@ import {
   Legend,
   Line,
   LineChart,
+  PolarAngleAxis,
+  RadialBar,
+  RadialBarChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -17,6 +20,8 @@ import {
 import type { MentalJourney } from '@/lib/core/ai-session-notes/mental-journey';
 import type {
   EmotionalTrendPoint,
+  ConversationParticipation,
+  ConversationTone,
   SessionCompassReport,
   SessionMetric,
   SessionMetricKey,
@@ -34,6 +39,113 @@ const EMOTION_LABEL: Record<number, string> = {
 function formatShortDate(value: string | null): string {
   if (!value) return 'Senza data';
   return new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: 'short' }).format(new Date(value));
+}
+
+const TONE_LABEL: Record<ConversationTone['key'], string> = {
+  enthusiastic: 'Entusiasta',
+  open: 'Aperto',
+  reflective: 'Riflessivo',
+  hesitant: 'Esitante',
+  guarded: 'Cauto',
+  frustrated: 'Frustrato',
+  neutral: 'Neutro',
+};
+
+function formatTalkTime(milliseconds: number): string {
+  const seconds = Math.round(milliseconds / 1000);
+  if (seconds < 60) return `${seconds} sec`;
+  return `${Math.floor(seconds / 60)} min`;
+}
+
+/**
+ * La striscia sintetica riprende i gauge richiesti senza trasformare le
+ * metriche in diagnosi. Ogni metrica AI resta apribile sulla sua evidenza.
+ */
+export function SessionMetricGauges({
+  metrics,
+  participation,
+  tone,
+  onOpenEvidence,
+}: {
+  metrics: readonly SessionMetric[];
+  participation: ConversationParticipation | null | undefined;
+  tone: ConversationTone | null | undefined;
+  onOpenEvidence: (segmentId: number) => void;
+}) {
+  if (!metrics.length && !participation && !tone) return null;
+  return (
+    <section className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5" aria-labelledby="metric-gauges-title">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-600">Snapshot della sessione</p>
+          <h3 id="metric-gauges-title" className="mt-1 text-base font-bold text-gray-950">Indicatori con evidenza</h3>
+        </div>
+        <p className="text-xs text-gray-500">Clicca una metrica per vedere il passaggio nella trascrizione.</p>
+      </div>
+      <div className="mt-4 grid gap-3 grid-cols-2 sm:grid-cols-3 xl:grid-cols-6">
+        {metrics.map((metric) => {
+          const meta = METRIC_META[metric.key];
+          return (
+            <button
+              key={metric.id}
+              type="button"
+              className="min-w-0 rounded-xl border border-gray-200 bg-gray-50/70 p-3 text-left transition hover:border-violet-300 hover:bg-violet-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+              onClick={() => onOpenEvidence(metric.evidence.transcriptSegmentId)}
+              aria-label={`${meta.label}: ${metric.value} su 5. Vai all'evidenza nella trascrizione.`}
+            >
+              <p className="truncate text-xs font-semibold text-gray-700">{meta.label}</p>
+              <div className="relative mx-auto mt-2 h-20 w-20" aria-hidden="true">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadialBarChart
+                    data={[{ value: metric.value * 20, fill: meta.color }]}
+                    innerRadius="68%"
+                    outerRadius="100%"
+                    startAngle={90}
+                    endAngle={-270}
+                  >
+                    <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
+                    <RadialBar dataKey="value" background={{ fill: '#e5e7eb' }} cornerRadius={8} isAnimationActive={false} />
+                  </RadialBarChart>
+                </ResponsiveContainer>
+                <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-gray-950">{metric.value}/5</span>
+              </div>
+              <p className="mt-1 text-center text-[11px] text-gray-500">{metricValueLabel(metric.value)}</p>
+            </button>
+          );
+        })}
+        {participation ? (
+          <div className="min-w-0 rounded-xl border border-sky-100 bg-sky-50/60 p-3">
+            <p className="truncate text-xs font-semibold text-sky-950">Parola atleta</p>
+            <div className="relative mx-auto mt-2 h-20 w-20" aria-hidden="true">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadialBarChart data={[{ value: participation.athleteSharePercent, fill: '#0ea5e9' }]} innerRadius="68%" outerRadius="100%" startAngle={90} endAngle={-270}>
+                  <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
+                  <RadialBar dataKey="value" background={{ fill: '#dbeafe' }} cornerRadius={8} isAnimationActive={false} />
+                </RadialBarChart>
+              </ResponsiveContainer>
+              <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-sky-950">{participation.athleteSharePercent}%</span>
+            </div>
+            <p className="mt-1 text-center text-[11px] leading-4 text-sky-800">{formatTalkTime(participation.athleteTalkMs)} · {participation.athleteTurns} turni</p>
+          </div>
+        ) : null}
+      </div>
+      {participation || tone ? (
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {participation ? (
+            <p className="rounded-xl border border-sky-100 bg-sky-50/50 p-3 text-xs leading-5 text-sky-950">
+              <span className="font-semibold">Quota di parola trascritta.</span> Atleta {formatTalkTime(participation.athleteTalkMs)} in {participation.athleteTurns} turni; coach {formatTalkTime(participation.coachTalkMs)} in {participation.coachTurns} turni. Non misura da sola interesse, coinvolgimento o qualità della sessione.
+            </p>
+          ) : null}
+          {tone ? (
+            <button type="button" className="rounded-xl border border-violet-100 bg-violet-50/60 p-3 text-left text-xs leading-5 text-violet-950 transition hover:border-violet-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500" onClick={() => onOpenEvidence(tone.evidence.transcriptSegmentId)}>
+              <span className="font-semibold">Tono nel testo: {TONE_LABEL[tone.key]}.</span> {tone.description} <span className="text-violet-700">Apri la citazione.</span>
+              <span className="mt-1 block text-violet-800">Lettura delle parole, non dell'intonazione vocale.</span>
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
 }
 
 export function SessionMetricsChart({

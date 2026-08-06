@@ -76,10 +76,11 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     subject: 'Nuova richiesta di sessione da {{actor.fullName}}',
     title: 'Hai ricevuto una richiesta di sessione',
     body: [
+      'Ciao {{recipient.firstName}},',
       '{{actor.fullName}} ti ha inviato una richiesta per {{session.label}}.',
     ],
     outro:
-      'Rispondi in fretta: le richieste che restano senza risposta scadono automaticamente.',
+      'Una risposta tempestiva aiuta l’atleta a iniziare il percorso con chiarezza.',
     actionLabel: 'Apri la richiesta',
   }),
 
@@ -88,6 +89,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     subject: 'Il tuo coach ha fissato una sessione',
     title: 'Il tuo coach ha fissato una sessione con te',
     body: [
+      'Ciao {{recipient.firstName}},',
       '{{coach.fullName}} ha messo in calendario {{session.label}} con te.',
     ],
     outro:
@@ -104,6 +106,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     subject: 'Il tuo coach ti sta chiamando',
     title: '{{coach.fullName}} ha avviato la videochiamata',
     body: [
+      'Ciao {{recipient.firstName}},',
       'La sessione è stata avviata: il pulsante qui sotto porta direttamente nella stanza.',
     ],
     outro:
@@ -115,7 +118,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     eyebrow: 'Richiesta confermata',
     subject: 'La tua sessione è confermata',
     title: 'La tua sessione è confermata',
-    body: ['{{coach.fullName}} ha accettato la tua richiesta.'],
+    body: ['Ciao {{recipient.firstName}},', '{{coach.fullName}} ha accettato la tua richiesta.'],
     outro:
       'Riceverai un promemoria il giorno prima e un’ora prima della sessione.',
     actionLabel: 'Vedi la sessione',
@@ -126,6 +129,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     subject: 'Aggiornamento sulla tua richiesta di sessione',
     title: 'La tua richiesta non è andata a buon fine',
     body: [
+      'Ciao {{recipient.firstName}},',
       'Questa volta non è stato possibile confermare la sessione con {{coach.fullName}}.',
     ],
     outro:
@@ -137,7 +141,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     eyebrow: 'Sessione annullata',
     subject: 'Una sessione è stata annullata',
     title: 'Una sessione è stata annullata',
-    body: ['{{actor.fullName}} ha annullato la sessione in programma.'],
+    body: ['Ciao {{recipient.firstName}},', '{{actor.fullName}} ha annullato la sessione in programma.'],
     outro: 'Puoi riprogrammarla in qualsiasi momento dalla tua area personale.',
     actionLabel: 'Riprogramma la sessione',
   }),
@@ -146,7 +150,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     eyebrow: 'Orario modificato',
     subject: 'L’orario della tua sessione è cambiato',
     title: 'L’orario della tua sessione è cambiato',
-    body: ['{{actor.fullName}} ha spostato la sessione a un nuovo orario.'],
+    body: ['Ciao {{recipient.firstName}},', '{{actor.fullName}} ha spostato la sessione a un nuovo orario.'],
     outro:
       'Aggiorna il tuo calendario: il vecchio orario non è più valido.',
     actionLabel: 'Vedi il nuovo orario',
@@ -157,6 +161,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     subject: 'La tua sessione è completata',
     title: 'La tua sessione è completata',
     body: [
+      'Ciao {{recipient.firstName}},',
       'Grazie per il tempo che dedichi al tuo allenamento mentale.',
       'Raccontare com’è andata aiuta {{coach.fullName}} a migliorare e orienta gli altri atleti nella scelta.',
     ],
@@ -168,7 +173,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     eyebrow: 'Promemoria',
     subject: 'La tua sessione è domani',
     title: 'La tua sessione è domani',
-    body: ['Domani hai una sessione con {{counterpart.fullName}}.'],
+    body: ['Ciao {{recipient.firstName}},', 'domani hai una sessione con {{counterpart.fullName}}.'],
     outro:
       'Trova un posto tranquillo e prova microfono e webcam qualche minuto prima.',
     actionLabel: 'Vedi la sessione',
@@ -179,6 +184,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     subject: 'La tua sessione inizia tra un’ora',
     title: 'La tua sessione inizia tra un’ora',
     body: [
+      'Ciao {{recipient.firstName}},',
       'Tra circa un’ora hai la sessione con {{counterpart.fullName}}.',
     ],
     outro:
@@ -190,7 +196,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     eyebrow: 'Nuovo messaggio',
     subject: 'Hai un nuovo messaggio da {{sender.fullName}}',
     title: 'Hai un nuovo messaggio',
-    body: ['{{sender.fullName}} ti ha scritto su KaiPai.'],
+    body: ['Ciao {{recipient.firstName}},', '{{sender.fullName}} ti ha scritto su KaiPai.'],
     outro:
       'Per riservatezza il contenuto del messaggio non viene riportato in questa email.',
     actionLabel: 'Apri la chat',
@@ -201,6 +207,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     subject: 'Il report della tua sessione è pronto',
     title: 'Il report della tua sessione è pronto',
     body: [
+      'Ciao {{recipient.firstName}},',
       '{{coach.fullName}} ha condiviso con te il report di una sessione.',
     ],
     outro:
@@ -213,6 +220,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     subject: '{{inviter.name}} ti ha invitato su KaiPai',
     title: 'Ti hanno invitato su KaiPai',
     body: [
+      'Ciao {{recipient.firstName}},',
       '{{inviter.name}} ti ha invitato a entrare su KaiPai, la piattaforma di coaching mentale per atleti e squadre.',
       'Il link qui sotto è personale: usalo per creare il tuo account.',
     ],
@@ -225,6 +233,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     subject: '{{coach.fullName}} si è registrato come coach',
     title: 'Un nuovo coach si è registrato',
     body: [
+      'Ciao {{recipient.firstName}},',
       '{{coach.fullName}} ha creato un account coach su KaiPai.',
       'Il profilo è ancora in bozza. Riceverai un secondo avviso quando verrà inviato per la revisione.',
     ],
@@ -236,7 +245,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     eyebrow: 'Da approvare',
     subject: '{{coach.fullName}} ha inviato il profilo per l’approvazione',
     title: 'Un profilo coach attende la revisione',
-    body: ['{{coach.fullName}} ha inviato il proprio profilo per la revisione.'],
+    body: ['Ciao {{recipient.firstName}},', '{{coach.fullName}} ha inviato il proprio profilo per la revisione.'],
     outro: null,
     actionLabel: 'Apri l’area admin',
   }),
@@ -246,6 +255,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     subject: 'Il tuo profilo coach è stato approvato',
     title: 'Benvenuto tra i coach KaiPai',
     body: [
+      'Ciao {{recipient.firstName}},',
       'Il tuo profilo è stato approvato ed è ora visibile agli atleti.',
       'Da oggi puoi ricevere richieste di sessione, gestire calendario e servizi e far crescere la tua presenza sulla piattaforma.',
     ],
@@ -258,6 +268,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     subject: 'Il tuo profilo coach richiede alcune modifiche',
     title: 'Il tuo profilo richiede alcune modifiche',
     body: [
+      'Ciao {{recipient.firstName}},',
       'Il tuo profilo non è stato approvato in questa forma.',
       'Aggiornalo con le informazioni mancanti e invialo di nuovo: lo rivedremo il prima possibile.',
     ],
@@ -269,7 +280,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     eyebrow: 'Nuova recensione',
     subject: 'Hai ricevuto una nuova recensione',
     title: 'Hai ricevuto una nuova recensione',
-    body: ['{{athlete.fullName}} ha lasciato una recensione al tuo profilo.'],
+    body: ['Ciao {{recipient.firstName}},', '{{athlete.fullName}} ha lasciato una recensione al tuo profilo.'],
     outro:
       'Le recensioni verificate aumentano la fiducia e la visibilità del tuo profilo.',
     actionLabel: 'Leggi la recensione',
@@ -280,6 +291,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     subject: 'Avviso di sicurezza sul tuo account KaiPai',
     title: 'Attività importante sul tuo account',
     body: [
+      'Ciao {{recipient.firstName}},',
       'Abbiamo rilevato questa attività sul tuo account: {{security.event}}.',
     ],
     outro:

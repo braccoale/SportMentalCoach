@@ -219,6 +219,16 @@ test('ogni template ha eyebrow, oggetto, titolo e corpo', () => {
   }
 });
 
+test('ogni notifica email apre con un saluto personale', () => {
+  for (const [key, tpl] of Object.entries(DEFAULT_EMAIL_TEMPLATES)) {
+    assert.match(
+      tpl.textBody,
+      /^Ciao \{\{recipient\.firstName\}\},/,
+      `${key}: manca il saluto personale`
+    );
+  }
+});
+
 test('i template non contengono markup: la presentazione è nel layout', () => {
   for (const [key, tpl] of Object.entries(DEFAULT_EMAIL_TEMPLATES)) {
     for (const field of [tpl.subject, tpl.title, tpl.htmlBody, tpl.outro ?? '']) {

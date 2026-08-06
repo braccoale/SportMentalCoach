@@ -127,6 +127,30 @@ test('accetta metriche e trend emotivo solo quando hanno valore ed evidenza vali
   assert.ok(codes.includes('INVALID_EMOTIONAL_VALUE'));
 });
 
+test('accetta conteggi conversazionali descrittivi e tono solo con evidenza dell’atleta', () => {
+  const valid = report();
+  valid.sessionOverview.conversationParticipation = {
+    athleteTalkMs: 7_000,
+    coachTalkMs: 10_000,
+    athleteTurns: 1,
+    coachTurns: 1,
+    athleteSharePercent: 41,
+  };
+  valid.sessionOverview.conversationTone = {
+    key: 'hesitant',
+    description: 'L’atleta esprime esitazione rispetto alla gara.',
+    confidence: 'medium',
+    evidence: evidence(11, 'respiro corto'),
+  };
+  assert.deepEqual(validateSessionCompassReport(valid, context), []);
+
+  valid.sessionOverview.conversationParticipation.athleteSharePercent = 101;
+  valid.sessionOverview.conversationTone.evidence = evidence(12, 'routine di respirazione');
+  const codes = validateSessionCompassReport(valid, context).map((issue) => issue.code);
+  assert.ok(codes.includes('INVALID_CONVERSATION_PARTICIPATION'));
+  assert.ok(codes.includes('CONVERSATION_TONE_REQUIRES_ATHLETE_EVIDENCE'));
+});
+
 test('rifiuta un insight senza evidenza', () => {
   const invalid = report();
   // @ts-expect-error verifica del comportamento a runtime con dati mancanti

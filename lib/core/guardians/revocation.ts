@@ -149,6 +149,7 @@ export async function revokeGuardianAuthorization(
       return {
         athleteName,
         guardianEmail: guardian.guardian_email,
+        guardianName: guardian.guardian_name,
         alreadyRevoked: true,
         bookingRecipients: [],
         aiSessionIds: [],
@@ -284,6 +285,7 @@ export async function revokeGuardianAuthorization(
     return {
       athleteName,
       guardianEmail: guardian.guardian_email,
+      guardianName: guardian.guardian_name,
       athleteUserId: guardian.athlete_user_id,
       alreadyRevoked: false,
       bookingRecipients,
@@ -335,7 +337,7 @@ export async function revokeGuardianAuthorization(
       to: outcome.guardianEmail,
       title: `Autorizzazione revocata per ${outcome.athleteName}`,
       body:
-        'La revoca è stata registrata. Le sessioni non concluse sono state annullate, le chat collegate sono ora di sola lettura e registrazioni o elaborazioni AI ancora in corso sono state interrotte. Per una nuova autorizzazione il giovane atleta dovrà inviare un nuovo invito.',
+        `Ciao ${outcome.guardianName},\n\nLa revoca è stata registrata. Le sessioni non concluse sono state annullate, le chat collegate sono ora di sola lettura e registrazioni o elaborazioni AI ancora in corso sono state interrotte. Per una nuova autorizzazione il giovane atleta dovrà inviare un nuovo invito.`,
     });
   }
 

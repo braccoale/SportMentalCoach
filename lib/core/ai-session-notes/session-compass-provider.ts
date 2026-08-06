@@ -16,6 +16,7 @@ import {
   MAX_THEMES,
   KEY_MOMENT_CATEGORIES,
   METRIC_CONFIDENCE_LEVELS,
+  CONVERSATION_TONE_KEYS,
   SESSION_METRIC_KEYS,
   containsForbiddenClaim,
   indexSourceSegments,
@@ -36,6 +37,9 @@ import {
   type SessionMetricKey,
   type SessionCompassValidationIssue,
   type CompassTheme,
+  type ConversationParticipation,
+  type ConversationTone,
+  type ConversationToneKey,
 } from './session-compass-contract';
 
 /** Contesto lecito e già disponibile. Nessuno storico grezzo delle sessioni. */
@@ -101,6 +105,7 @@ export type RawCompassContent = {
     emergingResource?: unknown;
     metrics?: unknown;
     emotionalTrend?: unknown;
+    conversationTone?: unknown;
   };
   keyMoments?: unknown;
   commitments?: unknown;
@@ -172,6 +177,17 @@ export function assembleSessionCompassReport(
     .sort((left, right) => left.evidence.startMs - right.evidence.startMs)
     .slice(0, MAX_EMOTIONAL_TREND_POINTS);
 
+  const conversationParticipation = calculateConversationParticipation(input.segments);
+  const toneRecord = asRecord(overview.conversationTone);
+  const toneKey = asConversationToneKey(toneRecord?.key);
+  const toneDescription = asProse(toneRecord?.description);
+  const toneConfidence = asMetricConfidence(toneRecord?.confidence);
+  const toneEvidence = evidenceOf(toneRecord?.evidence, segments);
+  const conversationTone: ConversationTone | null =
+    toneRecord && toneKey && toneDescription && toneConfidence && toneEvidence?.speaker === 'athlete'
+      ? { key: toneKey, description: toneDescription, confidence: toneConfidence, evidence: toneEvidence }
+      : null;
+
   const keyMoments: KeyMoment[] = withIdentifiers(
     'moment',
     asArray(content.keyMoments).flatMap((item) => {
@@ -232,7 +248,16 @@ export function assembleSessionCompassReport(
     sessionId: input.sessionId,
     sourceFingerprint: input.sourceFingerprint,
     language: input.language,
-    sessionOverview: { summary, summaryEvidence, themes, emergingResource, metrics, emotionalTrend },
+    sessionOverview: {
+      summary,
+      summaryEvidence,
+      themes,
+      emergingResource,
+      metrics,
+      emotionalTrend,
+      conversationParticipation,
+      conversationTone,
+    },
     keyMoments,
     commitments,
     nextSessionPrep,
@@ -392,6 +417,45 @@ function asMetricConfidence(value: unknown): MetricConfidence | null {
   return typeof value === 'string' && METRIC_CONFIDENCE_LEVELS.includes(value as MetricConfidence)
     ? (value as MetricConfidence)
     : null;
+}
+
+function asConversationToneKey(value: unknown): ConversationToneKey | null {
+  return typeof value === 'string' && CONVERSATION_TONE_KEYS.includes(value as ConversationToneKey)
+    ? (value as ConversationToneKey)
+    : null;
+}
+
+/**
+ * Somma solo gli intervalli con testo attribuito. È un dato descrittivo della
+ * trascrizione, non una misura dell'interesse o della qualità della sessione.
+ */
+export function calculateConversationParticipation(
+  segments: readonly CompassSourceSegment[]
+): ConversationParticipation | null {
+  const totals: Record<CompassSpeaker, { talkMs: number; turns: number }> = {
+    athlete: { talkMs: 0, turns: 0 },
+    coach: { talkMs: 0, turns: 0 },
+  };
+
+  for (const segment of segments) {
+    if (!segment.text.trim()) continue;
+    const startMs = Math.max(0, segment.startMs);
+    const endMs = Math.max(startMs, segment.endMs);
+    const duration = endMs - startMs;
+    if (!duration) continue;
+    totals[segment.speaker].talkMs += duration;
+    totals[segment.speaker].turns += 1;
+  }
+
+  const totalTalkMs = totals.athlete.talkMs + totals.coach.talkMs;
+  if (!totalTalkMs) return null;
+  return {
+    athleteTalkMs: totals.athlete.talkMs,
+    coachTalkMs: totals.coach.talkMs,
+    athleteTurns: totals.athlete.turns,
+    coachTurns: totals.coach.turns,
+    athleteSharePercent: Math.round((totals.athlete.talkMs / totalTalkMs) * 100),
+  };
 }
 
 function asMomentCategory(value: unknown): KeyMomentCategory | null {

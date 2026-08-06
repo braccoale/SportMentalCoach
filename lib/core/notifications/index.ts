@@ -467,6 +467,21 @@ function recipientNames(row: {
   return { firstName: first, fullName: full || first };
 }
 
+/** Il centro notifiche usa lo stesso saluto personale delle email. */
+async function resolveInAppFirstName(userId: number): Promise<string | null> {
+  const [row] = await db
+    .select({ email: users.email, name: users.name, lastName: users.lastName })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  return row?.email ? recipientNames(row).firstName : null;
+}
+
+function withPersonalGreeting(firstName: string | null, body: string): string {
+  if (!firstName) return body;
+  return `Ciao ${firstName}, ${body.charAt(0).toLocaleLowerCase('it-IT')}${body.slice(1)}`;
+}
+
 function toView(n: Notification): NotificationView {
   return {
     id: n.id,
@@ -809,7 +824,12 @@ export async function notify(
   ctx: NotifyContext = {}
 ): Promise<void> {
   const event = NOTIFICATION_EVENTS[type];
-  const { title, body, data } = buildContent(type, ctx);
+  const rawContent = buildContent(type, ctx);
+  const firstName = event.hasInApp
+    ? await resolveInAppFirstName(recipientUserId).catch(() => null)
+    : null;
+  const { title, data } = rawContent;
+  const body = withPersonalGreeting(firstName, rawContent.body);
 
   // In-app notification: the source of truth, and the anchor of the email's
   // idempotency key.

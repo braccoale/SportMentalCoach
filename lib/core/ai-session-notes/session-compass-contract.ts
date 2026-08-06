@@ -33,6 +33,21 @@ export type SessionMetricKey = (typeof SESSION_METRIC_KEYS)[number];
 export const METRIC_CONFIDENCE_LEVELS = ['low', 'medium', 'high'] as const;
 export type MetricConfidence = (typeof METRIC_CONFIDENCE_LEVELS)[number];
 
+/**
+ * Etichette strettamente linguistiche: descrivono ciò che emerge dalle parole
+ * dell'atleta, non l'intonazione della voce, la personalità o il suo interesse.
+ */
+export const CONVERSATION_TONE_KEYS = [
+  'enthusiastic',
+  'open',
+  'reflective',
+  'hesitant',
+  'guarded',
+  'frustrated',
+  'neutral',
+] as const;
+export type ConversationToneKey = (typeof CONVERSATION_TONE_KEYS)[number];
+
 export const KEY_MOMENT_CATEGORIES = [
   'turning_point',
   'resistance',
@@ -102,6 +117,26 @@ export type EmotionalTrendPoint = {
   evidence: CompassEvidence;
 };
 
+/**
+ * Conteggi descrittivi ricavati dai segmenti trascritti. La quota di parola
+ * non è un indicatore di interesse, partecipazione o efficacia della sessione.
+ */
+export type ConversationParticipation = {
+  athleteTalkMs: number;
+  coachTalkMs: number;
+  athleteTurns: number;
+  coachTurns: number;
+  athleteSharePercent: number;
+};
+
+/** Una lettura del linguaggio dell'atleta, sempre agganciata a una citazione. */
+export type ConversationTone = {
+  key: ConversationToneKey;
+  description: string;
+  confidence: MetricConfidence;
+  evidence: CompassEvidence;
+};
+
 export type SessionOverview = {
   summary: string;
   summaryEvidence: CompassEvidence[];
@@ -111,6 +146,8 @@ export type SessionOverview = {
   /** Campi additivi e opzionali per compatibilità con i report v1 già salvati. */
   metrics?: SessionMetric[];
   emotionalTrend?: EmotionalTrendPoint[];
+  conversationParticipation?: ConversationParticipation | null;
+  conversationTone?: ConversationTone | null;
 };
 
 export type KeyMoment = {
@@ -368,6 +405,36 @@ export function validateSessionCompassReport(
     requireText(point.label, `${path}.label`, issues);
     requireProseSafety(point.label, `${path}.label`, issues);
     validateEvidence(point.evidence, `${path}.evidence`, segments, issues);
+  }
+
+  if (overview?.conversationParticipation) {
+    const path = 'sessionOverview.conversationParticipation';
+    const participation = overview.conversationParticipation;
+    for (const key of ['athleteTalkMs', 'coachTalkMs', 'athleteTurns', 'coachTurns'] as const) {
+      if (!Number.isInteger(participation[key]) || participation[key] < 0) {
+        add(issues, 'INVALID_CONVERSATION_PARTICIPATION', `${path}.${key}`, 'Il conteggio deve essere un intero non negativo.');
+      }
+    }
+    if (!Number.isInteger(participation.athleteSharePercent) || participation.athleteSharePercent < 0 || participation.athleteSharePercent > 100) {
+      add(issues, 'INVALID_CONVERSATION_PARTICIPATION', `${path}.athleteSharePercent`, 'La quota atleta deve essere un intero tra 0 e 100.');
+    }
+  }
+
+  if (overview?.conversationTone) {
+    const path = 'sessionOverview.conversationTone';
+    const tone = overview.conversationTone;
+    if (!CONVERSATION_TONE_KEYS.includes(tone.key)) {
+      add(issues, 'INVALID_CONVERSATION_TONE', `${path}.key`, 'Tono linguistico non supportato.');
+    }
+    requireText(tone.description, `${path}.description`, issues);
+    requireProseSafety(tone.description, `${path}.description`, issues);
+    if (!METRIC_CONFIDENCE_LEVELS.includes(tone.confidence)) {
+      add(issues, 'INVALID_CONVERSATION_TONE_CONFIDENCE', `${path}.confidence`, 'Confidenza non supportata.');
+    }
+    const evidence = validateEvidence(tone.evidence, `${path}.evidence`, segments, issues);
+    if (evidence?.speaker !== 'athlete') {
+      add(issues, 'CONVERSATION_TONE_REQUIRES_ATHLETE_EVIDENCE', `${path}.evidence`, "Il tono linguistico deve riferirsi a una frase dell'atleta.");
+    }
   }
 
   if (report.keyMoments.length > MAX_KEY_MOMENTS) {

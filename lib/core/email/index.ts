@@ -371,30 +371,38 @@ export async function sendNotificationEmail(input: {
 export async function sendWelcomeEmail(input: {
   to: string;
   name?: string | null;
+  role?: 'athlete' | 'coach' | 'club' | null;
 }): Promise<void> {
   const brand = t('brand.name', getVerticalConfig());
   const { preferencesUrl, privacyUrl, baseUrl } = footerUrls();
   const dashboardUrl = absoluteUrl('/dashboard');
-  const greeting = input.name ? `Ciao ${escapeHtml(input.name)},` : 'Ciao,';
+  const name = input.name?.trim() || null;
+  const greeting = name ? `Ciao ${name},` : 'Ciao,';
+  const isCoach = input.role === 'coach';
 
   const paragraphs = [
     greeting,
-    'il tuo account è pronto. Da oggi puoi trovare il tuo mental coach, richiedere sessioni e allenare la mente come alleni il corpo.',
+    isCoach
+      ? 'il tuo spazio coach su KaiPai è pronto. Completa il profilo, racconta il tuo approccio e invialo alla revisione: quando sarà approvato potrai incontrare atleti, organizzare le sessioni e far crescere il tuo lavoro.'
+      : 'il tuo spazio KaiPai è pronto. Da qui puoi conoscere i coach, scegliere il percorso più adatto a te e allenare la mente con la stessa cura che dedichi al tuo sport.',
+    isCoach
+      ? 'Il tuo modo di fare coaching merita uno spazio chiaro e professionale.'
+      : 'Ogni piccolo passo conta: quando vuoi, puoi iniziare dalla tua area.',
   ];
 
   const action = dashboardUrl
-    ? { label: 'Vai alla tua area', url: dashboardUrl }
+    ? { label: isCoach ? 'Vai alla tua area coach' : 'Scopri la tua area', url: dashboardUrl }
     : null;
 
   await sendEmail({
     to: input.to,
-    subject: `Benvenuto su ${brand}`,
+    subject: isCoach && name ? `Benvenuto tra i coach KaiPai, ${name}` : `Benvenuto su ${brand}${name ? `, ${name}` : ''}`,
     html: wrapEmailHtml({
       preview: 'Il tuo account è pronto.',
       eyebrow: 'Benvenuto',
       title: `Benvenuto su ${escapeHtml(brand)}`,
       bodyHtml: paragraphs
-        .map((p) => `<p style="margin:0 0 14px">${p}</p>`)
+        .map((p) => `<p style="margin:0 0 14px">${escapeHtml(p)}</p>`)
         .join('\n'),
       action,
       preferencesUrl,

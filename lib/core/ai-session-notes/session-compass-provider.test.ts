@@ -9,6 +9,7 @@ import {
   FakeSessionCompassReportProvider,
   SessionCompassGenerationError,
   assembleSessionCompassReport,
+  calculateConversationParticipation,
   generateValidatedSessionCompassReport,
   type RawCompassContent,
   type SessionCompassGenerationInput,
@@ -21,9 +22,9 @@ import {
   type OpenAiCompassRequest,
 } from './openai-session-compass-provider';
 
-test('la revisione prompt delle metriche è stabile e non si duplica', () => {
-  assert.equal(effectiveSessionCompassPromptVersion('compass-v1'), 'compass-v1:metrics-v2');
-  assert.equal(effectiveSessionCompassPromptVersion('compass-v1:metrics-v2'), 'compass-v1:metrics-v2');
+test('la revisione prompt con engagement è stabile e non si duplica', () => {
+  assert.equal(effectiveSessionCompassPromptVersion('compass-v1'), 'compass-v1:engagement-v3');
+  assert.equal(effectiveSessionCompassPromptVersion('compass-v1:engagement-v3'), 'compass-v1:engagement-v3');
   assert.equal(effectiveSessionCompassPromptVersion('  '), '');
 });
 
@@ -134,6 +135,12 @@ test('normalizza metriche, trend emotivo e metadati dei momenti senza inventare 
         { label: 'Secondo passaggio', value: 1, evidence: { transcriptSegmentId: 2, quote: 'prima parte' } },
         { label: 'Apertura', value: 0, evidence: { transcriptSegmentId: 1, quote: 'ultima gara' } },
       ],
+      conversationTone: {
+        key: 'reflective',
+        description: 'L’atleta ripercorre con attenzione la prima parte della gara.',
+        confidence: 'medium',
+        evidence: { transcriptSegmentId: 2, quote: 'prima parte' },
+      },
     },
     keyMoments: [{
       title: 'L’atleta descrive la prima parte',
@@ -151,6 +158,31 @@ test('normalizza metriche, trend emotivo e metadati dei momenti senza inventare 
   assert.equal(report.keyMoments[0].category, 'awareness');
   assert.equal(report.keyMoments[0].theme, 'Attenzione in gara');
   assert.equal(report.keyMoments[0].relevance, 3);
+  assert.equal(report.sessionOverview.conversationTone?.key, 'reflective');
+  assert.deepEqual(report.sessionOverview.conversationParticipation, {
+    athleteTalkMs: 9_000,
+    coachTalkMs: 4_000,
+    athleteTurns: 1,
+    coachTurns: 1,
+    athleteSharePercent: 69,
+  });
+});
+
+test('la quota di parola usa solo segmenti con testo e non assegna giudizi', () => {
+  assert.deepEqual(calculateConversationParticipation([
+    ...SEGMENTS,
+    { transcriptSegmentId: 3, startMs: 80_000, endMs: 85_000, speaker: 'athlete', text: '   ' },
+    { transcriptSegmentId: 4, startMs: 90_000, endMs: 100_000, speaker: 'coach', text: 'Riprendiamo da qui.' },
+  ]), {
+    athleteTalkMs: 9_000,
+    coachTalkMs: 14_000,
+    athleteTurns: 1,
+    coachTurns: 2,
+    athleteSharePercent: 39,
+  });
+  assert.equal(calculateConversationParticipation([
+    { transcriptSegmentId: 3, startMs: 0, endMs: 1_000, speaker: 'athlete', text: '' },
+  ]), null);
 });
 
 test('omette gli insight privi di evidenza verificabile invece di inventarli', () => {

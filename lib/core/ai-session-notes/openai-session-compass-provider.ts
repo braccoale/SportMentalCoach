@@ -15,6 +15,7 @@ import {
   MAX_SESSION_METRICS,
   MAX_THEMES,
   METRIC_CONFIDENCE_LEVELS,
+  CONVERSATION_TONE_KEYS,
   SESSION_METRIC_KEYS,
   minuteFromMs,
 } from './session-compass-contract';
@@ -31,7 +32,7 @@ const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 // report. Un timeout uguale a quello della function poteva interrompere il
 // processo prima che il job venisse chiuso correttamente.
 const DEFAULT_TIMEOUT_MS = 45_000;
-export const SESSION_COMPASS_PROMPT_REVISION = 'metrics-v2' as const;
+export const SESSION_COMPASS_PROMPT_REVISION = 'engagement-v3' as const;
 
 export function effectiveSessionCompassPromptVersion(value: string): string {
   const base = value.trim();
@@ -276,6 +277,7 @@ Ogni elemento deve citare un'evidenza: transcriptSegmentId presente nel transcri
 sessionOverview.summary: sintesi concisa e neutra. themes: da 2 a ${MAX_THEMES} temi principali emersi. emergingResource: una sola risorsa o leva emersa, oppure null se non supportata.
 sessionOverview.metrics: massimo ${MAX_SESSION_METRICS} metriche fra ${SESSION_METRIC_KEYS.join(', ')}. Inserisci una metrica solo quando una frase esplicita dell'atleta la sostiene; value è un intero 1–5 e confidence è low, medium o high. Un array vuoto è preferibile a una stima debole. Non dedurre un valore dall'assenza di parole.
 sessionOverview.emotionalTrend: massimo ${MAX_EMOTIONAL_TREND_POINTS} punti ordinati nel tempo, value intero da -2 (forte difficoltà o tensione riferita) a +2 (forte risorsa o slancio riferito), label breve e prudente, sempre con evidenza. Non usare termini diagnostici.
+sessionOverview.conversationTone: un solo tono linguistico dell'atleta fra ${CONVERSATION_TONE_KEYS.join(', ')}, oppure null. Descrivi soltanto ciò che emerge dalle sue parole e cita una sua frase. Non valutare l'intonazione della voce, la personalità, l'interesse, il coinvolgimento o il valore di una persona. Poche parole o silenzi non sono prova di scarso interesse.
 keyMoments: massimo ${MAX_KEY_MOMENTS} momenti significativi, con titolo, spiegazione prudente, speaker, category fra ${KEY_MOMENT_CATEGORIES.join(', ')}, tema sintetico o null e relevance 1–3.
 commitments: solo azioni concrete effettivamente concordate, con owner "coach" oppure "athlete". Indica dueDate (YYYY-MM-DD) solo se la scadenza è detta esplicitamente, altrimenti null.
 nextSessionPrep: massimo ${MAX_NEXT_SESSION_PREP} punti che il coach può verificare o esplorare alla prossima sessione, derivati da temi, impegni o incertezze emerse. Nessun consiglio clinico generico.
@@ -324,7 +326,7 @@ const COMPASS_CONTENT_SCHEMA: Record<string, unknown> = {
     sessionOverview: {
       type: 'object',
       additionalProperties: false,
-      required: ['summary', 'summaryEvidence', 'themes', 'emergingResource', 'metrics', 'emotionalTrend'],
+      required: ['summary', 'summaryEvidence', 'themes', 'emergingResource', 'metrics', 'emotionalTrend', 'conversationTone'],
       properties: {
         summary: { type: 'string' },
         summaryEvidence: { type: 'array', items: evidenceSchema() },
@@ -371,6 +373,17 @@ const COMPASS_CONTENT_SCHEMA: Record<string, unknown> = {
               label: { type: 'string' },
               evidence: evidenceSchema(),
             },
+          },
+        },
+        conversationTone: {
+          type: ['object', 'null'],
+          additionalProperties: false,
+          required: ['key', 'description', 'confidence', 'evidence'],
+          properties: {
+            key: { type: 'string', enum: [...CONVERSATION_TONE_KEYS] },
+            description: { type: 'string' },
+            confidence: { type: 'string', enum: [...METRIC_CONFIDENCE_LEVELS] },
+            evidence: evidenceSchema(),
           },
         },
       },

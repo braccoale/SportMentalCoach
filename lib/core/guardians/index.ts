@@ -320,7 +320,7 @@ export async function inviteGuardian(params: {
     to: email,
     title: `Autorizzazione richiesta per ${athleteName}`,
     body:
-      `${athleteName} ti ha indicato come genitore o tutore su KaiPai. ` +
+      `Ciao ${name},\n\n${athleteName} ti ha indicato come genitore o tutore su KaiPai. ` +
       'Apri il collegamento personale, leggi il documento e firma digitando il tuo nome completo. ' +
       'Il collegamento è monouso e scade dopo 72 ore. Se non riconosci la richiesta, ignorala e avvisa KaiPai.',
     link: `/tutore/conferma?token=${encodeURIComponent(rawToken)}`,
@@ -617,6 +617,7 @@ export async function confirmGuardian(
     return {
       athleteName,
       guardianEmail: invitation.guardian_email,
+      guardianName: invitation.guardian_name,
       guardianId: invitation.athlete_guardian_id,
       athleteUserId: invitation.athlete_user_id,
       acceptanceId: acceptance.id,
@@ -633,6 +634,7 @@ export async function confirmGuardian(
     to: outcome.guardianEmail,
     title: `Ricevuta di autorizzazione per ${outcome.athleteName}`,
     body: [
+      `Ciao ${outcome.guardianName},`,
       `Autorizzazione registrata il ${outcome.acceptedAt.toLocaleString('it-IT', { timeZone: 'Europe/Rome' })}.`,
       `Firma digitata: ${signatureName}`,
       `Versione documento: ${GUARDIAN_CONSENT_VERSION}`,
