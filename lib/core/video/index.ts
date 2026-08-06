@@ -15,6 +15,7 @@ import {
   verifyGuestInviteToken,
 } from './guest-invite-token';
 import { hasActiveAiNotesSessionForBooking } from '@/lib/core/ai-session-notes/recording';
+import { canParticipateInSessions } from '@/lib/core/guardians';
 
 function guestInviteSecret(): string {
   const secret = process.env.AUTH_SECRET;
@@ -49,6 +50,7 @@ export async function recordSessionHeartbeat(
 ): Promise<boolean> {
   const ctx = await getBookingChatContext(bookingId, userId);
   if (!ctx || ctx.status !== 'accepted') return false;
+  if (!(await canParticipateInSessions(ctx.clientId)).ok) return false;
 
   const now = new Date();
   await db
@@ -83,6 +85,7 @@ export type RoomTokenResult =
       otherName: string;
     }
   | { ok: false; reason: 'past'; backHref: string; otherName: string }
+  | { ok: false; reason: 'guardian_required'; backHref: string; otherName: string }
   | {
       ok: false;
       reason: 'too_early';
@@ -113,7 +116,7 @@ export type RoomTokenResult =
     };
 
 export type GuestInviteTokenResult =
-  | { ok: false; reason: 'unauthorized' | 'closed' | 'past' | 'not_configured' }
+  | { ok: false; reason: 'unauthorized' | 'closed' | 'past' | 'not_configured' | 'guardian_required' }
   | { ok: true; token: string; expiresAt: Date };
 
 /**
@@ -128,6 +131,9 @@ export async function createGuestInviteToken(
   const ctx = await getBookingChatContext(bookingId, userId);
   if (!ctx) return { ok: false, reason: 'unauthorized' };
   if (ctx.status !== 'accepted') return { ok: false, reason: 'closed' };
+  if (!(await canParticipateInSessions(ctx.clientId)).ok) {
+    return { ok: false, reason: 'guardian_required' };
+  }
   if (!isSessionJoinable(ctx.scheduledFor, ctx.durationMin)) {
     return { ok: false, reason: 'past' };
   }
@@ -167,7 +173,8 @@ export type GuestRoomTokenResult =
         | 'closed'
         | 'past'
         | 'not_configured'
-        | 'ai_notes_active';
+        | 'ai_notes_active'
+        | 'guardian_required';
     }
   | { ok: false; reason: 'too_early'; scheduledFor: string }
   | {
@@ -200,6 +207,9 @@ export async function createGuestRoomToken(
   );
   if (!ctx) return { ok: false, reason: 'invalid' };
   if (ctx.status !== 'accepted') return { ok: false, reason: 'closed' };
+  if (!(await canParticipateInSessions(ctx.clientId)).ok) {
+    return { ok: false, reason: 'guardian_required' };
+  }
   if (!isSessionJoinable(ctx.scheduledFor, ctx.durationMin)) {
     return { ok: false, reason: 'past' };
   }
@@ -256,6 +266,10 @@ export async function createRoomToken(
   const otherName = isClient
     ? ctx.coachName ?? 'Coach'
     : ctx.clientName ?? ctx.clientEmail;
+
+  if (!(await canParticipateInSessions(ctx.clientId)).ok) {
+    return { ok: false, reason: 'guardian_required', backHref, otherName };
+  }
 
   // Sessione chiusa: chi ha il link non ha sbagliato indirizzo, la stanza non
   // esiste più. Va detto, non nascosto dietro una pagina non trovata.

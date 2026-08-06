@@ -326,16 +326,24 @@ export async function sendNotificationEmail(input: {
   title: string;
   body?: string | null;
   link?: string | null;
-}): Promise<void> {
+  actionLabel?: string | null;
+}): Promise<SendResult> {
   const url = absoluteUrl(input.link);
   const { preferencesUrl, privacyUrl, baseUrl } = footerUrls();
 
   const bodyHtml = input.body
-    ? `<p style="margin:0 0 14px">${escapeHtml(input.body)}</p>`
+    ? splitParagraphs(input.body)
+        .map(
+          (paragraph) =>
+            `<p style="margin:0 0 14px">${escapeHtml(paragraph).replaceAll('\n', '<br>')}</p>`
+        )
+        .join('\n')
     : '';
-  const action = url ? { label: `Apri ${BRAND.name}`, url } : null;
+  const action = url
+    ? { label: input.actionLabel?.trim() || `Apri ${BRAND.name}`, url }
+    : null;
 
-  await sendEmail({
+  return sendEmail({
     to: input.to,
     subject: input.title,
     html: wrapEmailHtml({

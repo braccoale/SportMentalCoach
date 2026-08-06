@@ -1,13 +1,13 @@
 # Registro delle attività di trattamento (art. 30 GDPR)
 
 **Titolare:** KaiPai — *DA COMPLETARE: ragione sociale, sede legale, P.IVA/C.F., PEC*
-**Contatto per il trattamento dei dati:** privacy@kaipai.it
+**Contatto per il trattamento dei dati:** privacy@kaipaicoaching.com
 **DPO:** non nominato. Valutazione: non risulta obbligatorio ex art. 37 finché
 non si trattano categorie particolari su larga scala né si effettua
 monitoraggio sistematico. *Da riconfermare se cambia il perimetro.*
 
 **Versione:** allineata a `LEGAL_VERSION` in `lib/core/legal/processors.ts`
-**Ultimo aggiornamento:** 22 luglio 2026
+**Ultimo aggiornamento:** 6 agosto 2026
 
 > Questo registro è una bozza redatta a partire dal codice sorgente e dallo
 > schema del database. Va verificato da un legale prima di essere considerato
@@ -33,8 +33,8 @@ monitoraggio sistematico. *Da riconfermare se cambia il perimetro.*
 | | |
 |---|---|
 | **Finalità** | Dimostrare quale versione di Termini, Privacy e Cookie l'utente ha accettato |
-| **Interessati** | Tutti gli utenti registrati |
-| **Categorie di dati** | ID utente, versione e hash del documento, data/ora, indirizzo IP, user agent |
+| **Interessati** | Tutti gli utenti registrati e i genitori/tutori firmatari |
+| **Categorie di dati** | ID utente o soggetto minorenne, email del firmatario esterno, firma digitata, testo/versione/hash del documento, dichiarazioni rese, data/ora, indirizzo IP, user agent |
 | **Base giuridica** | Art. 6.1.c — obbligo di legge (accountability, art. 5.2); art. 6.1.f — difesa in giudizio |
 | **Conservazione** | Come l'account, poi per il termine di prescrizione applicabile. **Tabella append-only: nessun aggiornamento né cancellazione** |
 | **Responsabili** | Supabase |
@@ -77,10 +77,10 @@ monitoraggio sistematico. *Da riconfermare se cambia il perimetro.*
 | | |
 |---|---|
 | **Finalità** | Svolgere la sessione |
-| **Categorie di dati** | Flusso audio/video **in transito, non registrato**; solo orari di inizio e fine conservati |
-| **Base giuridica** | Art. 6.1.b |
-| **Conservazione** | Il contenuto non è conservato; gli orari seguono la sessione |
-| **Responsabili** | LiveKit Cloud (USA, SCC) |
+| **Categorie di dati** | Audio/video in transito; il video non è registrato. Con Appunti AI e tutti i consensi richiesti, la sola traccia audio viene registrata e trascritta |
+| **Base giuridica** | Art. 6.1.b per la chiamata; artt. 6.1.a e 9.2.a per Appunti AI |
+| **Conservazione** | Video non conservato; audio AI 7 giorni; trascrizione/report seguono lo storico della sessione |
+| **Responsabili** | LiveKit Cloud; per Appunti AI anche Deepgram e OpenAI |
 
 ## 7. Autorizzazione del genitore o tutore
 
@@ -88,10 +88,12 @@ monitoraggio sistematico. *Da riconfermare se cambia il perimetro.*
 |---|---|
 | **Finalità** | Raccogliere e provare l'autorizzazione al percorso di un atleta di 15-17 anni |
 | **Interessati** | Genitori/tutori (adulti) e atleti minorenni |
-| **Categorie di dati** | Nome, email e rapporto dichiarato del tutore; data/ora e IP della conferma |
+| **Categorie di dati** | Nome, email, rapporto e titolo dichiarati; firma digitata; dichiarazioni di maggiore età e responsabilità; opzione Appunti AI; testo/versione/hash del documento; data/ora, IP, user agent; eventi di invito, ricevuta e revoca. I token sono conservati solo come SHA-256 |
 | **Base giuridica** | Art. 6.1.b — conclusione del contratto da parte del legittimato; art. 6.1.f — prevenire rapporti invalidi |
 | **Conservazione** | Finché l'atleta ha un account attivo, poi 36 mesi |
-| **Riferimento tecnico** | Tabella `athlete_guardians`; `lib/core/guardians/` |
+| **Responsabili** | Supabase (dati e audit), Resend (email, ricevuta e link) |
+| **Misure** | Link opaco monouso, token solo in hash, email diversa dall'atleta, firma corrispondente all'invito, documento versionato e hashato, log append-only, RLS e nessun privilegio Data API, revoca self-service che annulla sessioni e trattamenti AI aperti |
+| **Riferimento tecnico** | Tabelle `athlete_guardians`, `guardian_invitations`, `agreement_acceptances`, `guardian_authorization_events`; `lib/core/guardians/` |
 
 ## 8. Notifiche in piattaforma, email e push
 
@@ -122,7 +124,7 @@ monitoraggio sistematico. *Da riconfermare se cambia il perimetro.*
 | **Categorie di dati** | IP, user agent, pagina richiesta, data/ora |
 | **Base giuridica** | Art. 6.1.f — legittimo interesse |
 | **Conservazione** | Massimo 12 mesi |
-| **Nota** | Nessuno strumento di analytics o profilazione |
+| **Nota** | Google Analytics si carica soltanto dopo consenso cookie; nessun nome/email viene inviato |
 
 ## 11. Video di presentazione ospitati da terzi
 
@@ -137,9 +139,11 @@ monitoraggio sistematico. *Da riconfermare se cambia il perimetro.*
 
 ## Categorie particolari (art. 9)
 
-**Non sono trattate intenzionalmente.** Il servizio non è sanitario e i Termini
-vietano l'inserimento di informazioni cliniche nei campi liberi. Il rischio
-residuo di conferimento spontaneo è valutato nella DPIA.
+Il servizio non è sanitario e non richiede dati clinici. I campi liberi possono
+comunque riceverne incidentalmente; inoltre una sessione con Appunti AI può
+rivelare dati dell'art. 9. In quel caso il trattamento è separato, facoltativo,
+richiede consenso esplicito di entrambi e, per il minore, anche autorizzazione
+del tutore ancora valida. Il rischio residuo è valutato nella DPIA.
 
 ## Trasferimenti extra-UE
 
@@ -148,6 +152,9 @@ residuo di conferimento spontaneo è valutato nella DPIA.
 | Supabase (AWS) | UE — Francoforte | Nessun trasferimento |
 | Vercel | UE con società USA | SCC art. 46 |
 | LiveKit Cloud | USA | SCC art. 46 |
+| Deepgram | USA | SCC art. 46 |
+| OpenAI | USA | SCC art. 46 |
 | Resend | USA | SCC art. 46 |
+| Google Analytics | USA / UE | DPF e SCC dichiarate |
 | Servizi push browser | USA / UE | SCC art. 46 |
 | YouTube / Vimeo | USA | SCC art. 46 — solo su clic |

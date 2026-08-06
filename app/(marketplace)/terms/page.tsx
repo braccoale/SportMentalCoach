@@ -124,12 +124,15 @@ export default function TermsPage() {
         dell’Atleta e ne risponde.
       </p>
       <p>
-        L’autorizzazione si presta da un link personale inviato per email, senza
-        creare un account. Chi la presta{' '}
+        L’autorizzazione si presta da un link personale, monouso e con scadenza
+        di 72 ore inviato per email, senza creare un account. Chi la presta{' '}
         <strong>dichiara e garantisce</strong> di esercitare la responsabilità
         genitoriale o la tutela legale sull’Atleta e di agire, ove presente,
         anche con l’accordo dell’altro genitore (art. 316 c.c.). Registriamo
-        data, ora e indirizzo di rete della conferma come prova.
+        il proprio nome completo come firma elettronica semplice. Registriamo
+        il testo esatto e la versione accettata, la sua impronta SHA-256, nome,
+        email, data, ora, indirizzo di rete e browser come prova. Una ricevuta
+        completa viene inviata all’indirizzo verificato dal link.
       </p>
       <p>
         KaiPai può <strong>richiedere idonea documentazione</strong> a comprova
@@ -143,9 +146,12 @@ export default function TermsPage() {
         dell’altro genitore.
       </p>
       <p>
-        L’autorizzazione può essere revocata in ogni momento scrivendo a
-        {LEGAL_CONTACT_EMAIL}: da quel momento l’Atleta non può più prenotare nuove
-        Sessioni.
+        L’autorizzazione può essere revocata in ogni momento dal collegamento
+        personale contenuto nella ricevuta o scrivendo a {LEGAL_CONTACT_EMAIL}.
+        La revoca blocca nuove Sessioni e accessi video, annulla le richieste e
+        le Sessioni confermate non ancora concluse, rende le chat collegate di
+        sola lettura e interrompe registrazioni o elaborazioni AI ancora in
+        corso. Per riprendere serve una nuova autorizzazione.
       </p>
       <p>
         Il Coach è informato che l’Atleta è minorenne prima di accettare la

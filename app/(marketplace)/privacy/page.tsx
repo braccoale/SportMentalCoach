@@ -46,8 +46,9 @@ export default function PrivacyPage() {
         </li>
         <li>
           <strong>Dati di svolgimento delle sessioni</strong>: orario di inizio
-          e di fine effettivi delle videochiamate. Il contenuto della
-          videochiamata non viene mai registrato.
+          e di fine effettivi delle videochiamate. Il video non viene mai
+          registrato; l’audio viene registrato esclusivamente per Appunti AI,
+          alle condizioni indicate nella sezione 9.
         </li>
         <li>
           <strong>Dati delle notifiche push</strong>, se le attivi: un
@@ -57,8 +58,10 @@ export default function PrivacyPage() {
         </li>
         <li>
           <strong>Dati del genitore o tutore</strong>, per gli atleti fra i 15 e
-          i 17 anni: nome, email e rapporto dichiarato, insieme alla prova
-          dell’autorizzazione prestata (vedi la sezione 14).
+          i 17 anni: nome, email, rapporto e titolo dichiarati, firma digitata,
+          versione e impronta del documento, opzione Appunti AI, data e ora,
+          indirizzo IP, browser, ricevute, notifiche e revoche (vedi la sezione
+          15). I token dei collegamenti sono conservati soltanto come hash.
         </li>
         <li>
           <strong>Dati tecnici</strong>: indirizzo IP e informazioni sul
@@ -260,6 +263,12 @@ export default function PrivacyPage() {
         possa rivelare, art. 9.2.a GDPR) ed è{' '}
         <strong>revocabile in ogni momento</strong>, anche a sessione in corso:
         dal momento della revoca la registrazione si interrompe.
+      </p>
+      <p>
+        Per un atleta minorenne serve inoltre che il genitore o tutore abbia
+        autorizzato separatamente gli Appunti AI e che tale autorizzazione sia
+        ancora valida. L’autorizzazione generale del percorso non abilita
+        automaticamente audio, trascrizione o report.
       </p>
       <p>Cosa viene conservato, e per quanto:</p>
       <ul>
@@ -470,9 +479,11 @@ export default function PrivacyPage() {
       <p>
         La piattaforma è offerta agli atleti dai {MIN_SIGNUP_AGE} anni in su.
         Poiché la soglia italiana per il consenso digitale è fissata a 14 anni
-        (art. 2-quinquies del Codice Privacy), <strong>ogni atleta di KaiPai
-        può prestare validamente da sé il consenso al trattamento dei propri
-        dati</strong>: non chiediamo un’autorizzazione del genitore per questo.
+        (art. 2-quinquies del Codice Privacy), l’atleta può prestare direttamente
+        i consensi privacy facoltativi applicabili al servizio online. I
+        trattamenti indispensabili al servizio si fondano invece sul contratto,
+        sugli obblighi di legge e sulla sicurezza, come indicato nelle sezioni
+        precedenti.
       </p>
       <p>
         L’autorizzazione del genitore o tutore serve per una ragione diversa e
@@ -481,16 +492,18 @@ export default function PrivacyPage() {
         <a href="/terms" className="text-red-600 underline hover:text-red-700">
           Termini e Condizioni
         </a>
-        . Per raccoglierla trattiamo i dati del genitore o tutore: nome,
-        indirizzo email, rapporto dichiarato con l’atleta e, come prova del
-        consenso prestato, data, ora e indirizzo di rete della conferma. La base
-        giuridica è l’esecuzione del contratto e l’adempimento di obblighi di
-        legge; questi dati sono conservati finché l’atleta ha un account attivo
-        e non sono usati per nessun’altra finalità.
+        . Per raccoglierla e dimostrarla trattiamo i dati elencati nella sezione
+        2. La base giuridica è l’esecuzione del contratto, l’adempimento di
+        obblighi di legge e il legittimo interesse a prevenire abusi e difendere
+        un diritto. La prova resta conservata per la durata dell’account e per{' '}
+        {POST_CLOSURE_RETENTION_MONTHS} mesi dalla cessazione; se pende un
+        contenzioso, fino alla sua definizione. I dati non sono usati per
+        marketing o profilazione.
       </p>
       <p>
-        Il genitore o tutore resta il referente per le comunicazioni che
-        riguardano il minore e può esercitarne i diritti in sua vece.
+        Il genitore o tutore riceve la ricevuta e le comunicazioni di sicurezza,
+        senza ricevere il contenuto riservato di chat, trascrizioni o report.
+        Può esercitare i diritti del minore nei limiti previsti dalla legge.
       </p>
 
       <h2>16. Diritti dell’interessato</h2>

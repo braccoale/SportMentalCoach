@@ -22,7 +22,9 @@ export function GuardianBanner({
   status: GuardianStatus;
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
 }) {
-  const [open, setOpen] = useState(status.kind === 'missing');
+  const [open, setOpen] = useState(
+    status.kind === 'missing' || status.kind === 'revoked'
+  );
 
   if (status.kind === 'not_required') return null;
 
@@ -44,20 +46,29 @@ export function GuardianBanner({
         <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
         <p>
           Percorso autorizzato da {status.guardianName}. Puoi prenotare le tue
-          sessioni.
+          sessioni. Appunti AI:{' '}
+          <strong>
+            {status.aiRecordingAuthorized
+              ? 'autorizzati con consenso per ogni sessione'
+              : 'non autorizzati'}
+          </strong>
+          .
         </p>
       </div>
     );
   }
 
   const pending = status.kind === 'pending';
+  const revoked = status.kind === 'revoked';
 
   return (
     <div
       className={`rounded-xl border p-4 ${
         pending
           ? 'border-sky-200 bg-sky-50'
-          : 'border-amber-200 bg-amber-50'
+          : revoked
+            ? 'border-red-200 bg-red-50'
+            : 'border-amber-200 bg-amber-50'
       }`}
     >
       <div className="flex items-start gap-3">
@@ -74,6 +85,8 @@ export function GuardianBanner({
           >
             {pending
               ? `In attesa della conferma di ${status.guardianName}`
+              : revoked
+                ? `Autorizzazione di ${status.guardianName} revocata`
               : 'Serve l’autorizzazione di un genitore o tutore'}
           </p>
           <p
@@ -86,6 +99,12 @@ export function GuardianBanner({
                 Abbiamo scritto a {status.guardianEmail}. Appena autorizza,
                 potrai richiedere sessioni. Se l’indirizzo è sbagliato, inviane
                 uno nuovo.
+              </>
+            ) : revoked ? (
+              <>
+                Non puoi prenotare o partecipare ad altre sessioni. Per
+                riprendere il percorso invia una nuova richiesta a un genitore
+                o tutore.
               </>
             ) : (
               <>
@@ -134,15 +153,19 @@ export function GuardianBanner({
               </div>
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-medium text-gray-700">
-                  Che rapporto ha con te{' '}
-                  <span className="text-gray-400">(facoltativo)</span>
+                  Che rapporto ha con te
                 </span>
-                <input
+                <select
                   name="relationship"
-                  maxLength={60}
-                  placeholder="Madre, padre, tutore…"
+                  required
+                  defaultValue=""
                   className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 sm:max-w-xs"
-                />
+                >
+                  <option value="" disabled>Seleziona</option>
+                  <option value="madre">Madre</option>
+                  <option value="padre">Padre</option>
+                  <option value="tutore-legale">Tutore legale</option>
+                </select>
               </label>
               <div>
                 <button

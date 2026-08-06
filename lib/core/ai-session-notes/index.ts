@@ -61,6 +61,7 @@ import {
 } from './recording';
 import type { LiveKitSessionControl } from './livekit-session-control';
 import { cancelAiProcessingJobsForSession } from './processing';
+import { canUseAiNotesForAthlete } from '@/lib/core/guardians';
 
 export {
   AiNotesDomainError,
@@ -309,6 +310,19 @@ export async function startAiNotesSession(params: {
         return { error: startError(authorization) };
       }
 
+      // Only after the caller has been proved to be the entitled coach: doing
+      // this earlier would let someone enumerate a minor's guardian status by
+      // guessing booking ids.
+      const guardianAi = await canUseAiNotesForAthlete(
+        booking!.clientUserId,
+        tx
+      );
+      if (!guardianAi.ok) {
+        return {
+          error: new AiNotesDomainError('FORBIDDEN', guardianAi.error),
+        };
+      }
+
       const [session] = await tx
         .insert(sessionAiNotes)
         .values({
@@ -505,6 +519,13 @@ export async function recordAiNotesConsent(params: {
         params.actorUserId !== booking.coachUserId)
     ) {
       throw new AiNotesDomainError('NOT_FOUND', 'Sessione AI non trovata.');
+    }
+    const guardianAi = await canUseAiNotesForAthlete(
+      booking.clientUserId,
+      tx
+    );
+    if (!guardianAi.ok) {
+      throw new AiNotesDomainError('FORBIDDEN', guardianAi.error);
     }
 
     const [consent] = await tx

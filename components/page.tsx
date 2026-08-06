@@ -20,7 +20,8 @@ export type GuestJoinResult =
         | 'closed'
         | 'past'
         | 'not_configured'
-        | 'ai_notes_active';
+        | 'ai_notes_active'
+        | 'guardian_required';
     }
   | {
       ok: false;
@@ -48,6 +49,10 @@ const ERROR_COPY = {
   ai_notes_active: {
     title: 'Accesso ospite non disponibile',
     body: 'In questa sessione sono attivi gli Appunti AI. Per motivi di consenso possono partecipare soltanto coach e atleta autenticati.',
+  },
+  guardian_required: {
+    title: 'Sessione non autorizzata',
+    body: 'L’autorizzazione del genitore o tutore dell’atleta minorenne non è attiva. La videochiamata non può proseguire.',
   },
 } as const;
 

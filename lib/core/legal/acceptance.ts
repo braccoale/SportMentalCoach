@@ -95,5 +95,8 @@ export async function hasAcceptedCurrentTerms(
   userId: number
 ): Promise<boolean> {
   const latest = await getLatestAcceptance(userId);
-  return latest?.version === LEGAL_VERSION;
+  return (
+    latest?.version === LEGAL_VERSION &&
+    latest.documentHash === LEGAL_CONTENT_HASH
+  );
 }

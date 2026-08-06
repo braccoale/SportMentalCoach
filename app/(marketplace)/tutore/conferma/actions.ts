@@ -6,7 +6,8 @@ import type { ActionState } from '@/lib/auth/middleware';
 
 /**
  * Records a guardian's authorisation. Deliberately unauthenticated: the
- * guardian has no account, and the signed token in the link is the credential.
+ * guardian has no account; the one-time opaque token delivered by email is the
+ * credential and only its SHA-256 digest exists in the database.
  */
 export async function confirmGuardianAction(
   _prevState: ActionState,
@@ -14,10 +15,6 @@ export async function confirmGuardianAction(
 ): Promise<ActionState> {
   const token = String(formData.get('token') ?? '');
   if (!token) return { error: 'Link non valido.' };
-
-  // The declaration required by art. 316 c.c. — acting with the agreement of
-  // the other parent, where there is one.
-  const bothParents = formData.get('bothParents') === 'on';
 
   // Behind Vercel the client address arrives in `x-forwarded-for`; the first
   // entry is the original client.
@@ -27,7 +24,19 @@ export async function confirmGuardianAction(
     h.get('x-real-ip') ||
     null;
 
-  const result = await confirmGuardian({ token, bothParents, ip });
+  const result = await confirmGuardian({
+    token,
+    signatureName: String(formData.get('signatureName') ?? ''),
+    authorityBasis: String(formData.get('authorityBasis') ?? ''),
+    adultDeclared: formData.get('adultDeclared') === 'on',
+    parentalResponsibilityDeclared:
+      formData.get('parentalResponsibilityDeclared') === 'on',
+    acceptedTerms: formData.get('acceptedTerms') === 'on',
+    acceptedVexatious: formData.get('acceptedVexatious') === 'on',
+    aiRecordingAuthorized: formData.get('aiRecordingAuthorized') === 'on',
+    ip,
+    userAgent: h.get('user-agent'),
+  });
   if (!result.ok) return { error: result.error };
 
   return {

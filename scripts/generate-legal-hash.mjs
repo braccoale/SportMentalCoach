@@ -25,6 +25,7 @@ const SOURCES = [
   'app/(marketplace)/cookie/page.tsx',
   'lib/core/legal/processors.ts',
   'lib/core/guardians/age.ts',
+  'lib/core/guardians/consent-document.ts',
 ];
 
 const hash = createHash('sha256');

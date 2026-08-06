@@ -316,6 +316,13 @@
       "when": 1786539600000,
       "tag": "0044_provider-registered-notification",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1786540500000,
+      "tag": "0045_guardian_authorization_hardening",
+      "breakpoints": true
     }
   ]
 }

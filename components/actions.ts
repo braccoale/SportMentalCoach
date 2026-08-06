@@ -13,6 +13,8 @@ const ERROR_BY_REASON = {
   closed: 'Puoi invitare un ospite solo a una sessione confermata.',
   past: 'Questa sessione è già trascorsa.',
   not_configured: 'La funzione video non è configurata.',
+  guardian_required:
+    'La sessione è bloccata: manca un’autorizzazione valida del tutore.',
 } as const;
 
 /**

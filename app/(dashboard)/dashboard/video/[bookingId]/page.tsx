@@ -143,6 +143,16 @@ export default async function VideoPage({
               Torna alla dashboard
             </Link>
           </div>
+        ) : result.reason === 'guardian_required' ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-6">
+            <p className="text-sm font-semibold text-amber-950">
+              Autorizzazione del tutore non attiva
+            </p>
+            <p className="mt-1 text-sm text-amber-900">
+              La videochiamata è bloccata perché l’atleta minorenne non ha più
+              un’autorizzazione valida del genitore o tutore.
+            </p>
+          </div>
         ) : result.reason === 'too_early' ? (
           <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6">
             <p className="text-sm font-semibold text-gray-900">

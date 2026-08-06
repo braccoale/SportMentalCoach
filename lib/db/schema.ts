@@ -1684,12 +1684,39 @@ export const athleteGuardians = pgTable(
     bothParentsDeclared: boolean('both_parents_declared')
       .notNull()
       .default(false),
+    /** Current operational state. The legal evidence itself is append-only. */
+    status: varchar('status', { length: 24 }).notNull().default('pending'),
+    /** Typed signature captured from the adult who followed the email link. */
+    signatureName: varchar('signature_name', { length: 200 }),
+    /** joint_agreement | sole_responsibility | legal_guardian */
+    authorityBasis: varchar('authority_basis', { length: 32 }),
+    /** Separate guardian authorisation required before AI audio may be offered. */
+    aiRecordingAuthorized: boolean('ai_recording_authorized')
+      .notNull()
+      .default(false),
+    confirmedUserAgent: text('confirmed_user_agent'),
+    /** Points to the immutable agreement_acceptances row in force. */
+    activeAcceptanceId: integer('active_acceptance_id'),
+    /** SHA-256 of the bearer link delivered only in the confirmation receipt. */
+    managementTokenHash: varchar('management_token_hash', { length: 64 }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    revokedReason: text('revoked_reason'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
     ...audit,
   },
   (table) => [
     index('athlete_guardians_athlete_user_id_idx').on(table.athleteUserId),
+    uniqueIndex('athlete_guardians_management_token_hash_unique')
+      .on(table.managementTokenHash),
+    check(
+      'athlete_guardians_status_check',
+      sql`${table.status} in ('pending', 'confirmed', 'revoked')`
+    ),
+    check(
+      'athlete_guardians_authority_basis_check',
+      sql`${table.authorityBasis} is null or ${table.authorityBasis} in ('joint_agreement', 'sole_responsibility', 'legal_guardian')`
+    ),
   ]
 );
 
@@ -1713,6 +1740,12 @@ export const agreementAcceptances = pgTable(
     userId: integer('user_id').references(() => users.id, {
       onDelete: 'set null',
     }),
+    /** User whose use of the service is covered when the signer is external. */
+    subjectUserId: integer('subject_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    /** Normalised email of an external signer, such as a parent/guardian. */
+    acceptedByEmail: varchar('accepted_by_email', { length: 255 }),
     /** 'platform-terms' (Terms + Privacy + Cookie, at signup) | 'coach' | 'guardian-consent'. */
     agreementKey: varchar('agreement_key', { length: 40 }).notNull(),
     /** Version of the document accepted, e.g. '2026-07-22'. */
@@ -1727,6 +1760,11 @@ export const agreementAcceptances = pgTable(
     signatureName: varchar('signature_name', { length: 200 }),
     ipAddress: varchar('ip_address', { length: 64 }),
     userAgent: text('user_agent'),
+    /** Document-specific declarations, snapshotted with the acceptance. */
+    acceptanceMetadata: jsonb('acceptance_metadata')
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
     acceptedAt: timestamp('accepted_at').notNull().defaultNow(),
   },
   (table) => [
@@ -1734,11 +1772,119 @@ export const agreementAcceptances = pgTable(
       table.userId,
       table.agreementKey
     ),
+    index('agreement_acceptances_subject_key_idx').on(
+      table.subjectUserId,
+      table.agreementKey
+    ),
   ]
 );
 
 export type AgreementAcceptance = typeof agreementAcceptances.$inferSelect;
 export type NewAgreementAcceptance = typeof agreementAcceptances.$inferInsert;
+
+// One-time, revocable invitations. Only a SHA-256 digest is persisted: a
+// database leak cannot be turned into a usable confirmation link.
+export const guardianInvitations = pgTable(
+  'guardian_invitations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    athleteGuardianId: integer('athlete_guardian_id')
+      .notNull()
+      .references(() => athleteGuardians.id, { onDelete: 'cascade' }),
+    athleteUserId: integer('athlete_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    guardianName: varchar('guardian_name', { length: 200 }).notNull(),
+    guardianEmail: varchar('guardian_email', { length: 255 }).notNull(),
+    relationship: varchar('relationship', { length: 60 }).notNull(),
+    tokenHash: varchar('token_hash', { length: 64 }).notNull().unique(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    invalidatedAt: timestamp('invalidated_at', { withTimezone: true }),
+    deliveryStatus: varchar('delivery_status', { length: 24 })
+      .notNull()
+      .default('pending'),
+    deliveryError: text('delivery_error'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    ...audit,
+  },
+  (table) => [
+    index('guardian_invitations_athlete_created_idx').on(
+      table.athleteUserId,
+      table.createdAt
+    ),
+    index('guardian_invitations_guardian_status_idx').on(
+      table.athleteGuardianId,
+      table.consumedAt,
+      table.invalidatedAt
+    ),
+    check(
+      'guardian_invitations_delivery_status_check',
+      sql`${table.deliveryStatus} in ('pending', 'sent', 'failed', 'skipped')`
+    ),
+  ]
+);
+
+export type GuardianInvitationRow = typeof guardianInvitations.$inferSelect;
+
+// Append-only audit trail for authorisation, delivery and revocation. Current
+// state lives in athlete_guardians; this table records how it got there.
+export const guardianAuthorizationEvents = pgTable(
+  'guardian_authorization_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    athleteUserId: integer('athlete_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    athleteGuardianId: integer('athlete_guardian_id').references(
+      () => athleteGuardians.id,
+      { onDelete: 'set null' }
+    ),
+    acceptanceId: integer('acceptance_id').references(
+      () => agreementAcceptances.id,
+      { onDelete: 'set null' }
+    ),
+    invitationId: uuid('invitation_id').references(() => guardianInvitations.id, {
+      onDelete: 'set null',
+    }),
+    eventType: varchar('event_type', { length: 40 }).notNull(),
+    actorType: varchar('actor_type', { length: 24 }).notNull(),
+    actorUserId: integer('actor_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    reason: text('reason'),
+    ipAddress: varchar('ip_address', { length: 64 }),
+    userAgent: text('user_agent'),
+    eventMetadata: jsonb('event_metadata')
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index('guardian_authorization_events_guardian_created_idx').on(
+      table.athleteGuardianId,
+      table.createdAt
+    ),
+    index('guardian_authorization_events_acceptance_idx').on(table.acceptanceId),
+    check(
+      'guardian_authorization_events_type_check',
+      sql`${table.eventType} in ('invitation_created', 'invitation_sent', 'invitation_failed', 'authorization_confirmed', 'receipt_sent', 'receipt_failed', 'authorization_revoked', 'guardian_notified', 'guardian_notification_failed')`
+    ),
+    check(
+      'guardian_authorization_events_actor_check',
+      sql`${table.actorType} in ('athlete', 'guardian', 'admin', 'system')`
+    ),
+  ]
+);
+
+export type GuardianAuthorizationEvent =
+  typeof guardianAuthorizationEvents.$inferSelect;
 
 // Per-user, per-type email delivery preference. Generic: one row per
 // (user, notification type). A missing row means "default" (email enabled).
