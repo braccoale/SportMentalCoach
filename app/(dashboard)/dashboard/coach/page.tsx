@@ -81,6 +81,7 @@ import { getAppBaseUrl } from '@/lib/core/app-url';
 import { ShareButton } from '@/components/share-button';
 import { EditAppointmentButton } from '@/components/edit-appointment-button';
 import { VideoCallButton } from '@/components/video-call-button';
+import { buildAiSessionArchiveIndicator } from '@/lib/core/ai-session-notes/archive-indicator';
 
 /** Sort key for the archive: when the session actually happened, newest first. */
 function archiveRecency(b: CoachBooking): number {
@@ -898,6 +899,11 @@ function buildArchiveCardData(
       : null,
     note: isCompleted ? null : archiveReason(booking.status),
     requestedAtLabel: formatDate(booking.requestedAt),
+    aiIndicator: buildAiSessionArchiveIndicator(
+      booking.aiNotesStatus,
+      'coach',
+      booking.hasRecordedAudio
+    ),
   };
 }
 

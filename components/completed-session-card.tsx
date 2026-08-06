@@ -10,7 +10,11 @@ import {
   Target,
   CalendarDays,
   AlignLeft,
+  FileCheck2,
+  LoaderCircle,
+  Mic2,
   MoreHorizontal,
+  TriangleAlert,
   ChevronUp,
   type LucideIcon,
 } from 'lucide-react';
@@ -20,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import type { AiSessionArchiveIndicator } from '@/lib/core/ai-session-notes/archive-indicator';
 
 type Tone = 'green' | 'amber' | 'red' | 'gray';
 
@@ -53,6 +58,7 @@ export type CompletedSessionData = {
   timeline?: { requestedValue: string; sessionValue: string } | null;
   note?: string | null;
   requestedAtLabel: string;
+  aiIndicator?: AiSessionArchiveIndicator | null;
 };
 
 const TONE: Record<Tone, { text: string; icon: LucideIcon; hover: string }> = {
@@ -60,6 +66,37 @@ const TONE: Record<Tone, { text: string; icon: LucideIcon; hover: string }> = {
   amber: { text: 'text-amber-600', icon: Clock, hover: 'hover:border-amber-200' },
   red: { text: 'text-red-600', icon: XCircle, hover: 'hover:border-red-200' },
   gray: { text: 'text-gray-500', icon: XCircle, hover: 'hover:border-gray-300' },
+};
+
+const AI_INDICATOR: Record<
+  AiSessionArchiveIndicator['state'],
+  { icon: LucideIcon; className: string; animate?: boolean }
+> = {
+  recording: {
+    icon: Mic2,
+    className: 'bg-red-50 text-red-700 ring-red-100',
+  },
+  processing: {
+    icon: LoaderCircle,
+    className: 'bg-blue-50 text-blue-700 ring-blue-100',
+    animate: true,
+  },
+  ready: {
+    icon: FileCheck2,
+    className: 'bg-violet-50 text-violet-700 ring-violet-100',
+  },
+  approved: {
+    icon: FileCheck2,
+    className: 'bg-indigo-50 text-indigo-700 ring-indigo-100',
+  },
+  shared: {
+    icon: FileCheck2,
+    className: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+  },
+  failed: {
+    icon: TriangleAlert,
+    className: 'bg-amber-50 text-amber-800 ring-amber-100',
+  },
 };
 
 /**
@@ -82,6 +119,10 @@ export function CompletedSessionCard({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const tone = TONE[data.tone];
   const HeaderIcon = tone.icon;
+  const aiIndicator = data.aiIndicator
+    ? AI_INDICATOR[data.aiIndicator.state]
+    : null;
+  const AiIndicatorIcon = aiIndicator?.icon;
 
   return (
     <article
@@ -122,11 +163,24 @@ export function CompletedSessionCard({
       </div>
 
       <div className="flex flex-1 flex-col gap-2.5 p-3.5">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <span className={cn('inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em]', tone.text)}>
             <HeaderIcon className="h-4 w-4" />
             {data.headerLabel}
           </span>
+          {data.aiIndicator && aiIndicator && AiIndicatorIcon && (
+            <span
+              className={cn(
+                'ml-auto inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[10px] font-semibold ring-1 ring-inset',
+                aiIndicator.className
+              )}
+            >
+              <AiIndicatorIcon
+                className={cn('h-3.5 w-3.5 shrink-0', aiIndicator.animate && 'animate-spin')}
+              />
+              {data.aiIndicator.label}
+            </span>
+          )}
         </div>
 
         <div className="min-h-[52px]">

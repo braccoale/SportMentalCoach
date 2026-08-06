@@ -23,9 +23,12 @@ import {
   favorites,
   providerProfiles,
   profiles,
+  sessionAudioRecordings,
+  sessionAiNotes,
   services,
   userRoles,
   users,
+  type AiSessionNoteStatus,
   type BookingStatus,
 } from '@/lib/db/schema';
 import { getVerticalConfig, t } from '@/lib/core/config';
@@ -415,6 +418,8 @@ export type AthleteBooking = {
   coachSlug: string | null;
   serviceTitle: string | null;
   durationMin: number | null;
+  aiNotesStatus: AiSessionNoteStatus | null;
+  hasRecordedAudio: boolean;
 };
 
 export type ParticipantBooking = {
@@ -921,6 +926,21 @@ export async function getAthleteBookings(
       coachSlug: providerProfiles.slug,
       serviceTitle: services.title,
       durationMin: effectiveBookingDurationMin,
+      aiNotesStatus: sql<AiSessionNoteStatus | null>`(
+        select ${sessionAiNotes.status}
+        from ${sessionAiNotes}
+        where ${sessionAiNotes.bookingId} = ${bookings.id}
+        order by ${sessionAiNotes.createdDate} desc
+        limit 1
+      )`,
+      hasRecordedAudio: sql<boolean>`exists (
+        select 1
+        from ${sessionAudioRecordings}
+        where ${sessionAudioRecordings.bookingId} = ${bookings.id}
+          and ${sessionAudioRecordings.status} in (
+            'recorded', 'deletion_pending', 'deleted', 'deletion_failed'
+          )
+      )`,
     })
     .from(bookings)
     .innerJoin(providerProfiles, eq(bookings.providerId, providerProfiles.id))
@@ -953,6 +973,8 @@ export type CoachBooking = {
   durationMin: number | null;
   /** True when the athlete is 15-17. The coach needs to know before the call. */
   athleteIsMinor: boolean;
+  aiNotesStatus: AiSessionNoteStatus | null;
+  hasRecordedAudio: boolean;
 };
 
 /** Incoming bookings for a coach (resolved from their user id). */
@@ -989,6 +1011,21 @@ export async function getCoachBookings(
       serviceId: bookings.serviceId,
       serviceTitle: services.title,
       durationMin: effectiveBookingDurationMin,
+      aiNotesStatus: sql<AiSessionNoteStatus | null>`(
+        select ${sessionAiNotes.status}
+        from ${sessionAiNotes}
+        where ${sessionAiNotes.bookingId} = ${bookings.id}
+        order by ${sessionAiNotes.createdDate} desc
+        limit 1
+      )`,
+      hasRecordedAudio: sql<boolean>`exists (
+        select 1
+        from ${sessionAudioRecordings}
+        where ${sessionAudioRecordings.bookingId} = ${bookings.id}
+          and ${sessionAudioRecordings.status} in (
+            'recorded', 'deletion_pending', 'deleted', 'deletion_failed'
+          )
+      )`,
     })
     .from(bookings)
     .innerJoin(users, eq(bookings.clientId, users.id))

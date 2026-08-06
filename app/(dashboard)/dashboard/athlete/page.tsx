@@ -52,6 +52,7 @@ import {
 } from './actions';
 import { AthleteNextSteps } from '@/components/athlete-next-steps';
 import { getAthleteNextSteps } from '@/lib/core/ai-session-notes/athlete-commitments';
+import { buildAiSessionArchiveIndicator } from '@/lib/core/ai-session-notes/archive-indicator';
 import { getGuardianStatus } from '@/lib/core/guardians';
 import { GuardianBanner } from '@/components/guardian-banner';
 import { AddToGoogleCalendarButton } from '@/components/add-to-google-calendar-button';
@@ -160,6 +161,11 @@ function buildAthleteArchiveData(b: AthleteBooking): CompletedSessionData {
       : null,
     note: isCompleted ? null : archiveReason(b.status),
     requestedAtLabel: formatDate(b.requestedAt),
+    aiIndicator: buildAiSessionArchiveIndicator(
+      b.aiNotesStatus,
+      'athlete',
+      b.hasRecordedAudio
+    ),
   };
 }
 

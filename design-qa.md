@@ -166,3 +166,43 @@ La nuova regione azioni comprende CTA video con tooltip, chat, modifica, calenda
 Nessuna raccomandazione P3 prima della cattura autenticata.
 
 final result: blocked
+
+---
+
+# Design QA — stato registrazione nella card sessione
+
+- Source visual truth: screenshot fornito dall'utente nella conversazione (card archivio coach, sessione completata).
+- Source dimensions: 660 × 483 px, densità non dichiarata.
+- Implementation screenshot: non disponibile; la route richiede una sessione coach autenticata e il browser integrato non è accessibile in questa sessione.
+- Intended viewport: card desktop nello stesso stato e con gli stessi dati dello screenshot.
+- Implementation CSS size/density: non misurabile senza rendering autenticato.
+- State: sessione completata con registrazione AI e stato di elaborazione/report variabile.
+
+## Full-view comparison evidence
+
+Bloccata: è disponibile la sorgente visiva, ma non una cattura browser della card implementata nello stesso stato autenticato.
+
+## Focused region comparison evidence
+
+Bloccata per lo stesso motivo. La regione da confrontare è la testata della card, tra “Sessione completata” e il margine destro, dove viene inserito il badge di stato.
+
+## Findings
+
+- Nessun P0/P1/P2 rilevabile dal controllo statico di struttura e classi.
+- Verifica visiva ancora necessaria per wrapping del badge, equilibrio della testata e resa mobile.
+- Font, colori, spaziatura, icone, immagini e copy riusano rispettivamente tipografia, token Tailwind, Lucide e asset già presenti nella card; la corrispondenza visiva non può però essere dichiarata senza screenshot browser.
+
+## Comparison history
+
+- Prima iterazione: badge collocato nella testata con layout `flex-wrap`, dimensione testo 10 px e palette semantica per stato.
+- Test funzionali e TypeScript superati; nessuna iterazione visiva possibile senza accesso alla pagina autenticata.
+
+## Implementation checklist
+
+- [x] Stato reale AI collegato alla prenotazione.
+- [x] Esistenza reale della registrazione verificata prima di mostrare “Registrata”.
+- [x] Stati elaborazione, revisione, approvazione, condivisione ed errore rappresentati.
+- [x] Layout predisposto al wrapping responsive.
+- [ ] Confronto screenshot nello stesso stato autenticato.
+
+final result: blocked
