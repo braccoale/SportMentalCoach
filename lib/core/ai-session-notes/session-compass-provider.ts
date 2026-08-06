@@ -290,7 +290,7 @@ export async function generateValidatedSessionCompassReport(
         : undefined;
     throw new SessionCompassGenerationError(
       'PROVIDER_FAILED',
-      'Il provider Session Compass non ha completato la generazione.',
+      'Il provider del riepilogo sessione non ha completato la generazione.',
       [],
       typeof providerErrorCode === 'string' ? providerErrorCode : undefined
     );
@@ -311,7 +311,7 @@ export async function generateValidatedSessionCompassReport(
   if (issues.length) {
     throw new SessionCompassGenerationError(
       'INVALID_PROVIDER_OUTPUT',
-      'L’output del provider non rispetta il contratto Session Compass.',
+      'L’output del provider non rispetta il contratto del riepilogo sessione.',
       issues
     );
   }

@@ -101,7 +101,7 @@ export function MentalJourneyEmptyState({ athleteName }: { athleteName: string |
       </h2>
       <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-600">
         {athleteName ? `Con ${athleteName} non c’è` : 'Non c’è'} ancora nessuna sessione con un
-        Session Compass approvato. Appena approvi il primo report, qui troverai la memoria del
+        Riepilogo sessione approvato. Appena approvi il primo report, qui troverai la memoria del
         percorso: temi, impegni e continuità nel tempo.
       </p>
     </section>
@@ -300,7 +300,7 @@ function TimelineCard({ entry }: { entry: MentalJourneyEntry }) {
           href={entry.compassHref}
           className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-violet-700 hover:text-violet-900"
         >
-          Apri il Session Compass
+          Apri il riepilogo sessione
           <ArrowUpRight className="h-4 w-4" />
         </Link>
       </article>

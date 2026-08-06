@@ -100,7 +100,7 @@ function AthleteRow({
             className="inline-flex shrink-0 items-center gap-2 rounded-full bg-violet-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
           >
             <Compass className="h-4 w-4" />
-            <span className="hidden sm:inline">Apri </span>Session Compass
+            <span className="hidden sm:inline">Apri </span>Riepilogo sessione
           </Link>
         ) : null}
       </div>

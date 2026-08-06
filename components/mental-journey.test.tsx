@@ -114,7 +114,7 @@ test('la card di sessione porta data, coach, sintesi, temi, risorsa e link al Co
   assert.match(html, /Emerge una tensione pre-gara/);
   assert.match(html, /Attivazione pre-gara/);
   assert.match(html, /Risorsa emersa/);
-  assert.match(html, /Apri il Session Compass/);
+  assert.match(html, /Apri il riepilogo sessione/);
   assert.match(html, /href="\/dashboard\/appointments\/101"/);
 });
 

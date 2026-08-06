@@ -515,7 +515,7 @@ async function generateDocument(
   try {
     provider = dependencies.createProvider();
   } catch {
-    throw new SessionCompassError('COMPASS_UNAVAILABLE', 'La configurazione di Session Compass non è disponibile.');
+    throw new SessionCompassError('COMPASS_UNAVAILABLE', 'La configurazione del riepilogo sessione non è disponibile.');
   }
   const context = await generationContext(input.session, dependencies);
   try {
@@ -650,7 +650,7 @@ async function eligibleTimeline(
   if (!ELIGIBLE_SESSION_STATUSES.includes(session.sessionStatus)) {
     throw new SessionCompassError(
       'SESSION_NOT_ELIGIBLE',
-      'Session Compass è disponibile quando la trascrizione è pronta.'
+      'Il riepilogo sessione è disponibile quando la trascrizione è pronta.'
     );
   }
   const segments = await dependencies.store.loadTimeline(session.sessionId);
@@ -677,7 +677,7 @@ async function requireReport(
 ): Promise<StoredSessionCompassReport> {
   const stored = await dependencies.store.loadLatestReport(sessionId);
   if (!stored) {
-    throw new SessionCompassError('REPORT_NOT_FOUND', 'Nessun report Session Compass per questa sessione.');
+    throw new SessionCompassError('REPORT_NOT_FOUND', 'Nessun riepilogo sessione per questa sessione.');
   }
   return stored;
 }
@@ -685,7 +685,7 @@ async function requireReport(
 function requiredPromptVersion(dependencies: SessionCompassDependencies): string {
   const promptVersion = dependencies.promptVersion.trim();
   if (!promptVersion) {
-    throw new SessionCompassError('COMPASS_UNAVAILABLE', 'La configurazione di Session Compass non è disponibile.');
+    throw new SessionCompassError('COMPASS_UNAVAILABLE', 'La configurazione del riepilogo sessione non è disponibile.');
   }
   return promptVersion;
 }
@@ -727,10 +727,10 @@ function generationError(error: unknown): SessionCompassError {
       ? (error as { providerErrorCode?: unknown }).providerErrorCode
       : undefined;
   if (providerCode === 'TIMEOUT') {
-    return new SessionCompassError('COMPASS_TIMEOUT', 'Session Compass ha impiegato troppo tempo. Riprova.');
+    return new SessionCompassError('COMPASS_TIMEOUT', 'Il riepilogo sessione ha richiesto troppo tempo. Riprova.');
   }
   if (providerCode === 'AUTHENTICATION_FAILED' || providerCode === 'CONFIGURATION') {
-    return new SessionCompassError('COMPASS_UNAVAILABLE', 'La configurazione di Session Compass non è disponibile.');
+    return new SessionCompassError('COMPASS_UNAVAILABLE', 'La configurazione del riepilogo sessione non è disponibile.');
   }
   if (providerCode === 'RATE_LIMITED') {
     return new SessionCompassError('COMPASS_RATE_LIMITED', 'Il servizio AI è temporaneamente occupato. Riprova tra poco.');
@@ -742,7 +742,7 @@ function generationError(error: unknown): SessionCompassError {
   if (code === 'INVALID_PROVIDER_OUTPUT' || code === 'METADATA_MISMATCH') {
     return new SessionCompassError('COMPASS_INVALID', 'Il report non ha superato i controlli di verifica. Riprova.');
   }
-  return new SessionCompassError('COMPASS_FAILED', 'Non è stato possibile generare Session Compass. Riprova.');
+  return new SessionCompassError('COMPASS_FAILED', 'Non è stato possibile generare il riepilogo sessione. Riprova.');
 }
 
 export { SESSION_COMPASS_REPORT_KIND };

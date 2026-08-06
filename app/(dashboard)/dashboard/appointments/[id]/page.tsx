@@ -12,7 +12,6 @@ import { ActionForm } from '@/components/action-form';
 import { AddToGoogleCalendarButton } from '@/components/add-to-google-calendar-button';
 import { EditAppointmentButton } from '@/components/edit-appointment-button';
 import {
-  SessionCompassHeaderGauges,
   SessionCompassPanel,
 } from '@/components/session-compass-panel';
 import { Button } from '@/components/ui/button';
@@ -128,7 +127,6 @@ export default async function AppointmentDetailPage({
     booking.sessionEndedAt
   );
   const displayedDurationMin = realDurationMin ?? booking.durationMin;
-  const showCompassGauges = !isOpen && showAiReport && !!aiNotesSession;
 
   return (
     <section
@@ -201,13 +199,10 @@ export default async function AppointmentDetailPage({
           </div>
         </div>
 
-        {isOpen || showCompassGauges ? (
+        {isOpen ? (
           <div className="mt-5 flex flex-col gap-3 border-t border-gray-100 pt-5">
             {!calendarEvent && isOpen ? (
               <p className="text-sm text-gray-500">{calendarUnavailableMessage}</p>
-            ) : null}
-            {showCompassGauges && aiNotesSession ? (
-              <SessionCompassHeaderGauges sessionId={aiNotesSession.id} />
             ) : null}
             {isOpen ? (
               <div className="flex flex-wrap items-start gap-3">

@@ -105,7 +105,7 @@ function view(overrides: Partial<SessionCompassView> = {}): SessionCompassView {
   };
 }
 
-test('rende tutte le sezioni di Session Compass con le evidenze', () => {
+test('rende tutte le sezioni del riepilogo sessione con le evidenze', () => {
   const html = renderToStaticMarkup(<SessionCompassContent report={document()} />);
 
   assert.match(html, /Sintesi della sessione/);
@@ -192,8 +192,9 @@ test('i gauge mostrano livello di evidenza, origine e validazione senza diventar
   assert.match(html, /Evidenza forte/);
   assert.match(html, /Dichiarazione atleta/);
   assert.match(html, /Da validare dal coach/);
-  assert.match(html, /Autovalutazione strutturata: dato non disponibile/);
-  assert.match(html, /grid-cols-2 sm:grid-cols-3 xl:grid-cols-6/);
+  assert.doesNotMatch(html, /Autovalutazione strutturata/);
+  assert.match(html, /grid-cols-1 sm:grid-cols-3/);
+  assert.match(html, /Segnali emersi dalla conversazione/);
 });
 
 test('la panoramica conserva gerarchia e griglia responsive', () => {
@@ -213,6 +214,97 @@ test('la panoramica conserva gerarchia e griglia responsive', () => {
   assert.match(html, /text-base leading-7/);
 });
 
+test('la panoramica mette contesto e azioni prima di segnali, momenti e metriche', () => {
+  const base = document();
+  const report = document({
+    sessionOverview: {
+      ...base.sessionOverview,
+      metrics: [{
+        id: 'metric-1',
+        key: 'confidence',
+        value: 4,
+        confidence: 'high',
+        evidence: evidence(11, 5, 'mi sento più pronto'),
+      }],
+    },
+    nextSessionPrep: ['Azione uno', 'Azione due', 'Azione tre', 'Azione quattro'].map((text, index) => ({
+      ...base.nextSessionPrep[0]!,
+      id: `prep-${index}`,
+      text,
+      evidence: evidence(index + 11, index + 1, text),
+    })),
+  });
+  const html = renderToStaticMarkup(
+    <SessionOverview
+      report={report}
+      isApproved={false}
+      previousJourneyEntry={null}
+      onOpenEvidence={() => undefined}
+      onOpenMoments={() => undefined}
+      onOpenNotes={() => undefined}
+    />
+  );
+
+  assert.ok(html.indexOf('Problema centrale') < html.indexOf('Da riprendere nella prossima sessione'));
+  assert.ok(html.indexOf('Da riprendere nella prossima sessione') < html.indexOf('Momenti chiave'));
+  assert.ok(html.indexOf('Momenti chiave') < html.indexOf('Segnali emersi dalla conversazione'));
+  assert.match(html, /Azione uno/);
+  assert.match(html, /Azione tre/);
+  assert.doesNotMatch(html, /Azione quattro/);
+  assert.match(html, /Vedi tutte/);
+  assert.match(html, /aria-expanded="false"/);
+});
+
+test('la panoramica non ripete per esteso la stessa evidenza tra sezioni', () => {
+  const sharedEvidence = evidence(18, 3, 'Evidenza condivisa');
+  const base = document();
+  const report = document({
+    sessionOverview: {
+      ...base.sessionOverview,
+      summaryEvidence: [sharedEvidence],
+      themes: [{ id: 'theme-shared', text: 'Tema condiviso', evidence: sharedEvidence }],
+      emergingResource: { id: 'resource-shared', text: 'Lettura condivisa', evidence: sharedEvidence },
+    },
+    keyMoments: [{ ...base.keyMoments[0]!, evidence: sharedEvidence }],
+    nextSessionPrep: [{ ...base.nextSessionPrep[0]!, evidence: sharedEvidence }],
+  });
+  const html = renderToStaticMarkup(
+    <SessionOverview
+      report={report}
+      isApproved={false}
+      previousJourneyEntry={null}
+      onOpenEvidence={() => undefined}
+      onOpenMoments={() => undefined}
+      onOpenNotes={() => undefined}
+    />
+  );
+
+  assert.equal((html.match(/Evidenza condivisa/g) ?? []).length, 1);
+  assert.match(html, /Già citata · 03:00/);
+});
+
+test('la panoramica omette le card secondarie quando temi e momenti non sono disponibili', () => {
+  const base = document();
+  const html = renderToStaticMarkup(
+    <SessionOverview
+      report={document({
+        keyMoments: [],
+        nextSessionPrep: [],
+        sessionOverview: { ...base.sessionOverview, themes: [], emergingResource: null, metrics: [], emotionalTrend: [] },
+      })}
+      isApproved={false}
+      previousJourneyEntry={null}
+      onOpenEvidence={() => undefined}
+      onOpenMoments={() => undefined}
+      onOpenNotes={() => undefined}
+    />
+  );
+
+  assert.doesNotMatch(html, /Temi della sessione/);
+  assert.doesNotMatch(html, /Momenti chiave/);
+  assert.doesNotMatch(html, />0\/5</);
+});
+
 test('rende gli stati elaborazione, errore, bozza e approvato', () => {
   assert.match(
     renderToStaticMarkup(<SessionCompassStatusBanner report={view({ status: 'generating' })} />),
@@ -222,20 +314,14 @@ test('rende gli stati elaborazione, errore, bozza e approvato', () => {
     renderToStaticMarkup(<SessionCompassStatusBanner report={view({ status: 'failed' })} />),
     /L’elaborazione non è riuscita/
   );
-  assert.match(
-    renderToStaticMarkup(<SessionCompassStatusBanner report={view()} />),
-    /Bozza pronta da verificare \(versione 1\)/
-  );
+  assert.equal(renderToStaticMarkup(<SessionCompassStatusBanner report={view()} />), '');
   assert.match(
     renderToStaticMarkup(
       <SessionCompassStatusBanner report={view({ status: 'approved', isApproved: true, reportVersion: 2 })} />
     ),
     /Report approvato \(versione 2\)\. È immutabile/
   );
-  assert.match(
-    renderToStaticMarkup(<SessionCompassStatusBanner report={view({ isStale: true })} />),
-    /La trascrizione o le istruzioni AI sono cambiate/
-  );
+  assert.equal(renderToStaticMarkup(<SessionCompassStatusBanner report={view({ isStale: true })} />), '');
   assert.match(
     renderToStaticMarkup(<SessionCompassStatusBanner report={view({ isStale: true, status: 'approved', isApproved: true })} />),
     /rigenera per ottenere una bozza aggiornata/
@@ -278,8 +364,8 @@ test('mostra lo stato di caricamento prima che la fetch del client completi', ()
       initialJourney={null}
     />
   );
-  assert.match(html, /Session Compass/);
-  assert.match(html, /Caricamento Session Compass/);
+  assert.match(html, /Riepilogo sessione/);
+  assert.match(html, /Caricamento riepilogo sessione/);
   assert.match(html, /Non è visibile all’atleta/);
 });
 

@@ -678,7 +678,7 @@ export async function processAiNotesBatch(params: {
         if (!dependencies.generateSessionCompass) {
           throw new AiNotesProcessingError(
             'PROVIDER_NOT_CONFIGURED',
-            'Generatore Session Compass non configurato.'
+            'Generatore del riepilogo sessione non configurato.'
           );
         }
         const output = await dependencies.generateSessionCompass({

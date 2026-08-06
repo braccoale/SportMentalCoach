@@ -37,7 +37,6 @@ import {
 } from './session-compass/journey-panel';
 import { TranscriptPanel } from './session-compass/transcript-panel';
 import { TranscriptHistorySearch } from './session-compass/transcript-history-search';
-import { SessionMetricGauges } from './session-compass/charts';
 import {
   segmentAnchorId,
   type CompassTabId,
@@ -118,58 +117,11 @@ function readCompassReport(payload: unknown): SessionCompassView | null {
     : null;
 }
 
-/** Compact, coach-only placement of the report gauges in the session header. */
-export function SessionCompassHeaderGauges({ sessionId }: { sessionId: number }) {
-  const endpoint = `/api/coach/ai-session-notes/${sessionId}/compass`;
-  const [report, setReport] = useState<SessionCompassView | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void requestJson(endpoint, 'GET')
-      .then((payload) => {
-        if (!cancelled) setReport(readCompassReport(payload));
-      })
-      .catch(() => {
-        if (!cancelled) setReport(null);
-      });
-
-    const onReportUpdated = (event: Event) => {
-      if (!(event instanceof CustomEvent)) return;
-      const detail = event.detail as Partial<CompassReportEventDetail> | null;
-      if (detail?.sessionId === sessionId) setReport(detail.report ?? null);
-    };
-    window.addEventListener(REPORT_UPDATED_EVENT, onReportUpdated);
-    return () => {
-      cancelled = true;
-      window.removeEventListener(REPORT_UPDATED_EVENT, onReportUpdated);
-    };
-  }, [endpoint, sessionId]);
-
-  const overview = report?.document?.sessionOverview;
-  if (!overview) return null;
-
-  return (
-    <SessionMetricGauges
-      metrics={overview.metrics ?? []}
-      participation={overview.conversationParticipation}
-      tone={overview.conversationTone}
-      isApproved={report.isApproved}
-      onOpenEvidence={(segmentId) => {
-        window.dispatchEvent(
-          new CustomEvent(OPEN_EVIDENCE_EVENT, {
-            detail: { sessionId, segmentId },
-          })
-        );
-      }}
-    />
-  );
-}
-
 export function SessionCompassStatusBanner({ report }: { report: SessionCompassView | null }) {
   if (!report) {
     return (
       <StatusMessage tone="neutral">
-        Session Compass non è ancora stato generato per questa sessione.
+        Il riepilogo sessione non è ancora stato generato per questa sessione.
       </StatusMessage>
     );
   }
@@ -194,14 +146,7 @@ export function SessionCompassStatusBanner({ report }: { report: SessionCompassV
       </StatusMessage>
     );
   }
-  return (
-    <StatusMessage tone={report.isStale ? 'warning' : 'violet'}>
-      Bozza pronta da verificare (versione {report.reportVersion}).
-      {report.isStale
-        ? ' La trascrizione o le istruzioni AI sono cambiate: rigenera la bozza prima di approvarla.'
-        : ''}
-    </StatusMessage>
-  );
+  return null;
 }
 
 function StatusMessage({
@@ -232,14 +177,14 @@ function StatusMessage({
 
 function CompassSkeleton() {
   return (
-    <div className="space-y-5" role="status" aria-label="Caricamento Session Compass">
+    <div className="space-y-5" role="status" aria-label="Caricamento riepilogo sessione">
       <div className="h-12 animate-pulse rounded-xl bg-gray-100" />
       <div className="h-48 animate-pulse rounded-2xl bg-gray-100" />
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="h-64 animate-pulse rounded-2xl bg-gray-100" />
         <div className="h-64 animate-pulse rounded-2xl bg-gray-100" />
       </div>
-      <span className="sr-only">Caricamento Session Compass…</span>
+      <span className="sr-only">Caricamento riepilogo sessione…</span>
     </div>
   );
 }
@@ -292,7 +237,7 @@ export function SessionCompassPanel({
       setError(
         requestError instanceof Error
           ? requestError.message
-          : 'Session Compass non è disponibile.'
+          : 'Il riepilogo sessione non è disponibile.'
       );
     } finally {
       setLoading(false);
@@ -439,7 +384,7 @@ export function SessionCompassPanel({
                 </span>
               </div>
               <h2 id="session-compass-title" className="mt-1 text-2xl font-bold tracking-tight text-gray-950">
-                Session Compass
+                Riepilogo sessione
               </h2>
               <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-600">
                 Report riservato al coach. Non è visibile all’atleta e non sostituisce il tuo
@@ -467,7 +412,7 @@ export function SessionCompassPanel({
               }
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              {report ? 'Rigenera bozza' : 'Genera Session Compass'}
+              {report ? 'Rigenera bozza' : 'Genera riepilogo sessione'}
             </Button>
             {report && !report.isApproved && report.document ? (
               <Button
@@ -489,7 +434,7 @@ export function SessionCompassPanel({
           <div className="min-w-0 max-w-full overflow-hidden border-t border-gray-200 px-3 sm:px-5">
             <div
               role="tablist"
-              aria-label="Sezioni Session Compass"
+              aria-label="Sezioni riepilogo sessione"
               className="grid grid-cols-2 gap-1 sm:grid-cols-3 lg:flex lg:min-w-max"
             >
               {TABS.map((tab, index) => {
@@ -549,7 +494,7 @@ export function SessionCompassPanel({
             <Compass className="mx-auto h-7 w-7 text-violet-500" />
             <h3 className="mt-3 font-bold text-gray-950">Il report non è ancora disponibile</h3>
             <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-gray-600">
-              Quando la trascrizione è pronta puoi generare una bozza Session Compass da verificare e approvare.
+              Quando la trascrizione è pronta puoi generare una bozza del riepilogo sessione da verificare e approvare.
             </p>
           </div>
         ) : null}

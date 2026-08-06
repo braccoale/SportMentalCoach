@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   Bar,
   BarChart,
@@ -115,18 +116,17 @@ export function SessionMetricGauges({
   isApproved: boolean;
   onOpenEvidence: (segmentId: number) => void;
 }) {
+  const [showAllMetrics, setShowAllMetrics] = useState(false);
   if (!metrics.length && !participation && !tone) return null;
+  const visibleMetrics = showAllMetrics ? metrics : metrics.slice(0, 3);
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5" aria-labelledby="metric-gauges-title">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-600">Snapshot della sessione</p>
-          <h3 id="metric-gauges-title" className="mt-1 text-base font-bold text-gray-950">Indicatori con evidenza</h3>
-        </div>
-        <p className="text-xs text-gray-500">Clicca una metrica per vedere il passaggio nella trascrizione.</p>
+    <section className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5" aria-label="Indicatori della sessione">
+      <div className="max-w-3xl">
+        <h3 className="text-lg font-bold text-gray-950">Segnali emersi dalla conversazione</h3>
+        <p className="mt-1 text-sm leading-6 text-gray-600">Stime basate sul testo della trascrizione: non sono misure cliniche né autovalutazioni strutturate dell’atleta. Il coach le valida nel report.</p>
       </div>
-      <div className="mt-4 grid gap-3 grid-cols-2 sm:grid-cols-3 xl:grid-cols-6">
-        {metrics.map((metric) => {
+      <div className="mt-4 grid gap-3 grid-cols-1 sm:grid-cols-3">
+        {visibleMetrics.map((metric) => {
           const meta = METRIC_META[metric.key];
           return (
             <button
@@ -136,7 +136,7 @@ export function SessionMetricGauges({
               onClick={() => onOpenEvidence(metric.evidence.transcriptSegmentId)}
               aria-label={`${meta.label}: ${metric.value} su 5. Vai all'evidenza nella trascrizione.`}
             >
-              <p className="truncate text-sm font-semibold text-gray-800">{meta.label}</p>
+              <p className="text-base font-semibold leading-6 text-gray-800">{meta.label}</p>
               <div className="relative mx-auto mt-2 h-20 w-20" aria-hidden="true">
                 <ResponsiveContainer width="100%" height="100%">
                   <RadialBarChart
@@ -152,9 +152,9 @@ export function SessionMetricGauges({
                 </ResponsiveContainer>
                 <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-gray-950">{metric.value}/5</span>
               </div>
-              <p className="mt-1 text-center text-xs text-gray-600">{metricValueLabel(metric.value)}</p>
-              <p className="mt-2 text-xs leading-4 text-gray-600">Evidenza {evidenceLevel(metric.confidence)} · {evidenceOrigin(metric.evidence.speaker)}</p>
-              <p className="mt-1 text-xs font-semibold text-gray-700">{isApproved ? 'Validata nel report' : 'Da validare dal coach'}</p>
+              <p className="mt-1 text-center text-sm text-gray-600">{metricValueLabel(metric.value)}</p>
+              <p className="mt-3 text-sm leading-5 text-gray-600">Evidenza {evidenceLevel(metric.confidence)} · {evidenceOrigin(metric.evidence.speaker)}</p>
+              <p className="mt-1 text-sm font-semibold text-gray-700">{isApproved ? 'Validata nel report' : 'Da validare dal coach'}</p>
             </button>
           );
         })}
@@ -174,6 +174,18 @@ export function SessionMetricGauges({
           </div>
         ) : null}
       </div>
+      {metrics.length > 3 ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="mt-4"
+          aria-expanded={showAllMetrics}
+          onClick={() => setShowAllMetrics((current) => !current)}
+        >
+          {showAllMetrics ? 'Mostra meno segnali' : `Vedi tutti i ${metrics.length} segnali`}
+        </Button>
+      ) : null}
       {participation || tone ? (
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
           {participation ? (
@@ -189,7 +201,6 @@ export function SessionMetricGauges({
           ) : null}
         </div>
       ) : null}
-      <p className="mt-4 text-sm leading-6 text-gray-600">Autovalutazione strutturata: dato non disponibile. Le dichiarazioni dell’atleta restano distinguibili dagli insight AI e dai passaggi del coach.</p>
     </section>
   );
 }
@@ -214,8 +225,8 @@ export function SessionMetricsChart({
       <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-600">Lettura strutturata</p>
       <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h3 id="session-metrics-title" className="text-base font-bold text-gray-950">Metriche della sessione</h3>
-          <p className="mt-1 text-sm leading-6 text-gray-600">Stime AI operative su scala 1–5, sostenute da passaggi espliciti della conversazione.</p>
+          <h3 id="session-metrics-title" className="text-base font-bold text-gray-950">Segnali emersi dalla conversazione</h3>
+          <p className="mt-1 text-sm leading-6 text-gray-600">Stime AI su scala 1–5 basate sul testo: non sono misure cliniche né autovalutazioni strutturate e richiedono la validazione del coach.</p>
         </div>
         <span className="text-xs font-semibold text-gray-500">Non è una valutazione clinica</span>
       </div>
@@ -257,9 +268,11 @@ export function EmotionalTrendChart({
   points: readonly EmotionalTrendPoint[];
   onOpenEvidence: (segmentId: number) => void;
 }) {
+  const [showAllPoints, setShowAllPoints] = useState(false);
   if (!points.length) return null;
   const orderedPoints = [...points].sort((left, right) => left.evidence.startMs - right.evidence.startMs);
-  const data = orderedPoints.map((point) => ({
+  const visiblePoints = showAllPoints ? orderedPoints : orderedPoints.slice(0, 3);
+  const data = visiblePoints.map((point) => ({
     id: point.id,
     timestamp: formatTranscriptTimestamp(point.evidence.startMs),
     value: point.value,
@@ -268,24 +281,29 @@ export function EmotionalTrendChart({
     quote: point.evidence.quote,
     transcriptSegmentId: point.evidence.transcriptSegmentId,
   }));
-  if (!hasReliableEmotionalDistribution(orderedPoints)) {
+  if (!hasReliableEmotionalDistribution(visiblePoints)) {
     return (
       <section className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-7" aria-labelledby="emotion-timeline-title">
         <p className="text-sm font-bold text-violet-700">Durante la conversazione</p>
-        <h3 id="emotion-timeline-title" className="mt-1 text-xl font-bold text-gray-950">Segnali narrativi con evidenza</h3>
+        <h3 id="emotion-timeline-title" className="mt-1 text-xl font-bold text-gray-950">Segnali narrativi</h3>
         <p className="mt-2 text-base leading-7 text-gray-700">I dati non sono sufficienti o abbastanza distribuiti per un grafico affidabile. Mostriamo i passaggi documentati, non una misura psicologica.</p>
         <ol className="mt-5 space-y-3">
-          {orderedPoints.map((point) => (
+          {visiblePoints.map((point) => (
             <li key={point.id}>
               <button type="button" className="w-full rounded-xl border border-gray-200 bg-gray-50/70 p-4 text-left transition hover:border-violet-300 hover:bg-violet-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500" onClick={() => onOpenEvidence(point.evidence.transcriptSegmentId)}>
                 <span className="text-sm font-bold text-violet-700">{formatTranscriptTimestamp(point.evidence.startMs)} · {evidenceOrigin(point.evidence.speaker)}</span>
                 <span className="mt-1 block text-base font-semibold text-gray-950">{EMOTION_LABEL[point.value]}</span>
                 <span className="mt-1 block text-base leading-7 text-gray-700">{point.label}</span>
-                <span className="mt-2 block text-sm italic text-gray-600">«{point.evidence.quote}»</span>
+                <span className="mt-2 block line-clamp-2 text-sm italic text-gray-600">«{point.evidence.quote}»</span>
               </button>
             </li>
           ))}
         </ol>
+        {points.length > 3 ? (
+          <Button type="button" variant="outline" size="sm" className="mt-4" aria-expanded={showAllPoints} onClick={() => setShowAllPoints((current) => !current)}>
+            {showAllPoints ? 'Mostra meno' : 'Mostra tutti'}
+          </Button>
+        ) : null}
       </section>
     );
   }
@@ -306,7 +324,7 @@ export function EmotionalTrendChart({
         </ResponsiveContainer>
       </div>
       <ol id="emotion-trend-evidence" className="mt-5 grid gap-3 sm:grid-cols-2">
-        {orderedPoints.map((point) => (
+        {visiblePoints.map((point) => (
           <li key={point.id}>
             <button
               type="button"
@@ -314,11 +332,16 @@ export function EmotionalTrendChart({
               onClick={() => onOpenEvidence(point.evidence.transcriptSegmentId)}
             >
               <span className="shrink-0 font-bold text-violet-700">{formatTranscriptTimestamp(point.evidence.startMs)}</span>
-              <span><span className="block font-semibold text-gray-900">{EMOTION_LABEL[point.value]} · {evidenceOrigin(point.evidence.speaker)}</span><span className="block leading-6 text-gray-700">{point.label}</span><span className="mt-1 block text-sm italic text-gray-600">«{point.evidence.quote}»</span></span>
+              <span><span className="block font-semibold text-gray-900">{EMOTION_LABEL[point.value]} · {evidenceOrigin(point.evidence.speaker)}</span><span className="block leading-6 text-gray-700">{point.label}</span><span className="mt-1 block line-clamp-2 text-sm italic text-gray-600">«{point.evidence.quote}»</span></span>
             </button>
           </li>
         ))}
       </ol>
+      {points.length > 3 ? (
+        <Button type="button" variant="outline" size="sm" className="mt-4" aria-expanded={showAllPoints} onClick={() => setShowAllPoints((current) => !current)}>
+          {showAllPoints ? 'Mostra meno' : 'Mostra tutti'}
+        </Button>
+      ) : null}
     </section>
   );
 }

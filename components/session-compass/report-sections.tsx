@@ -6,7 +6,6 @@ import {
   Circle,
   Clock3,
   Compass,
-  Lightbulb,
   ListChecks,
   MessageSquareQuote,
   Sparkles,
@@ -24,7 +23,7 @@ import type {
   SessionCompassReport,
 } from '@/lib/core/ai-session-notes/session-compass-contract';
 import { SessionContinuityCard } from './journey-panel';
-import { EmotionalTrendChart } from './charts';
+import { EmotionalTrendChart, SessionMetricGauges } from './charts';
 import { formatTranscriptTimestamp } from './time';
 import {
   SPEAKER_LABEL,
@@ -128,6 +127,96 @@ export function EvidenceButton({
   );
 }
 
+function evidenceKey(evidence: CompassEvidence): string {
+  return `${evidence.transcriptSegmentId}:${evidence.startMs}`;
+}
+
+function EvidenceReference({
+  evidence,
+  alreadyCited = false,
+  onOpenEvidence,
+}: {
+  evidence: CompassEvidence;
+  alreadyCited?: boolean;
+  onOpenEvidence: (segmentId: number) => void;
+}) {
+  const timestamp = formatTranscriptTimestamp(evidence.startMs);
+  return (
+    <button
+      type="button"
+      className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm font-semibold text-violet-700 transition hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+      onClick={() => onOpenEvidence(evidence.transcriptSegmentId)}
+      aria-label={`${alreadyCited ? 'Già citata nelle evidenze principali' : 'Vai al passaggio'} a ${timestamp}`}
+    >
+      <MessageSquareQuote className="h-4 w-4" />
+      {alreadyCited ? `Già citata · ${timestamp}` : `Vai al passaggio · ${timestamp}`}
+    </button>
+  );
+}
+
+const NEXT_SESSION_ORIGIN_LABEL = {
+  theme: 'Tema emerso',
+  commitment: 'Impegno',
+  open_question: 'Domanda aperta',
+} as const;
+
+function NextSessionActions({
+  items,
+  isApproved,
+  onOpenEvidence,
+  onOpenNotes,
+}: {
+  items: SessionCompassReport['nextSessionPrep'];
+  isApproved: boolean;
+  onOpenEvidence: (segmentId: number) => void;
+  onOpenNotes: () => void;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  if (!items.length) return null;
+  const visibleItems = showAll ? items : items.slice(0, 3);
+  return (
+    <Surface className="border-sky-200 bg-sky-50/40">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <SectionHeading
+          eyebrow="Follow-up"
+          title="Da riprendere nella prossima sessione"
+          description="Azioni già presenti nel report e da verificare con il coach."
+        />
+        <Button type="button" variant="outline" size="sm" onClick={onOpenNotes}>Gestisci</Button>
+      </div>
+      <ol className="mt-5 space-y-3">
+        {visibleItems.map((item) => (
+          <li key={item.id} className="rounded-xl border border-sky-100 bg-white p-4">
+            <div className="flex gap-3">
+              <Check className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+              <div className="min-w-0 flex-1">
+                <p className="text-base font-semibold leading-6 text-gray-950">{item.text}</p>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
+                  <span className="rounded-full bg-sky-100 px-2 py-1 text-sky-900">{NEXT_SESSION_ORIGIN_LABEL[item.origin]}</span>
+                  <span className="rounded-full bg-gray-100 px-2 py-1 text-gray-700">{isApproved ? 'Report approvato' : 'Da verificare dal coach'}</span>
+                </div>
+                <EvidenceReference evidence={item.evidence} onOpenEvidence={onOpenEvidence} />
+              </div>
+            </div>
+          </li>
+        ))}
+      </ol>
+      {items.length > 3 ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="mt-4"
+          aria-expanded={showAll}
+          onClick={() => setShowAll((current) => !current)}
+        >
+          {showAll ? 'Mostra meno' : 'Vedi tutte'}
+        </Button>
+      ) : null}
+    </Surface>
+  );
+}
+
 function CommitmentRow({
   commitment,
   editable,
@@ -227,14 +316,15 @@ export function SessionOverview({
   const mainInsightEvidence = overview.emergingResource?.evidence ?? overview.summaryEvidence[0] ?? null;
   const nextStep = report.nextSessionPrep[0] ?? report.commitments[0] ?? null;
   const supportingEvidence = [
-    ...overview.summaryEvidence,
     centralTheme?.evidence,
     mainInsightEvidence,
     nextStep?.evidence,
+    ...overview.summaryEvidence,
   ].filter((item): item is CompassEvidence => Boolean(item));
-  const uniqueEvidence = Array.from(
-    new Map(supportingEvidence.map((item) => [item.transcriptSegmentId, item])).values()
-  ).slice(0, 3);
+  const primaryEvidence = Array.from(
+    new Map(supportingEvidence.map((item) => [evidenceKey(item), item])).values()
+  ).slice(0, 2);
+  const primaryEvidenceKeys = new Set(primaryEvidence.map(evidenceKey));
 
   return (
     <div className="space-y-5">
@@ -247,88 +337,75 @@ export function SessionOverview({
             {isApproved ? 'Approvata dal coach' : 'In attesa di validazione coach'}
           </span>
         </div>
-        <div className="mt-6 grid gap-4 lg:grid-cols-3">
+        <div className="mt-5 grid gap-4 lg:grid-cols-3">
           <div className="rounded-2xl border border-violet-100 bg-white/90 p-5">
             <p className="text-sm font-bold text-violet-700">Problema centrale</p>
             <p className="mt-2 text-lg font-bold leading-7 text-gray-950">{centralTheme?.text ?? 'Dato non disponibile'}</p>
             <p className="mt-2 text-base leading-7 text-gray-600">Tema emerso dalla conversazione; non è una diagnosi.</p>
-            {centralTheme ? <EvidenceButton evidence={centralTheme.evidence} onOpenEvidence={onOpenEvidence} /> : null}
           </div>
           <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-5">
-            <p className="text-sm font-bold text-emerald-800">Insight principale · inferenza AI</p>
+            <p className="text-sm font-bold text-emerald-800">Lettura suggerita dall’AI</p>
             <p className="mt-2 text-lg font-bold leading-7 text-emerald-950">{mainInsight || 'Dato non disponibile'}</p>
-            <p className="mt-2 text-base leading-7 text-emerald-900">Da confrontare con il giudizio del coach, non presentato come fatto.</p>
-            {mainInsightEvidence ? <EvidenceButton evidence={mainInsightEvidence} onOpenEvidence={onOpenEvidence} /> : null}
+            <p className="mt-2 text-base leading-7 text-emerald-900">Interpretazione da verificare da parte del coach, non un fatto accertato.</p>
           </div>
           <div className="rounded-2xl border border-sky-100 bg-sky-50/70 p-5">
             <p className="text-sm font-bold text-sky-800">Prossimo passo suggerito</p>
             <p className="mt-2 text-lg font-bold leading-7 text-sky-950">{nextStep?.text ?? 'Dato non disponibile'}</p>
             <p className="mt-2 text-base leading-7 text-sky-900">{nextStep ? 'Azione già presente nel report, da decidere e validare dal coach.' : 'Non è stata definita un’azione verificabile.'}</p>
-            {nextStep ? <EvidenceButton evidence={nextStep.evidence} onOpenEvidence={onOpenEvidence} /> : null}
           </div>
         </div>
-        {uniqueEvidence.length ? (
+        {primaryEvidence.length ? (
           <div className="mt-5">
-            <p className="text-sm font-bold text-gray-800">Estratti a supporto dell’interpretazione</p>
-            <div className="mt-3 grid gap-3 lg:grid-cols-3">
-              {uniqueEvidence.map((evidence) => <EvidenceButton key={`${evidence.transcriptSegmentId}-${evidence.startMs}`} evidence={evidence} onOpenEvidence={onOpenEvidence} />)}
+            <p className="text-sm font-bold text-gray-800">Evidenze principali</p>
+            <div className="mt-3 grid gap-3 lg:grid-cols-2">
+              {primaryEvidence.map((evidence) => <EvidenceButton key={evidenceKey(evidence)} evidence={evidence} onOpenEvidence={onOpenEvidence} />)}
             </div>
           </div>
         ) : null}
       </Surface>
 
+      <NextSessionActions
+        items={report.nextSessionPrep}
+        isApproved={isApproved}
+        onOpenEvidence={onOpenEvidence}
+        onOpenNotes={onOpenNotes}
+      />
+
       {(overview.emotionalTrend?.length ?? 0) > 0 ? <EmotionalTrendChart points={overview.emotionalTrend ?? []} onOpenEvidence={onOpenEvidence} /> : null}
 
-      <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-        <Surface>
-          <SectionHeading
-            eyebrow="Su cosa avete lavorato"
-            title="Temi della sessione"
-            description="Elementi emersi dalla conversazione e sostenuti dalla trascrizione."
-          />
-          {overview.themes.length ? (
-            <ul className="mt-5 grid gap-3 sm:grid-cols-2">
-              {overview.themes.map((theme) => (
-                <li key={theme.id} className="rounded-xl bg-gray-50 p-4">
-                  <div className="flex items-start gap-3">
-                    <Target className="mt-0.5 h-4 w-4 shrink-0 text-violet-600" />
-                    <p className="text-sm font-semibold leading-6 text-gray-900">{theme.text}</p>
-                  </div>
-                  <EvidenceButton evidence={theme.evidence} onOpenEvidence={onOpenEvidence} />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <EmptyState text="Nessun tema è stato identificato con evidenza sufficiente." />
-          )}
-        </Surface>
-
-        <Surface>
-          <SectionHeading eyebrow="Takeaway" title="Risorsa emersa" />
-          {overview.emergingResource ? (
-            <div className="mt-5 rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-              <Lightbulb className="h-5 w-5 text-emerald-700" />
-              <p className="mt-3 text-sm leading-6 text-emerald-950">
-                {overview.emergingResource.text}
-              </p>
-              <EvidenceButton
-                evidence={overview.emergingResource.evidence}
+      {overview.themes.length ? (
+      <Surface>
+        <SectionHeading
+          eyebrow="Su cosa avete lavorato"
+          title="Temi della sessione"
+          description="Aree di lavoro ricorrenti o concetti generali emersi nella conversazione."
+        />
+        <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+          {overview.themes.map((theme) => (
+            <li key={theme.id} className="rounded-xl bg-gray-50 p-4">
+              <div className="flex items-start gap-3">
+                <Target className="mt-0.5 h-4 w-4 shrink-0 text-violet-600" />
+                <p className="text-base font-semibold leading-6 text-gray-900">{theme.text}</p>
+              </div>
+              <p className="mt-2 text-sm text-gray-600">1 evidenza nella trascrizione</p>
+              <EvidenceReference
+                evidence={theme.evidence}
+                alreadyCited={primaryEvidenceKeys.has(evidenceKey(theme.evidence))}
                 onOpenEvidence={onOpenEvidence}
               />
-            </div>
-          ) : (
-            <EmptyState text="Nessuna risorsa è emersa con evidenza sufficiente." />
-          )}
-        </Surface>
-      </div>
+            </li>
+          ))}
+        </ul>
+      </Surface>
+      ) : null}
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Surface>
+      {report.keyMoments.length ? (
+      <Surface>
           <div className="flex items-start justify-between gap-4">
             <SectionHeading
-              eyebrow="Punti di svolta"
+              eyebrow="Eventi della conversazione"
               title="Momenti chiave"
-              description="I passaggi più rilevanti della conversazione."
+              description="Passaggi precisi con timestamp, speaker e collegamento alla trascrizione."
             />
             {report.keyMoments.length ? (
               <Button type="button" variant="outline" size="sm" onClick={onOpenMoments}>
@@ -336,49 +413,32 @@ export function SessionOverview({
               </Button>
             ) : null}
           </div>
-          {report.keyMoments.length ? (
-            <ol className="mt-5 space-y-4">
-              {report.keyMoments.slice(0, 2).map((moment) => (
-                <li key={moment.id} className="relative border-l-2 border-violet-200 pl-4">
-                  <span className="absolute -left-[5px] top-1 h-2 w-2 rounded-full bg-violet-600" />
-                  <p className="text-sm font-semibold text-violet-700">{formatTranscriptTimestamp(moment.evidence.startMs)}</p>
-                  <p className="mt-1 text-sm font-bold text-gray-950">{moment.title}</p>
-                  <p className="mt-1 line-clamp-2 text-sm leading-6 text-gray-600">
-                    {moment.explanation}
-                  </p>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <EmptyState text="Nessun momento chiave è stato identificato." />
-          )}
-        </Surface>
+        <ol className="mt-5 grid gap-3 lg:grid-cols-2">
+          {report.keyMoments.slice(0, 2).map((moment) => (
+            <li key={moment.id} className="rounded-xl border border-gray-200 bg-gray-50/60 p-4">
+              <p className="text-sm font-semibold text-violet-700">{formatTranscriptTimestamp(moment.evidence.startMs)} · {SPEAKER_LABEL[moment.speaker]}</p>
+              <p className="mt-2 text-base font-bold text-gray-950">{moment.title}</p>
+              <p className="mt-1 line-clamp-2 text-sm leading-6 text-gray-600">
+                {moment.explanation}
+              </p>
+              <EvidenceReference
+                evidence={moment.evidence}
+                alreadyCited={primaryEvidenceKeys.has(evidenceKey(moment.evidence))}
+                onOpenEvidence={onOpenEvidence}
+              />
+            </li>
+          ))}
+        </ol>
+      </Surface>
+      ) : null}
 
-        <Surface>
-          <div className="flex items-start justify-between gap-4">
-            <SectionHeading
-              eyebrow="Follow-up"
-              title="Azioni per la prossima sessione"
-              description="Impegni e punti da riprendere già presenti nel report."
-            />
-            <Button type="button" variant="outline" size="sm" onClick={onOpenNotes}>
-              Gestisci
-            </Button>
-          </div>
-          {report.nextSessionPrep.length ? (
-            <ul className="mt-5 space-y-3">
-              {report.nextSessionPrep.map((item) => (
-                <li key={item.id} className="flex gap-3 rounded-xl bg-gray-50 p-3 text-sm text-gray-800">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                  <span className="leading-6">{item.text}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <EmptyState text="Non sono state definite azioni per la prossima sessione." />
-          )}
-        </Surface>
-      </div>
+      <SessionMetricGauges
+        metrics={overview.metrics ?? []}
+        participation={overview.conversationParticipation}
+        tone={overview.conversationTone}
+        isApproved={isApproved}
+        onOpenEvidence={onOpenEvidence}
+      />
 
       <SessionContinuityCard report={report} previous={previousJourneyEntry} />
     </div>

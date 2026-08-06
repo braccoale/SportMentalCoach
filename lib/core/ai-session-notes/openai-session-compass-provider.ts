@@ -117,7 +117,7 @@ export class OpenAiCompassHttpClient implements OpenAiCompassClient {
         signal: options.signal,
       });
     } catch {
-      throw new OpenAiSessionCompassError('PROVIDER_FAILED', 'Richiesta Session Compass non completata.');
+      throw new OpenAiSessionCompassError('PROVIDER_FAILED', 'Richiesta del riepilogo sessione non completata.');
     }
     if (response.status === 401 || response.status === 403) {
       throw new OpenAiSessionCompassError('AUTHENTICATION_FAILED', 'Autorizzazione OpenAI non valida.');
@@ -194,10 +194,10 @@ export class OpenAiSessionCompassReportProvider
       );
     } catch (error) {
       if (controller.signal.aborted) {
-        throw new OpenAiSessionCompassError('TIMEOUT', 'Richiesta Session Compass scaduta.');
+        throw new OpenAiSessionCompassError('TIMEOUT', 'Richiesta del riepilogo sessione scaduta.');
       }
       if (error instanceof OpenAiSessionCompassError) throw error;
-      throw new OpenAiSessionCompassError('PROVIDER_FAILED', 'Richiesta Session Compass non completata.');
+      throw new OpenAiSessionCompassError('PROVIDER_FAILED', 'Richiesta del riepilogo sessione non completata.');
     } finally {
       clearTimeout(timer);
     }
@@ -269,7 +269,7 @@ function promptPayload(input: SessionCompassGenerationInput): Record<string, unk
 
 function systemInstructions(promptVersion: string): string {
   return `Prompt version: ${promptVersion}
-Prepari "Session Compass", un report post-sessione riservato al coach mentale sportivo. Non è visibile all'atleta.
+Prepari un "Riepilogo sessione", un report post-sessione riservato al coach mentale sportivo. Non è visibile all'atleta.
 Non sei uno psicologo né un medico. Non fare diagnosi e non proporre trattamenti. Le metriche richieste sono stime operative AI su scala 1–5, non misurazioni cliniche.
 Non presentare mai una relazione causale come un fatto. Non scrivere frasi come "l'infortunio è causato da". Usa un linguaggio prudente: "emerge", "l'atleta riferisce", "possibile associazione da approfondire".
 Usa esclusivamente il transcript fornito e il contesto fornito. Non inventare contenuti, nomi, date o citazioni.
