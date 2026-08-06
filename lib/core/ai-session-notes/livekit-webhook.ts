@@ -22,6 +22,7 @@ import {
   isWebhookTimestampAcceptable,
 } from './recording-policy';
 import { enqueueAiProcessingJob } from './processing';
+import { advanceAiNotesSessionStatus } from './session-status';
 import type { AiSessionNotesDependencies } from './dependencies';
 import {
   startAiNotesRecordingSystem,
@@ -175,6 +176,10 @@ async function sessionForRoom(roomName: string | null, executor: DbOrTx = db) {
         inArray(sessionAiNotes.status, [
           'waiting_for_consent',
           'active',
+          // Una traccia può essere già pronta e aver fatto avanzare la
+          // sessione mentre l'altra sta ancora chiudendo. Gli ultimi eventi
+          // LiveKit devono continuare a poter fermare e finalizzare l'audio.
+          'processing',
           'cancelled',
           'consent_rejected',
         ])
@@ -304,6 +309,7 @@ async function handleEgressEvent(event: WebhookEvent, executor: DbOrTx = db): Pr
     info.status === EgressStatus.EGRESS_COMPLETE ||
     info.status === EgressStatus.EGRESS_ABORTED
   ) {
+    let audioRecorded = false;
     try {
       const config = getAudioRecordingConfig();
       const object = await inspectAudioObject(config, recording.objectKey);
@@ -341,6 +347,12 @@ async function handleEgressEvent(event: WebhookEvent, executor: DbOrTx = db): Pr
         recordingId: recording.id,
         executor,
       });
+      audioRecorded = true;
+    } catch {
+      // Converted below into a visible per-track failure.
+    }
+
+    if (audioRecorded) {
       if (recording.participantRecordingId) {
         await enqueueAiProcessingJob({
           sessionId: recording.sessionId,
@@ -351,9 +363,17 @@ async function handleEgressEvent(event: WebhookEvent, executor: DbOrTx = db): Pr
           executor,
         });
       }
+      // Appena esiste un file registrato la fase di registrazione è conclusa
+      // per quella traccia e il trattamento può iniziare. Aspettare la fine
+      // di entrambe le trascrizioni lasciava la dashboard su “Registrazione
+      // in corso” per tutta la permanenza dei job in coda.
+      await advanceAiNotesSessionStatus({
+        sessionId: recording.sessionId,
+        nextStatus: 'processing',
+        actorUserId: recording.requestedBy,
+        executor,
+      });
       return;
-    } catch {
-      // Converted below into a visible per-track failure.
     }
   }
 

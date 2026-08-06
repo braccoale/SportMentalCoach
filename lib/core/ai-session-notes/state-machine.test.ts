@@ -46,6 +46,13 @@ test('transition patch records updated timestamp and actor', () => {
   assert.equal(active.startedAt, now);
   assert.equal(active.endedAt, undefined);
 
+  const processing = transitionAuditPatch('processing', 42, now);
+  assert.equal(processing.endedAt, now);
+  assert.equal(processing.processingStartedAt, now);
+
+  const ready = transitionAuditPatch('ready_for_review', 42, now);
+  assert.equal(ready.processingCompletedAt, now);
+
   const cancelled = transitionAuditPatch('cancelled', 7, now);
   assert.equal(cancelled.updatedBy, 7);
   assert.equal(cancelled.endedAt, now);

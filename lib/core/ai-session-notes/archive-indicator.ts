@@ -12,7 +12,13 @@ export function buildAiSessionArchiveIndicator(
 ): AiSessionArchiveIndicator | null {
   switch (status) {
     case 'active':
-      return { state: 'recording', label: 'Registrazione in corso' };
+      // `active` descrive il ciclo della sessione, non lo stato fisico dei
+      // file. Fra la chiusura dell'egress e l'avanzamento del worker l'audio è
+      // già al sicuro: in quel tratto non va più mostrato come registrazione
+      // ancora aperta.
+      return hasRecordedAudio
+        ? { state: 'processing', label: 'Registrata · trascrizione in corso' }
+        : { state: 'recording', label: 'Registrazione in corso' };
     case 'processing':
       return {
         state: 'processing',

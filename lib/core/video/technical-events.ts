@@ -35,6 +35,10 @@ const ALLOWED_DETAIL_KEYS = new Set([
   'deviceKind',
   'reason',
   'supported',
+  // Esito non sensibile della sveglia del worker AI: senza questa chiave la
+  // diagnostica registrava l'evento, ma scartava proprio `triggered`,
+  // `skipped` o `failed` e lasciava un oggetto vuoto.
+  'outcome',
 ]);
 
 export function parseBookingRoomName(roomName: string): number | null {

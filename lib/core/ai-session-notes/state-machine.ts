@@ -78,7 +78,18 @@ export function transitionAuditPatch(
     status: next,
     startedAt: next === 'active' ? now : undefined,
     endedAt:
-      next === 'cancelled' || next === 'consent_rejected' ? now : undefined,
+      next === 'processing' ||
+      next === 'cancelled' ||
+      next === 'consent_rejected'
+        ? now
+        : undefined,
+    processingStartedAt: next === 'processing' ? now : undefined,
+    processingCompletedAt:
+      next === 'ready_for_review' ||
+      next === 'transcription_failed' ||
+      next === 'report_failed'
+        ? now
+        : undefined,
     updatedDate: now,
     updatedBy: actorUserId,
   };

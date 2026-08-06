@@ -30,11 +30,13 @@ test('client event details are allow-listed and bounded', () => {
       token: 'must-not-be-stored',
       participantName: 'must-not-be-stored',
       reason: 'x'.repeat(200),
+      outcome: 'triggered',
     }),
     {
       quality: 'poor',
       durationMs: 1_250,
       reason: 'x'.repeat(120),
+      outcome: 'triggered',
     }
   );
   assert.equal(isClientVideoEventType('krisp_enabled'), true);

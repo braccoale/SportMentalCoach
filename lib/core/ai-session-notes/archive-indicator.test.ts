@@ -7,6 +7,10 @@ test('shows recording and processing progress on archived sessions', () => {
     state: 'recording',
     label: 'Registrazione in corso',
   });
+  assert.deepEqual(buildAiSessionArchiveIndicator('active', 'coach', true), {
+    state: 'processing',
+    label: 'Registrata · trascrizione in corso',
+  });
   assert.deepEqual(buildAiSessionArchiveIndicator('processing', 'coach', true), {
     state: 'processing',
     label: 'Registrata · trascrizione in corso',
