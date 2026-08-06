@@ -298,11 +298,6 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                       </select>
                     </label>
                   </div>
-                  {selected?.availabilityHint && (
-                    <span className="text-xs text-gray-500">
-                      Disponibile: {selected.availabilityHint}.
-                    </span>
-                  )}
                 </div>
               ) : (selected?.bookableDays.length ?? 0) > 0 ? (
                 <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
@@ -331,19 +326,6 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                     </option>
                   ))}
                 </select>
-              </label>
-
-              <label className="flex flex-col gap-1.5">
-                <span className="text-sm font-medium text-gray-700">
-                  Messaggio <span className="text-gray-400">(opzionale)</span>
-                </span>
-                <textarea
-                  name="note"
-                  rows={3}
-                  maxLength={1000}
-                  placeholder="Su cosa vuoi lavorare?"
-                  className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-                />
               </label>
 
               <div className="mt-1 flex justify-end gap-2">

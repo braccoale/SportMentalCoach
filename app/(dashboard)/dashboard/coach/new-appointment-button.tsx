@@ -61,14 +61,11 @@ function firstFreeTime(
 export function CoachNewAppointmentButton({
   athletes,
   services,
-  availabilityHint,
   bookableDays,
   lastServiceByAthlete = {},
 }: {
   athletes: RelationshipAthlete[];
   services: ServiceOption[];
-  /** Compact weekly availability summary, e.g. "Lun 09:00–18:00"; empty if none configured. */
-  availabilityHint?: string;
   /** Selectable days/times from the coach's own weekly availability; empty if none set. */
   bookableDays: BookableDay[];
   /** Athlete user id → service id of their most recent booking with this coach. */
@@ -348,11 +345,6 @@ export function CoachNewAppointmentButton({
                       </select>
                     </label>
                   </div>
-                  {availabilityHint && (
-                    <span className="text-xs text-gray-500">
-                      La tua disponibilità: {availabilityHint}.
-                    </span>
-                  )}
                 </div>
               ) : bookableDays.length > 0 ? (
                 <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
@@ -381,19 +373,6 @@ export function CoachNewAppointmentButton({
                     </option>
                   ))}
                 </select>
-              </label>
-
-              <label className="flex flex-col gap-1.5">
-                <span className="text-sm font-medium text-gray-700">
-                  Messaggio <span className="text-gray-400">(opzionale)</span>
-                </span>
-                <textarea
-                  name="note"
-                  rows={3}
-                  maxLength={1000}
-                  placeholder="Note per l'atleta"
-                  className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-                />
               </label>
 
               <div className="mt-1 flex justify-end gap-2">

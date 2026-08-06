@@ -25,7 +25,6 @@ import { getCoachServices } from '@/lib/core/services';
 import { DEFAULT_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
 import {
   getCoachAvailability,
-  describeAvailability,
   getBookableDays,
 } from '@/lib/core/availability';
 import { busyIntervalsAt } from '@/lib/core/availability/validation';
@@ -128,7 +127,6 @@ export default async function CoachDashboardPage() {
     getCoachAvailability(user.id),
     hasFeatureEntitlement(user.id, FEATURE_CODES.AI_SESSION_NOTES),
   ]);
-  const availabilityHint = describeAvailability(coachAvailability);
   // Same Rome-derived day/time options the athlete sees, so the coach can't
   // pick a slot their own availability would reject on submit.
   const bookableDays = getBookableDays(coachAvailability, {
@@ -247,7 +245,6 @@ export default async function CoachDashboardPage() {
                   title: s.title as string,
                   durationMin: s.durationMin as number,
                 }))}
-              availabilityHint={availabilityHint}
               bookableDays={bookableDays}
               lastServiceByAthlete={lastServiceByAthlete(allBookings)}
             />
