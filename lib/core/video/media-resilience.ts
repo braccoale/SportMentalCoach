@@ -30,6 +30,35 @@ function needsRestore(publication: LocalTrackPublication | undefined): boolean {
   );
 }
 
+/**
+ * Se la sorgente ha smesso di produrre e va riaperta dal sistema.
+ *
+ * `ended` è solo il caso più visibile. Tornando da un'altra app un telefono
+ * lascia quasi sempre la traccia "viva" ma sospesa — `MediaStreamTrack.muted`
+ * a `true`, che è una proprietà di sola lettura decisa dal sistema operativo —
+ * oppure disabilitata. In tutti questi casi l'unico rimedio è ri-acquisirla.
+ */
+function needsReacquisition(track: MediaStreamTrack | undefined): boolean {
+  if (!track) return false;
+  return track.readyState !== 'live' || track.muted || !track.enabled;
+}
+
+/**
+ * Rimette in funzione una sorgente locale.
+ *
+ * L'ordine conta, e non è intercambiabile. `unmute()` di LiveKit ri-apre il
+ * dispositivo solo per il microfono: per la camera si limita a rimettere
+ * `enabled = true`, che su una traccia sospesa dal sistema non riporta un solo
+ * fotogramma. Per questo prima si ri-acquisisce la sorgente e poi si toglie il
+ * muto — e servono entrambe, perché `restartTrack()` lascia la pubblicazione
+ * in muto e l'altra persona continuerebbe a non vedere nulla.
+ *
+ * C'è anche un motivo per cui non basta lasciar fare alla libreria: LiveKit
+ * ri-acquisisce da sé al rientro in primo piano, ma solo su tracce non in
+ * muto. Mettendo la camera in pausa in background — cosa che si fa apposta,
+ * per non mostrare un fotogramma congelato — quel recupero automatico non
+ * scatta più, e tocca a noi.
+ */
 async function restorePublication(
   room: Room,
   source: Track.Source.Camera | Track.Source.Microphone
@@ -38,9 +67,10 @@ async function restorePublication(
   if (!needsRestore(publication)) return false;
 
   const localTrack = publication?.track;
-  if (localTrack?.mediaStreamTrack.readyState === 'ended') {
+  const mediaTrack = localTrack?.mediaStreamTrack;
+
+  if (localTrack && needsReacquisition(mediaTrack)) {
     await localTrack.restartTrack();
-    return true;
   }
 
   if (source === Track.Source.Camera) {
