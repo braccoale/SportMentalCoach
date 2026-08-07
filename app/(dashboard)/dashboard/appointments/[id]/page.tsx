@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Clock3,
   MessageSquare,
+  Video,
   X,
 } from 'lucide-react';
 import { ActionForm } from '@/components/action-form';
@@ -130,8 +131,8 @@ export default async function AppointmentDetailPage({
 
   return (
     <section
-      className={`mx-auto flex w-full flex-col gap-5 p-4 sm:p-6 lg:py-8 ${
-        showAiReport ? 'max-w-7xl' : 'max-w-3xl'
+      className={`mx-auto flex w-full min-w-0 flex-col gap-4 p-4 sm:p-6 lg:py-8 ${
+        showAiReport ? 'max-w-[1400px]' : 'max-w-3xl'
       }`}
     >
       <Link
@@ -142,8 +143,12 @@ export default async function AppointmentDetailPage({
         {booking.viewerRole === 'coach' ? 'Torna alle sessioni' : 'Torna alla dashboard'}
       </Link>
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+      <div
+        className={`rounded-2xl border border-gray-200 bg-white shadow-sm ${
+          showAiReport ? 'p-4 sm:p-5' : 'p-5 sm:p-6'
+        }`}
+      >
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-gray-500">
@@ -164,10 +169,14 @@ export default async function AppointmentDetailPage({
                 {bookingStatusLabel(booking.status)}
               </span>
             </div>
-            <h1 className="mt-2 text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl">
+            <h1
+              className={`mt-2 font-bold tracking-tight text-gray-950 ${
+                showAiReport ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-3xl'
+              }`}
+            >
               Sessione KaiPai con {counterpart}
             </h1>
-            <dl className="mt-4 flex flex-wrap gap-x-5 gap-y-3 text-sm text-gray-600">
+            <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-gray-600">
               <Meta icon={<Clock3 className="h-4 w-4" />} label="Data e ora">
                 {booking.scheduledFor ? formatDateTime(booking.scheduledFor) : 'Da concordare'}
               </Meta>
@@ -175,6 +184,9 @@ export default async function AppointmentDetailPage({
                 {displayedDurationMin
                   ? formatMinutes(displayedDurationMin)
                   : 'Durata non definita'}
+              </Meta>
+              <Meta icon={<Video className="h-4 w-4" />} label="Modalità">
+                Videochiamata
               </Meta>
             </dl>
           </div>

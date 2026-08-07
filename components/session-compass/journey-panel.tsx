@@ -16,8 +16,10 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { AthleteJourneySidebar } from './athlete-journey-sidebar';
 import { AthleteProgressCharts } from './charts';
-import { compareSessionMetrics } from './metric-model';
+import { compareSessionMetrics, metricDeltaSentence } from './metric-model';
+import { DashboardEmptyState } from './ui';
 import type {
   MentalJourney,
   MentalJourneyEntry,
@@ -92,26 +94,27 @@ function Surface({ children, className = '' }: { children: React.ReactNode; clas
 
 function EmptyComparison() {
   return (
-    <div className="mt-5 rounded-xl border border-dashed border-violet-200 bg-violet-50/50 p-5">
-      <History className="h-5 w-5 text-violet-600" />
-      <p className="mt-3 text-sm font-bold text-gray-950">Questa è la prima sessione analizzata</p>
-      <p className="mt-1 text-sm leading-6 text-gray-600">
-        I confronti saranno disponibili dai prossimi incontri approvati.
-      </p>
-    </div>
+    <DashboardEmptyState
+      className="mt-4"
+      icon={<History className="h-4 w-4" />}
+      title="Questa è la prima sessione analizzata"
+      description="I confronti saranno disponibili dai prossimi incontri approvati."
+    />
   );
 }
 
 export function SessionContinuityCard({
   report,
   previous,
+  className = '',
 }: {
   report: SessionCompassReport;
   previous: MentalJourneyEntry | null;
+  className?: string;
 }) {
   if (!previous) {
     return (
-      <Surface>
+      <Surface className={className}>
         <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-600">Continuità</p>
         <h3 className="mt-1 text-base font-bold text-gray-950">Continuità con la sessione precedente</h3>
         <EmptyComparison />
@@ -127,21 +130,25 @@ export function SessionContinuityCard({
     report.sessionOverview.metrics ?? [],
     previous.metrics ?? []
   );
-  const improved = metricComparison
-    .filter((item) => item.direction === 'improved')
-    .map((item) => `${item.label}: ${item.previous}/5 → ${item.current}/5`);
+  // Le tre colonne usano solo confronti reali: una metrica comparabile o un
+  // tema presente in entrambi i report. Nessuna colonna viene riempita per
+  // simmetria.
+  const changed = metricComparison
+    .filter((item) => item.direction !== 'stable')
+    .map(metricDeltaSentence);
   const stable = [
-    ...metricComparison
-      .filter((item) => item.direction === 'stable')
-      .map((item) => `${item.label}: ${item.current}/5`),
-    ...metricComparison
-      .filter((item) => item.direction === 'attention')
-      .map((item) => `Da verificare — ${item.label}: ${item.previous}/5 → ${item.current}/5`),
+    ...metricComparison.filter((item) => item.direction === 'stable').map(metricDeltaSentence),
     ...comparison.common,
   ];
+  const completedCommitments = previous.commitments.filter(
+    (commitment) => commitment.status === 'completed'
+  );
+  const openCommitments = previous.commitments.filter(
+    (commitment) => commitment.status === 'pending' || commitment.status === 'in_progress'
+  );
 
   return (
-    <Surface>
+    <Surface className={className}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-600">Continuità</p>
@@ -149,18 +156,18 @@ export function SessionContinuityCard({
         </div>
         <p className="text-xs text-gray-500">Confronto con {formatDate(previous.sessionDate)}</p>
       </div>
-      <div className="mt-5 grid gap-3 md:grid-cols-3">
+      <div className="mt-4 grid items-start gap-3 md:grid-cols-3">
         <ComparisonColumn
           tone="emerald"
-          title="Cosa è migliorato"
-          items={improved}
-          empty="Non valutabile: i report non contengono metriche strutturate confrontabili."
+          title="Cosa è cambiato"
+          items={changed}
+          empty="Non ci sono metriche comparabili sufficienti per identificare un cambiamento."
         />
         <ComparisonColumn
           tone="amber"
           title="Cosa è rimasto stabile"
           items={stable}
-          empty="Nessun tema comune esplicito nei due report."
+          empty="Non ci sono dati comparabili sufficienti per identificare elementi rimasti stabili."
         />
         <ComparisonColumn
           tone="violet"
@@ -169,7 +176,55 @@ export function SessionContinuityCard({
           empty="Nessun nuovo tema esplicito nel report corrente."
         />
       </div>
+
+      {previous.commitments.length ? (
+        <div className="mt-3 grid items-start gap-3 sm:grid-cols-2">
+          <CommitmentColumn
+            tone="emerald"
+            title={`Impegni completati (${completedCommitments.length})`}
+            items={completedCommitments.map((commitment) => commitment.title)}
+            empty="Nessun impegno della sessione precedente risulta completato."
+          />
+          <CommitmentColumn
+            tone="amber"
+            title={`Impegni ancora aperti (${openCommitments.length})`}
+            items={openCommitments.map((commitment) => commitment.title)}
+            empty="Nessun impegno della sessione precedente è rimasto aperto."
+          />
+        </div>
+      ) : null}
     </Surface>
+  );
+}
+
+function CommitmentColumn({
+  tone,
+  title,
+  items,
+  empty,
+}: {
+  tone: 'emerald' | 'amber';
+  title: string;
+  items: readonly string[];
+  empty: string;
+}) {
+  const tones = {
+    emerald: 'border-emerald-100 bg-emerald-50/50 text-emerald-900',
+    amber: 'border-amber-100 bg-amber-50/50 text-amber-950',
+  };
+  return (
+    <div className={`rounded-xl border p-3 ${tones[tone]}`}>
+      <p className="text-sm font-bold">{title}</p>
+      {items.length ? (
+        <ul className="mt-2 space-y-1 text-sm leading-5">
+          {items.slice(0, 3).map((item) => (
+            <li key={item} className="line-clamp-2">{item}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-sm leading-5 opacity-75">{empty}</p>
+      )}
+    </div>
   );
 }
 
@@ -208,6 +263,7 @@ function ComparisonColumn({
 export function AthleteJourneyPanel({
   journey,
   report,
+  isApproved,
   currentSessionId,
   currentSessionDate,
   athleteName,
@@ -216,6 +272,7 @@ export function AthleteJourneyPanel({
 }: {
   journey: MentalJourney | null;
   report: SessionCompassReport;
+  isApproved: boolean;
   currentSessionId: number;
   currentSessionDate: string | null;
   athleteName: string;
@@ -232,14 +289,16 @@ export function AthleteJourneyPanel({
 
   return (
     <div className="min-w-0 space-y-5">
-      <div className="grid gap-5 xl:grid-cols-[20rem_minmax(0,1fr)]">
-        <JourneyTimeline
+      <div className="grid gap-5 xl:grid-cols-[17rem_minmax(0,1fr)]">
+        <AthleteJourneySidebar
           timeline={timeline}
           currentSessionId={currentSessionId}
           currentSessionDate={currentSessionDate}
           currentFocus={report.sessionOverview.themes[0]?.text ?? null}
+          currentIsApproved={isApproved}
           selectedId={selectedId}
           onSelect={setSelectedId}
+          className="h-fit xl:sticky xl:top-4"
         />
         <SessionComparison
           athleteName={athleteName}
@@ -260,71 +319,7 @@ export function AthleteJourneyPanel({
       />
       <ThemeEvolution journey={journey} />
       <RecurringThemes themes={journey?.recurringThemes ?? []} timeline={timeline} onOpenTranscript={onOpenTranscript} />
-      <JourneyNarrative previous={previous} report={report} currentSessionDate={currentSessionDate} />
     </div>
-  );
-}
-
-function JourneyTimeline({
-  timeline,
-  currentSessionId,
-  currentSessionDate,
-  currentFocus,
-  selectedId,
-  onSelect,
-}: {
-  timeline: readonly MentalJourneyEntry[];
-  currentSessionId: number;
-  currentSessionDate: string | null;
-  currentFocus: string | null;
-  selectedId: number | null;
-  onSelect: (sessionId: number) => void;
-}) {
-  const history = timeline.filter((entry) => entry.sessionId !== currentSessionId);
-  const [visibleCount, setVisibleCount] = useState(8);
-  const visibleHistory = history.slice(0, visibleCount);
-  return (
-    <Surface className="h-fit xl:sticky xl:top-4">
-      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-600">Storico atleta</p>
-      <h3 className="mt-1 text-base font-bold text-gray-950">Percorso sessione per sessione</h3>
-      <ol className="mt-5 space-y-1" aria-label="Sessioni approvate dell’atleta">
-        <li
-          aria-current="step"
-          className="relative rounded-xl border border-violet-200 bg-violet-50 p-4 pl-10"
-        >
-          <span className="absolute left-4 top-5 h-3 w-3 rounded-full bg-violet-600 ring-4 ring-violet-100" />
-          <p className="text-xs font-bold text-violet-700">Sessione corrente · {formatDate(currentSessionDate)}</p>
-          <p className="mt-1 text-sm font-bold text-gray-950">{currentFocus ?? 'Focus non identificato'}</p>
-        </li>
-        {visibleHistory.map((entry) => {
-          const selected = entry.sessionId === selectedId;
-          return (
-            <li key={entry.sessionId}>
-              <button
-                type="button"
-                aria-pressed={selected}
-                className={`relative w-full rounded-xl border p-4 pl-10 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
-                  selected ? 'border-gray-300 bg-gray-50' : 'border-transparent hover:bg-gray-50'
-                }`}
-                onClick={() => onSelect(entry.sessionId)}
-              >
-                <span className="absolute left-[1.18rem] top-0 h-full w-px bg-gray-200" aria-hidden="true" />
-                <span className="absolute left-4 top-5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-4 ring-white" aria-hidden="true" />
-                <span className="text-xs font-semibold text-gray-500">{formatDate(entry.sessionDate)}</span>
-                <span className="mt-1 block text-sm font-bold text-gray-950">{entry.focus ?? 'Focus non identificato'}</span>
-                <span className="mt-1 block line-clamp-2 text-xs leading-5 text-gray-600">{entry.summary}</span>
-              </button>
-            </li>
-          );
-        })}
-      </ol>
-      {visibleCount < history.length ? (
-        <Button type="button" variant="outline" className="mt-4 w-full" onClick={() => setVisibleCount((current) => current + 8)}>
-          Mostra altre sessioni ({history.length - visibleCount})
-        </Button>
-      ) : null}
-      {!history.length ? <EmptyComparison /> : null}
-    </Surface>
   );
 }
 
@@ -547,34 +542,6 @@ function themeFrequencyTrend(theme: RecurringTheme, timeline: readonly MentalJou
   if (recentCount > previousCount) return 'più ricorrente nelle sessioni recenti';
   if (recentCount < previousCount) return 'meno ricorrente nelle sessioni recenti';
   return 'frequenza stabile';
-}
-
-function JourneyNarrative({ previous, report, currentSessionDate }: { previous: MentalJourneyEntry | null; report: SessionCompassReport; currentSessionDate: string | null }) {
-  const next = report.nextSessionPrep[0]?.text ?? null;
-  return (
-    <Surface>
-      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-600">Filo logico</p>
-      <h3 className="mt-1 text-base font-bold text-gray-950">Dal lavoro precedente alla prossima direzione</h3>
-      <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:items-stretch">
-        <NarrativeStep icon={<RotateCcw className="h-4 w-4" />} label="Sessione precedente" date={previous ? formatDate(previous.sessionDate) : null} title={previous?.focus ?? 'Nessuna sessione precedente'} text={previous?.summary ?? 'Il filo logico inizierà dopo il primo confronto disponibile.'} />
-        <ArrowRight className="mx-auto hidden h-5 w-5 self-center text-gray-300 lg:block" />
-        <NarrativeStep current icon={<Sparkles className="h-4 w-4" />} label="Sessione attuale" date={formatDate(currentSessionDate)} title={report.sessionOverview.themes[0]?.text ?? 'Focus non identificato'} text={report.sessionOverview.summary} />
-        <ArrowRight className="mx-auto hidden h-5 w-5 self-center text-gray-300 lg:block" />
-        <NarrativeStep icon={<Lightbulb className="h-4 w-4" />} label="Prossima direzione suggerita" date={null} title={next ? 'Da verificare con il coach' : 'Non ancora definita'} text={next ?? 'Il report non propone ancora un punto per la prossima sessione.'} />
-      </div>
-    </Surface>
-  );
-}
-
-function NarrativeStep({ icon, label, date, title, text, current = false }: { icon: React.ReactNode; label: string; date: string | null; title: string; text: string; current?: boolean }) {
-  return (
-    <article className={`rounded-xl border p-4 ${current ? 'border-violet-200 bg-violet-50/60' : 'border-gray-200 bg-gray-50'}`}>
-      <div className="flex items-center gap-2 text-xs font-bold text-gray-500">{icon}{label}</div>
-      {date ? <p className="mt-3 flex items-center gap-1.5 text-xs text-gray-500"><CalendarDays className="h-3.5 w-3.5" />{date}</p> : null}
-      <p className="mt-2 text-sm font-bold text-gray-950">{title}</p>
-      <p className="mt-2 line-clamp-4 text-sm leading-6 text-gray-600">{text}</p>
-    </article>
-  );
 }
 
 export function TranscriptHistoryNav({

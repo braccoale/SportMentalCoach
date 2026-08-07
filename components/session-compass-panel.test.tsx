@@ -18,7 +18,13 @@ import {
   type SessionCompassReport,
 } from '@/lib/core/ai-session-notes/session-compass-contract';
 import { SessionOverview } from './session-compass/report-sections';
-import { SessionMetricGauges } from './session-compass/charts';
+import {
+  ConversationParticipationCard,
+  SessionIndicators,
+} from './session-compass/session-indicators';
+import { SessionContinuityCard } from './session-compass/journey-panel';
+import { JourneyNarrative } from './session-compass/journey-narrative';
+import type { MentalJourneyEntry } from '@/lib/core/ai-session-notes/mental-journey';
 
 function evidence(segmentId: number, minute: number, quote: string) {
   return {
@@ -172,32 +178,232 @@ test('la panoramica segnala i dati non disponibili senza inventare metriche', ()
   assert.doesNotMatch(html, />0\/5</);
 });
 
-test('i gauge mostrano livello di evidenza, origine e validazione senza diventare micro-card su mobile', () => {
+function metric(
+  key: 'confidence' | 'pre_competition_anxiety' | 'concentration',
+  value: number,
+  confidence: 'low' | 'medium' | 'high' = 'high'
+) {
+  return {
+    id: `metric-${key}`,
+    key,
+    value,
+    confidence,
+    evidence: evidence(4, 2, 'mi sento più pronto'),
+  } as const;
+}
+
+test('gli indicatori usano segmenti ordinali con valore esplicito, mai percentuali', () => {
   const html = renderToStaticMarkup(
-    <SessionMetricGauges
-      metrics={[{
-        id: 'metric-confidence',
-        key: 'confidence',
-        value: 4,
-        confidence: 'high',
-        evidence: evidence(4, 2, 'mi sento più pronto'),
-      }]}
-      participation={null}
+    <SessionIndicators
+      metrics={[metric('confidence', 4)]}
       tone={null}
       isApproved={false}
       onOpenEvidence={() => undefined}
     />
   );
 
+  assert.match(html, /Segnali emersi dalla conversazione/);
+  assert.match(html, />4\/5</);
   assert.match(html, /Evidenza forte/);
   assert.match(html, /Dichiarazione atleta/);
   assert.match(html, /Da validare dal coach/);
+  // Nessuna conversione in percentuale della scala 1–5.
+  assert.doesNotMatch(html, /\d+%/);
   assert.doesNotMatch(html, /Autovalutazione strutturata/);
-  assert.match(html, /grid-cols-1 sm:grid-cols-3/);
-  assert.match(html, /Segnali emersi dalla conversazione/);
+  // Cinque segmenti, quattro attivi: il colore non è l'unico veicolo.
+  const segments = html.match(/h-2 flex-1 rounded-full/g) ?? [];
+  assert.equal(segments.length, 5);
+  const active = html.match(/background-color:#7c3aed/g) ?? [];
+  assert.equal(active.length, 4);
+  assert.match(html, /aria-label="Fiducia: 4 su 5, alto\./);
 });
 
-test('la panoramica conserva gerarchia e griglia responsive', () => {
+test('gli indicatori non mostrano zero quando una metrica è assente', () => {
+  const html = renderToStaticMarkup(
+    <SessionIndicators
+      metrics={[metric('confidence', 2)]}
+      tone={null}
+      isApproved
+      onOpenEvidence={() => undefined}
+    />
+  );
+
+  assert.match(html, />2\/5</);
+  assert.doesNotMatch(html, />0\/5</);
+  assert.doesNotMatch(html, /Ansia pre-gara/);
+  assert.match(html, /Validata nel report/);
+});
+
+test('senza metriche e senza tono la card degli indicatori non viene resa', () => {
+  assert.equal(
+    renderToStaticMarkup(
+      <SessionIndicators metrics={[]} tone={null} isApproved={false} onOpenEvidence={() => undefined} />
+    ),
+    ''
+  );
+});
+
+test('la quota di parola vive in una card separata dalle metriche interpretative', () => {
+  const indicators = renderToStaticMarkup(
+    <SessionIndicators
+      metrics={[metric('confidence', 4)]}
+      tone={null}
+      isApproved={false}
+      onOpenEvidence={() => undefined}
+    />
+  );
+  const participation = renderToStaticMarkup(
+    <ConversationParticipationCard
+      participation={{
+        athleteTalkMs: 1_620_000,
+        coachTalkMs: 720_000,
+        athleteTurns: 41,
+        coachTurns: 38,
+        athleteSharePercent: 69,
+      }}
+    />
+  );
+
+  // La partecipazione non compare tra i segnali interpretativi.
+  assert.doesNotMatch(indicators, /Partecipazione alla conversazione/);
+  assert.doesNotMatch(indicators, /Parola atleta/);
+
+  assert.match(participation, /Partecipazione alla conversazione/);
+  assert.match(participation, /Conteggio diretto sui segmenti trascritti/);
+  // Equivalente testuale accanto alla barra.
+  assert.match(participation, /69% del parlato · 27 min · 41 turni/);
+  assert.match(participation, /31% del parlato · 12 min · 38 turni/);
+  assert.match(participation, /aria-label="Quota di parola trascritta: atleta 69%, coach 31%\."/);
+});
+
+test('la partecipazione non viene resa quando il dato non esiste', () => {
+  assert.equal(renderToStaticMarkup(<ConversationParticipationCard participation={null} />), '');
+});
+
+function previousEntry(overrides: Partial<MentalJourneyEntry> = {}): MentalJourneyEntry {
+  return {
+    sessionId: 101,
+    bookingId: 101,
+    reportId: 101,
+    reportVersion: 1,
+    sessionDate: '2026-07-22T18:00:00.000Z',
+    approvedAt: '2026-07-22T19:00:00.000Z',
+    coachName: 'Giulia Neri',
+    summary: 'Sessione centrata sulla tensione pre-gara.',
+    focus: 'Gestione della tensione pre-gara',
+    themes: ['Tensione pre-gara'],
+    emergingResource: null,
+    metrics: [{ key: 'confidence', value: 2, confidence: 'medium', transcriptSegmentId: 900 }],
+    keyMoments: [],
+    nextSessionPrep: [],
+    commitments: [],
+    compassHref: '/dashboard/appointments/101#session-compass',
+    ...overrides,
+  };
+}
+
+function reportWithMetric(value: number) {
+  const base = document();
+  return document({
+    sessionOverview: { ...base.sessionOverview, metrics: [metric('confidence', value)] },
+  });
+}
+
+test('la continuità descrive le metriche ordinali senza percentuali', () => {
+  const html = renderToStaticMarkup(
+    <SessionContinuityCard report={reportWithMetric(3)} previous={previousEntry()} />
+  );
+
+  assert.match(html, /Cosa è cambiato/);
+  assert.match(html, /Fiducia: da 2\/5 a 3\/5 · aumentata di 1 punto/);
+  assert.doesNotMatch(html, /\d+%/);
+});
+
+test('la continuità distingue una metrica stabile da una cambiata', () => {
+  const html = renderToStaticMarkup(
+    <SessionContinuityCard report={reportWithMetric(2)} previous={previousEntry()} />
+  );
+
+  assert.match(html, /Fiducia: stabile a 2\/5/);
+  assert.doesNotMatch(html, /aumentata di/);
+});
+
+test('la continuità dichiara quando non ci sono dati comparabili', () => {
+  const html = renderToStaticMarkup(
+    <SessionContinuityCard report={document()} previous={previousEntry({ metrics: [], themes: [] })} />
+  );
+
+  assert.match(html, /Non ci sono metriche comparabili sufficienti per identificare un cambiamento/);
+  assert.match(html, /Non ci sono dati comparabili sufficienti per identificare elementi rimasti stabili/);
+});
+
+test('la continuità separa impegni completati e ancora aperti della sessione precedente', () => {
+  const html = renderToStaticMarkup(
+    <SessionContinuityCard
+      report={reportWithMetric(3)}
+      previous={previousEntry({
+        commitments: [
+          { commitmentId: 1, title: 'Scrivere la routine', owner: 'athlete', status: 'completed', dueDate: null, isOverdue: false },
+          { commitmentId: 2, title: 'Parlare con l’allenatore', owner: 'athlete', status: 'pending', dueDate: null, isOverdue: false },
+          { commitmentId: 3, title: 'Provare la respirazione', owner: 'athlete', status: 'in_progress', dueDate: null, isOverdue: false },
+        ],
+      })}
+    />
+  );
+
+  assert.match(html, /Impegni completati \(1\)/);
+  assert.match(html, /Scrivere la routine/);
+  assert.match(html, /Impegni ancora aperti \(2\)/);
+  assert.match(html, /Parlare con l’allenatore/);
+});
+
+test('alla prima sessione la continuità mostra uno stato vuoto compatto', () => {
+  const html = renderToStaticMarkup(<SessionContinuityCard report={document()} previous={null} />);
+
+  assert.match(html, /Questa è la prima sessione analizzata/);
+  assert.doesNotMatch(html, /Cosa è cambiato/);
+  assert.doesNotMatch(html, /Impegni completati/);
+});
+
+test('il filo logico collega sessione precedente, attuale e direzione da validare', () => {
+  const html = renderToStaticMarkup(
+    <JourneyNarrative
+      report={reportWithMetric(3)}
+      previous={previousEntry({
+        commitments: [
+          { commitmentId: 2, title: 'Parlare con l’allenatore', owner: 'athlete', status: 'pending', dueDate: null, isOverdue: false },
+        ],
+      })}
+      currentSessionDate="2026-08-06T18:00:00.000Z"
+    />
+  );
+
+  assert.match(html, /Filo logico del percorso/);
+  assert.match(html, /Sessione precedente/);
+  assert.match(html, /Gestione della tensione pre-gara/);
+  assert.match(html, /Azione lasciata aperta:.*Parlare con l’allenatore/s);
+  assert.match(html, /Sessione attuale/);
+  assert.match(html, /Cambiamento principale:.*Fiducia: da 2\/5 a 3\/5/s);
+  assert.match(html, /Prossima direzione suggerita/);
+  assert.match(html, /Da validare dal coach/);
+});
+
+test('senza sessione precedente il filo logico non inventa il primo passaggio', () => {
+  const html = renderToStaticMarkup(
+    <JourneyNarrative
+      report={document()}
+      previous={null}
+      currentSessionDate="2026-08-06T18:00:00.000Z"
+    />
+  );
+
+  assert.match(html, /Nessuna sessione precedente approvata/);
+  assert.match(html, /Sessione attuale/);
+  assert.match(html, /Prossima direzione suggerita/);
+  assert.doesNotMatch(html, /Azione lasciata aperta/);
+});
+
+test('la panoramica usa la griglia dashboard e differenzia il peso delle card', () => {
   const html = renderToStaticMarkup(
     <SessionOverview
       report={document()}
@@ -209,9 +415,92 @@ test('la panoramica conserva gerarchia e griglia responsive', () => {
     />
   );
 
-  assert.match(html, /lg:grid-cols-3/);
-  assert.match(html, /text-lg font-bold leading-7/);
-  assert.match(html, /text-base leading-7/);
+  // Griglia a 12 colonne: percorso atleta a sinistra, area operativa a destra.
+  assert.match(html, /xl:grid-cols-12/);
+  assert.match(html, /xl:col-span-3/);
+  assert.match(html, /xl:col-span-9/);
+  // La lettura AI domina; problema centrale e prossimo passo restano secondari.
+  assert.match(html, /text-xl font-bold leading-8/);
+  assert.match(html, /text-base font-bold leading-6/);
+  assert.ok(html.indexOf('Lettura AI') < html.indexOf('Problema centrale'));
+});
+
+test('il percorso atleta è visibile dalla panoramica con uno stato vuoto alla prima sessione', () => {
+  const html = renderToStaticMarkup(
+    <SessionOverview
+      report={document()}
+      isApproved={false}
+      journey={null}
+      previousJourneyEntry={null}
+      currentSessionId={5}
+      currentSessionDate="2026-08-06T12:33:00.000Z"
+      onOpenEvidence={() => undefined}
+      onOpenMoments={() => undefined}
+      onOpenNotes={() => undefined}
+    />
+  );
+
+  assert.match(html, /Percorso atleta/);
+  assert.match(html, /Sessione corrente · 06 ago 26/);
+  assert.match(html, /Questa è la prima sessione analizzata/);
+  assert.match(html, /I confronti compariranno dopo l’approvazione delle prossime sessioni/);
+  // La continuità non compare come card quasi vuota: lo dichiara il filo logico.
+  assert.doesNotMatch(html, /Continuità con la sessione precedente/);
+  assert.match(html, /Nessuna sessione precedente approvata/);
+  // Nessuna sessione inventata oltre a quella corrente.
+  assert.equal((html.match(/Approvato<\/span>/g) ?? []).length, 0);
+});
+
+test('l’anteprima della trascrizione mostra pochi passaggi e rimanda a quella completa', () => {
+  const segments = [1, 2, 3, 4, 5].map((index) => ({
+    transcriptSegmentId: index,
+    startMs: index * 60_000,
+    endMs: index * 60_000 + 5_000,
+    minute: index,
+    speaker: 'athlete' as const,
+    text: `Passaggio numero ${index}`,
+  }));
+  const html = renderToStaticMarkup(
+    <SessionOverview
+      report={document()}
+      isApproved={false}
+      previousJourneyEntry={null}
+      currentSessionId={5}
+      transcript={segments}
+      transcriptLoaded
+      onOpenEvidence={() => undefined}
+      onOpenTranscript={() => undefined}
+      onOpenMoments={() => undefined}
+      onOpenNotes={() => undefined}
+    />
+  );
+
+  assert.match(html, /Passaggio numero 3/);
+  assert.doesNotMatch(html, /Passaggio numero 4/);
+  assert.match(html, /Altri 2 passaggi nella trascrizione completa/);
+  assert.match(html, /Apri completa/);
+});
+
+test('la panoramica non carica la trascrizione da sola: la offre su richiesta', () => {
+  const html = renderToStaticMarkup(
+    <SessionOverview
+      report={document()}
+      isApproved={false}
+      previousJourneyEntry={null}
+      currentSessionId={5}
+      transcript={[]}
+      transcriptLoaded={false}
+      onOpenEvidence={() => undefined}
+      onOpenTranscript={() => undefined}
+      onOpenMoments={() => undefined}
+      onOpenNotes={() => undefined}
+    />
+  );
+
+  assert.match(html, /La trascrizione non viene caricata all’apertura del riepilogo/);
+  assert.match(html, /Carica anteprima/);
+  // Nessun campo di ricerca finché non c'è nulla da cercare.
+  assert.doesNotMatch(html, /Cerca nella trascrizione/);
 });
 
 test('la panoramica mette contesto e azioni prima di segnali, momenti e metriche', () => {

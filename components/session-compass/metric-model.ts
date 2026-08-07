@@ -45,6 +45,17 @@ export function compareSessionMetrics(
   });
 }
 
+/**
+ * Frase di confronto per una scala ordinale 1–5: mai percentuali, mai
+ * variazioni continue. "Punto" è l'unica unità che la scala consente.
+ */
+export function metricDeltaSentence(delta: MetricDelta): string {
+  if (delta.delta === 0) return `${delta.label}: stabile a ${delta.current}/5`;
+  const points = Math.abs(delta.delta) === 1 ? '1 punto' : `${Math.abs(delta.delta)} punti`;
+  const direction = delta.delta > 0 ? 'aumentata' : 'diminuita';
+  return `${delta.label}: da ${delta.previous}/5 a ${delta.current}/5 · ${direction} di ${points}`;
+}
+
 export function metricValueLabel(value: number): string {
   if (value <= 1) return 'Molto basso';
   if (value === 2) return 'Basso';

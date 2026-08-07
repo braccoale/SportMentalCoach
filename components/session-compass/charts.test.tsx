@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { EmotionalTrendChart, SessionMetricGauges } from './charts';
+import { EmotionalTrendChart } from './charts';
+import { SessionIndicators } from './session-indicators';
 import type { EmotionalTrendPoint } from '@/lib/core/ai-session-notes/session-compass-contract';
 
 function point(
@@ -25,7 +26,7 @@ function point(
 
 test('un passaggio attribuito al coach non è presentato come osservazione del coach', () => {
   const html = renderToStaticMarkup(
-    <SessionMetricGauges
+    <SessionIndicators
       metrics={[{
         id: 'metric-1',
         key: 'confidence',
@@ -33,7 +34,6 @@ test('un passaggio attribuito al coach non è presentato come osservazione del c
         confidence: 'medium',
         evidence: point('1', 75_000, 'coach').evidence,
       }]}
-      participation={null}
       tone={null}
       isApproved={false}
       onOpenEvidence={() => undefined}

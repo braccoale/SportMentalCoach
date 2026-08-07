@@ -76,3 +76,58 @@ final result: passed
 - I nuovi gauge mostrano esclusivamente metriche AI già supportate da evidenza e una quota descrittiva dei segmenti trascritti (secondi e turni di parola di atleta/coach).
 - La quota di parola non viene mai presentata come prova di interesse, coinvolgimento o efficacia della sessione. Il tono è una lettura del testo con citazione, non un’analisi dell’intonazione vocale.
 - Verifica 6 agosto 2026: `tmp/design-qa-gauges-desktop.png` e `tmp/design-qa-gauges-mobile.png`; desktop 1536/1536 px e mobile 390/390 px, nessun errore console o overflow orizzontale.
+
+## Redesign dashboard — Fase 1 (Panoramica come workspace)
+
+- Rotta QA temporanea con fixture (`app/qa-compass-preview`), rimossa prima della verifica finale di typecheck, test e build.
+- Viewport catturati: 1440 × 1200, 1024 × 900, 768 × 1024, 390 × 844, device scale factor 1, `fullPage`.
+- Capture correnti in `tmp/design-qa-dashboard/` (6 scenari × desktop e mobile, scenario di riferimento su laptop e tablet).
+
+### Scenari coperti
+
+Prima sessione, seconda sessione, tre sessioni con metriche, report in bozza, report approvato, trascrizione assente, storico assente, pochi dati, molti dati, mobile.
+
+### Esiti misurati
+
+- Nessun overflow orizzontale: a 390, 768, 1024 e 1440 px `document.scrollWidth` coincide con `clientWidth` in tutti gli scenari.
+- Nessun errore di console o page error durante le catture.
+- Altezza della pagina desktop dello scenario completo: 2350 px contro il layout precedente a colonna singola.
+
+### Findings e correzioni
+
+- [P0 — corretto] Su desktop il pannello Percorso atleta restava invisibile: Chrome nasconde lo slot di contenuto di `details`, quindi `display:block` sul figlio non lo rivela. Il componente ora rende due strutture distinte: `details` collassabile sotto `xl`, `aside` sempre aperto da `xl` in su.
+- [P2 — corretto] Le card della riga secondaria venivano stirate all'altezza della più alta, generando vuoti in fondo a "Temi ricorrenti" e "Trascrizioni passate". Le griglie usano `items-start`.
+- [P2 — corretto] Lo stato vuoto della continuità occupava una card quasi vuota; ora usa lo stato vuoto compatto condiviso.
+
+### Differenze rispetto al mockup di riferimento
+
+- **Dati mancanti**: sport dell'atleta assente dal contratto della prenotazione; lo stato del report delle sessioni passate è sempre "Approvato" perché lo storico ammette solo report approvati; lo stato delle trascrizioni passate è dichiarato "Su richiesta" perché il caricamento è lazy per scelta.
+- **Scelte di sicurezza**: nessuna percentuale derivata dalle metriche 1–5; l'unica percentuale mostrata è la quota di parola, che è un conteggio reale sui segmenti trascritti.
+- **Assenza di storico reale**: i grafici di evoluzione multi-sessione restano confinati alla tab Percorso atleta e compaiono solo con metriche realmente confrontabili.
+
+## Redesign dashboard — Fase 2 (indicatori, continuità, filo logico)
+
+- Capture correnti in `tmp/design-qa-dashboard-phase2/`, stessi quattro viewport della Fase 1 (1440 × 1200, 1024 × 900, 768 × 1024, 390 × 844).
+- Scenari: storico a 3 sessioni in bozza e approvato, prima sessione, seconda sessione, trascrizione non caricata, trascrizione assente, pochi dati.
+
+### Correzione della Fase 1
+
+Il preload della trascrizione in Panoramica faceva un fetch automatico all'apertura del riepilogo. Corretto: solo la tab Trascrizione carica automaticamente; la Panoramica riusa la cache se presente, altrimenti mostra "Carica anteprima". Nessuna modifica ad API o autorizzazioni. La QA verifica che nessuna richiesta a `/compass/transcript` parta al caricamento della Panoramica.
+
+### Esiti misurati
+
+- Nessun overflow orizzontale su tutti i viewport e scenari.
+- Nessuna percentuale dentro la card degli indicatori (controllo automatico sul testo di `[aria-label="Indicatori della sessione"]`).
+- Dimensione di testo minima rilevata: 11 px.
+- Nessun errore di console.
+- Altezza desktop dello scenario completo: 2765 px (2350 px in Fase 1).
+
+### Findings e correzioni
+
+- [P1 — corretto] Alla prima sessione la continuità restava una card quasi vuota che ripeteva quanto già detto dal filo logico. Ora non viene resa senza una sessione precedente approvata: l'assenza di confronto è dichiarata una sola volta.
+- [P2 — corretto] La card orfana "Parola atleta" nella griglia delle metriche è stata sostituita da una card dedicata "Partecipazione alla conversazione", fuori dalla griglia dei segnali interpretativi.
+
+### Differenze residue
+
+- La pagina desktop cresce di 415 px rispetto alla Fase 1 (+18%). L'aumento è interamente dovuto alle due sezioni richieste — filo logico del percorso e partecipazione alla conversazione — a fronte della rimozione dei gauge circolari.
+- Sovrapposizione voluta: l'impegno rimasto aperto compare sia nella colonna "Impegni ancora aperti" della continuità, sia come "Azione lasciata aperta" nel filo logico. La prima è la lista completa, la seconda è il singolo elemento portato avanti nel racconto.

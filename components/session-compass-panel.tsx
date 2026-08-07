@@ -26,10 +26,10 @@ import {
   CoachNotesPanel,
   KeyMomentsPanel,
   SessionCompassContent,
-  SessionOverview,
   TrackedCommitmentsSection,
   evidenceLabel,
 } from './session-compass/report-sections';
+import { SessionOverview } from './session-compass/overview-grid';
 import {
   AthleteJourneyPanel,
   TranscriptHistoryNav,
@@ -175,14 +175,39 @@ function StatusMessage({
   );
 }
 
+/** Stato del report accanto al titolo: versione reale, nessuna etichetta inventata. */
+function ReportStateChip({ report }: { report: SessionCompassView | null }) {
+  if (!report) return null;
+  const tones = {
+    draft: 'bg-amber-100 text-amber-900',
+    approved: 'bg-emerald-100 text-emerald-800',
+    working: 'bg-violet-100 text-violet-800',
+    failed: 'bg-red-100 text-red-800',
+  };
+  const state = report.status === 'generating'
+    ? { tone: tones.working, label: 'Elaborazione in corso' }
+    : report.status === 'failed'
+      ? { tone: tones.failed, label: 'Elaborazione non riuscita' }
+      : report.isApproved
+        ? { tone: tones.approved, label: `Approvato · v${report.reportVersion}` }
+        : { tone: tones.draft, label: `Bozza · v${report.reportVersion}` };
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${state.tone}`}>
+      {state.label}
+    </span>
+  );
+}
+
 function CompassSkeleton() {
   return (
-    <div className="space-y-5" role="status" aria-label="Caricamento riepilogo sessione">
-      <div className="h-12 animate-pulse rounded-xl bg-gray-100" />
-      <div className="h-48 animate-pulse rounded-2xl bg-gray-100" />
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div className="h-64 animate-pulse rounded-2xl bg-gray-100" />
-        <div className="h-64 animate-pulse rounded-2xl bg-gray-100" />
+    <div className="grid gap-4 xl:grid-cols-12" role="status" aria-label="Caricamento riepilogo sessione">
+      <div className="h-40 animate-pulse rounded-2xl bg-gray-100 xl:col-span-3 xl:h-96" />
+      <div className="space-y-4 xl:col-span-9">
+        <div className="h-52 animate-pulse rounded-2xl bg-gray-100" />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="h-48 animate-pulse rounded-2xl bg-gray-100" />
+          <div className="h-48 animate-pulse rounded-2xl bg-gray-100" />
+        </div>
       </div>
       <span className="sr-only">Caricamento riepilogo sessione…</span>
     </div>
@@ -276,6 +301,9 @@ export function SessionCompassPanel({
   }, [loadReport]);
 
   useEffect(() => {
+    // Solo la tab Trascrizione carica automaticamente. La Panoramica riusa la
+    // cache se esiste, altrimenti offre "Carica anteprima": aprire il riepilogo
+    // non deve costare una richiesta di trascrizione.
     if (
       activeTab === 'transcript' &&
       !transcriptLoadedBySession[transcriptSessionId] &&
@@ -369,24 +397,22 @@ export function SessionCompassPanel({
       className="min-w-0 w-full max-w-full overflow-hidden"
     >
       <div className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex min-w-0 items-start gap-4">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-100">
+        <div className="flex flex-col gap-3 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100">
               <Compass className="h-5 w-5 text-violet-700" />
             </span>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-700">
-                  Appunti AI
-                </p>
-                <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-600">
+                <h2 id="session-compass-title" className="text-lg font-bold tracking-tight text-gray-950">
+                  Riepilogo sessione
+                </h2>
+                <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600">
                   <LockKeyhole className="h-3 w-3" /> Solo coach
                 </span>
+                <ReportStateChip report={report} />
               </div>
-              <h2 id="session-compass-title" className="mt-1 text-2xl font-bold tracking-tight text-gray-950">
-                Riepilogo sessione
-              </h2>
-              <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-600">
+              <p className="mt-0.5 max-w-2xl text-xs leading-5 text-gray-600">
                 Report riservato al coach. Non è visibile all’atleta e non sostituisce il tuo
                 giudizio professionale.
               </p>
@@ -511,12 +537,22 @@ export function SessionCompassPanel({
               <SessionOverview
                 report={report.document}
                 isApproved={report.isApproved}
+                journey={initialJourney}
                 previousJourneyEntry={selectPreviousJourneyEntry(
                   initialJourney?.timeline ?? [],
                   sessionId,
                   sessionDate
                 )}
+                currentSessionId={sessionId}
+                currentSessionDate={sessionDate}
+                transcript={transcriptBySession[sessionId] ?? []}
+                transcriptLoaded={transcriptLoadedBySession[sessionId] ?? false}
+                transcriptLoading={transcriptLoadingId === sessionId}
+                transcriptError={transcriptErrorBySession[sessionId] ?? null}
+                onLoadTranscript={() => void loadTranscript(sessionId)}
+                onRetryTranscript={() => void loadTranscript(sessionId)}
                 onOpenEvidence={openEvidence}
+                onOpenTranscript={openTranscript}
                 onOpenMoments={() => selectTab('moments')}
                 onOpenNotes={() => selectTab('notes')}
               />
@@ -525,6 +561,7 @@ export function SessionCompassPanel({
               <AthleteJourneyPanel
                 journey={initialJourney}
                 report={report.document}
+                isApproved={report.isApproved}
                 currentSessionId={sessionId}
                 currentSessionDate={sessionDate}
                 athleteName={athleteName}
