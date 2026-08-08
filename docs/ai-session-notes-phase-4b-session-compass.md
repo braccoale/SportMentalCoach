@@ -48,6 +48,41 @@ Un report approvato è immutabile: la rigenerazione apre `report_version + 1` ri
 
 `AI_NOTES_COMPASS_MODEL` (per l'MVP `gpt-5-mini`) e `AI_NOTES_COMPASS_PROMPT_VERSION`. Il dominio non ha default di modello.
 
+## Accodamento automatico: una volta per contenuto, non per sessione
+
+La chiave di idempotenza del job `report_generation` era
+`session-compass:auto:${sessionId}`, e il recupero saltava ogni sessione che
+avesse già un job di quel tipo. Un riepilogo generato su una trascrizione
+parziale non veniva quindi **mai** rifatto quando arrivava il resto: il coach
+leggeva l'analisi di mezza seduta credendola completa, e nulla lo dichiarava.
+Con la riconnessione che ora estende la trascrizione, quel caso sarebbe
+diventato la norma.
+
+La chiave include il fingerprint del contenuto della timeline:
+
+```
+session-compass:auto:${sessionId}:${timelineRowsFingerprint}
+```
+
+- Contenuto invariato → nessun lavoro doppio.
+- Trascrizione estesa → riepilogo nuovo, automaticamente.
+
+`timelineRowsFingerprint` (in `timeline.ts`) è **distinto** da
+`compassSourceFingerprint`: quest'ultimo include la versione del contratto del
+report perché risponde a «questa bozza è ancora valida?», mentre il primo
+risponde a «la trascrizione è cambiata?». Mescolarli farebbe rigenerare il
+riepilogo a ogni cambio di contratto anche a parlato identico. Il primo ignora
+anche gli id delle righe, che cambiano a ogni ricostruzione della timeline.
+
+Un fingerprint nuovo che arriva mentre il riepilogo precedente è ancora in
+coda non solleva una violazione dell'indice unico sui job attivi: si attende, e
+la corsa successiva del worker rivaluta.
+
+**Sui report già approvati non cambia nulla:** la rigenerazione apriva già
+`report_version + 1` invece di sovrascrivere, e continua a farlo. Un report
+Compass non assume mai stato `shared` — la condivisione è uno stato della
+sessione, e in quel momento il report è `approved`, quindi già protetto.
+
 ## Evoluzione dashboard
 
 La dashboard visualizza metriche, andamento emotivo, filtri dei momenti e relativi estratti senza modificare la persistenza: il documento è già JSONB. Il player e il download audio restano fuori scope. Check-in atleta e nuove funzionalità di registrazione restano separati dal Compass.
