@@ -27,7 +27,7 @@ import {
   STALE_TRANSCRIPTION_REQUEST_MINUTES,
 } from './processing-policy';
 import { dispatchPendingTranscriptionRequests } from './transcription-dispatch';
-import { rebuildSessionTimeline } from './timeline';
+import { persistedTimelineFingerprint, rebuildSessionTimeline } from './timeline';
 import { advanceAiNotesSessionStatus } from './session-status';
 import { sourceFingerprint, type TimelineSource } from './timeline';
 import type { AiSessionNotesDependencies } from './dependencies';
@@ -480,16 +480,40 @@ export async function enqueueSessionCompassIfReady(
   sessionId: number,
   dependencies: AiSessionNotesDependencies
 ): Promise<boolean> {
-  const [timeline] = await dependencies.db
-    .select({ id: sessionTranscriptTimelineSegments.id })
-    .from(sessionTranscriptTimelineSegments)
-    .where(eq(sessionTranscriptTimelineSegments.sessionAiNotesId, sessionId))
+  // La chiave era legata alla sola sessione: un riepilogo generato su una
+  // trascrizione parziale non veniva mai rifatto quando arrivava il resto, e
+  // il coach leggeva l'analisi di mezza seduta credendola completa. Legandola
+  // al contenuto, una timeline invariata non produce lavoro e una timeline
+  // estesa — cioè ogni riconnessione — produce un riepilogo nuovo.
+  const fingerprint = await persistedTimelineFingerprint(sessionId);
+  if (!fingerprint) return false;
+
+  // Un solo riepilogo per volta può essere in lavorazione: l'indice unico
+  // sui job attivi lo impone, e senza questo controllo un fingerprint nuovo
+  // che arriva mentre il precedente è ancora in coda solleverebbe una
+  // violazione invece di aspettare. Non è una perdita: la corsa successiva
+  // del worker rivaluta il fingerprint e accoda allora.
+  const [pending] = await dependencies.db
+    .select({ id: sessionAiProcessingJobs.id })
+    .from(sessionAiProcessingJobs)
+    .where(
+      and(
+        eq(sessionAiProcessingJobs.sessionAiNotesId, sessionId),
+        eq(sessionAiProcessingJobs.jobType, 'report_generation'),
+        inArray(sessionAiProcessingJobs.status, [
+          'queued',
+          'processing',
+          'awaiting_provider',
+        ])
+      )
+    )
     .limit(1);
-  if (!timeline) return false;
+  if (pending) return false;
+
   const queued = await enqueueAiProcessingJob({
     sessionId,
     jobType: 'report_generation',
-    idempotencyKey: `session-compass:auto:${sessionId}`,
+    idempotencyKey: `session-compass:auto:${sessionId}:${fingerprint}`,
     availableAfter: dependencies.clock.now(),
     executor: dependencies.db,
   });
@@ -502,18 +526,18 @@ export async function enqueueReadySessionCompassJobs(
   dependencies: AiSessionNotesDependencies
 ): Promise<number> {
   const limit = Math.max(1, Math.min(params.limit, 100));
+  // Si selezionano le sessioni con una timeline; la decisione se accodare
+  // spetta a `enqueueSessionCompassIfReady`, che confronta il fingerprint.
+  // Filtrare qui sull'esistenza di un job qualsiasi reintrodurrebbe il
+  // difetto: un riepilogo vecchio impedirebbe quello nuovo, e una
+  // trascrizione estesa dopo una riconnessione non verrebbe mai riletta.
   const rows = (await dependencies.db.execute(sql`
     SELECT s.id
     FROM session_ai_notes s
-    WHERE s.status = 'processing'
+    WHERE s.status IN ('processing', 'ready_for_review')
       AND EXISTS (
         SELECT 1 FROM session_transcript_timeline_segments t
         WHERE t.session_ai_notes_id = s.id
-      )
-      AND NOT EXISTS (
-        SELECT 1 FROM session_ai_processing_jobs j
-        WHERE j.session_ai_notes_id = s.id
-          AND j.job_type = 'report_generation'
       )
     ORDER BY s.processing_started_at, s.id
     LIMIT ${limit}
