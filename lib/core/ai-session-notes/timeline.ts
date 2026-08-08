@@ -16,6 +16,55 @@ export function buildTimeline(sources: TimelineSource[]): { segments: TimelineSe
   return {segments,fingerprint:sourceFingerprint(sources),statistics:{total_timeline_duration_ms:segments.length?previousEnd-segments[0].startMs:0,coach_speaking_duration_ms:durations.coach,athlete_speaking_duration_ms:durations.athlete,coach_segment_count:counts.coach,athlete_segment_count:counts.athlete,coach_percentage:total?durations.coach/total:0,athlete_percentage:total?durations.athlete/total:0,silence_gap_duration_ms:gaps,overlap_duration_ms:overlap,first_timestamp_ms:segments[0]?.startMs??0,last_timestamp_ms:segments.at(-1)?.endMs??0,source_segment_count:sources.length,normalized_segment_count:segments.length}};
 }
 
+/**
+ * Impronta del contenuto della timeline.
+ *
+ * Risponde a una domanda sola: la trascrizione è cambiata? È deliberatamente
+ * indipendente dagli id delle righe, che cambiano a ogni ricostruzione anche
+ * quando il parlato è identico — usarli farebbe rigenerare il riepilogo a
+ * vuoto ogni volta — e dalla versione del contratto del report, che riguarda
+ * la validità di una bozza e non il contenuto.
+ */
+export function timelineRowsFingerprint(
+  rows: readonly {
+    startMs: number;
+    endMs: number;
+    participantRole: string;
+    normalizedText: string;
+  }[]
+): string {
+  const payload = rows
+    .slice()
+    .sort(
+      (left, right) =>
+        left.startMs - right.startMs ||
+        left.endMs - right.endMs ||
+        left.participantRole.localeCompare(right.participantRole) ||
+        left.normalizedText.localeCompare(right.normalizedText)
+    )
+    .map((row) =>
+      [row.startMs, row.endMs, row.participantRole, row.normalizedText].join('|')
+    )
+    .join('\n');
+  return createHash('sha256').update(payload).digest('hex');
+}
+
+/** Fingerprint della timeline salvata; `null` se non ce n'è ancora una. */
+export async function persistedTimelineFingerprint(
+  sessionId: number
+): Promise<string | null> {
+  const rows = await db
+    .select({
+      startMs: sessionTranscriptTimelineSegments.startMs,
+      endMs: sessionTranscriptTimelineSegments.endMs,
+      participantRole: sessionTranscriptTimelineSegments.participantRole,
+      normalizedText: sessionTranscriptTimelineSegments.normalizedText,
+    })
+    .from(sessionTranscriptTimelineSegments)
+    .where(eq(sessionTranscriptTimelineSegments.sessionAiNotesId, sessionId));
+  return rows.length ? timelineRowsFingerprint(rows) : null;
+}
+
 /** Rebuilds the derived private projection; source segments are never changed. */
 export async function rebuildSessionTimeline(sessionId: number, actorUserId: number) {
   const rows = await db.select({ id: sessionTranscriptSegments.id, participantRecordingId: sessionTranscriptSegments.participantRecordingId, participantUserId: sessionTranscriptSegments.participantUserId, participantRole: sessionTranscriptSegments.speakerRole, participantSequence: sessionTranscriptSegments.sequenceNumber, localStart: sessionTranscriptSegments.startedAtMs, localEnd: sessionTranscriptSegments.endedAtMs, text: sessionTranscriptSegments.text, provider: sessionTranscriptSegments.provider, model: sessionTranscriptSegments.providerModel, physicalId: sessionTranscriptSegments.physicalRecordingId, physicalStartedAt: sessionAudioRecordings.startedAt }).from(sessionTranscriptSegments).innerJoin(sessionAudioRecordings, eq(sessionAudioRecordings.id, sessionTranscriptSegments.physicalRecordingId)).where(eq(sessionTranscriptSegments.sessionAiNotesId, sessionId)).orderBy(asc(sessionAudioRecordings.segmentOrder), asc(sessionTranscriptSegments.sequenceNumber));
