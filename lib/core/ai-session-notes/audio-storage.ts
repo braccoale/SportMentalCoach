@@ -13,6 +13,18 @@ export interface AudioStorage {
   inspect(key: string): Promise<StoredAudioObject>;
   download(key: string): Promise<Buffer>;
   deleteAndVerify(key: string): Promise<void>;
+  /**
+   * URL temporanea verso un oggetto privato, per un consumatore esterno
+   * fidato.
+   *
+   * Serve a far scaricare l'audio al provider Speech-to-Text senza che il
+   * nostro processo tenga il file in memoria: era il caricamento dei byte
+   * dentro una function con un tetto di sessanta secondi a rendere
+   * impossibili le sessioni lunghe. La scadenza è breve e l'URL viene
+   * rigenerata a ogni tentativo, così una reimmissione a distanza di ore non
+   * dipende mai da un collegamento vecchio.
+   */
+  createSignedUrl(key: string, expiresInSeconds: number): Promise<string>;
 }
 
 export class InMemoryAudioStorage implements AudioStorage {
@@ -21,6 +33,10 @@ export class InMemoryAudioStorage implements AudioStorage {
   async inspect(key: string): Promise<StoredAudioObject> { const value = this.objects.get(key); return value ? { exists: true, sizeBytes: value.bytes.length, mimeType: value.mimeType, checksum: value.checksum } : { exists: false, sizeBytes: null, mimeType: null, checksum: null }; }
   async download(key: string): Promise<Buffer> { const value = this.objects.get(key); if (!value) throw new Error('AUDIO_OBJECT_NOT_FOUND'); return Buffer.from(value.bytes); }
   async deleteAndVerify(key: string): Promise<void> { this.objects.delete(key); if ((await this.inspect(key)).exists) throw new Error('AUDIO_OBJECT_DELETE_NOT_VERIFIED'); }
+  async createSignedUrl(key: string, expiresInSeconds: number): Promise<string> {
+    if (!this.objects.has(key)) throw new Error('AUDIO_OBJECT_NOT_FOUND');
+    return `https://storage.invalid/${key}?expires=${expiresInSeconds}`;
+  }
 }
 
 let readyBucket: Promise<void> | null = null;
@@ -152,8 +168,36 @@ export async function downloadAudioObject(
   return Buffer.from(await data.arrayBuffer());
 }
 
+/**
+ * URL temporanea verso un oggetto privato.
+ *
+ * Non raggiunge mai il browser: l'unico destinatario è il provider STT, che
+ * la usa per scaricare l'audio da sé. Il bucket resta privato e la firma
+ * scade.
+ */
+export async function createAudioObjectSignedUrl(
+  config: AudioRecordingConfig,
+  key: string,
+  expiresInSeconds: number
+): Promise<string> {
+  splitObjectKey(key);
+  const { data, error } = await storageClient(config)
+    .storage.from(config.bucket)
+    .createSignedUrl(key, expiresInSeconds);
+  if (error || !data?.signedUrl) {
+    throw new Error('AUDIO_OBJECT_SIGNED_URL_FAILED');
+  }
+  return data.signedUrl;
+}
+
 export function createProductionAudioStorage(config: AudioRecordingConfig): AudioStorage {
-  return { inspect: (key) => inspectAudioObject(config, key), download: (key) => downloadAudioObject(config, key), deleteAndVerify: (key) => deleteAudioObjectAndVerify(config, key) };
+  return {
+    inspect: (key) => inspectAudioObject(config, key),
+    download: (key) => downloadAudioObject(config, key),
+    deleteAndVerify: (key) => deleteAudioObjectAndVerify(config, key),
+    createSignedUrl: (key, expiresInSeconds) =>
+      createAudioObjectSignedUrl(config, key, expiresInSeconds),
+  };
 }
 
 export async function listAudioObjectKeys(
