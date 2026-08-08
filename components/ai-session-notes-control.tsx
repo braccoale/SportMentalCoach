@@ -136,6 +136,9 @@ export function AiSessionNotesControl({
   const [recording, setRecording] = useState<RecordingStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Chiudere la sessione è irreversibile: la conferma è in linea perché un
+  // `window.confirm` bloccherebbe la videochiamata sotto l'overlay.
+  const [confirmingClose, setConfirmingClose] = useState(false);
   const mutationInFlight = useRef(false);
 
   const refresh = useCallback(async () => {
@@ -434,6 +437,48 @@ export function AiSessionNotesControl({
                 ? 'Avvia registrazione'
                 : 'Riprendi registrazione'}
           </button>
+        )}
+        {/* Fine sessione chiude davvero: dopo, nemmeno un microfono
+            ripubblicato fa ripartire la registrazione. È l'opposto di
+            "Riprendi registrazione", che è una pausa — e per questo chiede
+            conferma. La videochiamata resta aperta in entrambi i casi. */}
+        {session.viewerRole === 'coach' && (
+          <div className="mt-2 mr-3 inline-block">
+            {confirmingClose ? (
+              <span className="text-xs text-emerald-100">
+                La registrazione si chiude e non potrà essere ripresa. La
+                videochiamata resta aperta.{' '}
+                <button
+                  type="button"
+                  className="font-semibold text-white underline"
+                  disabled={loading}
+                  onClick={() => {
+                    setConfirmingClose(false);
+                    void mutate(`/api/ai-session-notes/${session.id}/close`);
+                  }}
+                >
+                  {loading ? 'Chiusura…' : 'Conferma'}
+                </button>{' '}
+                <button
+                  type="button"
+                  className="text-white underline"
+                  disabled={loading}
+                  onClick={() => setConfirmingClose(false)}
+                >
+                  Annulla
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="text-xs font-medium text-white underline"
+                disabled={loading}
+                onClick={() => setConfirmingClose(true)}
+              >
+                Fine sessione
+              </button>
+            )}
+          </div>
         )}
         <button
           type="button"
