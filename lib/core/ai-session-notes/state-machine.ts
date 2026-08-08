@@ -57,6 +57,28 @@ export function canTransitionAiNotesSession(
   return TRANSITIONS[current].includes(next);
 }
 
+/**
+ * Motivo per cui una sessione ha smesso di registrare.
+ *
+ * Non è decorazione: è ciò che permette al coach di sapere, a sessione
+ * finita, se la registrazione si è chiusa perché l'ha decisa lui o perché è
+ * scattato un limite.
+ */
+export type AiNotesCloseReason =
+  | 'coach_closed'
+  | 'room_finished'
+  | 'closed_by_timeout';
+
+/**
+ * Solo una sessione ancora aperta può essere chiusa.
+ *
+ * `processing` e gli stati successivi hanno già smesso di registrare: una
+ * seconda chiusura non deve né fallire né riscrivere il motivo della prima.
+ */
+export function isClosableSessionStatus(status: string): boolean {
+  return status === 'active' || status === 'waiting_for_consent';
+}
+
 export function assertAiNotesTransition(
   current: AiSessionNoteStatus,
   next: AiSessionNoteStatus

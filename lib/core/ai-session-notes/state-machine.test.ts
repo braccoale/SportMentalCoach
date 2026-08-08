@@ -4,8 +4,29 @@ import {
   AiNotesDomainError,
   assertAiNotesTransition,
   canTransitionAiNotesSession,
+  isClosableSessionStatus,
   transitionAuditPatch,
 } from './state-machine';
+
+test('una sessione attiva è chiudibile', () => {
+  assert.equal(isClosableSessionStatus('active'), true);
+});
+
+test('una sessione in attesa di consenso è chiudibile', () => {
+  assert.equal(isClosableSessionStatus('waiting_for_consent'), true);
+});
+
+test('una sessione già in trattamento non si richiude', () => {
+  assert.equal(isClosableSessionStatus('processing'), false);
+});
+
+test('una sessione annullata non si chiude', () => {
+  assert.equal(isClosableSessionStatus('cancelled'), false);
+});
+
+test('uno stato sconosciuto non è chiudibile', () => {
+  assert.equal(isClosableSessionStatus('qualcosa_di_nuovo'), false);
+});
 
 test('initial and future valid transitions are accepted', () => {
   assert.equal(
