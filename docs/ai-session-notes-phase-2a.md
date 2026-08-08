@@ -165,6 +165,73 @@ LIVEKIT_WEBHOOK_MAX_AGE_SECONDS
 L’endpoint S3 deve appartenere allo stesso progetto Supabase configurato. La
 registrazione non usa fallback locale o pubblico.
 
+## Ciclo di vita della sessione e riconnessioni
+
+**Un file audio pronto non significa sessione finita.** Sono due fatti
+distinti, e trattarli come uno solo era il difetto più grave della pipeline:
+alla chiusura del primo Egress la sessione avanzava a `processing`, e da lì
+`track_published` non riavviava più nulla. Bastava una disconnessione a metà
+seduta perché tutto il parlato successivo al rientro finisse senza audio,
+senza alcun segnale né al coach né all'atleta.
+
+La sessione resta `active`, e quindi registrabile, finché non la chiude uno
+di questi tre segnali — e nessun altro percorso può chiuderla:
+
+| segnale | origine | motivo registrato |
+|---|---|---|
+| Il coach preme *Fine sessione* | `POST /api/ai-session-notes/:id/close` | `coach_closed` |
+| La stanza LiveKit cessa di esistere | webhook `room_finished` | `room_finished` |
+| Limite di sicurezza superato | `closeExpiredAiNotesSessions` nel worker | `closed_by_timeout` |
+
+Il motivo finisce in `session_ai_notes.metadata.closeReason`. Serve a
+distinguere una chiusura decisa da una subita: una sessione chiusa d'ufficio
+non deve mai sembrare una sessione conclusa normalmente.
+
+**La stanza vuota non è un criterio.** «Non c'è più nessuno in call» è
+indistinguibile da «sono caduti entrambi e stanno rientrando», che è
+esattamente il caso da salvare. Solo `room_finished`, in cui la stanza
+smette di esistere, è definitivo.
+
+**Uscire non chiude niente.** Su `participant_left` si fermano le sole tracce
+di chi esce (`stopAiNotesRecordingsByParticipant`). Se cade l'atleta, il
+coach continua a essere registrato senza interruzione. Al rientro,
+`track_published` apre un segmento nuovo.
+
+**Pausa e chiusura sono azioni diverse.** `recording/stop` mette in pausa e
+la sessione resta riprendibile — nel pannello corrisponde a *Riprendi
+registrazione*. `close` chiude, e dopo di essa nemmeno un microfono
+ripubblicato fa ripartire la registrazione. Nessuna delle due tocca la
+videochiamata.
+
+### Quanti file, quante trascrizioni
+
+Ogni interruzione produce un file in più, ma **non** una trascrizione in più:
+
+```
+2 partecipanti × N rientri  →  file audio separati (mai concatenati)
+                                        ↓
+              1 registrazione logica per partecipante
+                                        ↓
+                     1 timeline unica, cronologica
+                                        ↓
+                     1 Session Compass · 1 report
+```
+
+I segmenti vengono riallineati sull'orologio reale usando lo `started_at` di
+ciascun Egress, quindi coach e atleta restano correttamente intrecciati anche
+attraverso il buco della disconnessione, che resta visibile come intervallo
+scoperto. Gli audio non vengono mai uniti: l'unificazione avviene sulla
+trascrizione, non sui byte.
+
+**Una sola registrazione viva per traccia.** L'indice parziale
+`session_audio_recordings_live_track_unique` (migrazione `0046`) impedisce due
+registrazioni simultanee dello stesso microfono, mentre lascia liberi i
+segmenti già conclusi. Serve a garantire che lo stesso parlato non venga
+trascritto due volte: la migrazione `0043` credeva di dare questa garanzia
+tramite l'unicità su `(sessione, traccia, segment_order)`, ma il trigger
+assegna sempre `MAX(segment_order) + 1` e quel vincolo non poteva mai
+scattare.
+
 ## Piano e costi
 
 Il progetto è LiveKit Cloud, ma il piano non è esposto dall’API di servizio

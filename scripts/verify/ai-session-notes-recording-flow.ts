@@ -151,6 +151,47 @@ async function main() {
             checksum = 'synthetic-etag', updatedby = ${coach.id}
         where id = ${coachRecording.id}
       `;
+      // Riconnessione sulla stessa traccia. È il caso che conta davvero: il
+      // segmento precedente è concluso, il microfono torna, e la
+      // registrazione deve poter riprendere. L'unicità sulle sole
+      // registrazioni vive lo consente, mentre continua a impedire due
+      // registrazioni simultanee dello stesso parlato.
+      const resumed = await insertRecording(
+        coach.id,
+        'coach',
+        'TR_SYNTH_COACH_1',
+        'coach-1-ripresa'
+      );
+      ok(resumed, 'La stessa traccia non ha potuto riprendere dopo una pausa.');
+
+      const coachSegments = await tx`
+        select segment_order, participant_recording_id
+        from public.session_audio_recordings
+        where session_ai_notes_id = ${session.id}
+          and participant_user_id = ${coach.id}
+        order by segment_order
+      `;
+      ok(
+        coachSegments.length === 3,
+        'I rientri non hanno prodotto un segmento ciascuno.'
+      );
+      ok(
+        coachSegments.every(
+          (row, index) => row.segment_order === index
+        ),
+        'I segmenti dei rientri non sono progressivi.'
+      );
+      ok(
+        coachSegments[0].participant_recording_id !== null &&
+          coachSegments.every(
+            (row) =>
+              row.participant_recording_id ===
+              coachSegments[0].participant_recording_id
+          ),
+        'I segmenti non appartengono alla stessa registrazione logica: ' +
+          'da qui uscirebbero due trascrizioni invece di una.'
+      );
+
       await tx`
         update public.session_audio_recordings
         set status = 'failed', error_code = 'EGRESS_FAILED',

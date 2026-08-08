@@ -20,7 +20,7 @@
 - **Nessun percorso sincrono di riserva.** La decisione della spec è esplicita: un secondo percorso esercitato di rado marcisce, e sarebbe comunque un ritorno allo stato rotto. `transcribe()` viene sostituito, non affiancato.
 - Il modello STT resta vincolato a `nova-3`; lingua `it`. Provider e credenziali non arrivano mai dal browser.
 - Nessun messaggio del provider viene mai propagato al chiamante esterno.
-- Migrazione numero `0046`, con voce corrispondente in `lib/db/migrations/meta/_journal.json` (`idx` 46, `version` "7", `when` 1786626900000, `breakpoints` true).
+- Migrazione numero `0047`, con voce corrispondente in `lib/db/migrations/meta/_journal.json` (`idx` 47, `version` "7", `when` 1786713300000, `breakpoints` true).
 - TTL della signed URL: **900 secondi** (15 minuti), rigenerata a ogni tentativo.
 - Soglia di reimmissione di una richiesta senza risposta: **20 minuti**.
 - Commenti e documentazione in italiano.
@@ -30,7 +30,7 @@
 ## File Structure
 
 **Creati:**
-- `lib/db/migrations/0046_stt-callback.sql` — tabella delle richieste, stato `awaiting_provider`, indice unico aggiornato.
+- `lib/db/migrations/0047_stt-callback.sql` — tabella delle richieste, stato `awaiting_provider`, indice unico aggiornato.
 - `lib/core/ai-session-notes/transcription-dispatch.ts` — invio delle richieste a Deepgram. Una responsabilità: consegnare e registrare.
 - `lib/core/ai-session-notes/stt-callback.ts` — ingestione dei risultati. Una responsabilità: ricevere e far avanzare.
 - `lib/core/ai-session-notes/stt-callback.test.ts` — test puri su parsing e idempotenza.
@@ -55,7 +55,7 @@
 ### Task 1: Schema delle richieste di trascrizione
 
 **Files:**
-- Create: `lib/db/migrations/0046_stt-callback.sql`
+- Create: `lib/db/migrations/0047_stt-callback.sql`
 - Modify: `lib/db/migrations/meta/_journal.json`
 - Modify: `lib/db/schema.ts`
 
@@ -65,7 +65,7 @@
 
 - [ ] **Step 1: Scrivi la migrazione**
 
-Crea `lib/db/migrations/0046_stt-callback.sql`:
+Crea `lib/db/migrations/0047_stt-callback.sql`:
 
 ```sql
 -- Trascrizione asincrona: una riga per ogni invio di un segmento audio al
@@ -156,15 +156,15 @@ In `lib/db/migrations/meta/_journal.json`, aggiungi come ultimo elemento dell'ar
 
 ```json
     {
-      "idx": 46,
+      "idx": 47,
       "version": "7",
-      "when": 1786626900000,
-      "tag": "0046_stt-callback",
+      "when": 1786713300000,
+      "tag": "0047_stt-callback",
       "breakpoints": true
     }
 ```
 
-Ricorda la virgola dopo la voce `0045`.
+Ricorda la virgola dopo la voce `0046`.
 
 - [ ] **Step 3: Aggiungi la tabella allo schema Drizzle**
 
@@ -233,7 +233,7 @@ Expected: nessun errore.
 > **Attenzione:** secondo la memoria di progetto, `.env.local`, Preview e Production puntano allo **stesso** progetto Supabase. Questa migrazione colpisce la produzione. È additiva (una tabella nuova, due vincoli allargati) e non distrugge dati, ma esegui il comando consapevolmente.
 
 Run: `npm run db:migrate`
-Expected: la migrazione `0046_stt-callback` risulta applicata.
+Expected: la migrazione `0047_stt-callback` risulta applicata.
 
 Verifica: `npm run test:ai-notes:schema`
 Expected: PASS.
@@ -241,7 +241,7 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add lib/db/migrations/0046_stt-callback.sql lib/db/migrations/meta/_journal.json lib/db/schema.ts
+git add lib/db/migrations/0047_stt-callback.sql lib/db/migrations/meta/_journal.json lib/db/schema.ts
 git commit -m "feat: schema per le richieste di trascrizione asincrone"
 ```
 

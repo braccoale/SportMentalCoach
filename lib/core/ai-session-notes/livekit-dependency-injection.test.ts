@@ -392,7 +392,12 @@ class FakeDbExecutor {
   readonly auditEvents: Array<Record<string, unknown>> = [];
   readonly recordings: RecordingRow[];
   private nextRecordingId = 900;
-  private readonly sessionStatus: string;
+  private sessionStatus: string;
+  sessionMetadataWrites = 0;
+
+  currentSessionStatus(): string {
+    return this.sessionStatus;
+  }
 
   constructor(fixture: FakeFixture = {}) {
     this.sessionStatus = fixture.sessionStatus ?? 'active';
@@ -422,9 +427,23 @@ class FakeDbExecutor {
     return callback(this.asDbOrTx());
   }
 
-  async execute(_query: unknown): Promise<Array<{ status: string }>> {
+  /**
+   * Le query grezze del dominio: il lock ottimistico su `session_ai_notes` e
+   * il `SELECT ... FOR UPDATE` del percorso di chiusura. Senza `id` e
+   * `requested_by` il ramo `room_finished` — uno dei tre modi di chiudere
+   * una sessione — resterebbe fuori da ogni test.
+   */
+  async execute(
+    _query: unknown
+  ): Promise<Array<{ id: number; status: string; requested_by: number }>> {
     this.record('execute');
-    return [{ status: this.sessionStatus }];
+    return [
+      {
+        id: SESSION_ID,
+        status: this.sessionStatus,
+        requested_by: COACH_USER_ID,
+      },
+    ];
   }
 
   selectRows(source: unknown, keys: string[]): Array<Record<string, unknown>> {
@@ -551,6 +570,11 @@ class FakeDbExecutor {
     targetIds: number[] = []
   ): Array<Record<string, unknown>> {
     this.record('update');
+    if (target === sessionAiNotes) {
+      if (typeof patch.status === 'string') this.sessionStatus = patch.status;
+      if (patch.metadata !== undefined) this.sessionMetadataWrites += 1;
+      return [];
+    }
     if (target !== sessionAudioRecordings) {
       throw new Error('UNSUPPORTED_FAKE_UPDATE');
     }
@@ -983,6 +1007,66 @@ test('participant_left ferma solo le tracce di chi esce, non quelle di chi resta
   );
   harness.db.assertOnlyInjectedOperations();
   assertUnusedNonLiveKitDependencies(harness);
+  assertNoProductionFallbacks();
+});
+
+test('participant_left non chiude la sessione: si può rientrare', async () => {
+  const harness = createHarness({
+    recordings: [
+      acceptedRecording({
+        id: 806,
+        role: 'athlete',
+        userId: ATHLETE_USER_ID,
+        trackSid: ATHLETE_TRACK_SID,
+        egressId: 'egress-athlete-leaving',
+      }),
+    ],
+  });
+
+  await webhookModule.processLiveKitWebhookEvent(
+    event('participant_left', {
+      participantIdentity: `user-${ATHLETE_USER_ID}`,
+    }),
+    harness.dependencies
+  );
+
+  // È il cuore della correzione: chiudere qui rendeva la sessione non più
+  // registrabile, e tutto il parlato successivo al rientro andava perso.
+  assert.equal(harness.db.currentSessionStatus(), 'active');
+  assertNoProductionFallbacks();
+});
+
+test('room_finished chiude la sessione e ne registra il motivo', async () => {
+  const harness = createHarness({
+    recordings: [
+      acceptedRecording({
+        id: 807,
+        role: 'coach',
+        userId: COACH_USER_ID,
+        trackSid: COACH_TRACK_SID,
+        egressId: 'egress-coach-room-finished',
+      }),
+    ],
+  });
+
+  await webhookModule.processLiveKitWebhookEvent(
+    {
+      id: 'event-room_finished',
+      event: 'room_finished',
+      createdAt: BigInt(FIXED_NOW.getTime()) * 1_000_000n,
+      room: { name: ROOM_NAME },
+    } as unknown as WebhookEvent,
+    harness.dependencies
+  );
+
+  // La stanza non esiste più: nessuno può rientrare, e questo è l'unico
+  // segnale automatico che vale come fine sessione.
+  assert.equal(harness.db.currentSessionStatus(), 'processing');
+  assert.equal(harness.db.recordings[0]?.status, 'stopping');
+  assert.ok(
+    harness.db.sessionMetadataWrites > 0,
+    'il motivo della chiusura deve essere registrato'
+  );
   assertNoProductionFallbacks();
 });
 
