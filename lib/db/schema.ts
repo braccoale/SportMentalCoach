@@ -1073,6 +1073,15 @@ export type AiProcessingJobType = (typeof AI_PROCESSING_JOB_TYPES)[number];
 export const AI_PROCESSING_JOB_STATUSES = [
   'queued',
   'processing',
+  /**
+   * Il lavoro è stato consegnato al provider e si attende la sua callback.
+   *
+   * Non è né in coda né in esecuzione: nessun worker deve riprenderlo, e
+   * proprio per questo è fuori dagli stati claimabili. Esiste perché il
+   * worker non può restare in attesa della trascrizione dentro
+   * un'invocazione con un tetto di sessanta secondi.
+   */
+  'awaiting_provider',
   'completed',
   'failed',
   'cancelled',
@@ -1150,11 +1159,79 @@ export const sessionAiProcessingJobs = pgTable(
     ),
     check(
       'session_ai_processing_jobs_status_check',
-      sql`${table.status} in ('queued', 'processing', 'completed', 'failed', 'cancelled')`
+      sql`${table.status} in ('queued', 'processing', 'awaiting_provider', 'completed', 'failed', 'cancelled')`
     ),
     check(
       'session_ai_processing_jobs_attempts_check',
       sql`${table.attemptCount} >= 0 and ${table.maxAttempts} > 0 and ${table.attemptCount} <= ${table.maxAttempts}`
+    ),
+  ]
+);
+
+export const TRANSCRIPTION_REQUEST_STATUSES = [
+  'submitted',
+  'received',
+  'failed',
+] as const;
+export type TranscriptionRequestStatus =
+  (typeof TRANSCRIPTION_REQUEST_STATUSES)[number];
+
+/**
+ * Un invio di un segmento audio al provider Speech-to-Text.
+ *
+ * Esiste perché invio e risposta sono separati nel tempo: senza un registro,
+ * una risposta che non arriva è indistinguibile da una che non è mai stata
+ * chiesta, e la trascrizione si perde in silenzio. È anche il punto di
+ * serializzazione che rende idempotente la consegna, che il provider ritenta
+ * fino a dieci volte.
+ */
+export const sessionTranscriptionRequests = pgTable(
+  'session_transcription_requests',
+  {
+    id: serial('id').primaryKey(),
+    physicalRecordingId: integer('physical_recording_id')
+      .notNull()
+      .references(() => sessionAudioRecordings.id, { onDelete: 'cascade' }),
+    processingJobId: integer('processing_job_id')
+      .notNull()
+      .references(() => sessionAiProcessingJobs.id, { onDelete: 'cascade' }),
+    callbackToken: varchar('callback_token', { length: 64 })
+      .notNull()
+      .unique(),
+    providerRequestId: varchar('provider_request_id', { length: 200 }),
+    provider: varchar('provider', { length: 80 }).notNull(),
+    status: varchar('status', { length: 24 }).notNull().default('submitted'),
+    attempt: integer('attempt').notNull().default(1),
+    submittedAt: timestamp('submitted_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    receivedAt: timestamp('received_at', { withTimezone: true }),
+    errorCode: varchar('error_code', { length: 80 }),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    updatedDate: timestamp('updateddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedBy: integer('updatedby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    index('session_transcription_requests_stale_idx').on(
+      table.status,
+      table.submittedAt
+    ),
+    check(
+      'session_transcription_requests_status_check',
+      sql`${table.status} in ('submitted', 'received', 'failed')`
+    ),
+    check(
+      'session_transcription_requests_attempt_check',
+      sql`${table.attempt} >= 1`
     ),
   ]
 );
