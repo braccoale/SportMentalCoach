@@ -319,9 +319,32 @@ class FakeInsertQuery implements PromiseLike<unknown> {
   }
 }
 
+/**
+ * Estrae i parametri numerici da una condizione Drizzle.
+ *
+ * Il fake ignorava del tutto le clausole `where`, e un `update` mirato a una
+ * riga precisa finiva sulla prima riga utile: finché si fermavano tutte le
+ * tracce insieme la differenza non si vedeva, ma un aggiornamento per id —
+ * come fermare la traccia del solo partecipante uscito — colpiva la riga
+ * sbagliata e il test non poteva accorgersene.
+ */
+function numericConditionParams(node: unknown, found: number[] = []): number[] {
+  if (!node || typeof node !== 'object') return found;
+  const value = node as Record<string, unknown>;
+  if (value.constructor?.name === 'Param' && typeof value.value === 'number') {
+    found.push(value.value);
+    return found;
+  }
+  if (Array.isArray(value.queryChunks)) {
+    for (const chunk of value.queryChunks) numericConditionParams(chunk, found);
+  }
+  return found;
+}
+
 class FakeUpdateQuery implements PromiseLike<unknown> {
   private patch: Record<string, unknown> = {};
   private returningKeys: string[] = [];
+  private targetIds: number[] = [];
 
   constructor(
     private readonly executor: FakeDbExecutor,
@@ -333,7 +356,8 @@ class FakeUpdateQuery implements PromiseLike<unknown> {
     return this;
   }
 
-  where(_condition: unknown): this {
+  where(condition: unknown): this {
+    this.targetIds = numericConditionParams(condition);
     return this;
   }
 
@@ -357,7 +381,8 @@ class FakeUpdateQuery implements PromiseLike<unknown> {
     return this.executor.updateRows(
       this.target,
       this.patch,
-      this.returningKeys
+      this.returningKeys,
+      this.targetIds
     );
   }
 }
@@ -456,6 +481,7 @@ class FakeDbExecutor {
         id: row.id,
         egressId: row.livekitEgressId,
         status: row.status,
+        identity: row.livekitParticipantIdentity,
       }));
     }
     if (source === bookings || source === providerProfiles) {
@@ -521,11 +547,21 @@ class FakeDbExecutor {
   updateRows(
     target: unknown,
     patch: Record<string, unknown>,
-    returningKeys: string[]
+    returningKeys: string[],
+    targetIds: number[] = []
   ): Array<Record<string, unknown>> {
     this.record('update');
     if (target !== sessionAudioRecordings) {
       throw new Error('UNSUPPORTED_FAKE_UPDATE');
+    }
+
+    // Quando la condizione nomina una riga precisa si aggiorna quella, non la
+    // prima disponibile.
+    const addressed = this.recordings.find((candidate) =>
+      targetIds.includes(candidate.id)
+    );
+    if (addressed) {
+      return this.applyPatch(addressed, patch, returningKeys);
     }
 
     let row: RecordingRow | undefined;
@@ -546,7 +582,14 @@ class FakeDbExecutor {
       row = this.recordings[0];
     }
     if (!row) return [];
+    return this.applyPatch(row, patch, returningKeys);
+  }
 
+  private applyPatch(
+    row: RecordingRow,
+    patch: Record<string, unknown>,
+    returningKeys: string[]
+  ): Array<Record<string, unknown>> {
     if (typeof patch.livekitEgressId === 'string') {
       row.livekitEgressId = patch.livekitEgressId;
     }
@@ -900,7 +943,7 @@ test('track_unpublished stops the matching Egress once and preserves stopping st
   assertNoProductionFallbacks();
 });
 
-test('participant_left stops every active recording with the same injected control', async () => {
+test('participant_left ferma solo le tracce di chi esce, non quelle di chi resta', async () => {
   const harness = createHarness({
     recordings: [
       acceptedRecording({
@@ -922,18 +965,21 @@ test('participant_left stops every active recording with the same injected contr
 
   await webhookModule.processLiveKitWebhookEvent(
     event('participant_left', {
-      participantIdentity: `user-${COACH_USER_ID}`,
+      participantIdentity: `user-${ATHLETE_USER_ID}`,
     }),
     harness.dependencies
   );
 
+  // Se cade l'atleta, il coach sta ancora parlando e non si e' mosso:
+  // fermare anche la sua traccia significava perdere l'audio di chi era
+  // rimasto in stanza.
+  assert.deepEqual(harness.liveKit.stops, ['egress-athlete-active']);
   assert.deepEqual(
-    harness.liveKit.stops,
-    ['egress-coach-active', 'egress-athlete-active']
-  );
-  assert.deepEqual(
-    harness.db.recordings.map((row) => row.status),
-    ['stopping', 'stopping']
+    harness.db.recordings.map((row) => [row.participantRole, row.status]),
+    [
+      ['coach', 'recording'],
+      ['athlete', 'stopping'],
+    ]
   );
   harness.db.assertOnlyInjectedOperations();
   assertUnusedNonLiveKitDependencies(harness);

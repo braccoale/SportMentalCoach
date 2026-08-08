@@ -755,6 +755,95 @@ export async function stopAiNotesRecordingByTrack(params: {
   }
 }
 
+/**
+ * Ferma le sole tracce di un partecipante.
+ *
+ * Alla disconnessione di uno dei due si fermava l'intera sessione: se cadeva
+ * l'atleta spariva anche la registrazione del coach, che stava parlando e
+ * non si era mosso. Un partecipante che esce porta via la propria traccia e
+ * nient'altro — e al rientro `track_published` ne apre una nuova.
+ */
+export async function stopAiNotesRecordingsByParticipant(
+  params: {
+    sessionId: number;
+    participantIdentity: string;
+    reason: string;
+  },
+  liveKit: LiveKitSessionControl,
+  executor: DbOrTx = db
+): Promise<void> {
+  const context = await sessionContext(params.sessionId, executor);
+  if (!context) return;
+
+  const rows = await executor
+    .select({
+      id: sessionAudioRecordings.id,
+      egressId: sessionAudioRecordings.livekitEgressId,
+      status: sessionAudioRecordings.status,
+      identity: sessionAudioRecordings.livekitParticipantIdentity,
+    })
+    .from(sessionAudioRecordings)
+    .where(
+      and(
+        eq(sessionAudioRecordings.sessionAiNotesId, params.sessionId),
+        eq(
+          sessionAudioRecordings.livekitParticipantIdentity,
+          params.participantIdentity
+        ),
+        inArray(sessionAudioRecordings.status, [
+          'pending',
+          'starting',
+          'recording',
+        ])
+      )
+    )
+    .orderBy(asc(sessionAudioRecordings.id));
+
+  for (const row of rows) {
+    // Fermare una registrazione è irreversibile: l'identità viene riletta
+    // dalla riga e riconfrontata prima di agire, così nessuna traccia
+    // diversa da quella presa di mira può finire fermata per una condizione
+    // sbagliata a monte.
+    if (row.identity !== params.participantIdentity) continue;
+    if (!isRecordingStoppable(row.status)) continue;
+    const [claimed] = await executor
+      .update(sessionAudioRecordings)
+      .set({
+        status: 'stopping',
+        updatedDate: new Date(),
+        updatedBy: context.requestedBy,
+        metadata: sql`${sessionAudioRecordings.metadata} || ${JSON.stringify({
+          stopReason: params.reason.slice(0, 80),
+        })}::jsonb`,
+      })
+      .where(
+        and(
+          eq(sessionAudioRecordings.id, row.id),
+          inArray(sessionAudioRecordings.status, [
+            'pending',
+            'starting',
+            'recording',
+          ])
+        )
+      )
+      .returning({ id: sessionAudioRecordings.id });
+    if (!claimed) continue;
+    await auditRecording(executor, {
+      sessionId: params.sessionId,
+      eventType: 'recording_stop_requested',
+      actorUserId: context.requestedBy,
+      metadata: { recordingId: row.id, reason: params.reason.slice(0, 80) },
+    });
+    if (!row.egressId) continue;
+    try {
+      await liveKit.stopEgress(row.egressId);
+    } catch {
+      // Lo stato finale resta di competenza del webhook e della
+      // riconciliazione.
+    }
+  }
+}
+
 export type RecordingStatusView = {
   state:
     | 'not_started'

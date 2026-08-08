@@ -27,7 +27,9 @@ import {
   startAiNotesRecordingSystem,
   stopAiNotesRecordingByTrack,
   stopAiNotesRecordings,
+  stopAiNotesRecordingsByParticipant,
 } from './recording';
+import { closeAiNotesSession } from './session-close';
 
 export class LiveKitWebhookError extends Error {
   constructor(
@@ -476,19 +478,35 @@ export async function processLiveKitWebhookEvent(
     }, liveKit, executor);
     return;
   }
+  if (eventName === 'room_finished') {
+    // La stanza non esiste più: non può rientrare nessuno, e la sessione è
+    // finita davvero.
+    await closeAiNotesSession(
+      { sessionId: session.id, reason: 'room_finished' },
+      liveKit,
+      executor
+    );
+    return;
+  }
   if (
-    eventName === 'room_finished' ||
-    (eventName === 'participant_left' &&
-      !!event.participant?.identity &&
-      [
-        `user-${session.coachUserId}`,
-        `user-${session.athleteUserId}`,
-      ].includes(event.participant.identity))
+    eventName === 'participant_left' &&
+    !!event.participant?.identity &&
+    [
+      `user-${session.coachUserId}`,
+      `user-${session.athleteUserId}`,
+    ].includes(event.participant.identity)
   ) {
-    await stopAiNotesRecordings({
-      sessionId: session.id,
-      reason: eventName,
-    }, liveKit, executor);
+    // Uscire non chiude la sessione: si può rientrare, e al rientro
+    // `track_published` fa ripartire la registrazione con un segmento nuovo.
+    await stopAiNotesRecordingsByParticipant(
+      {
+        sessionId: session.id,
+        participantIdentity: event.participant.identity,
+        reason: 'participant_left',
+      },
+      liveKit,
+      executor
+    );
     return;
   }
   if (eventName === 'track_unpublished' && event.track?.sid) {
