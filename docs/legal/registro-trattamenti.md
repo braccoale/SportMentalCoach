@@ -81,6 +81,7 @@ monitoraggio sistematico. *Da riconfermare se cambia il perimetro.*
 | **Base giuridica** | Art. 6.1.b per la chiamata; artt. 6.1.a e 9.2.a per Appunti AI |
 | **Conservazione** | Video non conservato; audio AI 7 giorni; trascrizione/report seguono lo storico della sessione |
 | **Responsabili** | LiveKit Cloud; per Appunti AI anche Deepgram e OpenAI |
+| **Modalità di trasmissione a Deepgram** | L'audio non viene trasmesso dai nostri server: Deepgram lo scarica dallo storage Supabase tramite un collegamento firmato, valido 15 minuti e rigenerato a ogni tentativo. Il bucket resta privato e il collegamento non è mai esposto al browser. Destinatario e categorie di dati non cambiano rispetto all'invio diretto |
 
 ## 7. Autorizzazione del genitore o tutore
 
