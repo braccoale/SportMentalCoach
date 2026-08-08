@@ -6,6 +6,7 @@ import {
   processAiNotesBatch,
   recoverStaleAiProcessingJobs,
 } from '@/lib/core/ai-session-notes/processing';
+import { closeExpiredAiNotesSessions } from '@/lib/core/ai-session-notes/maintenance';
 import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
 
 export const dynamic = 'force-dynamic';
@@ -50,13 +51,17 @@ function requestedLimit(request: Request): number {
 
 async function drainQueue(workerId: string, limit: number) {
   const dependencies = createProductionAiSessionNotesDependencies();
+  // Prima di trattare la coda si chiudono le sessioni dimenticate aperte:
+  // finché restano `active` continuano a registrare e a produrre audio che
+  // nessuno ha chiesto.
+  const expiredClosed = await closeExpiredAiNotesSessions(dependencies.liveKit);
   const recovered = await recoverStaleAiProcessingJobs({ limit });
   const compassJobsQueued = await enqueueReadySessionCompassJobs(
     { limit },
     dependencies
   );
   const processed = await processAiNotesBatch({ workerId, limit }, dependencies);
-  return { recovered, compassJobsQueued, ...processed };
+  return { expiredClosed, recovered, compassJobsQueued, ...processed };
 }
 
 async function runWorker(request: Request): Promise<Response> {

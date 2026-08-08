@@ -26,7 +26,60 @@ import {
 } from './audio-storage';
 import { getAudioRecordingConfig } from './recording-config';
 import { stopAiNotesRecordings } from './recording';
+import { closeAiNotesSession } from './session-close';
+import { isSessionPastSafetyLimit } from './session-close-policy';
 import type { LiveKitSessionControl } from './livekit-session-control';
+
+/**
+ * Chiude le sessioni rimaste aperte oltre il limite di sicurezza.
+ *
+ * La chiusura esplicita del coach è il criterio primario; questo esiste
+ * perché un browser che si chiude o una distrazione non lascino una
+ * registrazione viva per giorni, a consumare audio e trascrizione che
+ * nessuno ha chiesto.
+ *
+ * Il motivo `closed_by_timeout` resta registrato e viene mostrato al coach:
+ * una chiusura d'ufficio non deve mai sembrare una chiusura normale.
+ */
+export async function closeExpiredAiNotesSessions(
+  liveKit: LiveKitSessionControl,
+  params?: { now?: Date; limit?: number }
+): Promise<number> {
+  const now = params?.now ?? new Date();
+  const limit = Math.max(1, Math.min(params?.limit ?? 20, 100));
+  const { safetyTimeoutMinutes } = getAudioRecordingConfig();
+
+  const candidates = await db
+    .select({
+      id: sessionAiNotes.id,
+      startedAt: sessionAiNotes.startedAt,
+      createdDate: sessionAiNotes.createdDate,
+    })
+    .from(sessionAiNotes)
+    .where(inArray(sessionAiNotes.status, ['active', 'waiting_for_consent']))
+    .orderBy(asc(sessionAiNotes.id))
+    .limit(limit);
+
+  let closed = 0;
+  for (const candidate of candidates) {
+    if (
+      !isSessionPastSafetyLimit({
+        startedAt: candidate.startedAt,
+        createdDate: candidate.createdDate,
+        now,
+        safetyTimeoutMinutes,
+      })
+    ) {
+      continue;
+    }
+    const didClose = await closeAiNotesSession(
+      { sessionId: candidate.id, reason: 'closed_by_timeout' },
+      liveKit
+    );
+    if (didClose) closed += 1;
+  }
+  return closed;
+}
 
 export type RetentionResult = {
   dryRun: boolean;
