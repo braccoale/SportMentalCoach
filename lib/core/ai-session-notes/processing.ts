@@ -346,8 +346,7 @@ export async function completeAiProcessingJob(params: {
 /** Queues exactly one derived session-level normalization input version. */
 export async function enqueueNormalizationIfReady(
   sessionId: number,
-  dependencies: AiSessionNotesDependencies,
-  requestedBy = 0
+  dependencies: AiSessionNotesDependencies
 ): Promise<boolean> {
   const participants = await dependencies.db.select({ id: sessionParticipantRecordings.id }).from(sessionParticipantRecordings).where(eq(sessionParticipantRecordings.sessionAiNotesId, sessionId));
   if (participants.length < 2) return false;
@@ -360,16 +359,11 @@ export async function enqueueNormalizationIfReady(
   const fingerprint = sourceFingerprint(fingerprintSources);
   const queued = await enqueueAiProcessingJob({ sessionId, jobType: 'transcript_normalization', idempotencyKey: `normalization:${sessionId}:${fingerprint}`, metadata: { sourceFingerprint: fingerprint }, availableAfter: dependencies.clock.now(), executor: dependencies.db });
 
-  // Trascrizione completa per entrambi: la sessione non è più "in corso", è
-  // in trattamento. Nessuno faceva mai questo passaggio, e restando `active`
-  // la sessione non permetteva di generare il Session Compass — che richiede
-  // almeno `processing`. Il percorso finiva lì, in silenzio.
-  await advanceAiNotesSessionStatus({
-    sessionId,
-    nextStatus: 'processing',
-    actorUserId: requestedBy,
-    executor: dependencies.db,
-  });
+  // Nessun avanzamento di stato qui. Con una riconnessione entrambe le
+  // trascrizioni possono completarsi mentre la sessione è ancora in corso:
+  // chiuderla a quel punto la renderebbe non più registrabile a metà seduta,
+  // che è esattamente il difetto che questo percorso deve evitare. La
+  // sessione passa a `processing` solo per mano di `closeAiNotesSession`.
 
   return !queued.duplicate;
 }
@@ -670,8 +664,7 @@ export async function processAiNotesBatch(params: {
           result.completed += 1;
           await enqueueNormalizationIfReady(
             job.session_ai_notes_id,
-            dependencies,
-            job.requested_by
+            dependencies
           );
         }
       } else if (job.job_type === 'report_generation') {

@@ -22,7 +22,6 @@ import {
   isWebhookTimestampAcceptable,
 } from './recording-policy';
 import { enqueueAiProcessingJob } from './processing';
-import { advanceAiNotesSessionStatus } from './session-status';
 import type { AiSessionNotesDependencies } from './dependencies';
 import {
   startAiNotesRecordingSystem,
@@ -363,16 +362,12 @@ async function handleEgressEvent(event: WebhookEvent, executor: DbOrTx = db): Pr
           executor,
         });
       }
-      // Appena esiste un file registrato la fase di registrazione è conclusa
-      // per quella traccia e il trattamento può iniziare. Aspettare la fine
-      // di entrambe le trascrizioni lasciava la dashboard su “Registrazione
-      // in corso” per tutta la permanenza dei job in coda.
-      await advanceAiNotesSessionStatus({
-        sessionId: recording.sessionId,
-        nextStatus: 'processing',
-        actorUserId: recording.requestedBy,
-        executor,
-      });
+      // La chiusura di un egress dice che *quel file* è pronto, non che la
+      // sessione sia finita: dopo una disconnessione i due sono la stessa
+      // cosa solo in apparenza. Chiudere qui rendeva la sessione non più
+      // registrabile a metà seduta, e tutto ciò che veniva detto dopo il
+      // rientro andava perso senza un segnale. Chi chiude la sessione è
+      // `closeAiNotesSession`, e nessun altro.
       return;
     }
   }
