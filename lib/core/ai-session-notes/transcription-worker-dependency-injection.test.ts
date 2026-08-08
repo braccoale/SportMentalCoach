@@ -127,7 +127,12 @@ const processingModule = moduleExports<ProcessingModule>(
   'processAiNotesBatch'
 );
 
-type JobStatus = 'queued' | 'processing' | 'completed' | 'failed';
+type JobStatus =
+  | 'queued'
+  | 'processing'
+  | 'awaiting_provider'
+  | 'completed'
+  | 'failed';
 
 type FakeJob = {
   id: number;
@@ -486,9 +491,24 @@ class FakeDbExecutor {
       return [{ status: 'accepted' }, { status: 'accepted' }];
     }
     if (source === sessionAudioRecordings) {
-      return [{ ...this.recording }];
+      return [{
+        ...this.recording,
+        sessionId: SESSION_ID,
+        participantUserId: this.recording.userId,
+        participantRole: this.recording.role,
+        segmentOrder: this.recording.order,
+        requestedBy: REQUESTED_BY,
+      }];
     }
     if (source === sessionTranscriptSegments) {
+      // Quali segmenti fisici risultano gia' trascritti: senza questo alias
+      // il job crederebbe di avere ancora lavoro e tornerebbe in coda
+      // all'infinito.
+      if (keys.length === 1 && keys[0] === 'physicalId') {
+        return this.transcripts.map((row) => ({
+          physicalId: row.physicalRecordingId,
+        }));
+      }
       if (keys.length === 1 && keys[0] === 'id') {
         return this.transcripts.map((_row, index) => ({ id: index + 1 }));
       }
@@ -498,15 +518,46 @@ class FakeDbExecutor {
       }));
     }
     if (source === sessionTranscriptionRequests) {
+      // Le query che chiedono il solo `id` cercano richieste ancora vive:
+      // sia quella che evita un secondo invio dello stesso segmento, sia
+      // quella che decide se il job ha finito di attendere. Ignorare il
+      // filtro sullo stato terrebbe il job in attesa per sempre.
+      if (keys.length === 1 && keys[0] === 'id') {
+        return this.transcriptionRequests
+          .filter((row) => row.status === 'submitted')
+          .map((_row, index) => ({ id: index + 1 }));
+      }
+      // Gli alias contano: il codice di produzione seleziona
+      // `processing_job_id as jobId` e `callback_token as token`, e un fake
+      // che restituisse i nomi grezzi lascerebbe quei campi undefined,
+      // facendo fallire controlli che nel database reale passano.
       return this.transcriptionRequests.map((row, index) => ({
         id: index + 1,
-        ...row,
+        status: row.status,
+        provider: row.provider,
+        providerRequestId: row.providerRequestId,
+        physicalRecordingId: row.physicalRecordingId,
+        jobId: row.processingJobId,
+        token: row.callbackToken,
+        submittedAt: row.submittedAt,
       }));
     }
     if (source === sessionParticipantRecordings) {
       return [{ id: PARTICIPANT_RECORDING_ID }];
     }
     if (source === sessionAiProcessingJobs) {
+      // Due query diverse leggono questa tabella: quella che verifica le
+      // trascrizioni completate per partecipante, e quella che decide il
+      // destino del job dopo una callback. Restituire sempre la stessa forma
+      // faceva credere alla seconda che il job non fosse in attesa.
+      if (keys.includes('status')) {
+        return [{
+          id: this.job.id,
+          sessionId: this.job.sessionId,
+          participantRecordingId: this.job.participantRecordingId,
+          status: this.job.status,
+        }];
+      }
       return [{
         participantId: PARTICIPANT_RECORDING_ID,
       }];
@@ -533,11 +584,23 @@ class FakeDbExecutor {
     patch: Record<string, unknown>,
     returningKeys: string[]
   ): Array<Record<string, unknown>> {
+    if (target === sessionTranscriptionRequests) {
+      // La riga della richiesta e' il punto di serializzazione della
+      // callback: solo chi la porta da `submitted` a `received` scrive i
+      // segmenti. Il fake deve quindi rispettare quella condizione, o il
+      // test dell'idempotenza non proverebbe nulla.
+      const row = this.transcriptionRequests[0];
+      if (!row || row.status !== 'submitted') return [];
+      Object.assign(row, patch);
+      return returningKeys.length > 0 ? [{ id: 1 }] : [];
+    }
     if (target !== sessionAiProcessingJobs) return [];
-    const wasProcessing =
-      this.job.status === 'processing' &&
-      this.job.lockedBy === WORKER_ID;
-    if (!wasProcessing) return [];
+    // Il claim del worker resta condizionato al lock, ma la callback agisce
+    // su un job parcheggiato, che per definizione non e' bloccato da nessuno.
+    const claimedByWorker =
+      this.job.status === 'processing' && this.job.lockedBy === WORKER_ID;
+    const parked = this.job.status === 'awaiting_provider';
+    if (!claimedByWorker && !parked) return [];
     Object.assign(this.job, patch);
     if (returningKeys.length === 0) return [];
     return [{
@@ -798,4 +861,99 @@ test('rieseguire lo stesso job non consegna due volte lo stesso audio', async ()
   assert.equal(harness.db.transcriptionRequests.length, 1);
   assert.equal(second.parked, 1);
   assertNoProductionFallbacks();
+});
+
+const callbackModule = moduleExports<typeof import('./stt-callback')>(
+  require('./stt-callback.ts'),
+  'ingestTranscriptionCallback'
+);
+
+function callbackPayload(requestId = 'injected-request-1'): unknown {
+  return { metadata: { request_id: requestId }, results: { utterances: [] } };
+}
+
+async function harnessWithSubmittedRequest() {
+  const harness = createHarness();
+  await processingModule.processAiNotesBatch(
+    { workerId: WORKER_ID, limit: 1 },
+    harness.dependencies
+  );
+  const token = String(harness.db.transcriptionRequests[0]!.callbackToken);
+  return { harness, token };
+}
+
+test('la callback scrive la trascrizione e completa il job', async () => {
+  const { harness, token } = await harnessWithSubmittedRequest();
+
+  const outcome = await callbackModule.ingestTranscriptionCallback(
+    { token, payload: callbackPayload() },
+    harness.dependencies
+  );
+
+  assert.equal(outcome, 'ingested');
+  assert.equal(harness.db.transcripts.length, 1);
+  assert.equal(
+    harness.db.transcripts[0]!.text,
+    '  Testo grezzo, invariato!  '
+  );
+  assert.equal(harness.db.transcriptionRequests[0]!.status, 'received');
+  assert.equal(harness.db.job.status, 'completed');
+});
+
+test('una seconda consegna della stessa callback non duplica il parlato', async () => {
+  const { harness, token } = await harnessWithSubmittedRequest();
+
+  const first = await callbackModule.ingestTranscriptionCallback(
+    { token, payload: callbackPayload() },
+    harness.dependencies
+  );
+  const second = await callbackModule.ingestTranscriptionCallback(
+    { token, payload: callbackPayload() },
+    harness.dependencies
+  );
+
+  // Il provider ritenta fino a dieci volte: una seconda ingestione
+  // dovrebbe raddoppiare il testo della sessione se non fosse serializzata.
+  assert.equal(first, 'ingested');
+  assert.equal(second, 'duplicate');
+  assert.equal(harness.db.transcripts.length, 1);
+});
+
+test('un token sconosciuto non rivela nulla e non scrive nulla', async () => {
+  const { harness } = await harnessWithSubmittedRequest();
+
+  const outcome = await callbackModule.ingestTranscriptionCallback(
+    { token: 'f'.repeat(64), payload: callbackPayload() },
+    harness.dependencies
+  );
+
+  assert.equal(outcome, 'unknown');
+  assert.equal(harness.db.transcripts.length, 0);
+});
+
+test('un token malformato viene rifiutato prima di toccare il database', async () => {
+  const { harness } = await harnessWithSubmittedRequest();
+
+  const outcome = await callbackModule.ingestTranscriptionCallback(
+    { token: '../../etc/passwd', payload: callbackPayload() },
+    harness.dependencies
+  );
+
+  assert.equal(outcome, 'unknown');
+  assert.equal(harness.db.transcripts.length, 0);
+});
+
+test('un corpo con un request id altrui viene rifiutato', async () => {
+  const { harness, token } = await harnessWithSubmittedRequest();
+
+  const outcome = await callbackModule.ingestTranscriptionCallback(
+    { token, payload: callbackPayload('richiesta-di-qualcun-altro') },
+    harness.dependencies
+  );
+
+  // Il token da solo non basta: deve corrispondere anche l'identificativo
+  // restituito dal provider all'invio.
+  assert.equal(outcome, 'unknown');
+  assert.equal(harness.db.transcripts.length, 0);
+  assert.equal(harness.db.transcriptionRequests[0]!.status, 'submitted');
 });
