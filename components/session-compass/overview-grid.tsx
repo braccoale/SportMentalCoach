@@ -11,7 +11,13 @@ import { EmotionalTrendChart } from './charts';
 import { SessionHeroInsight } from './hero-insight';
 import { JourneyNarrative } from './journey-narrative';
 import { SessionContinuityCard } from './journey-panel';
-import { ConversationParticipationCard, SessionIndicators } from './session-indicators';
+import {
+  ConversationParticipationCard,
+  orderSessionMetrics,
+  SessionIndicators,
+  SessionKpiCards,
+  SessionMetricsStrip,
+} from './session-indicators';
 import { NextSessionActions } from './next-session-actions';
 import { RecurringThemesPanel } from './recurring-themes-panel';
 import { formatTranscriptTimestamp } from './time';
@@ -106,6 +112,31 @@ export function SessionOverview({
           onOpenEvidence={onOpenEvidence}
         />
 
+        <SessionMetricsStrip
+          metrics={overview.metrics ?? []}
+          isApproved={isApproved}
+          onOpenEvidence={onOpenEvidence}
+        />
+
+        {overview.conversationParticipation ? (
+          <div className="grid min-w-0 items-stretch gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+            <ConversationParticipationCard participation={overview.conversationParticipation} />
+            <SessionKpiCards
+              themeCount={overview.themes.length}
+              actionCount={report.nextSessionPrep.length}
+              keyMomentCount={report.keyMoments.length}
+              hasEmergingResource={Boolean(overview.emergingResource)}
+            />
+          </div>
+        ) : (
+          <SessionKpiCards
+            themeCount={overview.themes.length}
+            actionCount={report.nextSessionPrep.length}
+            keyMomentCount={report.keyMoments.length}
+            hasEmergingResource={Boolean(overview.emergingResource)}
+          />
+        )}
+
         <div className="grid min-w-0 items-start gap-4 lg:grid-cols-2">
           <NextSessionActions
             items={report.nextSessionPrep}
@@ -170,14 +201,14 @@ export function SessionOverview({
           currentSessionDate={currentSessionDate ?? null}
         />
 
-        <SessionIndicators
-          metrics={overview.metrics ?? []}
-          tone={overview.conversationTone}
-          isApproved={isApproved}
-          onOpenEvidence={onOpenEvidence}
-        />
-
-        <ConversationParticipationCard participation={overview.conversationParticipation} />
+        {(overview.metrics?.length ?? 0) > 5 || overview.conversationTone ? (
+          <SessionIndicators
+            metrics={orderSessionMetrics(overview.metrics ?? []).slice(5)}
+            tone={overview.conversationTone}
+            isApproved={isApproved}
+            onOpenEvidence={onOpenEvidence}
+          />
+        ) : null}
       </div>
     </div>
   );

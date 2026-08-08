@@ -228,6 +228,18 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     actionLabel: 'Accetta l’invito',
   }),
 
+  athlete_registered: template('athlete_registered', {
+    eyebrow: 'Nuovo atleta',
+    subject: '{{athlete.fullName}} si è registrato su KaiPai',
+    title: 'Un nuovo atleta si è registrato',
+    body: [
+      'Ciao {{recipient.firstName}},',
+      '{{athlete.fullName}} ha creato un account atleta su KaiPai.',
+    ],
+    outro: null,
+    actionLabel: 'Apri l’area admin',
+  }),
+
   provider_registered: template('provider_registered', {
     eyebrow: 'Nuovo coach',
     subject: '{{coach.fullName}} si è registrato come coach',

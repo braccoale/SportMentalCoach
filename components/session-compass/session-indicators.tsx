@@ -1,6 +1,6 @@
 'use client';
 
-import { MessagesSquare } from 'lucide-react';
+import { CheckCheck, ListChecks, MessagesSquare, Sparkles, Target } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import type {
@@ -8,11 +8,13 @@ import type {
   ConversationTone,
   SessionMetric,
 } from '@/lib/core/ai-session-notes/session-compass-contract';
+import { SESSION_METRIC_KEYS } from '@/lib/core/ai-session-notes/session-compass-contract';
 import { METRIC_META, metricValueLabel } from './metric-model';
 import { SectionHeading, Surface } from './ui';
 
 const SEGMENTS = [1, 2, 3, 4, 5] as const;
 const VISIBLE_METRICS = 3;
+const METRICS_STRIP_LIMIT = 5;
 
 const TONE_LABEL: Record<ConversationTone['key'], string> = {
   enthusiastic: 'Entusiasta',
@@ -38,6 +40,12 @@ function formatTalkTime(milliseconds: number): string {
   const seconds = Math.round(milliseconds / 1000);
   if (seconds < 60) return `${seconds} sec`;
   return `${Math.floor(seconds / 60)} min`;
+}
+
+export function orderSessionMetrics(metrics: readonly SessionMetric[]): SessionMetric[] {
+  return [...metrics].sort(
+    (left, right) => SESSION_METRIC_KEYS.indexOf(left.key) - SESSION_METRIC_KEYS.indexOf(right.key)
+  );
 }
 
 /**
@@ -142,6 +150,113 @@ export function SessionIndicators({
 }
 
 /**
+ * Fascia di lettura rapida: contiene soltanto segnali ordinali che esistono
+ * davvero nel report. I cinque segmenti non sono una percentuale: rendono
+ * visibile una scala discreta 1–5 e il valore resta sempre esplicito.
+ */
+export function SessionMetricsStrip({
+  metrics,
+  isApproved,
+  onOpenEvidence,
+}: {
+  metrics: readonly SessionMetric[];
+  isApproved: boolean;
+  onOpenEvidence: (segmentId: number) => void;
+}) {
+  const visibleMetrics = orderSessionMetrics(metrics).slice(0, METRICS_STRIP_LIMIT);
+  if (!visibleMetrics.length) return null;
+
+  const validation = isApproved ? 'Validata dal coach' : 'Da validare dal coach';
+  return (
+    <section
+      className="overflow-hidden rounded-2xl border border-violet-100 bg-gradient-to-r from-violet-50/80 via-white to-emerald-50/70 p-4 shadow-[0_12px_36px_-28px_rgba(76,29,149,0.55)] sm:p-5"
+      aria-labelledby="session-metrics-strip-title"
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-700">Segnali con evidenza</p>
+          <h3 id="session-metrics-strip-title" className="mt-1 text-base font-bold text-gray-950">Indicatori della sessione</h3>
+        </div>
+        <p className="text-xs leading-5 text-gray-600">Scala ordinale 1–5 · non clinica</p>
+      </div>
+
+      <ul className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+        {visibleMetrics.map((metric) => {
+          const meta = METRIC_META[metric.key];
+          const level = evidenceLevel(metric.confidence);
+          const origin = evidenceOrigin(metric.evidence.speaker);
+          return (
+            <li key={metric.id} className="min-w-0">
+              <button
+                type="button"
+                className="group flex min-h-[8.75rem] w-full flex-col rounded-xl border border-white/90 bg-white/90 p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+                onClick={() => onOpenEvidence(metric.evidence.transcriptSegmentId)}
+                aria-label={`${meta.label}: ${metric.value} su 5, ${metricValueLabel(metric.value).toLocaleLowerCase('it')}. Evidenza ${level}, ${origin}. ${validation}. Vai all'evidenza nella trascrizione.`}
+              >
+                <span className="flex w-full items-start justify-between gap-2">
+                  <span className="line-clamp-2 text-sm font-bold leading-5 text-gray-950">{meta.label}</span>
+                  <span className="shrink-0 rounded-lg px-1.5 py-0.5 text-sm font-black" style={{ color: meta.color, backgroundColor: `${meta.color}12` }}>
+                    {metric.value}/5
+                  </span>
+                </span>
+                <span className="mt-3 flex w-full gap-1" aria-hidden="true">
+                  {SEGMENTS.map((segment) => (
+                    <span
+                      key={segment}
+                      className="h-2 flex-1 rounded-full"
+                      style={{ backgroundColor: segment <= metric.value ? meta.color : '#e5e7eb' }}
+                    />
+                  ))}
+                </span>
+                <span className="mt-2 text-xs font-semibold text-gray-700">{metricValueLabel(metric.value)}</span>
+                <span className="mt-auto pt-2 text-[11px] leading-4 text-gray-500">Evidenza {level} · {origin}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+
+      {metrics.length > METRICS_STRIP_LIMIT ? (
+        <p className="mt-3 text-xs leading-5 text-gray-600">Altri {metrics.length - METRICS_STRIP_LIMIT} segnali con evidenza disponibili nel dettaglio del report.</p>
+      ) : null}
+    </section>
+  );
+}
+
+/** Conteggi deterministici del report corrente: non usano stime AI o percentuali. */
+export function SessionKpiCards({
+  themeCount,
+  actionCount,
+  keyMomentCount,
+  hasEmergingResource,
+}: {
+  themeCount: number;
+  actionCount: number;
+  keyMomentCount: number;
+  hasEmergingResource: boolean;
+}) {
+  const items = [
+    { label: 'Temi emersi', value: themeCount, icon: <Target className="h-4 w-4" />, tone: 'text-violet-700 bg-violet-50 border-violet-100' },
+    { label: 'Azioni definite', value: actionCount, icon: <ListChecks className="h-4 w-4" />, tone: 'text-emerald-700 bg-emerald-50 border-emerald-100' },
+    { label: 'Momenti chiave', value: keyMomentCount, icon: <Sparkles className="h-4 w-4" />, tone: 'text-amber-800 bg-amber-50 border-amber-100' },
+    ...(hasEmergingResource ? [{ label: 'Risorsa emersa', value: 1, icon: <CheckCheck className="h-4 w-4" />, tone: 'text-sky-700 bg-sky-50 border-sky-100' }] : []),
+  ].filter((item) => item.value > 0);
+
+  if (!items.length) return null;
+
+  return (
+    <section aria-label="Conteggi della sessione" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {items.map((item) => (
+        <div key={item.label} className={`min-w-0 rounded-xl border p-3 shadow-sm ${item.tone}`}>
+          <div className="flex items-center justify-between gap-2"><span className="text-xs font-semibold">{item.label}</span>{item.icon}</div>
+          <p className="mt-1 text-2xl font-black leading-none tabular-nums">{item.value}</p>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+/**
  * La quota di parola è un conteggio sui segmenti trascritti, non una stima del
  * modello: sta in una card separata perché non condivide né la scala né il
  * grado di incertezza delle metriche interpretative.
@@ -166,16 +281,28 @@ export function ConversationParticipationCard({
         description="Conteggio diretto sui segmenti trascritti, non una stima dell’AI."
       />
 
-      <div
-        className="mt-4 flex h-3 overflow-hidden rounded-full bg-gray-100"
-        role="img"
-        aria-label={`Quota di parola trascritta: atleta ${athleteShare}%, coach ${coachShare}%.`}
-      >
-        <span className="bg-sky-500" style={{ width: `${athleteShare}%` }} />
-        <span className="bg-violet-400" style={{ width: `${coachShare}%` }} />
+      <div className="mt-4 grid items-center gap-4 sm:grid-cols-[7rem_minmax(0,1fr)]">
+        <div
+          className="relative mx-auto grid h-24 w-24 place-items-center rounded-full"
+          role="img"
+          aria-label={`Quota di parola trascritta: atleta ${athleteShare}%, coach ${coachShare}%. Deriva dalla durata e dal conteggio degli interventi trascritti.`}
+          style={{ background: `conic-gradient(#0ea5e9 0 ${athleteShare}%, #a78bfa ${athleteShare}% 100%)` }}
+        >
+          <span className="grid h-[4.55rem] w-[4.55rem] place-items-center rounded-full bg-white text-center">
+            <span><span className="block text-xl font-black tabular-nums text-sky-700">{athleteShare}%</span><span className="block text-[10px] font-bold uppercase tracking-wide text-gray-500">Atleta</span></span>
+          </span>
+        </div>
+        <div
+          className="flex h-3 overflow-hidden rounded-full bg-gray-100"
+          role="img"
+          aria-label={`Barra divisa: atleta ${athleteShare}%, coach ${coachShare}%.`}
+        >
+          <span className="bg-sky-500" style={{ width: `${athleteShare}%` }} />
+          <span className="bg-violet-400" style={{ width: `${coachShare}%` }} />
+        </div>
       </div>
 
-      <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+      <dl className="mt-4 grid gap-3 sm:grid-cols-2">
         <ParticipantRow
           dotClass="bg-sky-500"
           label="Atleta"

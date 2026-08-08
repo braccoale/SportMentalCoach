@@ -119,6 +119,19 @@ test('ogni template di default usa solo segnaposto consentiti', () => {
   assert.deepEqual(validateDefaultTemplates(), []);
 });
 
+test('la registrazione atleta avvisa gli admin via app ed email per impostazione predefinita', () => {
+  const event = NOTIFICATION_EVENTS.athlete_registered;
+  const template = DEFAULT_EMAIL_TEMPLATES.athlete_registered;
+
+  assert.equal(event.category, 'account');
+  assert.equal(event.emailDefault, true);
+  assert.equal(event.inAppDefault, true);
+  assert.equal(event.hasInApp, true);
+  assert.ok(event.variables.includes('athlete.fullName'));
+  assert.match(template.subject, /\{\{athlete\.fullName\}\}/);
+  assert.match(template.textBody, /^Ciao \{\{recipient\.firstName\}\},/);
+});
+
 test('le email admin distinguono registrazione e richiesta di revisione', () => {
   const context = { coach: { fullName: 'Emanuele Orlandi' } };
   const registered = renderTemplate(

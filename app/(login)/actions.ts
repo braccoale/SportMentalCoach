@@ -43,6 +43,7 @@ import {
   ensureProfile,
   syncDisplayName,
   provisionMarketplaceRole,
+  notifyAdminsOfAthleteRegistration,
   notifyAdminsOfProviderRegistration,
   type SignupRole
 } from '@/lib/core/profiles';
@@ -448,6 +449,11 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
   if (marketplaceRole === 'coach') {
     await notifyAdminsOfProviderRegistration(createdUser.id).catch((error) => {
       console.error('Coach registration notification failed:', error);
+    });
+  }
+  if (marketplaceRole === 'athlete') {
+    await notifyAdminsOfAthleteRegistration(createdUser.id).catch((error) => {
+      console.error('Athlete registration notification failed:', error);
     });
   }
 

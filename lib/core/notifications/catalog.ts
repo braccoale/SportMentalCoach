@@ -106,6 +106,7 @@ export type NotificationEventKey =
   | 'ai_report_ready'
   | 'coach_invitation'
   | 'security_alert'
+  | 'athlete_registered'
   | 'provider_registered'
   | 'provider_review_requested'
   | 'provider_approved'
@@ -313,6 +314,18 @@ export const NOTIFICATION_EVENTS: Record<
     // The recipient may not have an account yet, so there is no in-app twin.
     hasInApp: false,
     variables: [...COMMON_VARIABLES, 'inviter.name'],
+  }),
+  athlete_registered: event({
+    key: 'athlete_registered',
+    category: 'account',
+    label: 'Nuovo atleta registrato',
+    hint: 'Solo per gli amministratori.',
+    templateKey: 'athlete_registered',
+    mandatoryEmail: false,
+    emailDefault: true,
+    inAppDefault: true,
+    hasInApp: true,
+    variables: [...COMMON_VARIABLES, 'athlete.fullName'],
   }),
   provider_registered: event({
     key: 'provider_registered',

@@ -68,6 +68,38 @@ export async function notifyAdminsOfProviderRegistration(
   await notifyAdminsOfProviderEvent('provider_registered', details);
 }
 
+/** Alerts every admin as soon as an athlete account has been created. */
+export async function notifyAdminsOfAthleteRegistration(
+  athleteUserId: number
+): Promise<void> {
+  const [row] = await db
+    .select({
+      displayName: profiles.displayName,
+      email: users.email,
+      registeredAt: users.createdAt,
+    })
+    .from(users)
+    .leftJoin(profiles, eq(profiles.userId, users.id))
+    .where(eq(users.id, athleteUserId))
+    .limit(1);
+
+  if (!row) return;
+  const admins = await db
+    .select({ userId: userRoles.userId })
+    .from(userRoles)
+    .where(eq(userRoles.roleKey, 'admin'));
+  const details = {
+    athleteName: resolveDisplayName(row.displayName, row.email),
+    registeredAt: row.registeredAt,
+  };
+
+  await Promise.all(
+    admins.map(({ userId: adminUserId }) =>
+      notify('athlete_registered', adminUserId, details)
+    )
+  );
+}
+
 /** Marketplace roles a user can self-select at signup (never `admin`). */
 export type SignupRole = 'athlete' | 'coach' | 'club';
 

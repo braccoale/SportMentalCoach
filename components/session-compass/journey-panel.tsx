@@ -314,6 +314,7 @@ export function AthleteJourneyPanel({
       <AthleteProgressCharts
         journey={journey}
         report={report}
+        isApproved={isApproved}
         currentSessionId={currentSessionId}
         currentSessionDate={currentSessionDate}
       />

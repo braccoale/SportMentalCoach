@@ -608,6 +608,12 @@ function buildContent(
           : 'Hai ricevuto un nuovo messaggio.',
         data: { link: bookingLink ?? '/dashboard', bookingId: ctx.bookingId },
       };
+    case 'athlete_registered':
+      return {
+        title: 'Nuovo atleta registrato',
+        body: `${ctx.athleteName?.trim() || 'Un nuovo atleta'} si è registrato su KaiPai.`,
+        data: { link: '/dashboard/admin' },
+      };
     case 'provider_registered':
       return {
         title: 'Nuovo coach registrato',
@@ -741,11 +747,16 @@ async function buildEmailPayload(
   const data = ctx.bookingId ? await loadBookingEmailData(ctx.bookingId) : null;
 
   if (!data) {
-    const providerCard =
-      type === 'provider_registered' || type === 'provider_review_requested'
+    const registrationCard =
+      type === 'athlete_registered' ||
+      type === 'provider_registered' ||
+      type === 'provider_review_requested'
         ? {
             rows: [
-              { label: 'Coach', value: ctx.coachName ?? null },
+              {
+                label: type === 'athlete_registered' ? 'Atleta' : 'Coach',
+                value: type === 'athlete_registered' ? ctx.athleteName ?? null : ctx.coachName ?? null,
+              },
               {
                 label: 'Registrato',
                 value: formatDateTimeIt(ctx.registeredAt),
@@ -764,7 +775,7 @@ async function buildEmailPayload(
         : null;
     return {
       context: { ...base, ...(ctx.emailContext ?? {}) },
-      card: providerCard,
+      card: registrationCard,
       secondaryAction: null,
     };
   }

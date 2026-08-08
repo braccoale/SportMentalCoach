@@ -21,6 +21,8 @@ import { SessionOverview } from './session-compass/report-sections';
 import {
   ConversationParticipationCard,
   SessionIndicators,
+  SessionKpiCards,
+  SessionMetricsStrip,
 } from './session-compass/session-indicators';
 import { SessionContinuityCard } from './session-compass/journey-panel';
 import { JourneyNarrative } from './session-compass/journey-narrative';
@@ -234,6 +236,52 @@ test('gli indicatori non mostrano zero quando una metrica è assente', () => {
   assert.match(html, /Validata nel report/);
 });
 
+test('la fascia rapida usa al massimo cinque metriche ordinali con evidenza', () => {
+  const html = renderToStaticMarkup(
+    <SessionMetricsStrip
+      metrics={[
+        metric('confidence', 4),
+        metric('pre_competition_anxiety', 2),
+        metric('concentration', 3),
+        { ...metric('confidence', 5), id: 'metric-energy', key: 'energy' },
+        { ...metric('confidence', 1), id: 'metric-motivation', key: 'motivation' },
+        { ...metric('confidence', 4), id: 'metric-emotional', key: 'emotional_management' },
+      ]}
+      isApproved={false}
+      onOpenEvidence={() => undefined}
+    />
+  );
+
+  assert.match(html, /Indicatori della sessione/);
+  assert.match(html, /Altri 1 segnali con evidenza/);
+  assert.match(html, /Fiducia/);
+  assert.match(html, /Motivazione/);
+  assert.doesNotMatch(html, /Ansia pre-gara/);
+  assert.doesNotMatch(html, /60%/);
+  assert.match(html, /aria-label="Fiducia: 4 su 5, alto\./);
+});
+
+test('le card KPI mostrano solo conteggi reali, senza percentuali', () => {
+  const html = renderToStaticMarkup(
+    <SessionKpiCards themeCount={3} actionCount={2} keyMomentCount={2} hasEmergingResource />
+  );
+
+  assert.match(html, /Temi emersi/);
+  assert.match(html, />3</);
+  assert.match(html, /Azioni definite/);
+  assert.match(html, /Momenti chiave/);
+  assert.match(html, /Risorsa emersa/);
+  assert.doesNotMatch(html, /%/);
+});
+
+test('le card KPI omettono categorie senza elementi reali', () => {
+  const html = renderToStaticMarkup(
+    <SessionKpiCards themeCount={0} actionCount={0} keyMomentCount={0} hasEmergingResource={false} />
+  );
+
+  assert.equal(html, '');
+});
+
 test('senza metriche e senza tono la card degli indicatori non viene resa', () => {
   assert.equal(
     renderToStaticMarkup(
@@ -273,7 +321,7 @@ test('la quota di parola vive in una card separata dalle metriche interpretative
   // Equivalente testuale accanto alla barra.
   assert.match(participation, /69% del parlato · 27 min · 41 turni/);
   assert.match(participation, /31% del parlato · 12 min · 38 turni/);
-  assert.match(participation, /aria-label="Quota di parola trascritta: atleta 69%, coach 31%\."/);
+  assert.match(participation, /aria-label="Quota di parola trascritta: atleta 69%, coach 31%\. Deriva dalla durata e dal conteggio degli interventi trascritti\."/);
 });
 
 test('la partecipazione non viene resa quando il dato non esiste', () => {

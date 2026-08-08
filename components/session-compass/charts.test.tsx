@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { EmotionalTrendChart } from './charts';
+import { AthleteProgressCharts, EmotionalTrendChart } from './charts';
 import { SessionIndicators } from './session-indicators';
-import type { EmotionalTrendPoint } from '@/lib/core/ai-session-notes/session-compass-contract';
+import type { MentalJourney } from '@/lib/core/ai-session-notes/mental-journey';
+import type { EmotionalTrendPoint, SessionCompassReport } from '@/lib/core/ai-session-notes/session-compass-contract';
 
 function point(
   id: string,
@@ -86,4 +87,69 @@ test('i segnali narrativi mostrano inizialmente tre passaggi e un controllo acce
   assert.doesNotMatch(html, /Segnale 4/);
   assert.match(html, /Mostra tutti/);
   assert.match(html, /aria-expanded="false"/);
+});
+
+function trendJourney(values: number[]): MentalJourney {
+  return {
+    athleteUserId: 1,
+    summary: { firstSessionDate: null, lastSessionDate: null, approvedSessionCount: values.length, commitments: { total: 0, completed: 0, inProgress: 0, pending: 0, skipped: 0 }, completionRate: null },
+    timeline: values.map((value, index) => ({
+      sessionId: index + 1,
+      bookingId: index + 1,
+      reportId: index + 1,
+      reportVersion: 1,
+      sessionDate: `2026-0${index + 5}-01T10:00:00.000Z`,
+      approvedAt: `2026-0${index + 5}-01T11:00:00.000Z`,
+      coachName: 'Coach',
+      summary: '',
+      focus: null,
+      themes: [],
+      emergingResource: null,
+      metrics: [{ key: 'confidence', value, confidence: 'high', transcriptSegmentId: index + 1 }],
+      keyMoments: [],
+      nextSessionPrep: [],
+      commitments: [],
+      compassHref: '#',
+    })),
+    recurringThemes: [],
+    followThrough: [],
+    pointsToRevisit: [],
+  };
+}
+
+const EMPTY_REPORT = { sessionOverview: { metrics: [] } } as unknown as SessionCompassReport;
+
+test('il trend metrico appare solo con tre sessioni approvate confrontabili', () => {
+  const html = renderToStaticMarkup(
+    <AthleteProgressCharts
+      journey={trendJourney([2, 3, 4])}
+      report={EMPTY_REPORT}
+      isApproved={false}
+      currentSessionId={99}
+      currentSessionDate="2026-08-01T10:00:00.000Z"
+    />
+  );
+
+  assert.match(html, /Metriche nei report approvati/);
+  assert.match(html, /Fiducia/);
+  assert.match(html, /2\/5/);
+  assert.match(html, /3\/5/);
+  assert.match(html, /4\/5/);
+  assert.match(html, /Andamento di Fiducia/);
+  assert.doesNotMatch(html, /monotone/);
+});
+
+test('il trend metrico non appare con meno di tre punti reali', () => {
+  const html = renderToStaticMarkup(
+    <AthleteProgressCharts
+      journey={trendJourney([2, 3])}
+      report={EMPTY_REPORT}
+      isApproved={false}
+      currentSessionId={99}
+      currentSessionDate="2026-08-01T10:00:00.000Z"
+    />
+  );
+
+  assert.match(html, /Il trend sarà disponibile dopo altre sessioni approvate/);
+  assert.doesNotMatch(html, /2\/5/);
 });
