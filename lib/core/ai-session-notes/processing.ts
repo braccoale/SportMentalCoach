@@ -23,7 +23,7 @@ import {
   retryStatus,
   sessionCanProcess,
 } from './processing-policy';
-import { getAiNotesAudioMaxBytes } from './recording-config';
+import { dispatchPendingTranscriptionRequests } from './transcription-dispatch';
 import { rebuildSessionTimeline } from './timeline';
 import { advanceAiNotesSessionStatus } from './session-status';
 import { sourceFingerprint, type TimelineSource } from './timeline';
@@ -299,6 +299,37 @@ export async function claimNextAiProcessingJob(params: {
     return row;
   });
   return claimed;
+}
+
+/**
+ * Mette il job in attesa del provider.
+ *
+ * Non è né completato né fallito: il lavoro è stato consegnato e la risposta
+ * arriverà su un altro percorso. Nessun worker deve riprenderlo nel
+ * frattempo, ed è per questo che `awaiting_provider` è fuori dagli stati
+ * claimabili.
+ */
+export async function parkAiProcessingJob(params: {
+  jobId: number;
+  workerId: string;
+}, dependencies: AiSessionNotesDependencies): Promise<boolean> {
+  const [updated] = await dependencies.db
+    .update(sessionAiProcessingJobs)
+    .set({
+      status: 'awaiting_provider',
+      lockedBy: null,
+      lockedAt: null,
+      updatedDate: dependencies.clock.now(),
+    })
+    .where(
+      and(
+        eq(sessionAiProcessingJobs.id, params.jobId),
+        eq(sessionAiProcessingJobs.status, 'processing'),
+        eq(sessionAiProcessingJobs.lockedBy, params.workerId)
+      )
+    )
+    .returning({ id: sessionAiProcessingJobs.id });
+  return Boolean(updated);
 }
 
 export async function completeAiProcessingJob(params: {
@@ -604,48 +635,13 @@ async function assertClaimStillProcessable(
   );
 }
 
-async function transcribeParticipantRecording(
-  job: JobRow,
-  dependencies: AiSessionNotesDependencies
-): Promise<string | undefined> {
-  if (!job.participant_recording_id) throw new AiNotesProcessingError('PARTICIPANT_RECORDING_NOT_FOUND', 'Registrazione partecipante non trovata.');
-  const maxAudioBytes = getAiNotesAudioMaxBytes();
-  const model = process.env.AI_NOTES_STT_MODEL?.trim() || 'nova-3';
-  if (model !== 'nova-3') throw new AiNotesProcessingError('INVALID_JOB', 'Modello STT non consentito.');
-  const language = 'it';
-  const rows = await dependencies.db.select({ id: sessionAudioRecordings.id, order: sessionAudioRecordings.segmentOrder, userId: sessionAudioRecordings.participantUserId, role: sessionAudioRecordings.participantRole, status: sessionAudioRecordings.status, objectKey: sessionAudioRecordings.storageObjectKey, mimeType: sessionAudioRecordings.mimeType, sizeBytes: sessionAudioRecordings.sizeBytes, checksum: sessionAudioRecordings.checksum }).from(sessionAudioRecordings).where(and(eq(sessionAudioRecordings.sessionAiNotesId, job.session_ai_notes_id), eq(sessionAudioRecordings.participantRecordingId, job.participant_recording_id))).orderBy(asc(sessionAudioRecordings.segmentOrder), asc(sessionAudioRecordings.id));
-  const name = job.provider;
-  let operationId: string | undefined;
-  for (const row of rows) {
-    const existing = await dependencies.db.select({ id: sessionTranscriptSegments.id }).from(sessionTranscriptSegments).where(and(eq(sessionTranscriptSegments.physicalRecordingId, row.id), eq(sessionTranscriptSegments.provider, name))).limit(1);
-    if (existing.length) continue;
-    await assertClaimStillProcessable(job, dependencies);
-    if (row.status !== 'recorded') throw new AiNotesProcessingError('AUDIO_NOT_FOUND', 'Segmento audio non disponibile.');
-    if (row.mimeType !== 'audio/ogg' || row.sizeBytes === null || row.sizeBytes <= 0 || row.sizeBytes > maxAudioBytes) throw new AiNotesProcessingError('UNSUPPORTED_AUDIO', 'Formato o dimensione audio non supportati.');
-    const inspected = await dependencies.audioStorage.inspect(row.objectKey);
-    if (!inspected.exists) throw new AiNotesProcessingError('AUDIO_NOT_FOUND', 'File audio non trovato.');
-    if (inspected.sizeBytes !== row.sizeBytes || (row.checksum && inspected.checksum && row.checksum !== inspected.checksum)) throw new AiNotesProcessingError('AUDIO_INTEGRITY_FAILED', 'Integrità file audio non verificata.');
-    const audio = await dependencies.audioStorage.download(row.objectKey);
-    if (audio.byteLength !== row.sizeBytes) throw new AiNotesProcessingError('AUDIO_INTEGRITY_FAILED', 'Dimensione file audio non verificata.');
-    const output = await dependencies.speechToTextProvider.transcribe({ sessionId: job.session_ai_notes_id, participantRecordingId: job.participant_recording_id, physicalSegmentId: row.id, audio, mimeType: 'audio/ogg', language, model });
-    await assertClaimStillProcessable(job, dependencies);
-    const now = dependencies.clock.now();
-    await dependencies.db.transaction(async (tx) => {
-      await tx.delete(sessionTranscriptSegments).where(and(eq(sessionTranscriptSegments.physicalRecordingId, row.id), eq(sessionTranscriptSegments.provider, name)));
-      if (output.segments.length) await tx.insert(sessionTranscriptSegments).values(output.segments.map((segment, index) => ({ sessionAiNotesId: job.session_ai_notes_id, participantRecordingId: job.participant_recording_id!, physicalRecordingId: row.id, participantUserId: row.userId, speakerRole: row.role, sequenceNumber: (row.order ?? 0) * 1_000_000 + index, startedAtMs: segment.startMs, endedAtMs: segment.endMs, text: segment.text, isFinal: true, confidence: segment.confidence, provider: name, providerModel: output.model, providerSegmentId: segment.providerSegmentId, normalizationStatus: 'pending', metadata: {}, createdDate: now, createdBy: job.requested_by, updatedDate: now, updatedBy: job.requested_by })));
-    });
-    operationId = output.providerOperationId ?? operationId;
-  }
-  return operationId;
-}
-
 /** Processes a finite batch and exits. */
 export async function processAiNotesBatch(params: {
   workerId: string;
   limit: number;
-}, dependencies: AiSessionNotesDependencies): Promise<{ claimed: number; completed: number; failed: number; cancelled: number }> {
+}, dependencies: AiSessionNotesDependencies): Promise<{ claimed: number; completed: number; parked: number; failed: number; cancelled: number }> {
   const limit = Math.max(1, Math.min(params.limit, 100));
-  const result = { claimed: 0, completed: 0, failed: 0, cancelled: 0 };
+  const result = { claimed: 0, completed: 0, parked: 0, failed: 0, cancelled: 0 };
   for (let index = 0; index < limit; index += 1) {
     const job = await claimNextAiProcessingJob(
       { workerId: params.workerId },
@@ -656,16 +652,38 @@ export async function processAiNotesBatch(params: {
     try {
       await assertClaimStillProcessable(job, dependencies);
       if (job.job_type === 'transcription') {
-        const providerOperationId = await transcribeParticipantRecording(
-          job,
+        if (!job.participant_recording_id) {
+          throw new AiNotesProcessingError(
+            'PARTICIPANT_RECORDING_NOT_FOUND',
+            'Registrazione partecipante non trovata.'
+          );
+        }
+        const dispatch = await dispatchPendingTranscriptionRequests(
+          {
+            id: job.id,
+            sessionAiNotesId: job.session_ai_notes_id,
+            participantRecordingId: job.participant_recording_id,
+            provider: job.provider,
+          },
           dependencies
         );
-        if (await completeAiProcessingJob({ jobId: job.id, workerId: params.workerId, providerOperationId }, dependencies)) {
-          result.completed += 1;
-          await enqueueNormalizationIfReady(
-            job.session_ai_notes_id,
+        if (dispatch.remaining === 0) {
+          // Tutto già trascritto: non c'è nulla da attendere.
+          if (await completeAiProcessingJob({ jobId: job.id, workerId: params.workerId }, dependencies)) {
+            result.completed += 1;
+            await enqueueNormalizationIfReady(
+              job.session_ai_notes_id,
+              dependencies
+            );
+          }
+        } else {
+          // Il lavoro è dal provider. Il job esce dalla coda senza essere
+          // completato: lo risveglierà la callback.
+          await parkAiProcessingJob(
+            { jobId: job.id, workerId: params.workerId },
             dependencies
           );
+          result.parked += 1;
         }
       } else if (job.job_type === 'report_generation') {
         if (!dependencies.generateSessionCompass) {

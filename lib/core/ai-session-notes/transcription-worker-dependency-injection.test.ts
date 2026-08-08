@@ -9,12 +9,14 @@ import {
   sessionAudioRecordings,
   sessionParticipantRecordings,
   sessionTranscriptSegments,
+  sessionTranscriptionRequests,
 } from '@/lib/db/schema';
 import { InMemoryAudioStorage } from './audio-storage';
 import type {
   SpeechToTextProvider,
-  TranscriptionInput,
   TranscriptionResult,
+  TranscriptionSubmission,
+  TranscriptionSubmitInput,
 } from './providers';
 import type {
   AiSessionNotesDependencies,
@@ -35,6 +37,10 @@ const PROVIDER_NAME = 'injected-stt';
 const AUDIO = Buffer.from('injected ogg bytes');
 
 process.env.AI_NOTES_STT_MODEL = 'nova-3';
+// Senza un'origine per la callback il worker non puo' consegnare nulla: e'
+// una configurazione obbligatoria, e il test la dichiara invece di ereditarla
+// dall'ambiente di chi esegue.
+process.env.AI_NOTES_CALLBACK_BASE_URL = 'https://app.invalid';
 
 type MutableDependencyModule = typeof import('./dependencies');
 type MutableDatabaseModule = typeof import('@/lib/db/drizzle');
@@ -147,6 +153,7 @@ type FakeJob = {
 
 type FakeRecording = {
   id: number;
+  participantRecordingId: number;
   order: number;
   userId: number;
   role: 'coach';
@@ -348,6 +355,7 @@ class FakeDbExecutor {
   readonly job: FakeJob;
   readonly recording: FakeRecording;
   readonly transcripts: TranscriptRow[] = [];
+  readonly transcriptionRequests: Array<Record<string, unknown>> = [];
   readonly auditEvents: Array<Record<string, unknown>> = [];
   readonly claimDates: Date[] = [];
   claimCount = 0;
@@ -376,6 +384,7 @@ class FakeDbExecutor {
     };
     this.recording = {
       id: PHYSICAL_RECORDING_ID,
+      participantRecordingId: PARTICIPANT_RECORDING_ID,
       order: 0,
       userId: REQUESTED_BY,
       role: 'coach',
@@ -488,6 +497,12 @@ class FakeDbExecutor {
         ...row,
       }));
     }
+    if (source === sessionTranscriptionRequests) {
+      return this.transcriptionRequests.map((row, index) => ({
+        id: index + 1,
+        ...row,
+      }));
+    }
     if (source === sessionParticipantRecordings) {
       return [{ id: PARTICIPANT_RECORDING_ID }];
     }
@@ -505,6 +520,8 @@ class FakeDbExecutor {
       this.transcripts.push(
         ...rows.map((row) => row as TranscriptRow)
       );
+    } else if (target === sessionTranscriptionRequests) {
+      this.transcriptionRequests.push(...rows);
     } else if (target === sessionAiAuditEvents) {
       this.auditEvents.push(...rows);
     }
@@ -559,8 +576,8 @@ type Harness = {
   db: FakeDbExecutor;
   storage: InMemoryAudioStorage;
   storageInspect: ReturnType<typeof mock.method>;
-  storageDownload: ReturnType<typeof mock.method>;
-  sttInputs: TranscriptionInput[];
+  storageSignedUrl: ReturnType<typeof mock.method>;
+  sttInputs: TranscriptionSubmitInput[];
   clock: FixedClock;
 };
 
@@ -582,18 +599,28 @@ function createHarness(params: {
         }
       : originalInspect
   );
-  const storageDownload = mock.method(
+  // Il worker non scarica piu' l'audio: chiede una url firmata e la
+  // consegna al provider. Se tornasse a scaricare, questo mock lo direbbe.
+  const storageSignedUrl = mock.method(
     storage,
-    'download',
-    storage.download.bind(storage)
+    'createSignedUrl',
+    storage.createSignedUrl.bind(storage)
   );
-  const sttInputs: TranscriptionInput[] = [];
+  // Il worker non attende piu' la trascrizione: consegna il lavoro e si
+  // ritira. Il finto provider registra cosa gli e' stato consegnato.
+  const sttInputs: TranscriptionSubmitInput[] = [];
   const speechToTextProvider: SpeechToTextProvider = {
-    async transcribe(
-      input: TranscriptionInput
-    ): Promise<TranscriptionResult> {
+    async submit(
+      input: TranscriptionSubmitInput
+    ): Promise<TranscriptionSubmission> {
       sttInputs.push(input);
       if (params.sttFailure) throw params.sttFailure;
+      return { providerRequestId: 'injected-request-1' };
+    },
+    parseCallback(
+      _payload: unknown,
+      physicalSegmentId: number
+    ): TranscriptionResult {
       return {
         providerOperationId: 'injected-operation-1',
         model: 'nova-3',
@@ -602,7 +629,7 @@ function createHarness(params: {
           endMs: 1_750,
           text: '  Testo grezzo, invariato!  ',
           confidence: 0.91,
-          providerSegmentId: `${PHYSICAL_RECORDING_ID}:raw-1`,
+          providerSegmentId: `${physicalSegmentId}:raw-1`,
         }],
       };
     },
@@ -627,7 +654,7 @@ function createHarness(params: {
     db,
     storage,
     storageInspect,
-    storageDownload,
+    storageSignedUrl,
     sttInputs,
     clock,
   };
@@ -649,7 +676,7 @@ function assertNoProductionFallbacks(): void {
   assert.equal(blockedNetwork.mock.callCount(), 0);
 }
 
-test('transcription worker uses explicit dependencies and persists the raw transcript', async () => {
+test('il worker consegna il lavoro al provider e parcheggia il job', async () => {
   const harness = createHarness();
 
   const result = await processingModule.processAiNotesBatch(
@@ -659,53 +686,51 @@ test('transcription worker uses explicit dependencies and persists the raw trans
 
   assert.deepEqual(result, {
     claimed: 1,
-    completed: 1,
+    completed: 0,
+    parked: 1,
     failed: 0,
     cancelled: 0,
   });
   assert.equal(harness.db.claimCount, 1);
+
+  // L'audio non passa mai da noi: al provider va una url firmata.
   assert.equal(harness.storageInspect.mock.callCount(), 1);
   assert.equal(harness.storageInspect.mock.calls[0]?.arguments[0], OBJECT_KEY);
-  assert.equal(harness.storageDownload.mock.callCount(), 1);
-  assert.equal(harness.storageDownload.mock.calls[0]?.arguments[0], OBJECT_KEY);
+  assert.equal(harness.storageSignedUrl.mock.callCount(), 1);
+  assert.equal(harness.storageSignedUrl.mock.calls[0]?.arguments[0], OBJECT_KEY);
   assert.equal(harness.sttInputs.length, 1);
+  assert.ok(harness.sttInputs[0]!.audioUrl.includes(OBJECT_KEY));
   assert.ok(
-    Buffer.from(harness.sttInputs[0]!.audio).equals(AUDIO)
-  );
-  assert.equal(harness.db.transcripts.length, 1);
-  assert.equal(
-    harness.db.transcripts[0]!.text,
-    '  Testo grezzo, invariato!  '
-  );
-  assert.equal(
-    harness.db.transcripts[0]!.provider,
-    PROVIDER_NAME
-  );
-  assert.equal(
-    harness.db.transcripts[0]!.providerModel,
-    'nova-3'
-  );
-  assert.equal(harness.db.job.status, 'completed');
-  assert.equal(
-    harness.db.job.providerOperationId,
-    'injected-operation-1'
-  );
-  assertFixedDate(harness.db.job.startedAt);
-  assert.equal(harness.db.job.lockedAt, null);
-  assertFixedDate(harness.db.job.completedAt);
-  assertFixedDate(harness.db.job.updatedDate);
-  assertFixedDate(harness.db.transcripts[0]!.createdDate);
-  assertFixedDate(harness.db.transcripts[0]!.updatedDate);
-  assert.ok(harness.clock.calls >= 3);
-  assert.ok(
-    harness.db.claimDates.some(
-      (date) => date.getTime() === FIXED_NOW.getTime()
+    harness.sttInputs[0]!.callbackUrl.includes(
+      '/api/internal/ai-notes/stt-callback/'
     )
   );
+
+  // Il job resta in attesa: lo risveglia la callback, non un altro worker.
+  assert.equal(harness.db.job.status, 'awaiting_provider');
+  assert.equal(harness.db.job.lockedBy, null);
+  assert.equal(harness.db.job.completedAt, null);
+
+  // La richiesta e' registrata: e' cio' che rende possibile accorgersi di
+  // una risposta che non arrivera' mai.
+  assert.equal(harness.db.transcriptionRequests.length, 1);
+  assert.equal(
+    harness.db.transcriptionRequests[0]!.providerRequestId,
+    'injected-request-1'
+  );
+  assert.equal(harness.db.transcriptionRequests[0]!.status, 'submitted');
+  assert.match(
+    String(harness.db.transcriptionRequests[0]!.callbackToken),
+    /^[0-9a-f]{64}$/
+  );
+
+  // Nessuna trascrizione viene scritta dal worker: quella e' compito della
+  // callback.
+  assert.equal(harness.db.transcripts.length, 0);
   assertNoProductionFallbacks();
 });
 
-test('storage failure skips STT and persists the existing sanitized retry state', async () => {
+test('un fallimento dello storage non consegna nulla al provider', async () => {
   const harness = createHarness({
     storageFailure: new Error(
       'private storage credential must never be persisted'
@@ -717,40 +742,21 @@ test('storage failure skips STT and persists the existing sanitized retry state'
     harness.dependencies
   );
 
-  assert.deepEqual(result, {
-    claimed: 1,
-    completed: 0,
-    failed: 1,
-    cancelled: 0,
-  });
-  assert.equal(harness.storageInspect.mock.callCount(), 1);
-  assert.equal(harness.storageDownload.mock.callCount(), 0);
+  assert.equal(result.failed, 1);
+  assert.equal(result.parked, 0);
   assert.equal(harness.sttInputs.length, 0);
+  assert.equal(harness.db.transcriptionRequests.length, 0);
   assert.equal(harness.db.transcripts.length, 0);
-  assert.equal(harness.db.job.status, 'queued');
-  assert.equal(harness.db.job.attemptCount, 1);
-  assert.equal(harness.db.job.errorCode, 'PROCESSING_FAILED');
-  assert.equal(
-    harness.db.job.errorMessageSanitized,
-    'Elaborazione non completata.'
+  assert.ok(
+    !String(harness.db.job.errorMessageSanitized ?? '').includes('credential'),
+    'il messaggio del provider non deve finire nel database'
   );
-  assert.equal(
-    harness.db.job.availableAfter.toISOString(),
-    '2026-07-31T08:31:00.000Z'
-  );
-  assert.equal(harness.db.job.completedAt, null);
-  assertFixedDate(harness.db.job.updatedDate);
   assertNoProductionFallbacks();
 });
 
-test('STT failure persists the existing terminal failure without a transcript', async () => {
-  const providerError = new AiNotesProcessingError(
-    'PROVIDER_TIMEOUT',
-    'Provider STT non ha risposto in tempo.'
-  );
+test('un fallimento del provider non lascia una richiesta orfana', async () => {
   const harness = createHarness({
-    maxAttempts: 1,
-    sttFailure: providerError,
+    sttFailure: new Error('provider exploded with a secret token inside'),
   });
 
   const result = await processingModule.processAiNotesBatch(
@@ -758,56 +764,38 @@ test('STT failure persists the existing terminal failure without a transcript', 
     harness.dependencies
   );
 
-  assert.deepEqual(result, {
-    claimed: 1,
-    completed: 0,
-    failed: 1,
-    cancelled: 0,
-  });
-  assert.equal(harness.storageDownload.mock.callCount(), 1);
-  assert.equal(harness.sttInputs.length, 1);
+  assert.equal(result.failed, 1);
+  assert.equal(result.parked, 0);
+  // La riga si scrive solo dopo che il provider ha accettato: senza, il
+  // recupero attenderebbe una risposta a una richiesta mai partita.
+  assert.equal(harness.db.transcriptionRequests.length, 0);
   assert.equal(harness.db.transcripts.length, 0);
-  assert.equal(harness.db.job.status, 'failed');
-  assert.equal(harness.db.job.attemptCount, 1);
-  assert.equal(harness.db.job.errorCode, 'PROVIDER_TIMEOUT');
-  assert.equal(
-    harness.db.job.errorMessageSanitized,
-    'Provider STT non ha risposto in tempo.'
+  assert.ok(
+    !String(harness.db.job.errorMessageSanitized ?? '').includes('secret'),
+    'il messaggio del provider non deve finire nel database'
   );
-  assertFixedDate(harness.db.job.availableAfter);
-  assertFixedDate(harness.db.job.completedAt);
-  assertFixedDate(harness.db.job.updatedDate);
   assertNoProductionFallbacks();
 });
 
-test('processing the same transcription job again does not call STT or duplicate raw segments', async () => {
+test('rieseguire lo stesso job non consegna due volte lo stesso audio', async () => {
   const harness = createHarness();
 
   await processingModule.processAiNotesBatch(
     { workerId: WORKER_ID, limit: 1 },
     harness.dependencies
   );
+  assert.equal(harness.sttInputs.length, 1);
+
   harness.db.requeueSameJob();
-  const retryResult = await processingModule.processAiNotesBatch(
+  const second = await processingModule.processAiNotesBatch(
     { workerId: WORKER_ID, limit: 1 },
     harness.dependencies
   );
 
-  assert.deepEqual(retryResult, {
-    claimed: 1,
-    completed: 1,
-    failed: 0,
-    cancelled: 0,
-  });
-  assert.equal(harness.db.claimCount, 2);
-  assert.equal(harness.db.job.attemptCount, 2);
+  // Una richiesta e' gia' viva per quel segmento: consegnarlo di nuovo
+  // significherebbe pagare e trascrivere due volte lo stesso parlato.
   assert.equal(harness.sttInputs.length, 1);
-  assert.equal(harness.storageInspect.mock.callCount(), 1);
-  assert.equal(harness.storageDownload.mock.callCount(), 1);
-  assert.equal(harness.db.transcripts.length, 1);
-  assert.equal(
-    harness.db.transcripts[0]!.text,
-    '  Testo grezzo, invariato!  '
-  );
+  assert.equal(harness.db.transcriptionRequests.length, 1);
+  assert.equal(second.parked, 1);
   assertNoProductionFallbacks();
 });

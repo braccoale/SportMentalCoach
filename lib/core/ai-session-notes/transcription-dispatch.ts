@@ -1,0 +1,185 @@
+import 'server-only';
+import { randomBytes } from 'node:crypto';
+import { and, asc, eq } from 'drizzle-orm';
+import {
+  sessionAudioRecordings,
+  sessionTranscriptSegments,
+  sessionTranscriptionRequests,
+} from '@/lib/db/schema';
+import { getAiNotesAudioMaxBytes } from './recording-config';
+import { AiNotesProcessingError } from './processing-policy';
+import type { AiSessionNotesDependencies } from './dependencies';
+
+/**
+ * Quindici minuti: il provider scarica subito dopo aver accettato la
+ * richiesta, e una finestra più larga terrebbe l'audio raggiungibile senza
+ * motivo.
+ */
+export const SIGNED_URL_TTL_SECONDS = 900;
+
+/**
+ * URL a cui il provider consegnerà i risultati.
+ *
+ * Deve essere raggiungibile da internet: in sviluppo locale serve un tunnel,
+ * altrimenti le trascrizioni non tornano mai.
+ */
+export function sttCallbackUrl(token: string): string {
+  const base = process.env.AI_NOTES_CALLBACK_BASE_URL?.trim();
+  if (!base) {
+    throw new AiNotesProcessingError(
+      'PROVIDER_NOT_CONFIGURED',
+      'URL di callback non configurata.'
+    );
+  }
+  return `${base.replace(/\/$/, '')}/api/internal/ai-notes/stt-callback/${token}`;
+}
+
+export type DispatchOutcome = {
+  /** Richieste inviate in questa passata. */
+  submitted: number;
+  /** Segmenti non ancora trascritti: inviati ora, già in attesa, o non pronti. */
+  remaining: number;
+};
+
+/**
+ * Invia al provider tutti i segmenti del partecipante non ancora trascritti
+ * e non già in attesa di risposta.
+ *
+ * Non scarica mai l'audio: consegna una URL firmata e lascia che sia il
+ * provider a scaricare. È ciò che porta l'invocazione da decine di secondi a
+ * circa uno, e che rende la durata della sessione irrilevante.
+ */
+export async function dispatchPendingTranscriptionRequests(
+  job: {
+    id: number;
+    sessionAiNotesId: number;
+    participantRecordingId: number;
+    provider: string;
+  },
+  dependencies: AiSessionNotesDependencies
+): Promise<DispatchOutcome> {
+  const maxAudioBytes = getAiNotesAudioMaxBytes();
+  const model = process.env.AI_NOTES_STT_MODEL?.trim() || 'nova-3';
+  if (model !== 'nova-3') {
+    throw new AiNotesProcessingError('INVALID_JOB', 'Modello STT non consentito.');
+  }
+
+  const rows = await dependencies.db
+    .select({
+      id: sessionAudioRecordings.id,
+      participantRecordingId: sessionAudioRecordings.participantRecordingId,
+      status: sessionAudioRecordings.status,
+      objectKey: sessionAudioRecordings.storageObjectKey,
+      mimeType: sessionAudioRecordings.mimeType,
+      sizeBytes: sessionAudioRecordings.sizeBytes,
+      checksum: sessionAudioRecordings.checksum,
+    })
+    .from(sessionAudioRecordings)
+    .where(
+      and(
+        eq(sessionAudioRecordings.sessionAiNotesId, job.sessionAiNotesId),
+        eq(
+          sessionAudioRecordings.participantRecordingId,
+          job.participantRecordingId
+        )
+      )
+    )
+    .orderBy(asc(sessionAudioRecordings.segmentOrder), asc(sessionAudioRecordings.id));
+
+  let submitted = 0;
+  let remaining = 0;
+
+  for (const row of rows) {
+    if (row.participantRecordingId !== job.participantRecordingId) continue;
+
+    const already = await dependencies.db
+      .select({ id: sessionTranscriptSegments.id })
+      .from(sessionTranscriptSegments)
+      .where(
+        and(
+          eq(sessionTranscriptSegments.physicalRecordingId, row.id),
+          eq(sessionTranscriptSegments.provider, job.provider)
+        )
+      )
+      .limit(1);
+    if (already.length) continue;
+
+    const live = await dependencies.db
+      .select({ id: sessionTranscriptionRequests.id })
+      .from(sessionTranscriptionRequests)
+      .where(
+        and(
+          eq(sessionTranscriptionRequests.physicalRecordingId, row.id),
+          eq(sessionTranscriptionRequests.status, 'submitted')
+        )
+      )
+      .limit(1);
+    if (live.length) {
+      remaining += 1;
+      continue;
+    }
+
+    if (row.status !== 'recorded') {
+      // Un segmento ancora aperto non è un errore: la sessione può essere in
+      // corso. Si conta come mancante e si riproverà.
+      remaining += 1;
+      continue;
+    }
+    if (
+      row.mimeType !== 'audio/ogg' ||
+      row.sizeBytes === null ||
+      row.sizeBytes <= 0 ||
+      row.sizeBytes > maxAudioBytes
+    ) {
+      throw new AiNotesProcessingError('UNSUPPORTED_AUDIO', 'Formato o dimensione audio non supportati.');
+    }
+
+    const inspected = await dependencies.audioStorage.inspect(row.objectKey);
+    if (!inspected.exists) {
+      throw new AiNotesProcessingError('AUDIO_NOT_FOUND', 'File audio non trovato.');
+    }
+    if (
+      inspected.sizeBytes !== row.sizeBytes ||
+      (row.checksum && inspected.checksum && row.checksum !== inspected.checksum)
+    ) {
+      throw new AiNotesProcessingError('AUDIO_INTEGRITY_FAILED', 'Integrità file audio non verificata.');
+    }
+
+    const previous = await dependencies.db
+      .select({ id: sessionTranscriptionRequests.id })
+      .from(sessionTranscriptionRequests)
+      .where(eq(sessionTranscriptionRequests.physicalRecordingId, row.id));
+    const attempt = previous.length + 1;
+
+    const token = randomBytes(32).toString('hex');
+    // Rigenerata a ogni tentativo: una reimmissione a distanza di ore non
+    // deve mai dipendere da una firma vecchia.
+    const audioUrl = await dependencies.audioStorage.createSignedUrl(
+      row.objectKey,
+      SIGNED_URL_TTL_SECONDS
+    );
+
+    const submission = await dependencies.speechToTextProvider.submit({
+      audioUrl,
+      callbackUrl: sttCallbackUrl(token),
+      language: 'it',
+      model,
+    });
+
+    await dependencies.db.insert(sessionTranscriptionRequests).values({
+      physicalRecordingId: row.id,
+      processingJobId: job.id,
+      callbackToken: token,
+      providerRequestId: submission.providerRequestId,
+      provider: job.provider,
+      status: 'submitted',
+      attempt,
+      submittedAt: dependencies.clock.now(),
+    });
+
+    submitted += 1;
+    remaining += 1;
+  }
+
+  return { submitted, remaining };
+}

@@ -20,8 +20,9 @@ import {
 } from './livekit-session-control';
 import type {
   SpeechToTextProvider,
-  TranscriptionInput,
   TranscriptionResult,
+  TranscriptionSubmission,
+  TranscriptionSubmitInput,
 } from './providers';
 
 const FIXED_NOW = new Date('2026-07-30T10:00:00.000Z');
@@ -646,7 +647,7 @@ type TestHarness = {
   liveKit: InMemoryLiveKitSessionControl;
   listParticipantsCalls: string[];
   audioStorageCallCount(): number;
-  sttInputs: TranscriptionInput[];
+  sttInputs: TranscriptionSubmitInput[];
 };
 
 function acceptedRecording(params: {
@@ -737,12 +738,17 @@ function createHarness(params: {
     audioStorage.deleteAndVerify.bind(audioStorage)
   );
 
-  const sttInputs: TranscriptionInput[] = [];
+  // Nessun evento LiveKit deve arrivare fino al provider STT: se ci arriva,
+  // il test lo deve far esplodere invece di lasciarlo passare in silenzio.
+  const sttInputs: TranscriptionSubmitInput[] = [];
   const speechToTextProvider: SpeechToTextProvider = {
-    async transcribe(
-      input: TranscriptionInput
-    ): Promise<TranscriptionResult> {
+    async submit(
+      input: TranscriptionSubmitInput
+    ): Promise<TranscriptionSubmission> {
       sttInputs.push(input);
+      throw new Error('STT_MUST_NOT_BE_USED');
+    },
+    parseCallback(): TranscriptionResult {
       throw new Error('STT_MUST_NOT_BE_USED');
     },
   };
