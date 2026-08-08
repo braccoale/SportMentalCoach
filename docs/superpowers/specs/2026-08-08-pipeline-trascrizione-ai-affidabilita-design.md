@@ -113,15 +113,20 @@ non arriva un segnale di fine.
 | `room_finished` | webhook LiveKit | `room_finished` |
 | Fermo di sicurezza | spazzino periodico | `closed_by_timeout` |
 
-**Due azioni distinte, non una.** L'attuale pulsante di stop
-(`recording/stop`) mette in pausa la registrazione lasciando la sessione
-`active`: il coach può riprenderla, ed è un comportamento da preservare — usarlo
-come chiusura definitiva toglierebbe la pausa. Si aggiunge quindi
-un'azione separata *Termina sessione*, che è l'unica a portare la sessione a
-`processing`.
+**Chiusura e pausa restano due cose diverse.** L'endpoint `recording/stop`
+ferma le tracce lasciando la sessione `active`, cioè riprendibile — nel
+pannello del coach questo corrisponde oggi al comando *Riprendi
+registrazione*, che esiste già. Non va riusato come chiusura: toglierebbe la
+pausa. Si aggiunge quindi un'azione separata *Fine sessione*, l'unica che
+porta la sessione a `processing`.
 
-Terminare la sessione AI **non chiude la videochiamata**: coach e atleta
+Chiudere la sessione AI **non chiude la videochiamata**: coach e atleta
 possono restare in stanza a parlare dopo aver concluso la parte registrata.
+
+**La stanza vuota non è un criterio di chiusura.** «Non c'è nessuno in call» è
+indistinguibile da «sono caduti entrambi e stanno rientrando» — che è
+esattamente il caso da salvare. Solo `room_finished`, cioè la cessazione della
+stanza, è un segnale definitivo.
 
 Il fermo di sicurezza usa la soglia già esistente
 `AI_NOTES_AUDIO_SAFETY_TIMEOUT_MINUTES` (180 minuti di default): una sessione
