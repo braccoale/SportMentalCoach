@@ -41,6 +41,37 @@ export function retryStatus(params: {
   return params.attemptCount >= params.maxAttempts ? 'failed' : 'queued';
 }
 
+/**
+ * Oltre questo tempo senza risposta, una richiesta di trascrizione è
+ * considerata persa.
+ *
+ * Volutamente più larga della finestra di ritentativi del provider (dieci
+ * tentativi a trenta secondi, circa cinque minuti) sommata al tempo di
+ * trascrizione di un file lungo: reimmettere troppo presto significherebbe
+ * pagare e trascrivere due volte lo stesso parlato.
+ */
+export const STALE_TRANSCRIPTION_REQUEST_MINUTES = 20;
+
+/**
+ * Se una richiesta inviata al provider non ha più speranza di ricevere
+ * risposta.
+ *
+ * Il provider non conserva le trascrizioni: quando una consegna si perde,
+ * l'unico recupero possibile è reinviare l'audio, che resta nostro per la
+ * durata della retention. Senza questo controllo una risposta mai arrivata
+ * sarebbe indistinguibile da una richiesta mai partita, e la trascrizione si
+ * perderebbe in silenzio.
+ */
+export function isTranscriptionRequestStale(params: {
+  submittedAt: Date;
+  now: Date;
+  staleAfterMinutes: number;
+}): boolean {
+  const elapsedMinutes =
+    (params.now.getTime() - params.submittedAt.getTime()) / 60_000;
+  return elapsedMinutes > params.staleAfterMinutes;
+}
+
 export function retryDelayMs(attemptCount: number): number {
   return Math.min(15 * 60_000, Math.max(1, attemptCount) * 60_000);
 }

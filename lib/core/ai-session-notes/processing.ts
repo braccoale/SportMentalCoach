@@ -10,6 +10,7 @@ import {
   sessionParticipantRecordings,
   sessionTranscriptSegments,
   sessionTranscriptTimelineSegments,
+  sessionTranscriptionRequests,
   type AiProcessingJobStatus,
   type AiProcessingJobType,
 } from '@/lib/db/schema';
@@ -18,10 +19,12 @@ import {
 } from './providers';
 import {
   AiNotesProcessingError,
+  isTranscriptionRequestStale,
   jobRequiresParticipantRecording,
   retryDelayMs,
   retryStatus,
   sessionCanProcess,
+  STALE_TRANSCRIPTION_REQUEST_MINUTES,
 } from './processing-policy';
 import { dispatchPendingTranscriptionRequests } from './transcription-dispatch';
 import { rebuildSessionTimeline } from './timeline';
@@ -299,6 +302,75 @@ export async function claimNextAiProcessingJob(params: {
     return row;
   });
   return claimed;
+}
+
+/**
+ * Rimette in coda i job le cui richieste non hanno mai ricevuto risposta.
+ *
+ * È il meccanismo che impedisce a una trascrizione di perdersi: il provider
+ * non conserva i risultati, quindi una consegna smarrita si recupera solo
+ * reinviando l'audio, che resta nostro per la durata della retention. La
+ * richiesta persa viene marcata `failed` perché il conteggio dei tentativi
+ * resti onesto, e il job torna `queued`.
+ */
+export async function recoverStaleTranscriptionRequests(
+  params: { limit: number },
+  dependencies: AiSessionNotesDependencies
+): Promise<number> {
+  const now = dependencies.clock.now();
+  const limit = Math.max(1, Math.min(params.limit, 100));
+  const rows = await dependencies.db
+    .select({
+      id: sessionTranscriptionRequests.id,
+      jobId: sessionTranscriptionRequests.processingJobId,
+      submittedAt: sessionTranscriptionRequests.submittedAt,
+      status: sessionTranscriptionRequests.status,
+    })
+    .from(sessionTranscriptionRequests)
+    .where(eq(sessionTranscriptionRequests.status, 'submitted'))
+    .orderBy(asc(sessionTranscriptionRequests.id))
+    .limit(limit);
+
+  let recovered = 0;
+  for (const row of rows) {
+    if (row.status !== 'submitted') continue;
+    if (
+      !isTranscriptionRequestStale({
+        submittedAt: row.submittedAt,
+        now,
+        staleAfterMinutes: STALE_TRANSCRIPTION_REQUEST_MINUTES,
+      })
+    ) {
+      continue;
+    }
+    const [claimed] = await dependencies.db
+      .update(sessionTranscriptionRequests)
+      .set({
+        status: 'failed',
+        errorCode: 'CALLBACK_NOT_RECEIVED',
+        updatedDate: now,
+      })
+      .where(
+        and(
+          eq(sessionTranscriptionRequests.id, row.id),
+          eq(sessionTranscriptionRequests.status, 'submitted')
+        )
+      )
+      .returning({ id: sessionTranscriptionRequests.id });
+    if (!claimed) continue;
+
+    await dependencies.db
+      .update(sessionAiProcessingJobs)
+      .set({ status: 'queued', availableAfter: now, updatedDate: now })
+      .where(
+        and(
+          eq(sessionAiProcessingJobs.id, row.jobId),
+          eq(sessionAiProcessingJobs.status, 'awaiting_provider')
+        )
+      );
+    recovered += 1;
+  }
+  return recovered;
 }
 
 /**

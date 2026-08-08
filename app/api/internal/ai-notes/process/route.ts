@@ -5,15 +5,20 @@ import {
   enqueueReadySessionCompassJobs,
   processAiNotesBatch,
   recoverStaleAiProcessingJobs,
+  recoverStaleTranscriptionRequests,
 } from '@/lib/core/ai-session-notes/processing';
 import { closeExpiredAiNotesSessions } from '@/lib/core/ai-session-notes/maintenance';
 import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
 
 export const dynamic = 'force-dynamic';
 /**
- * Tetto del piano Hobby. Il worker è ripartibile per segmento fisico
- * (`transcribeParticipantRecording` salta ciò che è già trascritto), quindi
- * un timeout non perde lavoro: la corsa successiva riprende da dove era.
+ * Tetto del piano Hobby.
+ *
+ * Non è più un vincolo sulla durata delle sessioni: il worker consegna la
+ * trascrizione al provider e si ritira, quindi l'invocazione dura circa un
+ * secondo qualunque sia la lunghezza dell'audio. Resta ripartibile per
+ * segmento — ciò che è già trascritto o già consegnato viene saltato — così
+ * un timeout non perde lavoro.
  */
 export const maxDuration = 60;
 
@@ -55,13 +60,19 @@ async function drainQueue(workerId: string, limit: number) {
   // finché restano `active` continuano a registrare e a produrre audio che
   // nessuno ha chiesto.
   const expiredClosed = await closeExpiredAiNotesSessions(dependencies.liveKit);
+  // Le risposte del provider che non sono mai arrivate: il provider non
+  // conserva le trascrizioni, quindi l'unico recupero è reinviare l'audio.
+  const staleRequests = await recoverStaleTranscriptionRequests(
+    { limit },
+    dependencies
+  );
   const recovered = await recoverStaleAiProcessingJobs({ limit });
   const compassJobsQueued = await enqueueReadySessionCompassJobs(
     { limit },
     dependencies
   );
   const processed = await processAiNotesBatch({ workerId, limit }, dependencies);
-  return { expiredClosed, recovered, compassJobsQueued, ...processed };
+  return { expiredClosed, staleRequests, recovered, compassJobsQueued, ...processed };
 }
 
 async function runWorker(request: Request): Promise<Response> {
