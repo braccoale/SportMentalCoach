@@ -1275,6 +1275,48 @@ export const sessionCoachBookmarks = pgTable(
   ]
 );
 
+export const VOICE_NOTE_STATUSES = ['pending','transcribing','ready','failed'] as const;
+export type VoiceNoteStatus = (typeof VOICE_NOTE_STATUSES)[number];
+
+/**
+ * Una nota vocale del coach, con il proprio ciclo di trascrizione.
+ *
+ * Non usa la tabella delle richieste audio perche' quella lega ogni riga a
+ * un segmento di registrazione, e una nota vocale non lo e'.
+ */
+export const sessionCoachVoiceNotes = pgTable(
+  'session_coach_voice_notes',
+  {
+    id: serial('id').primaryKey(),
+    sessionAiNotesId: integer('session_ai_notes_id')
+      .notNull()
+      .references(() => sessionAiNotes.id, { onDelete: 'cascade' }),
+    storageBucket: varchar('storage_bucket', { length: 100 }).notNull(),
+    storageObjectKey: varchar('storage_object_key', { length: 500 }).notNull(),
+    durationMs: integer('duration_ms'),
+    sizeBytes: integer('size_bytes'),
+    status: varchar('status', { length: 24 }).notNull().default('pending'),
+    transcript: text('transcript'),
+    callbackToken: varchar('callback_token', { length: 64 }).unique(),
+    providerRequestId: varchar('provider_request_id', { length: 200 }),
+    errorCode: varchar('error_code', { length: 80 }),
+    createdDate: timestamp('createddate', { withTimezone: true }).notNull().defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, { onDelete: 'set null' }),
+    updatedDate: timestamp('updateddate', { withTimezone: true }).notNull().defaultNow(),
+    updatedBy: integer('updatedby').references(() => users.id, { onDelete: 'set null' }),
+  },
+  (table) => [
+    index('session_coach_voice_notes_session_idx').on(
+      table.sessionAiNotesId,
+      table.createdDate
+    ),
+    check(
+      'session_coach_voice_notes_status_check',
+      sql`${table.status} in ('pending','transcribing','ready','failed')`
+    ),
+  ]
+);
+
 export const AI_REPORT_STATUSES = [
   'pending',
   'generating',

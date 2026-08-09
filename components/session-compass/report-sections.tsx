@@ -12,6 +12,7 @@ import type {
   SessionCompassReport,
 } from '@/lib/core/ai-session-notes/session-compass-contract';
 import { formatTranscriptTimestamp } from './time';
+import { VoiceNoteButton } from './voice-note-button';
 import {
   EvidenceButton,
   EvidenceReference,
@@ -465,6 +466,8 @@ function formatCompactDate(value: string | null): string {
 
 export function CoachNotesPanel({
   report,
+  sessionId,
+  voiceNotes = [],
   bookmarks = [],
   closingNote = null,
   editable,
@@ -479,6 +482,14 @@ export function CoachNotesPanel({
   onOpenEvidence,
 }: {
   report: SessionCompassReport;
+  sessionId: number;
+  voiceNotes?: readonly {
+    id: number;
+    status: string;
+    transcript: string | null;
+    durationMs: number | null;
+    createdAt: string;
+  }[];
   bookmarks?: readonly { id: number; atMs: number; note: string | null }[];
   closingNote?: string | null;
   editable: boolean;
@@ -497,6 +508,37 @@ export function CoachNotesPanel({
 }) {
   return (
     <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+      {/* La nota vocale sta prima di tutto: da telefono e' il modo piu'
+          rapido di lasciare un'osservazione, ed e' quello per cui esiste. */}
+      <Surface>
+        <SectionHeading
+          eyebrow="Privato"
+          title="Lascia una nota vocale"
+          description="Tieni premuto e parla. Viene trascritta automaticamente; l’atleta non la sente e non la legge."
+        />
+        <div className="mt-4">
+          <VoiceNoteButton sessionId={sessionId} />
+        </div>
+        {voiceNotes.length ? (
+          <ul className="mt-4 space-y-3 border-t border-gray-200/80 pt-4">
+            {voiceNotes.map((note) => (
+              <li key={note.id} className="text-sm">
+                <p className="text-xs font-semibold text-gray-500">
+                  {note.durationMs
+                    ? `${Math.round(note.durationMs / 1000)}s`
+                    : 'Nota vocale'}
+                  {note.status === 'transcribing' ? ' · trascrizione in corso…' : null}
+                  {note.status === 'failed' ? ' · trascrizione non riuscita' : null}
+                </p>
+                {note.transcript ? (
+                  <p className="mt-1 leading-6 text-gray-800">{note.transcript}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </Surface>
+
       {closingNote ? (
         <Surface tone="muted">
           <SectionHeading

@@ -13,6 +13,7 @@ import {
 } from '@/lib/core/ai-session-notes/session-compass-contract';
 import { listCoachBookmarks } from '@/lib/core/ai-session-notes/coach-bookmarks-store';
 import { loadClosingNote } from '@/lib/core/ai-session-notes/session-close';
+import { listCoachVoiceNotes } from '@/lib/core/ai-session-notes/voice-notes';
 import {
   authenticatedCompassRequest,
   compassErrorResponse,
@@ -30,11 +31,12 @@ export async function GET(
     const report = await getSessionCompass(request, sessionCompassDependencies());
     // Segnalibri e nota di chiusura viaggiano accanto al report e non dentro:
     // non sono prodotti dall'AI e non partecipano al suo fingerprint.
-    const [bookmarks, closingNote] = await Promise.all([
+    const [bookmarks, closingNote, voiceNotes] = await Promise.all([
       listCoachBookmarks(request.sessionId, request.actorUserId),
       loadClosingNote(request.sessionId),
+      listCoachVoiceNotes(request.sessionId, request.actorUserId),
     ]);
-    return Response.json({ report, bookmarks, closingNote });
+    return Response.json({ report, bookmarks, closingNote, voiceNotes });
   } catch (error) {
     return compassErrorResponse(error);
   }

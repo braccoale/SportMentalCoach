@@ -25,6 +25,8 @@ export interface AudioStorage {
    * dipende mai da un collegamento vecchio.
    */
   createSignedUrl(key: string, expiresInSeconds: number): Promise<string>;
+  /** Carica un oggetto nel bucket privato. Serve alle note vocali del coach. */
+  upload(key: string, bytes: Buffer, mimeType: string): Promise<void>;
 }
 
 export class InMemoryAudioStorage implements AudioStorage {
@@ -36,6 +38,9 @@ export class InMemoryAudioStorage implements AudioStorage {
   async createSignedUrl(key: string, expiresInSeconds: number): Promise<string> {
     if (!this.objects.has(key)) throw new Error('AUDIO_OBJECT_NOT_FOUND');
     return `https://storage.invalid/${key}?expires=${expiresInSeconds}`;
+  }
+  async upload(key: string, bytes: Buffer, mimeType: string): Promise<void> {
+    this.put(key, bytes, mimeType);
   }
 }
 
@@ -51,6 +56,20 @@ function storageClient(config: AudioRecordingConfig): SupabaseClient {
  * Creates/repairs only the dedicated configured bucket. A public bucket causes
  * start to fail if it cannot be made private before Egress is requested.
  */
+/**
+ * Tipi ammessi nel bucket privato.
+ *
+ * `audio/ogg` e' quello che produce Track Egress. Gli altri servono alle note
+ * vocali del coach: MediaRecorder produce webm su Chrome e Firefox, mp4 su
+ * Safari, e non c'e' un formato che vada bene ovunque.
+ */
+const ALLOWED_AUDIO_MIME_TYPES = [
+  'audio/ogg',
+  'audio/webm',
+  'audio/mp4',
+  'audio/mpeg',
+];
+
 export async function ensureAudioBucketPrivate(
   config: AudioRecordingConfig
 ): Promise<void> {
@@ -65,14 +84,14 @@ export async function ensureAudioBucketPrivate(
       if (!existing) {
         const { error } = await client.storage.createBucket(config.bucket, {
           public: false,
-          allowedMimeTypes: ['audio/ogg'],
+          allowedMimeTypes: ALLOWED_AUDIO_MIME_TYPES,
           fileSizeLimit: config.maxBytes,
         });
         if (error) throw new Error('AUDIO_BUCKET_CREATE_FAILED');
       } else {
         const { error } = await client.storage.updateBucket(config.bucket, {
           public: false,
-          allowedMimeTypes: ['audio/ogg'],
+          allowedMimeTypes: ALLOWED_AUDIO_MIME_TYPES,
           fileSizeLimit: config.maxBytes,
         });
         if (error) throw new Error('AUDIO_BUCKET_PRIVACY_FAILED');
@@ -190,8 +209,24 @@ export async function createAudioObjectSignedUrl(
   return data.signedUrl;
 }
 
+/** Caricamento server-only nel bucket privato. */
+export async function uploadAudioObject(
+  config: AudioRecordingConfig,
+  key: string,
+  bytes: Buffer,
+  mimeType: string
+): Promise<void> {
+  splitObjectKey(key);
+  const { error } = await storageClient(config)
+    .storage.from(config.bucket)
+    .upload(key, bytes, { contentType: mimeType, upsert: false });
+  if (error) throw new Error('AUDIO_OBJECT_UPLOAD_FAILED');
+}
+
 export function createProductionAudioStorage(config: AudioRecordingConfig): AudioStorage {
   return {
+    upload: (key, bytes, mimeType) =>
+      uploadAudioObject(config, key, bytes, mimeType),
     inspect: (key) => inspectAudioObject(config, key),
     download: (key) => downloadAudioObject(config, key),
     deleteAndVerify: (key) => deleteAudioObjectAndVerify(config, key),

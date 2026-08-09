@@ -235,6 +235,9 @@ export function SessionCompassPanel({
     Array<{ id: number; atMs: number; note: string | null }>
   >([]);
   const [closingNote, setClosingNote] = useState<string | null>(null);
+  const [voiceNotes, setVoiceNotes] = useState<
+    Array<{ id: number; status: string; transcript: string | null; durationMs: number | null; createdAt: string }>
+  >([]);
   const [transcriptBySession, setTranscriptBySession] = useState<Record<number, CompassTranscriptSegment[]>>({});
   const [transcriptLoadedBySession, setTranscriptLoadedBySession] = useState<Record<number, boolean>>({});
   const [transcriptErrorBySession, setTranscriptErrorBySession] = useState<Record<number, string | null>>({});
@@ -615,6 +618,8 @@ export function SessionCompassPanel({
             ) : null}
             {activeTab === 'notes' ? (
               <CoachNotesPanel
+                sessionId={sessionId}
+                voiceNotes={voiceNotes}
                 bookmarks={bookmarks}
                 closingNote={closingNote}
                 report={report.document}

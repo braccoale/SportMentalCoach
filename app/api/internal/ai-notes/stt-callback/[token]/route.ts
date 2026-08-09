@@ -2,6 +2,7 @@ import { after } from 'next/server';
 import { ingestTranscriptionCallback } from '@/lib/core/ai-session-notes/stt-callback';
 import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
 import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger';
+import { ingestVoiceNoteTranscript } from '@/lib/core/ai-session-notes/voice-notes';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -26,6 +27,32 @@ export async function POST(
     payload = await request.json();
   } catch {
     return Response.json({ error: 'Payload non valido.' }, { status: 400 });
+  }
+
+  // Le note vocali del coach hanno il proprio registro: stesso endpoint,
+  // ingestione diversa. Il tipo viaggia nella query della callback, che
+  // costruiamo noi al momento dell'invio.
+  if (new URL(request.url).searchParams.get('kind') === 'voice-note') {
+    try {
+      const value = payload as {
+        metadata?: { request_id?: unknown };
+        results?: { channels?: Array<{ alternatives?: Array<{ transcript?: unknown }> }> };
+      };
+      const text =
+        value.results?.channels?.[0]?.alternatives?.[0]?.transcript;
+      const ingested = await ingestVoiceNoteTranscript({
+        token,
+        text: typeof text === 'string' ? text.trim() : '',
+        providerRequestId:
+          typeof value.metadata?.request_id === 'string'
+            ? value.metadata.request_id
+            : undefined,
+      });
+      return Response.json({ received: true, duplicate: !ingested });
+    } catch (error) {
+      console.error('[stt-callback] nota vocale non ingerita', error);
+      return Response.json({ error: 'Non elaborato.' }, { status: 500 });
+    }
   }
 
   try {
