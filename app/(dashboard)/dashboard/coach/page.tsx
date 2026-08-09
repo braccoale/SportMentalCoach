@@ -86,6 +86,17 @@ import { isPendingAiNotesStatus } from '@/lib/core/ai-session-notes/worker-nudge
 import { runAiNotesQueueAfterResponse } from '@/lib/core/ai-session-notes/queue-runner';
 import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger';
 
+/**
+ * Il riepilogo impiega dai dieci ai venti secondi, e qui dentro gira la coda.
+ *
+ * Senza questa riga la funzione eredita il limite predefinito e viene uccisa
+ * a meta' generazione: il job resta appeso, viene recuperato e riparte. E'
+ * esattamente il doppio tentativo visto su due sedute di fila — non un
+ * guasto del modello, un budget di tempo troppo stretto.
+ */
+export const maxDuration = 60;
+
+
 /** Sort key for the archive: when the session actually happened, newest first. */
 function archiveRecency(b: CoachBooking): number {
   return (

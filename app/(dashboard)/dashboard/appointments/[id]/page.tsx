@@ -55,6 +55,17 @@ import { getUser } from '@/lib/db/queries';
 import { cancelBookingAction as cancelAthleteBookingAction } from '../../athlete/actions';
 import { cancelBookingAction as cancelCoachBookingAction } from '../../coach/actions';
 
+/**
+ * Il riepilogo impiega dai dieci ai venti secondi, e qui dentro gira la coda.
+ *
+ * Senza questa riga la funzione eredita il limite predefinito e viene uccisa
+ * a meta' generazione: il job resta appeso, viene recuperato e riparte. E'
+ * esattamente il doppio tentativo visto su due sedute di fila — non un
+ * guasto del modello, un budget di tempo troppo stretto.
+ */
+export const maxDuration = 60;
+
+
 export const dynamic = 'force-dynamic';
 
 export default async function AppointmentDetailPage({
