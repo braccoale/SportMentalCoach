@@ -10,6 +10,7 @@ import { AthleteJourneySidebar } from './athlete-journey-sidebar';
 import { AthleteProgressCharts, EmotionalTrendChart } from './charts';
 import { SessionHeroInsight } from './hero-insight';
 import { ConversationMapBand } from './conversation-map';
+import { MissedOpportunities } from './missed-opportunities';
 import type { ConversationMap } from '@/lib/core/ai-session-notes/conversation-map';
 import { JourneyNarrative } from './journey-narrative';
 import { SessionContinuityCard } from './journey-panel';
@@ -157,6 +158,14 @@ export function SessionOverview({
             momenti sono gia' sulla mappa in cima come rombi cliccabili:
             tenerne qui una versione troncata faceva sembrare la Panoramica
             un indice di se' stessa. */}
+        {/* Subito dopo la mappa: mentre il coach ha ancora in testa la forma
+            della conversazione, gli si mostra dove non l'ha seguita. */}
+        <MissedOpportunities
+          items={report.missedOpportunities ?? []}
+          citedEvidenceKeys={primaryEvidenceKeys}
+          onOpenEvidence={onOpenEvidence}
+        />
+
         <NextSessionActions
           items={report.nextSessionPrep}
           isApproved={isApproved}

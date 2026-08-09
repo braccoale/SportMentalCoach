@@ -17,6 +17,11 @@ export const MAX_NEXT_SESSION_PREP = 3;
 export const MAX_SESSION_METRICS = 6;
 export const MAX_EMOTIONAL_TREND_POINTS = 8;
 export const MAX_QUOTE_LENGTH = 240;
+/**
+ * Poche e scelte: un elenco lungo di "hai sbagliato qui" non si legge e non
+ * si usa. Tre sono quelle su cui un coach può davvero tornare.
+ */
+export const MAX_MISSED_OPPORTUNITIES = 3;
 
 export type CompassSpeaker = 'coach' | 'athlete';
 
@@ -150,6 +155,27 @@ export type SessionOverview = {
   conversationTone?: ConversationTone | null;
 };
 
+/**
+ * Un passaggio dell'atleta rimasto senza seguito.
+ *
+ * L'atleta apre uno spiraglio — una dichiarazione carica, un accenno a
+ * qualcosa di suo — e la conversazione va altrove. È il pane del mestiere, e
+ * riascoltandosi non ci si accorge: nel momento sembrava una frase di
+ * passaggio.
+ *
+ * È l'unica sezione del report che parla del lavoro del coach invece che
+ * dell'atleta, e per questo è quella che va scritta con più cura: `followUp`
+ * è una domanda da fare la prossima volta, non un giudizio su quella passata.
+ */
+export type MissedOpportunity = {
+  id: string;
+  /** Cosa aveva aperto l'atleta, in una riga. */
+  text: string;
+  /** La domanda da riprendere la prossima volta. */
+  followUp: string;
+  evidence: CompassEvidence;
+};
+
 export type KeyMoment = {
   id: string;
   title: string;
@@ -195,6 +221,7 @@ export type SessionCompassReport = {
   language: string;
   sessionOverview: SessionOverview;
   keyMoments: KeyMoment[];
+  missedOpportunities?: MissedOpportunity[];
   commitments: Commitment[];
   nextSessionPrep: NextSessionPrepItem[];
   /** Campo libero del coach. L'AI non lo produce e non lo sovrascrive mai. */

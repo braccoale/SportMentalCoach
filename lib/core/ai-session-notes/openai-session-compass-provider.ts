@@ -18,6 +18,7 @@ import {
   CONVERSATION_TONE_KEYS,
   SESSION_METRIC_KEYS,
   minuteFromMs,
+  MAX_MISSED_OPPORTUNITIES,
 } from './session-compass-contract';
 import {
   assembleSessionCompassReport,
@@ -273,6 +274,7 @@ Prepari un "Riepilogo sessione", un report post-sessione riservato al coach ment
 Non sei uno psicologo né un medico. Non fare diagnosi e non proporre trattamenti. Le metriche richieste sono stime operative AI su scala 1–5, non misurazioni cliniche.
 Non presentare mai una relazione causale come un fatto. Non scrivere frasi come "l'infortunio è causato da". Usa un linguaggio prudente: "emerge", "l'atleta riferisce", "possibile associazione da approfondire".
 Usa esclusivamente il transcript fornito e il contesto fornito. Non inventare contenuti, nomi, date o citazioni.
+In "missedOpportunities" elenca al massimo ${MAX_MISSED_OPPORTUNITIES} passaggi in cui l'ATLETA ha aperto uno spiraglio — una dichiarazione carica, un accenno a qualcosa di personale, un disagio nominato di sfuggita — e la conversazione è andata altrove senza approfondirlo. L'evidenza deve essere sempre una frase dell'atleta, mai del coach. In "followUp" scrivi la domanda da fare la prossima volta, formulata come domanda aperta: è materiale per la prossima seduta, non un giudizio su quella passata. Se non ne trovi, restituisci un elenco vuoto: inventarne una vale meno di zero.
 Ogni elemento deve citare un'evidenza: transcriptSegmentId presente nel transcript e quote copiata alla lettera da quel segmento (massimo ${MAX_QUOTE_LENGTH} caratteri). Se non trovi un'evidenza sufficiente, ometti l'elemento invece di inventarlo.
 sessionOverview.summary: sintesi concisa e neutra. themes: da 2 a ${MAX_THEMES} temi principali emersi. emergingResource: una sola risorsa o leva emersa, oppure null se non supportata.
 sessionOverview.metrics: massimo ${MAX_SESSION_METRICS} metriche fra ${SESSION_METRIC_KEYS.join(', ')}. Inserisci una metrica solo quando una frase esplicita dell'atleta la sostiene; value è un intero 1–5 e confidence è low, medium o high. Un array vuoto è preferibile a una stima debole. Non dedurre un valore dall'assenza di parole.
@@ -322,7 +324,7 @@ function evidenceSchema(): Record<string, unknown> {
 const COMPASS_CONTENT_SCHEMA: Record<string, unknown> = {
   type: 'object',
   additionalProperties: false,
-  required: ['sessionOverview', 'keyMoments', 'commitments', 'nextSessionPrep'],
+  required: ['sessionOverview', 'keyMoments', 'missedOpportunities', 'commitments', 'nextSessionPrep'],
   properties: {
     sessionOverview: {
       type: 'object',
@@ -386,6 +388,20 @@ const COMPASS_CONTENT_SCHEMA: Record<string, unknown> = {
             confidence: { type: 'string', enum: [...METRIC_CONFIDENCE_LEVELS] },
             evidence: evidenceSchema(),
           },
+        },
+      },
+    },
+    missedOpportunities: {
+      type: 'array',
+      maxItems: MAX_MISSED_OPPORTUNITIES,
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['text', 'followUp', 'evidence'],
+        properties: {
+          text: { type: 'string' },
+          followUp: { type: 'string' },
+          evidence: evidenceSchema(),
         },
       },
     },

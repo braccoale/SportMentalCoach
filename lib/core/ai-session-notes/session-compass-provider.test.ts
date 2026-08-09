@@ -382,3 +382,63 @@ test('l’adapter OpenAI rifiuta una versione prompt diversa dalla configurazion
       error instanceof OpenAiSessionCompassError && error.code === 'PROMPT_VERSION_MISMATCH'
   );
 });
+
+test('gli spunti rimasti aperti citano sempre una frase dell’atleta', () => {
+  const report = assembleSessionCompassReport(
+    {
+      ...CONTENT,
+      missedOpportunities: [
+        {
+          text: 'Ha accennato al sonno e non è stato ripreso.',
+          followUp: 'Come stai dormendo nelle settimane di gara?',
+          evidence: { transcriptSegmentId: 2, quote: 'la testa altrove' },
+        },
+        {
+          // Evidenza del coach: un'occasione mancata e' per definizione
+          // qualcosa che ha detto l'atleta, quindi va scartata.
+          text: 'Il coach ha cambiato argomento.',
+          followUp: 'Domanda qualsiasi?',
+          evidence: { transcriptSegmentId: 1, quote: 'Come ti sei sentito' },
+        },
+      ],
+    },
+    input(),
+    { providerName: 'fake', modelName: 'fake-compass-v1' }
+  );
+
+  assert.equal(report.missedOpportunities?.length, 1);
+  assert.equal(report.missedOpportunities?.[0].evidence.speaker, 'athlete');
+  assert.equal(
+    report.missedOpportunities?.[0].followUp,
+    'Come stai dormendo nelle settimane di gara?'
+  );
+  assert.equal(report.missedOpportunities?.[0].id, 'missed-1');
+});
+
+test('senza spunti il report non ne inventa', () => {
+  const report = assembleSessionCompassReport(
+    { ...CONTENT, missedOpportunities: [] },
+    input(),
+    { providerName: 'fake', modelName: 'fake-compass-v1' }
+  );
+  assert.deepEqual(report.missedOpportunities, []);
+});
+
+test('uno spunto senza domanda di ripresa viene scartato', () => {
+  const report = assembleSessionCompassReport(
+    {
+      ...CONTENT,
+      missedOpportunities: [
+        {
+          text: 'Ha accennato al sonno.',
+          followUp: '',
+          evidence: { transcriptSegmentId: 2, quote: 'la testa altrove' },
+        },
+      ],
+    },
+    input(),
+    { providerName: 'fake', modelName: 'fake-compass-v1' }
+  );
+  // Senza la domanda da fare, la voce e' solo un rimprovero: non serve.
+  assert.deepEqual(report.missedOpportunities, []);
+});

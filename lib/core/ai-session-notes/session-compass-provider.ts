@@ -40,6 +40,8 @@ import {
   type ConversationParticipation,
   type ConversationTone,
   type ConversationToneKey,
+  MAX_MISSED_OPPORTUNITIES,
+  type MissedOpportunity,
 } from './session-compass-contract';
 
 /** Contesto lecito e già disponibile. Nessuno storico grezzo delle sessioni. */
@@ -108,6 +110,7 @@ export type RawCompassContent = {
     conversationTone?: unknown;
   };
   keyMoments?: unknown;
+  missedOpportunities?: unknown;
   commitments?: unknown;
   nextSessionPrep?: unknown;
 };
@@ -210,6 +213,26 @@ export function assembleSessionCompassReport(
     })
   ).slice(0, MAX_KEY_MOMENTS);
 
+  /**
+   * Le occasioni mancate hanno una regola in piu' delle altre sezioni:
+   * l'evidenza deve essere dell'atleta. Un'occasione mancata e' per
+   * definizione qualcosa che ha detto lui e a cui non e' stato dato seguito;
+   * citare una frase del coach sarebbe un controsenso, e su una sezione che
+   * parla del lavoro del coach un errore del genere costa la fiducia.
+   */
+  const missedOpportunities: MissedOpportunity[] = withIdentifiers(
+    'missed',
+    asArray(content.missedOpportunities).flatMap((item) => {
+      const record = asRecord(item);
+      const text = asProse(record?.text);
+      const followUp = asProse(record?.followUp);
+      const evidence = evidenceOf(record?.evidence, segments);
+      if (!record || !text || !followUp || !evidence) return [];
+      if (evidence.speaker !== 'athlete') return [];
+      return [{ text, followUp, evidence }];
+    })
+  ).slice(0, MAX_MISSED_OPPORTUNITIES);
+
   const commitments: Commitment[] = withIdentifiers(
     'commitment',
     asArray(content.commitments).flatMap((item) => {
@@ -259,6 +282,7 @@ export function assembleSessionCompassReport(
       conversationTone,
     },
     keyMoments,
+    missedOpportunities,
     commitments,
     nextSessionPrep,
     coachNote: null,
