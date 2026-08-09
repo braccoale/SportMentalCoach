@@ -6,6 +6,7 @@ import type {
   SessionCompassReport,
 } from '@/lib/core/ai-session-notes/session-compass-contract';
 import { EvidenceButton, evidenceKey } from './ui';
+import { NetworkDecor } from './decor';
 
 /**
  * Blocco dominante della Panoramica.
@@ -40,8 +41,12 @@ export function SessionHeroInsight({
   const nextStep = report.nextSessionPrep[0] ?? report.commitments[0] ?? null;
 
   return (
-    <section className="min-w-0 px-1 pt-2 sm:px-2">
-      <div className="flex flex-wrap items-center gap-2">
+    <section className="relative min-w-0 overflow-hidden px-1 pt-2 sm:px-2">
+      {/* La rete accompagna il titolo dall'angolo, senza mai passarci sopra:
+          resta fuori dai 46ch della colonna di testo. */}
+      <NetworkDecor className="absolute -right-10 -top-6 hidden size-64 opacity-40 lg:block" />
+
+      <div className="relative flex flex-wrap items-center gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-2.5 py-1 text-xs font-bold text-violet-700">
           <Sparkles className="h-3.5 w-3.5" /> Lettura AI
         </span>
@@ -59,7 +64,7 @@ export function SessionHeroInsight({
       {/* La dimensione è il messaggio: questa è la frase che il coach deve
           leggere per prima, e deve essere impossibile leggerne un'altra
           prima di lei. */}
-      <h3 className="mt-4 max-w-[46ch] text-[1.75rem] font-bold leading-[1.15] tracking-[-0.02em] text-gray-950 sm:text-[2.25rem] lg:text-[2.6rem]">
+      <h3 className="relative mt-4 max-w-[46ch] text-[1.75rem] font-bold leading-[1.15] tracking-[-0.02em] text-gray-950 sm:text-[2.25rem] lg:text-[2.6rem]">
         {mainInsight || 'Dato non disponibile'}
       </h3>
       <p className="mt-3 text-xs leading-5 text-gray-500">

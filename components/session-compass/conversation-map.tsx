@@ -136,6 +136,55 @@ const STAT_ICON = {
   apertura: Unlock,
 };
 
+/**
+ * L'onda in fondo alla fascia.
+ *
+ * Disegnata, non caricata: si adatta a qualunque larghezza, non sgrana e non
+ * aggiunge un file da ospitare. Sta sotto al contenuto e non intercetta il
+ * mouse, quindi non ruba mai un clic ai blocchi della mappa.
+ */
+function BandWave() {
+  return (
+    <svg
+      className="pointer-events-none absolute inset-x-0 bottom-0 h-32 w-full"
+      viewBox="0 0 1200 160"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <defs>
+        <linearGradient id="kp-wave-a" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0" />
+          <stop offset="45%" stopColor="#a78bfa" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="#c4b5fd" stopOpacity="0.15" />
+        </linearGradient>
+        <linearGradient id="kp-wave-b" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0%" stopColor="#d97706" stopOpacity="0.28" />
+          <stop offset="60%" stopColor="#8b5cf6" stopOpacity="0.22" />
+          <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M0 96 C 180 44, 320 132, 520 92 S 880 34, 1200 84 L1200 160 L0 160 Z"
+        fill="url(#kp-wave-b)"
+      />
+      <path
+        d="M0 118 C 220 74, 380 150, 600 114 S 960 66, 1200 108"
+        fill="none"
+        stroke="url(#kp-wave-a)"
+        strokeWidth="2"
+      />
+      <path
+        d="M0 138 C 240 104, 420 166, 660 134 S 1000 98, 1200 130"
+        fill="none"
+        stroke="url(#kp-wave-a)"
+        strokeWidth="1"
+        opacity="0.6"
+      />
+    </svg>
+  );
+}
+
 function Stat({ stat }: { stat: InsightStat }) {
   const style = STAT_STYLE[stat.tone];
   const Icon = STAT_ICON[stat.key];
@@ -176,10 +225,12 @@ export function ConversationMapBand({
   return (
     <section
       aria-labelledby={titleId}
-      className="overflow-hidden rounded-2xl p-5 sm:p-6"
+      className="relative overflow-hidden rounded-2xl p-5 sm:p-6"
       style={SURFACE_STYLE}
     >
       <style>{ENTRANCE_KEYFRAMES}</style>
+      <BandWave />
+      <div className="relative">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <div className="min-w-0">
           <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-300">
@@ -249,6 +300,7 @@ export function ConversationMapBand({
             ? 'I rombi segnano i momenti chiave. Passa sui blocchi per gli orari.'
             : 'Passa sui blocchi per vedere gli orari.'}
       </p>
+      </div>
     </section>
   );
 }

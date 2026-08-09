@@ -23,6 +23,7 @@ import type {
 } from '@/lib/core/ai-session-notes/session-compass-contract';
 import { METRIC_META, metricValueLabel } from './metric-model';
 import { formatTranscriptTimestamp } from './time';
+import { WaveDecor } from './decor';
 
 const EMOTION_LABEL: Record<number, string> = {
   [-2]: 'Tensione forte',
@@ -152,7 +153,11 @@ export function EmotionalTrendChart({
   const useNarrativeTimeline = orderedPoints.length <= 8;
   if (useNarrativeTimeline) {
     return (
-      <section className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6" aria-labelledby="emotion-timeline-title">
+      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white sm:grid sm:grid-cols-[7rem_minmax(0,1fr)]" aria-labelledby="emotion-timeline-title">
+        {/* Ornamento a tutta altezza sul fianco: accompagna senza invadere
+            il testo, ed e' disegnato, non un'immagine da ospitare. */}
+        <WaveDecor className="hidden h-full w-full sm:block" />
+        <div className="p-5 sm:p-6">
         <div className="flex flex-wrap items-end justify-between gap-2"><div><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-600">Durante la conversazione</p><h3 id="emotion-timeline-title" className="mt-1 text-base font-bold text-gray-950">Segnali narrativi</h3></div><p className="text-xs text-gray-500">Passaggi documentati, non uno stato misurato</p></div>
         <ol className="mt-4 divide-y divide-gray-100 rounded-xl border border-gray-100 bg-gray-50/50 px-3">
           {visiblePoints.map((point) => (
@@ -171,6 +176,7 @@ export function EmotionalTrendChart({
             {showAllPoints ? 'Mostra meno' : 'Mostra tutti'}
           </Button>
         ) : null}
+        </div>
       </section>
     );
   }

@@ -16,6 +16,7 @@ import {
   SessionCompassPanel,
 } from '@/components/session-compass-panel';
 import { CoverageCard } from '@/components/session-compass/coverage-card';
+import { OrbitDecor } from '@/components/session-compass/decor';
 import { loadSessionCoverage } from '@/lib/core/ai-session-notes/session-coverage-loader';
 import { loadConversationMap } from '@/lib/core/ai-session-notes/conversation-map-loader';
 import { describeSessionCoverage } from '@/lib/core/ai-session-notes/session-coverage-text';
@@ -172,11 +173,16 @@ export default async function AppointmentDetailPage({
       </Link>
 
       <div
-        className={`rounded-2xl border border-gray-200 bg-white shadow-sm ${
+        className={`relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm ${
           showAiReport ? 'p-4 sm:p-5' : 'p-5 sm:p-6'
         }`}
       >
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        {/* Orbita disegnata nell'angolo: sta sotto al contenuto, non prende
+            eventi, e sparisce sotto lg dove lo spazio serve al testo. */}
+        {showAiReport ? (
+          <OrbitDecor className="absolute -right-4 -top-2 hidden h-28 w-52 opacity-80 lg:block" />
+        ) : null}
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-gray-500">
