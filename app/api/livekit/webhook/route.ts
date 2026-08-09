@@ -5,6 +5,7 @@ import {
   recordLiveKitWebhookEvent,
 } from '@/lib/core/video/technical-events-server';
 import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger';
+import { runAiNotesQueueInline } from '@/lib/core/ai-session-notes/queue-runner';
 import {
   LiveKitWebhookError,
   processVerifiedLiveKitWebhook,
@@ -50,6 +51,9 @@ export async function POST(request: Request) {
     // LiveKit non attende, e un suo fallimento non invalida la consegna.
     if (!result.duplicate && (event.event ?? '').startsWith('egress_')) {
       after(async () => {
+        // Prima la corsa in casa: e' quella che non puo' fallire per
+        // motivi di trasporto. La sveglia HTTP resta come seconda strada.
+        await runAiNotesQueueInline();
         const outcome = await triggerAiNotesWorker(
           fetch,
           new URL(request.url).origin

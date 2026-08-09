@@ -4,8 +4,7 @@ import { closeAiNotesSession } from '@/lib/core/ai-session-notes/session-close';
 import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
 import { aiNotesErrorResponse } from '@/lib/core/ai-session-notes/http';
 import { allowRecordingMutation } from '@/lib/core/ai-session-notes/rate-limit';
-import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger';
-import { after } from 'next/server';
+import { runAiNotesQueueAfterResponse } from '@/lib/core/ai-session-notes/queue-runner';
 
 /**
  * Chiusura definitiva della sessione Appunti AI, decisa dal coach.
@@ -72,11 +71,7 @@ export async function POST(
      * risultato. Best effort: la chiusura e' gia' avvenuta e non deve fallire
      * per una sveglia mancata.
      */
-    after(async () => {
-      await triggerAiNotesWorker(fetch, new URL(request.url).origin).catch(
-        () => {}
-      );
-    });
+    runAiNotesQueueAfterResponse();
     return Response.json({
       recording: await getRecordingStatus(sessionId, user.id),
     });

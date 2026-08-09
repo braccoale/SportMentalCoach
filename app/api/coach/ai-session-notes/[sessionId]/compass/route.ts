@@ -15,7 +15,7 @@ import {
 import { listCoachBookmarks } from '@/lib/core/ai-session-notes/coach-bookmarks-store';
 import { loadClosingNote } from '@/lib/core/ai-session-notes/session-close';
 import { listCoachVoiceNotes } from '@/lib/core/ai-session-notes/voice-notes';
-import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger';
+import { runAiNotesQueueAfterResponse } from '@/lib/core/ai-session-notes/queue-runner';
 import { shouldNudgeWorker } from '@/lib/core/ai-session-notes/worker-nudge';
 import {
   authenticatedCompassRequest,
@@ -60,12 +60,7 @@ export async function GET(
       })
     ) {
       lastNudgeAt.set(request.sessionId, now);
-      after(async () => {
-        await triggerAiNotesWorker(
-          fetch,
-          new URL(httpRequest.url).origin
-        ).catch(() => {});
-      });
+      runAiNotesQueueAfterResponse();
     }
     return Response.json({ report, bookmarks, closingNote, voiceNotes });
   } catch (error) {

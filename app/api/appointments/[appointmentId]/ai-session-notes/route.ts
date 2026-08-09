@@ -1,7 +1,7 @@
 import { after } from 'next/server';
 import { getUser } from '@/lib/db/queries';
 import { getAiNotesSessionForBooking } from '@/lib/core/ai-session-notes';
-import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger';
+import { runAiNotesQueueAfterResponse } from '@/lib/core/ai-session-notes/queue-runner';
 import { shouldNudgeWorker } from '@/lib/core/ai-session-notes/worker-nudge';
 
 export const dynamic = 'force-dynamic';
@@ -50,11 +50,7 @@ export async function GET(
     })
   ) {
     lastNudgeAt.set(session.id, now);
-    after(async () => {
-      await triggerAiNotesWorker(fetch, new URL(request.url).origin).catch(
-        () => {}
-      );
-    });
+    runAiNotesQueueAfterResponse();
   }
   return Response.json({ session });
 }

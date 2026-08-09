@@ -41,7 +41,7 @@ import {
   getSessionDurationMinutes,
 } from '@/lib/core/format';
 import { getAiNotesSessionForBooking } from '@/lib/core/ai-session-notes';
-import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger';
+import { runAiNotesQueueAfterResponse } from '@/lib/core/ai-session-notes/queue-runner';
 import { isPendingAiNotesStatus } from '@/lib/core/ai-session-notes/worker-nudge';
 import {
   getMentalJourney,
@@ -101,13 +101,7 @@ export default async function AppointmentDetailPage({
    * chiama. Best effort e dopo la risposta: la pagina non deve rallentare.
    */
   if (isPendingAiNotesStatus(aiNotesSession?.status)) {
-    const host = (await headers()).get('host');
-    after(async () => {
-      await triggerAiNotesWorker(
-        fetch,
-        host ? `https://${host}` : undefined
-      ).catch(() => {});
-    });
+    runAiNotesQueueAfterResponse();
   }
 
   const bookableDays = getBookableDays(availability, {

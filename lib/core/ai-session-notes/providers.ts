@@ -117,7 +117,36 @@ export class DeepgramNova3SpeechToTextProvider implements SpeechToTextProvider {
 
     if (response.status === 401 || response.status === 403) throw new AiNotesProcessingError('PROVIDER_AUTH_FAILED', 'Autorizzazione provider STT non valida.');
     if (response.status === 429) throw new AiNotesProcessingError('PROVIDER_RATE_LIMITED', 'Provider STT temporaneamente limitato.');
-    if (!response.ok) throw new AiNotesProcessingError('TRANSCRIPTION_FAILED', 'Provider STT non ha accettato la richiesta.');
+    if (!response.ok) {
+      /*
+       * Il motivo del rifiuto va nei log del server, mai al chiamante.
+       *
+       * Senza questo, un rifiuto di Deepgram diventava «non ha accettato la
+       * richiesta» e basta: vero e inutile. Della callback si registra solo
+       * l'origine, non il token, che e' un segreto.
+       */
+      const detail = await response.text().catch(() => '');
+      let callbackOrigin = 'non valida';
+      try {
+        callbackOrigin = new URL(input.callbackUrl).origin;
+      } catch {
+        // Resta 'non valida': e' gia' l'informazione che serve.
+      }
+      console.error('[stt] Deepgram ha rifiutato la richiesta', {
+        status: response.status,
+        detail: detail.slice(0, 300),
+        callbackOrigin,
+        audioUrlHost: (() => {
+          try {
+            return new URL(input.audioUrl).host;
+          } catch {
+            return 'non valida';
+          }
+        })(),
+        model: input.model,
+      });
+      throw new AiNotesProcessingError('TRANSCRIPTION_FAILED', 'Provider STT non ha accettato la richiesta.');
+    }
 
     let payload: unknown;
     try { payload = await response.json(); } catch { throw new AiNotesProcessingError('PROVIDER_BAD_RESPONSE', 'Risposta STT non valida.'); }

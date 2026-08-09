@@ -2,6 +2,7 @@ import { after } from 'next/server';
 import { ingestTranscriptionCallback } from '@/lib/core/ai-session-notes/stt-callback';
 import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
 import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger';
+import { runAiNotesQueueInline } from '@/lib/core/ai-session-notes/queue-runner';
 import { ingestVoiceNoteTranscript } from '@/lib/core/ai-session-notes/voice-notes';
 
 export const dynamic = 'force-dynamic';
@@ -68,6 +69,7 @@ export async function POST(
       after(async () => {
         // Se restano segmenti da consegnare il job è tornato in coda: va
         // risvegliato subito, non alla prossima corsa del cron.
+        await runAiNotesQueueInline();
         await triggerAiNotesWorker(fetch, new URL(request.url).origin).catch(
           () => {}
         );
