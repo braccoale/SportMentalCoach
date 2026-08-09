@@ -476,41 +476,16 @@ test('la panoramica usa la griglia dashboard e differenzia il peso delle card', 
     />
   );
 
-  // Griglia a 12 colonne: percorso atleta a sinistra, area operativa a destra.
-  assert.match(html, /xl:grid-cols-12/);
-  assert.match(html, /xl:col-span-3/);
-  assert.match(html, /xl:col-span-9/);
+  // Colonna unica centrata: il percorso atleta ha una scheda sua e qui
+  // occupava un terzo della larghezza restando alto duecento pixel.
+  assert.match(html, /mx-auto min-w-0 max-w-5xl/);
+  assert.doesNotMatch(html, /xl:col-span-3/);
   // La lettura AI domina; problema centrale e prossimo passo restano secondari.
   // La dominanza è tipografica, non un contenitore: il titolo sta su una
   // scala molto più grande dei fatti di appoggio, che restano a 16px.
   assert.match(html, /text-\[1\.75rem\] font-bold/);
   assert.match(html, /text-base font-bold leading-6/);
   assert.ok(html.indexOf('Lettura AI') < html.indexOf('Problema centrale'));
-});
-
-test('il percorso atleta è visibile dalla panoramica con uno stato vuoto alla prima sessione', () => {
-  const html = renderToStaticMarkup(
-    <SessionOverview
-      report={document()}
-      isApproved={false}
-      journey={null}
-      previousJourneyEntry={null}
-      currentSessionId={5}
-      currentSessionDate="2026-08-06T12:33:00.000Z"
-      onOpenEvidence={() => undefined}
-      onOpenNotes={() => undefined}
-    />
-  );
-
-  assert.match(html, /Percorso atleta/);
-  assert.match(html, /Sessione corrente · 06 ago 26/);
-  assert.match(html, /Questa è la prima sessione analizzata/);
-  assert.match(html, /I confronti compariranno dopo l’approvazione delle prossime sessioni/);
-  // La continuità non compare come card quasi vuota: lo dichiara il filo logico.
-  assert.doesNotMatch(html, /Continuità con la sessione precedente/);
-  assert.match(html, /Nessuna sessione precedente approvata/);
-  // Nessuna sessione inventata oltre a quella corrente.
-  assert.equal((html.match(/Approvato<\/span>/g) ?? []).length, 0);
 });
 
 test('la panoramica mette contesto e azioni prima di segnali e metriche', () => {

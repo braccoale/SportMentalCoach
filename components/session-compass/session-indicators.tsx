@@ -178,7 +178,10 @@ export function SessionMetricsStrip({
   const validation = isApproved ? 'Validata dal coach' : 'Da validare dal coach';
   return (
     <section
-      className="overflow-hidden rounded-2xl border border-violet-100 bg-gradient-to-r from-violet-50/80 via-white to-emerald-50/70 p-4 shadow-[0_12px_36px_-28px_rgba(76,29,149,0.55)] sm:p-5"
+      // Era l'unico blocco con sfondo sfumato e ombra: attirava l'occhio
+      // piu' dell'eroe a 41px, e gli indicatori non sono la cosa piu'
+      // importante della pagina.
+      className="overflow-hidden rounded-2xl border border-gray-200/70 bg-white p-4 sm:p-5"
       aria-labelledby="session-metrics-strip-title"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">

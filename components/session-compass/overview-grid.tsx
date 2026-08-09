@@ -6,7 +6,6 @@ import type {
   CompassEvidence,
   SessionCompassReport,
 } from '@/lib/core/ai-session-notes/session-compass-contract';
-import { AthleteJourneySidebar } from './athlete-journey-sidebar';
 import {
   AthleteProgressCharts,
   EmotionalTrendChart,
@@ -82,17 +81,6 @@ export function SessionOverview({
 
   const hasThemes = (journey?.recurringThemes.length ?? 0) > 0 || overview.themes.length > 0;
 
-  const journeySidebar = (
-    <AthleteJourneySidebar
-      timeline={timeline}
-      currentSessionId={sessionId}
-      currentSessionDate={currentSessionDate ?? null}
-      currentFocus={overview.themes[0]?.text ?? null}
-      currentIsApproved={isApproved}
-      className="xl:sticky xl:top-4"
-    />
-  );
-
   return (
     <div className="min-w-0 space-y-4">
       {/* A tutta larghezza e prima di ogni altra cosa: e' l'unica superficie
@@ -109,10 +97,11 @@ export function SessionOverview({
         />
       ) : null}
 
-      <div className="grid min-w-0 gap-4 xl:grid-cols-12">
-      <div className="min-w-0 xl:col-span-3">{journeySidebar}</div>
-
-      <div className="min-w-0 space-y-6 xl:col-span-9">
+      {/* Niente colonna laterale: il percorso atleta ha una scheda sua, e
+          qui occupava un terzo della larghezza restando alto duecento pixel
+          su una pagina di quattromila. Il contenuto torna centrato e puo'
+          respirare invece di stare compresso a destra. */}
+      <div className="mx-auto min-w-0 max-w-5xl space-y-6">
         <SessionHeroInsight
           report={report}
           isApproved={isApproved}
@@ -235,7 +224,6 @@ export function SessionOverview({
             ) : null}
           </div>
         ) : null}
-      </div>
       </div>
     </div>
   );
