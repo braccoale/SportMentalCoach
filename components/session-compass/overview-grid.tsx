@@ -15,6 +15,7 @@ import { SessionHeroInsight } from './hero-insight';
 import { AthleteJourneySidebar } from './athlete-journey-sidebar';
 import { ConversationMapBand } from './conversation-map';
 import { MissedOpportunities } from './missed-opportunities';
+import { SessionNarrative } from './session-narrative';
 import type { ConversationMap } from '@/lib/core/ai-session-notes/conversation-map';
 import { JourneyNarrative } from './journey-narrative';
 import { SessionContinuityCard } from './journey-panel';
@@ -161,6 +162,15 @@ export function SessionOverview({
           />
         </Surface>
       </div>
+
+      {/* Subito sotto l'eroe: la sintesi dice cos'e' successo, il racconto
+          come e' andata. Chiuso di default, perche' e' materiale da leggere
+          quando serve e non da attraversare a ogni apertura. */}
+      <SessionNarrative
+        beats={report.narrative ?? []}
+        citedEvidenceKeys={primaryEvidenceKeys}
+        onOpenEvidence={onOpenEvidence}
+      />
 
       <SessionMetricsStrip
         metrics={overview.metrics ?? []}

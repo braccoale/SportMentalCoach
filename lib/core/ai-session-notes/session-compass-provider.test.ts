@@ -442,3 +442,40 @@ test('uno spunto senza domanda di ripresa viene scartato', () => {
   // Senza la domanda da fare, la voce e' solo un rimprovero: non serve.
   assert.deepEqual(report.missedOpportunities, []);
 });
+
+test('il racconto della sessione tiene solo i passaggi con evidenza', () => {
+  const report = assembleSessionCompassReport(
+    {
+      ...CONTENT,
+      narrative: [
+        {
+          title: 'L’apertura',
+          text: 'La sessione parte da come è andata l’ultima gara.',
+          evidence: { transcriptSegmentId: 2, quote: 'la testa altrove' },
+        },
+        {
+          // Senza evidenza non entra: un racconto scorrevole ma inventato
+          // vale meno di tre righe verificabili.
+          title: 'Un passaggio inventato',
+          text: 'Qualcosa che nessuno ha detto.',
+          evidence: { transcriptSegmentId: 999, quote: 'mai pronunciato' },
+        },
+      ],
+    },
+    input(),
+    { providerName: 'fake', modelName: 'fake-compass-v1' }
+  );
+
+  assert.equal(report.narrative?.length, 1);
+  assert.equal(report.narrative?.[0].title, 'L’apertura');
+  assert.equal(report.narrative?.[0].id, 'beat-1');
+});
+
+test('senza racconto il report non ne inventa uno', () => {
+  const report = assembleSessionCompassReport(
+    { ...CONTENT, narrative: [] },
+    input(),
+    { providerName: 'fake', modelName: 'fake-compass-v1' }
+  );
+  assert.deepEqual(report.narrative, []);
+});
