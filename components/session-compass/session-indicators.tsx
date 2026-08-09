@@ -265,8 +265,8 @@ export function SessionMetricsStrip({
         <p className="text-xs leading-5 text-gray-600">Scala ordinale 1–5 · non clinica</p>
       </div>
 
-      <div className="mt-4 grid gap-3 xl:grid-cols-[minmax(0,1fr)_12rem]">
-      {visibleMetrics.length ? <ul className="grid gap-2 sm:grid-cols-3">
+      <div className="mt-4 grid items-stretch gap-3 xl:grid-cols-[minmax(0,1fr)_13rem]">
+      {visibleMetrics.length ? <ul className="grid items-stretch gap-2 sm:grid-cols-3">
         {visibleMetrics.map((metric) => {
           const meta = METRIC_META[metric.key];
           const level = evidenceLevel(metric.confidence);
@@ -327,7 +327,7 @@ function ParticipationSnapshot({ participation }: { participation: ConversationP
   const athleteShare = participation.athleteSharePercent;
   const coachShare = 100 - athleteShare;
   return (
-    <div className="flex min-w-0 items-center gap-3 rounded-xl border border-sky-100 bg-white/80 p-3">
+    <div className="flex h-full min-w-0 items-center gap-3 rounded-xl border border-sky-100 bg-white/80 p-3">
       <div
         className="grid h-16 w-16 shrink-0 place-items-center rounded-full"
         role="img"
