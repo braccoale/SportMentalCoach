@@ -9,6 +9,7 @@ import {
   recoverStaleTranscriptionRequests,
 } from '@/lib/core/ai-session-notes/processing';
 import { closeExpiredAiNotesSessions } from '@/lib/core/ai-session-notes/maintenance';
+import { closeStuckProcessingSessions } from '@/lib/core/ai-session-notes/stuck-sessions';
 import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
 import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger';
 
@@ -115,7 +116,16 @@ async function drainQueue(workerId: string, limit: number) {
     dependencies
   );
   const processed = await processAiNotesBatch({ workerId, limit }, dependencies);
-  return { expiredClosed, staleRequests, recovered, compassJobsQueued, ...processed };
+  // Ultima cosa: nessuna sessione deve restare a girare per sempre.
+  const stuckClosed = await closeStuckProcessingSessions({ limit }, dependencies);
+  return {
+    expiredClosed,
+    staleRequests,
+    recovered,
+    compassJobsQueued,
+    stuckClosed,
+    ...processed,
+  };
 }
 
 async function runWorker(request: Request): Promise<Response> {

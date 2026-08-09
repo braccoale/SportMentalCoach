@@ -920,7 +920,9 @@ function buildArchiveCardData(
       booking.aiNotesStatus,
       'coach',
       booking.hasRecordedAudio,
-      booking.hasTranscript
+      booking.hasTranscript,
+      undefined,
+      booking.aiNotesErrorCode
     ),
   };
 }

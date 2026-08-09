@@ -420,6 +420,7 @@ export type AthleteBooking = {
   serviceTitle: string | null;
   durationMin: number | null;
   aiNotesStatus: AiSessionNoteStatus | null;
+  aiNotesErrorCode: string | null;
   hasRecordedAudio: boolean;
   hasTranscript: boolean;
 };
@@ -940,6 +941,15 @@ export async function getAthleteBookings(
         order by ${sessionAiNotes.createdDate} desc
         limit 1
       )`,
+      // Il motivo, non solo lo stato: silenzio e guasto finiscono entrambi in
+      // `transcription_failed` e vanno detti in modo diverso.
+      aiNotesErrorCode: sql<string | null>`(
+        select ${sessionAiNotes.errorCode}
+        from ${sessionAiNotes}
+        where ${sessionAiNotes.bookingId} = ${bookings.id}
+        order by ${sessionAiNotes.createdDate} desc
+        limit 1
+      )`,
       hasRecordedAudio: sql<boolean>`exists (
         select 1
         from ${sessionAudioRecordings}
@@ -988,6 +998,7 @@ export type CoachBooking = {
   /** True when the athlete is 15-17. The coach needs to know before the call. */
   athleteIsMinor: boolean;
   aiNotesStatus: AiSessionNoteStatus | null;
+  aiNotesErrorCode: string | null;
   hasRecordedAudio: boolean;
   hasTranscript: boolean;
 };
@@ -1028,6 +1039,15 @@ export async function getCoachBookings(
       durationMin: effectiveBookingDurationMin,
       aiNotesStatus: sql<AiSessionNoteStatus | null>`(
         select ${sessionAiNotes.status}
+        from ${sessionAiNotes}
+        where ${sessionAiNotes.bookingId} = ${bookings.id}
+        order by ${sessionAiNotes.createdDate} desc
+        limit 1
+      )`,
+      // Il motivo, non solo lo stato: silenzio e guasto finiscono entrambi in
+      // `transcription_failed` e vanno detti in modo diverso.
+      aiNotesErrorCode: sql<string | null>`(
+        select ${sessionAiNotes.errorCode}
         from ${sessionAiNotes}
         where ${sessionAiNotes.bookingId} = ${bookings.id}
         order by ${sessionAiNotes.createdDate} desc

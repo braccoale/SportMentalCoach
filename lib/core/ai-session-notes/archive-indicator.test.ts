@@ -103,3 +103,22 @@ test('senza indicatore la copertura non ne inventa uno', () => {
     null
   );
 });
+
+test('il silenzio non si annuncia come un guasto', () => {
+  // Stesso stato, due strade molto diverse: chi legge deve sapere quale.
+  assert.deepEqual(
+    buildAiSessionArchiveIndicator(
+      'transcription_failed',
+      'coach',
+      true,
+      false,
+      undefined,
+      'NO_SPEECH_DETECTED'
+    ),
+    { state: 'failed', label: 'Nessun parlato nell’audio' }
+  );
+  assert.deepEqual(
+    buildAiSessionArchiveIndicator('transcription_failed', 'coach', true, false),
+    { state: 'failed', label: 'Trascrizione non riuscita' }
+  );
+});

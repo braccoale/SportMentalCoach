@@ -27,6 +27,7 @@ import {
   STALE_TRANSCRIPTION_REQUEST_MINUTES,
 } from './processing-policy';
 import { dispatchPendingTranscriptionRequests } from './transcription-dispatch';
+import { closeSessionWithoutSpeech } from './stuck-sessions';
 import { persistedTimelineFingerprint, rebuildSessionTimeline } from './timeline';
 import { advanceAiNotesSessionStatus } from './session-status';
 import { sourceFingerprint, type TimelineSource } from './timeline';
@@ -828,7 +829,23 @@ export async function processAiNotesBatch(params: {
         await rebuildSessionTimeline(job.session_ai_notes_id, job.requested_by);
         if (await completeAiProcessingJob({ jobId: job.id, workerId: params.workerId }, dependencies)) {
           result.completed += 1;
-          await enqueueSessionCompassIfReady(job.session_ai_notes_id, dependencies);
+          const enqueued = await enqueueSessionCompassIfReady(
+            job.session_ai_notes_id,
+            dependencies
+          );
+          /*
+           * Nessun riepilogo da accodare e nessuna timeline: la seduta non
+           * conteneva parlato. Va dichiarata finita adesso — restava in
+           * `processing` a tempo indeterminato, con la rotellina che girava e
+           * nessuno che dicesse perche'.
+           */
+          if (!enqueued) {
+            await closeSessionWithoutSpeech(
+              job.session_ai_notes_id,
+              job.requested_by,
+              dependencies
+            );
+          }
         }
       }
     } catch (error) {

@@ -55,10 +55,11 @@ export function buildAiSessionArchiveIndicator(
   viewerRole: 'coach' | 'athlete',
   hasRecordedAudio = false,
   hasTranscript = false,
-  coverageState?: SessionCoverageState
+  coverageState?: SessionCoverageState,
+  errorCode: string | null = null
 ): AiSessionArchiveIndicator | null {
   return withCoverage(
-    baseIndicator(status, viewerRole, hasRecordedAudio, hasTranscript),
+    baseIndicator(status, viewerRole, hasRecordedAudio, hasTranscript, errorCode),
     coverageState
   );
 }
@@ -67,7 +68,8 @@ function baseIndicator(
   status: AiSessionNoteStatus | null,
   viewerRole: 'coach' | 'athlete',
   hasRecordedAudio: boolean,
-  hasTranscript: boolean
+  hasTranscript: boolean,
+  errorCode: string | null
 ): AiSessionArchiveIndicator | null {
   switch (status) {
     case 'active':
@@ -100,7 +102,12 @@ function baseIndicator(
     case 'shared':
       return { state: 'shared', label: 'Report pronto' };
     case 'transcription_failed':
-      return { state: 'failed', label: 'Trascrizione non riuscita' };
+      // Silenzio e guasto finiscono nello stesso stato ma non sono la stessa
+      // cosa: dire «non riuscita» quando semplicemente non si e' parlato
+      // manda a cercare un problema che non c'e'.
+      return errorCode === 'NO_SPEECH_DETECTED'
+        ? { state: 'failed', label: 'Nessun parlato nell’audio' }
+        : { state: 'failed', label: 'Trascrizione non riuscita' };
     case 'report_failed':
       return { state: 'failed', label: 'Report non riuscito' };
     default:
