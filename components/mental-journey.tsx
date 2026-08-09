@@ -186,7 +186,7 @@ function SummaryHeader({
           sizes="(min-width: 1024px) 900px, 100vw"
           // Contrasto e saturazione alzati: la foto originale e' tenue e
           // sotto un velo bianco spariva del tutto.
-          className="object-cover object-[65%_center] contrast-125 saturate-125"
+          className="object-cover object-[65%_center] contrast-150 saturate-125"
         />
         {/*
          * Un velo solo, e che finisce presto.
@@ -266,8 +266,8 @@ function Stat({
     <div // Traslucidi di proposito: la montagna passa attraverso i riquadri
       // invece di fermarsi dietro. Il `backdrop-blur` tiene i numeri leggibili
       // sopra qualunque parte dell'immagine finisca sotto.
-      className="rounded-2xl bg-white/65 p-4 shadow-sm ring-1 ring-white/60 backdrop-blur-md">
-      <dt className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">
+      className="rounded-2xl bg-white/30 p-4 shadow-sm ring-1 ring-white/50 backdrop-blur-md">
+      <dt className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-gray-700">
         <span className={tone} aria-hidden="true">
           {icon}
         </span>
