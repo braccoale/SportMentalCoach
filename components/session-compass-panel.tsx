@@ -550,15 +550,8 @@ export function SessionCompassPanel({
                 )}
                 currentSessionId={sessionId}
                 currentSessionDate={sessionDate}
-                transcript={transcriptBySession[sessionId] ?? []}
-                transcriptLoaded={transcriptLoadedBySession[sessionId] ?? false}
-                transcriptLoading={transcriptLoadingId === sessionId}
-                transcriptError={transcriptErrorBySession[sessionId] ?? null}
-                onLoadTranscript={() => void loadTranscript(sessionId)}
-                onRetryTranscript={() => void loadTranscript(sessionId)}
                 onOpenEvidence={openEvidence}
                 onOpenTranscript={openTranscript}
-                onOpenMoments={() => selectTab('moments')}
                 onOpenNotes={() => selectTab('notes')}
               />
             ) : null}

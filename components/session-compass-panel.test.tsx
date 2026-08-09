@@ -171,7 +171,6 @@ test('la panoramica segnala i dati non disponibili senza inventare metriche', ()
       isApproved={false}
       previousJourneyEntry={null}
       onOpenEvidence={() => undefined}
-      onOpenMoments={() => undefined}
       onOpenNotes={() => undefined}
     />
   );
@@ -473,7 +472,6 @@ test('la panoramica usa la griglia dashboard e differenzia il peso delle card', 
       isApproved={false}
       previousJourneyEntry={null}
       onOpenEvidence={() => undefined}
-      onOpenMoments={() => undefined}
       onOpenNotes={() => undefined}
     />
   );
@@ -500,7 +498,6 @@ test('il percorso atleta è visibile dalla panoramica con uno stato vuoto alla p
       currentSessionId={5}
       currentSessionDate="2026-08-06T12:33:00.000Z"
       onOpenEvidence={() => undefined}
-      onOpenMoments={() => undefined}
       onOpenNotes={() => undefined}
     />
   );
@@ -516,59 +513,7 @@ test('il percorso atleta è visibile dalla panoramica con uno stato vuoto alla p
   assert.equal((html.match(/Approvato<\/span>/g) ?? []).length, 0);
 });
 
-test('l’anteprima della trascrizione mostra pochi passaggi e rimanda a quella completa', () => {
-  const segments = [1, 2, 3, 4, 5].map((index) => ({
-    transcriptSegmentId: index,
-    startMs: index * 60_000,
-    endMs: index * 60_000 + 5_000,
-    minute: index,
-    speaker: 'athlete' as const,
-    text: `Passaggio numero ${index}`,
-  }));
-  const html = renderToStaticMarkup(
-    <SessionOverview
-      report={document()}
-      isApproved={false}
-      previousJourneyEntry={null}
-      currentSessionId={5}
-      transcript={segments}
-      transcriptLoaded
-      onOpenEvidence={() => undefined}
-      onOpenTranscript={() => undefined}
-      onOpenMoments={() => undefined}
-      onOpenNotes={() => undefined}
-    />
-  );
-
-  assert.match(html, /Passaggio numero 3/);
-  assert.doesNotMatch(html, /Passaggio numero 4/);
-  assert.match(html, /Altri 2 passaggi nella trascrizione completa/);
-  assert.match(html, /Apri completa/);
-});
-
-test('la panoramica non carica la trascrizione da sola: la offre su richiesta', () => {
-  const html = renderToStaticMarkup(
-    <SessionOverview
-      report={document()}
-      isApproved={false}
-      previousJourneyEntry={null}
-      currentSessionId={5}
-      transcript={[]}
-      transcriptLoaded={false}
-      onOpenEvidence={() => undefined}
-      onOpenTranscript={() => undefined}
-      onOpenMoments={() => undefined}
-      onOpenNotes={() => undefined}
-    />
-  );
-
-  assert.match(html, /La trascrizione non viene caricata all’apertura del riepilogo/);
-  assert.match(html, /Carica anteprima/);
-  // Nessun campo di ricerca finché non c'è nulla da cercare.
-  assert.doesNotMatch(html, /Cerca nella trascrizione/);
-});
-
-test('la panoramica mette contesto e azioni prima di segnali, momenti e metriche', () => {
+test('la panoramica mette contesto e azioni prima di segnali e metriche', () => {
   const base = document();
   const report = document({
     sessionOverview: {
@@ -594,14 +539,19 @@ test('la panoramica mette contesto e azioni prima di segnali, momenti e metriche
       isApproved={false}
       previousJourneyEntry={null}
       onOpenEvidence={() => undefined}
-      onOpenMoments={() => undefined}
       onOpenNotes={() => undefined}
     />
   );
 
   assert.ok(html.indexOf('Problema centrale') < html.indexOf('Indicatori che contano ora'));
   assert.ok(html.indexOf('Indicatori che contano ora') < html.indexOf('Filo logico del percorso'));
-  assert.ok(html.indexOf('Filo logico del percorso') < html.indexOf('Momenti chiave'));
+  assert.ok(
+    html.indexOf('Filo logico del percorso') <
+      html.indexOf('Da riprendere nella prossima sessione')
+  );
+  // Trascrizione e momenti chiave hanno una scheda ciascuno e non si
+  // ripetono qui: i momenti sono gia' sulla mappa in cima.
+  assert.doesNotMatch(html, /Apri completa/);
   assert.match(html, /Azione uno/);
   assert.match(html, /Azione tre/);
   assert.doesNotMatch(html, /Azione quattro/);
@@ -628,7 +578,6 @@ test('la panoramica non ripete per esteso la stessa evidenza tra sezioni', () =>
       isApproved={false}
       previousJourneyEntry={null}
       onOpenEvidence={() => undefined}
-      onOpenMoments={() => undefined}
       onOpenNotes={() => undefined}
     />
   );
@@ -649,7 +598,6 @@ test('la panoramica omette le card secondarie quando temi e momenti non sono dis
       isApproved={false}
       previousJourneyEntry={null}
       onOpenEvidence={() => undefined}
-      onOpenMoments={() => undefined}
       onOpenNotes={() => undefined}
     />
   );

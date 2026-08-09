@@ -17,7 +17,6 @@ import { orderSessionMetrics, SessionIndicators, SessionMetricsStrip } from './s
 import { NextSessionActions } from './next-session-actions';
 import { RecurringThemesPanel } from './recurring-themes-panel';
 import { formatTranscriptTimestamp } from './time';
-import { TranscriptPreview } from './transcript-preview';
 import { SPEAKER_LABEL, type CompassTranscriptSegment } from './types';
 import { EvidenceReference, SectionHeading, Surface, evidenceKey } from './ui';
 
@@ -38,16 +37,9 @@ export function SessionOverview({
   previousJourneyEntry,
   currentSessionId,
   currentSessionDate,
-  transcript,
-  transcriptLoaded,
-  transcriptLoading,
-  transcriptError,
   conversationMap,
-  onLoadTranscript,
-  onRetryTranscript,
   onOpenEvidence,
   onOpenTranscript,
-  onOpenMoments,
   onOpenNotes,
 }: {
   report: SessionCompassReport;
@@ -56,16 +48,9 @@ export function SessionOverview({
   previousJourneyEntry: MentalJourneyEntry | null;
   currentSessionId?: number;
   currentSessionDate?: string | null;
-  transcript?: readonly CompassTranscriptSegment[];
-  transcriptLoaded?: boolean;
-  transcriptLoading?: boolean;
-  transcriptError?: string | null;
   conversationMap?: ConversationMap | null;
-  onLoadTranscript?: () => void;
-  onRetryTranscript?: () => void;
   onOpenEvidence: (segmentId: number) => void;
   onOpenTranscript?: (sessionId: number, segmentId?: number) => void;
-  onOpenMoments: () => void;
   onOpenNotes: () => void;
 }) {
   const overview = report.sessionOverview;
@@ -168,33 +153,16 @@ export function SessionOverview({
           ) : null}
         </div>
 
-        <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)_minmax(15rem,0.85fr)]">
-          <NextSessionActions
-            items={report.nextSessionPrep}
-            isApproved={isApproved}
-            onOpenEvidence={onOpenEvidence}
-            onOpenNotes={onOpenNotes}
-          />
-          {onOpenTranscript ? (
-            <TranscriptPreview
-              transcript={transcript ?? []}
-              loaded={transcriptLoaded ?? false}
-              loading={transcriptLoading ?? false}
-              error={transcriptError ?? null}
-              onLoad={() => onLoadTranscript?.()}
-              onRetry={() => onRetryTranscript?.()}
-              onOpenTranscript={(segmentId) => onOpenTranscript(sessionId, segmentId)}
-            />
-          ) : null}
-          {report.keyMoments.length ? (
-            <KeyMomentsSummary
-              moments={report.keyMoments}
-              citedEvidenceKeys={primaryEvidenceKeys}
-              onOpenEvidence={onOpenEvidence}
-              onOpenMoments={onOpenMoments}
-            />
-          ) : null}
-        </div>
+        {/* Trascrizione e momenti chiave hanno una scheda ciascuno, e i
+            momenti sono gia' sulla mappa in cima come rombi cliccabili:
+            tenerne qui una versione troncata faceva sembrare la Panoramica
+            un indice di se' stessa. */}
+        <NextSessionActions
+          items={report.nextSessionPrep}
+          isApproved={isApproved}
+          onOpenEvidence={onOpenEvidence}
+          onOpenNotes={onOpenNotes}
+        />
 
         {/* I due blocchi di segnali erano impilati a tutta larghezza uno
             sotto l'altro: due schermate per dire cose parenti. Affiancati
@@ -219,37 +187,5 @@ export function SessionOverview({
       </div>
       </div>
     </div>
-  );
-}
-
-function KeyMomentsSummary({
-  moments,
-  citedEvidenceKeys,
-  onOpenEvidence,
-  onOpenMoments,
-}: {
-  moments: SessionCompassReport['keyMoments'];
-  citedEvidenceKeys: ReadonlySet<string>;
-  onOpenEvidence: (segmentId: number) => void;
-  onOpenMoments: () => void;
-}) {
-  return (
-    <Surface>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <SectionHeading eyebrow="Conversazione" title="Momenti chiave" />
-        <Button type="button" variant="outline" size="sm" onClick={onOpenMoments}>
-          Vedi tutti
-        </Button>
-      </div>
-      <ol className="mt-4 divide-y divide-gray-100 rounded-xl border border-gray-100 bg-gray-50/50 px-3">
-        {moments.slice(0, MAX_VISIBLE_MOMENTS).map((moment) => (
-          <li key={moment.id} className="py-2.5">
-            <p className="text-xs font-bold text-violet-700">{formatTranscriptTimestamp(moment.evidence.startMs)} <span className="ml-1 font-semibold text-gray-500">{SPEAKER_LABEL[moment.speaker]}</span></p>
-            <p className="mt-1 line-clamp-1 text-sm font-bold leading-5 text-gray-950">{moment.title}</p>
-            <EvidenceReference evidence={moment.evidence} alreadyCited={citedEvidenceKeys.has(evidenceKey(moment.evidence))} onOpenEvidence={onOpenEvidence} className="mt-0.5" />
-          </li>
-        ))}
-      </ol>
-    </Surface>
   );
 }
