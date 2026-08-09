@@ -142,6 +142,19 @@ export type SessionCompassDependencies = {
    * Opzionale: senza, la generazione funziona esattamente come prima.
    */
   loadCoachInput?: (sessionId: number) => Promise<CoachSessionInput>;
+  /**
+   * Porta la sessione allo stato «approvata» quando il coach valida.
+   *
+   * Approvare il report non toccava lo stato della sessione, che restava
+   * `ready_for_review` per sempre: ovunque nell'applicazione — le card, la
+   * lista degli atleti — continuava a comparire l'invito a validare una cosa
+   * gia' validata. Il report e la sessione sono due cose diverse, ma
+   * l'approvazione le riguarda entrambe.
+   */
+  markSessionApproved?: (
+    sessionId: number,
+    actorUserId: number
+  ) => Promise<void>;
   store: SessionCompassStore;
   commitments: SessionCommitmentStore;
   createProvider: () => SessionCompassReportProvider;
@@ -496,6 +509,13 @@ export async function approveSessionCompass(
       eventType: 'compass_report_approved',
       metadata: { reportId: stored.id, reportVersion: stored.reportVersion },
     });
+  }
+
+  if (!alreadyApproved) {
+    await dependencies.markSessionApproved?.(
+      session.sessionId,
+      params.actorUserId
+    );
   }
 
   await syncApprovedCommitments({

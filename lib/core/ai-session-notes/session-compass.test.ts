@@ -517,6 +517,40 @@ test('l’approvazione rende operativi gli impegni, senza duplicarli se ripetuta
   assert.equal(again.trackedCommitments.length, 1);
 });
 
+test('approvare porta avanti anche la sessione, una volta sola', async () => {
+  /*
+   * Il report e la sessione sono due cose diverse, ma l'approvazione le
+   * riguarda entrambe. Senza questo passaggio la sessione restava
+   * `ready_for_review` per sempre e ovunque nell'applicazione — le card, la
+   * lista degli atleti — continuava a comparire l'invito a validare una cosa
+   * gia' validata.
+   */
+  const approvals: Array<{ sessionId: number; actorUserId: number }> = [];
+  const { dependencies } = harness();
+  dependencies.markSessionApproved = async (sessionId, actorUserId) => {
+    approvals.push({ sessionId, actorUserId });
+  };
+  await ensureSessionCompassDraft(
+    { sessionId: SESSION_ID, actorUserId: COACH_ID },
+    dependencies
+  );
+
+  await approveSessionCompass(
+    { sessionId: SESSION_ID, actorUserId: COACH_ID },
+    dependencies
+  );
+  await approveSessionCompass(
+    { sessionId: SESSION_ID, actorUserId: COACH_ID },
+    dependencies
+  );
+
+  // La seconda approvazione non ripete il passaggio di stato: sarebbe una
+  // transizione non valida, e il registro ne conserverebbe due identiche.
+  assert.deepEqual(approvals, [
+    { sessionId: SESSION_ID, actorUserId: COACH_ID },
+  ]);
+});
+
 test('il coach modifica un impegno operativo senza toccare il report approvato', async () => {
   const { store, commitments, dependencies } = harness();
   await ensureSessionCompassDraft({ sessionId: SESSION_ID, actorUserId: COACH_ID }, dependencies);

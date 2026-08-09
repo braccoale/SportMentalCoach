@@ -38,6 +38,7 @@ import {
   selectPreviousJourneyEntry,
 } from './session-compass/journey-panel';
 import { SessionStoryPanel } from './session-compass/session-story';
+import { SessionSwitcher } from './session-compass/session-switcher';
 import { TranscriptPanel } from './session-compass/transcript-panel';
 import { TranscriptHistorySearch } from './session-compass/transcript-history-search';
 import {
@@ -537,6 +538,21 @@ export function SessionCompassPanel({
               Quando la trascrizione è pronta puoi generare una bozza del riepilogo sessione da verificare e approvare.
             </p>
           </div>
+        ) : null}
+
+        {/* Il percorso e' fatto di sedute che si leggono l'una accanto
+            all'altra: andare alla precedente deve costare un tocco, non
+            l'apertura di una scheda e la scelta da una linea del tempo. */}
+        {report?.document ? (
+          <SessionSwitcher
+            sessions={(initialJourney?.timeline ?? []).map((entry) => ({
+              sessionId: entry.sessionId,
+              sessionDate: entry.sessionDate,
+              compassHref: entry.compassHref,
+            }))}
+            currentSessionId={sessionId}
+            currentDate={sessionDate}
+          />
         ) : null}
 
         {report?.document ? (

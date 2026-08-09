@@ -8,6 +8,7 @@ import {
 import { createSessionCompassStore } from './session-compass-store';
 import { listSessionBookmarksMs } from './coach-bookmarks-store';
 import { loadClosingNote } from './session-close';
+import { advanceAiNotesSessionStatus } from './session-status';
 import { listSessionVoiceNoteTranscripts } from './voice-notes';
 import { createSessionCommitmentStore } from './session-commitments-store';
 import {
@@ -43,6 +44,13 @@ export function sessionCompassDependencies(): SessionCompassDependencies {
           (note): note is string => Boolean(note?.trim())
         ),
       };
+    },
+    markSessionApproved: async (sessionId: number, actorUserId: number) => {
+      await advanceAiNotesSessionStatus({
+        sessionId,
+        nextStatus: 'approved',
+        actorUserId,
+      });
     },
     now: () => new Date(),
   };
