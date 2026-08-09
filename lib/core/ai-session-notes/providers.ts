@@ -27,11 +27,24 @@ export type SessionReportResult = { providerOperationId?: string };
 export interface SpeechToTextProvider {
   submit(input: TranscriptionSubmitInput): Promise<TranscriptionSubmission>;
   parseCallback(payload: unknown, physicalSegmentId: number): TranscriptionResult;
+  /**
+   * Ripiego: la stessa richiesta senza callback, con la risposta in linea.
+   *
+   * Esiste per un motivo solo — se la consegna asincrona viene rifiutata, la
+   * trascrizione non deve andare persa. Non e' la strada principale e non
+   * deve diventarlo: attendere dentro una function con un tetto di sessanta
+   * secondi e' precisamente cio' che rendeva impossibili le sessioni lunghe.
+   * Su un audio breve invece ci sta comoda, e vale come rete.
+   */
+  transcribeNow(input: Omit<TranscriptionSubmitInput, 'callbackUrl'>): Promise<unknown>;
 }
 export interface SessionReportProvider { generate(input: SessionReportInput): Promise<SessionReportResult> }
 
 export class DisabledSpeechToTextProvider implements SpeechToTextProvider {
   async submit(_input: TranscriptionSubmitInput): Promise<TranscriptionSubmission> {
+    throw new AiNotesProcessingError('PROVIDER_NOT_CONFIGURED', 'Nessun provider Speech-to-Text è configurato.');
+  }
+  async transcribeNow(_input: Omit<TranscriptionSubmitInput, 'callbackUrl'>): Promise<unknown> {
     throw new AiNotesProcessingError('PROVIDER_NOT_CONFIGURED', 'Nessun provider Speech-to-Text è configurato.');
   }
   parseCallback(_payload: unknown, _physicalSegmentId: number): TranscriptionResult {
@@ -157,6 +170,59 @@ export class DeepgramNova3SpeechToTextProvider implements SpeechToTextProvider {
       throw new AiNotesProcessingError('PROVIDER_BAD_RESPONSE', 'Risposta STT priva di identificativo.');
     }
     return { providerRequestId: requestId };
+  }
+
+  /** Stessa chiamata, senza `callback`: la risposta arriva qui. */
+  async transcribeNow(
+    input: Omit<TranscriptionSubmitInput, 'callbackUrl'>
+  ): Promise<unknown> {
+    const query = new URLSearchParams({
+      model: input.model,
+      language: input.language,
+      smart_format: 'true',
+      utterances: 'true',
+      punctuate: 'true',
+    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    let response: Response;
+    try {
+      response = await this.fetcher(`https://api.deepgram.com/v1/listen?${query}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Token ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: input.audioUrl }),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new AiNotesProcessingError('PROVIDER_TIMEOUT', 'Provider STT non ha risposto in tempo.');
+      }
+      throw new AiNotesProcessingError('TRANSCRIPTION_FAILED', 'Richiesta STT non completata.');
+    } finally {
+      clearTimeout(timer);
+    }
+    if (response.status === 401 || response.status === 403) {
+      throw new AiNotesProcessingError('PROVIDER_AUTH_FAILED', 'Autorizzazione provider STT non valida.');
+    }
+    if (response.status === 429) {
+      throw new AiNotesProcessingError('PROVIDER_RATE_LIMITED', 'Provider STT temporaneamente limitato.');
+    }
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '');
+      console.error('[stt] Deepgram ha rifiutato anche la richiesta diretta', {
+        status: response.status,
+        detail: detail.slice(0, 300),
+      });
+      throw new AiNotesProcessingError('TRANSCRIPTION_FAILED', 'Provider STT non ha accettato la richiesta.');
+    }
+    try {
+      return await response.json();
+    } catch {
+      throw new AiNotesProcessingError('PROVIDER_BAD_RESPONSE', 'Risposta STT non valida.');
+    }
   }
 
   parseCallback(payload: unknown, physicalSegmentId: number): TranscriptionResult {

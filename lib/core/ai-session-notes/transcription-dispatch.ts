@@ -8,6 +8,7 @@ import {
 } from '@/lib/db/schema';
 import { getAiNotesAudioMaxBytes } from './recording-config';
 import { AiNotesProcessingError } from './processing-policy';
+import { ingestTranscriptionCallback } from './stt-callback';
 import type { AiSessionNotesDependencies } from './dependencies';
 
 /**
@@ -159,12 +160,64 @@ export async function dispatchPendingTranscriptionRequests(
       SIGNED_URL_TTL_SECONDS
     );
 
-    const submission = await dependencies.speechToTextProvider.submit({
-      audioUrl,
-      callbackUrl: sttCallbackUrl(token),
-      language: 'it',
-      model,
-    });
+    let submission: { providerRequestId: string } | null = null;
+    try {
+      submission = await dependencies.speechToTextProvider.submit({
+        audioUrl,
+        callbackUrl: sttCallbackUrl(token),
+        language: 'it',
+        model,
+      });
+    } catch (error) {
+      /*
+       * La consegna asincrona e' stata rifiutata.
+       *
+       * Non e' un motivo per perdere la trascrizione. Si riprova subito per
+       * la strada diretta, che e' la stessa richiesta senza callback: su un
+       * audio breve ci sta comoda dentro il tetto della function, e su uno
+       * lungo fallira' per tempo — ma un tentativo in piu' non toglie nulla,
+       * mentre la sua assenza toglie tutto.
+       *
+       * Le due eccezioni che non si riprovano: una chiave sbagliata e un
+       * provider non configurato falliranno identiche, e insistere sposta
+       * solo il momento dell'errore.
+       */
+      if (
+        error instanceof AiNotesProcessingError &&
+        (error.code === 'PROVIDER_AUTH_FAILED' ||
+          error.code === 'PROVIDER_NOT_CONFIGURED')
+      ) {
+        throw error;
+      }
+      console.warn(
+        '[stt] consegna asincrona rifiutata, ripiego sulla strada diretta',
+        { recordingId: row.id }
+      );
+      const payload = await dependencies.speechToTextProvider.transcribeNow({
+        audioUrl,
+        language: 'it',
+        model,
+      });
+      /*
+       * Si registra la richiesta come se fosse partita e le si consegna la
+       * risposta a mano: cosi' il testo entra dalla stessa porta della
+       * callback, con la stessa sostituzione atomica e lo stesso avanzamento
+       * del job. Nessun secondo percorso da tenere allineato.
+       */
+      await dependencies.db.insert(sessionTranscriptionRequests).values({
+        physicalRecordingId: row.id,
+        processingJobId: job.id,
+        callbackToken: token,
+        providerRequestId: null,
+        provider: job.provider,
+        status: 'submitted',
+        attempt,
+        submittedAt: dependencies.clock.now(),
+      });
+      await ingestTranscriptionCallback({ token, payload }, dependencies);
+      submitted += 1;
+      continue;
+    }
 
     await dependencies.db.insert(sessionTranscriptionRequests).values({
       physicalRecordingId: row.id,

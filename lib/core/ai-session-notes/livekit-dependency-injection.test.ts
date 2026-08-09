@@ -748,6 +748,9 @@ function createHarness(params: {
       sttInputs.push(input);
       throw new Error('STT_MUST_NOT_BE_USED');
     },
+    async transcribeNow(): Promise<unknown> {
+      throw new Error('non usato in questo test');
+    },
     parseCallback(): TranscriptionResult {
       throw new Error('STT_MUST_NOT_BE_USED');
     },

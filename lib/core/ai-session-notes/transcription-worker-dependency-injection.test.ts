@@ -680,6 +680,9 @@ function createHarness(params: {
       if (params.sttFailure) throw params.sttFailure;
       return { providerRequestId: 'injected-request-1' };
     },
+    async transcribeNow(): Promise<unknown> {
+      throw new Error('non usato in questo test');
+    },
     parseCallback(
       _payload: unknown,
       physicalSegmentId: number
