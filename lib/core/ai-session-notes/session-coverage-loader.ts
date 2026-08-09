@@ -69,6 +69,14 @@ export async function loadSessionCoverage(
     .from(sessionAudioRecordings)
     .where(eq(sessionAudioRecordings.sessionAiNotesId, sessionId));
 
+  // Senza alcuna riga di registrazione la copertura non è misurabile, e non
+  // va inventata: sessioni più vecchie del modello a segmenti, o con l'audio
+  // già passato per la retention, hanno una trascrizione completa e nessuna
+  // riga. Dichiararle «non registrate» sarebbe un allarme falso proprio su
+  // una sessione andata bene — l'opposto di ciò che questa card esiste per
+  // fare. Chi chiama non mostra nulla.
+  if (recordings.length === 0) return null;
+
   const recordingIds = recordings.map((row) => row.id);
 
   const transcribed = recordingIds.length
