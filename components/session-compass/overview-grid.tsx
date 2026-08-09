@@ -12,6 +12,7 @@ import {
   hasComparableMetricTrend,
 } from './charts';
 import { SessionHeroInsight } from './hero-insight';
+import { AthleteJourneySidebar } from './athlete-journey-sidebar';
 import { ConversationMapBand } from './conversation-map';
 import { MissedOpportunities } from './missed-opportunities';
 import type { ConversationMap } from '@/lib/core/ai-session-notes/conversation-map';
@@ -97,153 +98,154 @@ export function SessionOverview({
 
   const hasThemes = (journey?.recurringThemes.length ?? 0) > 0 || overview.themes.length > 0;
 
+  const journeySidebar = (
+    <AthleteJourneySidebar
+      timeline={journey?.timeline ?? []}
+      currentSessionId={sessionId}
+      currentSessionDate={currentSessionDate ?? null}
+      currentFocus={overview.themes[0]?.text ?? null}
+      currentIsApproved={isApproved}
+      className="h-full"
+    />
+  );
+
+  const themesPanel = hasThemes ? (
+    <RecurringThemesPanel
+      recurringThemes={journey?.recurringThemes ?? []}
+      journeySessionIds={journeySessionIds}
+      sessionThemes={overview.themes}
+      citedEvidenceKeys={primaryEvidenceKeys}
+      onOpenEvidence={onOpenEvidence}
+      className="h-full"
+    />
+  ) : null;
+
+  const nextActions = (
+    <NextSessionActions
+      items={report.nextSessionPrep}
+      isApproved={isApproved}
+      onOpenEvidence={onOpenEvidence}
+      onOpenNotes={onOpenNotes}
+      className="h-full"
+    />
+  );
+
+  /**
+   * Ogni blocco occupa la stessa larghezza della fascia: prima il contenuto
+   * stava stretto in mezzo mentre la fascia andava da bordo a bordo, e quel
+   * disallineamento era la ragione principale per cui la pagina non sembrava
+   * composta. Le righe sono al massimo di due elementi, di pari altezza.
+   */
   return (
     <div className="min-w-0 space-y-4">
-      {/* A tutta larghezza e prima di ogni altra cosa: e' l'unica superficie
-          scura della pagina, ed e' quello che le da' il ruolo di punto
-          focale senza bisogno di bordi o ombre. */}
       {conversationMap ? (
         <ConversationMapBand
           map={conversationMap}
           onSeek={
-            onOpenTranscript
-              ? () => onOpenTranscript(sessionId)
-              : undefined
+            onOpenTranscript ? () => onOpenTranscript(sessionId) : undefined
           }
         />
       ) : null}
 
-      {/* Niente colonna laterale: il percorso atleta ha una scheda sua, e
-          qui occupava un terzo della larghezza restando alto duecento pixel
-          su una pagina di quattromila. Il contenuto torna centrato e puo'
-          respirare invece di stare compresso a destra. */}
-      <div className="mx-auto min-w-0 max-w-5xl space-y-6">
-        <SessionHeroInsight
-          report={report}
-          isApproved={isApproved}
-          primaryEvidence={primaryEvidence}
-          onOpenEvidence={onOpenEvidence}
-        />
+      {/* Il percorso atleta sta accanto al solo eroe, non lungo tutta la
+          pagina: e' un riferimento che si guarda leggendo la lettura AI, e
+          sotto non avrebbe piu' nulla da accompagnare. */}
+      <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,3fr)] [&>*]:h-full">
+        {journeySidebar}
+        <Surface className="min-w-0">
+          <SessionHeroInsight
+            report={report}
+            isApproved={isApproved}
+            primaryEvidence={primaryEvidence}
+            onOpenEvidence={onOpenEvidence}
+          />
+        </Surface>
+      </div>
 
-        <SessionMetricsStrip
-          metrics={overview.metrics ?? []}
-          isApproved={isApproved}
-          onOpenEvidence={onOpenEvidence}
-          participation={overview.conversationParticipation}
-          counts={{
-            themes: overview.themes.length,
-            actions: report.nextSessionPrep.length,
-            moments: report.keyMoments.length,
-            hasResource: Boolean(overview.emergingResource),
-          }}
-        />
+      <SessionMetricsStrip
+        metrics={overview.metrics ?? []}
+        metricHistory={metricHistory}
+        isApproved={isApproved}
+        onOpenEvidence={onOpenEvidence}
+        participation={overview.conversationParticipation}
+        counts={{
+          themes: overview.themes.length,
+          actions: report.nextSessionPrep.length,
+          moments: report.keyMoments.length,
+          hasResource: Boolean(overview.emergingResource),
+        }}
+      />
 
-        {/* Continuita' e filo logico si affiancano solo quando esistono
-            entrambe. Accoppiarli sempre lasciava al filo logico meta'
-            larghezza anche quando era da solo, e i suoi tre passaggi
-            finivano incolonnati una parola per riga. */}
-        {previousJourneyEntry ? (
-          <div className="grid min-w-0 gap-4 xl:grid-cols-2">
-            <SessionContinuityCard report={report} previous={previousJourneyEntry} />
-            <JourneyNarrative
-              report={report}
-              previous={previousJourneyEntry}
-              currentSessionDate={currentSessionDate ?? null}
-            />
-          </div>
-        ) : (
+      {previousJourneyEntry ? (
+        <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-2 [&>*]:h-full">
+          <SessionContinuityCard report={report} previous={previousJourneyEntry} />
           <JourneyNarrative
             report={report}
             previous={previousJourneyEntry}
             currentSessionDate={currentSessionDate ?? null}
           />
-        )}
-
-        {/* Il trend si affianca ai temi solo quando c'e' davvero un grafico.
-            Senza dati e' una frase di una riga, e messa in una colonna
-            accanto a una card alta lasciava una voragine bianca: allora va
-            a tutta larghezza, dove una riga sta bene. */}
-        {hasTrend ? (
-          <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(16rem,0.8fr)] [&>*]:h-full">
-            <AthleteProgressCharts
-              journey={journey ?? null}
-              report={report}
-              isApproved={isApproved}
-              currentSessionId={sessionId}
-              currentSessionDate={currentSessionDate ?? null}
-            />
-            {hasThemes ? (
-              <RecurringThemesPanel
-                recurringThemes={journey?.recurringThemes ?? []}
-                journeySessionIds={journeySessionIds}
-                sessionThemes={overview.themes}
-                citedEvidenceKeys={primaryEvidenceKeys}
-                onOpenEvidence={onOpenEvidence}
-              />
-            ) : null}
-          </div>
-        ) : (
-          <>
-            {hasThemes ? (
-              <RecurringThemesPanel
-                recurringThemes={journey?.recurringThemes ?? []}
-                journeySessionIds={journeySessionIds}
-                sessionThemes={overview.themes}
-                citedEvidenceKeys={primaryEvidenceKeys}
-                onOpenEvidence={onOpenEvidence}
-              />
-            ) : null}
-            <AthleteProgressCharts
-              journey={journey ?? null}
-              report={report}
-              isApproved={isApproved}
-              currentSessionId={sessionId}
-              currentSessionDate={currentSessionDate ?? null}
-            />
-          </>
-        )}
-
-        {/* Trascrizione e momenti chiave hanno una scheda ciascuno, e i
-            momenti sono gia' sulla mappa in cima come rombi cliccabili:
-            tenerne qui una versione troncata faceva sembrare la Panoramica
-            un indice di se' stessa. */}
-        {/* Subito dopo la mappa: mentre il coach ha ancora in testa la forma
-            della conversazione, gli si mostra dove non l'ha seguita. */}
-        <MissedOpportunities
-          items={report.missedOpportunities ?? []}
-          citedEvidenceKeys={primaryEvidenceKeys}
-          onOpenEvidence={onOpenEvidence}
+        </div>
+      ) : (
+        <JourneyNarrative
+          report={report}
+          previous={previousJourneyEntry}
+          currentSessionDate={currentSessionDate ?? null}
         />
+      )}
 
-        <NextSessionActions
-          items={report.nextSessionPrep}
-          isApproved={isApproved}
-          onOpenEvidence={onOpenEvidence}
-          onOpenNotes={onOpenNotes}
-        />
+      <MissedOpportunities
+        items={report.missedOpportunities ?? []}
+        citedEvidenceKeys={primaryEvidenceKeys}
+        onOpenEvidence={onOpenEvidence}
+      />
 
-        {/* I due blocchi di segnali erano impilati a tutta larghezza uno
-            sotto l'altro: due schermate per dire cose parenti. Affiancati
-            occupano una riga sola e si leggono come un argomento solo. */}
-        {(overview.emotionalTrend?.length ?? 0) > 0 ||
-        (overview.metrics?.length ?? 0) > 5 ||
-        overview.conversationTone ? (
-          <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-2 [&>*]:h-full">
-            {(overview.emotionalTrend?.length ?? 0) > 0 ? (
-              <EmotionalTrendChart points={overview.emotionalTrend ?? []} onOpenEvidence={onOpenEvidence} />
-            ) : null}
-            {(overview.metrics?.length ?? 0) > 5 || overview.conversationTone ? (
-              <SessionIndicators
-                metrics={orderSessionMetrics(overview.metrics ?? []).slice(5)}
-                metricHistory={metricHistory}
-                tone={overview.conversationTone}
-                isApproved={isApproved}
-                onOpenEvidence={onOpenEvidence}
-              />
-            ) : null}
-          </div>
-        ) : null}
+      {/* Temi e follow-up sono le due facce della stessa domanda: su cosa
+          avete lavorato, e cosa ne resta da fare. Stanno affiancati. */}
+      <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] [&>*]:h-full">
+        {themesPanel}
+        {nextActions}
       </div>
+
+      {hasTrend ? (
+        <AthleteProgressCharts
+          journey={journey ?? null}
+          report={report}
+          isApproved={isApproved}
+          currentSessionId={sessionId}
+          currentSessionDate={currentSessionDate ?? null}
+        />
+      ) : (
+        <AthleteProgressCharts
+          journey={journey ?? null}
+          report={report}
+          isApproved={isApproved}
+          currentSessionId={sessionId}
+          currentSessionDate={currentSessionDate ?? null}
+        />
+      )}
+
+      {(overview.emotionalTrend?.length ?? 0) > 0 ||
+      (overview.metrics?.length ?? 0) > 5 ||
+      overview.conversationTone ? (
+        <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-2 [&>*]:h-full">
+          {(overview.emotionalTrend?.length ?? 0) > 0 ? (
+            <EmotionalTrendChart
+              points={overview.emotionalTrend ?? []}
+              onOpenEvidence={onOpenEvidence}
+            />
+          ) : null}
+          {(overview.metrics?.length ?? 0) > 5 || overview.conversationTone ? (
+            <SessionIndicators
+              metrics={orderSessionMetrics(overview.metrics ?? []).slice(5)}
+              metricHistory={metricHistory}
+              tone={overview.conversationTone}
+              isApproved={isApproved}
+              onOpenEvidence={onOpenEvidence}
+            />
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
+
 }

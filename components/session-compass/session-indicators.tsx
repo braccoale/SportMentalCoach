@@ -79,10 +79,10 @@ function MetricSparkline({
   label: string;
 }) {
   return (
-    <div className="mt-2 flex items-end justify-between gap-2">
-      <p className="min-w-0 text-xs font-semibold text-gray-600">
+    <span className="mt-2 flex items-end justify-between gap-2">
+      <span className="min-w-0 text-xs font-semibold text-gray-600">
         {metricTrendLabel(trend)}
-      </p>
+      </span>
       <svg
         viewBox="0 0 100 40"
         preserveAspectRatio="none"
@@ -106,7 +106,7 @@ function MetricSparkline({
           vectorEffect="non-scaling-stroke"
         />
       </svg>
-    </div>
+    </span>
   );
 }
 
@@ -228,12 +228,14 @@ export function SessionIndicators({
  */
 export function SessionMetricsStrip({
   metrics,
+  metricHistory,
   isApproved,
   onOpenEvidence,
   participation,
   counts,
 }: {
   metrics: readonly SessionMetric[];
+  metricHistory?: Readonly<Record<string, readonly number[]>>;
   isApproved: boolean;
   onOpenEvidence: (segmentId: number) => void;
   participation?: ConversationParticipation | null;
@@ -294,6 +296,15 @@ export function SessionMetricsStrip({
                 </span>
                 <span className="mt-2 text-xs font-semibold text-gray-700">{metricValueLabel(metric.value)}</span>
                 <span className="mt-auto pt-2 text-[11px] leading-4 text-gray-500">Evidenza {level} · {origin}</span>
+                {(() => {
+                  const history = metricHistory?.[metric.key] ?? [];
+                  const trend = buildMetricTrend(
+                    history.map((value, index) => ({ sessionId: index, value }))
+                  );
+                  return trend ? (
+                    <MetricSparkline trend={trend} color={meta.color} label={meta.label} />
+                  ) : null;
+                })()}
               </button>
             </li>
           );

@@ -479,10 +479,12 @@ test('la panoramica usa la griglia dashboard e differenzia il peso delle card', 
     />
   );
 
-  // Colonna unica centrata: il percorso atleta ha una scheda sua e qui
-  // occupava un terzo della larghezza restando alto duecento pixel.
-  assert.match(html, /mx-auto min-w-0 max-w-5xl/);
-  assert.doesNotMatch(html, /xl:col-span-3/);
+  // Il percorso atleta affianca il solo eroe, non tutta la pagina: sotto
+  // non avrebbe piu' nulla da accompagnare. Ogni blocco occupa la stessa
+  // larghezza della fascia.
+  assert.match(html, /Percorso atleta/);
+  assert.match(html, /xl:grid-cols-\[minmax\(0,1fr\)_minmax\(0,3fr\)\]/);
+  assert.doesNotMatch(html, /max-w-5xl/);
   // La lettura AI domina; problema centrale e prossimo passo restano secondari.
   // La dominanza è tipografica, non un contenitore: il titolo sta su una
   // scala molto più grande dei fatti di appoggio, che restano a 16px.
