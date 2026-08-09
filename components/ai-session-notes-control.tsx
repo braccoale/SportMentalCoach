@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronDown, Sparkles, X } from 'lucide-react';
+import { Bookmark, ChevronDown, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 /**
@@ -139,6 +139,9 @@ export function AiSessionNotesControl({
   // Chiudere la sessione è irreversibile: la conferma è in linea perché un
   // `window.confirm` bloccherebbe la videochiamata sotto l'overlay.
   const [confirmingClose, setConfirmingClose] = useState(false);
+  // Il segnalibro deve dare un riscontro immediato e sparire: se il coach
+  // deve leggere una conferma, l'attenzione e' gia' andata via dall'atleta.
+  const [bookmarked, setBookmarked] = useState(false);
   const mutationInFlight = useRef(false);
 
   const refresh = useCallback(async () => {
@@ -438,6 +441,26 @@ export function AiSessionNotesControl({
                 : 'Riprendi registrazione'}
           </button>
         )}
+        {/* Un tocco marca il momento: niente testo da scrivere e nessuna
+            conferma da leggere. Compare solo mentre si sta registrando,
+            perche' fuori da li' non c'e' un istante a cui legarlo. */}
+        {session.viewerRole === 'coach' && recording?.state === 'recording' && (
+          <button
+            type="button"
+            className="mt-2 mr-3 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            onClick={() => {
+              setBookmarked(true);
+              window.setTimeout(() => setBookmarked(false), 1800);
+              void fetch(`/api/ai-session-notes/${session.id}/bookmark`, {
+                method: 'POST',
+              }).catch(() => undefined);
+            }}
+          >
+            <Bookmark className="size-3.5" aria-hidden="true" />
+            {bookmarked ? 'Segnato' : 'Segna momento'}
+          </button>
+        )}
+
         {/* Fine sessione chiude davvero: dopo, nemmeno un microfono
             ripubblicato fa ripartire la registrazione. È l'opposto di
             "Riprendi registrazione", che è una pausa — e per questo chiede

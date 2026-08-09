@@ -3,6 +3,7 @@ import { asc, eq } from 'drizzle-orm';
 import { db, type DbOrTx } from '@/lib/db/drizzle';
 import {
   sessionAiNotes,
+  sessionCoachBookmarks,
   sessionTranscriptTimelineSegments,
 } from '@/lib/db/schema';
 import {
@@ -25,6 +26,15 @@ export async function loadConversationMap(
   moments: ConversationMomentInput[] = [],
   executor: DbOrTx = db
 ): Promise<ConversationMap | null> {
+  // I segnalibri del coach entrano fra i momenti: sono istanti che lui ha
+  // marcato dal vivo, e sulla mappa valgono quanto quelli trovati dall'AI.
+  const bookmarks = await executor
+    .select({
+      atMs: sessionCoachBookmarks.atMs,
+      note: sessionCoachBookmarks.note,
+    })
+    .from(sessionCoachBookmarks)
+    .where(eq(sessionCoachBookmarks.sessionAiNotesId, sessionId));
   const rows = await executor
     .select({
       startMs: sessionTranscriptTimelineSegments.startMs,
@@ -58,7 +68,13 @@ export async function loadConversationMap(
         ? [{ startMs: row.startMs, endMs: row.endMs, role: row.role, text: row.text }]
         : []
     ),
-    moments,
+    moments: [
+      ...moments,
+      ...bookmarks.map((bookmark) => ({
+        atMs: bookmark.atMs,
+        label: bookmark.note ?? 'Momento segnato da te',
+      })),
+    ],
     durationMs,
   });
 }

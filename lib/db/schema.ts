@@ -1236,6 +1236,45 @@ export const sessionTranscriptionRequests = pgTable(
   ]
 );
 
+/**
+ * Un segnalibro posato dal coach durante la sessione.
+ *
+ * Un tocco, zero attenzione sottratta all'atleta. La posizione e' in
+ * millisecondi dall'inizio della sessione, cosi' si allinea alla mappa della
+ * conversazione e alla trascrizione, che usano la stessa unita'.
+ */
+export const sessionCoachBookmarks = pgTable(
+  'session_coach_bookmarks',
+  {
+    id: serial('id').primaryKey(),
+    sessionAiNotesId: integer('session_ai_notes_id')
+      .notNull()
+      .references(() => sessionAiNotes.id, { onDelete: 'cascade' }),
+    atMs: integer('at_ms').notNull(),
+    /** Facoltativa: si puo' aggiungere dopo, a mente fredda. */
+    note: varchar('note', { length: 280 }),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    updatedDate: timestamp('updateddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedBy: integer('updatedby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    index('session_coach_bookmarks_session_idx').on(
+      table.sessionAiNotesId,
+      table.atMs
+    ),
+    check('session_coach_bookmarks_at_ms_check', sql`${table.atMs} >= 0`),
+  ]
+);
+
 export const AI_REPORT_STATUSES = [
   'pending',
   'generating',

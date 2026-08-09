@@ -71,7 +71,7 @@ const TABS: Array<{
   { id: 'journey', label: 'Percorso atleta', icon: (props) => <History {...props} /> },
   { id: 'transcript', label: 'Trascrizione', icon: (props) => <FileText {...props} /> },
   { id: 'moments', label: 'Momenti chiave', icon: (props) => <Lightbulb {...props} /> },
-  { id: 'notes', label: 'Appunti coach', icon: (props) => <MessageSquareText {...props} /> },
+  { id: 'notes', label: 'Le tue note', icon: (props) => <MessageSquareText {...props} /> },
 ];
 
 function isRecord(value: unknown): value is Record<string, unknown> {

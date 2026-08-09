@@ -17,7 +17,7 @@ globalRateLimit.__aiNotesRecordingRateLimit = buckets;
  */
 export function allowRecordingMutation(
   userId: number,
-  action: 'start' | 'stop' | 'close',
+  action: 'start' | 'stop' | 'close' | 'bookmark',
   now = Date.now()
 ): boolean {
   const key = `${userId}:${action}`;
