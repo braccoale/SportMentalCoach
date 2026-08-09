@@ -2,6 +2,7 @@ import 'server-only';
 import { timingSafeEqual } from 'node:crypto';
 import { after } from 'next/server';
 import {
+  countReadyAiNotesJobs,
   enqueueReadySessionCompassJobs,
   processAiNotesBatch,
   recoverStaleAiProcessingJobs,
@@ -9,6 +10,7 @@ import {
 } from '@/lib/core/ai-session-notes/processing';
 import { closeExpiredAiNotesSessions } from '@/lib/core/ai-session-notes/maintenance';
 import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
+import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger';
 
 export const dynamic = 'force-dynamic';
 /**
@@ -47,6 +49,47 @@ function authorized(request: Request): boolean {
  */
 const DEFAULT_LIMIT = 5;
 
+/**
+ * Quante volte il worker puo' richiamarsi da solo.
+ *
+ * Un'invocazione smaltisce al massimo `limit` job e poi muore: su Vercel non
+ * c'e' un processo che resti in ascolto. Se la coda non e' vuota, l'ultima
+ * cosa che fa e' svegliare il proprio successore. Il tetto esiste perche' un
+ * difetto che lasciasse un job perennemente pronto non deve trasformarsi in
+ * una catena infinita di invocazioni.
+ */
+const MAX_CHAIN_DEPTH = 6;
+
+function requestedChain(request: Request): number {
+  const raw = new URL(request.url).searchParams.get('chain');
+  if (raw === null) return MAX_CHAIN_DEPTH;
+  const value = Number(raw);
+  return Number.isInteger(value) && value >= 0 && value <= MAX_CHAIN_DEPTH
+    ? value
+    : MAX_CHAIN_DEPTH;
+}
+
+/**
+ * Passa il testimone se resta lavoro pronto.
+ *
+ * Best effort come tutte le sveglie: se fallisce, restano il webhook, la
+ * pagina aperta e il cron.
+ */
+async function chainIfWorkRemains(origin: string, chain: number): Promise<void> {
+  if (chain <= 0) return;
+  if ((await countReadyAiNotesJobs()) === 0) return;
+  await triggerAiNotesWorker(
+    (input, init) =>
+      fetch(
+        typeof input === 'string' && input.includes('?')
+          ? `${input}&chain=${chain - 1}`
+          : `${input}?chain=${chain - 1}`,
+        init
+      ),
+    origin
+  ).catch(() => {});
+}
+
 function requestedLimit(request: Request): number {
   const raw = new URL(request.url).searchParams.get('limit');
   if (raw === null) return DEFAULT_LIMIT;
@@ -81,6 +124,8 @@ async function runWorker(request: Request): Promise<Response> {
   }
 
   const limit = requestedLimit(request);
+  const chain = requestedChain(request);
+  const origin = new URL(request.url).origin;
   const workerId = `vercel-${Date.now().toString(36)}`;
 
   // La sveglia dal webhook non può restare in attesa della trascrizione: chi
@@ -91,6 +136,7 @@ async function runWorker(request: Request): Promise<Response> {
       try {
         const result = await drainQueue(workerId, limit);
         console.log('ai-notes worker done', { workerId, ...result });
+        await chainIfWorkRemains(origin, chain);
       } catch (error) {
         console.error('ai-notes worker failed', { workerId }, error);
       }
@@ -99,7 +145,9 @@ async function runWorker(request: Request): Promise<Response> {
   }
 
   try {
-    return Response.json({ workerId, limit, ...(await drainQueue(workerId, limit)) });
+    const result = await drainQueue(workerId, limit);
+    await chainIfWorkRemains(origin, chain);
+    return Response.json({ workerId, limit, ...result });
   } catch (error) {
     // Il messaggio del provider non viene mai propagato al chiamante.
     console.error('ai-notes worker failed', { workerId }, error);

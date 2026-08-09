@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, lte, sql } from 'drizzle-orm';
 import { db, type DbOrTx } from '@/lib/db/drizzle';
 import {
   sessionAiAuditEvents,
@@ -729,6 +729,29 @@ async function assertClaimStillProcessable(
     dependencies.db,
     job.session_ai_notes_id
   );
+}
+
+/**
+ * Quanto lavoro resta pronto a partire adesso.
+ *
+ * Serve al worker per decidere se richiamarsi: una singola invocazione ne
+ * smaltisce un numero limitato, e su Vercel non esiste un processo che resti
+ * in ascolto. Senza questo, ogni sveglia sposta la coda di qualche job e poi
+ * la lascia ferma fino alla sveglia successiva.
+ */
+export async function countReadyAiNotesJobs(
+  now: Date = new Date()
+): Promise<number> {
+  const [row] = await db
+    .select({ total: count() })
+    .from(sessionAiProcessingJobs)
+    .where(
+      and(
+        eq(sessionAiProcessingJobs.status, 'queued'),
+        lte(sessionAiProcessingJobs.availableAfter, now)
+      )
+    );
+  return Number(row?.total ?? 0);
 }
 
 /** Processes a finite batch and exits. */

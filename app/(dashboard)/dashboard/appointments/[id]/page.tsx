@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { after } from 'next/server';
+import { headers } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import {
   ArrowLeft,
@@ -39,6 +41,8 @@ import {
   getSessionDurationMinutes,
 } from '@/lib/core/format';
 import { getAiNotesSessionForBooking } from '@/lib/core/ai-session-notes';
+import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger';
+import { isPendingAiNotesStatus } from '@/lib/core/ai-session-notes/worker-nudge';
 import {
   getMentalJourney,
   MentalJourneyError,
@@ -88,6 +92,24 @@ export default async function AppointmentDetailPage({
         })
       : Promise.resolve(null),
   ]);
+  /*
+   * Aprire l'appuntamento fa avanzare la coda.
+   *
+   * E' il gesto che il coach compie davvero quando aspetta il riepilogo, e
+   * questa pagina si carica lato server: senza questa riga la sveglia sulla
+   * rotta API non scatterebbe mai, perche' quella rotta la pagina non la
+   * chiama. Best effort e dopo la risposta: la pagina non deve rallentare.
+   */
+  if (isPendingAiNotesStatus(aiNotesSession?.status)) {
+    const host = (await headers()).get('host');
+    after(async () => {
+      await triggerAiNotesWorker(
+        fetch,
+        host ? `https://${host}` : undefined
+      ).catch(() => {});
+    });
+  }
+
   const bookableDays = getBookableDays(availability, {
     busyIntervals: busyByProvider.get(booking.providerId) ?? [],
   });
