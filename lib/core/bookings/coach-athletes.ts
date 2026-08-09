@@ -35,6 +35,14 @@ export type CoachAthleteSummary = {
   /** Ultima sessione con un Session Compass pronto per la consultazione. */
   latestCompassBookingId: number | null;
   /**
+   * Se quel riepilogo aspetta ancora il coach.
+   *
+   * Dall'elenco non si vedeva: il pulsante era identico per una bozza e per
+   * un report approvato, e il coach non aveva modo di sapere dove avesse
+   * lavoro arretrato senza aprirli uno per uno.
+   */
+  latestCompassNeedsReview: boolean;
+  /**
    * "In percorso" quando esiste almeno una prenotazione aperta — richiesta o
    * confermata. Altrimenti l'atleta ha lavorato con il coach in passato.
    */
@@ -115,6 +123,8 @@ export function buildCoachAthletes(
       nextSessionAt: upcoming?.scheduledFor ?? null,
       lastSessionAt: held ? heldAt(held) : null,
       latestCompassBookingId: latestCompass?.id ?? null,
+      latestCompassNeedsReview:
+        latestCompass?.aiNotesStatus === 'ready_for_review',
       status: list.some((b) => ACTIVE_STATUSES.includes(b.status))
         ? 'active'
         : 'past',

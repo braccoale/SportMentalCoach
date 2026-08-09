@@ -302,3 +302,45 @@ test('lo storico di un atleta esclude quello degli altri', () => {
   const history = bookingsForAthlete(all, 7);
   assert.deepEqual(history.map((b) => b.id).sort(), [1, 3]);
 });
+
+test('un riepilogo ancora da validare viene segnalato nell’elenco', () => {
+  const [athlete] = buildCoachAthletes(
+    [
+      booking({
+        id: 1,
+        clientId: 7,
+        sessionEndedAt: new Date('2026-08-04T10:00:00Z'),
+        aiNotesStatus: 'ready_for_review',
+      }),
+    ],
+    NOW
+  );
+
+  assert.equal(athlete.latestCompassNeedsReview, true);
+});
+
+test('un riepilogo approvato non chiede attenzione', () => {
+  const [athlete] = buildCoachAthletes(
+    [
+      booking({
+        id: 1,
+        clientId: 7,
+        sessionEndedAt: new Date('2026-08-04T10:00:00Z'),
+        aiNotesStatus: 'approved',
+      }),
+    ],
+    NOW
+  );
+
+  assert.equal(athlete.latestCompassNeedsReview, false);
+});
+
+test('senza alcun riepilogo non si segnala nulla da validare', () => {
+  const [athlete] = buildCoachAthletes(
+    [booking({ id: 1, clientId: 7, sessionEndedAt: new Date('2026-08-04T10:00:00Z') })],
+    NOW
+  );
+
+  assert.equal(athlete.latestCompassBookingId, null);
+  assert.equal(athlete.latestCompassNeedsReview, false);
+});

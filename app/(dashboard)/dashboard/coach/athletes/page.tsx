@@ -60,6 +60,12 @@ function AthleteRow({
                   Minorenne
                 </span>
               )}
+              {canOpenCompass && athlete.latestCompassNeedsReview && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">
+                  <Compass className="h-3 w-3" />
+                  Riepilogo da validare
+                </span>
+              )}
               {athlete.pendingRequests > 0 && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700">
                   <Hourglass className="h-3 w-3" />
@@ -101,10 +107,19 @@ function AthleteRow({
         {canOpenCompass && athlete.latestCompassBookingId ? (
           <Link
             href={`/dashboard/appointments/${athlete.latestCompassBookingId}#session-compass`}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-violet-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 sm:shrink-0"
+            className={`inline-flex items-center justify-center gap-2 rounded-full px-3 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 sm:shrink-0 ${
+              athlete.latestCompassNeedsReview
+                ? 'bg-violet-600 text-white hover:bg-violet-700'
+                : // Gia' validato: resta raggiungibile ma smette di chiamare
+                  // l'attenzione, cosi' il pieno segnala solo il lavoro da fare.
+                  'border border-violet-200 bg-white text-violet-700 hover:bg-violet-50'
+            }`}
           >
             <Compass className="h-4 w-4" />
-            <span className="hidden sm:inline">Apri </span>Riepilogo sessione
+            <span className="hidden sm:inline">
+              {athlete.latestCompassNeedsReview ? 'Valida ' : 'Apri '}
+            </span>
+            Riepilogo sessione
           </Link>
         ) : null}
       </div>
