@@ -37,7 +37,15 @@ export function SessionHeroInsight({
 }) {
   const overview = report.sessionOverview;
   const centralTheme = overview.themes[0] ?? null;
-  const mainInsight = overview.emergingResource?.text ?? overview.summary;
+  // La sintesi, non la risorsa emersa.
+  //
+  // L'eroe mostrava `emergingResource ?? summary`, e siccome una risorsa
+  // emersa c'e' quasi sempre, la sintesi della seduta non compariva mai in
+  // Panoramica: si apriva il riepilogo e non si trovava il riepilogo. Al
+  // suo posto campeggiava una cosa concordata *dentro* la seduta, che e'
+  // un dettaglio, non il suo racconto.
+  const mainInsight = overview.summary || overview.emergingResource?.text;
+  const emergingResource = overview.emergingResource?.text ?? null;
   const nextStep = report.nextSessionPrep[0] ?? report.commitments[0] ?? null;
 
   return (
@@ -87,7 +95,11 @@ export function SessionHeroInsight({
 
       {/* Una riga di appoggio separata da un filo, non due riquadri: erano
           la ragione principale per cui l'eroe non sembrava un eroe. */}
-      <div className="mt-6 grid gap-5 border-t border-gray-200/80 pt-5 sm:grid-cols-2">
+      <div
+        className={`mt-6 grid gap-5 border-t border-gray-200/80 pt-5 ${
+          emergingResource ? 'sm:grid-cols-3' : 'sm:grid-cols-2'
+        }`}
+      >
         <SupportingFact
           label="Problema centrale"
           value={centralTheme?.text ?? 'Dato non disponibile'}
@@ -102,6 +114,13 @@ export function SessionHeroInsight({
               : 'Non è stata definita un’azione verificabile.'
           }
         />
+        {emergingResource ? (
+          <SupportingFact
+            label="Risorsa emersa"
+            value={emergingResource}
+            note="Leva su cui l’atleta ha già mostrato di poter contare."
+          />
+        ) : null}
       </div>
     </section>
   );
