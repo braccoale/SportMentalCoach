@@ -5,7 +5,10 @@ import {
   STUCK_JOB_MINUTES,
   type AiPipelineHealth,
 } from '@/lib/core/ai-session-notes/queue-health';
-import { runAiNotesWorkerAction } from '@/app/(dashboard)/dashboard/admin/ai-notes/actions';
+import {
+  probeCallbackAction,
+  runAiNotesWorkerAction,
+} from '@/app/(dashboard)/dashboard/admin/ai-notes/actions';
 
 function Counts({
   title,
@@ -125,13 +128,20 @@ export function AiPipelineHealthPanel({
         ) : (
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
         )}
-        <p>
+        <p className="flex-1">
           Indirizzo di callback:{' '}
           <strong>{health.callbackOrigin ?? 'non configurato'}</strong>
           {health.callbackConfigured
-            ? ' — il provider puo’ raggiungerci qui.'
+            ? ' — sembra valido. Provalo per esserne certo.'
             : ' — deve essere un indirizzo https pubblico, altrimenti le sedute lunghe non verranno mai trascritte.'}
         </p>
+        {/* La forma dell'indirizzo non basta: solo bussando si scopre se una
+            protezione o un redirect lo rendono irraggiungibile. */}
+        <ActionForm action={probeCallbackAction}>
+          <Button type="submit" variant="outline" size="sm" className="rounded-full">
+            Prova la callback
+          </Button>
+        </ActionForm>
       </div>
 
       {/* Il numero che deve valere zero. */}
@@ -150,7 +160,11 @@ export function AiPipelineHealthPanel({
         <p>
           {health.expiredSessions === 0
             ? 'Nessuna sessione oltre la propria scadenza.'
-            : `${health.expiredSessions} sessioni oltre la propria scadenza: c’e’ un coach che sta guardando una rotellina.`}
+            : `${health.expiredSessions} ${
+                health.expiredSessions === 1
+                  ? 'sessione oltre la propria scadenza'
+                  : 'sessioni oltre la propria scadenza'
+              }: c’e’ un coach che sta guardando una rotellina.`}
         </p>
       </div>
 

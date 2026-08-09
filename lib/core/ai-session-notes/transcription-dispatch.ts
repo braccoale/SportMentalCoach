@@ -25,6 +25,33 @@ export const SIGNED_URL_TTL_SECONDS = 900;
  * Deve essere raggiungibile da internet: in sviluppo locale serve un tunnel,
  * altrimenti le trascrizioni non tornano mai.
  */
+/**
+ * La base dell'indirizzo di callback, normalizzata.
+ *
+ * Il prefisso mancante e' costato giorni: la variabile conteneva l'host
+ * nudo, l'indirizzo che ne usciva non era assoluto, e Deepgram rifiutava
+ * ogni consegna con un errore che non diceva quale campo fosse sbagliato.
+ * Un valore scritto senza `https://` e' un errore di battitura, non una
+ * scelta: si corregge invece di far fallire tutto.
+ *
+ * `http` invece resta un errore: il provider non ci arriverebbe comunque, e
+ * accettarlo in silenzio significherebbe riavere lo stesso guasto travestito.
+ */
+export function normalizedCallbackBase(raw: string): string {
+  const trimmed = raw.trim().replace(/\/$/, '');
+  const withScheme = /^https?:\/\//i.test(trimmed)
+    ? trimmed
+    : `https://${trimmed}`;
+  const url = new URL(withScheme);
+  if (url.protocol !== 'https:') {
+    throw new AiNotesProcessingError(
+      'PROVIDER_NOT_CONFIGURED',
+      'URL di callback non sicura.'
+    );
+  }
+  return url.origin;
+}
+
 export function sttCallbackUrl(token: string): string {
   const base = process.env.AI_NOTES_CALLBACK_BASE_URL?.trim();
   if (!base) {
@@ -33,7 +60,7 @@ export function sttCallbackUrl(token: string): string {
       'URL di callback non configurata.'
     );
   }
-  return `${base.replace(/\/$/, '')}/api/internal/ai-notes/stt-callback/${token}`;
+  return `${normalizedCallbackBase(base)}/api/internal/ai-notes/stt-callback/${token}`;
 }
 
 export type DispatchOutcome = {

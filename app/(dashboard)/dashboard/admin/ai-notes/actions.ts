@@ -12,6 +12,8 @@ import {
   processAiNotesBatch,
   recoverStaleAiProcessingJobs,
 } from '@/lib/core/ai-session-notes/processing';
+import { closeStuckProcessingSessions } from '@/lib/core/ai-session-notes/stuck-sessions';
+import { probeCallbackEndpoint } from '@/lib/core/ai-session-notes/callback-probe';
 import type { ActionState } from '@/lib/auth/middleware';
 
 /**
@@ -42,19 +44,26 @@ export async function runAiNotesWorkerAction(
       { workerId: `admin-${Date.now().toString(36)}`, limit: 5 },
       dependencies
     );
+    // Anche a coda vuota c'e' del lavoro: una sessione oltre la scadenza va
+    // chiusa, altrimenti il pulsante dice «nessun job» e lascia il coach a
+    // guardare la rotellina — che e' esattamente il caso in cui lo si preme.
+    const expired = await closeStuckProcessingSessions({ limit: 20 }, dependencies);
     const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
 
     revalidatePath('/dashboard/admin/ai-notes');
 
     if (result.claimed === 0) {
       return {
-        success: `Nessun job da elaborare (${seconds}s). Job recuperati: ${recovered}.`,
+        success:
+          `Nessun job da elaborare (${seconds}s). Job recuperati: ${recovered}, ` +
+          `sessioni scadute chiuse: ${expired}.`,
       };
     }
     return {
       success:
         `Eseguito in ${seconds}s — presi ${result.claimed}, completati ${result.completed}, ` +
-        `falliti ${result.failed}, annullati ${result.cancelled}, recuperati ${recovered}.`,
+        `falliti ${result.failed}, annullati ${result.cancelled}, recuperati ${recovered}, ` +
+        `sessioni scadute chiuse: ${expired}.`,
     };
   } catch (error) {
     // Il messaggio del provider non arriva mai al browser: resta nei log.
@@ -122,4 +131,24 @@ export async function updateAiNotesEntitlementAction(
         ? 'Funzionalità revocata.'
         : 'Funzionalità abilitata.',
   };
+}
+
+/**
+ * Verifica che il provider possa davvero richiamarci.
+ *
+ * L'indirizzo di callback e' l'unico pezzo che non si puo' controllare
+ * lavorando: lo si consegna al provider e si spera. Un valore sbagliato e'
+ * rimasto invisibile per giorni. Questa prova ci mette tre secondi e
+ * risponde per sempre alla domanda «l'indirizzo e' giusto?».
+ */
+export async function probeCallbackAction(
+  _previous: ActionState,
+  _formData: FormData
+): Promise<ActionState> {
+  await requireRole('admin');
+  const result = await probeCallbackEndpoint();
+  revalidatePath('/dashboard/admin/ai-notes');
+  return result.reachable
+    ? { success: `${result.origin} — ${result.detail}` }
+    : { error: `${result.origin ?? 'nessun indirizzo'} — ${result.detail}` };
 }

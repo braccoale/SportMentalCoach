@@ -2,6 +2,7 @@ import 'server-only';
 import { and, desc, eq, isNull, lt, ne, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { countExpiredSessions } from './stuck-sessions';
+import { normalizedCallbackBase } from './transcription-dispatch';
 import { createProductionAiSessionNotesDependencies } from './dependencies';
 import {
   sessionAiNotes,
@@ -84,13 +85,17 @@ function callbackDiagnostics(): {
   const base = process.env.AI_NOTES_CALLBACK_BASE_URL?.trim();
   if (!base) return { callbackOrigin: null, callbackConfigured: false };
   try {
-    const url = new URL(base);
-    // Il provider deve poterci raggiungere da internet: http o un indirizzo
-    // locale non arriveranno mai, e vanno detti subito.
-    const reachable =
-      url.protocol === 'https:' &&
-      !['localhost', '127.0.0.1', '0.0.0.0'].includes(url.hostname);
-    return { callbackOrigin: url.origin, callbackConfigured: reachable };
+    // La stessa normalizzazione che usa la consegna: se qui mostrassimo un
+    // indirizzo diverso da quello davvero inviato al provider, la
+    // diagnostica mentirebbe proprio dove serve.
+    const origin = normalizedCallbackBase(base);
+    const url = new URL(origin);
+    // Il provider deve poterci raggiungere da internet: un indirizzo locale
+    // non arrivera' mai, e va detto subito.
+    const reachable = !['localhost', '127.0.0.1', '0.0.0.0'].includes(
+      url.hostname
+    );
+    return { callbackOrigin: origin, callbackConfigured: reachable };
   } catch {
     return { callbackOrigin: base.slice(0, 60), callbackConfigured: false };
   }
