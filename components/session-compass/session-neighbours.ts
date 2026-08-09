@@ -74,3 +74,73 @@ export function sessionNeighbours(params: {
     total: ordered.length,
   };
 }
+
+/**
+ * Dove cade ogni seduta lungo la linea del tempo, in percentuale.
+ *
+ * Le sedute non sono equidistanti nella realtà e non devono esserlo sullo
+ * schermo: due incontri a due giorni di distanza e poi un mese di pausa
+ * raccontano qualcosa, e distribuirli a intervalli uguali cancellerebbe
+ * proprio quel qualcosa. La posizione è proporzionale al tempo trascorso.
+ *
+ * Due sedute troppo vicine diventerebbero un solo punto: si tiene una
+ * distanza minima fra i centri, perché un punto che non si può cliccare non
+ * esiste.
+ */
+export const MIN_DOT_GAP_PERCENT = 4;
+
+export type PlacedSession = NavigableSession & {
+  /** Da 0 (la più vecchia) a 100 (la più recente). */
+  offsetPercent: number;
+};
+
+export function placeSessionsOnTimeline(
+  sessions: readonly NavigableSession[]
+): PlacedSession[] {
+  const ordered = chronological(sessions);
+  if (ordered.length === 0) return [];
+  if (ordered.length === 1) {
+    return [{ ...ordered[0], offsetPercent: 50 }];
+  }
+
+  const times = ordered.map((entry) =>
+    entry.sessionDate ? Date.parse(entry.sessionDate) : Number.NaN
+  );
+  const known = times.filter((time) => Number.isFinite(time));
+  const first = known.length > 0 ? Math.min(...known) : 0;
+  const last = known.length > 0 ? Math.max(...known) : 0;
+  const span = last - first;
+
+  const placed = ordered.map((entry, index) => {
+    // Senza data non c'è modo di collocarla nel tempo: la si mette in coda,
+    // dove la lista l'ha già ordinata.
+    if (span <= 0 || !Number.isFinite(times[index])) {
+      return {
+        ...entry,
+        offsetPercent: (index / (ordered.length - 1)) * 100,
+      };
+    }
+    return {
+      ...entry,
+      offsetPercent: ((times[index] - first) / span) * 100,
+    };
+  });
+
+  // Una passata da sinistra: ogni punto cede il minimo indispensabile al
+  // precedente, così l'ordine resta e nessuno sparisce sotto un altro.
+  for (let index = 1; index < placed.length; index += 1) {
+    const minimum = placed[index - 1].offsetPercent + MIN_DOT_GAP_PERCENT;
+    if (placed[index].offsetPercent < minimum) {
+      placed[index].offsetPercent = minimum;
+    }
+  }
+
+  // Se lo scostamento ha spinto oltre il bordo, si ricomprime tutto.
+  const overflow = placed[placed.length - 1].offsetPercent;
+  if (overflow > 100) {
+    for (const entry of placed) {
+      entry.offsetPercent = (entry.offsetPercent / overflow) * 100;
+    }
+  }
+  return placed;
+}

@@ -549,6 +549,7 @@ export function SessionCompassPanel({
               sessionId: entry.sessionId,
               sessionDate: entry.sessionDate,
               compassHref: entry.compassHref,
+              focus: entry.focus,
             }))}
             currentSessionId={sessionId}
             currentDate={sessionDate}

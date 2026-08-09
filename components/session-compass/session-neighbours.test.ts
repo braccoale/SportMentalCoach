@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sessionNeighbours } from './session-neighbours';
+import {
+  MIN_DOT_GAP_PERCENT,
+  placeSessionsOnTimeline,
+  sessionNeighbours,
+} from './session-neighbours';
 
 const sessions = [
   { sessionId: 10, sessionDate: '2026-06-01T10:00:00Z', compassHref: '/a' },
@@ -51,4 +55,37 @@ test('un percorso vuoto non propone nessuna direzione', () => {
   const result = sessionNeighbours({ sessions: [], currentSessionId: 7 });
   assert.equal(result.previous, null);
   assert.equal(result.next, null);
+});
+
+test('le sedute sono distanziate come nel tempo, non a intervalli uguali', () => {
+  // Due incontri ravvicinati e poi un mese di pausa raccontano qualcosa:
+  // distribuirli a distanze uguali cancellerebbe proprio quel qualcosa.
+  const placed = placeSessionsOnTimeline([
+    { sessionId: 1, sessionDate: '2026-06-01T10:00:00Z', compassHref: '/a' },
+    { sessionId: 2, sessionDate: '2026-06-03T10:00:00Z', compassHref: '/b' },
+    { sessionId: 3, sessionDate: '2026-07-03T10:00:00Z', compassHref: '/c' },
+  ]);
+  assert.equal(placed[0].offsetPercent, 0);
+  assert.equal(placed[2].offsetPercent, 100);
+  assert.ok(placed[1].offsetPercent < 20, 'la seconda resta vicina alla prima');
+});
+
+test('due sedute lo stesso giorno restano due punti cliccabili', () => {
+  const placed = placeSessionsOnTimeline([
+    { sessionId: 1, sessionDate: '2026-06-01T09:00:00Z', compassHref: '/a' },
+    { sessionId: 2, sessionDate: '2026-06-01T10:00:00Z', compassHref: '/b' },
+    { sessionId: 3, sessionDate: '2026-08-01T10:00:00Z', compassHref: '/c' },
+  ]);
+  assert.ok(
+    placed[1].offsetPercent - placed[0].offsetPercent >= MIN_DOT_GAP_PERCENT,
+    'un punto sotto un altro non si puo cliccare'
+  );
+  assert.ok(placed[2].offsetPercent <= 100);
+});
+
+test('una seduta sola sta al centro, non appiccicata a un bordo', () => {
+  const placed = placeSessionsOnTimeline([
+    { sessionId: 1, sessionDate: '2026-06-01T10:00:00Z', compassHref: '/a' },
+  ]);
+  assert.equal(placed[0].offsetPercent, 50);
 });
