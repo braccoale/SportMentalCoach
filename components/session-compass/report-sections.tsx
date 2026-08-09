@@ -465,6 +465,8 @@ function formatCompactDate(value: string | null): string {
 
 export function CoachNotesPanel({
   report,
+  bookmarks = [],
+  closingNote = null,
   editable,
   reportEditable,
   trackedCommitments,
@@ -477,6 +479,8 @@ export function CoachNotesPanel({
   onOpenEvidence,
 }: {
   report: SessionCompassReport;
+  bookmarks?: readonly { id: number; atMs: number; note: string | null }[];
+  closingNote?: string | null;
   editable: boolean;
   reportEditable: boolean;
   trackedCommitments: readonly TrackedCommitmentView[];
@@ -493,6 +497,41 @@ export function CoachNotesPanel({
 }) {
   return (
     <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+      {closingNote ? (
+        <Surface tone="muted">
+          <SectionHeading
+            eyebrow="Scritta a fine sessione"
+            title="La tua nota a caldo"
+            description="Registrata chiudendo la sessione, quando avevi ancora tutto in mente."
+          />
+          <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-gray-800">
+            {closingNote}
+          </p>
+        </Surface>
+      ) : null}
+
+      {bookmarks.length ? (
+        <Surface>
+          <SectionHeading
+            eyebrow="Segnati da te"
+            title={`${bookmarks.length} momenti segnati durante la sessione`}
+            description="Ogni segnalibro punta a qualche secondo prima del tocco: quando lo noti, la frase è già stata detta."
+          />
+          <ul className="mt-4 divide-y divide-gray-100">
+            {bookmarks.map((bookmark) => (
+              <li key={bookmark.id} className="flex items-baseline gap-3 py-2.5">
+                <span className="shrink-0 text-sm font-bold tabular-nums text-violet-700">
+                  {formatTranscriptTimestamp(bookmark.atMs)}
+                </span>
+                <span className="min-w-0 text-sm leading-6 text-gray-700">
+                  {bookmark.note ?? 'Momento segnato durante la sessione.'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Surface>
+      ) : null}
+
       <Surface>
         <SectionHeading
           eyebrow="Privato"

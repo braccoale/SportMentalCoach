@@ -142,6 +142,7 @@ export function AiSessionNotesControl({
   // Il segnalibro deve dare un riscontro immediato e sparire: se il coach
   // deve leggere una conferma, l'attenzione e' gia' andata via dall'atleta.
   const [bookmarked, setBookmarked] = useState(false);
+  const [closingNote, setClosingNote] = useState('');
   const mutationInFlight = useRef(false);
 
   const refresh = useCallback(async () => {
@@ -468,16 +469,30 @@ export function AiSessionNotesControl({
         {session.viewerRole === 'coach' && (
           <div className="mt-2 mr-3 inline-block">
             {confirmingClose ? (
-              <span className="text-xs text-emerald-100">
+              <span className="block text-xs text-emerald-100">
                 La registrazione si chiude e non potrà essere ripresa. La
-                videochiamata resta aperta.{' '}
+                videochiamata resta aperta.
+                {/* La nota si chiede qui perche' e' l'unico momento in cui il
+                    coach ha le idee fresche e sta per dimenticarle. E'
+                    facoltativa: chi non la vuole preme Conferma. */}
+                <textarea
+                  className="mt-2 block w-full resize-y rounded-lg border border-white/20 bg-white/10 p-2 text-xs text-white placeholder:text-white/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                  rows={3}
+                  value={closingNote}
+                  onChange={(event) => setClosingNote(event.target.value)}
+                  placeholder="Una nota a caldo, se vuoi: com'è andata, cosa riprendere…"
+                  aria-label="Nota di fine sessione"
+                />
                 <button
                   type="button"
-                  className="font-semibold text-white underline"
+                  className="mt-2 font-semibold text-white underline"
                   disabled={loading}
                   onClick={() => {
                     setConfirmingClose(false);
-                    void mutate(`/api/ai-session-notes/${session.id}/close`);
+                    void mutate(
+                      `/api/ai-session-notes/${session.id}/close`,
+                      closingNote.trim() ? { closingNote } : undefined
+                    );
                   }}
                 >
                   {loading ? 'Chiusura…' : 'Conferma'}

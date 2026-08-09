@@ -231,6 +231,10 @@ export function SessionCompassPanel({
 }) {
   const endpoint = `/api/coach/ai-session-notes/${sessionId}/compass`;
   const [report, setReport] = useState<SessionCompassView | null>(null);
+  const [bookmarks, setBookmarks] = useState<
+    Array<{ id: number; atMs: number; note: string | null }>
+  >([]);
+  const [closingNote, setClosingNote] = useState<string | null>(null);
   const [transcriptBySession, setTranscriptBySession] = useState<Record<number, CompassTranscriptSegment[]>>({});
   const [transcriptLoadedBySession, setTranscriptLoadedBySession] = useState<Record<number, boolean>>({});
   const [transcriptErrorBySession, setTranscriptErrorBySession] = useState<Record<number, string | null>>({});
@@ -611,6 +615,8 @@ export function SessionCompassPanel({
             ) : null}
             {activeTab === 'notes' ? (
               <CoachNotesPanel
+                bookmarks={bookmarks}
+                closingNote={closingNote}
                 report={report.document}
                 editable={report.canEditCoachNote}
                 reportEditable={!report.isApproved}

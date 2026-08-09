@@ -11,6 +11,8 @@ import {
   type CommitmentStatus,
   type CompassSpeaker,
 } from '@/lib/core/ai-session-notes/session-compass-contract';
+import { listCoachBookmarks } from '@/lib/core/ai-session-notes/coach-bookmarks-store';
+import { loadClosingNote } from '@/lib/core/ai-session-notes/session-close';
 import {
   authenticatedCompassRequest,
   compassErrorResponse,
@@ -26,7 +28,13 @@ export async function GET(
   if (request instanceof Response) return request;
   try {
     const report = await getSessionCompass(request, sessionCompassDependencies());
-    return Response.json({ report });
+    // Segnalibri e nota di chiusura viaggiano accanto al report e non dentro:
+    // non sono prodotti dall'AI e non partecipano al suo fingerprint.
+    const [bookmarks, closingNote] = await Promise.all([
+      listCoachBookmarks(request.sessionId, request.actorUserId),
+      loadClosingNote(request.sessionId),
+    ]);
+    return Response.json({ report, bookmarks, closingNote });
   } catch (error) {
     return compassErrorResponse(error);
   }

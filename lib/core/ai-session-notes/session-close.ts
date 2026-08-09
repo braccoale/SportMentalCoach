@@ -36,6 +36,14 @@ export async function closeAiNotesSession(
     reason: AiNotesCloseReason;
     actorUserId?: number | null;
     enforceCoach?: boolean;
+    /**
+     * L'osservazione del coach, scritta chiudendo.
+     *
+     * E' il momento in cui ha le idee fresche e sta per dimenticarle. Vive
+     * nei metadata della sessione e non nel report, che a quest'ora non
+     * esiste ancora: il report arriva minuti dopo, a trascrizione fatta.
+     */
+    closingNote?: string | null;
   },
   liveKit: LiveKitSessionControl,
   executor: DbOrTx = db
@@ -90,6 +98,9 @@ export async function closeAiNotesSession(
     .set({
       metadata: sql`${sessionAiNotes.metadata} || ${JSON.stringify({
         closeReason: params.reason,
+        ...(params.closingNote?.trim()
+          ? { closingNote: params.closingNote.trim().slice(0, 2000) }
+          : {}),
       })}::jsonb`,
       updatedDate: new Date(),
       updatedBy: actorUserId,
@@ -97,4 +108,19 @@ export async function closeAiNotesSession(
     .where(eq(sessionAiNotes.id, params.sessionId));
 
   return true;
+}
+
+/** La nota scritta chiudendo la sessione, se c'è. */
+export async function loadClosingNote(
+  sessionId: number,
+  executor: DbOrTx = db
+): Promise<string | null> {
+  const [row] = await executor
+    .select({ metadata: sessionAiNotes.metadata })
+    .from(sessionAiNotes)
+    .where(eq(sessionAiNotes.id, sessionId))
+    .limit(1);
+  const value = (row?.metadata as { closingNote?: unknown } | undefined)
+    ?.closingNote;
+  return typeof value === 'string' && value.trim() ? value : null;
 }

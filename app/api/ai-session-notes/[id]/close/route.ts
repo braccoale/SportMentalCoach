@@ -4,7 +4,6 @@ import { closeAiNotesSession } from '@/lib/core/ai-session-notes/session-close';
 import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
 import { aiNotesErrorResponse } from '@/lib/core/ai-session-notes/http';
 import { allowRecordingMutation } from '@/lib/core/ai-session-notes/rate-limit';
-import { isEmptyRecordingMutationBody } from '@/lib/core/ai-session-notes/recording-policy';
 
 /**
  * Chiusura definitiva della sessione Appunti AI, decisa dal coach.
@@ -32,12 +31,22 @@ export async function POST(
   if (!Number.isInteger(sessionId) || sessionId <= 0) {
     return Response.json({ error: 'Sessione non valida.' }, { status: 400 });
   }
+  // A differenza degli altri comandi, qui un corpo c'e': l'osservazione che
+  // il coach scrive chiudendo. Nient'altro viene accettato.
   const raw = await request.text();
-  if (!isEmptyRecordingMutationBody(raw)) {
-    return Response.json(
-      { error: 'La destinazione della registrazione è risolta dal server.' },
-      { status: 400 }
-    );
+  let closingNote: string | null = null;
+  if (raw.trim()) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return Response.json({ error: 'Richiesta non valida.' }, { status: 400 });
+    }
+    const value = (parsed as { closingNote?: unknown } | null)?.closingNote;
+    if (value !== undefined && typeof value !== 'string') {
+      return Response.json({ error: 'Nota non valida.' }, { status: 400 });
+    }
+    closingNote = typeof value === 'string' ? value : null;
   }
   try {
     const dependencies = createProductionAiSessionNotesDependencies();
@@ -47,6 +56,7 @@ export async function POST(
         reason: 'coach_closed',
         actorUserId: user.id,
         enforceCoach: true,
+        closingNote,
       },
       dependencies.liveKit
     );
