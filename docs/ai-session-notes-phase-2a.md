@@ -232,6 +232,53 @@ tramite l'unicità su `(sessione, traccia, segment_order)`, ma il trigger
 assegna sempre `MAX(segment_order) + 1` e quel vincolo non poteva mai
 scattare.
 
+## Copertura della sessione
+
+Il coach, a sessione finita, deve poter rispondere a una domanda sola: *di
+questa sessione, quanto ha davvero sentito l'AI, e cosa manca?* — senza
+aprire un database.
+
+`getSessionCoverage` confronta la finestra della sessione con gli intervalli
+effettivamente registrati e restituisce una struttura, mai testo:
+
+| campo | significato |
+|---|---|
+| `sessionDurationMs` / `recordedDurationMs` | durata della seduta e quanto ne è coperto |
+| `coveragePercent` | quota registrata, arrotondata |
+| `gaps[]` | i buchi: inizio, durata e **causa** |
+| `transcription` | segmenti completati, in attesa, falliti |
+| `state` | `completa` / `con_interruzioni` / `in_corso` / `parziale` / `fallita` |
+| `closeReason` | come si è chiusa la sessione |
+
+Due regole di calcolo che vale la pena conoscere:
+
+- **Gli intervalli di tutti i partecipanti si fondono.** Un momento in cui
+  almeno una traccia registrava è un momento coperto: se cade l'atleta ma il
+  coach continua, la sessione è stata comunque sentita e non c'è buco.
+- **Sotto i cinque secondi non è un buco**, è una transizione tecnica fra due
+  egress. Segnalarla renderebbe sospetta anche una sessione integra.
+
+Le cause dei buchi esistevano già nei metadata delle registrazioni
+(`stopReason`) e negli eventi di audit, ma nessuno le leggeva. Qui diventano
+la spiegazione, tradotta: `participant_left` → «una disconnessione»,
+`EGRESS_FAILED` → «una registrazione non riuscita». **Il coach non legge mai
+un codice tecnico**, e un test lo verifica cercandoli nel testo prodotto.
+
+### La regola che tiene tutto insieme
+
+**Il riepilogo dichiara sempre la propria base.** Se il Compass è stato
+generato su una sessione con buchi, lo dice: «Il riepilogo si basa sulle parti
+registrate». Un'analisi AI presentata come completa quando copre l'ottanta per
+cento della seduta è peggio di nessuna analisi — è il fallimento silenzioso
+che questo lavoro esiste per eliminare.
+
+La card compare **prima** del riepilogo nel workspace del coach, non dopo:
+sapere quanta parte è stata registrata cambia come si legge tutto ciò che
+segue. Discreta quando la copertura è integra, esplicita quando non lo è.
+`buildAiSessionArchiveIndicator` accetta la copertura come parametro
+opzionale, così anche l'elenco delle sessioni distingue una seduta completa da
+una con interruzioni.
+
 ## Piano e costi
 
 Il progetto è LiveKit Cloud, ma il piano non è esposto dall’API di servizio

@@ -49,3 +49,57 @@ test('does not claim that a recording exists before consent or after cancellatio
   assert.equal(buildAiSessionArchiveIndicator('consent_rejected', 'coach'), null);
   assert.equal(buildAiSessionArchiveIndicator('cancelled', 'coach'), null);
 });
+
+test('senza copertura il comportamento resta identico a prima', () => {
+  assert.deepEqual(
+    buildAiSessionArchiveIndicator('shared', 'coach'),
+    buildAiSessionArchiveIndicator('shared', 'coach', false, false, undefined)
+  );
+});
+
+test('una copertura integra non aggiunge rumore all etichetta', () => {
+  assert.deepEqual(
+    buildAiSessionArchiveIndicator('shared', 'coach', false, false, 'completa'),
+    buildAiSessionArchiveIndicator('shared', 'coach')
+  );
+});
+
+test('una sessione con interruzioni lo dichiara anche in lista', () => {
+  const indicator = buildAiSessionArchiveIndicator(
+    'shared',
+    'coach',
+    false,
+    false,
+    'con_interruzioni'
+  );
+  assert.match(indicator!.label, /interruzion/i);
+});
+
+test('una registrazione mancata e visibile in lista', () => {
+  const indicator = buildAiSessionArchiveIndicator(
+    'shared',
+    'coach',
+    false,
+    false,
+    'fallita'
+  );
+  assert.match(indicator!.label, /non registrata/i);
+});
+
+test('una trascrizione parziale e visibile in lista', () => {
+  const indicator = buildAiSessionArchiveIndicator(
+    'shared',
+    'coach',
+    false,
+    false,
+    'parziale'
+  );
+  assert.match(indicator!.label, /parziale/i);
+});
+
+test('senza indicatore la copertura non ne inventa uno', () => {
+  assert.equal(
+    buildAiSessionArchiveIndicator(null, 'coach', false, false, 'fallita'),
+    null
+  );
+});

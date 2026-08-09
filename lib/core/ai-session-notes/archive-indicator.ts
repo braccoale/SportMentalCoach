@@ -1,4 +1,5 @@
 import type { AiSessionNoteStatus } from '@/lib/db/schema';
+import type { SessionCoverageState } from './session-coverage';
 
 export type AiSessionArchiveIndicator = {
   state:
@@ -25,11 +26,48 @@ function transcriptReadyIndicator(
   };
 }
 
+/**
+ * Aggiunge all'etichetta ciò che non va, quando non va.
+ *
+ * Il parametro è opzionale e una copertura integra non cambia nulla: in lista
+ * una sessione riuscita non deve portare rumore. Ciò che deve emergere è il
+ * contrario — una seduta con buchi non può sembrare identica a una completa.
+ */
+function withCoverage(
+  indicator: AiSessionArchiveIndicator | null,
+  coverageState?: SessionCoverageState
+): AiSessionArchiveIndicator | null {
+  if (!indicator || !coverageState) return indicator;
+  switch (coverageState) {
+    case 'con_interruzioni':
+      return { ...indicator, label: `${indicator.label} · con interruzioni` };
+    case 'parziale':
+      return { ...indicator, label: `${indicator.label} · copertura parziale` };
+    case 'fallita':
+      return { state: 'failed', label: 'Sessione non registrata' };
+    default:
+      return indicator;
+  }
+}
+
 export function buildAiSessionArchiveIndicator(
   status: AiSessionNoteStatus | null,
   viewerRole: 'coach' | 'athlete',
   hasRecordedAudio = false,
-  hasTranscript = false
+  hasTranscript = false,
+  coverageState?: SessionCoverageState
+): AiSessionArchiveIndicator | null {
+  return withCoverage(
+    baseIndicator(status, viewerRole, hasRecordedAudio, hasTranscript),
+    coverageState
+  );
+}
+
+function baseIndicator(
+  status: AiSessionNoteStatus | null,
+  viewerRole: 'coach' | 'athlete',
+  hasRecordedAudio: boolean,
+  hasTranscript: boolean
 ): AiSessionArchiveIndicator | null {
   switch (status) {
     case 'active':
