@@ -115,7 +115,7 @@ export function SessionOverview({
       <div className="grid min-w-0 gap-4 xl:grid-cols-12">
       <div className="min-w-0 xl:col-span-3">{journeySidebar}</div>
 
-      <div className="min-w-0 space-y-4 xl:col-span-9">
+      <div className="min-w-0 space-y-6 xl:col-span-9">
         <SessionHeroInsight
           report={report}
           isApproved={isApproved}
@@ -140,7 +140,7 @@ export function SessionOverview({
           <SessionContinuityCard report={report} previous={previousJourneyEntry} />
         ) : null}
 
-        <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(16rem,0.8fr)]">
+        <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(16rem,0.8fr)]">
           <AthleteProgressCharts
             journey={journey ?? null}
             report={report}
@@ -164,7 +164,7 @@ export function SessionOverview({
           currentSessionDate={currentSessionDate ?? null}
         />
 
-        <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)_minmax(15rem,0.85fr)]">
+        <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)_minmax(15rem,0.85fr)]">
           <NextSessionActions
             items={report.nextSessionPrep}
             isApproved={isApproved}

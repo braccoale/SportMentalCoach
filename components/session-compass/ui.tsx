@@ -13,10 +13,16 @@ import { formatTranscriptTimestamp } from './time';
 
 export type SurfaceTone = 'plain' | 'accent' | 'muted';
 
+/**
+ * I bordi erano tutti allo stesso peso e con un'ombra appena percepibile:
+ * quindici riquadri identici che si contendevano l'attenzione. Il bordo qui
+ * serve a delimitare, non a farsi notare, quindi si alleggerisce; l'ombra
+ * spariva comunque alla vista e restava solo come rumore.
+ */
 const SURFACE_TONES: Record<SurfaceTone, string> = {
-  plain: 'border-gray-200 bg-white',
-  accent: 'border-violet-200 bg-gradient-to-br from-white via-white to-violet-50/70',
-  muted: 'border-gray-200 bg-gray-50/60',
+  plain: 'border-gray-200/70 bg-white',
+  accent: 'border-violet-200/80 bg-gradient-to-br from-white via-white to-violet-50/70',
+  muted: 'border-gray-200/60 bg-gray-50/60',
 };
 
 export function Surface({
@@ -35,7 +41,7 @@ export function Surface({
   return (
     <Tag
       aria-label={ariaLabel}
-      className={`min-w-0 max-w-full rounded-2xl border p-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)] ${SURFACE_TONES[tone]} ${className}`}
+      className={`min-w-0 max-w-full rounded-2xl border p-5 ${SURFACE_TONES[tone]} ${className}`}
     >
       {children}
     </Tag>
