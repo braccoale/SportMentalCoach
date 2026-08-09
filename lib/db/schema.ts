@@ -1334,6 +1334,36 @@ export type AiReportKind = (typeof AI_REPORT_KINDS)[number];
 // shared_report_json and must never return private_coach_notes.
 // Session Compass v1 is versioned per session: report_version grows when a
 // draft is regenerated after approval, so an approved report stays immutable.
+/**
+ * Le linee guida KaiPai per il riepilogo sessione.
+ *
+ * Il metodo della casa: come si guarda una seduta, che cosa conta, con che
+ * tono si scrive. Vivono nel prodotto e non nel codice perché l'academy le
+ * farà evolvere, e ogni modifica non deve passare da un deploy.
+ *
+ * Ogni salvataggio crea una versione nuova invece di sovrascrivere: un report
+ * approvato è stato scritto con una certa versione, e fra sei mesi deve
+ * restare possibile sapere quale.
+ */
+export const aiPromptGuidelines = pgTable(
+  'ai_prompt_guidelines',
+  {
+    id: serial('id').primaryKey(),
+    version: integer('version').notNull(),
+    body: text('body').notNull(),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    unique('ai_prompt_guidelines_version_unique').on(table.version),
+    index('ai_prompt_guidelines_version_idx').on(table.version),
+  ]
+);
+
 export const sessionAiReports = pgTable(
   'session_ai_reports',
   {

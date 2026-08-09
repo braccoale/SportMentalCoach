@@ -7,6 +7,7 @@
  */
 
 import { sportContextBlock } from './sport-context';
+import { houseGuidelinesBlock } from './house-guidelines-policy';
 import {
   KEY_MOMENT_CATEGORIES,
   MAX_EMOTIONAL_TREND_POINTS,
@@ -214,14 +215,23 @@ export class OpenAiSessionCompassReportProvider
  */
 export function openAiSessionCompassProviderFromEnvironment(
   environment: Readonly<Record<string, string | undefined>> = process.env,
-  client?: OpenAiCompassClient
+  client?: OpenAiCompassClient,
+  /*
+   * La versione puo' arrivare da fuori: comprende le linee guida attive, che
+   * stanno sul database e cambiano senza un deploy. Ricavarsela qui
+   * significherebbe firmare il report con una versione diversa da quella con
+   * cui verra' confrontato.
+   */
+  promptVersionOverride?: string
 ): OpenAiSessionCompassReportProvider {
   return new OpenAiSessionCompassReportProvider({
     apiKey: environment.OPENAI_API_KEY?.trim() ?? '',
     model: environment.AI_NOTES_COMPASS_MODEL?.trim() ?? '',
-    promptVersion: effectiveSessionCompassPromptVersion(
-      environment.AI_NOTES_COMPASS_PROMPT_VERSION ?? ''
-    ),
+    promptVersion:
+      promptVersionOverride?.trim() ||
+      effectiveSessionCompassPromptVersion(
+        environment.AI_NOTES_COMPASS_PROMPT_VERSION ?? ''
+      ),
     client,
   });
 }
@@ -233,7 +243,11 @@ function requestFor(
 ): OpenAiCompassRequest {
   return {
     model,
-    instructions: systemInstructions(promptVersion, input.context.athleteSport),
+    instructions: systemInstructions(
+      promptVersion,
+      input.context.athleteSport,
+      input.context.houseGuidelines
+    ),
     input: JSON.stringify(promptPayload(input)),
     store: false,
     // Session Compass è estrazione strutturata e verificabile, non richiede
@@ -274,7 +288,8 @@ function promptPayload(input: SessionCompassGenerationInput): Record<string, unk
 
 function systemInstructions(
   promptVersion: string,
-  athleteSport: string | null
+  athleteSport: string | null,
+  houseGuidelines: string | null
 ): string {
   /*
    * Il contesto sportivo entra qui, in coda alle regole e non al loro posto.
@@ -285,6 +300,7 @@ function systemInstructions(
    * tipici: poche righe, non un prompt parallelo.
    */
   const sportBlock = sportContextBlock(athleteSport);
+  const guidelinesBlock = houseGuidelinesBlock(houseGuidelines);
   return `Prompt version: ${promptVersion}
 Prepari un "Riepilogo sessione", un report post-sessione riservato al coach mentale sportivo. Non è visibile all'atleta.
 Non sei uno psicologo né un medico. Non fare diagnosi e non proporre trattamenti. Le metriche richieste sono stime operative AI su scala 1–5, non misurazioni cliniche.
@@ -309,7 +325,8 @@ commitments: solo azioni concrete effettivamente concordate, con owner "coach" o
 nextSessionPrep: massimo ${MAX_NEXT_SESSION_PREP} punti che il coach può verificare o esplorare alla prossima sessione, derivati da temi, impegni o incertezze emerse. Nessun consiglio clinico generico.
 La lingua è vincolante: se language è "it", ogni testo prodotto (sintesi, temi, titoli, spiegazioni, azioni e descrizioni) deve essere in italiano. Non tradurre solo le etichette e non alternare italiano e inglese. Applica lo stesso vincolo alla lingua indicata per ogni altro valore di language.
 Rispondi nella lingua indicata da language. Restituisci solo il contenuto strutturato richiesto.
-${sportBlock}`;
+${sportBlock}
+${guidelinesBlock}`;
 }
 
 function parsedContent(response: OpenAiCompassResponse): RawCompassContent {

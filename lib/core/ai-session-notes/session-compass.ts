@@ -157,8 +157,23 @@ export type SessionCompassDependencies = {
   ) => Promise<void>;
   store: SessionCompassStore;
   commitments: SessionCommitmentStore;
-  createProvider: () => SessionCompassReportProvider;
-  promptVersion: string;
+  /**
+   * Il provider, costruito con la versione del prompt in corso.
+   *
+   * La riceve invece di ricavarsela: la versione comprende le linee guida
+   * attive, che stanno sul database e cambiano senza un deploy. Se se la
+   * ricavasse per conto suo, il report uscirebbe con una versione diversa da
+   * quella con cui viene confrontato, e la rigenerazione girerebbe a vuoto
+   * per sempre.
+   */
+  createProvider: (promptVersion: string) => SessionCompassReportProvider;
+  /**
+   * La versione del prompt corrente. Asincrona perche' comprende la versione
+   * delle linee guida, che si legge dal database.
+   */
+  loadPromptVersion: () => Promise<string>;
+  /** Le linee guida del metodo, o null se non ne sono state scritte. */
+  loadHouseGuidelines?: () => Promise<string | null>;
   sourceFingerprint: (segments: readonly CompassSourceSegment[]) => string;
   isAdmin: (actorUserId: number) => Promise<boolean>;
   hasFeatureAccess: (actorUserId: number) => Promise<boolean>;
@@ -288,7 +303,7 @@ export async function ensureSessionCompassDraft(
   const { session, authorization } = await authorizedSession(params, 'regenerate', dependencies);
   const segments = await eligibleTimeline(session, dependencies);
   const fingerprint = dependencies.sourceFingerprint(segments);
-  const promptVersion = requiredPromptVersion(dependencies);
+  const promptVersion = await requiredPromptVersion(dependencies);
   const latest = await dependencies.store.loadLatestReport(session.sessionId);
 
   if (
@@ -485,7 +500,7 @@ export async function approveSessionCompass(
   const isCurrent =
     fingerprint !== null &&
     stored.sourceFingerprint === fingerprint &&
-    stored.promptVersion === requiredPromptVersion(dependencies);
+    stored.promptVersion === (await requiredPromptVersion(dependencies));
   if (!alreadyApproved && !isCurrent) {
     throw new SessionCompassError(
       'COMPASS_INVALID',
@@ -546,7 +561,7 @@ async function generateDocument(
 ): Promise<SessionCompassReport> {
   let provider: SessionCompassReportProvider;
   try {
-    provider = dependencies.createProvider();
+    provider = dependencies.createProvider(input.promptVersion);
   } catch {
     throw new SessionCompassError('COMPASS_UNAVAILABLE', 'La configurazione del riepilogo sessione non è disponibile.');
   }
@@ -589,6 +604,7 @@ async function generationContext(
     limit: 4,
   });
   const coachInput = await dependencies.loadCoachInput?.(session.sessionId);
+  const houseGuidelines = (await dependencies.loadHouseGuidelines?.()) ?? null;
   return {
     coachName: session.coachName,
     coachRole: session.coachRole,
@@ -597,6 +613,7 @@ async function generationContext(
     previousApprovedReports: previousApprovedReports.slice(0, 4),
     coachBookmarksMs: coachInput?.bookmarksMs ?? [],
     coachNotes: coachInput?.notes ?? [],
+    houseGuidelines,
   };
 }
 
@@ -720,8 +737,10 @@ async function requireReport(
   return stored;
 }
 
-function requiredPromptVersion(dependencies: SessionCompassDependencies): string {
-  const promptVersion = dependencies.promptVersion.trim();
+async function requiredPromptVersion(
+  dependencies: SessionCompassDependencies
+): Promise<string> {
+  const promptVersion = (await dependencies.loadPromptVersion()).trim();
   if (!promptVersion) {
     throw new SessionCompassError('COMPASS_UNAVAILABLE', 'La configurazione del riepilogo sessione non è disponibile.');
   }
@@ -749,7 +768,7 @@ async function viewOf(
       (fingerprint !== null &&
         stored.sourceFingerprint !== null &&
         stored.sourceFingerprint !== fingerprint) ||
-      stored.promptVersion !== requiredPromptVersion(dependencies),
+      stored.promptVersion !== (await requiredPromptVersion(dependencies)),
     approvedAt: stored.approvedAt?.toISOString() ?? null,
     errorCode: stored.errorCode,
     updatedAt: stored.updatedDate.toISOString(),

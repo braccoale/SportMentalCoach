@@ -79,6 +79,12 @@ export type SessionCompassContext = {
    * restituita come analisi.
    */
   coachNotes: string[];
+  /**
+   * Le linee guida del metodo KaiPai, o null.
+   *
+   * Orientano lo sguardo: non scavalcano l'evidenza, e il prompt lo dichiara.
+   */
+  houseGuidelines: string | null;
 };
 
 export type SessionCompassGenerationInput = {

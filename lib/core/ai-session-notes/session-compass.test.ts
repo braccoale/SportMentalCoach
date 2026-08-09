@@ -180,8 +180,8 @@ function harness(options: { session?: SessionCompassSessionSource } = {}) {
   const dependencies: SessionCompassDependencies = {
     store,
     commitments,
-    createProvider: () => provider,
-    promptVersion: 'compass-v1',
+    createProvider: (_promptVersion: string) => provider,
+    loadPromptVersion: async () => 'compass-v1',
     sourceFingerprint: compassSourceFingerprint,
     isAdmin: async (actorUserId) => actorUserId === ADMIN_ID,
     hasFeatureAccess: async (actorUserId) => actorUserId !== OUTSIDER_ID,
@@ -610,7 +610,12 @@ test('la bozza si genera già in `processing`, appena la trascrizione è pronta'
 test('non approva una bozza generata con una versione prompt non più corrente', async () => {
   const { store, dependencies } = harness();
   await ensureSessionCompassDraft({ sessionId: SESSION_ID, actorUserId: COACH_ID }, dependencies);
-  const changedPromptDependencies = { ...dependencies, promptVersion: 'compass-v2' };
+  // Cambia la versione del prompt: e' cio' che succede quando l'academy
+  // aggiorna le linee guida, che entrano in questa stessa stringa.
+  const changedPromptDependencies = {
+    ...dependencies,
+    loadPromptVersion: async () => 'compass-v2',
+  };
 
   const stale = await getSessionCompass(
     { sessionId: SESSION_ID, actorUserId: COACH_ID },

@@ -14,6 +14,7 @@ import {
 } from '@/lib/core/ai-session-notes/processing';
 import { closeStuckProcessingSessions } from '@/lib/core/ai-session-notes/stuck-sessions';
 import { probeCallbackEndpoint } from '@/lib/core/ai-session-notes/callback-probe';
+import { saveHouseGuidelines } from '@/lib/core/ai-session-notes/house-guidelines';
 import type { ActionState } from '@/lib/auth/middleware';
 
 /**
@@ -151,4 +152,32 @@ export async function probeCallbackAction(
   return result.reachable
     ? { success: `${result.origin} — ${result.detail}` }
     : { error: `${result.origin ?? 'nessun indirizzo'} — ${result.detail}` };
+}
+
+/**
+ * Salva una versione nuova delle linee guida del metodo.
+ *
+ * Non sovrascrive: il riepilogo di una seduta e' stato scritto con una certa
+ * versione, e fra sei mesi deve restare possibile sapere quale. La versione
+ * entra nella versione del prompt, quindi salvare fa rigenerare le bozze non
+ * ancora approvate — quelle approvate restano com'erano.
+ */
+export async function saveHouseGuidelinesAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const admin = await requireRole('admin');
+  const body = String(formData.get('body') ?? '');
+  try {
+    const saved = await saveHouseGuidelines({ body, actorUserId: admin.id });
+    revalidatePath('/dashboard/admin/ai-notes');
+    return { success: `Linee guida salvate: versione ${saved.version}.` };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Non e’ stato possibile salvare le linee guida.',
+    };
+  }
 }

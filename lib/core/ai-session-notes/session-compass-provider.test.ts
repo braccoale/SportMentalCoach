@@ -63,6 +63,7 @@ function input(
       previousApprovedReports: [],
     coachBookmarksMs: [],
     coachNotes: [],
+    houseGuidelines: null,
     },
     ...overrides,
   };

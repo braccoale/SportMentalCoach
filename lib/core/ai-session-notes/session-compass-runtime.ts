@@ -9,6 +9,8 @@ import { createSessionCompassStore } from './session-compass-store';
 import { listSessionBookmarksMs } from './coach-bookmarks-store';
 import { loadClosingNote } from './session-close';
 import { advanceAiNotesSessionStatus } from './session-status';
+import { loadActiveHouseGuidelines } from './house-guidelines';
+import { promptVersionWithGuidelines } from './house-guidelines-policy';
 import { listSessionVoiceNoteTranscripts } from './voice-notes';
 import { createSessionCommitmentStore } from './session-commitments-store';
 import {
@@ -21,10 +23,27 @@ export function sessionCompassDependencies(): SessionCompassDependencies {
   return {
     store: createSessionCompassStore(),
     commitments: createSessionCommitmentStore(),
-    createProvider: openAiSessionCompassProviderFromEnvironment,
-    promptVersion: effectiveSessionCompassPromptVersion(
-      process.env.AI_NOTES_COMPASS_PROMPT_VERSION ?? ''
-    ),
+    createProvider: (promptVersion: string) =>
+      openAiSessionCompassProviderFromEnvironment(
+        process.env,
+        undefined,
+        promptVersion
+      ),
+    /*
+     * La versione comprende quella delle linee guida attive: senza,
+     * l'academy aggiornerebbe il metodo e i report continuerebbero a uscire
+     * con quello vecchio, perche' la rigenerazione confronta proprio questa
+     * stringa.
+     */
+    loadPromptVersion: async () =>
+      promptVersionWithGuidelines(
+        effectiveSessionCompassPromptVersion(
+          process.env.AI_NOTES_COMPASS_PROMPT_VERSION ?? ''
+        ),
+        (await loadActiveHouseGuidelines())?.version ?? null
+      ),
+    loadHouseGuidelines: async () =>
+      (await loadActiveHouseGuidelines())?.body ?? null,
     sourceFingerprint: compassSourceFingerprint,
     isAdmin: (actorUserId: number) => hasRole(actorUserId, 'admin'),
     hasFeatureAccess: (actorUserId: number) =>

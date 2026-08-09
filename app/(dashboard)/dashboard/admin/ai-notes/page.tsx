@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { updateAiNotesEntitlementAction } from './actions';
 import { AiPipelineHealthPanel } from '@/components/admin/ai-pipeline-health';
 import { getAiPipelineHealth } from '@/lib/core/ai-session-notes/queue-health';
+import { HouseGuidelinesEditor } from '@/components/admin/house-guidelines-editor';
+import { loadActiveHouseGuidelines } from '@/lib/core/ai-session-notes/house-guidelines';
 
 export const dynamic = 'force-dynamic';
 // Il worker gira dentro questa rotta quando l'admin lo lancia a mano: serve
@@ -34,9 +36,10 @@ function statusLabel(status: string | null) {
 
 export default async function AiNotesAdminPage() {
   const admin = await requireRole('admin');
-  const [users, health] = await Promise.all([
+  const [users, health, guidelines] = await Promise.all([
     getFeatureAdminUsers(admin.id, FEATURE_CODES.AI_SESSION_NOTES),
     getAiPipelineHealth(),
+    loadActiveHouseGuidelines(),
   ]);
 
   return (
@@ -65,6 +68,12 @@ export default async function AiNotesAdminPage() {
       </div>
 
       <AiPipelineHealthPanel health={health} />
+
+      <HouseGuidelinesEditor
+        body={guidelines?.body ?? ''}
+        version={guidelines?.version ?? null}
+        updatedAt={guidelines?.updatedAt ?? null}
+      />
 
       <h2 className="mt-8 text-lg font-semibold text-gray-900">
         Utenti abilitati
