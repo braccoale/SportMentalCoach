@@ -1,4 +1,5 @@
 'use client';
+import { ExitNote } from '@/components/session-compass/exit-note';
 
 import '@livekit/components-styles';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -540,6 +541,11 @@ function ConnectedVideoRoom({
               Puoi rientrare subito: l’appuntamento resta attivo finché non
               viene completato o termina la finestra prevista.
             </p>
+
+            {/* Il momento in cui il coach ha ancora tutto in mente, e in cui
+                il microfono e' finalmente libero: durante la call e' di
+                LiveKit. Compare solo se una sessione AI esiste davvero. */}
+            {viewerIsCoach ? <ExitNote bookingId={bookingId} /> : null}
             <Button
               type="button"
               className="mt-6 w-full rounded-full bg-green-600 text-white hover:bg-green-700"
