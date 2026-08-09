@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  BookOpen,
   CheckCircle2,
   Compass,
   FileText,
@@ -36,6 +37,7 @@ import {
   TranscriptHistoryNav,
   selectPreviousJourneyEntry,
 } from './session-compass/journey-panel';
+import { SessionStoryPanel } from './session-compass/session-story';
 import { TranscriptPanel } from './session-compass/transcript-panel';
 import { TranscriptHistorySearch } from './session-compass/transcript-history-search';
 import {
@@ -68,6 +70,7 @@ const TABS: Array<{
   icon: (props: { className?: string }) => ReactNode;
 }> = [
   { id: 'overview', label: 'Panoramica', icon: (props) => <Sparkles {...props} /> },
+  { id: 'story', label: 'Racconto', icon: (props) => <BookOpen {...props} /> },
   { id: 'journey', label: 'Percorso atleta', icon: (props) => <History {...props} /> },
   { id: 'transcript', label: 'Trascrizione', icon: (props) => <FileText {...props} /> },
   { id: 'moments', label: 'Momenti chiave', icon: (props) => <Lightbulb {...props} /> },
@@ -560,6 +563,13 @@ export function SessionCompassPanel({
                 onOpenEvidence={openEvidence}
                 onOpenTranscript={openTranscript}
                 onOpenNotes={() => selectTab('notes')}
+                onOpenStory={() => selectTab('story')}
+              />
+            ) : null}
+            {activeTab === 'story' ? (
+              <SessionStoryPanel
+                story={report.document.story ?? null}
+                onOpenEvidence={openEvidence}
               />
             ) : null}
             {activeTab === 'journey' ? (

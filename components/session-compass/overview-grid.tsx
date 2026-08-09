@@ -15,7 +15,7 @@ import { SessionHeroInsight } from './hero-insight';
 import { AthleteJourneySidebar } from './athlete-journey-sidebar';
 import { ConversationMapBand } from './conversation-map';
 import { MissedOpportunities } from './missed-opportunities';
-import { SessionNarrative } from './session-narrative';
+import { SessionStoryCta } from './session-story';
 import type { ConversationMap } from '@/lib/core/ai-session-notes/conversation-map';
 import { JourneyNarrative } from './journey-narrative';
 import { SessionContinuityCard } from './journey-panel';
@@ -47,6 +47,7 @@ export function SessionOverview({
   onOpenEvidence,
   onOpenTranscript,
   onOpenNotes,
+  onOpenStory,
 }: {
   report: SessionCompassReport;
   isApproved: boolean;
@@ -58,6 +59,7 @@ export function SessionOverview({
   onOpenEvidence: (segmentId: number) => void;
   onOpenTranscript?: (sessionId: number, segmentId?: number) => void;
   onOpenNotes: () => void;
+  onOpenStory: () => void;
 }) {
   const overview = report.sessionOverview;
   const sessionId = currentSessionId ?? Number(report.sessionId);
@@ -164,13 +166,9 @@ export function SessionOverview({
       </div>
 
       {/* Subito sotto l'eroe: la sintesi dice cos'e' successo, il racconto
-          come e' andata. Chiuso di default, perche' e' materiale da leggere
-          quando serve e non da attraversare a ogni apertura. */}
-      <SessionNarrative
-        beats={report.narrative ?? []}
-        citedEvidenceKeys={primaryEvidenceKeys}
-        onOpenEvidence={onOpenEvidence}
-      />
+          come e' andata. Qui c'e' solo il richiamo — il racconto si legge
+          nella sua tab, dove la pagina e' fatta per leggere. */}
+      <SessionStoryCta story={report.story ?? null} onOpenStory={onOpenStory} />
 
       <SessionMetricsStrip
         metrics={overview.metrics ?? []}

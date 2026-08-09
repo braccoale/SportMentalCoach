@@ -23,11 +23,10 @@ export const MAX_QUOTE_LENGTH = 240;
  */
 export const MAX_MISSED_OPPORTUNITIES = 3;
 /**
- * Sei passaggi bastano a raccontare una seduta: apertura, cosa e' emerso,
- * dove ha girato, come si e' chiusa. Oltre, il racconto smette di essere un
- * racconto e torna a essere una trascrizione riscritta.
+ * Sei capoversi bastano a raccontare una seduta. Oltre, il racconto smette di
+ * essere un racconto e torna a essere una trascrizione riscritta.
  */
-export const MAX_NARRATIVE_BEATS = 6;
+export const MAX_STORY_PARAGRAPHS = 6;
 
 export type CompassSpeaker = 'coach' | 'athlete';
 
@@ -162,21 +161,38 @@ export type SessionOverview = {
 };
 
 /**
- * Un passaggio del racconto della seduta.
+ * Un capoverso del racconto della seduta.
  *
- * La `summary` risponde in tre righe a «cos'e' successo». Questo risponde a
- * «come e' andata»: l'ordine in cui le cose sono emerse, dove la
- * conversazione ha girato, come si e' chiusa.
+ * Prosa, non un passaggio numerato: chi legge deve avere in mano la seduta
+ * raccontata, non il suo indice. Il testo intreccia quello che è stato detto,
+ * quello che il coach aveva marcato dal vivo e quello che le sedute
+ * precedenti avevano lasciato aperto.
  *
- * Ogni passaggio cita comunque la trascrizione: un racconto scorrevole ma
- * inventato varrebbe meno di tre righe verificabili.
+ * L'evidenza è facoltativa perché non ogni frase del racconto nasce dalla
+ * trascrizione: un capoverso che lega oggi a un mese fa non ha un segmento a
+ * cui puntare. Quando c'è, resta cliccabile — la verifica non è un optional,
+ * è solo che non tutto è verificabile allo stesso modo.
  */
-export type NarrativeBeat = {
+export type StoryParagraph = {
   id: string;
-  /** Il titolo del momento: «L'apertura», «Il punto di svolta». */
-  title: string;
   text: string;
-  evidence: CompassEvidence;
+  evidence: CompassEvidence | null;
+};
+
+/**
+ * Il racconto della seduta, per esteso.
+ *
+ * La `summary` risponde in tre righe a «cos'è successo». Questo risponde a
+ * «com'è andata», e lo fa nella lingua in cui un coach lo racconterebbe a un
+ * collega: l'ordine in cui le cose sono emerse, dove la conversazione ha
+ * girato, come si è chiusa, e che cosa c'entra con il percorso.
+ */
+export type SessionStory = {
+  /** Il titolo del racconto: una frase, non un'etichetta. */
+  title: string;
+  paragraphs: StoryParagraph[];
+  /** Il filo che lega questa seduta alle precedenti, o null se non emerge. */
+  throughLine: string | null;
 };
 
 /**
@@ -246,7 +262,7 @@ export type SessionCompassReport = {
   sessionOverview: SessionOverview;
   keyMoments: KeyMoment[];
   missedOpportunities?: MissedOpportunity[];
-  narrative?: NarrativeBeat[];
+  story?: SessionStory | null;
   commitments: Commitment[];
   nextSessionPrep: NextSessionPrepItem[];
   /** Campo libero del coach. L'AI non lo produce e non lo sovrascrive mai. */

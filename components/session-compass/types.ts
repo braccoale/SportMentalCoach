@@ -68,6 +68,7 @@ export type TrackedCommitmentChange = {
 
 export type CompassTabId =
   | 'overview'
+  | 'story'
   | 'journey'
   | 'transcript'
   | 'moments'

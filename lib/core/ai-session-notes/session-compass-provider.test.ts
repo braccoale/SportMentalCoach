@@ -23,8 +23,8 @@ import {
 } from './openai-session-compass-provider';
 
 test('la revisione prompt lingua e UX è stabile e non si duplica', () => {
-  assert.equal(effectiveSessionCompassPromptVersion('compass-v1'), 'compass-v1:coach-context-v5');
-  assert.equal(effectiveSessionCompassPromptVersion('compass-v1:coach-context-v5'), 'compass-v1:coach-context-v5');
+  assert.equal(effectiveSessionCompassPromptVersion('compass-v1'), 'compass-v1:story-v6');
+  assert.equal(effectiveSessionCompassPromptVersion('compass-v1:story-v6'), 'compass-v1:story-v6');
   assert.equal(effectiveSessionCompassPromptVersion('  '), '');
 });
 
@@ -445,39 +445,54 @@ test('uno spunto senza domanda di ripresa viene scartato', () => {
   assert.deepEqual(report.missedOpportunities, []);
 });
 
-test('il racconto della sessione tiene solo i passaggi con evidenza', () => {
+test('il racconto tiene i capoversi anche senza evidenza, e aggancia quella che c’e’', () => {
   const report = assembleSessionCompassReport(
     {
       ...CONTENT,
-      narrative: [
-        {
-          title: 'L’apertura',
-          text: 'La sessione parte da come è andata l’ultima gara.',
-          evidence: { transcriptSegmentId: 2, quote: 'la testa altrove' },
-        },
-        {
-          // Senza evidenza non entra: un racconto scorrevole ma inventato
-          // vale meno di tre righe verificabili.
-          title: 'Un passaggio inventato',
-          text: 'Qualcosa che nessuno ha detto.',
-          evidence: { transcriptSegmentId: 999, quote: 'mai pronunciato' },
-        },
-      ],
+      story: {
+        title: 'Una gara riletta con più calma',
+        throughLine: 'Il tema della testa altrove torna dalla seduta di marzo.',
+        paragraphs: [
+          {
+            text: 'La sessione parte da come è andata l’ultima gara.',
+            evidence: { transcriptSegmentId: 2, quote: 'la testa altrove' },
+          },
+          {
+            // Nessun segmento a cui puntare: è il capoverso che tiene il
+            // filo con le sedute precedenti, e resta.
+            text: 'Rispetto a marzo il modo di raccontarlo è cambiato.',
+            evidence: null,
+          },
+          {
+            // L’evidenza non risolve: il capoverso resta, la citazione no.
+            text: 'Un passaggio con una citazione che non esiste.',
+            evidence: { transcriptSegmentId: 999, quote: 'mai pronunciato' },
+          },
+        ],
+      },
     },
     input(),
     { providerName: 'fake', modelName: 'fake-compass-v1' }
   );
 
-  assert.equal(report.narrative?.length, 1);
-  assert.equal(report.narrative?.[0].title, 'L’apertura');
-  assert.equal(report.narrative?.[0].id, 'beat-1');
+  assert.equal(report.story?.paragraphs.length, 3);
+  assert.equal(report.story?.paragraphs[0].id, 'paragraph-1');
+  assert.ok(report.story?.paragraphs[0].evidence);
+  assert.equal(report.story?.paragraphs[1].evidence, null);
+  // Citazione non verificabile: cade la citazione, non il racconto.
+  assert.equal(report.story?.paragraphs[2].evidence, null);
+  assert.equal(
+    report.story?.throughLine,
+    'Il tema della testa altrove torna dalla seduta di marzo.'
+  );
 });
 
 test('senza racconto il report non ne inventa uno', () => {
   const report = assembleSessionCompassReport(
-    { ...CONTENT, narrative: [] },
+    { ...CONTENT, story: { title: 'Un titolo solo', paragraphs: [] } },
     input(),
     { providerName: 'fake', modelName: 'fake-compass-v1' }
   );
-  assert.deepEqual(report.narrative, []);
+  // Un titolo senza capoversi non è un racconto dimezzato: è assente.
+  assert.equal(report.story, null);
 });

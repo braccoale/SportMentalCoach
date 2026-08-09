@@ -42,8 +42,8 @@ import {
   type ConversationToneKey,
   MAX_MISSED_OPPORTUNITIES,
   type MissedOpportunity,
-  MAX_NARRATIVE_BEATS,
-  type NarrativeBeat,
+  MAX_STORY_PARAGRAPHS,
+  type SessionStory,
 } from './session-compass-contract';
 
 /** Contesto lecito e già disponibile. Nessuno storico grezzo delle sessioni. */
@@ -130,7 +130,7 @@ export type RawCompassContent = {
   };
   keyMoments?: unknown;
   missedOpportunities?: unknown;
-  narrative?: unknown;
+  story?: unknown;
   commitments?: unknown;
   nextSessionPrep?: unknown;
 };
@@ -254,21 +254,35 @@ export function assembleSessionCompassReport(
   ).slice(0, MAX_MISSED_OPPORTUNITIES);
 
   /**
-   * Il racconto della seduta. Stessa disciplina di tutto il resto: senza
-   * evidenza il passaggio non entra, perche' un racconto scorrevole ma
-   * inventato vale meno di tre righe verificabili.
+   * Il racconto della seduta, in prosa.
+   *
+   * Qui l'evidenza non e' una condizione d'ingresso come altrove: un capoverso
+   * che collega oggi a una seduta di un mese fa non ha un segmento a cui
+   * puntare, e scartarlo lascerebbe il racconto senza le giunture. Quando c'e'
+   * resta agganciata e cliccabile.
+   *
+   * Il racconto e' un blocco solo: senza titolo o senza capoversi non e' un
+   * racconto dimezzato, e' assente.
    */
-  const narrative: NarrativeBeat[] = withIdentifiers(
-    'beat',
-    asArray(content.narrative).flatMap((item) => {
+  const storyRecord = asRecord(content.story);
+  const storyTitle = asProse(storyRecord?.title);
+  const storyParagraphs = withIdentifiers(
+    'paragraph',
+    asArray(storyRecord?.paragraphs).flatMap((item) => {
       const record = asRecord(item);
-      const title = asProse(record?.title);
       const text = asProse(record?.text);
-      const evidence = evidenceOf(record?.evidence, segments);
-      if (!record || !title || !text || !evidence) return [];
-      return [{ title, text, evidence }];
+      if (!record || !text) return [];
+      return [{ text, evidence: evidenceOf(record.evidence, segments) ?? null }];
     })
-  ).slice(0, MAX_NARRATIVE_BEATS);
+  ).slice(0, MAX_STORY_PARAGRAPHS);
+  const story: SessionStory | null =
+    storyTitle && storyParagraphs.length > 0
+      ? {
+          title: storyTitle,
+          paragraphs: storyParagraphs,
+          throughLine: asProse(storyRecord?.throughLine) ?? null,
+        }
+      : null;
 
   const commitments: Commitment[] = withIdentifiers(
     'commitment',
@@ -320,7 +334,7 @@ export function assembleSessionCompassReport(
     },
     keyMoments,
     missedOpportunities,
-    narrative,
+    story,
     commitments,
     nextSessionPrep,
     coachNote: null,

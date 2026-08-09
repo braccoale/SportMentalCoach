@@ -172,6 +172,7 @@ test('la panoramica segnala i dati non disponibili senza inventare metriche', ()
       previousJourneyEntry={null}
       onOpenEvidence={() => undefined}
       onOpenNotes={() => undefined}
+      onOpenStory={() => undefined}
     />
   );
 
@@ -476,6 +477,7 @@ test('la panoramica usa la griglia dashboard e differenzia il peso delle card', 
       previousJourneyEntry={null}
       onOpenEvidence={() => undefined}
       onOpenNotes={() => undefined}
+      onOpenStory={() => undefined}
     />
   );
 
@@ -526,6 +528,7 @@ test('la panoramica mette contesto e azioni prima di segnali e metriche', () => 
       previousJourneyEntry={null}
       onOpenEvidence={() => undefined}
       onOpenNotes={() => undefined}
+      onOpenStory={() => undefined}
     />
   );
 
@@ -565,6 +568,7 @@ test('la panoramica non ripete per esteso la stessa evidenza tra sezioni', () =>
       previousJourneyEntry={null}
       onOpenEvidence={() => undefined}
       onOpenNotes={() => undefined}
+      onOpenStory={() => undefined}
     />
   );
 
@@ -585,6 +589,7 @@ test('la panoramica omette le card secondarie quando temi e momenti non sono dis
       previousJourneyEntry={null}
       onOpenEvidence={() => undefined}
       onOpenNotes={() => undefined}
+      onOpenStory={() => undefined}
     />
   );
 

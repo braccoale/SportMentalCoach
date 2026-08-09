@@ -19,7 +19,7 @@ import {
   SESSION_METRIC_KEYS,
   minuteFromMs,
   MAX_MISSED_OPPORTUNITIES,
-  MAX_NARRATIVE_BEATS,
+  MAX_STORY_PARAGRAPHS,
 } from './session-compass-contract';
 import {
   assembleSessionCompassReport,
@@ -34,7 +34,7 @@ const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 // report. Un timeout uguale a quello della function poteva interrompere il
 // processo prima che il job venisse chiuso correttamente.
 const DEFAULT_TIMEOUT_MS = 45_000;
-export const SESSION_COMPASS_PROMPT_REVISION = 'coach-context-v5' as const;
+export const SESSION_COMPASS_PROMPT_REVISION = 'story-v6' as const;
 
 export function effectiveSessionCompassPromptVersion(value: string): string {
   const base = value.trim();
@@ -281,7 +281,10 @@ Hai un contesto che un modello generico non ha: chi e' il coach, lo sport e l'ob
 I minuti marcati dal coach sono indizi su dove guardare: esaminali con attenzione quando cerchi momenti chiave e spunti rimasti aperti.
 "coachNotes" serve solo a orientarti e puo' contenere fatti che la trascrizione non ha. Non citarlo mai come evidenza, non riportarlo come una tua osservazione e non ripetere le conclusioni del coach come se fossero tue: il coach deve poter confrontare la tua lettura con la sua, non ritrovarsi la propria restituita.
 Quando i report precedenti mostrano un tema che ritorna, un impegno rimasto aperto o un cambiamento rispetto a prima, dillo esplicitamente e collega la seduta di oggi a quelle: e' cio' che rende utile un riepilogo dentro un percorso invece che isolato.
-In "narrative" racconta la seduta in ordine cronologico, da 3 a ${MAX_NARRATIVE_BEATS} passaggi: come si e' aperta, cosa e' emerso, dove la conversazione ha girato, come si e' chiusa. Ogni passaggio ha un titolo breve (per esempio "L'apertura", "Il punto di svolta", "La chiusura") e due o tre frasi di testo scorrevole. E' un racconto, non un elenco: usa un linguaggio piano e prudente, senza gergo e senza termini diagnostici. Serve al coach per ricordare come e' andata senza rileggere la trascrizione.
+In "story" scrivi il racconto della seduta: un titolo che sia una frase e non un'etichetta, e da 3 a ${MAX_STORY_PARAGRAPHS} capoversi di prosa continua. E' la parte piu' importante del report. Scrivi come un coach che racconta la seduta a un collega di cui si fida: frasi intere, niente elenchi, niente titoletti, niente passaggi numerati, nessuna formula tipo "in apertura" o "in conclusione" usata come intestazione. Ogni capoverso e' di quattro o sei frasi e prosegue quello prima.
+Il racconto intreccia tre cose: quello che e' stato detto nella seduta, i minuti che il coach aveva marcato dal vivo, e cio' che le sedute precedenti avevano lasciato aperto. Non tenerle separate in capoversi distinti: e' l'intreccio che rende il racconto piu' utile di una sintesi.
+In "throughLine" scrivi in una frase il filo che lega questa seduta alle precedenti, oppure null se non hai report precedenti o se non emerge nulla di ricorrente. Non forzarlo.
+Nel racconto l'evidenza e' facoltativa: mettila dove il capoverso poggia su una frase precisa della trascrizione, omettila dove stai tenendo insieme il filo. Questa e' l'unica sezione in cui puoi scrivere un passaggio senza evidenza; non vale per nessun'altra.
 In "missedOpportunities" elenca al massimo ${MAX_MISSED_OPPORTUNITIES} passaggi in cui l'ATLETA ha aperto uno spiraglio — una dichiarazione carica, un accenno a qualcosa di personale, un disagio nominato di sfuggita — e la conversazione è andata altrove senza approfondirlo. L'evidenza deve essere sempre una frase dell'atleta, mai del coach. In "followUp" scrivi la domanda da fare la prossima volta, formulata come domanda aperta: è materiale per la prossima seduta, non un giudizio su quella passata. Se non ne trovi, restituisci un elenco vuoto: inventarne una vale meno di zero.
 Ogni elemento deve citare un'evidenza: transcriptSegmentId presente nel transcript e quote copiata alla lettera da quel segmento (massimo ${MAX_QUOTE_LENGTH} caratteri). Se non trovi un'evidenza sufficiente, ometti l'elemento invece di inventarlo.
 sessionOverview.summary: sintesi concisa e neutra. themes: da 2 a ${MAX_THEMES} temi principali emersi. emergingResource: una sola risorsa o leva emersa, oppure null se non supportata.
@@ -332,7 +335,7 @@ function evidenceSchema(): Record<string, unknown> {
 const COMPASS_CONTENT_SCHEMA: Record<string, unknown> = {
   type: 'object',
   additionalProperties: false,
-  required: ['sessionOverview', 'narrative', 'keyMoments', 'missedOpportunities', 'commitments', 'nextSessionPrep'],
+  required: ['sessionOverview', 'story', 'keyMoments', 'missedOpportunities', 'commitments', 'nextSessionPrep'],
   properties: {
     sessionOverview: {
       type: 'object',
@@ -399,17 +402,26 @@ const COMPASS_CONTENT_SCHEMA: Record<string, unknown> = {
         },
       },
     },
-    narrative: {
-      type: 'array',
-      maxItems: MAX_NARRATIVE_BEATS,
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['title', 'text', 'evidence'],
-        properties: {
-          title: { type: 'string' },
-          text: { type: 'string' },
-          evidence: evidenceSchema(),
+    story: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['title', 'paragraphs', 'throughLine'],
+      properties: {
+        title: { type: 'string' },
+        throughLine: { type: ['string', 'null'] },
+        paragraphs: {
+          type: 'array',
+          maxItems: MAX_STORY_PARAGRAPHS,
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['text', 'evidence'],
+            properties: {
+              text: { type: 'string' },
+              // Il racconto e' l'unico posto in cui l'evidenza puo' mancare.
+              evidence: { anyOf: [evidenceSchema(), { type: 'null' }] },
+            },
+          },
         },
       },
     },
