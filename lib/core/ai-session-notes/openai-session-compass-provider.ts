@@ -34,7 +34,7 @@ const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 // report. Un timeout uguale a quello della function poteva interrompere il
 // processo prima che il job venisse chiuso correttamente.
 const DEFAULT_TIMEOUT_MS = 45_000;
-export const SESSION_COMPASS_PROMPT_REVISION = 'language-ux-v4' as const;
+export const SESSION_COMPASS_PROMPT_REVISION = 'coach-context-v5' as const;
 
 export function effectiveSessionCompassPromptVersion(value: string): string {
   const base = value.trim();

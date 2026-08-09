@@ -23,8 +23,8 @@ import {
 } from './openai-session-compass-provider';
 
 test('la revisione prompt lingua e UX è stabile e non si duplica', () => {
-  assert.equal(effectiveSessionCompassPromptVersion('compass-v1'), 'compass-v1:language-ux-v4');
-  assert.equal(effectiveSessionCompassPromptVersion('compass-v1:language-ux-v4'), 'compass-v1:language-ux-v4');
+  assert.equal(effectiveSessionCompassPromptVersion('compass-v1'), 'compass-v1:coach-context-v5');
+  assert.equal(effectiveSessionCompassPromptVersion('compass-v1:coach-context-v5'), 'compass-v1:coach-context-v5');
   assert.equal(effectiveSessionCompassPromptVersion('  '), '');
 });
 
