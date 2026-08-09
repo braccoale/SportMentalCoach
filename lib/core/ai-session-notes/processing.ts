@@ -28,6 +28,7 @@ import {
 } from './processing-policy';
 import { dispatchPendingTranscriptionRequests } from './transcription-dispatch';
 import { SessionCompassGenerationError } from './session-compass-provider';
+import { logPipeline, pipelineErrorCode } from './pipeline-log';
 import { closeSessionWithoutSpeech } from './stuck-sessions';
 import { persistedTimelineFingerprint, rebuildSessionTimeline } from './timeline';
 import { advanceAiNotesSessionStatus } from './session-status';
@@ -827,9 +828,58 @@ export async function processAiNotesBatch(params: {
             'Generatore del riepilogo sessione non configurato.'
           );
         }
-        const output = await dependencies.generateSessionCompass({
+        /*
+         * Il riepilogo e' la fase piu' cara e la piu' opaca: quando fallisce,
+         * il codice generico che restava non diceva quale campo del contratto
+         * il modello avesse sbagliato, ne' se il problema fosse la chiave, il
+         * limite di richieste o lo schema. Qui si registra tutto cio' che si
+         * puo' dire senza far uscire una parola della seduta.
+         */
+        const reportStartedAt = Date.now();
+        let output;
+        try {
+          output = await dependencies.generateSessionCompass({
+            sessionId: job.session_ai_notes_id,
+            actorUserId: job.requested_by,
+          });
+        } catch (error) {
+          const generation =
+            error instanceof SessionCompassGenerationError ? error : null;
+          logPipeline({
+            phase: 'report_generation',
+            outcome: 'failed',
+            sessionId: job.session_ai_notes_id,
+            jobId: job.id,
+            durationMs: Date.now() - reportStartedAt,
+            errorCode: generation?.code ?? pipelineErrorCode(error),
+            counts: {
+              tentativo: job.attempt_count + 1,
+              // Quante regole del contratto il modello ha violato: se sono
+              // molte, il problema e' lo schema, non la singola risposta.
+              violazioni: generation?.validationIssues.length ?? 0,
+            },
+            detail: {
+              // Il codice del provider, mai il suo messaggio: quello puo'
+              // contenere il testo che gli abbiamo mandato.
+              provider: generation?.providerErrorCode ?? null,
+              // I campi contestati, senza i valori: dicono dove guardare nel
+              // contratto senza rivelare cosa contenevano.
+              campi:
+                generation?.validationIssues
+                  .map((issue) => issue.path)
+                  .slice(0, 8)
+                  .join(', ') ?? null,
+            },
+          });
+          throw error;
+        }
+        logPipeline({
+          phase: 'report_generation',
+          outcome: 'ok',
           sessionId: job.session_ai_notes_id,
-          actorUserId: job.requested_by,
+          jobId: job.id,
+          durationMs: Date.now() - reportStartedAt,
+          counts: { tentativo: job.attempt_count + 1 },
         });
         if (await completeAiProcessingJob({ jobId: job.id, workerId: params.workerId, providerOperationId: output.providerOperationId }, dependencies)) {
           result.completed += 1;

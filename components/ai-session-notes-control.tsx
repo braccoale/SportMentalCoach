@@ -79,7 +79,6 @@ function CollapsibleOverlay({
   label,
   tone,
   indicator,
-  action,
   children,
 }: {
   /** Testo letto dagli screen reader e mostrato accanto all'icona da `sm`. */
@@ -87,14 +86,6 @@ function CollapsibleOverlay({
   tone: 'neutral' | 'active' | 'error';
   /** Pallino di stato, visibile anche quando il pannello è chiuso. */
   indicator?: React.ReactNode;
-  /**
-   * Azione sempre raggiungibile, anche a pannello chiuso.
-   *
-   * Serve al segnalibro: un gesto che deve costare un tocco non può stare
-   * dietro un pannello da aprire. Su schermo piccolo, dove il pannello è
-   * chiuso di default, era semplicemente invisibile.
-   */
-  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -108,7 +99,6 @@ function CollapsibleOverlay({
 
   return (
     <div className={`${OVERLAY_POSITION} max-w-[calc(100vw-1.5rem)] sm:max-w-sm`}>
-      <div className="flex items-center gap-2 sm:hidden">
       {/* Pastiglia: unico elemento visibile su mobile quando è chiuso. */}
       <button
         type="button"
@@ -125,8 +115,6 @@ function CollapsibleOverlay({
           <ChevronDown className="size-3.5 opacity-70" aria-hidden="true" />
         )}
       </button>
-      {action}
-      </div>
 
       <div
         className={`${open ? 'mt-2 block' : 'hidden'} rounded-xl border p-3 text-white shadow-xl backdrop-blur sm:mt-0 sm:block ${toneClass}`}
@@ -425,7 +413,11 @@ export function AiSessionNotesControl({
       <button
         type="button"
         aria-label="Segna questo momento"
-        className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/40 bg-emerald-950/90 px-3 py-2 text-xs font-semibold text-white shadow-xl backdrop-blur transition hover:bg-emerald-900/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+        className={`absolute bottom-28 left-1/2 z-30 inline-flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold shadow-2xl backdrop-blur transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+          bookmarked
+            ? 'bg-white text-emerald-800'
+            : 'bg-emerald-600/95 text-white hover:bg-emerald-500'
+        }`}
         onClick={() => {
           setBookmarked(true);
           window.setTimeout(() => setBookmarked(false), 1800);
@@ -434,17 +426,21 @@ export function AiSessionNotesControl({
           }).catch(() => undefined);
         }}
       >
-        <Bookmark className="size-3.5" aria-hidden="true" />
+        <Bookmark className="size-4" aria-hidden="true" />
         {bookmarked ? 'Segnato' : 'Segna momento'}
       </button>
     );
 
     return (
+      <>
+      {/* Il segnalibro sta in basso, vicino ai comandi della chiamata: in alto
+          a sinistra, dentro il pannello, era nel punto dove nessuno guarda
+          mentre parla con un atleta. */}
+      {bookmarkButton}
       <CollapsibleOverlay
         label={recordingLabel}
         tone={recording?.state === 'failed' ? 'error' : 'active'}
         indicator={dot}
-        action={bookmarkButton}
       >
         <div aria-busy={loading}>
         <div className="flex flex-wrap items-center gap-2">
@@ -460,9 +456,6 @@ export function AiSessionNotesControl({
         <p className="mt-1 text-xs text-emerald-100">
           Puoi revocare il consenso in qualsiasi momento.
         </p>
-        {/* Da `sm` in su il pannello e' sempre aperto e la pastiglia non
-            esiste: il segnalibro vive qui, in cima alle azioni. */}
-        <div className="mt-2 hidden sm:block">{bookmarkButton}</div>
         {/* Il riavvio va offerto in ogni stato fermo, non solo dopo un
             errore: una registrazione conclusa a metà sessione — perché la
             traccia è caduta, o perché era stata fermata — lasciava il resto
@@ -558,6 +551,7 @@ export function AiSessionNotesControl({
         {error && <p className="mt-1 text-xs text-red-300">{error}</p>}
         </div>
       </CollapsibleOverlay>
+      </>
     );
   }
 

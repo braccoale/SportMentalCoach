@@ -169,6 +169,10 @@ function buildAthleteArchiveData(b: AthleteBooking): CompletedSessionData {
       undefined,
       b.aiNotesErrorCode
     ),
+    // L'atleta apre l'appuntamento solo quando il report e' stato condiviso:
+    // prima non c'e' nulla che gli appartenga da leggere.
+    aiIndicatorHref:
+      b.aiNotesStatus === 'shared' ? `/dashboard/appointments/${b.id}` : null,
   };
 }
 

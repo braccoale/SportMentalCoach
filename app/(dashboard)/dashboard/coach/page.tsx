@@ -937,6 +937,11 @@ function buildArchiveCardData(
       undefined,
       booking.aiNotesErrorCode
     ),
+    // Solo quando c'e' qualcosa da leggere: un link su «trascrizione in
+    // corso» porterebbe a una pagina che ripete l'etichetta.
+    aiIndicatorHref: booking.hasTranscript
+      ? `/dashboard/appointments/${booking.id}`
+      : null,
   };
 }
 

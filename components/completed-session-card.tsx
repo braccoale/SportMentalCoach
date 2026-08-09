@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
+  ArrowUpRight,
   CircleCheck,
   Clock,
   XCircle,
@@ -60,6 +62,14 @@ export type CompletedSessionData = {
   note?: string | null;
   requestedAtLabel: string;
   aiIndicator?: AiSessionArchiveIndicator | null;
+  /**
+   * Dove porta l'etichetta degli Appunti AI, quando c'e' qualcosa da aprire.
+   *
+   * Il coach leggeva «Report pronto da rivedere» e doveva cercarsi
+   * l'appuntamento a mano: un cartello che annuncia una cosa pronta e non ci
+   * porta e' un cartello a meta'.
+   */
+  aiIndicatorHref?: string | null;
 };
 
 const TONE: Record<Tone, { text: string; icon: LucideIcon; hover: string }> = {
@@ -190,17 +200,36 @@ export function CompletedSessionCard({
             {data.headerLabel}
           </span>
           {data.aiIndicator && aiIndicator && AiIndicatorIcon && (
-            <span
-              className={cn(
-                'ml-auto inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[10px] font-semibold ring-1 ring-inset',
-                aiIndicator.className
-              )}
-            >
-              <AiIndicatorIcon
-                className={cn('h-3.5 w-3.5 shrink-0', aiIndicator.animate && 'animate-spin')}
-              />
-              {data.aiIndicator.label}
-            </span>
+            (() => {
+              const badge = (
+                <>
+                  <AiIndicatorIcon
+                    className={cn('h-3.5 w-3.5 shrink-0', aiIndicator.animate && 'animate-spin')}
+                  />
+                  {data.aiIndicator.label}
+                </>
+              );
+              const shell =
+                'ml-auto inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[10px] font-semibold ring-1 ring-inset';
+              // Cliccabile solo quando c'e' davvero qualcosa da aprire: un
+              // link su «trascrizione in corso» porterebbe a una pagina che
+              // dice quello che l'etichetta diceva gia'.
+              return data.aiIndicatorHref ? (
+                <Link
+                  href={data.aiIndicatorHref}
+                  className={cn(
+                    shell,
+                    aiIndicator.className,
+                    'transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500'
+                  )}
+                >
+                  {badge}
+                  <ArrowUpRight className="h-3 w-3 shrink-0" aria-hidden="true" />
+                </Link>
+              ) : (
+                <span className={cn(shell, aiIndicator.className)}>{badge}</span>
+              );
+            })()
           )}
         </div>
 
