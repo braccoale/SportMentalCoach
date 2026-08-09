@@ -27,6 +27,7 @@ import {
   STALE_TRANSCRIPTION_REQUEST_MINUTES,
 } from './processing-policy';
 import { dispatchPendingTranscriptionRequests } from './transcription-dispatch';
+import { SessionCompassGenerationError } from './session-compass-provider';
 import { closeSessionWithoutSpeech } from './stuck-sessions';
 import { persistedTimelineFingerprint, rebuildSessionTimeline } from './timeline';
 import { advanceAiNotesSessionStatus } from './session-status';
@@ -553,6 +554,20 @@ export async function enqueueReadySessionCompassJobs(
 function sanitizeFailure(error: unknown): { code: string; message: string } {
   if (error instanceof AiNotesProcessingError) {
     return { code: error.code, message: error.message.slice(0, 500) };
+  }
+  /*
+   * Il generatore del riepilogo ha i suoi codici, e finivano tutti appiattiti
+   * in `PROCESSING_FAILED`: lo stesso appiattimento che ieri ha reso invisibile
+   * per giorni un rifiuto del provider di trascrizione. Il codice si conserva;
+   * il messaggio no, perche' puo' contenere frasi della seduta.
+   */
+  if (error instanceof SessionCompassGenerationError) {
+    return {
+      code: error.providerErrorCode
+        ? `${error.code}:${error.providerErrorCode}`.slice(0, 80)
+        : error.code,
+      message: 'Riepilogo non generato.',
+    };
   }
   return { code: 'PROCESSING_FAILED', message: 'Elaborazione non completata.' };
 }

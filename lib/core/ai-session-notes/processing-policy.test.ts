@@ -19,7 +19,11 @@ test('retries stop exactly at maximum attempts', () => {
   assert.equal(retryStatus({ attemptCount: 1, maxAttempts: 3 }), 'queued');
   assert.equal(retryStatus({ attemptCount: 2, maxAttempts: 3 }), 'queued');
   assert.equal(retryStatus({ attemptCount: 3, maxAttempts: 3 }), 'failed');
-  assert.equal(retryDelayMs(1), 60_000);
+  // Il primo ritentativo e' quasi immediato: il primo fallimento e' quasi
+  // sempre transitorio, e c'e' un coach che aspetta senza sapere di aspettare
+  // un ritentativo. Dal secondo in poi si allunga e non martella il provider.
+  assert.equal(retryDelayMs(1), 5_000);
+  assert.equal(retryDelayMs(2), 60_000);
   assert.equal(retryDelayMs(100), 15 * 60_000);
 });
 

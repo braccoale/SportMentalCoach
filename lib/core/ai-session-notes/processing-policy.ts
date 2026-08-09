@@ -72,8 +72,23 @@ export function isTranscriptionRequestStale(params: {
   return elapsedMinutes > params.staleAfterMinutes;
 }
 
+/**
+ * Quanto si aspetta prima di riprovare.
+ *
+ * Il primo tentativo aspettava un minuto pieno. Ma il primo fallimento e'
+ * quasi sempre transitorio — un timeout, un rifiuto momentaneo del provider —
+ * e nel frattempo c'e' un coach fermo davanti a una rotellina che non sa di
+ * stare aspettando un ritentativo. Un minuto su una seduta appena finita e'
+ * quasi tutto il tempo percepito.
+ *
+ * Quindi: cinque secondi al primo colpo, poi si allunga in fretta. Se il
+ * guasto non era transitorio, dal secondo tentativo in poi l'attesa e'
+ * comunque ampia e non martella il provider.
+ */
 export function retryDelayMs(attemptCount: number): number {
-  return Math.min(15 * 60_000, Math.max(1, attemptCount) * 60_000);
+  const attempt = Math.max(1, attemptCount);
+  if (attempt === 1) return 5_000;
+  return Math.min(15 * 60_000, (attempt - 1) * 60_000);
 }
 
 export function sessionCanProcess(params: {
