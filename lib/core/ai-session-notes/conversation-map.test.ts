@@ -116,3 +116,60 @@ test('una sessione senza parlato non divide per zero', () => {
   assert.equal(map.lanes[0].sharePercent, 0);
   assert.equal(map.dominantRole, null);
 });
+
+test('conta gli interventi del coach e quanti contenevano una domanda', () => {
+  const { insight } = buildConversationMap({
+    segments: [
+      { startMs: 0, endMs: 10_000, role: 'coach', text: 'Come stai?' },
+      { startMs: 10_000, endMs: 20_000, role: 'coach', text: 'Capisco.' },
+      { startMs: 20_000, endMs: 30_000, role: 'coach', text: 'E poi? Dimmi.' },
+      { startMs: 30_000, endMs: 35_000, role: 'athlete', text: 'Bene.' },
+    ],
+  });
+  assert.equal(insight.coachTurns, 3);
+  assert.equal(insight.coachQuestionTurns, 2);
+});
+
+test('la durata media di un turno distingue chi guida da chi risponde', () => {
+  const { insight } = buildConversationMap({
+    segments: [
+      { startMs: 0, endMs: 20_000, role: 'coach' },
+      { startMs: 20_000, endMs: 25_000, role: 'athlete' },
+      { startMs: 25_000, endMs: 45_000, role: 'coach' },
+      { startMs: 45_000, endMs: 50_000, role: 'athlete' },
+    ],
+  });
+  assert.equal(insight.coachAverageTurnSec, 20);
+  assert.equal(insight.athleteAverageTurnSec, 5);
+});
+
+test('risposte che si allungano nella seconda meta significano apertura', () => {
+  const seg = [];
+  for (let i = 0; i < 4; i++) seg.push({ startMs: i * 10_000, endMs: i * 10_000 + 3_000, role: 'athlete' as const });
+  for (let i = 0; i < 4; i++) seg.push({ startMs: 60_000 + i * 10_000, endMs: 60_000 + i * 10_000 + 25_000, role: 'athlete' as const });
+  const { insight } = buildConversationMap({ segments: seg, durationMs: 120_000 });
+  assert.equal(insight.athleteOpenedUp, true);
+  assert.ok(insight.athleteSecondHalfSec > insight.athleteFirstHalfSec);
+});
+
+test('risposte che restano corte non vengono raccontate come apertura', () => {
+  const seg = [];
+  for (let i = 0; i < 8; i++) seg.push({ startMs: i * 12_000, endMs: i * 12_000 + 3_000, role: 'athlete' as const });
+  const { insight } = buildConversationMap({ segments: seg, durationMs: 120_000 });
+  assert.equal(insight.athleteOpenedUp, false);
+});
+
+test('con troppo pochi turni non si dichiara nulla sull apertura', () => {
+  const { insight } = buildConversationMap({
+    segments: [
+      { startMs: 0, endMs: 3_000, role: 'athlete' },
+      { startMs: 60_000, endMs: 30_0000, role: 'athlete' },
+    ],
+    durationMs: 120_000,
+  });
+  assert.equal(
+    insight.athleteOpenedUp,
+    null,
+    'due turni possono ribaltarsi per caso: meglio tacere che sbagliare'
+  );
+});

@@ -103,6 +103,29 @@ function Lane({
   );
 }
 
+function Fact({
+  value,
+  label,
+  tone = 'plain',
+}: {
+  value: string;
+  label: string;
+  tone?: 'plain' | 'good' | 'warn';
+}) {
+  const color =
+    tone === 'good'
+      ? 'text-emerald-300'
+      : tone === 'warn'
+        ? 'text-amber-300'
+        : 'text-white';
+  return (
+    <div className="min-w-0">
+      <dt className={`text-xl font-bold tabular-nums ${color}`}>{value}</dt>
+      <dd className="mt-0.5 text-xs leading-4 text-white/55">{label}</dd>
+    </div>
+  );
+}
+
 export function ConversationMapBand({
   map,
   onSeek,
@@ -176,8 +199,34 @@ export function ConversationMapBand({
         </div>
       ) : null}
 
+      {/* Le due domande che un coach si fa e che nessuno gli risponde:
+          «ho fatto domande o ho spiegato?» e «si e' aperto?». Sono conteggi
+          su dati reali, non stime: e' l'unica ragione per cui un coach si
+          fida di quello che legge. */}
+      <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-white/10 pt-4 sm:grid-cols-3">
+        <Fact
+          value={`${map.insight.coachQuestionTurns}/${map.insight.coachTurns}`}
+          label="tuoi interventi con una domanda"
+        />
+        <Fact
+          value={`${map.insight.coachAverageTurnSec}s vs ${map.insight.athleteAverageTurnSec}s`}
+          label="durata media: tu / atleta"
+        />
+        {map.insight.athleteOpenedUp !== null ? (
+          <Fact
+            value={map.insight.athleteOpenedUp ? 'Sì' : 'No'}
+            label={
+              map.insight.athleteOpenedUp
+                ? `si è aperto: da ${map.insight.athleteFirstHalfSec}s a ${map.insight.athleteSecondHalfSec}s a turno`
+                : `è rimasto sulle risposte brevi (${map.insight.athleteSecondHalfSec}s a turno)`
+            }
+            tone={map.insight.athleteOpenedUp ? 'good' : 'warn'}
+          />
+        ) : null}
+      </dl>
+
       <p
-        className="mt-3 min-h-5 text-xs text-white/55 tabular-nums"
+        className="mt-4 min-h-5 text-xs text-white/55 tabular-nums"
         aria-live="polite"
       >
         {hovered

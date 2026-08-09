@@ -14,7 +14,8 @@ import {
 /**
  * Carica la mappa della conversazione di una sessione.
  *
- * Legge solo inizio, fine e ruolo: nessun testo. È ciò che permette di
+ * Legge inizio, fine, ruolo e testo; il testo serve solo a contare le
+ * domande del coach e non viene mai restituito al browser. È ciò che permette di
  * caricarla insieme alla pagina invece che su richiesta — la fascia deve
  * esserci al primo colpo d'occhio, e uno spinner in cima alla Panoramica
  * annullerebbe l'effetto che deve produrre.
@@ -29,6 +30,8 @@ export async function loadConversationMap(
       startMs: sessionTranscriptTimelineSegments.startMs,
       endMs: sessionTranscriptTimelineSegments.endMs,
       role: sessionTranscriptTimelineSegments.participantRole,
+      // Serve solo a contare le domande: non lascia mai il server.
+      text: sessionTranscriptTimelineSegments.normalizedText,
     })
     .from(sessionTranscriptTimelineSegments)
     .where(eq(sessionTranscriptTimelineSegments.sessionAiNotesId, sessionId))
@@ -52,7 +55,7 @@ export async function loadConversationMap(
   return buildConversationMap({
     segments: rows.flatMap((row) =>
       row.role === 'coach' || row.role === 'athlete'
-        ? [{ startMs: row.startMs, endMs: row.endMs, role: row.role }]
+        ? [{ startMs: row.startMs, endMs: row.endMs, role: row.role, text: row.text }]
         : []
     ),
     moments,

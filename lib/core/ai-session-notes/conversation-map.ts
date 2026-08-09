@@ -16,6 +16,8 @@ export type ConversationSegmentInput = {
   startMs: number;
   endMs: number;
   role: ConversationRole;
+  /** Serve solo a riconoscere le domande; non viene mai mostrato. */
+  text?: string;
 };
 
 export type ConversationMomentInput = {
@@ -43,12 +45,38 @@ export type ConversationMoment = {
   label: string;
 };
 
+/**
+ * Le tre risposte che un coach cerca guardando una sessione.
+ *
+ * Sono conteggi su dati che abbiamo già, non stime: un coach smette di
+ * fidarsi di tutto il resto se becca una volta sola un numero inventato.
+ */
+export type ConversationInsight = {
+  /** Interventi del coach e quanti contenevano una domanda. */
+  coachTurns: number;
+  coachQuestionTurns: number;
+  /** Durata media di un intervento, in secondi. */
+  coachAverageTurnSec: number;
+  athleteAverageTurnSec: number;
+  /**
+   * Se gli interventi dell'atleta si sono allungati nella seconda metà.
+   *
+   * È il segno che la sessione ha funzionato: risposte corte che diventano
+   * lunghe vogliono dire che si è aperto. `null` quando i turni sono troppo
+   * pochi perché il confronto significhi qualcosa.
+   */
+  athleteOpenedUp: boolean | null;
+  athleteFirstHalfSec: number;
+  athleteSecondHalfSec: number;
+};
+
 export type ConversationMap = {
   durationMs: number;
   lanes: ConversationLane[];
   moments: ConversationMoment[];
   /** Chi ha parlato di più. `null` quando la differenza è sotto i 2 punti. */
   dominantRole: ConversationRole | null;
+  insight: ConversationInsight;
 };
 
 /**
@@ -133,5 +161,56 @@ export function buildConversationMap(input: {
       atPercent: durationMs > 0 ? (moment.atMs / durationMs) * 100 : 0,
     }));
 
-  return { durationMs, lanes, moments, dominantRole };
+  return {
+    durationMs,
+    lanes,
+    moments,
+    dominantRole,
+    insight: buildInsight(input.segments, durationMs),
+  };
+}
+
+/** Una domanda si riconosce dal punto interrogativo: nessuna euristica fine. */
+function isQuestion(text: string | undefined): boolean {
+  return typeof text === 'string' && text.includes('?');
+}
+
+function averageSeconds(segments: ConversationSegmentInput[]): number {
+  if (segments.length === 0) return 0;
+  const total = segments.reduce((sum, s) => sum + (s.endMs - s.startMs), 0);
+  return Math.round(total / segments.length / 1000);
+}
+
+/**
+ * Sotto questa soglia il confronto fra prima e seconda metà non significa
+ * nulla: due turni per metà possono ribaltarsi per caso.
+ */
+const MIN_TURNS_FOR_OPENING = 6;
+
+function buildInsight(
+  segments: ConversationSegmentInput[],
+  durationMs: number
+): ConversationInsight {
+  const coach = segments.filter((s) => s.role === 'coach');
+  const athlete = segments.filter((s) => s.role === 'athlete');
+  const midpoint = durationMs / 2;
+  const first = athlete.filter((s) => s.startMs < midpoint);
+  const second = athlete.filter((s) => s.startMs >= midpoint);
+  const firstSec = averageSeconds(first);
+  const secondSec = averageSeconds(second);
+
+  return {
+    coachTurns: coach.length,
+    coachQuestionTurns: coach.filter((s) => isQuestion(s.text)).length,
+    coachAverageTurnSec: averageSeconds(coach),
+    athleteAverageTurnSec: averageSeconds(athlete),
+    athleteOpenedUp:
+      athlete.length < MIN_TURNS_FOR_OPENING ||
+      first.length === 0 ||
+      second.length === 0
+        ? null
+        : secondSec > firstSec,
+    athleteFirstHalfSec: firstSec,
+    athleteSecondHalfSec: secondSec,
+  };
 }
