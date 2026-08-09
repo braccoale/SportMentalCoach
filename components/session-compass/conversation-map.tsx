@@ -1,10 +1,15 @@
 'use client';
 
 import { useId, useState } from 'react';
+import { HelpCircle, Timer, Unlock } from 'lucide-react';
 import type {
   ConversationMap,
   ConversationRole,
 } from '@/lib/core/ai-session-notes/conversation-map';
+import {
+  describeConversationInsight,
+  type InsightStat,
+} from '@/lib/core/ai-session-notes/conversation-insight-text';
 import { formatTranscriptTimestamp } from './time';
 
 /**
@@ -20,6 +25,22 @@ import { formatTranscriptTimestamp } from './time';
  */
 
 const SURFACE = '#171525';
+
+/**
+ * La profondità viene dal colore, non da un'immagine.
+ *
+ * Un bagliore diagonale e una sfumatura bastano a dare volume alla fascia.
+ * Una grafica decorativa avrebbe fatto più scena, ma questo prodotto parla
+ * della salute mentale di atleti: l'austerità è ciò che lo fa sembrare
+ * serio, ed è anche la ragione per cui la fascia funziona.
+ */
+const SURFACE_STYLE = {
+  backgroundColor: SURFACE,
+  backgroundImage:
+    'radial-gradient(120% 140% at 82% 0%, rgba(139,92,246,0.30) 0%, rgba(139,92,246,0) 55%), ' +
+    'radial-gradient(90% 120% at 8% 105%, rgba(217,119,6,0.16) 0%, rgba(217,119,6,0) 60%), ' +
+    'linear-gradient(180deg, #1c1930 0%, #141221 100%)',
+};
 
 /**
  * I blocchi si disegnano da sinistra al primo caricamento.
@@ -103,25 +124,35 @@ function Lane({
   );
 }
 
-function Fact({
-  value,
-  label,
-  tone = 'plain',
-}: {
-  value: string;
-  label: string;
-  tone?: 'plain' | 'good' | 'warn';
-}) {
-  const color =
-    tone === 'good'
-      ? 'text-emerald-300'
-      : tone === 'warn'
-        ? 'text-amber-300'
-        : 'text-white';
+const STAT_STYLE = {
+  buono: { value: 'text-emerald-300', ring: 'bg-emerald-400/15 text-emerald-300' },
+  neutro: { value: 'text-white', ring: 'bg-white/10 text-white/70' },
+  attenzione: { value: 'text-amber-300', ring: 'bg-amber-400/15 text-amber-300' },
+};
+
+const STAT_ICON = {
+  domande: HelpCircle,
+  durata: Timer,
+  apertura: Unlock,
+};
+
+function Stat({ stat }: { stat: InsightStat }) {
+  const style = STAT_STYLE[stat.tone];
+  const Icon = STAT_ICON[stat.key];
   return (
-    <div className="min-w-0">
-      <dt className={`text-xl font-bold tabular-nums ${color}`}>{value}</dt>
-      <dd className="mt-0.5 text-xs leading-4 text-white/55">{label}</dd>
+    <div className="flex min-w-0 items-start gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-3.5">
+      <span
+        className={`inline-flex size-9 shrink-0 items-center justify-center rounded-full ${style.ring}`}
+      >
+        <Icon className="size-4" aria-hidden="true" />
+      </span>
+      <div className="min-w-0">
+        <p className={`text-xl font-bold tabular-nums ${style.value}`}>
+          {stat.value}
+        </p>
+        <p className="mt-0.5 text-xs leading-4 text-white/55">{stat.label}</p>
+        <p className="mt-1.5 text-xs leading-5 text-white/75">{stat.meaning}</p>
+      </div>
     </div>
   );
 }
@@ -146,7 +177,7 @@ export function ConversationMapBand({
     <section
       aria-labelledby={titleId}
       className="overflow-hidden rounded-2xl p-5 sm:p-6"
-      style={{ backgroundColor: SURFACE }}
+      style={SURFACE_STYLE}
     >
       <style>{ENTRANCE_KEYFRAMES}</style>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
@@ -199,31 +230,14 @@ export function ConversationMapBand({
         </div>
       ) : null}
 
-      {/* Le due domande che un coach si fa e che nessuno gli risponde:
-          «ho fatto domande o ho spiegato?» e «si e' aperto?». Sono conteggi
-          su dati reali, non stime: e' l'unica ragione per cui un coach si
-          fida di quello che legge. */}
-      <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-white/10 pt-4 sm:grid-cols-3">
-        <Fact
-          value={`${map.insight.coachQuestionTurns}/${map.insight.coachTurns}`}
-          label="tuoi interventi con una domanda"
-        />
-        <Fact
-          value={`${map.insight.coachAverageTurnSec}s vs ${map.insight.athleteAverageTurnSec}s`}
-          label="durata media: tu / atleta"
-        />
-        {map.insight.athleteOpenedUp !== null ? (
-          <Fact
-            value={map.insight.athleteOpenedUp ? 'Sì' : 'No'}
-            label={
-              map.insight.athleteOpenedUp
-                ? `si è aperto: da ${map.insight.athleteFirstHalfSec}s a ${map.insight.athleteSecondHalfSec}s a turno`
-                : `è rimasto sulle risposte brevi (${map.insight.athleteSecondHalfSec}s a turno)`
-            }
-            tone={map.insight.athleteOpenedUp ? 'good' : 'warn'}
-          />
-        ) : null}
-      </dl>
+      {/* Il numero da solo lascia al coach il lavoro di capire se sia un
+          bene o un male. La riga sotto glielo dice: e' la differenza fra un
+          cruscotto e uno strumento. */}
+      <div className="mt-5 grid gap-3 border-t border-white/10 pt-5 sm:grid-cols-2 lg:grid-cols-3">
+        {describeConversationInsight(map.insight).map((stat) => (
+          <Stat key={stat.key} stat={stat} />
+        ))}
+      </div>
 
       <p
         className="mt-4 min-h-5 text-xs text-white/55 tabular-nums"
