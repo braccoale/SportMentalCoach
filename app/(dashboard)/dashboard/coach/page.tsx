@@ -18,7 +18,6 @@ import {
   bookingStatusTone,
   getCoachBookings,
   getAllAthletes,
-  getCoachRelationshipAthletes,
   type CoachBooking,
 } from '@/lib/core/bookings';
 import { lastServiceByAthlete } from '@/lib/core/bookings/coach-athletes';
@@ -63,7 +62,6 @@ import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
 import { RatingStars } from '@/components/rating-stars';
 import { SummaryCard } from '@/components/summary-card';
-import { MentalJourneyLinks } from '@/components/mental-journey-links';
 import { CoachRequestCard, type CoachRequestCardData } from '@/components/coach-request-card';
 import { replyToReviewAction } from './review-reply-actions';
 import {
@@ -117,7 +115,6 @@ export default async function CoachDashboardPage() {
     allBookings,
     unreadMessages,
     athletes,
-    journeyAthletes,
     coachServices,
     coachAvailability,
     hasAiSessionNotes,
@@ -126,7 +123,6 @@ export default async function CoachDashboardPage() {
     getCoachBookings(user.id),
     getUnreadCountForType(user.id, 'new_message'),
     getAllAthletes(),
-    getCoachRelationshipAthletes(user.id),
     getCoachServices(user.id),
     getCoachAvailability(user.id),
     hasFeatureEntitlement(user.id, FEATURE_CODES.AI_SESSION_NOTES),
@@ -382,8 +378,6 @@ export default async function CoachDashboardPage() {
           href="/dashboard/coach/messages"
         />
       </div>
-
-      <MentalJourneyLinks athletes={journeyAthletes} enabled={hasAiSessionNotes} />
 
       {/* Il conteggio resta nella KPI qui sopra, che si collega a questa
           sezione solo quando è maggiore di zero: nessuna ancora morta. */}

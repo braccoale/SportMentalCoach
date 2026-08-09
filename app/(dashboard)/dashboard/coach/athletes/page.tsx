@@ -4,6 +4,7 @@ import {
   CalendarCheck,
   Compass,
   Hourglass,
+  Route,
   ShieldAlert,
 } from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
@@ -104,6 +105,21 @@ function AthleteRow({
 
           <ArrowRight className="h-5 w-5 shrink-0 text-gray-300" />
         </Link>
+        {/* Il percorso mentale si apre da qui, accanto all'atleta di cui
+            parla, invece che da una sezione a se' nella dashboard: e' un
+            approfondimento su una persona, non una voce di menu.
+            Come prima, la porta non compare a chi non ha la stanza. */}
+        {canOpenCompass ? (
+          <Link
+            href={`/dashboard/coach/athletes/${athlete.userId}/mental-journey`}
+            aria-label={`Percorso mentale di ${athlete.name}`}
+            title="Percorso mentale"
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 transition hover:border-violet-300 hover:text-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 sm:shrink-0"
+          >
+            <Route className="h-4 w-4" aria-hidden="true" />
+            <span className="sm:hidden">Percorso mentale</span>
+          </Link>
+        ) : null}
         {canOpenCompass && athlete.latestCompassBookingId ? (
           <Link
             href={`/dashboard/appointments/${athlete.latestCompassBookingId}#session-compass`}
