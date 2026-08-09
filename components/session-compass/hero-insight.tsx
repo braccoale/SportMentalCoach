@@ -1,18 +1,27 @@
 'use client';
 
-import { Sparkles, Target } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import type {
   CompassEvidence,
   SessionCompassReport,
 } from '@/lib/core/ai-session-notes/session-compass-contract';
-import { EvidenceButton, Surface, evidenceKey } from './ui';
+import { EvidenceButton, evidenceKey } from './ui';
 
 /**
  * Blocco dominante della Panoramica.
  *
- * La lettura AI è il contenuto principale; problema centrale e prossimo passo
- * restano elementi secondari nello stesso blocco. Nessuno dei tre testi viene
- * inventato: quando il report non lo contiene, la card dichiara il dato assente.
+ * Non è una card: è la pagina. Prima aveva bordo, sfondo e ombra come le
+ * altre quindici, e con un titolo da 20px competeva alla pari con riquadri
+ * che valgono un decimo. Il risultato era che l'occhio non trovava dove
+ * atterrare.
+ *
+ * Qui la gerarchia la fanno la dimensione del testo e lo spazio, non un
+ * contenitore: il titolo domina, tutto il resto è chiaramente subordinato.
+ * Problema centrale e prossimo passo restano, ma smettono di essere due
+ * riquadri concorrenti e diventano una riga di appoggio.
+ *
+ * Nessuno dei testi viene inventato: quando il report non lo contiene, si
+ * dichiara il dato assente.
  */
 export function SessionHeroInsight({
   report,
@@ -31,93 +40,86 @@ export function SessionHeroInsight({
   const nextStep = report.nextSessionPrep[0] ?? report.commitments[0] ?? null;
 
   return (
-    <Surface tone="accent" className="overflow-hidden sm:p-6">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-2.5 py-1 text-xs font-bold text-violet-700">
-              <Sparkles className="h-3.5 w-3.5" /> Lettura AI
-            </span>
-            <span
-              className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                isApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'
-              }`}
-            >
-              {isApproved ? 'Approvata dal coach' : 'Bozza da validare'}
-            </span>
-          </div>
-
-          <h3 className="mt-3 text-xl font-bold leading-8 tracking-tight text-gray-950 sm:text-2xl">
-            {mainInsight || 'Dato non disponibile'}
-          </h3>
-          <p className="mt-2 text-xs leading-5 text-gray-500">
-            Interpretazione da verificare da parte del coach, non un fatto accertato.
-          </p>
-
-          {primaryEvidence.length ? (
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {primaryEvidence.map((evidence) => (
-                <EvidenceButton
-                  key={evidenceKey(evidence)}
-                  evidence={evidence}
-                  onOpenEvidence={onOpenEvidence}
-                  className="mt-0"
-                />
-              ))}
-            </div>
-          ) : null}
-        </div>
-
-        <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-1">
-          <SideCard
-            tone="violet"
-            icon={<Target className="h-4 w-4" />}
-            label="Problema centrale"
-            value={centralTheme?.text ?? 'Dato non disponibile'}
-            note="Tema emerso dalla conversazione; non è una diagnosi."
-          />
-          <SideCard
-            tone="sky"
-            icon={<Sparkles className="h-4 w-4" />}
-            label="Prossimo passo suggerito"
-            value={nextStep?.text ?? 'Dato non disponibile'}
-            note={
-              nextStep
-                ? 'Da decidere e validare dal coach.'
-                : 'Non è stata definita un’azione verificabile.'
-            }
-          />
-        </div>
+    <section className="min-w-0 px-1 pt-2 sm:px-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-2.5 py-1 text-xs font-bold text-violet-700">
+          <Sparkles className="h-3.5 w-3.5" /> Lettura AI
+        </span>
+        <span
+          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+            isApproved
+              ? 'bg-emerald-100 text-emerald-800'
+              : 'bg-amber-100 text-amber-900'
+          }`}
+        >
+          {isApproved ? 'Approvata dal coach' : 'Bozza da validare'}
+        </span>
       </div>
-    </Surface>
+
+      {/* La dimensione è il messaggio: questa è la frase che il coach deve
+          leggere per prima, e deve essere impossibile leggerne un'altra
+          prima di lei. */}
+      <h3 className="mt-4 max-w-[46ch] text-[1.75rem] font-bold leading-[1.15] tracking-[-0.02em] text-gray-950 sm:text-[2.25rem] lg:text-[2.6rem]">
+        {mainInsight || 'Dato non disponibile'}
+      </h3>
+      <p className="mt-3 text-xs leading-5 text-gray-500">
+        Interpretazione da verificare da parte del coach, non un fatto
+        accertato.
+      </p>
+
+      {primaryEvidence.length ? (
+        <div className="mt-4 grid max-w-3xl gap-2 sm:grid-cols-2">
+          {primaryEvidence.map((evidence) => (
+            <EvidenceButton
+              key={evidenceKey(evidence)}
+              evidence={evidence}
+              onOpenEvidence={onOpenEvidence}
+              className="mt-0"
+            />
+          ))}
+        </div>
+      ) : null}
+
+      {/* Una riga di appoggio separata da un filo, non due riquadri: erano
+          la ragione principale per cui l'eroe non sembrava un eroe. */}
+      <div className="mt-6 grid gap-5 border-t border-gray-200/80 pt-5 sm:grid-cols-2">
+        <SupportingFact
+          label="Problema centrale"
+          value={centralTheme?.text ?? 'Dato non disponibile'}
+          note="Tema emerso dalla conversazione; non è una diagnosi."
+        />
+        <SupportingFact
+          label="Prossimo passo suggerito"
+          value={nextStep?.text ?? 'Dato non disponibile'}
+          note={
+            nextStep
+              ? 'Da decidere e validare dal coach.'
+              : 'Non è stata definita un’azione verificabile.'
+          }
+        />
+      </div>
+    </section>
   );
 }
 
-function SideCard({
-  tone,
-  icon,
+function SupportingFact({
   label,
   value,
   note,
 }: {
-  tone: 'violet' | 'sky';
-  icon: React.ReactNode;
   label: string;
   value: string;
   note: string;
 }) {
-  const tones = {
-    violet: 'border-violet-100 bg-white/90 text-violet-700',
-    sky: 'border-sky-100 bg-sky-50/70 text-sky-800',
-  };
   return (
-    <div className={`min-w-0 rounded-xl border p-4 ${tones[tone]}`}>
-      <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide">
-        {icon}
+    <div className="min-w-0">
+      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-600">
         {label}
       </p>
-      <p className="mt-1.5 line-clamp-3 text-base font-bold leading-6 text-gray-950">{value}</p>
-      <p className="mt-1.5 text-xs leading-5 text-gray-600">{note}</p>
+      <p className="mt-1.5 text-base font-bold leading-6 text-gray-950">
+        {value}
+      </p>
+      <p className="mt-1 text-xs leading-5 text-gray-600">{note}</p>
     </div>
   );
 }

@@ -236,7 +236,7 @@ test('gli indicatori non mostrano zero quando una metrica è assente', () => {
   assert.match(html, /Validata nel report/);
 });
 
-test('la fascia rapida usa al massimo cinque metriche ordinali con evidenza', () => {
+test('la fascia rapida usa al massimo tre metriche ordinali prioritarie con evidenza', () => {
   const html = renderToStaticMarkup(
     <SessionMetricsStrip
       metrics={[
@@ -252,13 +252,28 @@ test('la fascia rapida usa al massimo cinque metriche ordinali con evidenza', ()
     />
   );
 
-  assert.match(html, /Indicatori della sessione/);
-  assert.match(html, /Altri 1 segnali con evidenza/);
+  assert.match(html, /Indicatori che contano ora/);
+  assert.match(html, /Altri 3 segnali con evidenza/);
   assert.match(html, /Fiducia/);
-  assert.match(html, /Motivazione/);
-  assert.doesNotMatch(html, /Ansia pre-gara/);
+  assert.match(html, /Ansia pre-gara/);
+  assert.match(html, /Gestione emotiva/);
+  assert.doesNotMatch(html, /Motivazione/);
   assert.doesNotMatch(html, /60%/);
   assert.match(html, /aria-label="Fiducia: 4 su 5, alto\./);
+});
+
+test('la fascia rapida non lascia una card vuota quando i conteggi sono tutti assenti', () => {
+  assert.equal(
+    renderToStaticMarkup(
+      <SessionMetricsStrip
+        metrics={[]}
+        isApproved
+        onOpenEvidence={() => undefined}
+        counts={{ themes: 0, actions: 0, moments: 0, hasResource: false }}
+      />
+    ),
+    ''
+  );
 });
 
 test('le card KPI mostrano solo conteggi reali, senza percentuali', () => {
@@ -468,7 +483,9 @@ test('la panoramica usa la griglia dashboard e differenzia il peso delle card', 
   assert.match(html, /xl:col-span-3/);
   assert.match(html, /xl:col-span-9/);
   // La lettura AI domina; problema centrale e prossimo passo restano secondari.
-  assert.match(html, /text-xl font-bold leading-8/);
+  // La dominanza è tipografica, non un contenitore: il titolo sta su una
+  // scala molto più grande dei fatti di appoggio, che restano a 16px.
+  assert.match(html, /text-\[1\.75rem\] font-bold/);
   assert.match(html, /text-base font-bold leading-6/);
   assert.ok(html.indexOf('Lettura AI') < html.indexOf('Problema centrale'));
 });
@@ -582,9 +599,9 @@ test('la panoramica mette contesto e azioni prima di segnali, momenti e metriche
     />
   );
 
-  assert.ok(html.indexOf('Problema centrale') < html.indexOf('Da riprendere nella prossima sessione'));
-  assert.ok(html.indexOf('Da riprendere nella prossima sessione') < html.indexOf('Momenti chiave'));
-  assert.ok(html.indexOf('Momenti chiave') < html.indexOf('Segnali emersi dalla conversazione'));
+  assert.ok(html.indexOf('Problema centrale') < html.indexOf('Indicatori che contano ora'));
+  assert.ok(html.indexOf('Indicatori che contano ora') < html.indexOf('Filo logico del percorso'));
+  assert.ok(html.indexOf('Filo logico del percorso') < html.indexOf('Momenti chiave'));
   assert.match(html, /Azione uno/);
   assert.match(html, /Azione tre/);
   assert.doesNotMatch(html, /Azione quattro/);
