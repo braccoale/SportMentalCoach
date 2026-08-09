@@ -21,6 +21,22 @@ import { formatTranscriptTimestamp } from './time';
 
 const SURFACE = '#171525';
 
+/**
+ * I blocchi si disegnano da sinistra al primo caricamento.
+ *
+ * Non è decorazione: la mappa racconta un tempo che scorre, e vederla
+ * costruirsi nella direzione in cui si legge fa capire cosa si sta
+ * guardando prima ancora di leggere l'etichetta. Chi ha chiesto meno
+ * animazioni al sistema operativo non la vede.
+ */
+const ENTRANCE_KEYFRAMES = `
+@keyframes kp-conv-grow { from { transform: scaleX(0) } to { transform: scaleX(1) } }
+@media (prefers-reduced-motion: no-preference) {
+  .kp-conv-blk { animation: kp-conv-grow 420ms cubic-bezier(0.22, 1, 0.36, 1) both; transform-origin: left center }
+}
+@media (prefers-reduced-motion: reduce) { .kp-conv-blk { animation: none } }
+`;
+
 const ROLE_STYLE: Record<
   ConversationRole,
   { fill: string; label: string; share: string }
@@ -64,8 +80,11 @@ function Lane({
             onMouseLeave={() => onHover(null)}
             onFocus={() => onHover({ ...block, role: lane.role })}
             onBlur={() => onHover(null)}
-            className="absolute top-0 h-full rounded-[3px] transition-opacity hover:opacity-80 focus:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            className="kp-conv-blk absolute top-0 h-full rounded-[3px] transition-opacity hover:opacity-80 focus:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             style={{
+              // Lo scaglionamento segue la posizione nel tempo, non l'indice:
+              // la mappa si costruisce come si e' svolta la conversazione.
+              animationDelay: `${Math.round(block.startPercent * 4)}ms`,
               left: `${block.startPercent}%`,
               // Il minimo tiene visibile un intervento brevissimo; i 2px di
               // stacco impediscono a due blocchi vicini di sembrarne uno.
@@ -106,6 +125,7 @@ export function ConversationMapBand({
       className="overflow-hidden rounded-2xl p-5 sm:p-6"
       style={{ backgroundColor: SURFACE }}
     >
+      <style>{ENTRANCE_KEYFRAMES}</style>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <div className="min-w-0">
           <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-300">

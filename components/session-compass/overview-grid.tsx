@@ -136,9 +136,19 @@ export function SessionOverview({
           }}
         />
 
-        {previousJourneyEntry ? (
-          <SessionContinuityCard report={report} previous={previousJourneyEntry} />
-        ) : null}
+        {/* Continuita' e filo logico raccontano la stessa cosa — da dove
+            veniamo e dove andiamo — e occupavano due schermate. Insieme
+            sono un blocco solo. */}
+        <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-2">
+          {previousJourneyEntry ? (
+            <SessionContinuityCard report={report} previous={previousJourneyEntry} />
+          ) : null}
+          <JourneyNarrative
+            report={report}
+            previous={previousJourneyEntry}
+            currentSessionDate={currentSessionDate ?? null}
+          />
+        </div>
 
         <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(16rem,0.8fr)]">
           <AthleteProgressCharts
@@ -157,12 +167,6 @@ export function SessionOverview({
             />
           ) : null}
         </div>
-
-        <JourneyNarrative
-          report={report}
-          previous={previousJourneyEntry}
-          currentSessionDate={currentSessionDate ?? null}
-        />
 
         <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)_minmax(15rem,0.85fr)]">
           <NextSessionActions
@@ -192,17 +196,25 @@ export function SessionOverview({
           ) : null}
         </div>
 
-        {(overview.emotionalTrend?.length ?? 0) > 0 ? (
-          <EmotionalTrendChart points={overview.emotionalTrend ?? []} onOpenEvidence={onOpenEvidence} />
-        ) : null}
-
-        {(overview.metrics?.length ?? 0) > 5 || overview.conversationTone ? (
-          <SessionIndicators
-            metrics={orderSessionMetrics(overview.metrics ?? []).slice(5)}
-            tone={overview.conversationTone}
-            isApproved={isApproved}
-            onOpenEvidence={onOpenEvidence}
-          />
+        {/* I due blocchi di segnali erano impilati a tutta larghezza uno
+            sotto l'altro: due schermate per dire cose parenti. Affiancati
+            occupano una riga sola e si leggono come un argomento solo. */}
+        {(overview.emotionalTrend?.length ?? 0) > 0 ||
+        (overview.metrics?.length ?? 0) > 5 ||
+        overview.conversationTone ? (
+          <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-2">
+            {(overview.emotionalTrend?.length ?? 0) > 0 ? (
+              <EmotionalTrendChart points={overview.emotionalTrend ?? []} onOpenEvidence={onOpenEvidence} />
+            ) : null}
+            {(overview.metrics?.length ?? 0) > 5 || overview.conversationTone ? (
+              <SessionIndicators
+                metrics={orderSessionMetrics(overview.metrics ?? []).slice(5)}
+                tone={overview.conversationTone}
+                isApproved={isApproved}
+                onOpenEvidence={onOpenEvidence}
+              />
+            ) : null}
+          </div>
         ) : null}
       </div>
       </div>
