@@ -5,6 +5,7 @@ import {
   processAiNotesBatch,
 } from './processing';
 import { createProductionAiSessionNotesDependencies } from './dependencies';
+import { closeStuckProcessingSessions } from './stuck-sessions';
 import { logPipeline, pipelineErrorCode } from './pipeline-log';
 
 /**
@@ -55,6 +56,15 @@ export async function runAiNotesQueueInline(
       { workerId: `inline-${Date.now().toString(36)}`, limit },
       dependencies
     );
+    /*
+     * La rete di sicurezza va anche qui, non solo nel worker HTTP.
+     *
+     * Questa e' la corsa che gira quasi sempre — il cron passa una volta al
+     * giorno — e lasciarla senza avrebbe significato che una sessione ferma
+     * si sblocca solo se un amministratore preme un pulsante. Cioe' non si
+     * sblocca.
+     */
+    const expired = await closeStuckProcessingSessions({ limit: 10 }, dependencies);
     logPipeline({
       phase: 'queue_run',
       outcome: 'ok',
@@ -63,6 +73,7 @@ export async function runAiNotesQueueInline(
         presi: result.claimed ?? 0,
         completati: result.completed ?? 0,
         falliti: result.failed ?? 0,
+        scadute: expired,
       },
     });
   } catch (error) {
