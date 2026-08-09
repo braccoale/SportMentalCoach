@@ -11,7 +11,7 @@ import type {
 import { SESSION_METRIC_KEYS } from '@/lib/core/ai-session-notes/session-compass-contract';
 import { METRIC_META, metricValueLabel } from './metric-model';
 import { SectionHeading, Surface } from './ui';
-import { NetworkDecor } from './decor';
+import { PortraitDecor } from './decor';
 
 const SEGMENTS = [1, 2, 3, 4, 5] as const;
 const VISIBLE_METRICS = 3;
@@ -79,7 +79,7 @@ export function SessionIndicators({
     <Surface className={`relative overflow-hidden ${className}`} ariaLabel="Indicatori della sessione">
       {/* Rete di punti nell'angolo: accompagna cio' che e' stato messo in
           relazione. Sotto al contenuto e senza eventi. */}
-      <NetworkDecor className="absolute -right-6 -top-6 size-40 opacity-70" />
+      <PortraitDecor className="inset-y-0 right-0 hidden w-1/2 opacity-70 lg:block" />
       <div className="relative">
       <SectionHeading
         title="Segnali emersi dalla conversazione"

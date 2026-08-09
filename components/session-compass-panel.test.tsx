@@ -208,8 +208,11 @@ test('gli indicatori usano segmenti ordinali con valore esplicito, mai percentua
   assert.match(html, /Evidenza forte/);
   assert.match(html, /Dichiarazione atleta/);
   assert.match(html, /Da validare dal coach/);
-  // Nessuna conversione in percentuale della scala 1–5.
-  assert.doesNotMatch(html, /\d+%/);
+  // Nessuna conversione in percentuale della scala 1–5. Si guarda il testo
+  // visibile e non l'HTML grezzo: gli stili inline di next/image contengono
+  // "width:100%", che non ha nulla a che vedere con la scala.
+  const visibleText = html.replace(/<[^>]*>/g, ' ');
+  assert.doesNotMatch(visibleText, /\d+%/);
   assert.doesNotMatch(html, /Autovalutazione strutturata/);
   // Cinque segmenti, quattro attivi: il colore non è l'unico veicolo.
   const segments = html.match(/h-2 flex-1 rounded-full/g) ?? [];

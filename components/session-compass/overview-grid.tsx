@@ -153,7 +153,7 @@ export function SessionOverview({
             accanto a una card alta lasciava una voragine bianca: allora va
             a tutta larghezza, dove una riga sta bene. */}
         {hasTrend ? (
-          <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(16rem,0.8fr)]">
+          <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(16rem,0.8fr)] [&>*]:h-full">
             <AthleteProgressCharts
               journey={journey ?? null}
               report={report}
@@ -217,7 +217,7 @@ export function SessionOverview({
         {(overview.emotionalTrend?.length ?? 0) > 0 ||
         (overview.metrics?.length ?? 0) > 5 ||
         overview.conversationTone ? (
-          <div className="grid min-w-0 items-start gap-4 xl:grid-cols-2">
+          <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-2 [&>*]:h-full">
             {(overview.emotionalTrend?.length ?? 0) > 0 ? (
               <EmotionalTrendChart points={overview.emotionalTrend ?? []} onOpenEvidence={onOpenEvidence} />
             ) : null}

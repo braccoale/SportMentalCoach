@@ -180,7 +180,7 @@ export default async function AppointmentDetailPage({
         {/* Orbita disegnata nell'angolo: sta sotto al contenuto, non prende
             eventi, e sparisce sotto lg dove lo spazio serve al testo. */}
         {showAiReport ? (
-          <OrbitDecor className="absolute -right-4 -top-2 hidden h-28 w-52 opacity-80 lg:block" />
+          <OrbitDecor className="-right-8 -top-10 hidden size-56 opacity-90 lg:block" />
         ) : null}
         <div className="relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">

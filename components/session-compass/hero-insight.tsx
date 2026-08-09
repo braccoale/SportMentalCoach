@@ -44,7 +44,7 @@ export function SessionHeroInsight({
     <section className="relative min-w-0 overflow-hidden px-1 pt-2 sm:px-2">
       {/* La rete accompagna il titolo dall'angolo, senza mai passarci sopra:
           resta fuori dai 46ch della colonna di testo. */}
-      <NetworkDecor className="absolute -right-10 -top-6 hidden size-64 opacity-40 lg:block" />
+      <NetworkDecor className="-right-16 -top-10 hidden size-72 opacity-90 lg:block" />
 
       <div className="relative flex flex-wrap items-center gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-2.5 py-1 text-xs font-bold text-violet-700">
