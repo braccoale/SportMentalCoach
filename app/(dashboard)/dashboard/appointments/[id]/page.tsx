@@ -17,6 +17,7 @@ import {
 } from '@/components/session-compass-panel';
 import { CoverageCard } from '@/components/session-compass/coverage-card';
 import { loadSessionCoverage } from '@/lib/core/ai-session-notes/session-coverage-loader';
+import { loadConversationMap } from '@/lib/core/ai-session-notes/conversation-map-loader';
 import { describeSessionCoverage } from '@/lib/core/ai-session-notes/session-coverage-text';
 import { Button } from '@/components/ui/button';
 import { VideoCallButton } from '@/components/video-call-button';
@@ -132,6 +133,17 @@ export default async function AppointmentDetailPage({
         })
       : null;
   const coverageMessage = coverage ? describeSessionCoverage(coverage) : null;
+
+  // Caricata col server, non su richiesta: la fascia deve esserci al primo
+  // colpo d'occhio, e uno spinner in cima alla Panoramica annullerebbe
+  // proprio l'effetto che deve produrre.
+  const conversationMap =
+    booking.viewerRole === 'coach' && aiNotesSession
+      ? await loadConversationMap(aiNotesSession.id).catch((error: unknown) => {
+          console.error('[appointments] mappa conversazione non disponibile', error);
+          return null;
+        })
+      : null;
 
   const showAiReport =
     canShowAiSessionReport({
@@ -278,6 +290,7 @@ export default async function AppointmentDetailPage({
             sessionDate={booking.scheduledFor?.toISOString() ?? null}
             athleteName={counterpart}
             initialJourney={mentalJourney}
+            conversationMap={conversationMap}
           />
         </>
       ) : null}

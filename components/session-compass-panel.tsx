@@ -22,6 +22,7 @@ import {
 } from 'react';
 import { Button } from '@/components/ui/button';
 import type { MentalJourney } from '@/lib/core/ai-session-notes/mental-journey';
+import type { ConversationMap } from '@/lib/core/ai-session-notes/conversation-map';
 import {
   CoachNotesPanel,
   KeyMomentsPanel,
@@ -219,11 +220,14 @@ export function SessionCompassPanel({
   sessionDate,
   athleteName,
   initialJourney,
+  conversationMap,
 }: {
   sessionId: number;
   sessionDate: string | null;
   athleteName: string;
   initialJourney: MentalJourney | null;
+  /** Caricata col server: la fascia deve esserci al primo colpo d'occhio. */
+  conversationMap?: ConversationMap | null;
 }) {
   const endpoint = `/api/coach/ai-session-notes/${sessionId}/compass`;
   const [report, setReport] = useState<SessionCompassView | null>(null);
@@ -537,6 +541,7 @@ export function SessionCompassPanel({
               <SessionOverview
                 report={report.document}
                 isApproved={report.isApproved}
+                conversationMap={conversationMap ?? null}
                 journey={initialJourney}
                 previousJourneyEntry={selectPreviousJourneyEntry(
                   initialJourney?.timeline ?? [],
