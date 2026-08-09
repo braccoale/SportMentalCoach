@@ -135,7 +135,7 @@ export function SessionIndicators({
     <Surface className={`relative overflow-hidden ${className}`} ariaLabel="Indicatori della sessione">
       {/* Rete di punti nell'angolo: accompagna cio' che e' stato messo in
           relazione. Sotto al contenuto e senza eventi. */}
-      <PortraitDecor className="inset-y-0 right-0 hidden w-1/2 opacity-70 lg:block" />
+      <PortraitDecor className="inset-y-0 right-0 hidden w-2/5 opacity-40 lg:block" />
       <div className="relative">
       <SectionHeading
         title="Segnali emersi dalla conversazione"

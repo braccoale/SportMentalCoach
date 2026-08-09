@@ -153,7 +153,7 @@ export function EmotionalTrendChart({
   const useNarrativeTimeline = orderedPoints.length <= 8;
   if (useNarrativeTimeline) {
     return (
-      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white sm:grid sm:grid-cols-[7rem_minmax(0,1fr)]" aria-labelledby="emotion-timeline-title">
+      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white sm:grid sm:grid-cols-[minmax(9rem,0.36fr)_minmax(0,1fr)]" aria-labelledby="emotion-timeline-title">
         {/* Ornamento a tutta altezza sul fianco: accompagna senza invadere
             il testo, ed e' disegnato, non un'immagine da ospitare. */}
         <span className="relative hidden sm:block"><WaveDecor className="inset-0" /></span>
