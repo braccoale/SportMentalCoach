@@ -14,7 +14,8 @@ import { SectionHeading, Surface } from './ui';
 
 const SEGMENTS = [1, 2, 3, 4, 5] as const;
 const VISIBLE_METRICS = 3;
-const METRICS_STRIP_LIMIT = 5;
+const METRICS_STRIP_LIMIT = 3;
+const PRIMARY_METRIC_KEYS = ['confidence', 'pre_competition_anxiety', 'emotional_management'] as const;
 
 const TONE_LABEL: Record<ConversationTone['key'], string> = {
   enthusiastic: 'Entusiasta',
@@ -158,13 +159,21 @@ export function SessionMetricsStrip({
   metrics,
   isApproved,
   onOpenEvidence,
+  participation,
+  counts,
 }: {
   metrics: readonly SessionMetric[];
   isApproved: boolean;
   onOpenEvidence: (segmentId: number) => void;
+  participation?: ConversationParticipation | null;
+  counts?: SessionSummaryCounts;
 }) {
-  const visibleMetrics = orderSessionMetrics(metrics).slice(0, METRICS_STRIP_LIMIT);
-  if (!visibleMetrics.length) return null;
+  const orderedMetrics = orderSessionMetrics(metrics);
+  const primaryMetrics = PRIMARY_METRIC_KEYS.flatMap((key) => orderedMetrics.filter((metric) => metric.key === key));
+  const visibleMetrics = [...primaryMetrics, ...orderedMetrics.filter((metric) => !PRIMARY_METRIC_KEYS.includes(metric.key as typeof PRIMARY_METRIC_KEYS[number]))]
+    .slice(0, METRICS_STRIP_LIMIT);
+  const hasCounts = Boolean(counts && (counts.themes || counts.actions || counts.moments || counts.hasResource));
+  if (!visibleMetrics.length && !participation && !hasCounts) return null;
 
   const validation = isApproved ? 'Validata dal coach' : 'Da validare dal coach';
   return (
@@ -174,13 +183,14 @@ export function SessionMetricsStrip({
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-700">Segnali con evidenza</p>
-          <h3 id="session-metrics-strip-title" className="mt-1 text-base font-bold text-gray-950">Indicatori della sessione</h3>
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-700">In sintesi</p>
+          <h3 id="session-metrics-strip-title" className="mt-1 text-lg font-black tracking-tight text-gray-950">Indicatori che contano ora</h3>
         </div>
         <p className="text-xs leading-5 text-gray-600">Scala ordinale 1–5 · non clinica</p>
       </div>
 
-      <ul className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="mt-4 grid gap-3 xl:grid-cols-[minmax(0,1fr)_12rem]">
+      {visibleMetrics.length ? <ul className="grid gap-2 sm:grid-cols-3">
         {visibleMetrics.map((metric) => {
           const meta = METRIC_META[metric.key];
           const level = evidenceLevel(metric.confidence);
@@ -189,7 +199,7 @@ export function SessionMetricsStrip({
             <li key={metric.id} className="min-w-0">
               <button
                 type="button"
-                className="group flex min-h-[8.75rem] w-full flex-col rounded-xl border border-white/90 bg-white/90 p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+                className="group flex min-h-[7.25rem] w-full flex-col rounded-xl border border-white/90 bg-white/90 p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
                 onClick={() => onOpenEvidence(metric.evidence.transcriptSegmentId)}
                 aria-label={`${meta.label}: ${metric.value} su 5, ${metricValueLabel(metric.value).toLocaleLowerCase('it')}. Evidenza ${level}, ${origin}. ${validation}. Vai all'evidenza nella trascrizione.`}
               >
@@ -214,13 +224,53 @@ export function SessionMetricsStrip({
             </li>
           );
         })}
-      </ul>
+      </ul> : null}
+
+      {participation ? <ParticipationSnapshot participation={participation} /> : null}
+      </div>
+
+      {hasCounts && counts ? <SessionCountLine counts={counts} /> : null}
 
       {metrics.length > METRICS_STRIP_LIMIT ? (
         <p className="mt-3 text-xs leading-5 text-gray-600">Altri {metrics.length - METRICS_STRIP_LIMIT} segnali con evidenza disponibili nel dettaglio del report.</p>
       ) : null}
     </section>
   );
+}
+
+function ParticipationSnapshot({ participation }: { participation: ConversationParticipation }) {
+  const athleteShare = participation.athleteSharePercent;
+  const coachShare = 100 - athleteShare;
+  return (
+    <div className="flex min-w-0 items-center gap-3 rounded-xl border border-sky-100 bg-white/80 p-3">
+      <div
+        className="grid h-16 w-16 shrink-0 place-items-center rounded-full"
+        role="img"
+        aria-label={`Quota di parola trascritta: atleta ${athleteShare}%, coach ${coachShare}%. Deriva dalla durata e dal conteggio degli interventi trascritti.`}
+        style={{ background: `conic-gradient(#0ea5e9 0 ${athleteShare}%, #c4b5fd ${athleteShare}% 100%)` }}
+      >
+        <span className="grid h-12 w-12 place-items-center rounded-full bg-white text-center"><span><span className="block text-sm font-black text-sky-700">{athleteShare}%</span><span className="block text-[9px] font-bold uppercase tracking-wide text-gray-500">Atleta</span></span></span>
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs font-bold uppercase tracking-wide text-sky-700">Partecipazione</p>
+        <p className="mt-1 text-sm font-bold text-gray-950">Atleta {athleteShare} · Coach {coachShare}</p>
+        <p className="mt-1 text-xs leading-5 text-gray-600">{participation.athleteTurns} turni atleta · {participation.coachTurns} coach</p>
+      </div>
+    </div>
+  );
+}
+
+type SessionSummaryCounts = { themes: number; actions: number; moments: number; hasResource: boolean };
+
+function SessionCountLine({ counts }: { counts: SessionSummaryCounts }) {
+  const items = [
+    counts.themes ? `${counts.themes} ${counts.themes === 1 ? 'tema' : 'temi'}` : null,
+    counts.actions ? `${counts.actions} ${counts.actions === 1 ? 'azione' : 'azioni'}` : null,
+    counts.moments ? `${counts.moments} ${counts.moments === 1 ? 'momento' : 'momenti'}` : null,
+    counts.hasResource ? '1 risorsa' : null,
+  ].filter((item): item is string => Boolean(item));
+  if (!items.length) return null;
+  return <p className="mt-3 border-t border-violet-100 pt-3 text-sm font-semibold text-gray-700">{items.join(' · ')}</p>;
 }
 
 /** Conteggi deterministici del report corrente: non usano stime AI o percentuali. */

@@ -53,11 +53,10 @@ test('l’andamento emotivo usa punti discreti ed espone un equivalente testuale
     />
   );
 
-  assert.match(html, /Grafico dei segnali narrativi in punti discreti/);
-  assert.match(html, /emotion-trend-evidence/);
+  assert.match(html, /Segnali narrativi/);
   assert.match(html, /00:20.*Passaggio del coach/);
   assert.match(html, /Estratto 2/);
-  assert.match(html, /Punti reali della conversazione, non una curva/);
+  assert.match(html, /Passaggi documentati, non uno stato misurato/);
 });
 
 test('l’andamento emotivo ricade sulla timeline per punti troppo vicini o duplicati', () => {
@@ -68,12 +67,12 @@ test('l’andamento emotivo ricade sulla timeline per punti troppo vicini o dupl
     />
   );
 
-  assert.match(html, /non sono sufficienti o abbastanza distribuiti/);
+  assert.match(html, /Segnali narrativi/);
   assert.match(html, /00:05/);
   assert.doesNotMatch(html, /Grafico dei segnali narrativi in punti discreti/);
 });
 
-test('i segnali narrativi mostrano inizialmente tre passaggi e un controllo accessibile', () => {
+test('i segnali narrativi mostrano inizialmente due passaggi e un controllo accessibile', () => {
   const html = renderToStaticMarkup(
     <EmotionalTrendChart
       points={[point('1', 0), point('2', 20_000), point('3', 80_000), point('4', 140_000)]}
@@ -83,7 +82,7 @@ test('i segnali narrativi mostrano inizialmente tre passaggi e un controllo acce
 
   assert.match(html, /Segnale 1/);
   assert.match(html, /Segnale 2/);
-  assert.match(html, /Segnale 3/);
+  assert.doesNotMatch(html, /Segnale 3/);
   assert.doesNotMatch(html, /Segnale 4/);
   assert.match(html, /Mostra tutti/);
   assert.match(html, /aria-expanded="false"/);

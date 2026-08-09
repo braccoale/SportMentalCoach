@@ -137,7 +137,7 @@ export function EmotionalTrendChart({
   const [showAllPoints, setShowAllPoints] = useState(false);
   if (!points.length) return null;
   const orderedPoints = [...points].sort((left, right) => left.evidence.startMs - right.evidence.startMs);
-  const visiblePoints = showAllPoints ? orderedPoints : orderedPoints.slice(0, 3);
+  const visiblePoints = showAllPoints ? orderedPoints : orderedPoints.slice(0, 2);
   const data = visiblePoints.map((point) => ({
     id: point.id,
     timestamp: formatTranscriptTimestamp(point.evidence.startMs),
@@ -147,20 +147,21 @@ export function EmotionalTrendChart({
     quote: point.evidence.quote,
     transcriptSegmentId: point.evidence.transcriptSegmentId,
   }));
-  if (!hasReliableEmotionalDistribution(visiblePoints)) {
+  // Il contratto del report limita questi segnali a pochi passaggi documentati:
+  // una timeline resta più fedele di una curva, che suggerirebbe una precisione non disponibile.
+  const useNarrativeTimeline = orderedPoints.length <= 8;
+  if (useNarrativeTimeline) {
     return (
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-7" aria-labelledby="emotion-timeline-title">
-        <p className="text-sm font-bold text-violet-700">Durante la conversazione</p>
-        <h3 id="emotion-timeline-title" className="mt-1 text-xl font-bold text-gray-950">Segnali narrativi</h3>
-        <p className="mt-2 text-base leading-7 text-gray-700">I dati non sono sufficienti o abbastanza distribuiti per un grafico affidabile. Mostriamo i passaggi documentati, non una misura psicologica.</p>
-        <ol className="mt-5 space-y-3">
+      <section className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6" aria-labelledby="emotion-timeline-title">
+        <div className="flex flex-wrap items-end justify-between gap-2"><div><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-600">Durante la conversazione</p><h3 id="emotion-timeline-title" className="mt-1 text-base font-bold text-gray-950">Segnali narrativi</h3></div><p className="text-xs text-gray-500">Passaggi documentati, non uno stato misurato</p></div>
+        <ol className="mt-4 divide-y divide-gray-100 rounded-xl border border-gray-100 bg-gray-50/50 px-3">
           {visiblePoints.map((point) => (
             <li key={point.id}>
-              <button type="button" className="w-full rounded-xl border border-gray-200 bg-gray-50/70 p-4 text-left transition hover:border-violet-300 hover:bg-violet-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500" onClick={() => onOpenEvidence(point.evidence.transcriptSegmentId)}>
+              <button type="button" className="block w-full py-3 text-left transition hover:bg-violet-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500" onClick={() => onOpenEvidence(point.evidence.transcriptSegmentId)}>
                 <span className="text-sm font-bold text-violet-700">{formatTranscriptTimestamp(point.evidence.startMs)} · {evidenceOrigin(point.evidence.speaker)}</span>
-                <span className="mt-1 block text-base font-semibold text-gray-950">{EMOTION_LABEL[point.value]}</span>
-                <span className="mt-1 block text-base leading-7 text-gray-700">{point.label}</span>
-                <span className="mt-2 block line-clamp-2 text-sm italic text-gray-600">«{point.evidence.quote}»</span>
+                <span className="mt-0 block text-sm font-semibold text-gray-950">{EMOTION_LABEL[point.value]}</span>
+                <span className="mt-0.5 block line-clamp-1 text-sm leading-5 text-gray-700">{point.label}</span>
+                <span className="mt-1 block line-clamp-1 text-xs italic text-gray-500">«{point.evidence.quote}»</span>
               </button>
             </li>
           ))}
@@ -295,7 +296,7 @@ export function AthleteProgressCharts({
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <div className="mt-4 overflow-x-auto">
+      <div className="sr-only">
         <table className="w-full min-w-[34rem] text-sm">
           <caption className="sr-only">Valori di {METRIC_META[activeKey].label} per sessione approvata</caption>
           <thead><tr className="text-left text-xs text-gray-500"><th className="py-2">Sessione</th><th className="px-2 py-2">{METRIC_META[activeKey].shortLabel}</th></tr></thead>

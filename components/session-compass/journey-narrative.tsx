@@ -113,6 +113,7 @@ export function JourneyNarrative({
 
         {suggestions.length ? (
           <Step
+            proposed
             icon={<Lightbulb className="h-4 w-4" />}
             label="Prossima direzione suggerita"
             date={null}
@@ -156,6 +157,7 @@ function Step({
   text,
   footer,
   current = false,
+  proposed = false,
 }: {
   icon: ReactNode;
   label: string;
@@ -164,11 +166,12 @@ function Step({
   text: string;
   footer?: ReactNode;
   current?: boolean;
+  proposed?: boolean;
 }) {
   return (
     <article
       className={`min-w-0 rounded-xl border p-4 ${
-        current ? 'border-violet-200 bg-violet-50/60' : 'border-gray-200 bg-gray-50'
+        proposed ? 'border-dashed border-sky-300 bg-sky-50/50' : current ? 'border-violet-200 bg-violet-50/60' : 'border-gray-200 bg-gray-50'
       }`}
     >
       <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
