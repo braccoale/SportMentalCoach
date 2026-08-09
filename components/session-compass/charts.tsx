@@ -213,6 +213,47 @@ export function EmotionalTrendChart({
   );
 }
 
+/**
+ * Se esiste un trend da disegnare.
+ *
+ * La griglia deve saperlo prima di affiancare: mettere una frase di una riga
+ * accanto a una card alta lascia una voragine bianca nella colonna corta, ed
+ * era il difetto che questa funzione elimina.
+ *
+ * Tre sessioni con la stessa metrica sono il minimo perche' una linea dica
+ * qualcosa: con due e' un segmento, non una tendenza.
+ */
+export function hasComparableMetricTrend(params: {
+  journey: MentalJourney | null;
+  report: SessionCompassReport;
+  isApproved: boolean;
+  currentSessionId: number;
+}): boolean {
+  const historical = (params.journey?.timeline ?? []).map((entry) => ({
+    id: entry.sessionId,
+    metrics: entry.metrics ?? [],
+  }));
+  const currentAlreadyStored = historical.some(
+    (entry) => entry.id === params.currentSessionId
+  );
+  const sessions =
+    params.isApproved && !currentAlreadyStored
+      ? [
+          ...historical,
+          {
+            id: params.currentSessionId,
+            metrics: params.report.sessionOverview.metrics ?? [],
+          },
+        ]
+      : historical;
+  return (Object.keys(METRIC_META) as SessionMetricKey[]).some(
+    (key) =>
+      sessions.filter((session) =>
+        session.metrics.some((metric) => metric.key === key)
+      ).length >= 3
+  );
+}
+
 export function AthleteProgressCharts({
   journey,
   report,
@@ -251,12 +292,18 @@ export function AthleteProgressCharts({
     : [];
 
   if (!activeKey) {
+    // Una card vuota accanto a una piena diventa una voragine bianca alta
+    // quanto la vicina: per una frase sola non serve un contenitore, serve
+    // una frase. Il trend tornera' a essere un grafico quando avra' dei dati.
     return (
-      <section className="rounded-2xl border border-dashed border-violet-200 bg-violet-50/40 p-5 sm:p-6" aria-labelledby="progress-chart-title">
-        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-600">Evoluzione nel tempo</p>
-        <h3 id="progress-chart-title" className="mt-1 text-base font-bold text-gray-950">Trend delle metriche</h3>
-        <p className="mt-3 text-sm leading-6 text-gray-700">Il trend sarà disponibile dopo altre sessioni approvate con la stessa metrica e relativa evidenza.</p>
-      </section>
+      <p
+        id="progress-chart-title"
+        className="px-1 text-sm leading-6 text-gray-500"
+      >
+        <span className="font-semibold text-gray-700">Evoluzione nel tempo:</span>{' '}
+        il trend sarà disponibile dopo altre sessioni approvate con la stessa
+        metrica e relativa evidenza.
+      </p>
     );
   }
 

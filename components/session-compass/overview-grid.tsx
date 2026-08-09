@@ -7,7 +7,11 @@ import type {
   SessionCompassReport,
 } from '@/lib/core/ai-session-notes/session-compass-contract';
 import { AthleteJourneySidebar } from './athlete-journey-sidebar';
-import { AthleteProgressCharts, EmotionalTrendChart } from './charts';
+import {
+  AthleteProgressCharts,
+  EmotionalTrendChart,
+  hasComparableMetricTrend,
+} from './charts';
 import { SessionHeroInsight } from './hero-insight';
 import { ConversationMapBand } from './conversation-map';
 import { MissedOpportunities } from './missed-opportunities';
@@ -69,6 +73,13 @@ export function SessionOverview({
   ).slice(0, MAX_PRIMARY_EVIDENCE);
   const primaryEvidenceKeys = new Set(primaryEvidence.map(evidenceKey));
 
+  const hasTrend = hasComparableMetricTrend({
+    journey: journey ?? null,
+    report,
+    isApproved,
+    currentSessionId: sessionId,
+  });
+
   const hasThemes = (journey?.recurringThemes.length ?? 0) > 0 || overview.themes.length > 0;
 
   const journeySidebar = (
@@ -122,37 +133,68 @@ export function SessionOverview({
           }}
         />
 
-        {/* Continuita' e filo logico raccontano la stessa cosa — da dove
-            veniamo e dove andiamo — e occupavano due schermate. Insieme
-            sono un blocco solo. */}
-        <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-2">
-          {previousJourneyEntry ? (
+        {/* Continuita' e filo logico si affiancano solo quando esistono
+            entrambe. Accoppiarli sempre lasciava al filo logico meta'
+            larghezza anche quando era da solo, e i suoi tre passaggi
+            finivano incolonnati una parola per riga. */}
+        {previousJourneyEntry ? (
+          <div className="grid min-w-0 gap-4 xl:grid-cols-2">
             <SessionContinuityCard report={report} previous={previousJourneyEntry} />
-          ) : null}
+            <JourneyNarrative
+              report={report}
+              previous={previousJourneyEntry}
+              currentSessionDate={currentSessionDate ?? null}
+            />
+          </div>
+        ) : (
           <JourneyNarrative
             report={report}
             previous={previousJourneyEntry}
             currentSessionDate={currentSessionDate ?? null}
           />
-        </div>
+        )}
 
-        <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(16rem,0.8fr)]">
-          <AthleteProgressCharts
-            journey={journey ?? null}
-            report={report}
-            isApproved={isApproved}
-            currentSessionId={sessionId}
-            currentSessionDate={currentSessionDate ?? null}
-          />
-          {hasThemes ? (
-            <RecurringThemesPanel
-              recurringThemes={journey?.recurringThemes ?? []}
-              sessionThemes={overview.themes}
-              citedEvidenceKeys={primaryEvidenceKeys}
-              onOpenEvidence={onOpenEvidence}
+        {/* Il trend si affianca ai temi solo quando c'e' davvero un grafico.
+            Senza dati e' una frase di una riga, e messa in una colonna
+            accanto a una card alta lasciava una voragine bianca: allora va
+            a tutta larghezza, dove una riga sta bene. */}
+        {hasTrend ? (
+          <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(16rem,0.8fr)]">
+            <AthleteProgressCharts
+              journey={journey ?? null}
+              report={report}
+              isApproved={isApproved}
+              currentSessionId={sessionId}
+              currentSessionDate={currentSessionDate ?? null}
             />
-          ) : null}
-        </div>
+            {hasThemes ? (
+              <RecurringThemesPanel
+                recurringThemes={journey?.recurringThemes ?? []}
+                sessionThemes={overview.themes}
+                citedEvidenceKeys={primaryEvidenceKeys}
+                onOpenEvidence={onOpenEvidence}
+              />
+            ) : null}
+          </div>
+        ) : (
+          <>
+            {hasThemes ? (
+              <RecurringThemesPanel
+                recurringThemes={journey?.recurringThemes ?? []}
+                sessionThemes={overview.themes}
+                citedEvidenceKeys={primaryEvidenceKeys}
+                onOpenEvidence={onOpenEvidence}
+              />
+            ) : null}
+            <AthleteProgressCharts
+              journey={journey ?? null}
+              report={report}
+              isApproved={isApproved}
+              currentSessionId={sessionId}
+              currentSessionDate={currentSessionDate ?? null}
+            />
+          </>
+        )}
 
         {/* Trascrizione e momenti chiave hanno una scheda ciascuno, e i
             momenti sono gia' sulla mappa in cima come rombi cliccabili:
@@ -179,7 +221,7 @@ export function SessionOverview({
         {(overview.emotionalTrend?.length ?? 0) > 0 ||
         (overview.metrics?.length ?? 0) > 5 ||
         overview.conversationTone ? (
-          <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-2">
+          <div className="grid min-w-0 items-start gap-4 xl:grid-cols-2">
             {(overview.emotionalTrend?.length ?? 0) > 0 ? (
               <EmotionalTrendChart points={overview.emotionalTrend ?? []} onOpenEvidence={onOpenEvidence} />
             ) : null}

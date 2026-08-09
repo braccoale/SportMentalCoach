@@ -149,6 +149,9 @@ test('il trend metrico non appare con meno di tre punti reali', () => {
     />
   );
 
-  assert.match(html, /Il trend sarà disponibile dopo altre sessioni approvate/);
+  // Senza dati non e' piu' una card ma una riga, e la frase segue
+  // l'etichetta: cambia l'iniziale, non il messaggio.
+  assert.match(html, /Evoluzione nel tempo/);
+  assert.match(html, /trend sarà disponibile dopo altre sessioni approvate/);
   assert.doesNotMatch(html, /2\/5/);
 });
