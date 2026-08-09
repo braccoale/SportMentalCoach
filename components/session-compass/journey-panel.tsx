@@ -11,8 +11,10 @@ import {
   FileText,
   History,
   Lightbulb,
+  Minus,
   RotateCcw,
   Sparkles,
+  TrendingUp,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -239,18 +241,22 @@ function ComparisonColumn({
   items: readonly string[];
   empty: string;
 }) {
+  // Un segno di spunta accanto a "Concentrazione 68% -> 68%" non significa
+  // nulla: la spunta e' un risultato, non uno stato. Ogni colonna porta il
+  // simbolo di cio' che dice davvero.
   const tones = {
-    emerald: 'border-emerald-100 bg-emerald-50/70 text-emerald-900',
-    amber: 'border-amber-100 bg-amber-50/70 text-amber-950',
-    violet: 'border-violet-100 bg-violet-50/70 text-violet-950',
+    emerald: { box: 'border-emerald-100 bg-emerald-50/70 text-emerald-900', Icon: TrendingUp },
+    amber: { box: 'border-amber-100 bg-amber-50/70 text-amber-950', Icon: Minus },
+    violet: { box: 'border-violet-100 bg-violet-50/70 text-violet-950', Icon: Sparkles },
   };
+  const { box, Icon } = tones[tone];
   return (
-    <div className={`rounded-xl border p-4 ${tones[tone]}`}>
+    <div className={`rounded-xl border p-4 ${box}`}>
       <p className="text-sm font-bold">{title}</p>
       {items.length ? (
         <ul className="mt-3 space-y-2 text-sm leading-5">
           {items.map((item) => (
-            <li key={item} className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />{item}</li>
+            <li key={item} className="flex gap-2"><Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />{item}</li>
           ))}
         </ul>
       ) : (

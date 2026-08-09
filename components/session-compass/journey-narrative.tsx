@@ -72,6 +72,7 @@ export function JourneyNarrative({
         {previous ? (
           <Step
             icon={<RotateCcw className="h-4 w-4" />}
+            step={1}
             label="Sessione precedente"
             date={formatJourneyDate(previous.sessionDate)}
             title={previous.focus ?? 'Focus non identificato'}
@@ -87,7 +88,19 @@ export function JourneyNarrative({
         ) : (
           <DashboardEmptyState
             className="self-start"
-            icon={<RotateCcw className="h-4 w-4" />}
+            icon={
+              // Lo stato vuoto occupa comunque il primo posto del flusso: senza
+              // il numero la sequenza partirebbe da due.
+              <span className="flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-dashed border-gray-300 text-[11px] font-bold text-gray-500"
+                >
+                  1
+                </span>
+                <RotateCcw className="h-4 w-4" />
+              </span>
+            }
             title="Nessuna sessione precedente approvata"
             description="Il filo logico parte dalla sessione attuale."
           />
@@ -98,6 +111,7 @@ export function JourneyNarrative({
         <Step
           current
           icon={<Sparkles className="h-4 w-4" />}
+          step={2}
           label="Sessione attuale"
           date={formatJourneyDate(currentSessionDate)}
           title={report.sessionOverview.themes[0]?.text ?? 'Problema centrale non identificato'}
@@ -115,6 +129,7 @@ export function JourneyNarrative({
           <Step
             proposed
             icon={<Lightbulb className="h-4 w-4" />}
+            step={3}
             label="Prossima direzione suggerita"
             date={null}
             title={suggestions[0].text}
@@ -150,6 +165,7 @@ function StepArrow() {
 }
 
 function Step({
+  step,
   icon,
   label,
   date,
@@ -159,6 +175,8 @@ function Step({
   current = false,
   proposed = false,
 }: {
+  /** Il numero del passaggio: rende il flusso leggibile senza leggerlo. */
+  step: 1 | 2 | 3;
   icon: ReactNode;
   label: string;
   date: string | null;
@@ -175,6 +193,18 @@ function Step({
       }`}
     >
       <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
+        <span
+          aria-hidden="true"
+          className={`inline-flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+            proposed
+              ? 'bg-sky-100 text-sky-700'
+              : current
+                ? 'bg-violet-600 text-white'
+                : 'bg-gray-200 text-gray-600'
+          }`}
+        >
+          {step}
+        </span>
         {icon}
         {label}
       </div>

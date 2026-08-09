@@ -72,6 +72,11 @@ export function SessionOverview({
   ).slice(0, MAX_PRIMARY_EVIDENCE);
   const primaryEvidenceKeys = new Set(primaryEvidence.map(evidenceKey));
 
+  // In ordine cronologico: la striscia di presenza si legge da sinistra.
+  const journeySessionIds = [...(journey?.timeline ?? [])]
+    .sort((a, b) => Date.parse(a.sessionDate ?? '') - Date.parse(b.sessionDate ?? ''))
+    .map((entry) => entry.sessionId);
+
   const hasTrend = hasComparableMetricTrend({
     journey: journey ?? null,
     report,
@@ -159,6 +164,7 @@ export function SessionOverview({
             {hasThemes ? (
               <RecurringThemesPanel
                 recurringThemes={journey?.recurringThemes ?? []}
+                journeySessionIds={journeySessionIds}
                 sessionThemes={overview.themes}
                 citedEvidenceKeys={primaryEvidenceKeys}
                 onOpenEvidence={onOpenEvidence}
@@ -170,6 +176,7 @@ export function SessionOverview({
             {hasThemes ? (
               <RecurringThemesPanel
                 recurringThemes={journey?.recurringThemes ?? []}
+                journeySessionIds={journeySessionIds}
                 sessionThemes={overview.themes}
                 citedEvidenceKeys={primaryEvidenceKeys}
                 onOpenEvidence={onOpenEvidence}

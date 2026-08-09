@@ -6,6 +6,43 @@ import type { CompassTheme } from '@/lib/core/ai-session-notes/session-compass-c
 import { formatJourneyDate } from './athlete-journey-sidebar';
 import { DashboardEmptyState, EvidenceReference, SectionHeading, Surface, evidenceKey } from './ui';
 
+/**
+ * In quali sessioni il tema e' comparso.
+ *
+ * Non e' una sparkline: dei temi non abbiamo un valore per sessione, e
+ * disegnare una linea di tendenza su un dato che non esiste sarebbe
+ * inventarla. La presenza invece e' un fatto — c'era o non c'era — e dice
+ * comunque cio' che serve: se un tema torna sempre o solo ogni tanto.
+ */
+function ThemePresence({
+  sessionIds,
+  presentIn,
+  label,
+}: {
+  sessionIds: readonly number[];
+  presentIn: readonly number[];
+  label: string;
+}) {
+  if (sessionIds.length < 2) return null;
+  const present = new Set(presentIn);
+  return (
+    <div
+      className="mt-1.5 flex items-center gap-1"
+      role="img"
+      aria-label={`${label}: presente in ${presentIn.length} sessioni su ${sessionIds.length}`}
+    >
+      {sessionIds.map((id) => (
+        <span
+          key={id}
+          className={`h-1.5 w-4 rounded-full ${
+            present.has(id) ? 'bg-violet-500' : 'bg-gray-200'
+          }`}
+        />
+      ))}
+    </div>
+  );
+}
+
 const MAX_VISIBLE = 3;
 
 /**
@@ -15,12 +52,15 @@ const MAX_VISIBLE = 3;
  */
 export function RecurringThemesPanel({
   recurringThemes,
+  journeySessionIds = [],
   sessionThemes,
   citedEvidenceKeys,
   onOpenEvidence,
   className = '',
 }: {
   recurringThemes: readonly RecurringTheme[];
+  /** Le sessioni del percorso, in ordine, per disegnare la presenza. */
+  journeySessionIds?: readonly number[];
   sessionThemes: readonly CompassTheme[];
   citedEvidenceKeys: ReadonlySet<string>;
   onOpenEvidence: (segmentId: number) => void;
@@ -40,8 +80,17 @@ export function RecurringThemesPanel({
                 <div className="min-w-0 flex-1">
                   <p className="line-clamp-2 text-sm font-bold leading-5 text-gray-950">{theme.label}</p>
                   <p className="mt-1 text-xs font-semibold text-gray-600">
-                    {theme.occurrences} sessioni · ultima {formatJourneyDate(theme.lastSeenAt)}
+                    {journeySessionIds.length
+                      ? `${theme.occurrences}/${journeySessionIds.length} sessioni`
+                      : `${theme.occurrences} sessioni`}
+                    {' · ultima '}
+                    {formatJourneyDate(theme.lastSeenAt)}
                   </p>
+                  <ThemePresence
+                    sessionIds={journeySessionIds}
+                    presentIn={theme.sessionIds}
+                    label={theme.label}
+                  />
                 </div>
               </div>
             </li>
