@@ -82,6 +82,8 @@ import { ResendAthleteCallLinkButton } from '@/components/resend-athlete-call-li
 import { EditAppointmentButton } from '@/components/edit-appointment-button';
 import { VideoCallButton } from '@/components/video-call-button';
 import { buildAiSessionArchiveIndicator } from '@/lib/core/ai-session-notes/archive-indicator';
+import { isPendingAiNotesStatus } from '@/lib/core/ai-session-notes/worker-nudge';
+import { runAiNotesQueueAfterResponse } from '@/lib/core/ai-session-notes/queue-runner';
 import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger';
 
 /** Sort key for the archive: when the session actually happened, newest first. */
@@ -197,6 +199,17 @@ export default async function CoachDashboardPage() {
   );
   // Archive newest-first by when the session actually happened (real end or
   // scheduled time), not by when it was first requested.
+  /*
+   * La dashboard del coach fa avanzare la coda.
+   *
+   * Sul piano attuale l'unico orologio automatico passa una volta al giorno:
+   * ogni sveglia in piu' conta, e questa e' la pagina che un coach apre piu'
+   * spesso. Se nessuna delle sue sedute ha lavoro in sospeso, non costa nulla.
+   */
+  if (allBookings.some((b) => isPendingAiNotesStatus(b.aiNotesStatus))) {
+    runAiNotesQueueAfterResponse();
+  }
+
   const archive = allBookings
     .filter(
       (b) =>

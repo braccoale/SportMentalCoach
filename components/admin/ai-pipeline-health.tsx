@@ -110,6 +110,50 @@ export function AiPipelineHealthPanel({
         </p>
       </div>
 
+      {/* L'indirizzo a cui il provider deve richiamarci. Un valore sbagliato
+          qui non si vedeva da nessuna parte finche' non era una seduta vera a
+          scoprirlo — ed e' esattamente com'e' andata. */}
+      <div
+        className={`mt-3 flex items-start gap-2 rounded-xl border p-3 text-sm ${
+          health.callbackConfigured
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+            : 'border-amber-200 bg-amber-50 text-amber-900'
+        }`}
+      >
+        {health.callbackConfigured ? (
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+        ) : (
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        )}
+        <p>
+          Indirizzo di callback:{' '}
+          <strong>{health.callbackOrigin ?? 'non configurato'}</strong>
+          {health.callbackConfigured
+            ? ' — il provider puo’ raggiungerci qui.'
+            : ' — deve essere un indirizzo https pubblico, altrimenti le sedute lunghe non verranno mai trascritte.'}
+        </p>
+      </div>
+
+      {/* Il numero che deve valere zero. */}
+      <div
+        className={`mt-3 flex items-start gap-2 rounded-xl border p-3 text-sm ${
+          health.expiredSessions === 0
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+            : 'border-red-200 bg-red-50 text-red-900'
+        }`}
+      >
+        {health.expiredSessions === 0 ? (
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+        ) : (
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        )}
+        <p>
+          {health.expiredSessions === 0
+            ? 'Nessuna sessione oltre la propria scadenza.'
+            : `${health.expiredSessions} sessioni oltre la propria scadenza: c’e’ un coach che sta guardando una rotellina.`}
+        </p>
+      </div>
+
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Counts title="Job in coda" counts={health.jobsByStatus} />
         <Counts title="Sessioni" counts={health.sessionsByStatus} />

@@ -1,6 +1,8 @@
 import 'server-only';
 import { and, desc, eq, isNull, lt, ne, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
+import { countExpiredSessions } from './stuck-sessions';
+import { createProductionAiSessionNotesDependencies } from './dependencies';
 import {
   sessionAiNotes,
   sessionAiProcessingJobs,
@@ -56,9 +58,48 @@ export type AiPipelineHealth = {
   /** Configurazione letta a runtime: dice se il provider è davvero acceso. */
   sttProvider: string;
   sttApiKeyConfigured: boolean;
+  /**
+   * Sessioni oltre la loro scadenza, adesso.
+   *
+   * È il numero che deve valere zero. Se non vale zero, o la rete di
+   * sicurezza non sta girando o c'è uno stato che nessuno chiude: in entrambi
+   * i casi c'è un coach che guarda una rotellina.
+   */
+  expiredSessions: number;
+  /**
+   * L'indirizzo a cui il provider deve richiamarci, senza il token.
+   *
+   * Una variabile d'ambiente sbagliata qui non si vede da nessuna parte
+   * finché non è una seduta vera a scoprirlo — ed è esattamente come è andata.
+   */
+  callbackOrigin: string | null;
+  callbackConfigured: boolean;
 };
 
+/** L'origine della callback, senza token: diagnostica, non un segreto. */
+function callbackDiagnostics(): {
+  callbackOrigin: string | null;
+  callbackConfigured: boolean;
+} {
+  const base = process.env.AI_NOTES_CALLBACK_BASE_URL?.trim();
+  if (!base) return { callbackOrigin: null, callbackConfigured: false };
+  try {
+    const url = new URL(base);
+    // Il provider deve poterci raggiungere da internet: http o un indirizzo
+    // locale non arriveranno mai, e vanno detti subito.
+    const reachable =
+      url.protocol === 'https:' &&
+      !['localhost', '127.0.0.1', '0.0.0.0'].includes(url.hostname);
+    return { callbackOrigin: url.origin, callbackConfigured: reachable };
+  } catch {
+    return { callbackOrigin: base.slice(0, 60), callbackConfigured: false };
+  }
+}
+
 export async function getAiPipelineHealth(): Promise<AiPipelineHealth> {
+  const expired = await countExpiredSessions(
+    createProductionAiSessionNotesDependencies()
+  );
   const stuckBefore = new Date(Date.now() - STUCK_JOB_MINUTES * 60_000);
   const orphanBefore = new Date(Date.now() - ORPHAN_SESSION_HOURS * 3_600_000);
 
@@ -167,6 +208,8 @@ export async function getAiPipelineHealth(): Promise<AiPipelineHealth> {
     sttProvider: provider,
     // Mai il valore: solo se c'è. Un segreto non si mostra nemmeno all'admin.
     sttApiKeyConfigured: Boolean(process.env.DEEPGRAM_API_KEY?.trim()),
+    expiredSessions: expired,
+    ...callbackDiagnostics(),
   };
 }
 
