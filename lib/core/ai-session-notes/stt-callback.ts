@@ -8,6 +8,7 @@ import {
 } from '@/lib/db/schema';
 import { enqueueNormalizationIfReady } from './processing';
 import { isCallbackTokenWellFormed } from './stt-callback-policy';
+import { logPipeline } from './pipeline-log';
 import type { AiSessionNotesDependencies } from './dependencies';
 
 export { isCallbackTokenWellFormed };
@@ -231,5 +232,15 @@ export async function ingestTranscriptionCallback(
   if (advanced === 'completed') {
     await enqueueNormalizationIfReady(recording.sessionId, dependencies);
   }
+  logPipeline({
+    phase: 'transcription_callback',
+    outcome: 'ok',
+    sessionId: recording.sessionId,
+    jobId: request.jobId,
+    // Quanti segmenti, non che cosa dicono: nel registro non entra mai una
+    // parola detta in seduta.
+    counts: { segmenti: parsed.segments.length },
+    detail: { job: advanced },
+  });
   return 'ingested';
 }

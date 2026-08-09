@@ -5,6 +5,7 @@ import {
   processAiNotesBatch,
 } from './processing';
 import { createProductionAiSessionNotesDependencies } from './dependencies';
+import { logPipeline, pipelineErrorCode } from './pipeline-log';
 
 /**
  * Fa avanzare la coda dentro la richiesta in corso, senza passare dalla rete.
@@ -38,19 +39,41 @@ let running = false;
 export async function runAiNotesQueueInline(
   limit: number = INLINE_LIMIT
 ): Promise<void> {
-  if (running) return;
+  if (running) {
+    // Non e' un errore: due richieste della stessa pagina non devono
+    // lanciare due corse. Va registrato perche' se succede sempre, il
+    // limite per corsa e' troppo basso.
+    logPipeline({ phase: 'queue_run', outcome: 'skipped' });
+    return;
+  }
   running = true;
+  const startedAt = Date.now();
   try {
     const dependencies = createProductionAiSessionNotesDependencies();
     await enqueueReadySessionCompassJobs({ limit }, dependencies);
-    await processAiNotesBatch(
+    const result = await processAiNotesBatch(
       { workerId: `inline-${Date.now().toString(36)}`, limit },
       dependencies
     );
+    logPipeline({
+      phase: 'queue_run',
+      outcome: 'ok',
+      durationMs: Date.now() - startedAt,
+      counts: {
+        presi: result.claimed ?? 0,
+        completati: result.completed ?? 0,
+        falliti: result.failed ?? 0,
+      },
+    });
   } catch (error) {
     // Non deve mai far fallire la richiesta che l'ha ospitata: chi sta
     // guardando la pagina non c'entra nulla con la coda.
-    console.error('[ai-notes] corsa inline non riuscita', error);
+    logPipeline({
+      phase: 'queue_run',
+      outcome: 'failed',
+      durationMs: Date.now() - startedAt,
+      errorCode: pipelineErrorCode(error),
+    });
   } finally {
     running = false;
   }

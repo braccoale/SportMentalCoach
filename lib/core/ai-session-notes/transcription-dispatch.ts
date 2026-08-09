@@ -9,6 +9,7 @@ import {
 import { getAiNotesAudioMaxBytes } from './recording-config';
 import { AiNotesProcessingError } from './processing-policy';
 import { ingestTranscriptionCallback } from './stt-callback';
+import { logPipeline, pipelineErrorCode } from './pipeline-log';
 import type { AiSessionNotesDependencies } from './dependencies';
 
 /**
@@ -189,10 +190,15 @@ export async function dispatchPendingTranscriptionRequests(
       ) {
         throw error;
       }
-      console.warn(
-        '[stt] consegna asincrona rifiutata, ripiego sulla strada diretta',
-        { recordingId: row.id }
-      );
+      logPipeline({
+        phase: 'transcription_submit',
+        outcome: 'failed',
+        sessionId: job.sessionAiNotesId,
+        jobId: job.id,
+        errorCode: pipelineErrorCode(error),
+        detail: { ripiego: 'strada diretta', registrazione: row.id },
+      });
+      const fallbackStartedAt = Date.now();
       const payload = await dependencies.speechToTextProvider.transcribeNow({
         audioUrl,
         language: 'it',
@@ -215,6 +221,13 @@ export async function dispatchPendingTranscriptionRequests(
         submittedAt: dependencies.clock.now(),
       });
       await ingestTranscriptionCallback({ token, payload }, dependencies);
+      logPipeline({
+        phase: 'transcription_fallback',
+        outcome: 'ok',
+        sessionId: job.sessionAiNotesId,
+        jobId: job.id,
+        durationMs: Date.now() - fallbackStartedAt,
+      });
       submitted += 1;
       continue;
     }
@@ -230,6 +243,13 @@ export async function dispatchPendingTranscriptionRequests(
       submittedAt: dependencies.clock.now(),
     });
 
+    logPipeline({
+      phase: 'transcription_submit',
+      outcome: 'ok',
+      sessionId: job.sessionAiNotesId,
+      jobId: job.id,
+      detail: { registrazione: row.id, tentativo: attempt },
+    });
     submitted += 1;
     remaining += 1;
   }
