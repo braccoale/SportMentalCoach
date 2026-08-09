@@ -81,7 +81,10 @@ test('la sintesi mostra i conteggi e tace sulla percentuale quando è null', () 
   const html = renderToStaticMarkup(
     <MentalJourneyView journey={journey()} athleteName="Marco" />
   );
-  assert.match(html, /Il percorso di Marco/);
+  // Il titolo sta deliberatamente su due righe, come nel disegno: si
+  // verificano le due parti, non la stringa contigua.
+  assert.match(html, /Il percorso di/);
+  assert.match(html, /Marco/);
   assert.match(html, /Dal 1 luglio 2026 al 1 agosto 2026/);
   assert.match(html, /Sessioni approvate/);
   assert.match(html, /Ancora pochi impegni per una lettura d’insieme/);
@@ -175,7 +178,9 @@ test('gli stati degli impegni usano etichette e toni coerenti', () => {
   assert.match(html, /amber/);
   assert.match(html, /Da fare/);
   assert.match(html, /in ritardo/);
-  assert.match(html, /Coach · sessione/);
+  // Il riferimento alla seduta e' un rimando, non un sottotitolo: trattino
+  // lungo e non punto mediano.
+  assert.match(html, /Coach — sessione/);
 });
 
 test('i temi ricorrenti usano una formulazione prudente, senza direzione', () => {

@@ -1,21 +1,42 @@
+import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowUpRight, Compass, Sparkles } from 'lucide-react';
+import {
+  ArrowUpRight,
+  CheckCircle2,
+  Compass,
+  Handshake,
+  RotateCcw,
+  Sparkles,
+  Star,
+  Target,
+} from 'lucide-react';
 import type {
   FollowThroughItem,
   JourneyCommitment,
+  JourneyMetric,
   MentalJourney,
   MentalJourneyEntry,
   PointToRevisit,
   RecurringTheme,
 } from '@/lib/core/ai-session-notes/mental-journey';
+import {
+  buildMetricTrend,
+  metricTrendLabel,
+  type MetricTrend,
+} from '@/lib/core/ai-session-notes/metric-trend';
+import { METRIC_META } from '@/components/session-compass/metric-model';
 import type { TrackedCommitmentStatus } from '@/lib/core/ai-session-notes/session-commitments';
 
 /**
  * Vista storica del percorso, riservata al coach.
  *
- * È una lettura, non un cruscotto: nessun grafico, nessun punteggio, nessuna
- * modifica. Le azioni operative restano nel Session Compass, raggiungibile da
- * ogni card.
+ * È una lettura, non un cruscotto: nessun punteggio, nessuna modifica. Le
+ * azioni operative restano nel Riepilogo sessione, raggiungibile da ogni card.
+ *
+ * La pagina si apre su una vetta perché è ciò che il coach sta guardando
+ * quando la apre: non la seduta di oggi, ma la distanza percorsa. Il resto
+ * della pagina è deliberatamente sobrio — l'immagine dà il tono una volta, poi
+ * si toglie di mezzo e lascia leggere.
  */
 
 const STATUS_STYLE: Record<
@@ -64,6 +85,20 @@ export function formatJourneyDate(value: string | null): string | null {
       }).format(date);
 }
 
+/** Giorno, mese e anno separati: il blocco data della timeline li impagina. */
+function dateParts(value: string | null): { day: string; month: string; year: string } | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const format = (options: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat('it-IT', { ...options, timeZone: 'Europe/Rome' }).format(date);
+  return {
+    day: format({ day: '2-digit' }),
+    month: format({ month: 'short' }).replace('.', '').toUpperCase(),
+    year: format({ year: 'numeric' }),
+  };
+}
+
 function StatusChip({ status, overdue }: { status: TrackedCommitmentStatus; overdue?: boolean }) {
   const style = STATUS_STYLE[status];
   return (
@@ -92,58 +127,119 @@ function CommitmentLine({ commitment }: { commitment: JourneyCommitment }) {
 
 export function MentalJourneyEmptyState({ athleteName }: { athleteName: string | null }) {
   return (
-    <section className="rounded-3xl border border-dashed border-violet-200 bg-white p-10 text-center">
-      <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-violet-50">
-        <Compass className="h-7 w-7 text-violet-600" />
-      </span>
-      <h2 className="mt-4 text-xl font-bold tracking-tight text-gray-950">
-        Il percorso inizia dal primo report approvato
-      </h2>
-      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-600">
-        {athleteName ? `Con ${athleteName} non c’è` : 'Non c’è'} ancora nessuna sessione con un
-        Riepilogo sessione approvato. Appena approvi il primo report, qui troverai la memoria del
-        percorso: temi, impegni e continuità nel tempo.
-      </p>
+    <section className="overflow-hidden rounded-3xl border border-violet-100 bg-white">
+      <div className="relative h-40 sm:h-56">
+        <Image
+          src="/decor/journey.png"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover object-[center_35%]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-white via-white/40 to-transparent" />
+      </div>
+      <div className="px-6 pb-10 pt-2 text-center">
+        <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-violet-50">
+          <Compass className="h-7 w-7 text-violet-600" />
+        </span>
+        <h2 className="mt-4 text-xl font-bold tracking-tight text-gray-950">
+          Il percorso inizia dal primo report approvato
+        </h2>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-600">
+          {athleteName ? `Con ${athleteName} non c’è` : 'Non c’è'} ancora nessuna sessione con un
+          Riepilogo sessione approvato. Appena approvi il primo report, qui troverai la memoria del
+          percorso: temi, impegni e continuità nel tempo.
+        </p>
+      </div>
     </section>
   );
 }
 
-function SummaryHeader({ journey, athleteName }: { journey: MentalJourney; athleteName: string | null }) {
+/**
+ * L'apertura: la vetta, il nome, i quattro numeri.
+ *
+ * L'immagine sta a destra e sfuma nel bianco verso sinistra, dove vive il
+ * testo: una foto sotto le parole le renderebbe illeggibili, e un velo scuro
+ * su tutta la fascia avrebbe reso cupa una pagina che parla di strada fatta.
+ */
+function SummaryHeader({
+  journey,
+  athleteName,
+}: {
+  journey: MentalJourney;
+  athleteName: string | null;
+}) {
   const { summary } = journey;
   const from = formatJourneyDate(summary.firstSessionDate);
   const to = formatJourneyDate(summary.lastSessionDate);
   const period = from && to && from !== to ? `Dal ${from} al ${to}` : from ? `Dal ${from}` : null;
 
   return (
-    <header className="rounded-3xl bg-gradient-to-br from-violet-50 via-white to-white p-6 ring-1 ring-violet-100 sm:p-8">
-      <p className="text-sm font-semibold uppercase tracking-[0.14em] text-violet-700">
-        Mental Journey
-      </p>
-      <h1 className="mt-1 text-3xl font-bold tracking-tight text-gray-950">
-        {athleteName ? `Il percorso di ${athleteName}` : 'Il percorso'}
-      </h1>
-      {period ? <p className="mt-2 text-sm text-gray-600">{period}</p> : null}
-
-      <dl className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat label="Sessioni approvate" value={summary.approvedSessionCount} />
-        <Stat label="Impegni concordati" value={summary.commitments.total} />
-        <Stat label="Completati" value={summary.commitments.completed} tone="text-emerald-700" />
-        <Stat
-          label="Da riprendere"
-          value={summary.commitments.skipped}
-          tone="text-amber-800"
+    <header className="relative isolate overflow-hidden rounded-3xl bg-white ring-1 ring-gray-200">
+      <div className="absolute inset-0 -z-10">
+        <Image
+          src="/decor/journey.png"
+          alt=""
+          fill
+          priority
+          sizes="(min-width: 1024px) 900px, 100vw"
+          className="object-cover object-[70%_center]"
         />
-      </dl>
+        {/* Due veli sovrapposti: uno orizzontale che apre lo spazio al testo,
+            uno verticale che appoggia i riquadri dei numeri. */}
+        <div className="absolute inset-0 bg-gradient-to-r from-white via-white/85 to-white/10 sm:via-white/70" />
+        <div className="absolute inset-0 bg-gradient-to-t from-white via-white/30 to-transparent" />
+      </div>
 
-      {summary.completionRate === null ? (
-        <p className="mt-4 text-xs text-gray-500">
-          Ancora pochi impegni per una lettura d’insieme: qui trovi i numeri, non una percentuale.
+      <div className="p-6 sm:p-8">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-700">
+          Mental Journey
         </p>
-      ) : (
-        <p className="mt-4 text-xs text-gray-500">
-          {summary.completionRate}% degli impegni risulta completato.
-        </p>
-      )}
+        <h1 className="mt-2 text-3xl font-bold leading-tight tracking-tight text-gray-950 sm:text-[2.5rem]">
+          Il percorso di
+          <br />
+          <span className="text-gray-950">{athleteName ?? 'questo atleta'}</span>
+        </h1>
+        {period ? <p className="mt-2 text-sm text-gray-600">{period}</p> : null}
+
+        <dl className="mt-8 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <Stat
+            label="Sessioni approvate"
+            value={summary.approvedSessionCount}
+            icon={<CheckCircle2 className="h-4 w-4" />}
+            tone="text-violet-700"
+          />
+          <Stat
+            label="Impegni concordati"
+            value={summary.commitments.total}
+            icon={<Handshake className="h-4 w-4" />}
+            tone="text-violet-700"
+          />
+          <Stat
+            label="Completati"
+            value={summary.commitments.completed}
+            icon={<Target className="h-4 w-4" />}
+            tone="text-emerald-700"
+          />
+          <Stat
+            label="Da riprendere"
+            value={summary.commitments.skipped}
+            icon={<RotateCcw className="h-4 w-4" />}
+            tone="text-amber-700"
+          />
+        </dl>
+
+        {summary.completionRate === null ? (
+          <p className="mt-4 max-w-xl text-xs text-gray-600">
+            Ancora pochi impegni per una lettura d’insieme: qui trovi i numeri, non una percentuale.
+          </p>
+        ) : (
+          <p className="mt-4 max-w-xl text-xs text-gray-600">
+            {summary.completionRate}% degli impegni risulta completato.
+          </p>
+        )}
+      </div>
     </header>
   );
 }
@@ -151,16 +247,23 @@ function SummaryHeader({ journey, athleteName }: { journey: MentalJourney; athle
 function Stat({
   label,
   value,
-  tone = 'text-gray-950',
+  icon,
+  tone,
 }: {
   label: string;
   value: number;
-  tone?: string;
+  icon: React.ReactNode;
+  tone: string;
 }) {
   return (
-    <div>
-      <dt className="text-xs font-medium text-gray-500">{label}</dt>
-      <dd className={`mt-1 text-2xl font-bold tracking-tight ${tone}`}>{value}</dd>
+    <div className="rounded-2xl bg-white/95 p-4 shadow-sm ring-1 ring-gray-200 backdrop-blur">
+      <dt className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">
+        <span className={tone} aria-hidden="true">
+          {icon}
+        </span>
+        {label}
+      </dt>
+      <dd className="mt-2 text-3xl font-bold tracking-tight text-gray-950">{value}</dd>
     </div>
   );
 }
@@ -169,7 +272,10 @@ export function RecurringThemesSection({ themes }: { themes: readonly RecurringT
   if (!themes.length) return null;
   return (
     <section aria-labelledby="mental-journey-themes">
-      <h2 id="mental-journey-themes" className="text-lg font-semibold text-gray-950">
+      <h2
+        id="mental-journey-themes"
+        className="text-xs font-bold uppercase tracking-[0.16em] text-gray-500"
+      >
         Temi ricorrenti
       </h2>
       <ul className="mt-3 flex flex-wrap gap-2">
@@ -200,21 +306,27 @@ export function PointsToRevisitSection({ points }: { points: readonly PointToRev
   return (
     <section
       aria-labelledby="mental-journey-revisit"
-      className="rounded-3xl bg-white p-6 ring-1 ring-gray-200"
+      className="h-full rounded-3xl bg-white p-6 ring-1 ring-gray-200"
     >
       <div className="flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-violet-600" />
-        <h2 id="mental-journey-revisit" className="text-lg font-semibold text-gray-950">
+        <h2
+          id="mental-journey-revisit"
+          className="text-xs font-bold uppercase tracking-[0.16em] text-gray-500"
+        >
           Da riprendere
         </h2>
       </div>
-      <p className="mt-1 text-sm text-gray-600">
+      <p className="mt-2 text-sm text-gray-600">
         Spunti ricavati da report già approvati e dallo stato reale degli impegni.
       </p>
-      <ul className="mt-4 space-y-3">
+      <ul className="mt-4 space-y-2">
         {points.map((point) => (
-          <li key={point.id} className="border-l-2 border-violet-200 pl-3">
-            <p className="text-sm text-gray-900">{point.text}</p>
+          <li
+            key={point.id}
+            className="rounded-2xl bg-gray-50/80 px-4 py-3 ring-1 ring-gray-100"
+          >
+            <p className="text-sm leading-6 text-gray-900">{point.text}</p>
             <p className={`mt-0.5 text-xs ${SOURCE_TONE[point.source]}`}>{point.sourceLabel}</p>
           </li>
         ))}
@@ -228,23 +340,41 @@ export function FollowThroughSection({ items }: { items: readonly FollowThroughI
   return (
     <section
       aria-labelledby="mental-journey-follow-through"
-      className="rounded-3xl bg-white p-6 ring-1 ring-gray-200"
+      className="h-full rounded-3xl bg-white p-6 ring-1 ring-gray-200"
     >
-      <h2 id="mental-journey-follow-through" className="text-lg font-semibold text-gray-950">
-        Impegni in corso
-      </h2>
-      <ul className="mt-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <Target className="h-4 w-4 text-violet-600" />
+        <h2
+          id="mental-journey-follow-through"
+          className="text-xs font-bold uppercase tracking-[0.16em] text-gray-500"
+        >
+          Impegni in corso
+        </h2>
+      </div>
+      {/* Una guida verticale lega gli impegni fra loro: sono lo stesso filo,
+          non voci di un elenco qualsiasi. */}
+      <ul className="mt-4 space-y-3 border-l border-violet-100 pl-4">
         {items.map((item) => (
-          <li key={item.commitmentId} className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <StatusChip status={item.status} overdue={item.isOverdue} />
-            <span className="min-w-0 flex-1 text-sm text-gray-900">{item.title}</span>
-            <Link
-              href={`/dashboard/appointments/${item.bookingId}`}
-              className="text-xs text-gray-500 underline"
-            >
-              {item.owner === 'coach' ? 'Coach' : 'Atleta'} · sessione
-              {formatJourneyDate(item.sessionDate) ? ` del ${formatJourneyDate(item.sessionDate)}` : ''}
-            </Link>
+          <li key={item.commitmentId} className="relative">
+            <span
+              className="absolute -left-[1.3rem] top-2 h-2.5 w-2.5 rounded-full bg-white ring-2 ring-violet-400"
+              aria-hidden="true"
+            />
+            <div className="rounded-2xl bg-gray-50/80 px-4 py-3 ring-1 ring-gray-100">
+              <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
+                <StatusChip status={item.status} overdue={item.isOverdue} />
+                <span className="min-w-0 flex-1 text-sm leading-6 text-gray-900">{item.title}</span>
+              </div>
+              <Link
+                href={`/dashboard/appointments/${item.bookingId}`}
+                className="mt-1 block text-right text-xs text-violet-700 hover:underline"
+              >
+                {item.owner === 'coach' ? 'Coach' : 'Atleta'} — sessione
+                {formatJourneyDate(item.sessionDate)
+                  ? ` del ${formatJourneyDate(item.sessionDate)}`
+                  : ''}
+              </Link>
+            </div>
           </li>
         ))}
       </ul>
@@ -252,60 +382,163 @@ export function FollowThroughSection({ items }: { items: readonly FollowThroughI
   );
 }
 
-function TimelineCard({ entry }: { entry: MentalJourneyEntry }) {
-  const when = formatJourneyDate(entry.sessionDate ?? entry.approvedAt);
+/**
+ * L'andamento di una metrica fino a questa seduta.
+ *
+ * Stessa disciplina del riepilogo: servono almeno tre sedute con quella
+ * metrica, perché con due punti una linea non è una tendenza e disegnarla
+ * suggerirebbe una precisione che il dato non ha. Il valore resta scritto
+ * accanto: la linea orienta, il numero dice.
+ */
+function EntryTrend({ metric, trend }: { metric: JourneyMetric; trend: MetricTrend }) {
+  const meta = METRIC_META[metric.key];
   return (
-    <li className="relative pl-8">
+    <figure className="shrink-0 text-right">
+      <figcaption className="text-[11px] font-semibold text-gray-500">
+        {meta.label} {metric.value}/5
+      </figcaption>
+      <svg
+        viewBox="0 0 100 40"
+        preserveAspectRatio="none"
+        className="mt-1 h-8 w-24 overflow-visible"
+        role="img"
+        aria-label={`${meta.label}: ${metricTrendLabel(trend).toLowerCase()} su ${trend.values.length} sedute`}
+      >
+        <polyline
+          points={trend.polyline
+            .split(' ')
+            .map((pair) => {
+              const [x, y] = pair.split(',');
+              return `${x},${(Number(y) * 0.4).toFixed(1)}`;
+            })
+            .join(' ')}
+          fill="none"
+          stroke={meta.color}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+    </figure>
+  );
+}
+
+function TimelineCard({
+  entry,
+  trend,
+}: {
+  entry: MentalJourneyEntry;
+  trend: { metric: JourneyMetric; trend: MetricTrend } | null;
+}) {
+  const parts = dateParts(entry.sessionDate ?? entry.approvedAt);
+  const when = formatJourneyDate(entry.sessionDate ?? entry.approvedAt);
+
+  return (
+    <li className="relative pl-8 sm:pl-10">
       <span
-        className="absolute left-0 top-6 h-3 w-3 -translate-x-1/2 rounded-full bg-violet-500 ring-4 ring-white"
+        className="absolute left-0 top-8 h-3.5 w-3.5 -translate-x-1/2 rounded-full bg-white ring-[3px] ring-violet-500"
         aria-hidden="true"
       />
-      <article className="rounded-3xl bg-white p-6 ring-1 ring-gray-200">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="text-base font-semibold text-gray-950">{when ?? 'Sessione'}</h3>
-          <span className="text-xs text-gray-500">con {entry.coachName}</span>
-        </div>
+      <article className="rounded-3xl bg-white p-5 ring-1 ring-gray-200 sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row">
+          {/* Il blocco data: si scorre la colonna e si legge il ritmo del
+              percorso senza entrare in nessuna scheda. */}
+          <div className="flex shrink-0 flex-row items-baseline gap-2 rounded-2xl bg-gray-50 px-4 py-3 text-center ring-1 ring-gray-100 sm:w-20 sm:flex-col sm:gap-0">
+            <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-violet-700">
+              {parts?.month ?? '—'}
+            </span>
+            <span className="text-2xl font-bold leading-none text-gray-950">
+              {parts?.day ?? ''}
+            </span>
+            <span className="text-[11px] text-gray-500">{parts?.year ?? when ?? ''}</span>
+          </div>
 
-        <p className="mt-3 text-sm leading-6 text-gray-800">{entry.summary}</p>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <p className="min-w-0 flex-1 text-sm leading-6 text-gray-800">{entry.summary}</p>
+              <span className="shrink-0 text-xs text-gray-500">con {entry.coachName}</span>
+            </div>
 
-        {entry.themes.length ? (
-          <ul className="mt-3 flex flex-wrap gap-2">
-            {entry.themes.map((theme) => (
-              <li
-                key={theme}
-                className="rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-800"
+            {entry.themes.length ? (
+              <ul className="mt-3 flex flex-wrap gap-2">
+                {entry.themes.map((theme) => (
+                  <li
+                    key={theme}
+                    className="rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-800"
+                  >
+                    {theme}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
+            {entry.emergingResource ? (
+              <p className="mt-3 flex items-start gap-2 rounded-2xl bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-950">
+                <Star className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
+                <span>
+                  <span className="font-semibold">Risorsa emersa. </span>
+                  {entry.emergingResource}
+                </span>
+              </p>
+            ) : null}
+
+            {entry.commitments.length ? (
+              <ul className="mt-4 space-y-2 border-t border-gray-100 pt-4">
+                {entry.commitments.map((commitment) => (
+                  <CommitmentLine key={commitment.commitmentId} commitment={commitment} />
+                ))}
+              </ul>
+            ) : null}
+
+            <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
+              <Link
+                href={entry.compassHref}
+                className="inline-flex items-center gap-1 text-sm font-semibold text-violet-700 hover:text-violet-900"
               >
-                {theme}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-
-        {entry.emergingResource ? (
-          <p className="mt-3 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
-            <span className="font-semibold">Risorsa emersa. </span>
-            {entry.emergingResource}
-          </p>
-        ) : null}
-
-        {entry.commitments.length ? (
-          <ul className="mt-4 space-y-2 border-t border-gray-100 pt-4">
-            {entry.commitments.map((commitment) => (
-              <CommitmentLine key={commitment.commitmentId} commitment={commitment} />
-            ))}
-          </ul>
-        ) : null}
-
-        <Link
-          href={entry.compassHref}
-          className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-violet-700 hover:text-violet-900"
-        >
-          Apri il riepilogo sessione
-          <ArrowUpRight className="h-4 w-4" />
-        </Link>
+                Apri il riepilogo sessione
+                <ArrowUpRight className="h-4 w-4" />
+              </Link>
+              {trend ? <EntryTrend metric={trend.metric} trend={trend.trend} /> : null}
+            </div>
+          </div>
+        </div>
       </article>
     </li>
   );
+}
+
+/**
+ * L'andamento da mostrare accanto a ogni seduta.
+ *
+ * Si sceglie la metrica principale di quella seduta e la si guarda nel tempo,
+ * fino a quel giorno: è l'unica lettura onesta in una pagina che racconta un
+ * percorso. Le metriche di una singola seduta messe in fila non sarebbero una
+ * serie storica, e disegnarle come tale sarebbe un grafico che mente.
+ */
+function trendsByEntry(
+  timeline: readonly MentalJourneyEntry[]
+): Map<number, { metric: JourneyMetric; trend: MetricTrend }> {
+  const chronological = [...timeline].sort(
+    (a, b) =>
+      Date.parse(a.sessionDate ?? a.approvedAt) - Date.parse(b.sessionDate ?? b.approvedAt)
+  );
+  const result = new Map<number, { metric: JourneyMetric; trend: MetricTrend }>();
+
+  chronological.forEach((entry, index) => {
+    const metric = entry.metrics?.[0];
+    if (!metric) return;
+    const points = chronological
+      .slice(0, index + 1)
+      .flatMap((previous) => {
+        const value = previous.metrics?.find((item) => item.key === metric.key)?.value;
+        return value === undefined ? [] : [{ sessionId: previous.sessionId, value }];
+      });
+    const trend = buildMetricTrend(points);
+    if (trend) result.set(entry.sessionId, { metric, trend });
+  });
+
+  return result;
 }
 
 export function MentalJourneyView({
@@ -319,26 +552,41 @@ export function MentalJourneyView({
     return <MentalJourneyEmptyState athleteName={athleteName} />;
   }
 
+  const trends = trendsByEntry(journey.timeline);
+
   return (
     <div className="flex flex-col gap-8">
       <SummaryHeader journey={journey} athleteName={athleteName} />
 
-      <PointsToRevisitSection points={journey.pointsToRevisit} />
+      {/* Affiancati: «da riprendere» è la lista delle intenzioni, «impegni in
+          corso» è la realtà. Si leggono confrontandoli. */}
+      <div className="grid gap-6 lg:grid-cols-2 [&>*]:h-full">
+        <PointsToRevisitSection points={journey.pointsToRevisit} />
+        <FollowThroughSection items={journey.followThrough} />
+      </div>
+
       <RecurringThemesSection themes={journey.recurringThemes} />
-      <FollowThroughSection items={journey.followThrough} />
 
       <section aria-labelledby="mental-journey-timeline">
-        <h2 id="mental-journey-timeline" className="text-lg font-semibold text-gray-950">
+        <h2
+          id="mental-journey-timeline"
+          className="text-xs font-bold uppercase tracking-[0.16em] text-gray-500"
+        >
           La storia del percorso
         </h2>
-        <ol className="mt-4 space-y-6 border-l border-violet-100">
+        <ol className="mt-4 space-y-5 border-l border-violet-100">
           {journey.timeline.map((entry) => (
-            <TimelineCard key={entry.sessionId} entry={entry} />
+            <TimelineCard
+              key={entry.sessionId}
+              entry={entry}
+              trend={trends.get(entry.sessionId) ?? null}
+            />
           ))}
         </ol>
       </section>
 
-      <p className="text-xs text-gray-500">
+      <p className="flex items-start gap-2 text-xs text-gray-500">
+        <Compass className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         Questa vista è riservata al coach e sola lettura: raccoglie soltanto report già approvati e
         lo stato reale degli impegni. Non contiene valutazioni cliniche.
       </p>
