@@ -79,6 +79,7 @@ function CollapsibleOverlay({
   label,
   tone,
   indicator,
+  action,
   children,
 }: {
   /** Testo letto dagli screen reader e mostrato accanto all'icona da `sm`. */
@@ -86,6 +87,14 @@ function CollapsibleOverlay({
   tone: 'neutral' | 'active' | 'error';
   /** Pallino di stato, visibile anche quando il pannello è chiuso. */
   indicator?: React.ReactNode;
+  /**
+   * Azione sempre raggiungibile, anche a pannello chiuso.
+   *
+   * Serve al segnalibro: un gesto che deve costare un tocco non può stare
+   * dietro un pannello da aprire. Su schermo piccolo, dove il pannello è
+   * chiuso di default, era semplicemente invisibile.
+   */
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -99,6 +108,7 @@ function CollapsibleOverlay({
 
   return (
     <div className={`${OVERLAY_POSITION} max-w-[calc(100vw-1.5rem)] sm:max-w-sm`}>
+      <div className="flex items-center gap-2 sm:hidden">
       {/* Pastiglia: unico elemento visibile su mobile quando è chiuso. */}
       <button
         type="button"
@@ -115,6 +125,8 @@ function CollapsibleOverlay({
           <ChevronDown className="size-3.5 opacity-70" aria-hidden="true" />
         )}
       </button>
+      {action}
+      </div>
 
       <div
         className={`${open ? 'mt-2 block' : 'hidden'} rounded-xl border p-3 text-white shadow-xl backdrop-blur sm:mt-0 sm:block ${toneClass}`}
@@ -399,11 +411,40 @@ export function AiSessionNotesControl({
       />
     );
 
+    /*
+     * Un tocco marca il momento: niente testo da scrivere, nessuna conferma
+     * da leggere.
+     *
+     * Compare per tutta la sessione, non solo mentre la traccia sta
+     * registrando: l'istante si calcola dall'inizio della seduta, quindi vale
+     * anche se una traccia e' caduta — ed e' proprio quando cade che il coach
+     * ha piu' bisogno di annotare dove guardare. Sta fuori dal pannello
+     * perche' un gesto da un tocco non puo' costarne due.
+     */
+    const bookmarkButton = session.viewerRole === 'coach' && (
+      <button
+        type="button"
+        aria-label="Segna questo momento"
+        className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/40 bg-emerald-950/90 px-3 py-2 text-xs font-semibold text-white shadow-xl backdrop-blur transition hover:bg-emerald-900/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+        onClick={() => {
+          setBookmarked(true);
+          window.setTimeout(() => setBookmarked(false), 1800);
+          void fetch(`/api/ai-session-notes/${session.id}/bookmark`, {
+            method: 'POST',
+          }).catch(() => undefined);
+        }}
+      >
+        <Bookmark className="size-3.5" aria-hidden="true" />
+        {bookmarked ? 'Segnato' : 'Segna momento'}
+      </button>
+    );
+
     return (
       <CollapsibleOverlay
         label={recordingLabel}
         tone={recording?.state === 'failed' ? 'error' : 'active'}
         indicator={dot}
+        action={bookmarkButton}
       >
         <div aria-busy={loading}>
         <div className="flex flex-wrap items-center gap-2">
@@ -419,6 +460,9 @@ export function AiSessionNotesControl({
         <p className="mt-1 text-xs text-emerald-100">
           Puoi revocare il consenso in qualsiasi momento.
         </p>
+        {/* Da `sm` in su il pannello e' sempre aperto e la pastiglia non
+            esiste: il segnalibro vive qui, in cima alle azioni. */}
+        <div className="mt-2 hidden sm:block">{bookmarkButton}</div>
         {/* Il riavvio va offerto in ogni stato fermo, non solo dopo un
             errore: una registrazione conclusa a metà sessione — perché la
             traccia è caduta, o perché era stata fermata — lasciava il resto
@@ -440,25 +484,6 @@ export function AiSessionNotesControl({
               : recording?.state === 'not_started'
                 ? 'Avvia registrazione'
                 : 'Riprendi registrazione'}
-          </button>
-        )}
-        {/* Un tocco marca il momento: niente testo da scrivere e nessuna
-            conferma da leggere. Compare solo mentre si sta registrando,
-            perche' fuori da li' non c'e' un istante a cui legarlo. */}
-        {session.viewerRole === 'coach' && recording?.state === 'recording' && (
-          <button
-            type="button"
-            className="mt-2 mr-3 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-            onClick={() => {
-              setBookmarked(true);
-              window.setTimeout(() => setBookmarked(false), 1800);
-              void fetch(`/api/ai-session-notes/${session.id}/bookmark`, {
-                method: 'POST',
-              }).catch(() => undefined);
-            }}
-          >
-            <Bookmark className="size-3.5" aria-hidden="true" />
-            {bookmarked ? 'Segnato' : 'Segna momento'}
           </button>
         )}
 
