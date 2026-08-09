@@ -57,51 +57,8 @@ test('senza copertura il comportamento resta identico a prima', () => {
   );
 });
 
-test('una copertura integra non aggiunge rumore all etichetta', () => {
-  assert.deepEqual(
-    buildAiSessionArchiveIndicator('shared', 'coach', false, false, 'completa'),
-    buildAiSessionArchiveIndicator('shared', 'coach')
-  );
-});
-
-test('una sessione con interruzioni lo dichiara anche in lista', () => {
-  const indicator = buildAiSessionArchiveIndicator(
-    'shared',
-    'coach',
-    false,
-    false,
-    'con_interruzioni'
-  );
-  assert.match(indicator!.label, /interruzion/i);
-});
-
-test('una registrazione mancata e visibile in lista', () => {
-  const indicator = buildAiSessionArchiveIndicator(
-    'shared',
-    'coach',
-    false,
-    false,
-    'fallita'
-  );
-  assert.match(indicator!.label, /non registrata/i);
-});
-
-test('una trascrizione parziale e visibile in lista', () => {
-  const indicator = buildAiSessionArchiveIndicator(
-    'shared',
-    'coach',
-    false,
-    false,
-    'parziale'
-  );
-  assert.match(indicator!.label, /parziale/i);
-});
-
-test('senza indicatore la copertura non ne inventa uno', () => {
-  assert.equal(
-    buildAiSessionArchiveIndicator(null, 'coach', false, false, 'fallita'),
-    null
-  );
+test('senza uno stato non si inventa un indicatore', () => {
+  assert.equal(buildAiSessionArchiveIndicator(null, 'coach', false, false), null);
 });
 
 test('il silenzio non si annuncia come un guasto', () => {
@@ -112,7 +69,6 @@ test('il silenzio non si annuncia come un guasto', () => {
       'coach',
       true,
       false,
-      undefined,
       'NO_SPEECH_DETECTED'
     ),
     { state: 'failed', label: 'Nessun parlato nell’audio' }

@@ -945,7 +945,6 @@ function buildArchiveCardData(
       'coach',
       booking.hasRecordedAudio,
       booking.hasTranscript,
-      undefined,
       booking.aiNotesErrorCode
     ),
     // Solo quando c'e' qualcosa da leggere: un link su «trascrizione in

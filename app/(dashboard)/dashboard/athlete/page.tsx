@@ -166,7 +166,6 @@ function buildAthleteArchiveData(b: AthleteBooking): CompletedSessionData {
       'athlete',
       b.hasRecordedAudio,
       b.hasTranscript,
-      undefined,
       b.aiNotesErrorCode
     ),
     // L'atleta apre l'appuntamento solo quando il report e' stato condiviso:

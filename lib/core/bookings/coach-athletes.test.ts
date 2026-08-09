@@ -29,6 +29,7 @@ function booking(over: Partial<CoachBooking> & { id: number; clientId: number })
     durationMin: 40,
     athleteIsMinor: false,
     aiNotesStatus: null,
+    aiReportStatus: null,
   aiNotesErrorCode: null,
     hasRecordedAudio: false,
     hasTranscript: false,
@@ -312,6 +313,7 @@ test('un riepilogo ancora da validare viene segnalato nell’elenco', () => {
         clientId: 7,
         sessionEndedAt: new Date('2026-08-04T10:00:00Z'),
         aiNotesStatus: 'ready_for_review',
+        aiReportStatus: 'ready_for_review',
       }),
     ],
     NOW
@@ -328,6 +330,30 @@ test('un riepilogo approvato non chiede attenzione', () => {
         clientId: 7,
         sessionEndedAt: new Date('2026-08-04T10:00:00Z'),
         aiNotesStatus: 'approved',
+        aiReportStatus: 'approved',
+      }),
+    ],
+    NOW
+  );
+
+  assert.equal(athlete.latestCompassNeedsReview, false);
+});
+
+test('un report validato non chiede attenzione, anche se la sessione e rimasta indietro', () => {
+  /*
+   * E' il caso reale: fino a oggi approvare il report non toccava lo stato
+   * della sessione, e in produzione ci sono sedute con report approvato e
+   * sessione ancora `ready_for_review`. L'invito a validare va spento dal
+   * report, che e' la cosa che si valida.
+   */
+  const [athlete] = buildCoachAthletes(
+    [
+      booking({
+        id: 1,
+        clientId: 7,
+        sessionEndedAt: new Date('2026-08-04T10:00:00Z'),
+        aiNotesStatus: 'ready_for_review',
+        aiReportStatus: 'approved',
       }),
     ],
     NOW

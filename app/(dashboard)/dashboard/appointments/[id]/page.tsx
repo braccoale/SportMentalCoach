@@ -17,11 +17,8 @@ import { EditAppointmentButton } from '@/components/edit-appointment-button';
 import {
   SessionCompassPanel,
 } from '@/components/session-compass-panel';
-import { CoverageCard } from '@/components/session-compass/coverage-card';
 import { OrbitDecor } from '@/components/session-compass/decor';
-import { loadSessionCoverage } from '@/lib/core/ai-session-notes/session-coverage-loader';
 import { loadConversationMap } from '@/lib/core/ai-session-notes/conversation-map-loader';
-import { describeSessionCoverage } from '@/lib/core/ai-session-notes/session-coverage-text';
 import { Button } from '@/components/ui/button';
 import { VideoCallButton } from '@/components/video-call-button';
 import { getAppBaseUrl } from '@/lib/core/app-url';
@@ -149,18 +146,6 @@ export default async function AppointmentDetailPage({
       : !booking.durationMin
         ? 'Il servizio associato non ha una durata. Il coach deve completarlo prima di una nuova prenotazione.'
         : 'La sessione è già trascorsa e non può più essere aggiunta al calendario.';
-  // La copertura si legge solo quando il riepilogo è visibile: fuori di lì
-  // non c'è nulla da dichiarare, e non vale una query in più.
-  const coverage =
-    booking.viewerRole === 'coach' && aiNotesSession
-      ? await loadSessionCoverage(aiNotesSession.id).catch((error: unknown) => {
-          // Un guasto qui non deve togliere al coach il riepilogo: la
-          // copertura è un'informazione in più, non un prerequisito.
-          console.error('[appointments] copertura non calcolabile', error);
-          return null;
-        })
-      : null;
-  const coverageMessage = coverage ? describeSessionCoverage(coverage) : null;
 
   // Caricata col server, non su richiesta: la fascia deve esserci al primo
   // colpo d'occhio, e uno spinner in cima alla Panoramica annullerebbe
@@ -317,7 +302,6 @@ export default async function AppointmentDetailPage({
         <>
           {/* Prima del riepilogo, non dopo: sapere quanta parte della seduta
               e' stata registrata cambia come si legge tutto cio' che segue. */}
-          {coverageMessage ? <CoverageCard message={coverageMessage} /> : null}
           <SessionCompassPanel
             sessionId={aiNotesSession.id}
             sessionDate={booking.scheduledFor?.toISOString() ?? null}

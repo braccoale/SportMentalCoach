@@ -421,6 +421,7 @@ export type AthleteBooking = {
   durationMin: number | null;
   aiNotesStatus: AiSessionNoteStatus | null;
   aiNotesErrorCode: string | null;
+  aiReportStatus: string | null;
   hasRecordedAudio: boolean;
   hasTranscript: boolean;
 };
@@ -950,6 +951,21 @@ export async function getAthleteBookings(
         order by ${sessionAiNotes.createdDate} desc
         limit 1
       )`,
+      /*
+       * Lo stato del report, non quello della sessione.
+       *
+       * «Da validare» e' una proprieta' del report: chiederlo alla sessione
+       * significava mostrare l'invito a validare anche dopo che il coach
+       * aveva validato, perche' i due stati non si muovevano insieme.
+       */
+      aiReportStatus: sql<string | null>`(
+        select r.status
+        from session_ai_reports r
+        join ${sessionAiNotes} n on n.id = r.session_ai_notes_id
+        where n.booking_id = ${bookings.id}
+        order by r.report_version desc
+        limit 1
+      )`,
       hasRecordedAudio: sql<boolean>`exists (
         select 1
         from ${sessionAudioRecordings}
@@ -999,6 +1015,7 @@ export type CoachBooking = {
   athleteIsMinor: boolean;
   aiNotesStatus: AiSessionNoteStatus | null;
   aiNotesErrorCode: string | null;
+  aiReportStatus: string | null;
   hasRecordedAudio: boolean;
   hasTranscript: boolean;
 };
@@ -1051,6 +1068,21 @@ export async function getCoachBookings(
         from ${sessionAiNotes}
         where ${sessionAiNotes.bookingId} = ${bookings.id}
         order by ${sessionAiNotes.createdDate} desc
+        limit 1
+      )`,
+      /*
+       * Lo stato del report, non quello della sessione.
+       *
+       * «Da validare» e' una proprieta' del report: chiederlo alla sessione
+       * significava mostrare l'invito a validare anche dopo che il coach
+       * aveva validato, perche' i due stati non si muovevano insieme.
+       */
+      aiReportStatus: sql<string | null>`(
+        select r.status
+        from session_ai_reports r
+        join ${sessionAiNotes} n on n.id = r.session_ai_notes_id
+        where n.booking_id = ${bookings.id}
+        order by r.report_version desc
         limit 1
       )`,
       hasRecordedAudio: sql<boolean>`exists (

@@ -413,10 +413,18 @@ export function AiSessionNotesControl({
       <button
         type="button"
         aria-label="Segna questo momento"
-        className={`absolute bottom-28 left-1/2 z-30 inline-flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold shadow-2xl backdrop-blur transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+        /*
+         * In basso a destra, non al centro.
+         *
+         * Al centro copriva la faccia dell'atleta e i comandi della chiamata:
+         * un pulsante che si usa una volta ogni tanto non puo' stare dove si
+         * guarda sempre. Qui resta raggiungibile col pollice e fuori dai
+         * piedi.
+         */
+        className={`absolute bottom-28 right-3 z-30 inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-semibold shadow-2xl backdrop-blur transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
           bookmarked
             ? 'bg-white text-emerald-800'
-            : 'bg-emerald-600/95 text-white hover:bg-emerald-500'
+            : 'bg-black/55 text-white hover:bg-black/70'
         }`}
         onClick={() => {
           setBookmarked(true);

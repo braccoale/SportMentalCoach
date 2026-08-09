@@ -123,8 +123,10 @@ export function buildCoachAthletes(
       nextSessionAt: upcoming?.scheduledFor ?? null,
       lastSessionAt: held ? heldAt(held) : null,
       latestCompassBookingId: latestCompass?.id ?? null,
+      // Lo stato del report, non quello della sessione: e' il report che si
+      // valida, ed e' l'unico che cambia quando il coach lo fa.
       latestCompassNeedsReview:
-        latestCompass?.aiNotesStatus === 'ready_for_review',
+        latestCompass?.aiReportStatus === 'ready_for_review',
       status: list.some((b) => ACTIVE_STATUSES.includes(b.status))
         ? 'active'
         : 'past',
