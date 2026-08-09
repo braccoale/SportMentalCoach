@@ -6,6 +6,7 @@
  * la verifica delle evidenze restano nel modulo provider-neutro.
  */
 
+import { sportContextBlock } from './sport-context';
 import {
   KEY_MOMENT_CATEGORIES,
   MAX_EMOTIONAL_TREND_POINTS,
@@ -34,7 +35,7 @@ const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 // report. Un timeout uguale a quello della function poteva interrompere il
 // processo prima che il job venisse chiuso correttamente.
 const DEFAULT_TIMEOUT_MS = 45_000;
-export const SESSION_COMPASS_PROMPT_REVISION = 'story-v6' as const;
+export const SESSION_COMPASS_PROMPT_REVISION = 'sport-context-v7' as const;
 
 export function effectiveSessionCompassPromptVersion(value: string): string {
   const base = value.trim();
@@ -232,7 +233,7 @@ function requestFor(
 ): OpenAiCompassRequest {
   return {
     model,
-    instructions: systemInstructions(promptVersion),
+    instructions: systemInstructions(promptVersion, input.context.athleteSport),
     input: JSON.stringify(promptPayload(input)),
     store: false,
     // Session Compass è estrazione strutturata e verificabile, non richiede
@@ -271,7 +272,19 @@ function promptPayload(input: SessionCompassGenerationInput): Record<string, unk
   };
 }
 
-function systemInstructions(promptVersion: string): string {
+function systemInstructions(
+  promptVersion: string,
+  athleteSport: string | null
+): string {
+  /*
+   * Il contesto sportivo entra qui, in coda alle regole e non al loro posto.
+   *
+   * Un prompt per sport sarebbe N copie della stessa disciplina — evidenza,
+   * prudenza, cardinalita' — che divergono al primo ritocco fatto solo su
+   * una. Cambiano il vocabolario, la struttura della competizione e i momenti
+   * tipici: poche righe, non un prompt parallelo.
+   */
+  const sportBlock = sportContextBlock(athleteSport);
   return `Prompt version: ${promptVersion}
 Prepari un "Riepilogo sessione", un report post-sessione riservato al coach mentale sportivo. Non è visibile all'atleta.
 Non sei uno psicologo né un medico. Non fare diagnosi e non proporre trattamenti. Le metriche richieste sono stime operative AI su scala 1–5, non misurazioni cliniche.
@@ -295,7 +308,8 @@ keyMoments: massimo ${MAX_KEY_MOMENTS} momenti significativi, con titolo, spiega
 commitments: solo azioni concrete effettivamente concordate, con owner "coach" oppure "athlete". Indica dueDate (YYYY-MM-DD) solo se la scadenza è detta esplicitamente, altrimenti null.
 nextSessionPrep: massimo ${MAX_NEXT_SESSION_PREP} punti che il coach può verificare o esplorare alla prossima sessione, derivati da temi, impegni o incertezze emerse. Nessun consiglio clinico generico.
 La lingua è vincolante: se language è "it", ogni testo prodotto (sintesi, temi, titoli, spiegazioni, azioni e descrizioni) deve essere in italiano. Non tradurre solo le etichette e non alternare italiano e inglese. Applica lo stesso vincolo alla lingua indicata per ogni altro valore di language.
-Rispondi nella lingua indicata da language. Restituisci solo il contenuto strutturato richiesto.`;
+Rispondi nella lingua indicata da language. Restituisci solo il contenuto strutturato richiesto.
+${sportBlock}`;
 }
 
 function parsedContent(response: OpenAiCompassResponse): RawCompassContent {
