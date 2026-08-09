@@ -259,7 +259,9 @@ function promptPayload(input: SessionCompassGenerationInput): Record<string, unk
     coach: { name: input.context.coachName, role: input.context.coachRole },
     athlete: { sport: input.context.athleteSport },
     pathGoal: input.context.pathGoal,
-    previousApprovedReports: input.context.previousApprovedReports.slice(0, 2),
+    previousApprovedReports: input.context.previousApprovedReports.slice(0, 4),
+    coachBookmarksMinutes: input.context.coachBookmarksMs.map(minuteFromMs),
+    coachNotes: input.context.coachNotes.slice(0, 4),
     transcript: input.segments.map((segment) => ({
       transcriptSegmentId: segment.transcriptSegmentId,
       speaker: segment.speaker,
@@ -275,6 +277,10 @@ Prepari un "Riepilogo sessione", un report post-sessione riservato al coach ment
 Non sei uno psicologo né un medico. Non fare diagnosi e non proporre trattamenti. Le metriche richieste sono stime operative AI su scala 1–5, non misurazioni cliniche.
 Non presentare mai una relazione causale come un fatto. Non scrivere frasi come "l'infortunio è causato da". Usa un linguaggio prudente: "emerge", "l'atleta riferisce", "possibile associazione da approfondire".
 Usa esclusivamente il transcript fornito e il contesto fornito. Non inventare contenuti, nomi, date o citazioni.
+Hai un contesto che un modello generico non ha: chi e' il coach, lo sport e l'obiettivo del percorso dell'atleta, i report approvati delle sedute precedenti, i minuti che il coach ha marcato dal vivo in "coachBookmarksMinutes" e le sue annotazioni in "coachNotes". Usalo.
+I minuti marcati dal coach sono indizi su dove guardare: esaminali con attenzione quando cerchi momenti chiave e spunti rimasti aperti.
+"coachNotes" serve solo a orientarti e puo' contenere fatti che la trascrizione non ha. Non citarlo mai come evidenza, non riportarlo come una tua osservazione e non ripetere le conclusioni del coach come se fossero tue: il coach deve poter confrontare la tua lettura con la sua, non ritrovarsi la propria restituita.
+Quando i report precedenti mostrano un tema che ritorna, un impegno rimasto aperto o un cambiamento rispetto a prima, dillo esplicitamente e collega la seduta di oggi a quelle: e' cio' che rende utile un riepilogo dentro un percorso invece che isolato.
 In "narrative" racconta la seduta in ordine cronologico, da 3 a ${MAX_NARRATIVE_BEATS} passaggi: come si e' aperta, cosa e' emerso, dove la conversazione ha girato, come si e' chiusa. Ogni passaggio ha un titolo breve (per esempio "L'apertura", "Il punto di svolta", "La chiusura") e due o tre frasi di testo scorrevole. E' un racconto, non un elenco: usa un linguaggio piano e prudente, senza gergo e senza termini diagnostici. Serve al coach per ricordare come e' andata senza rileggere la trascrizione.
 In "missedOpportunities" elenca al massimo ${MAX_MISSED_OPPORTUNITIES} passaggi in cui l'ATLETA ha aperto uno spiraglio — una dichiarazione carica, un accenno a qualcosa di personale, un disagio nominato di sfuggita — e la conversazione è andata altrove senza approfondirlo. L'evidenza deve essere sempre una frase dell'atleta, mai del coach. In "followUp" scrivi la domanda da fare la prossima volta, formulata come domanda aperta: è materiale per la prossima seduta, non un giudizio su quella passata. Se non ne trovi, restituisci un elenco vuoto: inventarne una vale meno di zero.
 Ogni elemento deve citare un'evidenza: transcriptSegmentId presente nel transcript e quote copiata alla lettera da quel segmento (massimo ${MAX_QUOTE_LENGTH} caratteri). Se non trovi un'evidenza sufficiente, ometti l'elemento invece di inventarlo.

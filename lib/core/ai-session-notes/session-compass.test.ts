@@ -412,7 +412,7 @@ test('non genera se la trascrizione non è disponibile o la sessione non è pron
   );
 });
 
-test('passa al provider solo il contesto lecito e al massimo due report approvati', async () => {
+test('passa al provider solo il contesto lecito e al massimo quattro report approvati', async () => {
   const { store, provider, dependencies } = harness();
   store.previous = [1, 2, 3].map((version) => ({
     version,
@@ -424,8 +424,16 @@ test('passa al provider solo il contesto lecito e al massimo due report approvat
 
   await ensureSessionCompassDraft({ sessionId: SESSION_ID, actorUserId: COACH_ID }, dependencies);
 
-  assert.equal(store.lastPreviousQuery?.limit, 2);
-  assert.equal(provider.lastInput?.context.previousApprovedReports.length, 2);
+  // Quattro sedute e non due: e' il minimo perche' un tema ricorrente si
+  // veda come ricorrente e non come coincidenza.
+  assert.equal(store.lastPreviousQuery?.limit, 4);
+  assert.ok(
+    (provider.lastInput?.context.previousApprovedReports.length ?? 0) <= 4
+  );
+  // Segnalibri e note del coach viaggiano nel contesto: senza la dipendenza
+  // che li carica restano vuoti, e la generazione funziona come prima.
+  assert.deepEqual(provider.lastInput?.context.coachBookmarksMs, []);
+  assert.deepEqual(provider.lastInput?.context.coachNotes, []);
   assert.equal(provider.lastInput?.context.coachName, 'Giulia Rossi');
   assert.equal(provider.lastInput?.context.athleteSport, 'Atletica');
   assert.equal(provider.lastInput?.context.pathGoal, 'Gestire l’attivazione in gara');

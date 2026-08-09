@@ -128,7 +128,20 @@ export interface SessionCompassStore {
   }): Promise<void>;
 }
 
+export type CoachSessionInput = {
+  /** Istanti marcati dal coach durante la seduta. */
+  bookmarksMs: number[];
+  /** Annotazioni del coach, scritte o dettate. */
+  notes: string[];
+};
+
 export type SessionCompassDependencies = {
+  /**
+   * Cio' che il coach ha lasciato durante e dopo la seduta.
+   *
+   * Opzionale: senza, la generazione funziona esattamente come prima.
+   */
+  loadCoachInput?: (sessionId: number) => Promise<CoachSessionInput>;
   store: SessionCompassStore;
   commitments: SessionCommitmentStore;
   createProvider: () => SessionCompassReportProvider;
@@ -547,18 +560,23 @@ async function generationContext(
   session: SessionCompassSessionSource,
   dependencies: SessionCompassDependencies
 ): Promise<SessionCompassContext> {
+  // Quattro sedute invece di due: e' il minimo perche' un tema ricorrente si
+  // veda come ricorrente e non come coincidenza.
   const previousApprovedReports = await dependencies.store.loadPreviousApprovedReports({
     coachUserId: session.coachUserId,
     athleteUserId: session.athleteUserId,
     excludeSessionId: session.sessionId,
-    limit: 2,
+    limit: 4,
   });
+  const coachInput = await dependencies.loadCoachInput?.(session.sessionId);
   return {
     coachName: session.coachName,
     coachRole: session.coachRole,
     athleteSport: session.athleteSport,
     pathGoal: session.pathGoal,
-    previousApprovedReports: previousApprovedReports.slice(0, 2),
+    previousApprovedReports: previousApprovedReports.slice(0, 4),
+    coachBookmarksMs: coachInput?.bookmarksMs ?? [],
+    coachNotes: coachInput?.notes ?? [],
   };
 }
 

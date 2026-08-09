@@ -62,6 +62,23 @@ export type SessionCompassContext = {
   pathGoal: string | null;
   /** Al massimo gli ultimi due report approvati dal coach. */
   previousApprovedReports: SessionCompassPreviousReport[];
+  /**
+   * Istanti che il coach ha marcato dal vivo, in millisecondi.
+   *
+   * Sono indizi, non conclusioni: puntano *dentro* la trascrizione, dove le
+   * prove ci sono. E' supervisione umana che dice al modello dove guardare.
+   */
+  coachBookmarksMs: number[];
+  /**
+   * Cio' che il coach ha annotato, a voce o per iscritto.
+   *
+   * Serve al modello per orientarsi — contiene fatti che la trascrizione non
+   * puo' avere, tipo com'era in faccia l'atleta o cosa era successo prima.
+   * Ma non e' evidenza: non puo' essere citato e non puo' diventare una
+   * scoperta dell'AI, o il coach si ritroverebbe la propria opinione
+   * restituita come analisi.
+   */
+  coachNotes: string[];
 };
 
 export type SessionCompassGenerationInput = {

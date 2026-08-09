@@ -61,6 +61,8 @@ function input(
       athleteSport: 'Atletica',
       pathGoal: 'Gestire l’attivazione in gara',
       previousApprovedReports: [],
+    coachBookmarksMs: [],
+    coachNotes: [],
     },
     ...overrides,
   };

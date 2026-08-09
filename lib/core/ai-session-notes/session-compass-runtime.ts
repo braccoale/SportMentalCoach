@@ -6,6 +6,9 @@ import {
   openAiSessionCompassProviderFromEnvironment,
 } from './openai-session-compass-provider';
 import { createSessionCompassStore } from './session-compass-store';
+import { listSessionBookmarksMs } from './coach-bookmarks-store';
+import { loadClosingNote } from './session-close';
+import { listSessionVoiceNoteTranscripts } from './voice-notes';
 import { createSessionCommitmentStore } from './session-commitments-store';
 import {
   compassSourceFingerprint,
@@ -25,6 +28,22 @@ export function sessionCompassDependencies(): SessionCompassDependencies {
     isAdmin: (actorUserId: number) => hasRole(actorUserId, 'admin'),
     hasFeatureAccess: (actorUserId: number) =>
       hasFeatureEntitlement(actorUserId, FEATURE_CODES.AI_SESSION_NOTES),
+    // Cio' che il coach ha lasciato durante e dopo la seduta: i segnalibri
+    // dicono al modello dove guardare, le note gli danno il contesto che la
+    // trascrizione non puo' avere.
+    loadCoachInput: async (sessionId: number) => {
+      const [bookmarks, closingNote, voiceNotes] = await Promise.all([
+        listSessionBookmarksMs(sessionId),
+        loadClosingNote(sessionId),
+        listSessionVoiceNoteTranscripts(sessionId),
+      ]);
+      return {
+        bookmarksMs: bookmarks,
+        notes: [closingNote, ...voiceNotes].filter(
+          (note): note is string => Boolean(note?.trim())
+        ),
+      };
+    },
     now: () => new Date(),
   };
 }

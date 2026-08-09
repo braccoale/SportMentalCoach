@@ -104,3 +104,21 @@ export async function listCoachBookmarks(
     .where(and(eq(sessionCoachBookmarks.sessionAiNotesId, sessionId)))
     .orderBy(asc(sessionCoachBookmarks.atMs));
 }
+
+/**
+ * I segnalibri della sessione, senza controllo di titolarità.
+ *
+ * Serve alla generazione del report, che gira nel worker e non ha un utente
+ * dietro: l'autorizzazione l'ha già fatta chi ha accodato il lavoro.
+ */
+export async function listSessionBookmarksMs(
+  sessionId: number,
+  executor: DbOrTx = db
+): Promise<number[]> {
+  const rows = await executor
+    .select({ atMs: sessionCoachBookmarks.atMs })
+    .from(sessionCoachBookmarks)
+    .where(eq(sessionCoachBookmarks.sessionAiNotesId, sessionId))
+    .orderBy(asc(sessionCoachBookmarks.atMs));
+  return rows.map((row) => row.atMs);
+}

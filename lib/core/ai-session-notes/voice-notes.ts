@@ -217,3 +217,18 @@ export async function listCoachVoiceNotes(
     createdAt: row.createdDate.toISOString(),
   }));
 }
+
+/** Le trascrizioni delle note vocali. Come sopra: nessun utente dietro. */
+export async function listSessionVoiceNoteTranscripts(
+  sessionId: number,
+  executor: DbOrTx = db
+): Promise<string[]> {
+  const rows = await executor
+    .select({ transcript: sessionCoachVoiceNotes.transcript })
+    .from(sessionCoachVoiceNotes)
+    .where(eq(sessionCoachVoiceNotes.sessionAiNotesId, sessionId))
+    .orderBy(asc(sessionCoachVoiceNotes.createdDate));
+  return rows
+    .map((row) => row.transcript)
+    .filter((text): text is string => Boolean(text?.trim()));
+}
