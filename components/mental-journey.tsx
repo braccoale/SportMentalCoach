@@ -444,7 +444,9 @@ function TimelineCard({
         <div className="flex flex-col gap-4 sm:flex-row">
           {/* Il blocco data: si scorre la colonna e si legge il ritmo del
               percorso senza entrare in nessuna scheda. */}
-          <div className="flex shrink-0 flex-row items-baseline gap-2 rounded-2xl bg-gray-50 px-4 py-3 text-center ring-1 ring-gray-100 sm:w-20 sm:flex-col sm:gap-0">
+          <div // `self-start`: senza, la riga flex allunga il blocco per tutta
+            // l'altezza della scheda e la data galleggia in una colonna vuota.
+            className="flex shrink-0 flex-row items-baseline gap-2 self-start rounded-2xl bg-gray-50 px-4 py-3 text-center ring-1 ring-gray-100 sm:w-20 sm:flex-col sm:gap-0">
             <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-violet-700">
               {parts?.month ?? '—'}
             </span>
