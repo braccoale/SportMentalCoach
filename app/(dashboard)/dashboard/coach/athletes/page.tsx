@@ -34,7 +34,11 @@ function AthleteRow({
 }) {
   return (
     <li>
-      <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4 transition hover:border-blue-300 hover:shadow-sm">
+      {/* Su schermo stretto il pulsante e il testo non ci stanno sulla
+          stessa riga: il pulsante non si restringe e lascia al nome uno
+          spazio in cui "Edoardo Martini" diventa "E…" e la data va a capo
+          una parola per riga. Sotto sm si impila. */}
+      <div className="flex flex-col items-stretch gap-3 rounded-2xl border border-gray-200 bg-white p-4 transition hover:border-blue-300 hover:shadow-sm sm:flex-row sm:items-center">
         <Link
           href={`/dashboard/coach/athletes/${athlete.userId}`}
           className="flex min-w-0 flex-1 items-center gap-4"
@@ -97,7 +101,7 @@ function AthleteRow({
         {canOpenCompass && athlete.latestCompassBookingId ? (
           <Link
             href={`/dashboard/appointments/${athlete.latestCompassBookingId}#session-compass`}
-            className="inline-flex shrink-0 items-center gap-2 rounded-full bg-violet-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-violet-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 sm:shrink-0"
           >
             <Compass className="h-4 w-4" />
             <span className="hidden sm:inline">Apri </span>Riepilogo sessione
