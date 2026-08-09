@@ -68,7 +68,9 @@ export async function POST(
       after(async () => {
         // Se restano segmenti da consegnare il job è tornato in coda: va
         // risvegliato subito, non alla prossima corsa del cron.
-        await triggerAiNotesWorker().catch(() => {});
+        await triggerAiNotesWorker(fetch, new URL(request.url).origin).catch(
+          () => {}
+        );
       });
     }
     // Una consegna già vista risponde comunque 2xx: altrimenti il provider

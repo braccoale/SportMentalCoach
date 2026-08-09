@@ -4,6 +4,8 @@ import { closeAiNotesSession } from '@/lib/core/ai-session-notes/session-close';
 import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
 import { aiNotesErrorResponse } from '@/lib/core/ai-session-notes/http';
 import { allowRecordingMutation } from '@/lib/core/ai-session-notes/rate-limit';
+import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger';
+import { after } from 'next/server';
 
 /**
  * Chiusura definitiva della sessione Appunti AI, decisa dal coach.
@@ -60,6 +62,21 @@ export async function POST(
       },
       dependencies.liveKit
     );
+    /*
+     * Sveglia il worker adesso.
+     *
+     * Prima l'unica sveglia utile era il webhook LiveKit, e quando non
+     * arrivava la coda restava ferma fino al cron — che sul piano Hobby passa
+     * una volta al giorno. Qui invece siamo certi di due cose: la sessione e'
+     * appena stata chiusa, e c'e' qualcuno dall'altra parte che aspetta il
+     * risultato. Best effort: la chiusura e' gia' avvenuta e non deve fallire
+     * per una sveglia mancata.
+     */
+    after(async () => {
+      await triggerAiNotesWorker(fetch, new URL(request.url).origin).catch(
+        () => {}
+      );
+    });
     return Response.json({
       recording: await getRecordingStatus(sessionId, user.id),
     });

@@ -1,4 +1,5 @@
 import 'server-only';
+import { after } from 'next/server';
 import { getUser } from '@/lib/db/queries';
 import {
   getSessionCompass,
@@ -14,6 +15,8 @@ import {
 import { listCoachBookmarks } from '@/lib/core/ai-session-notes/coach-bookmarks-store';
 import { loadClosingNote } from '@/lib/core/ai-session-notes/session-close';
 import { listCoachVoiceNotes } from '@/lib/core/ai-session-notes/voice-notes';
+import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger';
+import { shouldNudgeWorker } from '@/lib/core/ai-session-notes/worker-nudge';
 import {
   authenticatedCompassRequest,
   compassErrorResponse,
@@ -21,8 +24,11 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+/** Ultima sveglia inviata, per sessione. In memoria, come altrove. */
+const lastNudgeAt = new Map<number, number>();
+
 export async function GET(
-  _request: Request,
+  httpRequest: Request,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const request = await authenticatedCompassRequest(getUser, params);
@@ -36,6 +42,31 @@ export async function GET(
       loadClosingNote(request.sessionId),
       listCoachVoiceNotes(request.sessionId, request.actorUserId),
     ]);
+    /*
+     * Aprire il riepilogo di una sessione ancora in lavorazione la fa
+     * avanzare. E' il caso piu' comune in assoluto: il coach chiude la seduta
+     * e va a vedere se il report c'e'. Senza questo, la coda aspetterebbe il
+     * webhook — che a volte non arriva — o il cron, che passa una volta al
+     * giorno.
+     */
+    const now = Date.now();
+    if (
+      shouldNudgeWorker({
+        // Nessun report ancora scritto significa lavoro in sospeso, non
+        // lavoro assente.
+        status: report ? report.status : 'processing',
+        lastNudgeAt: lastNudgeAt.get(request.sessionId) ?? null,
+        now,
+      })
+    ) {
+      lastNudgeAt.set(request.sessionId, now);
+      after(async () => {
+        await triggerAiNotesWorker(
+          fetch,
+          new URL(httpRequest.url).origin
+        ).catch(() => {});
+      });
+    }
     return Response.json({ report, bookmarks, closingNote, voiceNotes });
   } catch (error) {
     return compassErrorResponse(error);

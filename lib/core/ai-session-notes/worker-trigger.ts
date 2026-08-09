@@ -18,8 +18,19 @@ export type WorkerTriggerOutcome = 'triggered' | 'skipped' | 'failed';
 /** La chiamata è asincrona lato worker, quindi risponde in millisecondi. */
 const TRIGGER_TIMEOUT_MS = 5_000;
 
-function workerOrigins(): string[] {
+function workerOrigins(preferredOrigin?: string): string[] {
   const origins = [
+    /*
+     * Prima di tutto l'origine della richiesta in corso, quando c'e'.
+     *
+     * E' l'unica che sappiamo raggiungibile: ci e' appena arrivata addosso
+     * una richiesta da li'. Le altre sono ricostruite da variabili d'ambiente
+     * che possono mancare — le variabili di sistema Vercel sono esposte solo
+     * se il progetto lo prevede — o puntare a un dominio che redirige, e un
+     * redirect qui vale come fallimento perche' non inoltriamo mai il segreto
+     * attraverso un cambio di host.
+     */
+    preferredOrigin?.trim() || null,
     /*
      * Prima scelta: l'alias diretto e stabile del progetto Vercel, per esempio
      * https://sport-mental-coach-arge.vercel.app. Non passa dal redirect
@@ -37,10 +48,11 @@ function workerOrigins(): string[] {
 }
 
 export async function triggerAiNotesWorker(
-  fetcher: typeof fetch = fetch
+  fetcher: typeof fetch = fetch,
+  preferredOrigin?: string
 ): Promise<WorkerTriggerOutcome> {
   const secret = process.env.CRON_SECRET?.trim();
-  const origins = workerOrigins();
+  const origins = workerOrigins(preferredOrigin);
   if (!secret || origins.length === 0) return 'skipped';
 
   for (const origin of origins) {

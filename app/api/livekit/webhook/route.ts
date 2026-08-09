@@ -50,7 +50,10 @@ export async function POST(request: Request) {
     // LiveKit non attende, e un suo fallimento non invalida la consegna.
     if (!result.duplicate && (event.event ?? '').startsWith('egress_')) {
       after(async () => {
-        const outcome = await triggerAiNotesWorker();
+        const outcome = await triggerAiNotesWorker(
+          fetch,
+          new URL(request.url).origin
+        );
         if (outcome !== 'triggered') {
           console.warn('[LiveKit webhook] worker non svegliato', { outcome });
         }

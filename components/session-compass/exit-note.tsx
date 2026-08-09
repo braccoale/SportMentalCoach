@@ -47,7 +47,10 @@ export function ExitNote({ bookingId }: { bookingId: number }) {
       </p>
 
       <textarea
-        className="mt-3 w-full resize-y rounded-lg border border-gray-200 bg-white p-2.5 text-sm leading-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+        // Il colore del testo va dichiarato: la finestra di uscita dalla
+        // videochiamata e' scura, e senza questo il testo scritto eredita il
+        // bianco e sparisce sul fondo bianco del campo.
+        className="mt-3 w-full resize-y rounded-lg border border-gray-200 bg-white p-2.5 text-sm leading-6 text-gray-950 placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
         rows={3}
         value={note}
         onChange={(event) => {
