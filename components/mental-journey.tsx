@@ -184,12 +184,19 @@ function SummaryHeader({
           fill
           priority
           sizes="(min-width: 1024px) 900px, 100vw"
-          className="object-cover object-[70%_center]"
+          // Contrasto e saturazione alzati: la foto originale e' tenue e
+          // sotto un velo bianco spariva del tutto.
+          className="object-cover object-[65%_center] contrast-125 saturate-125"
         />
-        {/* Due veli sovrapposti: uno orizzontale che apre lo spazio al testo,
-            uno verticale che appoggia i riquadri dei numeri. */}
-        <div className="absolute inset-0 bg-gradient-to-r from-white via-white/85 to-white/10 sm:via-white/70" />
-        <div className="absolute inset-0 bg-gradient-to-t from-white via-white/30 to-transparent" />
+        {/*
+         * Un velo solo, e che finisce presto.
+         *
+         * Prima ce n'erano due sovrapposti e insieme cancellavano la foto:
+         * restava una fascia bianca. Ora copre solo la colonna del testo e si
+         * dissolve entro meta' fascia, cosi' la montagna si vede davvero.
+         */}
+        <div className="absolute inset-0 bg-gradient-to-r from-white via-white/75 to-transparent sm:via-white/55 sm:to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white/70 to-transparent" />
       </div>
 
       <div className="p-6 sm:p-8">
@@ -256,7 +263,10 @@ function Stat({
   tone: string;
 }) {
   return (
-    <div className="rounded-2xl bg-white/95 p-4 shadow-sm ring-1 ring-gray-200 backdrop-blur">
+    <div // Traslucidi di proposito: la montagna passa attraverso i riquadri
+      // invece di fermarsi dietro. Il `backdrop-blur` tiene i numeri leggibili
+      // sopra qualunque parte dell'immagine finisca sotto.
+      className="rounded-2xl bg-white/65 p-4 shadow-sm ring-1 ring-white/60 backdrop-blur-md">
       <dt className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">
         <span className={tone} aria-hidden="true">
           {icon}
