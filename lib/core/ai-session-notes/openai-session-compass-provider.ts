@@ -19,6 +19,7 @@ import {
   SESSION_METRIC_KEYS,
   minuteFromMs,
   MAX_MISSED_OPPORTUNITIES,
+  MAX_NARRATIVE_BEATS,
 } from './session-compass-contract';
 import {
   assembleSessionCompassReport,
@@ -274,6 +275,7 @@ Prepari un "Riepilogo sessione", un report post-sessione riservato al coach ment
 Non sei uno psicologo né un medico. Non fare diagnosi e non proporre trattamenti. Le metriche richieste sono stime operative AI su scala 1–5, non misurazioni cliniche.
 Non presentare mai una relazione causale come un fatto. Non scrivere frasi come "l'infortunio è causato da". Usa un linguaggio prudente: "emerge", "l'atleta riferisce", "possibile associazione da approfondire".
 Usa esclusivamente il transcript fornito e il contesto fornito. Non inventare contenuti, nomi, date o citazioni.
+In "narrative" racconta la seduta in ordine cronologico, da 3 a ${MAX_NARRATIVE_BEATS} passaggi: come si e' aperta, cosa e' emerso, dove la conversazione ha girato, come si e' chiusa. Ogni passaggio ha un titolo breve (per esempio "L'apertura", "Il punto di svolta", "La chiusura") e due o tre frasi di testo scorrevole. E' un racconto, non un elenco: usa un linguaggio piano e prudente, senza gergo e senza termini diagnostici. Serve al coach per ricordare come e' andata senza rileggere la trascrizione.
 In "missedOpportunities" elenca al massimo ${MAX_MISSED_OPPORTUNITIES} passaggi in cui l'ATLETA ha aperto uno spiraglio — una dichiarazione carica, un accenno a qualcosa di personale, un disagio nominato di sfuggita — e la conversazione è andata altrove senza approfondirlo. L'evidenza deve essere sempre una frase dell'atleta, mai del coach. In "followUp" scrivi la domanda da fare la prossima volta, formulata come domanda aperta: è materiale per la prossima seduta, non un giudizio su quella passata. Se non ne trovi, restituisci un elenco vuoto: inventarne una vale meno di zero.
 Ogni elemento deve citare un'evidenza: transcriptSegmentId presente nel transcript e quote copiata alla lettera da quel segmento (massimo ${MAX_QUOTE_LENGTH} caratteri). Se non trovi un'evidenza sufficiente, ometti l'elemento invece di inventarlo.
 sessionOverview.summary: sintesi concisa e neutra. themes: da 2 a ${MAX_THEMES} temi principali emersi. emergingResource: una sola risorsa o leva emersa, oppure null se non supportata.
@@ -324,7 +326,7 @@ function evidenceSchema(): Record<string, unknown> {
 const COMPASS_CONTENT_SCHEMA: Record<string, unknown> = {
   type: 'object',
   additionalProperties: false,
-  required: ['sessionOverview', 'keyMoments', 'missedOpportunities', 'commitments', 'nextSessionPrep'],
+  required: ['sessionOverview', 'narrative', 'keyMoments', 'missedOpportunities', 'commitments', 'nextSessionPrep'],
   properties: {
     sessionOverview: {
       type: 'object',
@@ -388,6 +390,20 @@ const COMPASS_CONTENT_SCHEMA: Record<string, unknown> = {
             confidence: { type: 'string', enum: [...METRIC_CONFIDENCE_LEVELS] },
             evidence: evidenceSchema(),
           },
+        },
+      },
+    },
+    narrative: {
+      type: 'array',
+      maxItems: MAX_NARRATIVE_BEATS,
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['title', 'text', 'evidence'],
+        properties: {
+          title: { type: 'string' },
+          text: { type: 'string' },
+          evidence: evidenceSchema(),
         },
       },
     },

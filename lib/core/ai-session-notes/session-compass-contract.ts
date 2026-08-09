@@ -22,6 +22,12 @@ export const MAX_QUOTE_LENGTH = 240;
  * si usa. Tre sono quelle su cui un coach può davvero tornare.
  */
 export const MAX_MISSED_OPPORTUNITIES = 3;
+/**
+ * Sei passaggi bastano a raccontare una seduta: apertura, cosa e' emerso,
+ * dove ha girato, come si e' chiusa. Oltre, il racconto smette di essere un
+ * racconto e torna a essere una trascrizione riscritta.
+ */
+export const MAX_NARRATIVE_BEATS = 6;
 
 export type CompassSpeaker = 'coach' | 'athlete';
 
@@ -156,6 +162,24 @@ export type SessionOverview = {
 };
 
 /**
+ * Un passaggio del racconto della seduta.
+ *
+ * La `summary` risponde in tre righe a «cos'e' successo». Questo risponde a
+ * «come e' andata»: l'ordine in cui le cose sono emerse, dove la
+ * conversazione ha girato, come si e' chiusa.
+ *
+ * Ogni passaggio cita comunque la trascrizione: un racconto scorrevole ma
+ * inventato varrebbe meno di tre righe verificabili.
+ */
+export type NarrativeBeat = {
+  id: string;
+  /** Il titolo del momento: «L'apertura», «Il punto di svolta». */
+  title: string;
+  text: string;
+  evidence: CompassEvidence;
+};
+
+/**
  * Un passaggio dell'atleta rimasto senza seguito.
  *
  * L'atleta apre uno spiraglio — una dichiarazione carica, un accenno a
@@ -222,6 +246,7 @@ export type SessionCompassReport = {
   sessionOverview: SessionOverview;
   keyMoments: KeyMoment[];
   missedOpportunities?: MissedOpportunity[];
+  narrative?: NarrativeBeat[];
   commitments: Commitment[];
   nextSessionPrep: NextSessionPrepItem[];
   /** Campo libero del coach. L'AI non lo produce e non lo sovrascrive mai. */

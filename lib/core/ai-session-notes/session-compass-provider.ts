@@ -42,6 +42,8 @@ import {
   type ConversationToneKey,
   MAX_MISSED_OPPORTUNITIES,
   type MissedOpportunity,
+  MAX_NARRATIVE_BEATS,
+  type NarrativeBeat,
 } from './session-compass-contract';
 
 /** Contesto lecito e già disponibile. Nessuno storico grezzo delle sessioni. */
@@ -111,6 +113,7 @@ export type RawCompassContent = {
   };
   keyMoments?: unknown;
   missedOpportunities?: unknown;
+  narrative?: unknown;
   commitments?: unknown;
   nextSessionPrep?: unknown;
 };
@@ -233,6 +236,23 @@ export function assembleSessionCompassReport(
     })
   ).slice(0, MAX_MISSED_OPPORTUNITIES);
 
+  /**
+   * Il racconto della seduta. Stessa disciplina di tutto il resto: senza
+   * evidenza il passaggio non entra, perche' un racconto scorrevole ma
+   * inventato vale meno di tre righe verificabili.
+   */
+  const narrative: NarrativeBeat[] = withIdentifiers(
+    'beat',
+    asArray(content.narrative).flatMap((item) => {
+      const record = asRecord(item);
+      const title = asProse(record?.title);
+      const text = asProse(record?.text);
+      const evidence = evidenceOf(record?.evidence, segments);
+      if (!record || !title || !text || !evidence) return [];
+      return [{ title, text, evidence }];
+    })
+  ).slice(0, MAX_NARRATIVE_BEATS);
+
   const commitments: Commitment[] = withIdentifiers(
     'commitment',
     asArray(content.commitments).flatMap((item) => {
@@ -283,6 +303,7 @@ export function assembleSessionCompassReport(
     },
     keyMoments,
     missedOpportunities,
+    narrative,
     commitments,
     nextSessionPrep,
     coachNote: null,

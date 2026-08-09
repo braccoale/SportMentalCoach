@@ -490,7 +490,13 @@ test('la panoramica usa la griglia dashboard e differenzia il peso delle card', 
   // scala molto più grande dei fatti di appoggio, che restano a 16px.
   assert.match(html, /text-\[1\.75rem\] font-bold/);
   assert.match(html, /text-base font-bold leading-6/);
-  assert.ok(html.indexOf('Lettura AI') < html.indexOf('Problema centrale'));
+  // Il tema centrale e' il titolo, non piu' un fatto di appoggio: la
+  // sintesi della sessione lo segue come occhiello, in corpo leggibile.
+  assert.match(html, /Tensione pre-gara/);
+  assert.match(html, /Emerge una tensione pre-gara riferita/);
+  assert.ok(
+    html.indexOf('Lettura AI') < html.indexOf('Prossimo passo suggerito')
+  );
 });
 
 test('la panoramica mette contesto e azioni prima di segnali e metriche', () => {

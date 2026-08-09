@@ -37,14 +37,17 @@ export function SessionHeroInsight({
 }) {
   const overview = report.sessionOverview;
   const centralTheme = overview.themes[0] ?? null;
-  // La sintesi, non la risorsa emersa.
+  // Titolo corto, sintesi sotto.
   //
-  // L'eroe mostrava `emergingResource ?? summary`, e siccome una risorsa
-  // emersa c'e' quasi sempre, la sintesi della seduta non compariva mai in
-  // Panoramica: si apriva il riepilogo e non si trovava il riepilogo. Al
-  // suo posto campeggiava una cosa concordata *dentro* la seduta, che e'
-  // un dettaglio, non il suo racconto.
-  const mainInsight = overview.summary || overview.emergingResource?.text;
+  // La sintesi non compariva mai in Panoramica: l'eroe mostrava la risorsa
+  // emersa, che c'e' quasi sempre. Metterla al suo posto pero' non bastava —
+  // e' prosa di due o tre frasi, e a quaranta pixel si mangiava la pagina.
+  //
+  // La gerarchia giusta e' quella di un articolo: il tema centrale fa da
+  // titolo perche' e' corto e dice di cosa si e' parlato, la sintesi lo
+  // segue come occhiello, in corpo leggibile.
+  const headline = centralTheme?.text ?? overview.emergingResource?.text ?? null;
+  const summary = overview.summary?.trim() || null;
   const emergingResource = overview.emergingResource?.text ?? null;
   const nextStep = report.nextSessionPrep[0] ?? report.commitments[0] ?? null;
 
@@ -72,9 +75,14 @@ export function SessionHeroInsight({
       {/* La dimensione è il messaggio: questa è la frase che il coach deve
           leggere per prima, e deve essere impossibile leggerne un'altra
           prima di lei. */}
-      <h3 className="relative mt-4 max-w-[46ch] text-[1.75rem] font-bold leading-[1.15] tracking-[-0.02em] text-gray-950 sm:text-[2.25rem] lg:text-[2.6rem]">
-        {mainInsight || 'Dato non disponibile'}
+      <h3 className="relative mt-4 max-w-[30ch] text-[1.75rem] font-bold leading-[1.15] tracking-[-0.02em] text-gray-950 sm:text-[2.25rem] lg:text-[2.5rem]">
+        {headline ?? 'Dato non disponibile'}
       </h3>
+      {summary ? (
+        <p className="relative mt-4 max-w-[62ch] text-base leading-7 text-gray-700 sm:text-lg sm:leading-8">
+          {summary}
+        </p>
+      ) : null}
       <p className="mt-3 text-xs leading-5 text-gray-500">
         Interpretazione da verificare da parte del coach, non un fatto
         accertato.
@@ -97,14 +105,9 @@ export function SessionHeroInsight({
           la ragione principale per cui l'eroe non sembrava un eroe. */}
       <div
         className={`mt-6 grid gap-5 border-t border-gray-200/80 pt-5 ${
-          emergingResource ? 'sm:grid-cols-3' : 'sm:grid-cols-2'
+          emergingResource ? 'sm:grid-cols-2' : ''
         }`}
       >
-        <SupportingFact
-          label="Problema centrale"
-          value={centralTheme?.text ?? 'Dato non disponibile'}
-          note="Tema emerso dalla conversazione; non è una diagnosi."
-        />
         <SupportingFact
           label="Prossimo passo suggerito"
           value={nextStep?.text ?? 'Dato non disponibile'}
