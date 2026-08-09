@@ -10,6 +10,11 @@ import type {
 } from '@/lib/core/ai-session-notes/session-compass-contract';
 import { SESSION_METRIC_KEYS } from '@/lib/core/ai-session-notes/session-compass-contract';
 import { METRIC_META, metricValueLabel } from './metric-model';
+import {
+  buildMetricTrend,
+  metricTrendLabel,
+  type MetricTrend,
+} from '@/lib/core/ai-session-notes/metric-trend';
 import { SectionHeading, Surface } from './ui';
 import { PortraitDecor } from './decor';
 
@@ -57,14 +62,65 @@ export function orderSessionMetrics(metrics: readonly SessionMetric[]): SessionM
  * nessuna percentuale. Una metrica senza evidenza non esiste nel report, e
  * quindi non compare — non viene mai resa come zero.
  */
+/**
+ * Il mini grafico dell'andamento.
+ *
+ * Compare solo quando ci sono almeno tre sessioni con quella metrica: con
+ * due punti una linea non e' una tendenza, e disegnarla suggerirebbe una
+ * precisione che il dato non ha.
+ */
+function MetricSparkline({
+  trend,
+  color,
+  label,
+}: {
+  trend: MetricTrend;
+  color: string;
+  label: string;
+}) {
+  return (
+    <div className="mt-2 flex items-end justify-between gap-2">
+      <p className="min-w-0 text-xs font-semibold text-gray-600">
+        {metricTrendLabel(trend)}
+      </p>
+      <svg
+        viewBox="0 0 100 40"
+        preserveAspectRatio="none"
+        className="h-8 w-20 shrink-0 overflow-visible"
+        role="img"
+        aria-label={`${label}: ${metricTrendLabel(trend).toLowerCase()} su ${trend.values.length} sessioni`}
+      >
+        <polyline
+          points={trend.polyline
+            .split(' ')
+            .map((pair) => {
+              const [x, y] = pair.split(',');
+              return `${x},${(Number(y) * 0.4).toFixed(1)}`;
+            })
+            .join(' ')}
+          fill="none"
+          stroke={color}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+    </div>
+  );
+}
+
 export function SessionIndicators({
   metrics,
+  metricHistory,
   tone,
   isApproved,
   onOpenEvidence,
   className = '',
 }: {
   metrics: readonly SessionMetric[];
+  /** Valori della stessa metrica nelle sessioni approvate, in ordine. */
+  metricHistory?: Readonly<Record<string, readonly number[]>>;
   tone: ConversationTone | null | undefined;
   isApproved: boolean;
   onOpenEvidence: (segmentId: number) => void;
@@ -120,6 +176,15 @@ export function SessionIndicators({
                     Evidenza {evidenceLevel(metric.confidence)} · {evidenceOrigin(metric.evidence.speaker)}
                   </p>
                   <p className="mt-0.5 text-xs font-semibold text-gray-700">{validation}</p>
+                  {(() => {
+                    const history = metricHistory?.[metric.key] ?? [];
+                    const trend = buildMetricTrend(
+                      history.map((value, index) => ({ sessionId: index, value }))
+                    );
+                    return trend ? (
+                      <MetricSparkline trend={trend} color={meta.color} label={meta.label} />
+                    ) : null;
+                  })()}
                 </button>
               </li>
             );

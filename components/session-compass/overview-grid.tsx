@@ -77,6 +77,17 @@ export function SessionOverview({
     .sort((a, b) => Date.parse(a.sessionDate ?? '') - Date.parse(b.sessionDate ?? ''))
     .map((entry) => entry.sessionId);
 
+  // Storico per metrica, in ordine cronologico: e' cio' che alimenta le
+  // sparkline dei riquadri. Solo sessioni approvate, come il grafico grande.
+  const metricHistory = [...(journey?.timeline ?? [])]
+    .sort((a, b) => Date.parse(a.sessionDate ?? '') - Date.parse(b.sessionDate ?? ''))
+    .reduce<Record<string, number[]>>((history, entry) => {
+      for (const metric of entry.metrics ?? []) {
+        (history[metric.key] ??= []).push(metric.value);
+      }
+      return history;
+    }, {});
+
   const hasTrend = hasComparableMetricTrend({
     journey: journey ?? null,
     report,
@@ -224,6 +235,7 @@ export function SessionOverview({
             {(overview.metrics?.length ?? 0) > 5 || overview.conversationTone ? (
               <SessionIndicators
                 metrics={orderSessionMetrics(overview.metrics ?? []).slice(5)}
+                metricHistory={metricHistory}
                 tone={overview.conversationTone}
                 isApproved={isApproved}
                 onOpenEvidence={onOpenEvidence}
