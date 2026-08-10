@@ -14,6 +14,7 @@ import {
   date,
   uuid,
   real,
+  pgView,
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
@@ -2459,6 +2460,21 @@ export const userOnboarding = pgTable('user_onboarding', {
 
 export type UserOnboarding = typeof userOnboarding.$inferSelect;
 export type NewUserOnboarding = typeof userOnboarding.$inferInsert;
+
+/**
+ * Aggregati pubblici mostrati nella hero della landing. La vista e' definita
+ * nella migrazione 0051 (`landing_stats`): qui la dichiariamo solo come
+ * `.existing()` per poterla interrogare in modo tipato, senza che Drizzle
+ * provi a gestirne il DDL.
+ */
+export const landingStats = pgView('landing_stats', {
+  coaches: integer('coaches').notNull(),
+  athletes: integer('athletes').notNull(),
+  sessions: integer('sessions').notNull(),
+  coachingHours: integer('coaching_hours').notNull(),
+}).existing();
+
+export type LandingStats = typeof landingStats.$inferSelect;
 
 // --- Types ---
 

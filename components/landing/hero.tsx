@@ -1,21 +1,17 @@
 import Link from 'next/link';
-import { ArrowRight, BadgeCheck, Lock, ShieldCheck } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { Reveal } from './reveal';
 import { ImageSlot } from './image-slot';
 import { VideoCta } from './video-cta';
 import { ParallaxGroup, ParallaxLayer, AnimatedHeadline } from './hero-fx';
 import { Synapses } from './synapses';
+import { LiveStats } from './live-stats';
+import type { LandingStats } from '@/lib/db/schema';
 
 const SIDE_STATS = [
   { label: 'Concentrazione', value: '+28%', float: 'kp-float' },
   { label: 'Resilienza', value: '+35%', float: 'kp-float-slow' },
   { label: 'Gestione stress', value: '+42%', float: 'kp-float' },
-];
-
-const TRUST = [
-  { icon: ShieldCheck, label: 'Guide certificate KaiPai' },
-  { icon: BadgeCheck, label: 'Metodo scientifico' },
-  { icon: Lock, label: 'Pensato anche per gli under 18' },
 ];
 
 /**
@@ -25,7 +21,7 @@ const TRUST = [
  * `public/hero-athlete.jpg`; until then the slot shows an elegant dark
  * placeholder with the glow, never a broken frame.
  */
-export function Hero() {
+export function Hero({ stats }: { stats: LandingStats }) {
   return (
     <section className="kp-snap kp-grain relative min-h-[100svh] overflow-hidden">
       <ParallaxGroup className="absolute inset-0">
@@ -120,23 +116,13 @@ export function Hero() {
           </Reveal>
         </div>
 
-        {/* "Watch the video" widget (left) beside the trust badges */}
+        {/* "Watch the video" widget (left) accanto ai numeri reali */}
         <Reveal
           delay={0.35}
           className="mt-8 flex flex-col gap-6 lg:mt-10 lg:flex-row lg:items-center lg:gap-8"
         >
           <VideoCta />
-          <div className="flex flex-wrap items-center gap-x-7 gap-y-3">
-            {TRUST.map((t) => (
-              <span
-                key={t.label}
-                className="inline-flex items-center gap-2 text-sm text-kp-mid"
-              >
-                <t.icon className="h-4 w-4 text-kp-red" />
-                {t.label}
-              </span>
-            ))}
-          </div>
+          <LiveStats stats={stats} />
         </Reveal>
       </div>
 

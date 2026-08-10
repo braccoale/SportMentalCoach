@@ -37,6 +37,7 @@ import { Reveal } from '@/components/landing/reveal';
 import { CountUp } from '@/components/landing/count-up';
 import { ImageSlot, AvatarSlot } from '@/components/landing/image-slot';
 import { CookieSettingsButton } from '@/components/google-analytics';
+import { getLandingStats } from '@/lib/db/landing-stats';
 
 /** First-letter monogram from a display name (drops trailing ", 17 anni" etc). */
 function initials(name: string) {
@@ -90,7 +91,14 @@ const SECTION =
 const WRAP = 'mx-auto max-w-7xl px-5 sm:px-8';
 
 /* ── page ── */
-export default function KaiPaiLanding() {
+/**
+ * I numeri della hero sono letti dal database a ogni render, con una cache di
+ * un minuto lato `getLandingStats`. Non serve marcare la pagina come dinamica:
+ * `unstable_cache` la lascia riutilizzabile e la mantiene comunque aggiornata.
+ */
+export default async function KaiPaiLanding() {
+  const stats = await getLandingStats();
+
   return (
     <main className="relative overflow-x-clip">
       <SnapScroll />
@@ -98,7 +106,7 @@ export default function KaiPaiLanding() {
       <RevealProvider />
       <SiteNav />
 
-      <Hero />
+      <Hero stats={stats} />
 
       <EcosystemAthlete />
       <WhyNow />

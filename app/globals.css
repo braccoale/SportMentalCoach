@@ -538,6 +538,110 @@
   }
 }
 
+/*
+  ---break---
+  Live stats — i numeri reali della piattaforma nella hero. Ogni tessera ha un
+  anello che si disegna una volta sola all'ingresso, un alone rosso che ruota
+  piano sotto l'icona e una lucidatura che attraversa il vetro all'hover.
+*/
+@keyframes kpGaugeDraw {
+  from {
+    stroke-dashoffset: var(--kp-gauge-len, 151);
+  }
+  to {
+    stroke-dashoffset: var(--kp-gauge-off, 38);
+  }
+}
+.kp-gauge-arc {
+  stroke-dasharray: var(--kp-gauge-len, 151);
+  stroke-dashoffset: var(--kp-gauge-off, 38);
+  animation: kpGaugeDraw 1.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--kp-gauge-delay, 0s);
+}
+@keyframes kpOrbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.kp-stat-orbit {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(225, 29, 42, 0.55) 60deg,
+    transparent 140deg
+  );
+  filter: blur(7px);
+  animation: kpOrbit 6s linear infinite;
+  animation-delay: var(--kp-gauge-delay, 0s);
+}
+.kp-stat {
+  position: relative;
+  overflow: hidden;
+  transition:
+    border-color 0.35s ease,
+    box-shadow 0.35s ease,
+    transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.kp-stat::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.09) 50%,
+    transparent 65%
+  );
+  transform: translateX(-120%);
+  transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.kp-stat:hover {
+  transform: translateY(-4px);
+  border-color: rgba(225, 29, 42, 0.45);
+  box-shadow:
+    0 26px 60px rgba(0, 0, 0, 0.55),
+    0 0 44px rgba(225, 29, 42, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+.kp-stat:hover::after {
+  transform: translateX(120%);
+}
+/* Puntino "dati in tempo reale": un battito lento, non un allarme. */
+@keyframes kpLiveBeat {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+.kp-live-dot::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: var(--color-kp-red);
+  animation: kpLiveBeat 2.4s ease-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kp-gauge-arc,
+  .kp-stat-orbit,
+  .kp-live-dot::before {
+    animation: none;
+  }
+  .kp-stat,
+  .kp-stat::after {
+    transition: none;
+  }
+  .kp-stat-orbit {
+    opacity: 0.4;
+  }
+}
+
 /* LiveKit chat panel: guarantee a usable width inside our rounded container
    (the grid otherwise squeezes it on narrow layouts). */
 [data-lk-theme] .lk-chat {
