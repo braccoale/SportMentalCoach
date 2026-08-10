@@ -3,7 +3,6 @@
 import {
   type MouseEvent,
   type ReactNode,
-  type RefObject,
   useCallback,
   useEffect,
   useMemo,
@@ -44,17 +43,9 @@ type TechnicalEventHandler = (
 ) => void;
 
 type PictureInPictureVideo = HTMLVideoElement & {
-  autoPictureInPicture?: boolean;
   webkitSupportsPresentationMode?: (mode: string) => boolean;
   webkitSetPresentationMode?: (mode: string) => void;
   webkitPresentationMode?: string;
-};
-
-type AutomaticPictureInPictureMediaSession = {
-  setActionHandler: (
-    action: 'enterpictureinpicture',
-    handler: (() => void) | null
-  ) => void;
 };
 
 function WaitingCameraPreview({
@@ -201,20 +192,37 @@ export function RoomFullscreenControl() {
  * elemento in gioco mentre si insegue un difetto su un altro dispositivo
  * aggiunge solo una variabile.
  */
-function PictureInPictureSource({
-  videoRef,
-}: {
-  videoRef: RefObject<PictureInPictureVideo | null>;
-}) {
+/**
+ * Il video del partecipante remoto già a schermo.
+ *
+ * Prima il mini video attaccava la traccia remota a un *secondo* elemento
+ * nascosto di un pixel. Era la scelta sbagliata: la stanza gira con
+ * `adaptiveStream: true`, e LiveKit decide qualità e sospensione di una
+ * traccia guardando dimensione e visibilità degli elementi a cui è attaccata.
+ * Un elemento da 1×1 con opacità zero è, per quella logica, un video che
+ * nessuno sta guardando — e quando entra in Picture-in-Picture sparisce anche
+ * dal flusso della pagina. Da lì il video remoto si degrada o si ferma, e chi
+ * è in chiamata vede semplicemente cadere la chiamata.
+ *
+ * Qui non si duplica niente: si usa l'elemento che LiveKit sta già mostrando
+ * nel riquadro del partecipante. Nessun secondo attacco, nessun elemento
+ * invisibile a confondere lo stream adattivo.
+ */
+function remoteCameraVideoElement(): PictureInPictureVideo | null {
+  if (typeof document === 'undefined') return null;
+  const candidates = Array.from(
+    document.querySelectorAll<PictureInPictureVideo>(
+      'video[data-lk-source="camera"]'
+    )
+  ).filter(
+    (video) => video.getAttribute('data-lk-local-participant') !== 'true'
+  );
+  // Il più grande a schermo è quello che la persona sta guardando: in griglia
+  // ce n'è più di uno.
   return (
-    <video
-      ref={videoRef}
-      autoPlay
-      playsInline
-      muted
-      className="pointer-events-none fixed bottom-0 right-0 h-px w-px opacity-0"
-      aria-hidden="true"
-    />
+    candidates.sort(
+      (a, b) => b.clientWidth * b.clientHeight - a.clientWidth * a.clientHeight
+    )[0] ?? null
   );
 }
 
@@ -224,8 +232,6 @@ export function PictureInPictureControl({
   onTechnicalEvent?: TechnicalEventHandler;
 }) {
   const participants = useRemoteParticipants();
-  const videoRef = useRef<PictureInPictureVideo>(null);
-  const automaticPictureInPicture = useRef(false);
   const [active, setActive] = useState(false);
   /** Il browser ha rifiutato: va detto, altrimenti sembra un pulsante rotto. */
   const [failure, setFailure] = useState<string | null>(null);
@@ -239,121 +245,72 @@ export function PictureInPictureControl({
     return undefined;
   }, [participants]);
 
+  /*
+   * Lo stato del mini video si segue dagli eventi del documento, non da un
+   * elemento nostro: l'elemento appartiene a LiveKit e può essere rimontato
+   * quando la disposizione dei riquadri cambia.
+   */
   useEffect(() => {
-    const element = videoRef.current;
-    if (!element || !cameraTrack) return;
-    cameraTrack.attach(element);
-    return () => {
-      cameraTrack.detach(element);
-    };
-  }, [cameraTrack]);
-
-  useEffect(() => {
-    const element = videoRef.current;
-    if (!element) return;
-    const entered = () => {
+    const entered = (event: Event) => {
+      if (!(event.target as HTMLElement)?.matches?.('video')) return;
       setActive(true);
       onTechnicalEvent?.('picture_in_picture_started');
     };
-    const left = () => {
+    const left = (event: Event) => {
+      if (!(event.target as HTMLElement)?.matches?.('video')) return;
       setActive(false);
-      automaticPictureInPicture.current = false;
       onTechnicalEvent?.('picture_in_picture_stopped');
     };
-    element.addEventListener('enterpictureinpicture', entered);
-    element.addEventListener('leavepictureinpicture', left);
+    // In cattura: questi eventi non risalgono il DOM.
+    document.addEventListener('enterpictureinpicture', entered, true);
+    document.addEventListener('leavepictureinpicture', left, true);
     return () => {
-      element.removeEventListener('enterpictureinpicture', entered);
-      element.removeEventListener('leavepictureinpicture', left);
+      document.removeEventListener('enterpictureinpicture', entered, true);
+      document.removeEventListener('leavepictureinpicture', left, true);
     };
   }, [onTechnicalEvent]);
 
-  useEffect(() => {
-    const element = videoRef.current;
-    if (
-      !element ||
-      !cameraTrack ||
-      !standardPictureInPictureSupported() ||
-      !('mediaSession' in navigator)
-    ) {
-      return;
-    }
-
-    const mediaSession = navigator.mediaSession as unknown as
-      AutomaticPictureInPictureMediaSession;
-    const enterAutomatically = () => {
-      const video = videoRef.current;
-      if (!video || document.pictureInPictureElement) return;
-      void video
-        .requestPictureInPicture()
-        .then(() => {
-          automaticPictureInPicture.current = true;
-        })
-        .catch((error) => {
-          console.info(
-            '[LiveKit] Automatic Picture-in-Picture not allowed',
-            error
-          );
-        });
-    };
-    const closeWhenVisible = () => {
-      if (
-        document.visibilityState === 'visible' &&
-        automaticPictureInPicture.current &&
-        document.pictureInPictureElement === element
-      ) {
-        void document.exitPictureInPicture().catch(() => {});
-      }
-    };
-
-    try {
-      element.autoPictureInPicture = true;
-      mediaSession.setActionHandler(
-        'enterpictureinpicture',
-        enterAutomatically
-      );
-    } catch {
-      element.autoPictureInPicture = false;
-      return;
-    }
-    document.addEventListener('visibilitychange', closeWhenVisible);
-    return () => {
-      element.autoPictureInPicture = false;
-      document.removeEventListener(
-        'visibilitychange',
-        closeWhenVisible
-      );
-      try {
-        mediaSession.setActionHandler('enterpictureinpicture', null);
-      } catch {
-        // The browser removed support while the page was active.
-      }
-    };
-  }, [cameraTrack]);
-
   /**
-   * Se *questo* elemento può entrare in mini video con l'API di WebKit.
+   * Se il browser sa fare il mini video, misurato sull'elemento vero.
    *
-   * Si misura sull'elemento e non sul prototipo, perché
-   * `webkitSetPresentationMode` esiste comunque mentre
-   * `webkitSupportsPresentationMode('picture-in-picture')` risponde per il
-   * video che ha davanti — e prima che gli sia stata attaccata una sorgente
-   * risponde di no. Per questo viene rivalutato all'arrivo della traccia.
+   * `webkitSupportsPresentationMode` risponde per il video che ha davanti, e
+   * prima che gli sia stata attaccata una sorgente risponde di no: va
+   * rivalutato quando arriva la traccia, e l'elemento compare solo quando
+   * LiveKit ha reso il riquadro.
    */
-  const [webkitCapable, setWebkitCapable] = useState(false);
+  const [supported, setSupported] = useState(false);
   useEffect(() => {
-    const element = videoRef.current;
-    setWebkitCapable(
-      typeof element?.webkitSupportsPresentationMode === 'function' &&
-        element.webkitSupportsPresentationMode('picture-in-picture')
-    );
+    if (!cameraTrack) {
+      setSupported(false);
+      return;
+    }
+    const check = () => {
+      const element = remoteCameraVideoElement();
+      if (!element) return false;
+      const webkitCapable =
+        typeof element.webkitSupportsPresentationMode === 'function' &&
+        element.webkitSupportsPresentationMode('picture-in-picture');
+      setSupported(webkitCapable || standardPictureInPictureSupported());
+      return true;
+    };
+    if (check()) return;
+    const timer = setInterval(() => {
+      if (check()) clearInterval(timer);
+    }, 500);
+    const stop = setTimeout(() => clearInterval(timer), 5_000);
+    return () => {
+      clearInterval(timer);
+      clearTimeout(stop);
+    };
   }, [cameraTrack]);
-
-  const supported = webkitCapable || standardPictureInPictureSupported();
 
   const toggle = async () => {
-    const element = videoRef.current;
-    if (!element || !cameraTrack) return;
+    const element = remoteCameraVideoElement();
+    if (!element) {
+      setFailure('Il mini video sarà disponibile quando arriva il video.');
+      return;
+    }
+    setFailure(null);
     try {
       /*
        * WebKit ha la precedenza dove è disponibile, anche quando l'API
@@ -361,34 +318,29 @@ export function PictureInPictureControl({
        *
        * Su iPhone `document.pictureInPictureEnabled` dice di sì, ma
        * `requestPictureInPicture()` su un video alimentato da uno stream
-       * WebRTC risponde `NotSupportedError: The video element does not
-       * support the Picture-in-Picture mode`. La via che funziona lì è
-       * `webkitSetPresentationMode`, ed è anche quella che Safari desktop
-       * usa da sempre.
+       * WebRTC risponde `NotSupportedError`. La via che funziona lì è
+       * `webkitSetPresentationMode`, ed è anche quella che Safari desktop usa
+       * da sempre.
        *
-       * Va chiamata senza nessun `await` davanti: su Safari un'attesa
-       * consuma il gesto dell'utente, e la richiesta verrebbe ignorata.
+       * Va chiamata senza nessun `await` davanti: su Safari un'attesa consuma
+       * il gesto dell'utente, e la richiesta verrebbe ignorata.
        */
-      if (webkitCapable) {
-        if (typeof element.webkitSetPresentationMode !== 'function') {
-          setFailure('Il mini video non è disponibile in questo browser.');
-          return;
-        }
+      if (
+        typeof element.webkitSupportsPresentationMode === 'function' &&
+        element.webkitSupportsPresentationMode('picture-in-picture') &&
+        typeof element.webkitSetPresentationMode === 'function'
+      ) {
         const nextMode =
           element.webkitPresentationMode === 'picture-in-picture'
             ? 'inline'
             : 'picture-in-picture';
         element.webkitSetPresentationMode(nextMode);
         setActive(nextMode === 'picture-in-picture');
-        onTechnicalEvent?.(
-          nextMode === 'picture-in-picture'
-            ? 'picture_in_picture_started'
-            : 'picture_in_picture_stopped'
-        );
         // WebKit non lancia se rifiuta: si controlla l'esito.
         setTimeout(() => {
           const applied =
-            videoRef.current?.webkitPresentationMode === 'picture-in-picture';
+            remoteCameraVideoElement()?.webkitPresentationMode ===
+            'picture-in-picture';
           if (nextMode === 'picture-in-picture' && !applied) {
             setActive(false);
             setFailure('Il mini video non è disponibile in questo browser.');
@@ -396,17 +348,6 @@ export function PictureInPictureControl({
         }, 800);
         return;
       }
-
-      // Percorso standard: qui gli `await` sono ammessi, e un elemento fermo
-      // verrebbe rifiutato.
-      if (element.readyState === 0) {
-        await new Promise<void>((resolve) => {
-          const done = () => resolve();
-          element.addEventListener('loadeddata', done, { once: true });
-          setTimeout(done, 1500);
-        });
-      }
-      if (element.paused) await element.play().catch(() => {});
 
       if (document.pictureInPictureElement) {
         await document.exitPictureInPicture();
@@ -418,39 +359,14 @@ export function PictureInPictureControl({
       // chiamata serve sapere che quella strada è chiusa, non il nome
       // dell'eccezione in mezzo al video.
       console.warn('[LiveKit] Picture-in-Picture unavailable', error);
-
-      // Ultimo tentativo: dove l'API standard si dichiara disponibile ma
-      // rifiuta un video WebRTC, quella di WebKit a volte funziona lo stesso.
-      // Il gesto dell'utente potrebbe essersi già consumato, quindi può non
-      // bastare — ma un tentativo in più non toglie nulla a chi è in chiamata.
-      const element = videoRef.current;
-      if (typeof element?.webkitSetPresentationMode === 'function') {
-        try {
-          element.webkitSetPresentationMode('picture-in-picture');
-          if (
-            element.webkitPresentationMode === 'picture-in-picture'
-          ) {
-            setActive(true);
-            onTechnicalEvent?.('picture_in_picture_started');
-            return;
-          }
-        } catch {
-          // Nessun rimedio: sotto si avvisa e basta.
-        }
-      }
       setFailure('Il mini video non è disponibile in questo browser.');
     }
   };
 
-  if (!supported) {
-    // Il video resta nel DOM anche senza pulsante: è ciò su cui si misura il
-    // supporto, e senza elemento la misura direbbe sempre di no.
-    return <PictureInPictureSource videoRef={videoRef} />;
-  }
+  if (!supported) return null;
 
   return (
     <>
-      <PictureInPictureSource videoRef={videoRef} />
       <button
         type="button"
         onClick={toggle}

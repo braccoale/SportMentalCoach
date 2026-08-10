@@ -87,6 +87,13 @@ export type PushPayload = {
   body?: string;
   url?: string;
   tag?: string;
+  /**
+   * La notifica resta finché non la si tocca, invece di sparire da sola.
+   * Ha senso per una chiamata in corso, non per un avviso qualunque.
+   */
+  requireInteraction?: boolean;
+  /** Schema di vibrazione, in millisecondi: vibra/pausa/vibra… */
+  vibrate?: number[];
 };
 
 /**

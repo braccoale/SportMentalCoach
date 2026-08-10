@@ -642,6 +642,46 @@
   }
 }
 
+/*
+  ---break---
+  Barra dei controlli chiamata su schermi stretti.
+
+  Il prefab LiveKit dispone i pulsanti su una riga sola, centrata, senza
+  possibilità di andare a capo né di scorrere. Su un telefono microfono,
+  videocamera (ciascuno con il suo menù a lato), condivisione schermo, chat,
+  impostazioni e chiusura non ci stanno: la riga sfora, e siccome è centrata
+  viene tagliata da entrambi i lati. I pulsanti esistono nel documento ma
+  diventano irraggiungibili — ed è così che la condivisione schermo
+  «spariva» da mobile.
+
+  Non si va a capo di proposito: l'altezza della barra è una variabile su cui
+  è calcolata l'area video (`calc(100% - var(--lk-control-bar-height))`), e
+  farla crescere coprirebbe la chiamata. Si scorre in orizzontale, che tiene
+  l'altezza invariata e rende ogni comando raggiungibile.
+*/
+@media (max-width: 640px) {
+  [data-lk-theme] .lk-control-bar {
+    justify-content: flex-start;
+    gap: 0.375rem;
+    padding: 0.75rem 0.5rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    /* Niente barra di scorrimento visibile: mangerebbe altezza preziosa. */
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  [data-lk-theme] .lk-control-bar::-webkit-scrollbar {
+    display: none;
+  }
+  /* I pulsanti non devono restringersi fino a diventare intoccabili. */
+  [data-lk-theme] .lk-control-bar > * {
+    flex-shrink: 0;
+  }
+  [data-lk-theme] .lk-control-bar .lk-button {
+    padding-inline: 0.75rem;
+  }
+}
+
 /* LiveKit chat panel: guarantee a usable width inside our rounded container
    (the grid otherwise squeezes it on narrow layouts). */
 [data-lk-theme] .lk-chat {

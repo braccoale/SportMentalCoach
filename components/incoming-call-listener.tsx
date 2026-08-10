@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import useSWR from 'swr';
 import { PhoneCall, Video, X } from 'lucide-react';
 import { fetcher } from '@/lib/fetcher';
+import { startRingtone } from '@/lib/core/call-ringtone';
 import type { User } from '@/lib/db/schema';
 
 // Read at build time; empty when Supabase Realtime is not configured.
@@ -107,6 +108,20 @@ export function IncomingCallListener() {
     if (!call) return;
     const t = setTimeout(() => setCall(null), 45_000);
     return () => clearTimeout(t);
+  }, [call]);
+
+  /*
+   * Suona finché il popup è a schermo.
+   *
+   * Legato al ciclo di vita del popup e non ai singoli pulsanti: qualunque
+   * sia il motivo per cui sparisce — accettata, ignorata, scaduta, si entra
+   * nella stanza — il suono si ferma con lui. Un modo solo per smettere
+   * significa nessun modo per dimenticarsene.
+   */
+  useEffect(() => {
+    if (!call) return;
+    const ringtone = startRingtone();
+    return () => ringtone.stop();
   }, [call]);
 
   if (!call || inVideoRoom) return null;

@@ -28,6 +28,26 @@ export function StartCallSignal({
   serviceTitle: string | null;
   scheduledFor: string | null;
 }) {
+  /*
+   * Il telefono dell'altro, anche con l'app chiusa.
+   *
+   * Il broadcast qui sotto raggiunge solo chi ha KaiPai aperto in questo
+   * momento; la notifica push e' l'unico canale che attraversa un'app chiusa.
+   * Sono due strade separate di proposito: se Supabase Realtime non e'
+   * configurato il popup non parte, ma lo squillo deve partire lo stesso.
+   */
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`/api/video/${bookingId}/ring`, {
+      method: 'POST',
+      signal: controller.signal,
+    }).catch(() => {
+      // Best effort: chi entra in stanza non deve vedere un errore perche'
+      // il servizio push non ha risposto.
+    });
+    return () => controller.abort();
+  }, [bookingId]);
+
   useEffect(() => {
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
     const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);

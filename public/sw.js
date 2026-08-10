@@ -26,6 +26,13 @@ self.addEventListener('push', (event) => {
     badge: '/icon-192.png',
     tag: data.tag || undefined,
     data: { url: data.url || '/dashboard' },
+    // Una chiamata in corso resta finché non la si guarda e vibra come tale;
+    // gli altri avvisi mantengono il comportamento discreto di sempre.
+    requireInteraction: data.requireInteraction === true,
+    vibrate: Array.isArray(data.vibrate) ? data.vibrate : undefined,
+    // Con un `tag` ripetuto, il browser di default sostituisce la notifica in
+    // silenzio: qui vogliamo che il secondo squillo si faccia sentire.
+    renotify: Boolean(data.tag) && data.requireInteraction === true,
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
