@@ -37,6 +37,7 @@ import { Reveal } from '@/components/landing/reveal';
 import { CountUp } from '@/components/landing/count-up';
 import { ImageSlot, AvatarSlot } from '@/components/landing/image-slot';
 import { CookieSettingsButton } from '@/components/google-analytics';
+import { FooterLinks } from '@/components/landing/footer-links';
 import { getLandingStats } from '@/lib/db/landing-stats';
 
 /** First-letter monogram from a display name (drops trailing ", 17 anni" etc). */
@@ -1157,12 +1158,6 @@ function FinalCta() {
 
 /* ── Footer ── */
 function SiteFooter() {
-  const cols = [
-    { h: 'Inizia', links: ['Trova la tua guida', 'Come funziona', 'Prezzi'] },
-    { h: 'Metodo', links: ['I 4 muscoli', 'Academy', 'Ricerca'] },
-    { h: 'Per chi', links: ['Atleti', 'Famiglie', 'Coach', 'Società'] },
-    { h: 'Azienda', links: ['Origine', 'Movimento', 'Contatti'] },
-  ];
   return (
     <footer className="kp-snap-end border-t border-kp-line bg-kp-ink">
       <div className={`${WRAP} py-16`}>
@@ -1193,20 +1188,7 @@ function SiteFooter() {
               <p>Genova, Italia</p>
             </div>
           </div>
-          {cols.map((c) => (
-            <div key={c.h}>
-              <p className="kp-eyebrow text-kp-low">{c.h}</p>
-              <ul className="mt-4 space-y-2.5">
-                {c.links.map((l) => (
-                  <li key={l}>
-                    <span className="cursor-pointer text-sm text-kp-mid transition-colors hover:text-kp-hi">
-                      {l}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          <FooterLinks />
         </div>
         <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t border-kp-line pt-6 text-sm text-kp-low sm:flex-row">
           <p>© {new Date().getFullYear()} KaiPai. Tutti i diritti riservati.</p>

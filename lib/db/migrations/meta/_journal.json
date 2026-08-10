@@ -365,6 +365,13 @@
       "when": 1787058900000,
       "tag": "0051_landing-stats-view",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1787062500000,
+      "tag": "0052_contact-messages",
+      "breakpoints": true
     }
   ]
 }

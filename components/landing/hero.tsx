@@ -79,12 +79,15 @@ export function Hero({ stats }: { stats: LandingStats }) {
       {/* Content */}
       <div className="pointer-events-none relative z-10 mx-auto flex min-h-[100svh] max-w-7xl flex-col justify-center px-5 pb-16 pt-24 sm:px-8 [&_a]:pointer-events-auto [&_button]:pointer-events-auto">
         <div className="max-w-xl">
+          {/* Il logo era alto 22rem e spingeva il titolo a metà schermo. Ora
+              è dimensionato per lasciare il titolo nella parte alta della
+              hero, che è quello che si deve leggere per primo. */}
           <img
             src="/logo-transparent-clean.png"
             alt="KaiPai — Mental Coaching"
             width={626}
             height={178}
-            className="mb-6 h-64 w-auto sm:h-[22rem]"
+            className="mb-4 h-40 w-auto sm:h-56"
           />
           <AnimatedHeadline />
 
@@ -95,33 +98,33 @@ export function Hero({ stats }: { stats: LandingStats }) {
               di sé — attraverso lo sport, con un metodo e una guida al fianco.
             </p>
           </Reveal>
-
-          <Reveal delay={0.25} className="mt-9">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Link
-                href="/coaches"
-                className="kp-cta group inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 font-semibold text-white"
-              >
-                Inizia il tuo percorso
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Link>
-              <a
-                href="#metodo"
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-kp-line px-6 py-3.5 font-medium text-kp-hi backdrop-blur-sm transition-colors hover:border-kp-hi/30"
-              >
-                Scopri il Metodo
-                <ArrowRight className="h-4 w-4" />
-              </a>
-            </div>
-          </Reveal>
         </div>
 
-        {/* "Watch the video" widget (left) accanto ai numeri reali */}
-        <Reveal
-          delay={0.35}
-          className="mt-8 flex flex-col gap-6 lg:mt-10 lg:flex-row lg:items-center lg:gap-8"
-        >
-          <VideoCta />
+        {/* Riga d'azione: le due CTA e il video stanno sulla stessa linea, così
+            la riga esce dal `max-w-xl` del blocco testo per avere spazio. */}
+        <Reveal delay={0.25} className="mt-9 max-w-3xl">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Link
+              href="/coaches"
+              className="kp-cta group inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 font-semibold text-white"
+            >
+              Inizia il tuo percorso
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+            <a
+              href="#metodo"
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-kp-line px-6 py-3.5 font-medium text-kp-hi backdrop-blur-sm transition-colors hover:border-kp-hi/30"
+            >
+              Scopri il Metodo
+              <ArrowRight className="h-4 w-4" />
+            </a>
+            <VideoCta />
+          </div>
+        </Reveal>
+
+        {/* I numeri reali, sotto la riga d'azione. Ritardo corto: sono
+            contenuto della prima schermata, non una sorpresa da scoprire. */}
+        <Reveal delay={0.1} className="mt-8 lg:mt-10">
           <LiveStats stats={stats} />
         </Reveal>
       </div>

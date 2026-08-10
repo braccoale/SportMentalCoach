@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import useSWR from 'swr';
 import { SignInModal } from './sign-in-modal';
+import { ContactModal } from './contact-modal';
 import { UserMenu } from '@/components/user-menu';
 import { UserAvatar } from '@/components/user-avatar';
 import { NotificationBell } from '@/components/notification-bell';
@@ -20,6 +21,9 @@ const LINKS = [
   { href: '#visione', label: 'Visione' },
   { href: '/coaches', label: 'Coach' },
 ];
+
+const linkCls =
+  'kp-link-wipe text-base font-medium text-kp-mid transition-colors hover:text-kp-hi';
 
 function Logo() {
   return (
@@ -39,6 +43,7 @@ export function SiteNav() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | null>(null);
+  const [contactOpen, setContactOpen] = useState(false);
   const router = useRouter();
   // Shared auth state (root layout seeds `/api/user` into SWR).
   const { data: user } = useSWR<SessionUser | null>('/api/user', fetcher);
@@ -71,14 +76,19 @@ export function SiteNav() {
 
         <div className="hidden items-center gap-8 lg:flex">
           {LINKS.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="kp-link-wipe text-base font-medium text-kp-mid transition-colors hover:text-kp-hi"
-            >
+            <Link key={l.href} href={l.href} className={linkCls}>
               {l.label}
             </Link>
           ))}
+          {/* Contatti apre il form invece di puntare a una pagina: la
+              richiesta si scrive senza perdere il punto in cui si era. */}
+          <button
+            type="button"
+            onClick={() => setContactOpen(true)}
+            className={linkCls}
+          >
+            Contatti
+          </button>
         </div>
 
         <div className="hidden items-center gap-3 lg:flex">
@@ -165,6 +175,16 @@ export function SiteNav() {
               {l.label}
             </Link>
           ))}
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              setContactOpen(true);
+            }}
+            className="border-b border-kp-line py-4 text-left font-display text-2xl text-kp-hi"
+          >
+            Contatti
+          </button>
           <div className="mt-6 flex flex-col gap-3">
             {user ? (
               <Link
@@ -199,6 +219,7 @@ export function SiteNav() {
         </div>
       )}
     </header>
+    <ContactModal open={contactOpen} onClose={() => setContactOpen(false)} />
     <SignInModal
       open={authMode === 'signin'}
       onClose={() => setAuthMode(null)}

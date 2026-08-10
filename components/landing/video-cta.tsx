@@ -6,6 +6,10 @@ import { Play, X } from 'lucide-react';
 /**
  * "Guarda il video" widget that opens a popup playing the presentation video
  * (public/kaipai.mp4) instead of scrolling to a section.
+ *
+ * Sits inline in the hero's action row, next to "Scopri il Metodo": same pill
+ * height as the buttons and no floating animation, so the three read as one
+ * line rather than a widget drifting beside them.
  */
 export function VideoCta() {
   const [open, setOpen] = useState(false);
@@ -27,9 +31,9 @@ export function VideoCta() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="kp-glass kp-float-slow group hidden items-center gap-3 rounded-full py-2 pl-2 pr-5 text-left lg:flex"
+        className="kp-glass group hidden shrink-0 items-center gap-3 rounded-full py-1.5 pl-1.5 pr-5 text-left transition-colors hover:border-kp-red/40 lg:flex"
       >
-        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-kp-red text-white transition-transform group-hover:scale-105">
+        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-kp-red text-white transition-transform group-hover:scale-105">
           <Play className="h-4 w-4 fill-current" />
         </span>
         <span className="leading-tight">

@@ -74,6 +74,12 @@ async function sendEmail(input: {
   subject: string;
   html: string;
   text: string;
+  /**
+   * Sovrascrive il reply-to del mittente. Serve al form contatti: chi riceve
+   * la segnalazione deve poter premere "Rispondi" e scrivere alla persona,
+   * non alla casella di sistema.
+   */
+  replyTo?: string | null;
 }): Promise<SendResult> {
   const apiKey = process.env.RESEND_API_KEY;
   const sender = getEmailSender();
@@ -102,7 +108,10 @@ async function sendEmail(input: {
       body: JSON.stringify({
         from: sender.from,
         to: input.to,
-        ...(sender.replyTo ? { reply_to: sender.replyTo } : {}),
+        ...(() => {
+          const replyTo = input.replyTo?.trim() || sender.replyTo;
+          return replyTo ? { reply_to: replyTo } : {};
+        })(),
         subject: input.subject,
         html: input.html,
         text: input.text,
@@ -415,6 +424,81 @@ export async function sendWelcomeEmail(input: {
       bodyText: paragraphs.join('\n\n'),
       action,
       preferencesUrl,
+    }),
+  });
+}
+
+/**
+ * Casella di riferimento KaiPai: e' l'indirizzo pubblicato sul sito, quindi e'
+ * anche il posto dove devono arrivare i messaggi del form contatti.
+ */
+export const CONTACT_INBOX_FALLBACK = 'info@kaipaicoaching.com';
+
+/**
+ * Indirizzo interno a cui arrivano i messaggi del form contatti.
+ *
+ * `CONTACT_INBOX_EMAIL` permette di dirottarli (per esempio su una casella di
+ * staging) senza toccare il codice; in mancanza si usa la casella ufficiale.
+ * Deliberatamente NON si ripiega sul reply-to del mittente di sistema: quello
+ * serve alle notifiche di prodotto e potrebbe puntare altrove.
+ */
+export function getContactInbox(): string {
+  return process.env.CONTACT_INBOX_EMAIL?.trim() || CONTACT_INBOX_FALLBACK;
+}
+
+/**
+ * Notifica interna per un messaggio arrivato dal form contatti.
+ *
+ * Il reply-to punta a chi ha scritto: chi legge in casella preme "Rispondi" e
+ * la conversazione parte, senza copiare indirizzi a mano. Non e' un'email di
+ * notifica di prodotto, quindi non passa dalle preferenze utente: chi scrive
+ * non ha nemmeno un account.
+ */
+export async function sendContactMessageEmail(input: {
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+}): Promise<SendResult> {
+  const to = getContactInbox();
+  const { privacyUrl, baseUrl } = footerUrls();
+  const title = `Nuovo messaggio: ${input.subject}`;
+  const lines = [
+    `Da: ${input.name} <${input.email}>`,
+    `Oggetto: ${input.subject}`,
+    '',
+    input.message,
+  ];
+
+  const bodyHtml = [
+    `<p style="margin:0 0 14px"><strong>${escapeHtml(input.name)}</strong> &lt;${escapeHtml(input.email)}&gt;</p>`,
+    ...splitParagraphs(input.message).map(
+      (paragraph) =>
+        `<p style="margin:0 0 14px">${escapeHtml(paragraph).replaceAll('\n', '<br>')}</p>`
+    ),
+  ].join('\n');
+
+  return sendEmail({
+    to,
+    replyTo: input.email,
+    subject: title,
+    html: wrapEmailHtml({
+      preview: `${input.name}: ${input.subject}`,
+      eyebrow: 'Form contatti',
+      title: escapeHtml(title),
+      bodyHtml,
+      action: null,
+      // Nessun link alle preferenze: non e' una notifica di prodotto.
+      preferencesUrl: null,
+      privacyUrl,
+      baseUrl,
+    }),
+    text: wrapEmailText({
+      eyebrow: 'Form contatti',
+      title,
+      bodyText: lines.join('\n'),
+      action: null,
+      preferencesUrl: null,
     }),
   });
 }

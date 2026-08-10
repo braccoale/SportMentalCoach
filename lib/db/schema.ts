@@ -2462,6 +2462,39 @@ export type UserOnboarding = typeof userOnboarding.$inferSelect;
 export type NewUserOnboarding = typeof userOnboarding.$inferInsert;
 
 /**
+ * Messaggi dal form "Contatti" della landing (migrazione 0052).
+ *
+ * La riga viene scritta prima di provare a mandare la mail: una richiesta di
+ * contatto non deve dipendere dalla salute del provider di posta. Conserva
+ * anche il consenso privacy, il suo momento e la versione dei testi legali
+ * vigenti — un consenso raccolto e non registrato non vale nulla.
+ */
+export const contactMessages = pgTable(
+  'contact_messages',
+  {
+    id: serial('id').primaryKey(),
+    name: varchar('name', { length: 120 }).notNull(),
+    email: varchar('email', { length: 255 }).notNull(),
+    subject: varchar('subject', { length: 160 }).notNull(),
+    message: text('message').notNull(),
+    privacyAccepted: boolean('privacy_accepted').notNull().default(true),
+    privacyAcceptedAt: timestamp('privacy_accepted_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    privacyVersion: varchar('privacy_version', { length: 80 }),
+    /** 'sent' | 'skipped' | 'failed' — esito della notifica interna. */
+    emailStatus: varchar('email_status', { length: 20 }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index('contact_messages_created_at_idx').on(table.createdAt)]
+);
+
+export type ContactMessage = typeof contactMessages.$inferSelect;
+export type NewContactMessage = typeof contactMessages.$inferInsert;
+
+/**
  * Aggregati pubblici mostrati nella hero della landing. La vista e' definita
  * nella migrazione 0051 (`landing_stats`): qui la dichiariamo solo come
  * `.existing()` per poterla interrogare in modo tipato, senza che Drizzle

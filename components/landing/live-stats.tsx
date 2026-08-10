@@ -1,6 +1,5 @@
 import { Clock, Users, UserCheck, Video } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { Reveal } from './reveal';
 import { CountUp } from './count-up';
 import type { LandingStats } from '@/lib/db/schema';
 
@@ -83,11 +82,13 @@ export function LiveStats({ stats }: { stats: LandingStats }) {
         </span>
       </div>
 
+      {/* Niente <Reveal> sulle singole tessere: sono sopra la piega e un
+          secondo blocco di stagger, sommato a quello del contenitore, le
+          teneva invisibili per oltre un secondo dopo l'apertura. Il numero
+          si vede subito, l'anello e il conteggio arrivano sopra. */}
       <div className="grid max-w-2xl grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {items.map((item, i) => (
-          <Reveal key={item.label} delay={0.45 + i * 0.1}>
-            <StatTile item={item} index={i} />
-          </Reveal>
+          <StatTile key={item.label} item={item} index={i} />
         ))}
       </div>
     </div>
@@ -95,7 +96,7 @@ export function LiveStats({ stats }: { stats: LandingStats }) {
 }
 
 function StatTile({ item, index }: { item: Item; index: number }) {
-  const delay = `${0.5 + index * 0.12}s`;
+  const delay = `${0.15 + index * 0.08}s`;
   const Icon = item.icon;
 
   return (
@@ -143,7 +144,7 @@ function StatTile({ item, index }: { item: Item; index: number }) {
 
         <div className="min-w-0">
           <p className="font-display text-2xl font-bold leading-none text-kp-hi sm:text-[1.75rem]">
-            <CountUp to={item.value} duration={1.8} />
+            <CountUp to={item.value} duration={1} />
             {item.suffix && (
               <span className="text-kp-red">{item.suffix}</span>
             )}

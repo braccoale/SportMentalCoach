@@ -1,4 +1,4 @@
-import { CalendarClock, CheckCircle2, Target } from 'lucide-react';
+import { CalendarClock, CheckCircle2, ChevronDown, Target } from 'lucide-react';
 import Link from 'next/link';
 import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
@@ -25,41 +25,64 @@ export function AthleteNextSteps({
   return (
     <section
       id="prossimi-passi"
-      className="rounded-3xl border border-violet-200 bg-white p-6 shadow-sm"
+      className="rounded-3xl border border-violet-200 bg-white shadow-sm"
       aria-labelledby="athlete-next-steps-title"
     >
-      <div className="flex items-start gap-4">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-violet-100">
-          <Target className="h-5 w-5 text-violet-700" />
-        </span>
-        <div>
-          <h2 id="athlete-next-steps-title" className="text-xl font-bold tracking-tight text-gray-950">
-            I tuoi prossimi passi
-          </h2>
-          <p className="mt-1 text-sm text-gray-600">
-            Le azioni concordate con il tuo coach nelle ultime sessioni.
-          </p>
-        </div>
-      </div>
+      {/*
+        Chiusa di default quando c'e' qualcosa in carico: gli impegni aperti
+        portano dentro un form per ognuno, e in cima alla dashboard occupavano
+        piu' spazio di tutto il resto. Il contatore nell'intestazione dice
+        quanti sono senza doverla aprire; un clic la espande.
+        `<details>` nativo: nessun JavaScript, e resta apribile anche senza.
+      */}
+      <details className="group" open={open.length === 0}>
+        <summary className="flex cursor-pointer list-none items-start gap-4 p-6 [&::-webkit-details-marker]:hidden">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-violet-100">
+            <Target className="h-5 w-5 text-violet-700" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2
+              id="athlete-next-steps-title"
+              className="flex flex-wrap items-center gap-2 text-xl font-bold tracking-tight text-gray-950"
+            >
+              I tuoi prossimi passi
+              {open.length ? (
+                <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-semibold text-violet-800">
+                  {open.length} da fare
+                </span>
+              ) : null}
+            </h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Le azioni concordate con il tuo coach nelle ultime sessioni.
+            </p>
+          </div>
+          <ChevronDown
+            aria-hidden
+            className="mt-1 h-5 w-5 shrink-0 text-gray-500 transition-transform group-open:rotate-180"
+          />
+        </summary>
 
-      <ul className="mt-5 space-y-3">
-        {open.map((commitment) => (
-          <CommitmentCard key={commitment.id} commitment={commitment} action={action} />
-        ))}
-      </ul>
-
-      {closed.length ? (
-        <details className="mt-4">
-          <summary className="cursor-pointer text-sm font-medium text-gray-600">
-            Già gestiti ({closed.length})
-          </summary>
-          <ul className="mt-3 space-y-3">
-            {closed.map((commitment) => (
+        <div className="px-6 pb-6">
+          <ul className="space-y-3">
+            {open.map((commitment) => (
               <CommitmentCard key={commitment.id} commitment={commitment} action={action} />
             ))}
           </ul>
-        </details>
-      ) : null}
+
+          {closed.length ? (
+            <details className="mt-4">
+              <summary className="cursor-pointer text-sm font-medium text-gray-600">
+                Già gestiti ({closed.length})
+              </summary>
+              <ul className="mt-3 space-y-3">
+                {closed.map((commitment) => (
+                  <CommitmentCard key={commitment.id} commitment={commitment} action={action} />
+                ))}
+              </ul>
+            </details>
+          ) : null}
+        </div>
+      </details>
     </section>
   );
 }

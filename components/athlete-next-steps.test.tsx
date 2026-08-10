@@ -69,6 +69,33 @@ test('mostra l’esito già dichiarato e nasconde le azioni', () => {
   assert.doesNotMatch(skipped, /name="note"/);
 });
 
+test('parte chiusa quando ci sono impegni in carico, e dice quanti sono', () => {
+  const html = renderToStaticMarkup(
+    <AthleteNextSteps
+      commitments={[commitment({ id: 1 }), commitment({ id: 2 })]}
+      action={noopAction}
+    />
+  );
+
+  // Il <details> esterno non ha `open`: la sezione arriva richiusa.
+  assert.match(html, /<details class="group">/);
+  assert.match(html, /2 da fare/);
+  // Il contenuto resta nel documento: si espande senza un altro caricamento.
+  assert.match(html, /Provare una routine di attivazione/);
+});
+
+test('resta aperta quando non c’è più nulla in carico', () => {
+  const html = renderToStaticMarkup(
+    <AthleteNextSteps
+      commitments={[commitment({ status: 'completed' })]}
+      action={noopAction}
+    />
+  );
+
+  assert.match(html, /<details class="group" open="">/);
+  assert.doesNotMatch(html, /da fare/);
+});
+
 test('gestisce un impegno senza scadenza', () => {
   const html = renderToStaticMarkup(
     <AthleteNextSteps commitments={[commitment({ dueDate: null })]} action={noopAction} />
