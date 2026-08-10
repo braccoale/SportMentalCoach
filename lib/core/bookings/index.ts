@@ -38,6 +38,7 @@ import { notify } from '@/lib/core/notifications';
 import { stopBookingAiNotesRecordings } from '@/lib/core/ai-session-notes/recording';
 import type { LiveKitSessionControl } from '@/lib/core/ai-session-notes/livekit-session-control';
 import {
+  REQUEST_EXPIRY_GRACE_MINUTES,
   REQUEST_RESPONSE_WINDOW_HOURS,
   isSessionJoinable,
 } from '@/lib/core/sessions';
@@ -163,7 +164,10 @@ export async function expireStaleRequests(): Promise<void> {
       and(
         eq(bookings.status, 'requested'),
         sql`(
-          (${bookings.scheduledFor} is not null and ${bookings.scheduledFor} < now())
+          (
+            ${bookings.scheduledFor} is not null
+            and ${bookings.scheduledFor} + (${REQUEST_EXPIRY_GRACE_MINUTES} * interval '1 minute') < now()
+          )
           or ${bookings.requestedAt} < now() - (${REQUEST_RESPONSE_WINDOW_HOURS} * interval '1 hour')
         )`
       )

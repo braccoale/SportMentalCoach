@@ -36,6 +36,23 @@ export const NO_SPEECH_ERROR_CODE = 'NO_SPEECH_DETECTED';
 
 const ACTIVE_JOB_STATUSES = ['queued', 'processing', 'awaiting_provider'];
 
+/**
+ * Il più recente fra due segnali di progresso.
+ *
+ * Il driver del database può restituire la data come stringa: si normalizza
+ * qui una volta sola, invece di scoprirlo con una scadenza calcolata su un
+ * `Invalid Date`.
+ */
+function latestProgress(
+  sessionUpdatedAt: Date,
+  lastJobActivityAt: Date | string | null
+): Date {
+  if (!lastJobActivityAt) return sessionUpdatedAt;
+  const jobMoment = new Date(lastJobActivityAt);
+  if (Number.isNaN(jobMoment.getTime())) return sessionUpdatedAt;
+  return jobMoment > sessionUpdatedAt ? jobMoment : sessionUpdatedAt;
+}
+
 /** Quanto lavoro è ancora vivo per questa sessione. */
 async function activeJobCount(
   sessionId: number,
@@ -109,11 +126,39 @@ async function expireSession(
     .set({ errorCode, updatedDate: new Date() })
     .where(eq(sessionAiNotes.id, params.sessionId));
 
+  /*
+   * Chiusa la sessione, si chiude anche il lavoro che la riguarda.
+   *
+   * Gli stati terminali non hanno transizioni in uscita, quindi un job
+   * rimasto in coda non potra' mai riuscire: la generazione del riepilogo
+   * pretende una sessione in `ready_for_review` o `approved` e respinge tutto
+   * il resto in una manciata di millisecondi. Il job resterebbe li' a
+   * consumare i suoi tentativi contro una porta chiusa, e a schermo si
+   * leggerebbe «in coda» per qualcosa che non partira' mai. Meglio dire la
+   * verita' subito.
+   */
+  /*
+   * Import dinamico di proposito: `processing` importa gia' questo modulo
+   * (`closeSessionWithoutSpeech`), quindi un import statico chiuderebbe un
+   * anello fra i due. Qui l'anello non si forma, e la funzione si risolve al
+   * momento della chiamata — che avviene comunque a moduli caricati.
+   */
+  const { cancelAiProcessingJobsForSession } = await import('./processing');
+  const cancelled = await cancelAiProcessingJobsForSession(
+    {
+      sessionId: params.sessionId,
+      actorUserId: params.actorUserId,
+      reason: `session_expired_${params.reason}`,
+    },
+    dependencies
+  );
+
   logPipeline({
     phase: 'session_expiry',
     outcome: 'ok',
     sessionId: params.sessionId,
     errorCode,
+    counts: { jobAnnullati: cancelled },
     detail: { reason: params.reason, nextStatus, hasTranscript },
   });
   return true;
@@ -162,6 +207,22 @@ export async function closeStuckProcessingSessions(
         where j.session_ai_notes_id = ${sessionAiNotes.id}
           and j.status in ('queued', 'processing', 'awaiting_provider')
       )`,
+      /*
+       * L'ultimo momento in cui un job di questa sessione si e' mosso.
+       *
+       * La riga della sessione non viene toccata mentre la coda lavora: il
+       * suo `updateddate` resta fermo all'ingresso in `processing`. Guardando
+       * solo quello, una sessione che ha appena finito la trascrizione
+       * risulta immobile da mezz'ora — e nella finestra fra «un job finisce»
+       * e «il successivo entra in coda» il conteggio dei job vivi passa da
+       * zero, quindi scatta la scadenza corta. E' esattamente cosi' che una
+       * sessione sana e' stata dichiarata fallita 23 secondi dopo aver
+       * completato la normalizzazione.
+       */
+      lastJobActivityAt: sql<Date | null>`(
+        select max(j.updateddate) from session_ai_processing_jobs j
+        where j.session_ai_notes_id = ${sessionAiNotes.id}
+      )`,
     })
     .from(sessionAiNotes)
     .where(eq(sessionAiNotes.status, 'processing'))
@@ -170,7 +231,10 @@ export async function closeStuckProcessingSessions(
   let closed = 0;
   for (const session of candidates) {
     const verdict = processingDeadlineVerdict({
-      lastProgressAt: session.updatedDate,
+      lastProgressAt: latestProgress(
+        session.updatedDate,
+        session.lastJobActivityAt
+      ),
       activeJobCount: Number(session.activeJobs),
       now,
     });

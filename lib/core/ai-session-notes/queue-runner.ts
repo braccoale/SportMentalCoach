@@ -7,6 +7,7 @@ import {
 import { createProductionAiSessionNotesDependencies } from './dependencies';
 import { closeStuckProcessingSessions } from './stuck-sessions';
 import { logPipeline, pipelineErrorCode } from './pipeline-log';
+import { AiNotesProcessingError } from './processing-policy';
 
 /**
  * Fa avanzare la coda dentro la richiesta in corso, senza passare dalla rete.
@@ -84,6 +85,11 @@ export async function runAiNotesQueueInline(
       outcome: 'failed',
       durationMs: Date.now() - startedAt,
       errorCode: pipelineErrorCode(error),
+      // Senza questo, il fallimento diceva solo «una sessione non era
+      // elaborabile» e lasciava indovinare quale.
+      ...(error instanceof AiNotesProcessingError && error.sessionId
+        ? { sessionId: error.sessionId }
+        : {}),
     });
   } finally {
     running = false;

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   WORKER_NUDGE_INTERVAL_MS,
   isPendingAiNotesStatus,
+  isRetryableAiNotesStatus,
   shouldNudgeWorker,
 } from './worker-nudge';
 
@@ -44,4 +45,34 @@ test('vale anche per il report che si sta ancora scrivendo', () => {
   // La rotta del riepilogo parla un altro vocabolario, e non deve tradurlo.
   assert.equal(isPendingAiNotesStatus('generating'), true);
   assert.equal(isPendingAiNotesStatus('up_to_date'), false);
+});
+
+test('un report fallito ma riprovabile sveglia comunque il worker', () => {
+  // Il caso reale: il primo tentativo va in timeout, il job torna in coda con
+  // due tentativi su tre, e la sessione passa a `report_failed`. Se quella
+  // parola spegne la sveglia, il tentativo buono aspetta il cron di notte.
+  for (const status of ['report_failed', 'transcription_failed']) {
+    assert.equal(
+      shouldNudgeWorker({ status, lastNudgeAt: null, now: 1_000 }),
+      true,
+      `stato ${status}`
+    );
+  }
+});
+
+test('a schermo una sessione fallita resta fallita, non «in corso»', () => {
+  // Le due domande sono diverse: «mostro la rotellina?» e «vale la pena
+  // riprovare?». Tenerle separate è il punto di questa distinzione.
+  assert.equal(isPendingAiNotesStatus('report_failed'), false);
+  assert.equal(isRetryableAiNotesStatus('report_failed'), true);
+  assert.equal(isRetryableAiNotesStatus('cancelled'), false);
+  assert.equal(isRetryableAiNotesStatus('ready_for_review'), false);
+});
+
+test('anche la sveglia sui falliti rispetta la soglia anti-rumore', () => {
+  const now = 1_000_000;
+  assert.equal(
+    shouldNudgeWorker({ status: 'report_failed', lastNudgeAt: now - 3_000, now }),
+    false
+  );
 });

@@ -8,6 +8,19 @@
 export const REQUEST_RESPONSE_WINDOW_HOURS = 48;
 
 /**
+ * Tolleranza dopo l'orario proposto, prima che la richiesta sia dichiarata
+ * scaduta.
+ *
+ * Senza, una richiesta per fra dieci minuti moriva all'istante in cui quel
+ * momento arrivava: l'atleta leggeva "richiesta scaduta" mentre il coach
+ * stava ancora guardando la notifica. E non era nemmeno coerente col resto —
+ * la stanza della chiamata resta aperta per tutta la durata della sessione,
+ * quindi un coach che accetta con qualche minuto di ritardo puo' ancora
+ * tenerla davvero.
+ */
+export const REQUEST_EXPIRY_GRACE_MINUTES = 10;
+
+/**
  * Quanto dura una sessione quando non lo dice nessuno: prenotazioni vecchie,
  * senza servizio, o create prima che la durata fosse una scelta esplicita.
  */
@@ -40,15 +53,20 @@ export const VIDEO_JOIN_LEAD_MINUTES = 5;
 
 /**
  * A pending (`requested`) booking is stale when the coach never answered in
- * time: either the requested session time has already passed, or the response
- * window elapsed since it was requested.
+ * time: either the requested session time has passed (piu' la tolleranza di
+ * `REQUEST_EXPIRY_GRACE_MINUTES`), or the response window elapsed since it was
+ * requested.
  */
 export function isRequestExpired(
   requestedAt: Date,
   scheduledFor: Date | null,
   now: Date = new Date()
 ): boolean {
-  if (scheduledFor && scheduledFor.getTime() < now.getTime()) return true;
+  if (scheduledFor) {
+    const graceEnd =
+      scheduledFor.getTime() + REQUEST_EXPIRY_GRACE_MINUTES * 60_000;
+    if (graceEnd < now.getTime()) return true;
+  }
   const deadline =
     requestedAt.getTime() + REQUEST_RESPONSE_WINDOW_HOURS * 60 * 60 * 1000;
   return deadline < now.getTime();

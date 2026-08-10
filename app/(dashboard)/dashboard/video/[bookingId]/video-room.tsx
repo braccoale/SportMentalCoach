@@ -28,7 +28,7 @@ import { Button } from '@/components/ui/button';
 import { ShareButton } from '@/components/share-button';
 import { ResendAthleteCallLinkButton } from '@/components/resend-athlete-call-link-button';
 import { AiSessionNotesControl } from '@/components/ai-session-notes-control';
-import { LocalizeLiveKitLeaveButton } from '@/components/livekit-call-labels';
+import { LocalizeLiveKitControls } from '@/components/livekit-call-labels';
 import { X } from 'lucide-react';
 import {
   ApplyInitialAudioOutput,
@@ -417,7 +417,7 @@ function ConnectedVideoRoom({
         onError={handleRoomError}
         style={{ height: '100%' }}
       >
-        <LocalizeLiveKitLeaveButton />
+        <LocalizeLiveKitControls />
         <ApplyInitialAudioOutput
           deviceId={choices.audioOutputDeviceId}
         />

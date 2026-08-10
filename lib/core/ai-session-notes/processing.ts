@@ -84,7 +84,8 @@ async function assertProcessableSession(
   ) {
     throw new AiNotesProcessingError(
       'SESSION_NOT_PROCESSABLE',
-      'Il consenso o lo stato della sessione non consente l’elaborazione.'
+      'Il consenso o lo stato della sessione non consente l’elaborazione.',
+      sessionId
     );
   }
   return context;

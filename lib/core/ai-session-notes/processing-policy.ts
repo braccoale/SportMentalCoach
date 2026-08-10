@@ -21,7 +21,16 @@ export class AiNotesProcessingError extends Error {
       | 'PROVIDER_TIMEOUT'
       | 'PROVIDER_BAD_RESPONSE'
       | 'TRANSCRIPTION_FAILED',
-    message: string
+    message: string,
+    /**
+     * La sessione a cui l'errore si riferisce, quando si sa.
+     *
+     * Serve a chi registra il fallimento più in alto: un `queue_run` che
+     * fallisce senza dire su quale sessione costringe a indovinare fra tutte
+     * quelle in coda, ed è esattamente il buco che ha reso illeggibile un
+     * guasto in produzione.
+     */
+    public readonly sessionId?: number
   ) {
     super(message);
     this.name = 'AiNotesProcessingError';

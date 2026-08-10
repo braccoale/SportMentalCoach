@@ -36,7 +36,7 @@ import {
 } from './livekit-call-extras';
 import { BackgroundSelectionApplier } from './livekit-background-controls';
 import { RoomFlipCameraControl } from './room-flip-camera-control';
-import { LocalizeLiveKitLeaveButton } from './livekit-call-labels';
+import { LocalizeLiveKitControls } from './livekit-call-labels';
 import { readIsCompact, useIsCompact } from '@/lib/hooks/use-is-compact';
 import { useWakeLock } from '@/lib/hooks/use-wake-lock';
 import { useCallCapabilities } from '@/lib/core/video/capabilities-client';
@@ -189,7 +189,7 @@ function ConnectedGuestVideoRoom({
         className="relative"
         style={{ height: '100%' }}
       >
-        <LocalizeLiveKitLeaveButton />
+        <LocalizeLiveKitControls />
         {isOffline ? (
           <OfflineNotice />
         ) : isReconnecting ? (

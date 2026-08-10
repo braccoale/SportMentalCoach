@@ -38,6 +38,34 @@ export function isPendingAiNotesStatus(status: string | null | undefined): boole
 }
 
 /**
+ * Gli stati in cui il lavoro è finito male ma può ancora ripartire.
+ *
+ * Il report fallisce regolarmente al primo tentativo — è un budget di tempo
+ * stretto, non un guasto del modello — e il job torna in coda con i tentativi
+ * che gli restano. Il punto è che la sessione, nel frattempo, è passata a
+ * `report_failed`: prima quella parola spegneva la sveglia più affidabile che
+ * abbiamo, proprio nel momento in cui c'era un tentativo pronto a partire. La
+ * coda restava ferma fino al cron, che sul piano Hobby passa una volta al
+ * giorno.
+ *
+ * Sono tenuti separati dagli stati "in corso" di proposito: all'interfaccia
+ * una sessione fallita deve continuare a dirsi fallita, non a mostrare una
+ * rotellina. Qui si risponde a un'altra domanda — vale la pena riprovare? —
+ * e le due risposte non devono coincidere per forza.
+ *
+ * Se i tentativi sono esauriti la sveglia è innocua: il worker trova la coda
+ * vuota e chiude. La soglia di `WORKER_NUDGE_INTERVAL_MS` evita comunque che
+ * una pagina aperta la ripeta di continuo.
+ */
+const RETRYABLE_STATUSES = new Set(['report_failed', 'transcription_failed']);
+
+export function isRetryableAiNotesStatus(
+  status: string | null | undefined
+): boolean {
+  return typeof status === 'string' && RETRYABLE_STATUSES.has(status);
+}
+
+/**
  * Decide se questa richiesta debba svegliare il worker.
  *
  * `lastNudgeAt` è per sessione e vive in memoria: su serverless si azzera a
@@ -50,7 +78,12 @@ export function shouldNudgeWorker(params: {
   lastNudgeAt: number | null;
   now: number;
 }): boolean {
-  if (!isPendingAiNotesStatus(params.status)) return false;
+  if (
+    !isPendingAiNotesStatus(params.status) &&
+    !isRetryableAiNotesStatus(params.status)
+  ) {
+    return false;
+  }
   if (params.lastNudgeAt === null) return true;
   return params.now - params.lastNudgeAt >= WORKER_NUDGE_INTERVAL_MS;
 }

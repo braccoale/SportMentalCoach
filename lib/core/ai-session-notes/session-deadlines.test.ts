@@ -103,3 +103,50 @@ test('il silenzio non viene raccontato come un guasto', () => {
     'REPORT_NOT_GENERATED'
   );
 });
+
+test('un job che si è appena mosso conta come progresso, anche se la riga sessione è ferma', () => {
+  // Il guasto reale: la sessione entra in `processing` alle 18:14 e la sua
+  // riga non viene più toccata, mentre la coda lavora davvero. Alle 18:21 la
+  // normalizzazione finisce; 23 secondi dopo, nella finestra in cui il job
+  // successivo non è ancora entrato in coda, il conteggio dei job vivi è
+  // zero. Guardando solo la riga sessione, sono passati 7 minuti: scadenza
+  // corta superata, sessione dichiarata fallita mentre stava funzionando.
+  const sessionUpdatedAt = new Date('2026-08-10T16:14:45Z');
+  const jobFinishedAt = new Date('2026-08-10T16:21:36Z');
+  const now = new Date('2026-08-10T16:21:59Z');
+
+  // Come si comportava prima: solo la riga sessione.
+  assert.deepEqual(
+    processingDeadlineVerdict({
+      lastProgressAt: sessionUpdatedAt,
+      activeJobCount: 0,
+      now,
+    }),
+    { expired: true, reason: 'no_active_work' }
+  );
+
+  // Come si comporta ora: l'ultimo movimento di un job è progresso.
+  assert.deepEqual(
+    processingDeadlineVerdict({
+      lastProgressAt: jobFinishedAt,
+      activeJobCount: 0,
+      now,
+    }),
+    { expired: false }
+  );
+});
+
+test('una sessione davvero abbandonata scade lo stesso', () => {
+  // Il progresso più recente resta comunque vecchio: qui la rete di
+  // sicurezza deve fare il suo lavoro, altrimenti si torna alla rotellina
+  // che gira per sempre.
+  const now = new Date('2026-08-10T16:30:00Z');
+  assert.deepEqual(
+    processingDeadlineVerdict({
+      lastProgressAt: new Date('2026-08-10T16:20:00Z'),
+      activeJobCount: 0,
+      now,
+    }),
+    { expired: true, reason: 'no_active_work' }
+  );
+});

@@ -2,14 +2,75 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   FALLBACK_SESSION_DURATION_MIN,
+  REQUEST_EXPIRY_GRACE_MINUTES,
+  REQUEST_RESPONSE_WINDOW_HOURS,
   VIDEO_JOIN_LEAD_MINUTES,
   canJoinVideoNow,
+  isRequestExpired,
   isSessionJoinable,
   nextVideoJoinAvailabilityChange,
   sessionEndsAt,
 } from './sessions';
 
 const D40 = 40;
+
+const min = (n: number) => n * 60_000;
+const hours = (n: number) => n * 60 * 60_000;
+
+test('la richiesta non scade nell’istante in cui arriva l’ora della sessione', () => {
+  // Il caso reale: richiesta alle 17:24 per le 17:40. Alle 17:41 il coach
+  // deve poter ancora accettare — la stanza resterebbe aperta comunque.
+  const requestedAt = new Date('2026-08-10T15:24:00Z');
+  const scheduledFor = new Date('2026-08-10T15:40:00Z');
+
+  assert.equal(
+    isRequestExpired(requestedAt, scheduledFor, new Date(scheduledFor.getTime() + min(1))),
+    false
+  );
+  assert.equal(
+    isRequestExpired(
+      requestedAt,
+      scheduledFor,
+      new Date(scheduledFor.getTime() + min(REQUEST_EXPIRY_GRACE_MINUTES - 1))
+    ),
+    false
+  );
+});
+
+test('passata la tolleranza la richiesta è scaduta', () => {
+  const requestedAt = new Date('2026-08-10T15:24:00Z');
+  const scheduledFor = new Date('2026-08-10T15:40:00Z');
+
+  assert.equal(
+    isRequestExpired(
+      requestedAt,
+      scheduledFor,
+      new Date(scheduledFor.getTime() + min(REQUEST_EXPIRY_GRACE_MINUTES + 1))
+    ),
+    true
+  );
+});
+
+test('senza orario proposto vale solo la finestra di risposta', () => {
+  const requestedAt = new Date('2026-08-10T15:24:00Z');
+
+  assert.equal(
+    isRequestExpired(
+      requestedAt,
+      null,
+      new Date(requestedAt.getTime() + hours(REQUEST_RESPONSE_WINDOW_HOURS - 1))
+    ),
+    false
+  );
+  assert.equal(
+    isRequestExpired(
+      requestedAt,
+      null,
+      new Date(requestedAt.getTime() + hours(REQUEST_RESPONSE_WINDOW_HOURS + 1))
+    ),
+    true
+  );
+});
 
 test('una sessione futura o ancora in corso non è passata', () => {
   const now = new Date('2026-07-28T12:00:00.000Z');

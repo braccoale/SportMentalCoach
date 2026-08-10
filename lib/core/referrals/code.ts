@@ -1,4 +1,5 @@
 import { randomInt } from 'node:crypto';
+import { fallbackAppOrigin } from '@/lib/core/site';
 
 /**
  * Pure, dependency-free helpers for the "Invita un amico" referral codes.
@@ -47,10 +48,16 @@ export function firstNameForDisplay(name: string | null | undefined): string | n
   return first.length > 0 ? first : null;
 }
 
-/** Builds the public invite URL from the base URL (no trailing slash). */
+/**
+ * Builds the public invite URL from the base URL (no trailing slash).
+ *
+ * Senza `BASE_URL` si ripiegava su localhost: in produzione significava
+ * spedire a un amico un link che si apre solo sul computer di chi lo ha
+ * generato. Ora il ripiego conosce il dominio vero (vedi `lib/core/site`).
+ */
 export function buildInviteUrl(
   code: string,
-  baseUrl: string = process.env.BASE_URL ?? 'http://localhost:3000'
+  baseUrl: string = process.env.BASE_URL?.trim() || fallbackAppOrigin()
 ): string {
   return `${baseUrl.replace(/\/+$/, '')}/invita/${code}`;
 }
