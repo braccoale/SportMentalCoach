@@ -507,3 +507,38 @@ test('senza racconto il report non ne inventa uno', () => {
   // Un titolo senza capoversi non è un racconto dimezzato: è assente.
   assert.equal(report.story, null);
 });
+
+test('la parola «null» scritta dal modello non finisce a schermo', () => {
+  // Con uno schema che pretende una stringa, «vuoto» non e' un valore
+  // disponibile: il modello riempie il campo con la parola che significa
+  // vuoto. Per il codice e' una stringa piena, supera ogni controllo di
+  // presenza, e finisce sotto il titolo del racconto — e' successo.
+  const story = {
+    title: 'Un titolo',
+    throughLine: 'Null',
+    paragraphs: [{ text: 'Un capoverso della lunghezza giusta per passare.' }],
+  };
+
+  const assembled = assembleSessionCompassReport(
+    { ...CONTENT, story } as RawCompassContent,
+    input(),
+    { providerName: 'fake', modelName: 'fake-compass-v1' }
+  );
+  assert.equal(assembled.story?.throughLine ?? null, null);
+});
+
+test('un testo che parla di «nessuno» resta quello che è', () => {
+  // Il confronto e' sull'intero valore, non su una sottostringa: altrimenti
+  // un racconto che dice «nessuna paura» verrebbe cancellato.
+  const story = {
+    title: 'Un titolo',
+    throughLine: 'Nessuna paura nominata, ma il tema resta aperto.',
+    paragraphs: [{ text: 'Un capoverso della lunghezza giusta per passare.' }],
+  };
+  const assembled = assembleSessionCompassReport(
+    { ...CONTENT, story } as RawCompassContent,
+    input(),
+    { providerName: 'fake', modelName: 'fake-compass-v1' }
+  );
+  assert.match(assembled.story?.throughLine ?? '', /Nessuna paura/);
+});

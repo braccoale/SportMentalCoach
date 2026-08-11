@@ -286,7 +286,10 @@ export function assembleSessionCompassReport(
       ? {
           title: storyTitle,
           paragraphs: storyParagraphs,
-          throughLine: asProse(storyRecord?.throughLine) ?? null,
+          // `||` e non `??`: `asProse` restituisce stringa vuota quando
+          // scarta un valore, e una stringa vuota deve diventare assenza, non
+          // un campo presente e vuoto.
+          throughLine: asProse(storyRecord?.throughLine) || null,
         }
       : null;
 
@@ -472,10 +475,38 @@ function isEvidence(value: CompassEvidence | null): value is CompassEvidence {
 }
 
 /** Testo accettabile solo se non presenta cause o diagnosi come fatto. */
+/**
+ * Le parole che un modello scrive quando non ha niente da dire.
+ *
+ * Con uno schema che pretende una stringa, «vuoto» non e' un valore
+ * disponibile: il modello riempie il campo con la parola che significa vuoto.
+ * Per il codice e' testo — una stringa piena, che supera ogni controllo di
+ * presenza — e finisce a schermo. E' successo davvero: sotto il titolo del
+ * racconto compariva la scritta «Null», perche' quella seduta era la prima
+ * analizzata e un filo con le precedenti non poteva esistere.
+ */
+const EMPTY_PLACEHOLDERS = new Set([
+  'null',
+  'nil',
+  'none',
+  'n/a',
+  'na',
+  '-',
+  '--',
+  'undefined',
+  'nessuno',
+  'nessuna',
+  'non disponibile',
+  'non applicabile',
+]);
+
 function asProse(value: unknown): string {
   if (typeof value !== 'string') return '';
   const text = value.trim();
   if (!text || containsForbiddenClaim(text)) return '';
+  // Il confronto e' sull'intero valore, non su una sottostringa: un racconto
+  // che parla di «nessuna paura» deve restare quello che e'.
+  if (EMPTY_PLACEHOLDERS.has(text.toLowerCase().replace(/[.]+$/, ''))) return '';
   return text;
 }
 
