@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { BackHandler } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { registerGlobals } from '@livekit/react-native';
@@ -67,6 +68,39 @@ export default function App() {
     pushToken.current = null;
     setRoute({ name: 'login' });
   }, []);
+
+  /*
+   * Il tasto Indietro di Android.
+   *
+   * Senza questo, il gesto piu` usato del sistema **chiudeva l'app**: premuto
+   * durante una chiamata usciva dalla stanza uccidendo l'applicazione, e dalle
+   * impostazioni non tornava all'elenco. Un router scritto a mano non ha un
+   * concetto di «indietro» finche` non glielo si da`.
+   *
+   * Restituire `true` dice ad Android che il gesto e` stato gestito qui. Sulla
+   * schermata d'accesso e sull'elenco si restituisce `false`: li` «indietro»
+   * significa davvero uscire dall'app, ed e` il comportamento che ci si
+   * aspetta.
+   */
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        if (route.name === 'settings') {
+          setRoute({ name: 'sessions' });
+          return true;
+        }
+        if (route.name === 'call') {
+          // La chiamata si chiude passando dall'uscita normale, cosi` la
+          // stanza viene lasciata invece di restare aperta a nome nostro.
+          setRoute({ name: 'sessions' });
+          return true;
+        }
+        return false;
+      }
+    );
+    return () => subscription.remove();
+  }, [route.name]);
 
   /*
    * Toccare la notifica di una chiamata deve portare dentro la stanza, non

@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
   Pressable,
   StyleSheet,
   Text,
@@ -22,6 +23,7 @@ import {
   type RoomCredentials,
   type UpcomingSession,
 } from '../lib/api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AiNotesConsentPanel } from '../components/AiNotesConsentPanel';
 import { useTheme, type Palette } from '../theme';
 
@@ -121,6 +123,42 @@ function RoomStage({
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } =
     useLocalParticipant();
 
+  const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const cameraWasOn = useRef(false);
+  const [sharing, setSharing] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
+
+  /*
+   * L'app che va in secondo piano durante una sessione.
+   *
+   * Prima non succedeva niente: la telecamera restava accesa a riprendere una
+   * tasca, con il costo di batteria che comporta, e su Android il sistema puo`
+   * comunque strappare la fotocamera all'app sospesa lasciando una traccia
+   * pubblicata ma morta — l'altra persona vede un fermo immagine e non capisce.
+   *
+   * Il microfono **non** si tocca: uscire un attimo dall'app per guardare
+   * qualcosa non deve zittire chi sta parlando. È la differenza fra mettere
+   * giu` il telefono e riagganciare.
+   */
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (next) => {
+      if (next === 'background' || next === 'inactive') {
+        if (localParticipant.isCameraEnabled) {
+          cameraWasOn.current = true;
+          void localParticipant.setCameraEnabled(false);
+        }
+        return;
+      }
+      if (next === 'active' && cameraWasOn.current) {
+        cameraWasOn.current = false;
+        void localParticipant.setCameraEnabled(true);
+      }
+    });
+    return () => subscription.remove();
+  }, [localParticipant]);
+
   /*
    * `useTracks` non restituisce solo tracce: restituisce anche **segnaposto**
    * per i partecipanti che non hanno ancora pubblicato nulla, e in quel caso
@@ -136,10 +174,6 @@ function RoomStage({
   const local = published.find((track) => track.participant.isLocal);
   // Qualcuno c'e', ma non si vede: e' un'informazione diversa da «sei solo».
   const someoneElseHere = participants.some((participant) => !participant.isLocal);
-  const { theme } = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  const [sharing, setSharing] = useState(false);
-  const [shareError, setShareError] = useState<string | null>(null);
 
   /*
    * La condivisione schermo è il motivo tecnico per cui questa app esiste:
@@ -217,25 +251,39 @@ function RoomStage({
         </Text>
       )}
 
-      <View style={styles.bar}>
-        <Control
-          label={isMicrophoneEnabled ? 'Microfono' : 'Muto'}
-          active={isMicrophoneEnabled}
-          onPress={() =>
-            localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled)
-          }
-        />
-        <Control
-          label={isCameraEnabled ? 'Video' : 'Video off'}
-          active={isCameraEnabled}
-          onPress={() => localParticipant.setCameraEnabled(!isCameraEnabled)}
-        />
-        <Control
-          label={sharing ? 'Interrompi' : 'Condividi'}
-          active={sharing}
-          onPress={toggleScreenShare}
-        />
-        <Pressable onPress={onLeave} style={styles.leave}>
+      {/*
+        * Etichette **fisse**, e «Chiudi» staccato dagli altri.
+        *
+        * Prima l'etichetta cambiava da «Video» a «Video off» a ogni tocco: la
+        * larghezza del pulsante si muoveva, e i tre controlli ballavano sotto
+        * il dito mentre si parla. Ora la parola non cambia mai — lo stato lo
+        * dice il colore e un punto, che si leggono senza rileggere.
+        *
+        * E «Chiudi» ha uno spazio suo: un pulsante distruttivo non sta
+        * appiccicato a quello che si preme ogni due minuti.
+        */}
+      <View style={[styles.bar, { paddingBottom: insets.bottom + 12 }]}>
+        <View style={styles.controls}>
+          <Control
+            label="Microfono"
+            active={isMicrophoneEnabled}
+            onPress={() =>
+              localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled)
+            }
+          />
+          <Control
+            label="Video"
+            active={isCameraEnabled}
+            onPress={() => localParticipant.setCameraEnabled(!isCameraEnabled)}
+          />
+          <Control label="Condividi" active={sharing} onPress={toggleScreenShare} />
+        </View>
+        <Pressable
+          onPress={onLeave}
+          accessibilityRole="button"
+          accessibilityLabel="Chiudi la chiamata"
+          style={({ pressed }) => [styles.leave, pressed && styles.pressed]}
+        >
           <Text style={styles.leaveText}>Chiudi</Text>
         </Pressable>
       </View>
@@ -243,6 +291,13 @@ function RoomStage({
   );
 }
 
+/**
+ * Un controllo della barra.
+ *
+ * Lo stato si legge in due modi indipendenti — il colore del punto e il testo
+ * annunciato allo screen reader — perché il colore da solo non è
+ * un'informazione per tutti.
+ */
 function Control({
   label,
   active,
@@ -257,12 +312,17 @@ function Control({
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="switch"
+      accessibilityLabel={label}
+      accessibilityState={{ checked: active }}
+      accessibilityHint={active ? 'Attivo, tocca per disattivare' : 'Disattivo, tocca per attivare'}
       style={({ pressed }) => [
         styles.control,
         active && styles.controlActive,
         pressed && styles.pressed,
       ]}
     >
+      <View style={[styles.dot, active ? styles.dotOn : styles.dotOff]} />
       <Text style={styles.controlText}>{label}</Text>
     </Pressable>
   );
@@ -303,29 +363,37 @@ const createStyles = (theme: Palette) =>
     paddingBottom: 8,
   },
   bar: {
-    flexDirection: 'row',
-    gap: 8,
+    gap: 12,
     padding: 12,
-    paddingBottom: 28,
     borderTopColor: theme.line,
     borderTopWidth: 1,
   },
+  controls: { flexDirection: 'row', gap: 8 },
   control: {
     flex: 1,
+    flexDirection: 'row',
+    gap: 6,
     backgroundColor: theme.surface,
     borderRadius: 999,
+    // 44 di altezza minima: sotto, il bersaglio non si centra col pollice.
+    minHeight: 44,
     paddingVertical: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   controlActive: { backgroundColor: theme.line },
   controlText: { color: theme.hi, fontSize: 12, fontWeight: '600' },
+  dot: { width: 7, height: 7, borderRadius: 4 },
+  dotOn: { backgroundColor: theme.red2 },
+  dotOff: { backgroundColor: theme.low },
   pressed: { opacity: 0.85 },
   leave: {
-    flex: 1,
     backgroundColor: theme.red,
     borderRadius: 999,
-    paddingVertical: 12,
+    minHeight: 48,
+    paddingVertical: 14,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   leaveText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   secondary: {

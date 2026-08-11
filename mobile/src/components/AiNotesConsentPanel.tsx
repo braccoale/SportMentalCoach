@@ -128,27 +128,34 @@ export function AiNotesConsentPanel({
     );
   }
 
-  // Deciso, e in attesa dell'altro: si dice chi manca, non «attendere».
+  /*
+   * Deciso: il pannello si ritira.
+   *
+   * Finché c'è una scelta da fare merita spazio; dopo, quello spazio è
+   * sottratto al video, che è la ragione per cui si è aperta l'app. Resta una
+   * riga: un punto rosso e due parole, sufficienti a non dimenticarsi mai di
+   * essere registrati.
+   */
   if (mine?.status === 'accepted') {
     const waiting = others.some((consent) => consent.status !== 'accepted');
     return (
-      <View style={styles.panel}>
-        <Text style={styles.title}>
-          {waiting ? 'In attesa dell’altro consenso' : 'Registrazione attiva'}
-        </Text>
-        <Text style={styles.body}>
+      <View style={styles.pill}>
+        <View style={[styles.dot, waiting ? styles.dotWaiting : styles.dotLive]} />
+        <Text style={styles.pillText}>
           {waiting
-            ? 'Hai acconsentito. La registrazione parte quando anche l’altra persona accetta.'
-            : 'La seduta viene registrata. Puoi revocare il consenso quando vuoi.'}
+            ? 'In attesa dell’altro consenso'
+            : 'Registrazione in corso'}
         </Text>
         {!waiting && (
-          <Row>
-            <Action
-              label="Revoca"
-              onPress={() => decide('rejected')}
-              busy={busy}
-            />
-          </Row>
+          <Pressable
+            onPress={() => decide('rejected')}
+            disabled={busy}
+            accessibilityRole="button"
+            accessibilityLabel="Revoca il consenso alla registrazione"
+            hitSlop={10}
+          >
+            <Text style={styles.revoke}>Revoca</Text>
+          </Pressable>
         )}
       </View>
     );
@@ -243,4 +250,22 @@ const createStyles = (theme: Palette) =>
     actionTextPrimary: { color: '#fff' },
     pressed: { opacity: 0.85 },
     error: { color: theme.red2, fontSize: 12 },
+    pill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginHorizontal: 12,
+      marginBottom: 8,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: 999,
+      backgroundColor: theme.ink2,
+      borderColor: theme.line,
+      borderWidth: 1,
+    },
+    dot: { width: 8, height: 8, borderRadius: 4 },
+    dotLive: { backgroundColor: theme.red2 },
+    dotWaiting: { backgroundColor: theme.low },
+    pillText: { flex: 1, color: theme.mid, fontSize: 12 },
+    revoke: { color: theme.red2, fontSize: 12, fontWeight: '700' },
   });

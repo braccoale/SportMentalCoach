@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchSessions, type UpcomingSession } from '../lib/api';
 import { currentSession } from '../lib/auth';
 import { useTheme, type Palette } from '../theme';
@@ -39,9 +40,26 @@ function whenLabel(iso: string | null): string {
   }).format(date)} alle ${time}`;
 }
 
+/**
+ * «Fra 12 minuti», quando l'attesa è breve abbastanza da contare.
+ *
+ * Un orario dice *quando*; un conto alla rovescia dice *quanto manca*, che è
+ * la domanda vera di chi apre l'app poco prima di una sessione. Oltre le due
+ * ore la sottrazione non aiuta più e si torna all'orario.
+ */
+function countdownLabel(iso: string | null, now: number): string | null {
+  if (!iso) return null;
+  const minutes = Math.round((new Date(iso).getTime() - now) / 60_000);
+  if (minutes > 120) return null;
+  if (minutes > 1) return `fra ${minutes} minuti`;
+  if (minutes >= 0) return 'sta per iniziare';
+  if (minutes > -90) return 'in corso';
+  return null;
+}
+
 type Row =
   | { kind: 'header'; title: string }
-  | { kind: 'session'; session: UpcomingSession; past: boolean };
+  | { kind: 'session'; session: UpcomingSession; past: boolean; hero?: boolean };
 
 /**
  * L'elenco delle prossime sessioni: l'unica schermata fra l'accesso e la
@@ -63,8 +81,14 @@ export function SessionsScreen({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [initial, setInitial] = useState('\u00b7');
+  // Il conto alla rovescia va aggiornato, non calcolato una volta sola: una
+  // schermata aperta che dice \u00abfra 12 minuti\u00bb per mezz'ora sta mentendo.
+  const [now, setNow] = useState(() => Date.now());
+  // Il ruolo serve solo allo stato vuoto, e lo si sa da una sessione qualsiasi.
+  const isCoach = sessions[0]?.viewerIsCoach ?? past[0]?.viewerIsCoach ?? false;
 
   const load = useCallback(async () => {
     try {
@@ -105,7 +129,9 @@ export function SessionsScreen({
       if (state === 'active') void load();
     });
     const timer = setInterval(() => {
-      if (AppState.currentState === 'active') void load();
+      if (AppState.currentState !== 'active') return;
+      setNow(Date.now());
+      void load();
     }, 60_000);
     return () => {
       subscription.remove();
@@ -123,13 +149,27 @@ export function SessionsScreen({
    */
   const rows: Row[] = [
     ...(sessions.length ? [{ kind: 'header' as const, title: 'In programma' }] : []),
-    ...sessions.map((session) => ({ kind: 'session' as const, session, past: false })),
+    /*
+     * La prima sessione è diversa dalle altre.
+     *
+     * Prima erano tutte schede identiche, quindi quella fra dieci minuti
+     * pesava quanto quella di giovedì, e «Entra nella stanza →» si ripeteva su
+     * ognuna: cinque inviti identici non sono cinque inviti, sono rumore. Ora
+     * la prossima è alta e ha l'unico pulsante pieno della schermata; le altre
+     * sono righe compatte, toccabili per intero.
+     */
+    ...sessions.map((session, index) => ({
+      kind: 'session' as const,
+      session,
+      past: false,
+      hero: index === 0 && session.status !== 'pending',
+    })),
     ...(past.length ? [{ kind: 'header' as const, title: 'Passate' }] : []),
     ...past.map((session) => ({ kind: 'session' as const, session, past: true })),
   ];
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, { paddingTop: insets.top + 12 }]}>
       <View style={styles.header}>
         <Text style={styles.title}>Le tue sessioni</Text>
         {/*
@@ -168,9 +208,26 @@ export function SessionsScreen({
             />
           }
           ListEmptyComponent={
-            <Text style={styles.empty}>
-              {error ?? 'Nessuna sessione in programma.'}
-            </Text>
+            /*
+             * Uno stato vuoto che dice solo «niente» lascia fermi.
+             *
+             * Deve dire **perché** è vuoto e cosa lo riempirebbe — e la
+             * risposta non è la stessa per tutti: un atleta senza sessioni ne
+             * deve prenotare una, un coach ne aspetta una. Stessa schermata,
+             * due situazioni diverse.
+             */
+            <View style={styles.emptyBox}>
+              <Text style={styles.emptyTitle}>
+                {error ?? 'Nessuna sessione in programma'}
+              </Text>
+              {!error && (
+                <Text style={styles.empty}>
+                  {isCoach
+                    ? 'Quando un atleta prenota, la sessione compare qui.'
+                    : 'Prenota una sessione con il tuo coach su KaiPai, e la trovi qui.'}
+                </Text>
+              )}
+            </View>
           }
           renderItem={({ item }) => {
             if (item.kind === 'header') {
@@ -178,34 +235,56 @@ export function SessionsScreen({
             }
             const session = item.session;
             const waiting = session.status === 'pending';
+            const openable = !item.past && !waiting;
+            const countdown = item.hero
+              ? countdownLabel(session.scheduledFor, now)
+              : null;
+
             return (
               <Pressable
                 // Una sessione passata o ancora da accettare non ha una stanza
                 // da aprire: la scheda resta leggibile ma non porta da nessuna
                 // parte, invece di portare a un errore.
-                onPress={
-                  item.past || waiting ? undefined : () => onOpenCall(session)
+                onPress={openable ? () => onOpenCall(session) : undefined}
+                disabled={!openable}
+                accessibilityRole={openable ? 'button' : undefined}
+                accessibilityLabel={
+                  openable
+                    ? `Sessione con ${session.otherName}, ${whenLabel(session.scheduledFor)}. Entra nella stanza.`
+                    : undefined
                 }
-                disabled={item.past || waiting}
                 style={({ pressed }) => [
-                  styles.card,
-                  item.past && styles.cardPast,
+                  item.hero ? styles.hero : styles.row,
+                  item.past && styles.rowPast,
                   pressed && styles.pressed,
                 ]}
               >
-                <Text style={styles.when}>
-                  {whenLabel(session.scheduledFor)}
+                <Text
+                  style={[
+                    styles.when,
+                    // Il rosso resta alla sola sessione imminente: se ogni
+                    // riga grida, non si sente piu` niente.
+                    item.hero ? styles.whenHero : styles.whenQuiet,
+                  ]}
+                >
+                  {countdown ?? whenLabel(session.scheduledFor)}
                 </Text>
-                <Text style={styles.who}>{session.otherName}</Text>
+                <Text style={item.hero ? styles.whoHero : styles.who}>
+                  {session.otherName}
+                </Text>
                 <Text style={styles.meta}>
                   {session.title} · {session.durationMin} min
                 </Text>
-                {waiting ? (
+
+                {waiting && (
                   <Text style={styles.waiting}>
                     In attesa che il coach accetti
                   </Text>
-                ) : item.past ? null : (
-                  <Text style={styles.enter}>Entra nella stanza →</Text>
+                )}
+                {item.hero && (
+                  <View style={styles.enterButton}>
+                    <Text style={styles.enterButtonText}>Entra nella stanza</Text>
+                  </View>
                 )}
               </Pressable>
             );
@@ -218,7 +297,7 @@ export function SessionsScreen({
 
 const createStyles = (theme: Palette) =>
   StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.ink, paddingTop: 60 },
+  screen: { flex: 1, backgroundColor: theme.ink },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -240,15 +319,23 @@ const createStyles = (theme: Palette) =>
   avatarText: { color: theme.hi, fontSize: 16, fontWeight: '700' },
   loader: { marginTop: 40 },
   list: { paddingHorizontal: 20, paddingBottom: 40, gap: 12 },
-  card: {
+  hero: {
     backgroundColor: theme.ink2,
     borderColor: theme.line,
     borderWidth: 1,
     borderRadius: 20,
-    padding: 18,
+    padding: 20,
     gap: 4,
   },
-  cardPast: { opacity: 0.55 },
+  // Le altre non sono schede: senza sfondo né bordo si leggono come un
+  // elenco, e la prossima resta l’unica cosa che sporge dalla pagina.
+  row: { paddingVertical: 14, paddingHorizontal: 2, gap: 2 },
+  //
+  // Le passate si distinguono col colore, non con l’opacità: opacity
+  // schiaccia anche il contrasto del testo, e una riga al 55% scende sotto
+  // la soglia di leggibilità — un problema di accessibilità, non una scelta
+  // estetica.
+  rowPast: {},
   section: {
     color: theme.mid,
     fontSize: 12,
@@ -260,14 +347,26 @@ const createStyles = (theme: Palette) =>
   waiting: { color: theme.mid, fontSize: 13, fontStyle: 'italic', marginTop: 10 },
   pressed: { opacity: 0.85 },
   when: {
-    color: theme.red2,
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
-  who: { color: theme.hi, fontSize: 19, fontWeight: '700' },
+  whenHero: { color: theme.red2 },
+  whenQuiet: { color: theme.mid },
+  who: { color: theme.hi, fontSize: 16, fontWeight: '600' },
+  whoHero: { color: theme.hi, fontSize: 24, fontWeight: '800', letterSpacing: -0.3 },
   meta: { color: theme.mid, fontSize: 13 },
-  enter: { color: theme.hi, fontSize: 14, fontWeight: '600', marginTop: 10 },
-  empty: { color: theme.low, textAlign: 'center', marginTop: 40 },
+  enterButton: {
+    backgroundColor: theme.red,
+    borderRadius: 999,
+    minHeight: 48,
+    marginTop: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  enterButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  emptyBox: { marginTop: 48, gap: 8, paddingHorizontal: 8 },
+  emptyTitle: { color: theme.hi, fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  empty: { color: theme.mid, fontSize: 14, lineHeight: 20, textAlign: 'center' },
 });

@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import Constants from 'expo-constants';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { API_BASE_URL } from '../lib/config';
 import { currentSession, signOut } from '../lib/auth';
 import {
@@ -33,6 +34,7 @@ export function SettingsScreen({
   onSignedOut: () => void;
 }) {
   const { theme, mode, setMode } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [email, setEmail] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<NotificationState | null>(
@@ -58,9 +60,14 @@ export function SettingsScreen({
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}>
       <View style={styles.header}>
-        <Pressable onPress={onClose} hitSlop={12}>
+        <Pressable
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Torna alle sessioni"
+          hitSlop={12}
+        >
           <Text style={styles.back}>← Indietro</Text>
         </Pressable>
       </View>
@@ -78,6 +85,7 @@ export function SettingsScreen({
             </Text>
           </View>
           <Switch
+            accessibilityLabel="Avvisi di chiamata"
             value={notifications?.enabled === true}
             onValueChange={enableNotifications}
             // Spegnerle dall'app sarebbe una bugia: il sistema resterebbe
@@ -107,6 +115,9 @@ export function SettingsScreen({
           <Pressable
             key={value}
             onPress={() => setMode(value)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: mode === value }}
+            accessibilityLabel={label}
             style={({ pressed }) => [styles.option, pressed && styles.pressed]}
           >
             <Text style={styles.optionText}>{label}</Text>
@@ -164,7 +175,7 @@ function notificationLabel(state: NotificationState | null): string {
 const createStyles = (theme: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: theme.ink },
-    content: { padding: 20, paddingTop: 60, paddingBottom: 60, gap: 8 },
+    content: { padding: 20, paddingBottom: 60, gap: 8 },
     header: { marginBottom: 8 },
     back: { color: theme.mid, fontSize: 15 },
     title: { color: theme.hi, fontSize: 28, fontWeight: '800' },
@@ -198,6 +209,7 @@ const createStyles = (theme: Palette) =>
     rowHint: { color: theme.mid, fontSize: 13, lineHeight: 18 },
     link: { color: theme.red2, fontSize: 13, paddingBottom: 14 },
     option: {
+      minHeight: 48,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',

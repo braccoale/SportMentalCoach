@@ -123,12 +123,19 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
         <Image
           source={require('../../assets/logo.png')}
           style={styles.logo}
-          // Il marchio non è informazione: chi usa lo screen reader sente già
-          // «KaiPai» dal titolo qui sotto, e sentirlo due volte è rumore.
+          // Il marchio è decorazione, non informazione: chi usa lo screen
+          // reader sa già in quale app si trova, e sentirselo annunciare
+          // all'apertura è rumore prima del contenuto.
           accessibilityElementsHidden
           importantForAccessibility="no"
         />
-        <Text style={styles.brand}>KaiPai</Text>
+        {/*
+          * Il marchio compariva due volte: il logo e, sotto, la scritta
+          * «KaiPai» da 40 punti. Ripeterlo non lo rende piu` riconoscibile —
+          * toglie solo spazio alla frase che dice davvero a cosa serve questa
+          * schermata.
+          */}
+        <Text style={styles.brand}>Bentornato</Text>
         <Text style={styles.subtitle}>
           Entra per raggiungere le tue sessioni.
         </Text>
@@ -242,10 +249,10 @@ const createStyles = (theme: Palette) =>
   screen: { flex: 1, backgroundColor: theme.ink },
   centered: { alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, justifyContent: 'center', paddingHorizontal: 24, gap: 8 },
-  logo: { width: 64, height: 64, borderRadius: 16, marginBottom: 12 },
+  logo: { width: 72, height: 72, borderRadius: 18, marginBottom: 16 },
   brand: {
     color: theme.hi,
-    fontSize: 40,
+    fontSize: 34,
     fontWeight: '800',
     letterSpacing: -1,
   },
@@ -270,6 +277,8 @@ const createStyles = (theme: Palette) =>
     paddingVertical: 12,
   },
   primary: {
+    minHeight: 48,
+    justifyContent: 'center',
     backgroundColor: theme.red,
     borderRadius: 999,
     marginTop: 28,
