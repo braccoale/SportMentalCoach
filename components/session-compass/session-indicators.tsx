@@ -257,7 +257,10 @@ export function SessionMetricsStrip({
       className="overflow-hidden rounded-2xl border border-gray-200/70 bg-white p-4 sm:p-5"
       aria-labelledby="session-metrics-strip-title"
     >
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
+      <div
+        data-compass-heading
+        className="flex flex-wrap items-baseline justify-between gap-2"
+      >
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-700">In sintesi</p>
           <h3 id="session-metrics-strip-title" className="mt-1 text-lg font-black tracking-tight text-gray-950">Indicatori che contano ora</h3>

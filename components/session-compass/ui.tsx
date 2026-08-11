@@ -60,7 +60,13 @@ export function SectionHeading({
   className?: string;
 }) {
   return (
-    <div className={`min-w-0 ${className}`}>
+    /*
+     * `data-compass-heading` non e' decorativo: serve a chi incapsula questo
+     * pannello in una sezione richiudibile, dove il titolo e' gia' scritto
+     * nell'intestazione che si clicca. Ripeterlo subito sotto occupa spazio e
+     * fa leggere due volte la stessa cosa.
+     */
+    <div data-compass-heading className={`min-w-0 ${className}`}>
       {eyebrow ? (
         <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-600">
           {eyebrow}

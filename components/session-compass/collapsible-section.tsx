@@ -60,9 +60,14 @@ export function CollapsibleSection({
           className="size-5 shrink-0 text-gray-400 transition-transform group-open:rotate-180"
         />
       </summary>
-      {/* Il contenuto arriva con la sua superficie: qui si toglie solo il
-          bordo doppio che si creerebbe annidando due riquadri. */}
-      <div className="px-5 pb-5 [&>*]:border-0 [&>*]:bg-transparent [&>*]:p-0">
+      {/*
+        Il contenuto arriva con la sua superficie e con la sua intestazione.
+        Qui si tolgono entrambe: il bordo, che annidato darebbe un riquadro
+        dentro un riquadro; e il titolo, che e' gia' quello su cui si e'
+        appena cliccato — ripeterlo occupa spazio e fa leggere due volte la
+        stessa riga.
+      */}
+      <div className="px-5 pb-5 [&>*]:border-0 [&>*]:bg-transparent [&>*]:p-0 [&_[data-compass-heading]]:hidden">
         {children}
       </div>
     </details>
