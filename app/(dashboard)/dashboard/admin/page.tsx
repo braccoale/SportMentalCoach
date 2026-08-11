@@ -23,6 +23,8 @@ import { formatDate, formatDateTime } from '@/lib/core/format';
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
 import { CoachAvatar } from '@/components/coach-visuals';
+import { LiveSessionDot } from '@/components/admin/live-session-dot';
+import { getLiveCoachProviderIds } from '@/lib/core/admin/live-sessions';
 import {
   approveProviderAction,
   rejectProviderAction,
@@ -106,7 +108,15 @@ function ProviderRequirements({ p }: { p: ProviderReviewItem }) {
   );
 }
 
-function ProviderRow({ p, sportsList }: { p: ProviderReviewItem; sportsList: TaxonomyItem[] }) {
+function ProviderRow({
+  p,
+  sportsList,
+  isLive = false,
+}: {
+  p: ProviderReviewItem;
+  sportsList: TaxonomyItem[];
+  isLive?: boolean;
+}) {
   const config = getVerticalConfig();
   const sportLabels = (p.categories ?? [])
     .map((k) => findTaxonomyItem(sportsList, k)?.label ?? k)
@@ -125,6 +135,7 @@ function ProviderRow({ p, sportsList }: { p: ProviderReviewItem; sportsList: Tax
               {p.displayName ?? p.email}
             </p>
             {statusBadge(p.status)}
+            {isLive ? <LiveSessionDot /> : null}
           </div>
           <p className="text-sm text-gray-500">{p.email}</p>
           {p.headline && (
@@ -274,10 +285,11 @@ function AthleteRow({
 
 export default async function AdminDashboardPage() {
   await requireRole('admin');
-  const [all, sportsList, athletes] = await Promise.all([
+  const [all, sportsList, athletes, liveProviderIds] = await Promise.all([
     getProviderProfilesForReview(),
     getAllSports(),
     getAllAthletesForAdmin(),
+    getLiveCoachProviderIds(),
   ]);
   const queue = all.filter((p) => p.status === 'pending');
   const drafts = all.filter((p) => p.status === 'draft');
@@ -357,7 +369,7 @@ export default async function AdminDashboardPage() {
       ) : (
         <ul className="mt-3 flex flex-col gap-3">
           {queue.map((p) => (
-            <ProviderRow key={p.id} p={p} sportsList={sportsList} />
+            <ProviderRow key={p.id} p={p} sportsList={sportsList} isLive={liveProviderIds.has(p.id)} />
           ))}
         </ul>
       )}
@@ -377,7 +389,7 @@ export default async function AdminDashboardPage() {
           </p>
           <ul className="mt-3 flex flex-col gap-3">
             {drafts.map((p) => (
-              <ProviderRow key={p.id} p={p} sportsList={sportsList} />
+              <ProviderRow key={p.id} p={p} sportsList={sportsList} isLive={liveProviderIds.has(p.id)} />
             ))}
           </ul>
         </>
@@ -391,7 +403,7 @@ export default async function AdminDashboardPage() {
       ) : (
         <ul className="mt-3 flex flex-col gap-3">
           {approved.map((p) => (
-            <ProviderRow key={p.id} p={p} sportsList={sportsList} />
+            <ProviderRow key={p.id} p={p} sportsList={sportsList} isLive={liveProviderIds.has(p.id)} />
           ))}
         </ul>
       )}
@@ -403,7 +415,7 @@ export default async function AdminDashboardPage() {
           </h2>
           <ul className="mt-3 flex flex-col gap-3">
             {rejected.map((p) => (
-              <ProviderRow key={p.id} p={p} sportsList={sportsList} />
+              <ProviderRow key={p.id} p={p} sportsList={sportsList} isLive={liveProviderIds.has(p.id)} />
             ))}
           </ul>
         </>
