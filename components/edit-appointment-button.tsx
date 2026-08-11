@@ -6,9 +6,10 @@ import { CalendarClock, Pencil, X } from 'lucide-react';
 import type { BookableDay } from '@/lib/core/availability';
 import {
   isStartBusyForDuration,
-  slotLabelSuffix,
+  slotPresentation,
   timeValueToMinutes,
 } from '@/lib/core/availability/validation';
+import { SLOT_TONE_CLASS, SLOT_TONE_STYLE } from '@/components/slot-tone';
 import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
 import { rescheduleBookingAction } from '@/app/(dashboard)/dashboard/appointments/actions';
@@ -231,22 +232,30 @@ export function EditAppointmentButton({
                         currentTime,
                         durationMin
                       );
+                      /* La durata qui è fissata dall'appuntamento: uno slot
+                         stretto non è recuperabile accorciando, quindi resta
+                         rosso e non selezionabile. L'etichetta pero' resta
+                         informativa e dice quanto spazio ci sarebbe. */
+                      const slot = slotPresentation(
+                        selectedDay.maxDurationMin,
+                        candidateTime,
+                        durationMin,
+                        false
+                      );
                       return (
                         <option
                           key={candidateTime}
                           value={candidateTime}
                           disabled={occupied}
-                          className={occupied ? 'text-red-600' : undefined}
-                          style={occupied ? { color: '#dc2626' } : undefined}
+                          className={
+                            occupied ? SLOT_TONE_CLASS[slot.tone] : undefined
+                          }
+                          style={
+                            occupied ? SLOT_TONE_STYLE[slot.tone] : undefined
+                          }
                         >
                           {candidateTime}
-                          {occupied
-                            ? slotLabelSuffix(
-                                selectedDay.maxDurationMin,
-                                candidateTime,
-                                durationMin
-                              )
-                            : ''}
+                          {occupied ? slot.suffix : ''}
                         </option>
                       );
                     })}

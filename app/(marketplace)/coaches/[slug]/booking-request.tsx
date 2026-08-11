@@ -8,8 +8,9 @@ import type { ActionState } from '@/lib/auth/middleware';
 import type { BookableDay } from '@/lib/core/availability';
 import {
   isStartBusyForDuration,
-  slotLabelSuffix,
+  slotPresentation,
 } from '@/lib/core/availability/validation';
+import { SLOT_TONE_CLASS, SLOT_TONE_STYLE } from '@/components/slot-tone';
 import {
   DEFAULT_SESSION_DURATION_MIN,
   SESSION_DURATION_OPTIONS,
@@ -73,6 +74,24 @@ export function BookingRequest({
 
   // Combined datetime-local value the server parses (Rome wall-clock).
   const scheduledFor = day && time ? `${day}T${time}` : '';
+
+  /**
+   * Sceglie l'orario, accorciando la sessione se quello scelto è stretto.
+   *
+   * Un orario etichettato «Solo 30 min» dice già cosa comporta sceglierlo:
+   * portare a termine la scelta è il seguito naturale, non una sorpresa.
+   */
+  function chooseTime(next: string) {
+    setTime(next);
+    if (!selectedDay) return;
+    const slot = slotPresentation(
+      selectedDay.maxDurationMin,
+      next,
+      durationMin,
+      true
+    );
+    if (slot.fitsDurationMin !== null) setDurationMin(slot.fitsDurationMin);
+  }
 
   if (services.length === 0) {
     return (
@@ -178,7 +197,7 @@ export function BookingRequest({
               <span className="text-xs text-gray-500">Ora</span>
               <select
                 value={time}
-                onChange={(e) => setTime(e.target.value)}
+                onChange={(e) => chooseTime(e.target.value)}
                 required
                 className={fieldCls}
               >
@@ -188,25 +207,22 @@ export function BookingRequest({
                   </option>
                 )}
                 {selectedDay?.times.map((t) => {
-                  const busy = isStartBusyForDuration(
+                  const slot = slotPresentation(
                     selectedDay.maxDurationMin,
                     t,
-                    durationMin
+                    durationMin,
+                    true
                   );
                   return (
                     <option
                       key={t}
                       value={t}
-                      disabled={busy}
-                      className={busy ? 'text-red-600' : undefined}
-                      style={busy ? { color: '#dc2626' } : undefined}
+                      disabled={!slot.selectable}
+                      className={SLOT_TONE_CLASS[slot.tone]}
+                      style={SLOT_TONE_STYLE[slot.tone]}
                     >
                       {t}
-                      {slotLabelSuffix(
-                        selectedDay.maxDurationMin,
-                        t,
-                        durationMin
-                      )}
+                      {slot.suffix}
                     </option>
                   );
                 })}

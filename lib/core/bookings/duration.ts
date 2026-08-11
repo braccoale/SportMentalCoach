@@ -36,3 +36,23 @@ export function parseSessionDuration(
   const value = Number(String(raw ?? '').trim());
   return isSessionDuration(value) ? value : null;
 }
+
+/**
+ * La durata più lunga fra quelle proponibili che sta in `maxMin` minuti.
+ *
+ * Serve agli slot troppo stretti: dire «Solo 30 min» e poi non far scegliere
+ * quell'orario è un'informazione che non serve a nulla. Chi lo sceglie
+ * accetta implicitamente quella durata, e la scelta va portata a termine per
+ * lui invece di lasciargli l'onere di indovinare quale valore rimettere nel
+ * campo durata.
+ *
+ * `null` quando nemmeno la sessione più corta ci sta: quello slot resta
+ * inutilizzabile, e va lasciato disabilitato invece che offerto a vuoto.
+ */
+export function largestFittingDuration(
+  maxMin: number
+): SessionDurationMin | null {
+  // L'elenco è già dal più lungo al più corto: il primo che entra è il
+  // migliore, e mantenerlo così evita un ordinamento a ogni chiamata.
+  return SESSION_DURATION_OPTIONS.find((minutes) => minutes <= maxMin) ?? null;
+}

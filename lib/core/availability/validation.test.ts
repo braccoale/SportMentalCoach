@@ -10,6 +10,7 @@ import {
   maxSessionMinutesAt,
   romeWeekdayAndMinute,
   slotLabelSuffix,
+  slotPresentation,
   timeValueToMinutes,
   validateAvailabilitySchedule,
 } from './validation';
@@ -272,4 +273,50 @@ test('l’etichetta resta coerente con il blocco dello slot', () => {
     const suffix = slotLabelSuffix(maxDurationMin, time, 40);
     assert.equal(busy, suffix !== '', `slot ${time}`);
   }
+});
+
+
+test('uno slot stretto si può scegliere, e accorcia la sessione', () => {
+  // «Solo 30 min» senza poterlo scegliere è un'informazione inutile: chi lo
+  // sceglie accetta quella durata, e il campo va portato lì per lui.
+  const maxDurationMin = { '10:30': 30, '10:50': 10, '11:00': 0 };
+
+  const tight = slotPresentation(maxDurationMin, '10:30', 40, true);
+  assert.equal(tight.selectable, true);
+  assert.equal(tight.tone, 'tight');
+  assert.equal(tight.fitsDurationMin, 30);
+  assert.equal(tight.suffix, ' · Solo 30 min');
+
+  // Dentro un appuntamento non c'è niente da accorciare.
+  const busy = slotPresentation(maxDurationMin, '11:00', 40, true);
+  assert.equal(busy.selectable, false);
+  assert.equal(busy.tone, 'occupied');
+  assert.equal(busy.fitsDurationMin, null);
+});
+
+test('sceglie la durata più lunga che ci sta, non la più corta', () => {
+  // Con 45 minuti liberi si propone 40, non 10: accorciare è già una
+  // concessione, e va fatta il meno possibile.
+  assert.equal(
+    slotPresentation({ '09:00': 45 }, '09:00', 60, true).fitsDurationMin,
+    40
+  );
+});
+
+test('sotto la sessione più corta lo slot torna rosso', () => {
+  // Cinque minuti non bastano per nessuna durata proponibile: offrirlo
+  // sarebbe un invito a un errore.
+  const slot = slotPresentation({ '09:00': 5 }, '09:00', 40, true);
+  assert.equal(slot.selectable, false);
+  assert.equal(slot.tone, 'occupied');
+});
+
+test('dove la durata è fissata, lo slot stretto non è selezionabile', () => {
+  // È il caso della modifica appuntamento: la durata non si tocca, quindi
+  // non c'è modo di far entrare la sessione.
+  const slot = slotPresentation({ '10:30': 30 }, '10:30', 40, false);
+  assert.equal(slot.selectable, false);
+  assert.equal(slot.tone, 'occupied');
+  // L'etichetta resta informativa: dice perché.
+  assert.equal(slot.suffix, ' · Solo 30 min');
 });

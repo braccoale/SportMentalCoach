@@ -15,8 +15,9 @@ import type { BookableDay } from '@/lib/core/availability';
 import {
   dropPastStarts,
   isStartBusyForDuration,
-  slotLabelSuffix,
+  slotPresentation,
 } from '@/lib/core/availability/validation';
+import { SLOT_TONE_CLASS, SLOT_TONE_STYLE } from '@/components/slot-tone';
 import { createCoachBookingAction } from './actions';
 
 type ServiceOption = { id: number; title: string; durationMin: number };
@@ -120,6 +121,27 @@ export function CoachNewAppointmentButton({
     ) {
       setTime(firstFreeTime(selectedDay, next));
     }
+  }
+
+  /**
+   * Sceglie l'orario, accorciando la sessione se quello scelto è stretto.
+   *
+   * Un orario etichettato «Solo 30 min» dice già cosa comporta sceglierlo:
+   * portare a termine la scelta è il seguito naturale, non una sorpresa. Il
+   * campo durata si aggiorna sotto gli occhi, quindi resta visibile e
+   * correggibile — l'alternativa era lasciare l'orario selezionato e la
+   * durata sbagliata, con il server a rifiutare al salvataggio.
+   */
+  function chooseTime(next: string) {
+    setTime(next);
+    if (!selectedDay) return;
+    const slot = slotPresentation(
+      selectedDay.maxDurationMin,
+      next,
+      durationMin,
+      true
+    );
+    if (slot.fitsDurationMin !== null) setDurationMin(slot.fitsDurationMin);
   }
 
   // Re-anchor on the first option each time the dialog opens, so a page left
@@ -315,7 +337,7 @@ export function CoachNewAppointmentButton({
                       <span className="text-xs text-gray-500">Ora</span>
                       <select
                         value={time}
-                        onChange={(e) => setTime(e.target.value)}
+                        onChange={(e) => chooseTime(e.target.value)}
                         required
                         className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
                       >
@@ -325,25 +347,22 @@ export function CoachNewAppointmentButton({
                           </option>
                         )}
                         {selectedDay?.times.map((t) => {
-                          const busy = isStartBusyForDuration(
+                          const slot = slotPresentation(
                             selectedDay.maxDurationMin,
                             t,
-                            durationMin
+                            durationMin,
+                            true
                           );
                           return (
                             <option
                               key={t}
                               value={t}
-                              disabled={busy}
-                              className={busy ? 'text-red-600' : undefined}
-                              style={busy ? { color: '#dc2626' } : undefined}
+                              disabled={!slot.selectable}
+                              className={SLOT_TONE_CLASS[slot.tone]}
+                              style={SLOT_TONE_STYLE[slot.tone]}
                             >
                               {t}
-                              {slotLabelSuffix(
-                                selectedDay.maxDurationMin,
-                                t,
-                                durationMin
-                              )}
+                              {slot.suffix}
                             </option>
                           );
                         })}

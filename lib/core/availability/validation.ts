@@ -1,4 +1,5 @@
 import type { Result } from '@/lib/core/result';
+import { largestFittingDuration } from '@/lib/core/bookings/duration';
 
 export type AvailabilityInput = {
   weekday: number;
@@ -232,6 +233,69 @@ export function slotLabelSuffix(
   if (availability.bookable) return '';
   if (availability.reason === 'occupied') return ' · Occupato';
   return ` · Solo ${availability.availableMin} min`;
+}
+
+/**
+ * Tutto ciò che serve per disegnare una voce dell'elenco orari.
+ *
+ * Sta in un posto solo perché le quattro schermate che mostrano quell'elenco
+ * devono raccontare la stessa cosa: uno slot arancione qui e rosso là sarebbe
+ * lo stesso stato con due significati.
+ *
+ * I tre esiti non sono gradazioni della stessa cosa, sono cose diverse:
+ * l'orario è libero, oppure è **stretto** — ci si può stare, ma accorciando —
+ * oppure è dentro un appuntamento e non c'è niente da fare.
+ */
+export type SlotPresentation = {
+  suffix: string;
+  selectable: boolean;
+  tone: 'free' | 'tight' | 'occupied';
+  /**
+   * La durata a cui passare scegliendo questo orario. Valorizzata solo per
+   * gli slot stretti: sceglierli significa accettare quella durata, e il
+   * campo va aggiornato per chi sceglie invece di lasciargli indovinare.
+   */
+  fitsDurationMin: number | null;
+};
+
+export function slotPresentation(
+  maxDurationMin: Record<string, number>,
+  time: string,
+  durationMin: number | null,
+  /**
+   * Se chi mostra l'elenco può anche cambiare la durata. Nella modifica di un
+   * appuntamento non può: lì la durata è fissata, e uno slot stretto resta
+   * inutilizzabile per quanto informativa sia l'etichetta.
+   */
+  canAdjustDuration: boolean
+): SlotPresentation {
+  const availability = slotAvailability(maxDurationMin, time, durationMin);
+
+  if (availability.bookable) {
+    return { suffix: '', selectable: true, tone: 'free', fitsDurationMin: null };
+  }
+
+  if (availability.reason === 'occupied') {
+    return {
+      suffix: ' · Occupato',
+      selectable: false,
+      tone: 'occupied',
+      fitsDurationMin: null,
+    };
+  }
+
+  const fits = canAdjustDuration
+    ? largestFittingDuration(availability.availableMin)
+    : null;
+
+  return {
+    suffix: ` · Solo ${availability.availableMin} min`,
+    // Nessuna durata proponibile ci sta (o non si può cambiarla): l'orario
+    // resta inutilizzabile, e va detto col rosso come gli altri.
+    selectable: fits !== null,
+    tone: fits !== null ? 'tight' : 'occupied',
+    fitsDurationMin: fits,
+  };
 }
 
 /**
