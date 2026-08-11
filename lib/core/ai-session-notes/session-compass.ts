@@ -31,11 +31,13 @@ import {
   type TrackedCommitmentStatus,
 } from './session-commitments';
 import {
+  SessionCompassGenerationError,
   generateValidatedSessionCompassReport,
   type SessionCompassContext,
   type SessionCompassPreviousReport,
   type SessionCompassReportProvider,
 } from './session-compass-provider';
+import { logPipeline } from './pipeline-log';
 
 export const SESSION_COMPASS_STATUSES = [
   'generating',
@@ -779,6 +781,37 @@ async function viewOf(
 
 function generationError(error: unknown): SessionCompassError {
   if (error instanceof SessionCompassError) return error;
+
+  /*
+   * Le violazioni non vanno perse qui.
+   *
+   * L'errore di generazione se le porta dietro — quale campo, quale regola —
+   * ma questa funzione traduce in un messaggio per l'utente e le buttava via.
+   * Il percorso del worker le registra; quello della rigenerazione manuale, che
+   * e' esattamente quello che si usa quando si sta indagando, no. Risultato: a
+   * schermo «non ha superato i controlli» e nei log nessuna traccia di quali.
+   *
+   * Solo percorsi e codici: il messaggio del validatore non contiene testo
+   * della seduta, e non deve iniziare a contenerlo.
+   */
+  if (error instanceof SessionCompassGenerationError && error.validationIssues.length) {
+    logPipeline({
+      phase: 'report_generation',
+      outcome: 'failed',
+      errorCode: error.code,
+      counts: { violazioni: error.validationIssues.length },
+      detail: {
+        // I primi otto bastano a capire se e' una frase infelice o un problema
+        // sistematico di registro linguistico.
+        campi: error.validationIssues.map((issue) => issue.path).slice(0, 8).join(', '),
+        regole: [
+          ...new Set(error.validationIssues.map((issue) => issue.code)),
+        ]
+          .slice(0, 6)
+          .join(', '),
+      },
+    });
+  }
   const providerCode =
     error && typeof error === 'object' && 'providerErrorCode' in error
       ? (error as { providerErrorCode?: unknown }).providerErrorCode
