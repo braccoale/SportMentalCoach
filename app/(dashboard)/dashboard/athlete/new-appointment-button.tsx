@@ -68,6 +68,14 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
   const [durationMin, setDurationMin] = useState<number>(
     DEFAULT_SESSION_DURATION_MIN
   );
+  /**
+   * La durata voluta, distinta da quella in vigore: scegliere un orario
+   * stretto abbassa la seconda, questa resta ferma ed è il valore a cui
+   * tornare appena un orario torna a contenerla.
+   */
+  const [preferredDurationMin, setPreferredDurationMin] = useState<number>(
+    DEFAULT_SESSION_DURATION_MIN
+  );
 
   const selectedDay = useMemo(
     () => days.find((d) => d.value === day),
@@ -81,6 +89,8 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
    */
   function pickDuration(next: number) {
     setDurationMin(next);
+    // Una durata scelta a mano è un'intenzione, non un valore di passaggio.
+    setPreferredDurationMin(next);
     if (
       selectedDay &&
       isStartBusyForDuration(selectedDay.maxDurationMin, time, next)
@@ -90,10 +100,13 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
   }
 
   /**
-   * Sceglie l'orario, accorciando la sessione se quello scelto è stretto.
+   * Sceglie l'orario e adatta la durata, in entrambe le direzioni.
    *
-   * Un orario etichettato «Solo 30 min» dice già cosa comporta sceglierlo:
-   * portare a termine la scelta è il seguito naturale, non una sorpresa.
+   * Si prova sempre a mettere la durata voluta, e la si accorcia solo se in
+   * quell'orario non ci sta: così uno slot stretto la abbassa e un orario
+   * libero la rialza, invece di lasciarla accorciata per sempre. Si valuta
+   * rispetto alla voluta e non alla corrente, altrimenti ogni accorciamento
+   * sarebbe definitivo.
    */
   function chooseTime(next: string) {
     setTime(next);
@@ -101,10 +114,10 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
     const slot = slotPresentation(
       selectedDay.maxDurationMin,
       next,
-      durationMin,
+      preferredDurationMin,
       true
     );
-    if (slot.fitsDurationMin !== null) setDurationMin(slot.fitsDurationMin);
+    setDurationMin(slot.fitsDurationMin ?? preferredDurationMin);
   }
 
   /** Bookable days of a coach, senza gli orari già passati. */
@@ -129,6 +142,7 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
     setSlug(first);
     setServiceId('');
     setDurationMin(DEFAULT_SESSION_DURATION_MIN);
+    setPreferredDurationMin(DEFAULT_SESSION_DURATION_MIN);
     setDay(firstDay?.value ?? '');
     setTime(firstFreeTime(firstDay, DEFAULT_SESSION_DURATION_MIN));
     setOpen(true);

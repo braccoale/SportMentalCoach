@@ -66,6 +66,14 @@ export function BookingRequest({
   const [durationMin, setDurationMin] = useState<number>(
     DEFAULT_SESSION_DURATION_MIN
   );
+  /**
+   * La durata voluta, distinta da quella in vigore: scegliere un orario
+   * stretto abbassa la seconda, questa resta ferma ed è il valore a cui
+   * tornare appena un orario torna a contenerla.
+   */
+  const [preferredDurationMin, setPreferredDurationMin] = useState<number>(
+    DEFAULT_SESSION_DURATION_MIN
+  );
 
   const selectedDay = useMemo(
     () => bookableDays.find((d) => d.value === day),
@@ -76,10 +84,12 @@ export function BookingRequest({
   const scheduledFor = day && time ? `${day}T${time}` : '';
 
   /**
-   * Sceglie l'orario, accorciando la sessione se quello scelto è stretto.
+   * Sceglie l'orario e adatta la durata, in entrambe le direzioni.
    *
-   * Un orario etichettato «Solo 30 min» dice già cosa comporta sceglierlo:
-   * portare a termine la scelta è il seguito naturale, non una sorpresa.
+   * Si prova sempre a mettere la durata voluta, e la si accorcia solo se in
+   * quell'orario non ci sta: così uno slot stretto la abbassa e un orario
+   * libero la rialza. Si valuta rispetto alla voluta e non alla corrente,
+   * altrimenti ogni accorciamento sarebbe definitivo.
    */
   function chooseTime(next: string) {
     setTime(next);
@@ -87,10 +97,10 @@ export function BookingRequest({
     const slot = slotPresentation(
       selectedDay.maxDurationMin,
       next,
-      durationMin,
+      preferredDurationMin,
       true
     );
-    if (slot.fitsDurationMin !== null) setDurationMin(slot.fitsDurationMin);
+    setDurationMin(slot.fitsDurationMin ?? preferredDurationMin);
   }
 
   if (services.length === 0) {
@@ -145,6 +155,9 @@ export function BookingRequest({
           onChange={(e) => {
             const next = Number(e.target.value);
             setDurationMin(next);
+            // Una durata scelta a mano è un'intenzione, non un valore di
+            // passaggio: è quella a cui tornare su un orario che la contiene.
+            setPreferredDurationMin(next);
             // Una sessione più lunga può non entrare più nell'orario scelto:
             // si ricade sul primo che la contiene.
             if (

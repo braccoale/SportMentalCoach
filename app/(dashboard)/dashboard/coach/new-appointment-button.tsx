@@ -82,6 +82,15 @@ export function CoachNewAppointmentButton({
   const [durationMin, setDurationMin] = useState<number>(
     DEFAULT_SESSION_DURATION_MIN
   );
+  /**
+   * La durata che il coach vuole davvero, distinta da quella in vigore.
+   *
+   * Scegliere un orario stretto abbassa la seconda; questa resta ferma, ed è
+   * il valore a cui tornare appena un orario torna a contenerla.
+   */
+  const [preferredDurationMin, setPreferredDurationMin] = useState<number>(
+    DEFAULT_SESSION_DURATION_MIN
+  );
   // Le opzioni arrivano calcolate dal server: si ripuliscono dagli orari nel
   // frattempo scaduti a ogni apertura del dialog, non qui, perché al primo
   // render devono coincidere con l'HTML del server (idratazione).
@@ -115,6 +124,9 @@ export function CoachNewAppointmentButton({
    */
   function pickDuration(next: number) {
     setDurationMin(next);
+    // Una durata scelta a mano è un'intenzione, non un valore di passaggio:
+    // è quella a cui tornare quando un orario tornerà a permetterla.
+    setPreferredDurationMin(next);
     if (
       selectedDay &&
       isStartBusyForDuration(selectedDay.maxDurationMin, time, next)
@@ -124,13 +136,17 @@ export function CoachNewAppointmentButton({
   }
 
   /**
-   * Sceglie l'orario, accorciando la sessione se quello scelto è stretto.
+   * Sceglie l'orario e adatta la durata, in entrambe le direzioni.
    *
-   * Un orario etichettato «Solo 30 min» dice già cosa comporta sceglierlo:
-   * portare a termine la scelta è il seguito naturale, non una sorpresa. Il
-   * campo durata si aggiorna sotto gli occhi, quindi resta visibile e
-   * correggibile — l'alternativa era lasciare l'orario selezionato e la
-   * durata sbagliata, con il server a rifiutare al salvataggio.
+   * La regola è una sola: si prova sempre a mettere la durata **voluta**, e la
+   * si accorcia solo se in quell'orario non ci sta. Così scegliere uno slot
+   * stretto abbassa la durata — «Solo 30 min» dice già cosa comporta — e
+   * tornare su un orario libero la rialza a quella di prima, invece di
+   * lasciarla accorciata per il resto della compilazione.
+   *
+   * Si valuta rispetto alla durata voluta e non a quella corrente, altrimenti
+   * ogni accorciamento sarebbe definitivo: una volta scesi a venti minuti,
+   * nessun orario successivo avrebbe più motivo di farla risalire.
    */
   function chooseTime(next: string) {
     setTime(next);
@@ -138,10 +154,10 @@ export function CoachNewAppointmentButton({
     const slot = slotPresentation(
       selectedDay.maxDurationMin,
       next,
-      durationMin,
+      preferredDurationMin,
       true
     );
-    if (slot.fitsDurationMin !== null) setDurationMin(slot.fitsDurationMin);
+    setDurationMin(slot.fitsDurationMin ?? preferredDurationMin);
   }
 
   // Re-anchor on the first option each time the dialog opens, so a page left
@@ -154,6 +170,7 @@ export function CoachNewAppointmentButton({
     setClientUserId(athleteUserId);
     setServiceId(defaultServiceFor(athleteUserId));
     setDurationMin(DEFAULT_SESSION_DURATION_MIN);
+    setPreferredDurationMin(DEFAULT_SESSION_DURATION_MIN);
     setDays(freshDays);
     setDay(freshDays[0]?.value ?? '');
     setTime(firstFreeTime(freshDays[0], DEFAULT_SESSION_DURATION_MIN));
