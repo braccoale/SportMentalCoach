@@ -1,11 +1,11 @@
-import { getUser } from '@/lib/db/queries';
+import { getApiUser } from '@/lib/auth/api-user';
 import { getAiNotesSessionById } from '@/lib/core/ai-session-notes';
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = await getUser();
+  const user = await getApiUser(request);
   if (!user) {
     return Response.json({ error: 'Non autenticato.' }, { status: 401 });
   }

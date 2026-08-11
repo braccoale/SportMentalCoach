@@ -76,6 +76,51 @@ export function fetchRoomCredentials(bookingId: number) {
   });
 }
 
+/**
+ * Gli Appunti AI, visti dall'app.
+ *
+ * Stesse rotte del web: sono le uniche a decidere chi può cosa, e un secondo
+ * insieme di regole per l'app sarebbe un secondo insieme da tenere allineato.
+ * L'app ne usa il minimo — sapere a che punto è, e rispondere al consenso —
+ * perché la lettura del riepilogo resta dove c'è lo spazio per leggerlo.
+ */
+export type AiNotesConsent = {
+  participantRole: 'coach' | 'athlete';
+  status: string;
+  isCurrentUser: boolean;
+};
+
+export type AiNotesSession = {
+  id: number;
+  bookingId: number;
+  status: string;
+  viewerRole: 'coach' | 'athlete';
+  consents: AiNotesConsent[];
+};
+
+export function fetchAiNotes(bookingId: number) {
+  return request<{ session: AiNotesSession | null }>(
+    `/api/appointments/${bookingId}/ai-session-notes`
+  );
+}
+
+export function startAiNotes(bookingId: number) {
+  return request<{ session: AiNotesSession }>('/api/ai-session-notes/start', {
+    method: 'POST',
+    body: JSON.stringify({ appointmentId: bookingId }),
+  });
+}
+
+export function respondToAiNotesConsent(
+  sessionId: number,
+  decision: 'accepted' | 'rejected' | 'revoked'
+) {
+  return request<{ session: AiNotesSession }>(
+    `/api/ai-session-notes/${sessionId}/consent`,
+    { method: 'POST', body: JSON.stringify({ decision }) }
+  );
+}
+
 /** Motivi di rifiuto che vale la pena raccontare invece di dire «errore». */
 export const ROOM_ERROR_TEXT: Record<string, string> = {
   too_early: 'La stanza apre pochi minuti prima dell’orario della sessione.',

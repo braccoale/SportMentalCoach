@@ -22,6 +22,7 @@ import {
   type RoomCredentials,
   type UpcomingSession,
 } from '../lib/api';
+import { AiNotesConsentPanel } from '../components/AiNotesConsentPanel';
 import { useTheme, type Palette } from '../theme';
 
 /**
@@ -94,7 +95,12 @@ export function CallScreen({
       video
       onDisconnected={onLeave}
     >
-      <RoomStage otherName={credentials.otherName} onLeave={onLeave} />
+      <RoomStage
+        otherName={credentials.otherName}
+        onLeave={onLeave}
+        bookingId={session.bookingId}
+        viewerIsCoach={credentials.viewerIsCoach}
+      />
     </LiveKitRoom>
   );
 }
@@ -102,9 +108,13 @@ export function CallScreen({
 function RoomStage({
   otherName,
   onLeave,
+  bookingId,
+  viewerIsCoach,
 }: {
   otherName: string;
   onLeave: () => void;
+  bookingId: number;
+  viewerIsCoach: boolean;
 }) {
   const tracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare]);
   const participants = useParticipants();
@@ -198,6 +208,8 @@ function RoomStage({
           </View>
         )}
       </View>
+
+      <AiNotesConsentPanel bookingId={bookingId} canActivate={viewerIsCoach} />
 
       {shareError && (
         <Text style={styles.shareError} accessibilityLiveRegion="polite">

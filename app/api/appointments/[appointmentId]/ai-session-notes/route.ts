@@ -1,5 +1,5 @@
 import { after } from 'next/server';
-import { getUser } from '@/lib/db/queries';
+import { getApiUser } from '@/lib/auth/api-user';
 import { getAiNotesSessionForBooking } from '@/lib/core/ai-session-notes';
 import { runAiNotesQueueAfterResponse } from '@/lib/core/ai-session-notes/queue-runner';
 import { shouldNudgeWorker } from '@/lib/core/ai-session-notes/worker-nudge';
@@ -30,7 +30,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ appointmentId: string }> }
 ) {
-  const user = await getUser();
+  const user = await getApiUser(request);
   if (!user) {
     return Response.json({ error: 'Non autenticato.' }, { status: 401 });
   }

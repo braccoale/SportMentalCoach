@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { getUser } from '@/lib/db/queries';
+import { getApiUser } from '@/lib/auth/api-user';
 import {
   getAiNotesSessionById,
   startAiNotesSession,
@@ -11,7 +11,7 @@ const startSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const user = await getUser();
+  const user = await getApiUser(request);
   if (!user) {
     return Response.json({ error: 'Non autenticato.' }, { status: 401 });
   }
