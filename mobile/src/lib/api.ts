@@ -50,12 +50,16 @@ export type UpcomingSession = {
   scheduledFor: string | null;
   durationMin: number;
   title: string;
+  /** `pending` è una richiesta che il coach non ha ancora accettato. */
+  status: string;
   viewerIsCoach: boolean;
   otherName: string;
 };
 
 export function fetchSessions() {
-  return request<{ sessions: UpcomingSession[] }>('/api/mobile/sessions');
+  return request<{ sessions: UpcomingSession[]; past: UpcomingSession[] }>(
+    '/api/mobile/sessions'
+  );
 }
 
 export type RoomCredentials = {

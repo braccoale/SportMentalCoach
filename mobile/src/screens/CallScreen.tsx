@@ -107,6 +107,7 @@ function RoomStage({
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } =
     useLocalParticipant();
   const [sharing, setSharing] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
 
   /*
    * La condivisione schermo è il motivo tecnico per cui questa app esiste:
@@ -116,12 +117,28 @@ function RoomStage({
    */
   async function toggleScreenShare() {
     const next = !sharing;
+    setShareError(null);
     try {
       await localParticipant.setScreenShareEnabled(next);
       setSharing(next);
-    } catch {
-      // Rifiutata dall'utente o non disponibile: si resta com'era.
+    } catch (error) {
+      /*
+       * Prima qui c'era un `catch` muto, e il risultato era il peggiore
+       * possibile: si premeva «Condividi» e non succedeva niente. Un pulsante
+       * che non fa nulla e non dice nulla e' indistinguibile da un pulsante
+       * rotto, e non lascia appiglio per capire perche'.
+       *
+       * Il rifiuto dell'utente e il guasto tecnico si somigliano ma non sono
+       * la stessa cosa: nel primo caso non c'e' niente da dire, nel secondo
+       * serve sapere cosa non ha funzionato.
+       */
       setSharing(false);
+      const message = error instanceof Error ? error.message : '';
+      setShareError(
+        /permission|denied|cancel/i.test(message)
+          ? 'Condivisione annullata.'
+          : `Condivisione non riuscita: ${message || 'motivo sconosciuto'}`
+      );
     }
   }
 
@@ -137,6 +154,12 @@ function RoomStage({
           <Text style={styles.waiting}>In attesa di {otherName}…</Text>
         )}
       </View>
+
+      {shareError && (
+        <Text style={styles.shareError} accessibilityLiveRegion="polite">
+          {shareError}
+        </Text>
+      )}
 
       <View style={styles.bar}>
         <Control
@@ -201,6 +224,13 @@ const styles = StyleSheet.create({
   },
   video: { flex: 1 },
   waiting: { color: theme.mid, textAlign: 'center' },
+  shareError: {
+    color: theme.red2,
+    fontSize: 12,
+    textAlign: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
   bar: {
     flexDirection: 'row',
     gap: 8,

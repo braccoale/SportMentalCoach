@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
   FlatList,
   Pressable,
   RefreshControl,
@@ -38,6 +39,10 @@ function whenLabel(iso: string | null): string {
   }).format(date)} alle ${time}`;
 }
 
+type Row =
+  | { kind: 'header'; title: string }
+  | { kind: 'session'; session: UpcomingSession; past: boolean };
+
 /**
  * L'elenco delle prossime sessioni: l'unica schermata fra l'accesso e la
  * chiamata.
@@ -54,6 +59,7 @@ export function SessionsScreen({
   onSignedOut: () => void;
 }) {
   const [sessions, setSessions] = useState<UpcomingSession[]>([]);
+  const [past, setPast] = useState<UpcomingSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,6 +67,7 @@ export function SessionsScreen({
     try {
       const data = await fetchSessions();
       setSessions(data.sessions);
+      setPast(data.past ?? []);
       setError(null);
     } catch {
       setError('Non riesco a caricare le sessioni.');
@@ -72,6 +79,42 @@ export function SessionsScreen({
   useEffect(() => {
     void load();
   }, [load]);
+
+  /*
+   * Ricarica quando l'app torna in primo piano, e ogni minuto mentre è aperta.
+   *
+   * Non è tempo reale — per quello serve che il server sappia avvisare, ed è
+   * un'altra cosa. È il rimedio al caso concreto: una sessione creata dal web
+   * mentre il telefono era in tasca, e un elenco che restava fermo a com'era
+   * al momento dell'accesso finché non lo si trascinava a mano.
+   */
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void load();
+    });
+    const timer = setInterval(() => {
+      if (AppState.currentState === 'active') void load();
+    }, 60_000);
+    return () => {
+      subscription.remove();
+      clearInterval(timer);
+    };
+  }, [load]);
+
+  /*
+   * Una lista sola con due intestazioni, invece di due liste.
+   *
+   * Le passate non hanno un elenco proprio perché non sono una destinazione:
+   * si scorre in fondo alle prossime e ci si trova dentro. Con poche sessioni
+   * — il caso normale — due schede separate sarebbero due schermate quasi
+   * vuote.
+   */
+  const rows: Row[] = [
+    ...(sessions.length ? [{ kind: 'header' as const, title: 'In programma' }] : []),
+    ...sessions.map((session) => ({ kind: 'session' as const, session, past: false })),
+    ...(past.length ? [{ kind: 'header' as const, title: 'Passate' }] : []),
+    ...past.map((session) => ({ kind: 'session' as const, session, past: true })),
+  ];
 
   return (
     <View style={styles.screen}>
@@ -91,8 +134,10 @@ export function SessionsScreen({
         <ActivityIndicator color={theme.red} style={styles.loader} />
       ) : (
         <FlatList
-          data={sessions}
-          keyExtractor={(item) => String(item.bookingId)}
+          data={rows}
+          keyExtractor={(item) =>
+            item.kind === 'header' ? item.title : String(item.session.bookingId)
+          }
           contentContainerStyle={styles.list}
           refreshControl={
             <RefreshControl
@@ -106,19 +151,44 @@ export function SessionsScreen({
               {error ?? 'Nessuna sessione in programma.'}
             </Text>
           }
-          renderItem={({ item }) => (
-            <Pressable
-              onPress={() => onOpenCall(item)}
-              style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-            >
-              <Text style={styles.when}>{whenLabel(item.scheduledFor)}</Text>
-              <Text style={styles.who}>{item.otherName}</Text>
-              <Text style={styles.meta}>
-                {item.title} · {item.durationMin} min
-              </Text>
-              <Text style={styles.enter}>Entra nella stanza →</Text>
-            </Pressable>
-          )}
+          renderItem={({ item }) => {
+            if (item.kind === 'header') {
+              return <Text style={styles.section}>{item.title}</Text>;
+            }
+            const session = item.session;
+            const waiting = session.status === 'pending';
+            return (
+              <Pressable
+                // Una sessione passata o ancora da accettare non ha una stanza
+                // da aprire: la scheda resta leggibile ma non porta da nessuna
+                // parte, invece di portare a un errore.
+                onPress={
+                  item.past || waiting ? undefined : () => onOpenCall(session)
+                }
+                disabled={item.past || waiting}
+                style={({ pressed }) => [
+                  styles.card,
+                  item.past && styles.cardPast,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={styles.when}>
+                  {whenLabel(session.scheduledFor)}
+                </Text>
+                <Text style={styles.who}>{session.otherName}</Text>
+                <Text style={styles.meta}>
+                  {session.title} · {session.durationMin} min
+                </Text>
+                {waiting ? (
+                  <Text style={styles.waiting}>
+                    In attesa che il coach accetti
+                  </Text>
+                ) : item.past ? null : (
+                  <Text style={styles.enter}>Entra nella stanza →</Text>
+                )}
+              </Pressable>
+            );
+          }}
         />
       )}
     </View>
@@ -146,6 +216,16 @@ const styles = StyleSheet.create({
     padding: 18,
     gap: 4,
   },
+  cardPast: { opacity: 0.55 },
+  section: {
+    color: theme.mid,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginTop: 12,
+  },
+  waiting: { color: theme.mid, fontSize: 13, fontStyle: 'italic', marginTop: 10 },
   pressed: { opacity: 0.85 },
   when: {
     color: theme.red2,

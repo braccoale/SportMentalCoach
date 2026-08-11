@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   StyleSheet,
@@ -9,6 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { API_BASE_URL } from '../lib/config';
 import {
   biometricSupport,
   confirmIdentity,
@@ -37,6 +40,7 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [biometricLabel, setBiometricLabel] = useState<string | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
+  const passwordRef = useRef<TextInput>(null);
 
   // All'avvio: c'è già una sessione? Allora la porta si apre col volto.
   useEffect(() => {
@@ -114,6 +118,14 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.body}>
+        <Image
+          source={require('../../assets/logo.png')}
+          style={styles.logo}
+          // Il marchio non è informazione: chi usa lo screen reader sente già
+          // «KaiPai» dal titolo qui sotto, e sentirlo due volte è rumore.
+          accessibilityElementsHidden
+          importantForAccessibility="no"
+        />
         <Text style={styles.brand}>KaiPai</Text>
         <Text style={styles.subtitle}>
           Entra per raggiungere le tue sessioni.
@@ -141,10 +153,20 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
           placeholder="nome@esempio.it"
           placeholderTextColor={theme.low}
           style={styles.input}
+          /*
+           * Il telefono non ha il tasto Tab: il passaggio da un campo all'altro
+           * lo fa il tasto d'invio, che qui diventa «Avanti» e porta il fuoco
+           * sulla password. Senza `blurOnSubmit={false}` la tastiera si
+           * chiuderebbe un istante prima di riaprirsi, con un salto visibile.
+           */
+          returnKeyType="next"
+          blurOnSubmit={false}
+          onSubmitEditing={() => passwordRef.current?.focus()}
         />
 
         <Text style={styles.label}>Password</Text>
         <TextInput
+          ref={passwordRef}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -152,6 +174,11 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
           placeholder="La tua password"
           placeholderTextColor={theme.low}
           style={styles.input}
+          // Ultimo campo: l'invio manda, non sposta.
+          returnKeyType="go"
+          onSubmitEditing={() => {
+            if (email && password && !pending) void submit();
+          }}
         />
 
         {error && <Text style={styles.error}>{error}</Text>}
@@ -171,8 +198,38 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
             <Text style={styles.primaryText}>Accedi</Text>
           )}
         </Pressable>
+
+        {/*
+         * I testi legali vivono sul sito e non dentro l'app, di proposito: sono
+         * gli stessi documenti, con la stessa versione, e duplicarli qui
+         * significherebbe averne due che prima o poi divergono. Si aprono nel
+         * browser di sistema.
+         */}
+        <View style={styles.legal}>
+          <LegalLink label="Privacy" path="/privacy" />
+          <Text style={styles.legalDot}>·</Text>
+          <LegalLink label="Termini" path="/terms" />
+          <Text style={styles.legalDot}>·</Text>
+          <LegalLink label="Cookie" path="/cookie" />
+        </View>
       </View>
     </KeyboardAvoidingView>
+  );
+}
+
+function LegalLink({ label, path }: { label: string; path: string }) {
+  return (
+    <Pressable
+      onPress={() => {
+        void Linking.openURL(`${API_BASE_URL}${path}`);
+      }}
+      accessibilityRole="link"
+      // Il bersaglio del dito è più grande del testo: una riga di 11 punti
+      // sarebbe impossibile da centrare.
+      hitSlop={12}
+    >
+      <Text style={styles.legalLink}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -180,12 +237,22 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.ink },
   centered: { alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, justifyContent: 'center', paddingHorizontal: 24, gap: 8 },
+  logo: { width: 64, height: 64, borderRadius: 16, marginBottom: 12 },
   brand: {
     color: theme.hi,
     fontSize: 40,
     fontWeight: '800',
     letterSpacing: -1,
   },
+  legal: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 24,
+  },
+  legalLink: { color: theme.mid, fontSize: 12, textDecorationLine: 'underline' },
+  legalDot: { color: theme.low, fontSize: 12 },
   subtitle: { color: theme.mid, fontSize: 15, marginBottom: 24 },
   label: { color: theme.mid, fontSize: 13, marginTop: 12 },
   input: {
