@@ -10,7 +10,8 @@
         "EXPO_PUBLIC_API_BASE_URL": "https://www.kaipaicoaching.com",
         "EXPO_PUBLIC_SUPABASE_URL": "https://jrodecctnyfigmgussxg.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impyb2RlY2N0bnlmaWdtZ3Vzc3hnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3NDAwNjgsImV4cCI6MjA5ODMxNjA2OH0.3STp5KCOxbpBgfNLHEXH-V7i1oyU6Ca6zSV_Vh6Te9U"
-      }
+      },
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
@@ -21,7 +22,8 @@
         "EXPO_PUBLIC_API_BASE_URL": "https://www.kaipaicoaching.com",
         "EXPO_PUBLIC_SUPABASE_URL": "https://jrodecctnyfigmgussxg.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impyb2RlY2N0bnlmaWdtZ3Vzc3hnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3NDAwNjgsImV4cCI6MjA5ODMxNjA2OH0.3STp5KCOxbpBgfNLHEXH-V7i1oyU6Ca6zSV_Vh6Te9U"
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
@@ -29,7 +31,8 @@
         "EXPO_PUBLIC_API_BASE_URL": "https://www.kaipaicoaching.com",
         "EXPO_PUBLIC_SUPABASE_URL": "https://jrodecctnyfigmgussxg.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impyb2RlY2N0bnlmaWdtZ3Vzc3hnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3NDAwNjgsImV4cCI6MjA5ODMxNjA2OH0.3STp5KCOxbpBgfNLHEXH-V7i1oyU6Ca6zSV_Vh6Te9U"
-      }
+      },
+      "channel": "production"
     }
   },
   "submit": {
