@@ -310,9 +310,14 @@ test('l’adapter OpenAI invia schema strict e non memorizza la richiesta', asyn
   const report = await provider.generateReport(input());
 
   assert.equal(sent?.store, false);
-  assert.equal(sent?.reasoning.effort, 'minimal');
+  // Non è un dettaglio di prestazioni: con lo sforzo al minimo, su un'ora di
+  // seduta il modello consegnava temi e momenti chiave vuoti. Estrarli e
+  // citarne l'evidenza è il lavoro che richiede ragionamento.
+  assert.equal(sent?.reasoning.effort, 'medium');
   assert.equal(sent?.text.verbosity, 'low');
-  assert.equal(sent?.max_output_tokens, 4_000);
+  // Il contratto chiede racconto in prosa piu' nove sezioni: con quattromila
+  // token il solo racconto si mangiava il budget e il resto restava vuoto.
+  assert.equal(sent?.max_output_tokens, 16_000);
   assert.equal(sent?.text.format.strict, true);
   assert.equal(sent?.text.format.name, 'session_compass_v1');
   assert.match(sent?.instructions ?? '', /Non è visibile all'atleta|non è visibile all'atleta/i);

@@ -7,6 +7,7 @@
  */
 
 import { sportContextBlock } from './sport-context';
+import { logPipeline } from './pipeline-log';
 import { houseGuidelinesBlock } from './house-guidelines-policy';
 import {
   KEY_MOMENT_CATEGORIES,
@@ -72,7 +73,7 @@ export type OpenAiCompassRequest = {
   input: string;
   store: false;
   reasoning: {
-    effort: 'minimal';
+    effort: 'minimal' | 'low' | 'medium' | 'high';
   };
   max_output_tokens: number;
   text: {
@@ -88,6 +89,20 @@ export type OpenAiCompassRequest = {
 
 export type OpenAiCompassResponse = {
   output: Array<{ type: string; content?: Array<{ type: string; text?: string }> }>;
+  /**
+   * Quanto e' costata la generazione, e soprattutto **perche' si e' fermata**.
+   *
+   * Un'uscita troncata dal budget produce un report povero senza sollevare
+   * nessun errore: e' successo, ed e' rimasto invisibile per giorni perche'
+   * non lo misuravamo. `status` e `incomplete_details` lo dicono a chiare
+   * lettere; i token dicono quanto margine e' rimasto.
+   */
+  status?: string;
+  incomplete_details?: { reason?: string };
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+  };
 };
 
 export interface OpenAiCompassClient {
@@ -141,6 +156,34 @@ export class OpenAiCompassHttpClient implements OpenAiCompassClient {
     if (!isCompassResponse(payload)) {
       throw new OpenAiSessionCompassError('MALFORMED_OUTPUT', 'Risposta OpenAI incompleta.');
     }
+
+    /*
+     * La misura, sempre — non solo quando qualcosa va storto.
+     *
+     * Un report con meta' delle sezioni vuote non genera nessun errore: e'
+     * JSON valido, semplicemente povero. L'unico modo per distinguere «il
+     * modello non ha trovato niente» da «il budget e' finito a meta' frase» e'
+     * guardare quanto ha consumato e come si e' fermato. Niente contenuti,
+     * solo numeri e un motivo.
+     */
+    logPipeline({
+      phase: 'report_generation',
+      outcome: payload.incomplete_details?.reason ? 'failed' : 'ok',
+      counts: {
+        tokenIngresso: payload.usage?.input_tokens ?? 0,
+        tokenUscita: payload.usage?.output_tokens ?? 0,
+        budgetUscita: request.max_output_tokens,
+      },
+      detail: {
+        stato: payload.status ?? null,
+        // Con `max_output_tokens` qui compare il motivo del troncamento: e'
+        // il segnale che il budget va alzato, non il prompt riscritto.
+        troncato: payload.incomplete_details?.reason ?? null,
+        modello: request.model,
+        sforzo: request.reasoning.effort,
+      },
+    });
+
     return payload;
   }
 }
@@ -250,11 +293,30 @@ function requestFor(
     ),
     input: JSON.stringify(promptPayload(input)),
     store: false,
-    // Session Compass è estrazione strutturata e verificabile, non richiede
-    // una catena di ragionamento estesa. Ridurre l'effort abbatte la latenza
-    // di gpt-5-mini senza eliminare schema strict o controlli sulle evidenze.
-    reasoning: { effort: 'minimal' },
-    max_output_tokens: 4_000,
+    /*
+     * Lo sforzo era al minimo, e su una seduta vera si e' visto il conto.
+     *
+     * Un'ora di conversazione — milleduecento segmenti — ha prodotto una
+     * sintesi discreta e poi temi, momenti chiave e preparazione **tutti
+     * vuoti**. Il modello non aveva sbagliato: il prompt gli dice, giustamente,
+     * di omettere un elemento quando non trova un'evidenza sufficiente, e con
+     * una passata superficiale su milleduecento segmenti quell'evidenza non la
+     * trova quasi mai. La regola prudente diventava un permesso di consegnare
+     * elenchi vuoti.
+     *
+     * Trovare un tema, verificarlo e citarne il passaggio alla lettera e'
+     * esattamente il lavoro che richiede ragionamento. Sulle sedute di prova da
+     * due minuti non si notava: con cinque segmenti trova tutto chiunque.
+     */
+    reasoning: { effort: 'medium' },
+    /*
+     * Il contratto chiede molto: racconto in prosa, sintesi, temi, risorsa,
+     * metriche, andamento emotivo, momenti chiave, impegni, preparazione e
+     * occasioni mancate. Il solo racconto — da tre a sei capoversi di quattro o
+     * sei frasi — si mangiava buona parte dei quattromila token, e per il resto
+     * non restava spazio.
+     */
+    max_output_tokens: 16_000,
     text: {
       verbosity: 'low',
       format: {

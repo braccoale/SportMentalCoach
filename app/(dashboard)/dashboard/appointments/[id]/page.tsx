@@ -22,6 +22,7 @@ import { loadConversationMap } from '@/lib/core/ai-session-notes/conversation-ma
 import { Button } from '@/components/ui/button';
 import { VideoCallButton } from '@/components/video-call-button';
 import { getAppBaseUrl } from '@/lib/core/app-url';
+import { BackToTop } from '@/components/back-to-top';
 import {
   getBookableDays,
   getCoachAvailabilityByProviderId,
@@ -311,6 +312,11 @@ export default async function AppointmentDetailPage({
           />
         </>
       ) : null}
+
+      {/* La pagina piu' lunga del prodotto: panoramica, racconto, percorso,
+          indicatori e trascrizione. Tornare in cima per approvare o cambiare
+          scheda significava trascinare per parecchi schermi. */}
+      <BackToTop />
     </section>
   );
 }
