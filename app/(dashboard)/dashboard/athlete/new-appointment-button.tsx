@@ -14,6 +14,7 @@ import {
 import {
   dropPastStarts,
   isStartBusyForDuration,
+  slotLabelSuffix,
 } from '@/lib/core/availability/validation';
 import { createBookingRequestAction } from './actions';
 
@@ -291,7 +292,11 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                               style={busy ? { color: '#dc2626' } : undefined}
                             >
                               {t}
-                              {busy ? ' · Occupato' : ''}
+                              {slotLabelSuffix(
+                                selectedDay.maxDurationMin,
+                                t,
+                                durationMin
+                              )}
                             </option>
                           );
                         })}

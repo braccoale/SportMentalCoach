@@ -6,6 +6,7 @@ import { CalendarClock, Pencil, X } from 'lucide-react';
 import type { BookableDay } from '@/lib/core/availability';
 import {
   isStartBusyForDuration,
+  slotLabelSuffix,
   timeValueToMinutes,
 } from '@/lib/core/availability/validation';
 import { ActionForm } from '@/components/action-form';
@@ -239,7 +240,13 @@ export function EditAppointmentButton({
                           style={occupied ? { color: '#dc2626' } : undefined}
                         >
                           {candidateTime}
-                          {occupied ? ' · Occupato' : ''}
+                          {occupied
+                            ? slotLabelSuffix(
+                                selectedDay.maxDurationMin,
+                                candidateTime,
+                                durationMin
+                              )
+                            : ''}
                         </option>
                       );
                     })}

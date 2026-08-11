@@ -6,7 +6,10 @@ import { Button } from '@/components/ui/button';
 import { requestBooking } from './actions';
 import type { ActionState } from '@/lib/auth/middleware';
 import type { BookableDay } from '@/lib/core/availability';
-import { isStartBusyForDuration } from '@/lib/core/availability/validation';
+import {
+  isStartBusyForDuration,
+  slotLabelSuffix,
+} from '@/lib/core/availability/validation';
 import {
   DEFAULT_SESSION_DURATION_MIN,
   SESSION_DURATION_OPTIONS,
@@ -199,7 +202,11 @@ export function BookingRequest({
                       style={busy ? { color: '#dc2626' } : undefined}
                     >
                       {t}
-                      {busy ? ' · Occupato' : ''}
+                      {slotLabelSuffix(
+                        selectedDay.maxDurationMin,
+                        t,
+                        durationMin
+                      )}
                     </option>
                   );
                 })}

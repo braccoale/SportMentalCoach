@@ -2462,6 +2462,42 @@ export type UserOnboarding = typeof userOnboarding.$inferSelect;
 export type NewUserOnboarding = typeof userOnboarding.$inferInsert;
 
 /**
+ * Dispositivi con l'app KaiPai installata (migrazione 0053).
+ *
+ * Tenuta separata da `pushSubscriptions` perché il Web Push del browser e la
+ * notifica nativa sono due trasporti diversi: là una tripletta cifrata con
+ * VAPID, qui un token singolo che Expo smista verso FCM o APNs.
+ */
+export const devicePushTokens = pgTable(
+  'device_push_tokens',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    token: text('token').notNull().unique(),
+    provider: varchar('provider', { length: 20 }).notNull().default('expo'),
+    platform: varchar('platform', { length: 20 }),
+    /** Ancora stabile del telefono: i token ruotano, il dispositivo no. */
+    deviceId: varchar('device_id', { length: 120 }),
+    appVersion: varchar('app_version', { length: 20 }),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index('device_push_tokens_user_id_idx').on(table.userId)]
+);
+
+export type DevicePushToken = typeof devicePushTokens.$inferSelect;
+export type NewDevicePushToken = typeof devicePushTokens.$inferInsert;
+
+/**
  * Messaggi dal form "Contatti" della landing (migrazione 0052).
  *
  * La riga viene scritta prima di provare a mandare la mail: una richiesta di

@@ -185,6 +185,56 @@ export function isStartBusyForDuration(
 }
 
 /**
+ * Perché un orario non è prenotabile. Sono due cose diverse, e chiamarle
+ * entrambe «Occupato» è stato a lungo un piccolo inganno.
+ *
+ * Un orario può essere *dentro* un appuntamento — lì il coach è davvero
+ * occupato — oppure semplicemente **troppo vicino** a quello successivo
+ * perché la durata scelta ci stia. Nel secondo caso il coach è liberissimo:
+ * alle 10:30, con una sessione alle 11:00, non ci stanno 40 minuti ma 30 sì.
+ * Dirgli «Occupato» gli fa credere a un errore e gli nasconde una mezz'ora
+ * che potrebbe usare.
+ */
+export type SlotAvailability =
+  | { bookable: true }
+  | { bookable: false; reason: 'occupied' }
+  | { bookable: false; reason: 'too_short'; availableMin: number };
+
+export function slotAvailability(
+  maxDurationMin: Record<string, number>,
+  time: string,
+  durationMin: number | null
+): SlotAvailability {
+  const max = maxDurationMin[time];
+  // Nessuna voce: dopo questo orario non c'è nulla, si può sempre partire.
+  if (max === undefined) return { bookable: true };
+  if (max === 0) return { bookable: false, reason: 'occupied' };
+  // Senza servizio scelto non si indovina una durata: si bloccano solo gli
+  // orari dentro un appuntamento, e la lista si restringe da sé alla scelta.
+  if (durationMin === null) return { bookable: true };
+  if (durationMin <= max) return { bookable: true };
+  return { bookable: false, reason: 'too_short', availableMin: max };
+}
+
+/**
+ * Il suffisso da mostrare accanto all'orario, vuoto quando è prenotabile.
+ *
+ * Vive qui e non nelle quattro schermate che lo mostrano: erano quattro
+ * copie della stessa parola, ed è il motivo per cui la formulazione
+ * sbagliata è sopravvissuta tanto a lungo in tutte e quattro insieme.
+ */
+export function slotLabelSuffix(
+  maxDurationMin: Record<string, number>,
+  time: string,
+  durationMin: number | null
+): string {
+  const availability = slotAvailability(maxDurationMin, time, durationMin);
+  if (availability.bookable) return '';
+  if (availability.reason === 'occupied') return ' · Occupato';
+  return ` · Solo ${availability.availableMin} min`;
+}
+
+/**
  * The appointments that still occupy the coach's calendar at `now` — including
  * one that started before `now` and is not over yet.
  *

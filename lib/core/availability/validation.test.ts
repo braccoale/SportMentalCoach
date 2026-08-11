@@ -9,6 +9,7 @@ import {
   isScheduledDateWithinSlot,
   maxSessionMinutesAt,
   romeWeekdayAndMinute,
+  slotLabelSuffix,
   timeValueToMinutes,
   validateAvailabilitySchedule,
 } from './validation';
@@ -231,4 +232,44 @@ test('a day whose starts have all passed disappears from the picker', () => {
     dropPastStarts(days, new Date('2026-08-06T06:17:00.000Z')),
     [{ value: '2026-08-07', times: ['07:10'] }]
   );
+});
+
+test('lo slot troppo stretto dice quanto spazio c’è, non «Occupato»', () => {
+  // Il caso reale: sessione alle 11:00 da 40 minuti. Alle 10:30 il coach non
+  // è occupato — semplicemente non ci stanno 40 minuti prima delle 11:00.
+  // Dirgli «Occupato» gli nasconde la mezz'ora che potrebbe usare.
+  const maxDurationMin = { '10:20': 40, '10:30': 30, '10:40': 20, '11:00': 0 };
+
+  assert.equal(slotLabelSuffix(maxDurationMin, '10:20', 40), '');
+  assert.equal(slotLabelSuffix(maxDurationMin, '10:30', 40), ' · Solo 30 min');
+  assert.equal(slotLabelSuffix(maxDurationMin, '10:40', 40), ' · Solo 20 min');
+  // Dentro l'appuntamento «Occupato» è la parola giusta e resta.
+  assert.equal(slotLabelSuffix(maxDurationMin, '11:00', 40), ' · Occupato');
+  // Nessuna voce: dopo non c'è nulla, si parte sempre.
+  assert.equal(slotLabelSuffix(maxDurationMin, '11:40', 40), '');
+});
+
+test('lo stesso slot cambia esito al cambiare della durata', () => {
+  const maxDurationMin = { '10:30': 30 };
+  assert.equal(slotLabelSuffix(maxDurationMin, '10:30', 30), '');
+  assert.equal(slotLabelSuffix(maxDurationMin, '10:30', 40), ' · Solo 30 min');
+});
+
+test('senza servizio scelto non si indovina una durata', () => {
+  const maxDurationMin = { '10:30': 30, '11:00': 0 };
+  // Solo gli orari dentro un appuntamento sono bloccati: la lista si
+  // restringe da sé quando il servizio viene scelto.
+  assert.equal(slotLabelSuffix(maxDurationMin, '10:30', null), '');
+  assert.equal(slotLabelSuffix(maxDurationMin, '11:00', null), ' · Occupato');
+});
+
+test('l’etichetta resta coerente con il blocco dello slot', () => {
+  // Se un giorno le due regole divergessero, l'interfaccia mostrerebbe uno
+  // slot selezionabile con scritto «Occupato», o viceversa.
+  const maxDurationMin = { '10:20': 40, '10:30': 30, '11:00': 0 };
+  for (const time of ['10:20', '10:30', '11:00', '11:40']) {
+    const busy = isStartBusyForDuration(maxDurationMin, time, 40);
+    const suffix = slotLabelSuffix(maxDurationMin, time, 40);
+    assert.equal(busy, suffix !== '', `slot ${time}`);
+  }
 });

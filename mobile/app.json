@@ -1,0 +1,75 @@
+{
+  "expo": {
+    "name": "KaiPai",
+    "slug": "kaipai-mobile",
+    "scheme": "kaipai",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#050507",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.kaipaicoaching.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "KaiPai usa la fotocamera per le videochiamate con il tuo coach.",
+        "NSMicrophoneUsageDescription": "KaiPai usa il microfono per le videochiamate con il tuo coach.",
+        "NSFaceIDUsageDescription": "Usa Face ID per rientrare in KaiPai senza riscrivere la password.",
+        "UIBackgroundModes": ["audio", "voip"]
+      }
+    },
+    "android": {
+      "package": "com.kaipaicoaching.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#050507"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"
+      ]
+    },
+    "plugins": [
+      "expo-dev-client",
+      "expo-secure-store",
+      "expo-local-authentication",
+      [
+        "@livekit/react-native-expo-plugin",
+        {
+          "android": {
+            "audioType": "communication",
+            "enableScreenShareService": true
+          }
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24,
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35
+          },
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#e11d2a"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "DA-COMPILARE-AL-PRIMO-EAS-BUILD"
+      }
+    }
+  }
+}

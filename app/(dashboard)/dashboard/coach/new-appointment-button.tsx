@@ -15,6 +15,7 @@ import type { BookableDay } from '@/lib/core/availability';
 import {
   dropPastStarts,
   isStartBusyForDuration,
+  slotLabelSuffix,
 } from '@/lib/core/availability/validation';
 import { createCoachBookingAction } from './actions';
 
@@ -338,7 +339,11 @@ export function CoachNewAppointmentButton({
                               style={busy ? { color: '#dc2626' } : undefined}
                             >
                               {t}
-                              {busy ? ' · Occupato' : ''}
+                              {slotLabelSuffix(
+                                selectedDay.maxDurationMin,
+                                t,
+                                durationMin
+                              )}
                             </option>
                           );
                         })}

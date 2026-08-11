@@ -3,6 +3,7 @@ import webpush from 'web-push';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { pushSubscriptions } from '@/lib/db/schema';
+import { sendNativePushToUser } from './native';
 
 /** Web Push is active only when the VAPID env vars are present. */
 export function isPushConfigured(): boolean {
@@ -104,14 +105,39 @@ export async function sendPushToUser(
   userId: number,
   payload: PushPayload
 ): Promise<void> {
-  if (!isPushConfigured()) return;
+  /*
+   * Unico punto d'ingresso per «avvisa questa persona sul suo dispositivo».
+   *
+   * Da qui partono due trasporti: il Web Push del browser e la notifica
+   * nativa verso l'app. Tenerli dietro la stessa funzione significa che tutto
+   * ciò che già avvisa qualcuno — una chiamata che parte, una prenotazione
+   * accettata — raggiunge l'app senza che nessuna di quelle chiamate venga
+   * toccata. L'alternativa, aggiungere una riga a ogni punto d'invio, è la
+   * strada sicura per averne uno che se ne dimentica.
+   *
+   * Sono indipendenti di proposito: chi ha l'app e il browser aperto riceve
+   * da entrambi, e chi ne ha uno solo non dipende dalla salute dell'altro.
+   */
+  const native = sendNativePushToUser(userId, payload).catch((error) => {
+    console.error('[push] canale nativo fallito', error);
+  });
+
+  if (!isPushConfigured()) {
+    await native;
+    return;
+  }
   ensureVapid();
 
   const subs = await db
     .select()
     .from(pushSubscriptions)
     .where(eq(pushSubscriptions.userId, userId));
-  if (subs.length === 0) return;
+  // Nessun browser iscritto non vuol dire nessun destinatario: l'app può
+  // avere il suo dispositivo registrato.
+  if (subs.length === 0) {
+    await native;
+    return;
+  }
 
   const body = JSON.stringify(payload);
   await Promise.all(
@@ -132,4 +158,5 @@ export async function sendPushToUser(
       }
     })
   );
+  await native;
 }
