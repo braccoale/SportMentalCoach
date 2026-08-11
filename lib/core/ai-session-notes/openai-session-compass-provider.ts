@@ -37,7 +37,26 @@ const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 // report. Un timeout uguale a quello della function poteva interrompere il
 // processo prima che il job venisse chiuso correttamente.
 const DEFAULT_TIMEOUT_MS = 45_000;
-export const SESSION_COMPASS_PROMPT_REVISION = 'sport-context-v7' as const;
+/**
+ * L'identita' della ricetta con cui si genera un riepilogo.
+ *
+ * Deve cambiare ogni volta che cambia **come** il report viene prodotto, non
+ * solo quando cambia il testo del prompt: la rigenerazione e' idempotente e si
+ * rifiuta di rifare una bozza che risulti gia' allineata. Se la revisione non
+ * si muove, un cambio di modello o di parametri resta invisibile alla guardia
+ * e il pulsante «Rigenera bozza» risponde «gia' allineata» a chi ha appena
+ * corretto proprio quei parametri — ed e' esattamente quello che e'
+ * successo alzando ragionamento e budget.
+ *
+ * Per questo la revisione porta con se' i due parametri che decidono la
+ * qualita' dell'estrazione: cambiarli senza toccare questa riga diventa
+ * impossibile.
+ */
+const COMPASS_REASONING_EFFORT = 'medium' as const;
+const COMPASS_MAX_OUTPUT_TOKENS = 16_000;
+
+export const SESSION_COMPASS_PROMPT_REVISION =
+  `sport-context-v7-${COMPASS_REASONING_EFFORT}-${COMPASS_MAX_OUTPUT_TOKENS}` as const;
 
 export function effectiveSessionCompassPromptVersion(value: string): string {
   const base = value.trim();
@@ -308,7 +327,7 @@ function requestFor(
      * esattamente il lavoro che richiede ragionamento. Sulle sedute di prova da
      * due minuti non si notava: con cinque segmenti trova tutto chiunque.
      */
-    reasoning: { effort: 'medium' },
+    reasoning: { effort: COMPASS_REASONING_EFFORT },
     /*
      * Il contratto chiede molto: racconto in prosa, sintesi, temi, risorsa,
      * metriche, andamento emotivo, momenti chiave, impegni, preparazione e
@@ -316,7 +335,7 @@ function requestFor(
      * sei frasi — si mangiava buona parte dei quattromila token, e per il resto
      * non restava spazio.
      */
-    max_output_tokens: 16_000,
+    max_output_tokens: COMPASS_MAX_OUTPUT_TOKENS,
     text: {
       verbosity: 'low',
       format: {

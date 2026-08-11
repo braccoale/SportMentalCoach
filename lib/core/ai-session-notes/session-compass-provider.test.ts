@@ -17,14 +17,19 @@ import {
 import {
   OpenAiSessionCompassError,
   OpenAiSessionCompassReportProvider,
+  SESSION_COMPASS_PROMPT_REVISION,
   effectiveSessionCompassPromptVersion,
   type OpenAiCompassClient,
   type OpenAiCompassRequest,
 } from './openai-session-compass-provider';
 
 test('la revisione prompt lingua e UX è stabile e non si duplica', () => {
-  assert.equal(effectiveSessionCompassPromptVersion('compass-v1'), 'compass-v1:sport-context-v7');
-  assert.equal(effectiveSessionCompassPromptVersion('compass-v1:sport-context-v7'), 'compass-v1:sport-context-v7');
+  // La revisione non e' scritta a mano nel test: sarebbe una copia da
+  // aggiornare a ogni cambio, e il senso della prova e' un altro — che il
+  // suffisso venga aggiunto una volta sola e non si duplichi.
+  const expected = `compass-v1:${SESSION_COMPASS_PROMPT_REVISION}`;
+  assert.equal(effectiveSessionCompassPromptVersion('compass-v1'), expected);
+  assert.equal(effectiveSessionCompassPromptVersion(expected), expected);
   assert.equal(effectiveSessionCompassPromptVersion('  '), '');
 });
 
