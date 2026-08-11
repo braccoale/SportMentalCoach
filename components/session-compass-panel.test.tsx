@@ -555,7 +555,13 @@ test('la panoramica non ripete per esteso la stessa evidenza tra sezioni', () =>
     sessionOverview: {
       ...base.sessionOverview,
       summaryEvidence: [sharedEvidence],
-      themes: [{ id: 'theme-shared', text: 'Tema condiviso', evidence: sharedEvidence }],
+      // Due temi di proposito: con uno solo il pannello dei temi non compare,
+      // perche' ripeterebbe il titolone. Qui la prova riguarda la
+      // deduplicazione delle evidenze, e ha bisogno che il pannello ci sia.
+      themes: [
+        { id: 'theme-shared', text: 'Tema condiviso', evidence: sharedEvidence },
+        { id: 'theme-secondo', text: 'Secondo tema', evidence: sharedEvidence },
+      ],
       emergingResource: { id: 'resource-shared', text: 'Lettura condivisa', evidence: sharedEvidence },
     },
     keyMoments: [{ ...base.keyMoments[0]!, evidence: sharedEvidence }],

@@ -38,6 +38,7 @@ import { CountUp } from '@/components/landing/count-up';
 import { ImageSlot, AvatarSlot } from '@/components/landing/image-slot';
 import { CookieSettingsButton } from '@/components/google-analytics';
 import { FooterLinks } from '@/components/landing/footer-links';
+import { BackToTop } from '@/components/back-to-top';
 import { getLandingStats } from '@/lib/db/landing-stats';
 
 /** First-letter monogram from a display name (drops trailing ", 17 anni" etc). */
@@ -123,6 +124,10 @@ export default async function KaiPaiLanding() {
       <MovementResources />
       <FinalCta />
       <SiteFooter />
+
+      {/* La landing e' lunga per scelta: dopo l'ultima sezione tornare in
+          cima significava risalire tutte le altre. */}
+      <BackToTop tone="dark" showAfterPx={900} />
     </main>
   );
 }

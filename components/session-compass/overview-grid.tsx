@@ -25,6 +25,7 @@ import { RecurringThemesPanel } from './recurring-themes-panel';
 import { formatTranscriptTimestamp } from './time';
 import { SPEAKER_LABEL, type CompassTranscriptSegment } from './types';
 import { EvidenceReference, SectionHeading, Surface, evidenceKey } from './ui';
+import { CollapsibleSection } from './collapsible-section';
 
 const MAX_PRIMARY_EVIDENCE = 2;
 const MAX_VISIBLE_MOMENTS = 2;
@@ -99,7 +100,16 @@ export function SessionOverview({
     currentSessionId: sessionId,
   });
 
-  const hasThemes = (journey?.recurringThemes.length ?? 0) > 0 || overview.themes.length > 0;
+  /*
+   * Con un tema solo, il pannello ripete il titolone.
+   *
+   * Il titolo della lettura AI è il primo tema: mostrarlo di nuovo poco sotto
+   * sotto un'altra intestazione non aggiunge niente e fa sembrare la pagina
+   * più piena di quanto sia. Da due temi in su torna a dire qualcosa, e con i
+   * temi ricorrenti del percorso è utile comunque.
+   */
+  const hasThemes =
+    (journey?.recurringThemes.length ?? 0) > 0 || overview.themes.length > 1;
 
   const journeySidebar = (
     <AthleteJourneySidebar
@@ -168,9 +178,18 @@ export function SessionOverview({
       {/* Subito sotto l'eroe: la sintesi dice cos'e' successo, il racconto
           come e' andata. Qui c'e' solo il richiamo — il racconto si legge
           nella sua tab, dove la pagina e' fatta per leggere. */}
-      <SessionStoryCta story={report.story ?? null} onOpenStory={onOpenStory} />
+      {report.story ? (
+        <CollapsibleSection
+          eyebrow="Com'è andata"
+          title={report.story.title}
+          hint="anteprima del racconto"
+        >
+          <SessionStoryCta story={report.story} onOpenStory={onOpenStory} />
+        </CollapsibleSection>
+      ) : null}
 
-      <SessionMetricsStrip
+      <CollapsibleSection eyebrow="In sintesi" title="Indicatori e partecipazione">
+        <SessionMetricsStrip
         metrics={overview.metrics ?? []}
         metricHistory={metricHistory}
         isApproved={isApproved}
@@ -182,30 +201,45 @@ export function SessionOverview({
           moments: report.keyMoments.length,
           hasResource: Boolean(overview.emergingResource),
         }}
-      />
+        />
+      </CollapsibleSection>
 
-      {previousJourneyEntry ? (
-        <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-2 [&>*]:h-full">
-          <SessionContinuityCard report={report} previous={previousJourneyEntry} />
+      <CollapsibleSection
+        eyebrow="Percorso"
+        title="Filo logico del percorso"
+        hint={previousJourneyEntry ? undefined : 'prima sessione analizzata'}
+      >
+        {previousJourneyEntry ? (
+          <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-2 [&>*]:h-full">
+            <SessionContinuityCard report={report} previous={previousJourneyEntry} />
+            <JourneyNarrative
+              report={report}
+              previous={previousJourneyEntry}
+              currentSessionDate={currentSessionDate ?? null}
+            />
+          </div>
+        ) : (
           <JourneyNarrative
             report={report}
             previous={previousJourneyEntry}
             currentSessionDate={currentSessionDate ?? null}
           />
-        </div>
-      ) : (
-        <JourneyNarrative
-          report={report}
-          previous={previousJourneyEntry}
-          currentSessionDate={currentSessionDate ?? null}
-        />
-      )}
+        )}
+      </CollapsibleSection>
 
-      <MissedOpportunities
-        items={report.missedOpportunities ?? []}
-        citedEvidenceKeys={primaryEvidenceKeys}
-        onOpenEvidence={onOpenEvidence}
-      />
+      {(report.missedOpportunities?.length ?? 0) > 0 ? (
+        <CollapsibleSection
+          eyebrow="Da riascoltare"
+          title="Spunti rimasti aperti"
+          hint={`${report.missedOpportunities?.length ?? 0}`}
+        >
+          <MissedOpportunities
+            items={report.missedOpportunities ?? []}
+            citedEvidenceKeys={primaryEvidenceKeys}
+            onOpenEvidence={onOpenEvidence}
+          />
+        </CollapsibleSection>
+      ) : null}
 
       {/* Temi e follow-up sono le due facce della stessa domanda: su cosa
           avete lavorato, e cosa ne resta da fare. Stanno affiancati. */}

@@ -8,6 +8,15 @@ export function SmoothScroll() {
   useEffect(() => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const lenis = new Lenis({ duration: 1.1, smoothWheel: true });
+    /*
+     * L'istanza va esposta perche' qualcun altro possa scorrere.
+     *
+     * Lenis muove la pagina da se' a ogni frame: un `window.scrollTo` animato
+     * partirebbe in parallelo e i due si contenderebbero la stessa posizione,
+     * con l'effetto di uno scatto o di un ritorno indietro. Chi vuole portare
+     * la pagina altrove deve chiederlo a lui.
+     */
+    (window as unknown as { __lenis?: Lenis }).__lenis = lenis;
     let raf = 0;
     const loop = (t: number) => {
       lenis.raf(t);
@@ -16,6 +25,7 @@ export function SmoothScroll() {
     raf = requestAnimationFrame(loop);
     return () => {
       cancelAnimationFrame(raf);
+      delete (window as unknown as { __lenis?: Lenis }).__lenis;
       lenis.destroy();
     };
   }, []);
