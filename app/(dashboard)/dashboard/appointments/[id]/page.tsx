@@ -137,7 +137,20 @@ export default async function AppointmentDetailPage({
   const dashboardPath =
     booking.viewerRole === 'athlete' ? '/dashboard/athlete' : '/dashboard/coach';
   const isOpen = ['requested', 'accepted'].includes(booking.status);
-  const canCancel = isOpen && isSessionJoinable(booking.scheduledFor, booking.durationMin);
+  /*
+   * La seduta e' gia' avvenuta.
+   *
+   * Resta «aperta» finche' il coach non la chiude, ma il tempo e' passato: da
+   * quel momento spostarla, aggiungerla al calendario o scriverne nell'intestazione
+   * non sono piu' azioni possibili, sono ingombro sopra la cosa per cui si e'
+   * aperta la pagina — il riepilogo. Un pulsante che non puo' fare nulla non e'
+   * neutro: chiede attenzione e la restituisce vuota.
+   */
+  const alreadyHappened = !isSessionJoinable(
+    booking.scheduledFor,
+    booking.durationMin
+  );
+  const canCancel = isOpen && !alreadyHappened;
   const cancelAction =
     booking.viewerRole === 'athlete' ? cancelAthleteBookingAction : cancelCoachBookingAction;
   const calendarUnavailableMessage = !booking.scheduledFor
@@ -248,7 +261,7 @@ export default async function AppointmentDetailPage({
                 prominent
               />
             ) : null}
-            {isOpen ? (
+            {isOpen && !alreadyHappened ? (
               <Button asChild variant="outline">
                 <Link href={`/dashboard/chat/${booking.id}`}>
                   <MessageSquare className="h-4 w-4" /> Messaggio
@@ -258,7 +271,7 @@ export default async function AppointmentDetailPage({
           </div>
         </div>
 
-        {isOpen ? (
+        {isOpen && !alreadyHappened ? (
           <div className="mt-5 flex flex-col gap-3 border-t border-gray-100 pt-5">
             {!calendarEvent && isOpen ? (
               <p className="text-sm text-gray-500">{calendarUnavailableMessage}</p>
