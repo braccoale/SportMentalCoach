@@ -5,6 +5,7 @@ import {
   STUCK_JOB_MINUTES,
   type AiPipelineHealth,
 } from '@/lib/core/ai-session-notes/queue-health';
+import type { PipelineHealth } from '@/lib/core/ai-session-notes/pipeline-health-policy';
 import {
   probeCallbackAction,
   runAiNotesWorkerAction,
@@ -55,10 +56,65 @@ function when(value: Date | null): string {
  * meccanica sta girando? — che finora richiedeva di interrogare il database a
  * mano.
  */
+/**
+ * Il verdetto, in cima e in una riga.
+ *
+ * Sopra ci sono conteggi: quanti job, quante sessioni, quante registrazioni.
+ * Sono utili quando si indaga, ma non rispondono alla domanda che si fa chi
+ * apre questa pagina di corsa — «sta girando o è fermo?». Rispondere a
+ * quella domanda leggendo sei numeri è esattamente ciò che ha fatto perdere
+ * un'ora quando due trascrizioni erano bloccate: i numeri c'erano tutti, e
+ * nessuno diceva che c'era un problema.
+ */
+function Verdict({ pipeline }: { pipeline: PipelineHealth }) {
+  const tone =
+    pipeline.verdict === 'stuck'
+      ? 'border-red-200 bg-red-50 text-red-900'
+      : pipeline.verdict === 'idle'
+        ? 'border-gray-200 bg-gray-50 text-gray-700'
+        : 'border-emerald-200 bg-emerald-50 text-emerald-900';
+
+  const title =
+    pipeline.verdict === 'stuck'
+      ? 'La pipeline è ferma'
+      : pipeline.verdict === 'idle'
+        ? 'Niente in coda'
+        : 'La pipeline sta lavorando';
+
+  return (
+    <div className={`mt-4 rounded-2xl border p-4 ${tone}`}>
+      <div className="flex items-start gap-3">
+        {pipeline.verdict === 'stuck' ? (
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+        ) : (
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+        )}
+        <div>
+          <p className="text-base font-semibold">{title}</p>
+          <p className="mt-1 text-sm">{pipeline.message}</p>
+          <p className="mt-2 text-xs opacity-80">
+            In coda e pronti: {pipeline.readyJobs} · mai tentati:{' '}
+            {pipeline.untouchedJobs} · ultimo movimento:{' '}
+            {when(pipeline.lastJobActivityAt)}
+          </p>
+          {pipeline.verdict === 'stuck' && (
+            <p className="mt-2 text-sm font-medium">
+              Premi «Esegui il worker adesso»: se dopo resta fermo, il problema
+              non è la sveglia ma il worker.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AiPipelineHealthPanel({
   health,
+  pipeline,
 }: {
   health: AiPipelineHealth;
+  pipeline: PipelineHealth;
 }) {
   const providerReady =
     health.sttProvider === 'deepgram' && health.sttApiKeyConfigured;
@@ -88,6 +144,8 @@ export function AiPipelineHealthPanel({
           </Button>
         </ActionForm>
       </div>
+
+      <Verdict pipeline={pipeline} />
 
       {/* Configurazione del provider: la causa più banale di una coda ferma. */}
       <div

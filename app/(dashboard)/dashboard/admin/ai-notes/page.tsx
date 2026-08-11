@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { updateAiNotesEntitlementAction } from './actions';
 import { AiPipelineHealthPanel } from '@/components/admin/ai-pipeline-health';
 import { getAiPipelineHealth } from '@/lib/core/ai-session-notes/queue-health';
+import { getPipelineHealth } from '@/lib/core/ai-session-notes/pipeline-health';
 import { HouseGuidelinesEditor } from '@/components/admin/house-guidelines-editor';
 import { loadActiveHouseGuidelines } from '@/lib/core/ai-session-notes/house-guidelines';
 
@@ -36,10 +37,11 @@ function statusLabel(status: string | null) {
 
 export default async function AiNotesAdminPage() {
   const admin = await requireRole('admin');
-  const [users, health, guidelines] = await Promise.all([
+  const [users, health, guidelines, pipeline] = await Promise.all([
     getFeatureAdminUsers(admin.id, FEATURE_CODES.AI_SESSION_NOTES),
     getAiPipelineHealth(),
     loadActiveHouseGuidelines(),
+    getPipelineHealth(),
   ]);
 
   return (
@@ -67,7 +69,7 @@ export default async function AiNotesAdminPage() {
         </div>
       </div>
 
-      <AiPipelineHealthPanel health={health} />
+      <AiPipelineHealthPanel health={health} pipeline={pipeline} />
 
       <HouseGuidelinesEditor
         body={guidelines?.body ?? ''}
