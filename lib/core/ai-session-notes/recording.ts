@@ -1,4 +1,8 @@
 import 'server-only';
+import {
+  assessRecordingCoverage,
+  type SessionCoverage,
+} from './recording-coverage';
 import { randomUUID } from 'node:crypto';
 import {
   and,
@@ -477,8 +481,21 @@ async function startReservedTrack(
         livekitEgressId: egressId,
         status: 'failed',
         errorCode: 'EGRESS_START_FAILED',
-        errorMessageSanitized:
-          error instanceof Error ? error.name.slice(0, 80) : 'unknown',
+        /*
+         * Il nome dell'errore da solo non dice niente.
+         *
+         * Qui finiva `error.name`, che per qualunque guasto e' «Error». Una
+         * registrazione si e' interrotta al settimo minuto di una seduta da
+         * cinquantasei, i due tentativi di ripresa sono falliti entrambi, e
+         * l'unica cosa rimasta a database era la parola «Error»: impossibile
+         * capire se fosse la stanza chiusa, la traccia sparita o un limite del
+         * provider.
+         *
+         * Il messaggio di un errore di egress e' tecnico — stanze, tracce,
+         * codici di stato — e non contiene parole della seduta. Si conserva
+         * troncato: e' la differenza fra indagare e indovinare.
+         */
+        errorMessageSanitized: sanitizeEgressError(error),
         endedAt: new Date(),
         updatedDate: new Date(),
         updatedBy: actorUserId,
@@ -491,6 +508,9 @@ async function startReservedTrack(
       metadata: {
         recordingId: recording.id,
         errorCode: 'EGRESS_START_FAILED',
+        // Anche nel registro: e' la tabella che si interroga per capire cosa
+        // e' successo a una seduta, e senza il motivo resta una riga muta.
+        reason: sanitizeEgressError(error),
       },
     });
     throw new AiNotesDomainError(
@@ -498,6 +518,20 @@ async function startReservedTrack(
       'Avvio della registrazione audio non riuscito.'
     );
   }
+}
+
+
+/**
+ * Il perche' di un avvio di egress fallito, in forma conservabile.
+ *
+ * Nome piu' messaggio, troncati: abbastanza per riconoscere un limite del
+ * provider, una stanza gia' chiusa o una traccia sparita, senza trascinarsi
+ * dietro payload interi.
+ */
+function sanitizeEgressError(error: unknown): string {
+  if (!(error instanceof Error)) return 'unknown';
+  const detail = error.message?.trim();
+  return (detail ? `${error.name}: ${detail}` : error.name).slice(0, 400);
 }
 
 async function startRecording(params: {
@@ -936,4 +970,61 @@ export async function hasActiveAiNotesSessionForBooking(
     )
     .limit(1);
   return !!row;
+}
+
+/**
+ * Quanto della seduta risulta registrato, voce per voce.
+ *
+ * Solo i segmenti riusciti: quelli falliti non hanno prodotto audio, e
+ * contarli direbbe che c'e' materiale dove non ce n'e'. La durata di
+ * riferimento e' quella reale della chiamata quando la conosciamo — il
+ * battito dei partecipanti — perche' e' l'unica misura di quanto sia durata
+ * davvero.
+ */
+export async function getSessionRecordingCoverage(
+  sessionId: number
+): Promise<SessionCoverage> {
+  const rows = await db
+    .select({
+      role: sessionAudioRecordings.participantRole,
+      seconds: sessionAudioRecordings.durationSeconds,
+      status: sessionAudioRecordings.status,
+      sessionStartedAt: bookings.sessionStartedAt,
+      sessionEndedAt: bookings.sessionEndedAt,
+    })
+    .from(sessionAudioRecordings)
+    .innerJoin(
+      sessionAiNotes,
+      eq(sessionAiNotes.id, sessionAudioRecordings.sessionAiNotesId)
+    )
+    .innerJoin(bookings, eq(bookings.id, sessionAiNotes.bookingId))
+    .where(eq(sessionAudioRecordings.sessionAiNotesId, sessionId));
+
+  const first = rows[0];
+  const span =
+    first?.sessionStartedAt && first?.sessionEndedAt
+      ? (first.sessionEndedAt.getTime() - first.sessionStartedAt.getTime()) / 1000
+      : 0;
+
+  // Senza battito si ripiega sul segmento piu' lungo: e' una stima prudente,
+  // perche' nessuna voce puo' essere stata registrata piu' a lungo della
+  // seduta stessa.
+  const longest = rows.reduce(
+    (max, row) => Math.max(max, Number(row.seconds ?? 0)),
+    0
+  );
+
+  return assessRecordingCoverage({
+    sessionSeconds: span > 0 ? span : longest,
+    recorded: rows
+      .filter(
+        (row) =>
+          row.status === 'recorded' &&
+          (row.role === 'coach' || row.role === 'athlete')
+      )
+      .map((row) => ({
+        role: row.role as 'coach' | 'athlete',
+        seconds: Number(row.seconds ?? 0),
+      })),
+  });
 }

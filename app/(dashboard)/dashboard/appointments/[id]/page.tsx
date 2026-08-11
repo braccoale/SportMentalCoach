@@ -23,6 +23,8 @@ import { Button } from '@/components/ui/button';
 import { VideoCallButton } from '@/components/video-call-button';
 import { getAppBaseUrl } from '@/lib/core/app-url';
 import { BackToTop } from '@/components/back-to-top';
+import { RecordingCoverageNotice } from '@/components/session-compass/recording-coverage-notice';
+import { getSessionRecordingCoverage } from '@/lib/core/ai-session-notes/recording';
 import {
   getBookableDays,
   getCoachAvailabilityByProviderId,
@@ -109,6 +111,12 @@ export default async function AppointmentDetailPage({
    * rotta API non scatterebbe mai, perche' quella rotta la pagina non la
    * chiama. Best effort e dopo la risposta: la pagina non deve rallentare.
    */
+  // La copertura si legge solo quando c'e' una sessione AI: senza, non c'e'
+  // nessun riepilogo da qualificare.
+  const recordingCoverage = aiNotesSession
+    ? await getSessionRecordingCoverage(aiNotesSession.id)
+    : null;
+
   if (isPendingAiNotesStatus(aiNotesSession?.status)) {
     runAiNotesQueueAfterResponse();
   }
@@ -316,6 +324,9 @@ export default async function AppointmentDetailPage({
         <>
           {/* Prima del riepilogo, non dopo: sapere quanta parte della seduta
               e' stata registrata cambia come si legge tutto cio' che segue. */}
+          {recordingCoverage ? (
+            <RecordingCoverageNotice coverage={recordingCoverage} />
+          ) : null}
           <SessionCompassPanel
             sessionId={aiNotesSession.id}
             sessionDate={booking.scheduledFor?.toISOString() ?? null}
