@@ -22,9 +22,11 @@ export async function authenticatedCompassRequest(
 
 export function compassErrorResponse(error: unknown): Response {
   if (!(error instanceof SessionCompassError)) {
+    // Un errore che non abbiamo previsto e' un guasto nostro, non del
+    // servizio a monte: 500 lo dice, 502 darebbe la colpa a qualcun altro.
     return Response.json(
       { code: 'COMPASS_FAILED', error: 'Non è stato possibile completare la richiesta. Riprova.' },
-      { status: 502 }
+      { status: 500 }
     );
   }
   return Response.json({ code: error.code, error: error.message }, { status: statusFor(error.code) });
@@ -49,6 +51,19 @@ function statusFor(code: SessionCompassError['code']): number {
       return 429;
     case 'COMPASS_UNAVAILABLE':
       return 503;
+    /*
+     * Il report e' stato generato ma non ha superato i nostri controlli: il
+     * contenuto e' inelaborabile, non c'e' nessun servizio a monte che abbia
+     * risposto male. 502 raccontava una bugia — e in mezzo a un'indagine
+     * mandava a cercare un guasto di rete che non c'era.
+     */
+    case 'COMPASS_INVALID':
+      return 422;
+    // Il tempo e' scaduto aspettando il modello: qui a monte c'e' davvero, e
+    // ha impiegato troppo.
+    case 'COMPASS_TIMEOUT':
+      return 504;
+    // `COMPASS_FAILED` e tutto cio' che resta: il provider ha risposto male.
     default:
       return 502;
   }
