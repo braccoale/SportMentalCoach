@@ -11,6 +11,7 @@ import {
   LiveKitRoom,
   VideoTrack,
   useLocalParticipant,
+  useParticipants,
   useTracks,
 } from '@livekit/react-native';
 import { Track } from 'livekit-client';
@@ -104,8 +105,25 @@ function RoomStage({
   onLeave: () => void;
 }) {
   const tracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare]);
+  const participants = useParticipants();
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } =
     useLocalParticipant();
+
+  /*
+   * `useTracks` non restituisce solo tracce: restituisce anche **segnaposto**
+   * per i partecipanti che non hanno ancora pubblicato nulla, e in quel caso
+   * `publication` e' `undefined`.
+   *
+   * Qui prima si leggeva `track.publication.trackSid` su ogni elemento, e
+   * bastava che l'altra persona entrasse con la telecamera spenta perche'
+   * l'intera scena andasse in eccezione: niente video, niente controlli, un
+   * errore al posto della chiamata.
+   */
+  const published = tracks.filter((track) => track.publication);
+  const remote = published.filter((track) => !track.participant.isLocal);
+  const local = published.find((track) => track.participant.isLocal);
+  // Qualcuno c'e', ma non si vede: e' un'informazione diversa da «sei solo».
+  const someoneElseHere = participants.some((participant) => !participant.isLocal);
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
 
@@ -145,13 +163,35 @@ function RoomStage({
   return (
     <View style={styles.screen}>
       <View style={styles.stage}>
-        {tracks.map((track) => (
-          <View key={track.publication.trackSid} style={styles.tile}>
-            <VideoTrack trackRef={track} style={styles.video} />
+        {remote.length > 0 ? (
+          remote.map((track) => (
+            <View key={track.publication!.trackSid} style={styles.tile}>
+              <VideoTrack trackRef={track} style={styles.video} />
+            </View>
+          ))
+        ) : (
+          <View style={[styles.tile, styles.centered]}>
+            <Text style={styles.waiting}>
+              {/*
+                * Due assenze diverse, due frasi diverse. «Non c'è ancora» e «è
+                * qui con la telecamera spenta» si vedono uguali — uno schermo
+                * nero — ma chiedono cose opposte: aspettare, oppure dirle di
+                * accendere. Non distinguerle lascia a guardare il nero senza
+                * sapere cosa fare.
+                */}
+              {someoneElseHere
+                ? `${otherName} è in chiamata con la telecamera spenta.`
+                : `In attesa di ${otherName}…`}
+            </Text>
           </View>
-        ))}
-        {tracks.length === 0 && (
-          <Text style={styles.waiting}>In attesa di {otherName}…</Text>
+        )}
+
+        {/* La propria immagine piccola, in un angolo: serve a controllarsi, non
+            a guardarsi. Sotto, mai sopra, la persona con cui si parla. */}
+        {local && (
+          <View style={styles.selfTile}>
+            <VideoTrack trackRef={local} style={styles.video} />
+          </View>
         )}
       </View>
 
@@ -223,7 +263,19 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   video: { flex: 1 },
-  waiting: { color: theme.mid, textAlign: 'center' },
+  waiting: { color: theme.mid, textAlign: 'center', paddingHorizontal: 24 },
+  selfTile: {
+    position: 'absolute',
+    right: 16,
+    bottom: 16,
+    width: 104,
+    height: 148,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+    borderWidth: 1,
+    borderColor: theme.line,
+  },
   shareError: {
     color: theme.red2,
     fontSize: 12,

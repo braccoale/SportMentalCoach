@@ -25,9 +25,6 @@ export async function GET(request: Request) {
     return Response.json({ error: 'unauthenticated' }, { status: 401 });
   }
 
-  // Finestra generosa all'indietro: una sessione iniziata poco fa deve
-  // restare raggiungibile, altrimenti chi arriva in ritardo non la trova più.
-  const since = new Date(Date.now() - 2 * 60 * 60 * 1000);
   // Quanto passato si porta dietro l'app. Non è lo storico completo — quello
   // sta sul web con i riepiloghi — ma «le ultime settimane», che è ciò che
   // serve per ricordarsi quando si è parlato l'ultima volta.
@@ -93,22 +90,36 @@ export async function GET(request: Request) {
   });
 
   /*
-   * Il confine fra «prossime» e «passate» è l'inizio della sessione, con la
-   * stessa tolleranza di prima: una sessione cominciata venti minuti fa è
-   * ancora una a cui si sta andando, non un ricordo.
+   * Il confine fra «prossime» e «passate» è la **fine** della sessione, non
+   * l'inizio.
+   *
+   * Prima bastava che fossero passate due ore dall'orario d'inizio: una
+   * tolleranza pensata per chi entra in ritardo, che però teneva in cima
+   * all'elenco una sessione da quaranta minuti finita da un'ora. Chi guarda
+   * vede una cosa conclusa presentata come imminente, e smette di fidarsi
+   * dell'ordine.
+   *
+   * La coda di grazia resta, ma parte da quando la sessione finisce: qualche
+   * minuto in cui si può ancora rientrare se è caduta la linea.
    */
-  const isUpcoming = (iso: string | null) =>
-    iso !== null && new Date(iso).getTime() >= since.getTime();
+  const GRACE_MIN = 15;
+  const isUpcoming = (session: { scheduledFor: string | null; durationMin: number }) => {
+    if (!session.scheduledFor) return false;
+    const endsAt =
+      new Date(session.scheduledFor).getTime() +
+      (session.durationMin + GRACE_MIN) * 60_000;
+    return endsAt >= Date.now();
+  };
 
   return Response.json({
     // Le prossime in ordine di arrivo: la più imminente per prima.
     sessions: all
-      .filter((s) => isUpcoming(s.scheduledFor) && s.status !== 'completed')
+      .filter((s) => isUpcoming(s) && s.status !== 'completed')
       .sort((a, b) =>
         (a.scheduledFor ?? '').localeCompare(b.scheduledFor ?? '')
       ),
     // Le passate al contrario: la più recente per prima, che è quella che si
     // cerca quando si guarda indietro.
-    past: all.filter((s) => !isUpcoming(s.scheduledFor) || s.status === 'completed'),
+    past: all.filter((s) => !isUpcoming(s) || s.status === 'completed'),
   });
 }
