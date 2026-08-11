@@ -441,9 +441,15 @@ function AcceptedAppointments({
       <div className="mt-3 grid items-start gap-4 xl:grid-cols-2">
         {items.map((b) => {
           const past = !isSessionJoinable(b.scheduledFor, b.durationMin);
+          const editCoach = relationshipCoaches.find(
+            (coach) => coach.slug === b.coachSlug
+          );
+          // Le opzioni che escludono questo appuntamento da sé stesso: se lo
+          // si sposta, il posto che teneva si libera.
           const editDays =
-            relationshipCoaches.find((coach) => coach.slug === b.coachSlug)
-              ?.bookableDays ?? [];
+            editCoach?.bookableDaysExcluding[b.id] ??
+            editCoach?.bookableDays ??
+            [];
           const calendarUrl = buildBookingGoogleCalendarUrl({
             id: b.id,
             status: b.status,

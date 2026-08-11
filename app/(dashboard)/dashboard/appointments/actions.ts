@@ -24,10 +24,21 @@ export async function rescheduleBookingAction(
     return { error: 'Seleziona una data e un orario validi.' };
   }
 
+  // Campo facoltativo: assente significa «lascia la durata com'è».
+  const durationRaw = formData.get('durationMin');
+  const durationMin =
+    durationRaw === null || String(durationRaw).trim() === ''
+      ? undefined
+      : Number(durationRaw);
+  if (durationMin !== undefined && !Number.isInteger(durationMin)) {
+    return { error: 'Durata non valida.' };
+  }
+
   const result = await rescheduleBooking({
     bookingId,
     userId: user.id,
     scheduledFor,
+    durationMin,
   });
   if (!result.ok) return { error: result.error };
 

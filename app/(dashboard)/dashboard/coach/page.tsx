@@ -84,6 +84,7 @@ import { VideoCallButton } from '@/components/video-call-button';
 import { buildAiSessionArchiveIndicator } from '@/lib/core/ai-session-notes/archive-indicator';
 import { isPendingAiNotesStatus } from '@/lib/core/ai-session-notes/worker-nudge';
 import { runAiNotesQueueAfterResponse } from '@/lib/core/ai-session-notes/queue-runner';
+import { getPipelineHealth } from '@/lib/core/ai-session-notes/pipeline-health';
 import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger';
 
 /**
@@ -170,12 +171,49 @@ export default async function CoachDashboardPage() {
             ['requested', 'accepted'].includes(booking.status)
         )
         .map((booking) => ({
+          bookingId: booking.id,
           scheduledFor: booking.scheduledFor!,
           durationMin: booking.durationMin ?? DEFAULT_SERVICE_DURATION_MIN,
         })),
       new Date()
     ),
   });
+
+  /**
+   * Le opzioni per spostare un appuntamento già fissato.
+   *
+   * Sono diverse per ogni prenotazione perché ognuna deve escludere sé stessa:
+   * quella che si sta spostando non occupa il calendario contro cui la si
+   * verifica — se la si sposta, il posto che teneva si libera. Senza questo,
+   * un appuntamento da 40 minuti non si poteva anticipare di mezz'ora, perché
+   * a bloccarlo era lui stesso.
+   *
+   * È solo aritmetica in memoria, ripetuta per gli appuntamenti spostabili,
+   * che sono pochi: nessuna query in più.
+   */
+  const editableBusy = busyIntervalsAt(
+    allBookings
+      .filter(
+        (booking) =>
+          booking.scheduledFor &&
+          ['requested', 'accepted'].includes(booking.status)
+      )
+      .map((booking) => ({
+        bookingId: booking.id,
+        scheduledFor: booking.scheduledFor!,
+        durationMin: booking.durationMin ?? DEFAULT_SERVICE_DURATION_MIN,
+      })),
+    new Date()
+  );
+  const editDaysByBooking = new Map<number, typeof bookableDays>(
+    editableBusy.map((interval) => [
+      interval.bookingId!,
+      getBookableDays(coachAvailability, {
+        busyIntervals: editableBusy,
+        excludeBookingId: interval.bookingId,
+      }),
+    ])
+  );
 
   const reviews = provider ? await getCoachReviews(provider.id) : [];
 
@@ -217,7 +255,25 @@ export default async function CoachDashboardPage() {
    * ogni sveglia in piu' conta, e questa e' la pagina che un coach apre piu'
    * spesso. Se nessuna delle sue sedute ha lavoro in sospeso, non costa nulla.
    */
-  if (allBookings.some((b) => isPendingAiNotesStatus(b.aiNotesStatus))) {
+  /*
+   * Due condizioni, non una.
+   *
+   * La prima guarda le sedute di questo coach: se una è in lavorazione, la
+   * sua coda va fatta avanzare. La seconda guarda la coda in sé: se c'è
+   * lavoro pronto e nessuno l'ha ancora preso, va svegliato il worker
+   * comunque — anche se non riguarda le sedute mostrate qui.
+   *
+   * Serve perché tutte le altre sveglie hanno un buco: il webhook può essere
+   * troncato, la catena riparte solo se un worker è già girato, e il cron sul
+   * piano Hobby passa una volta al giorno. La dashboard invece si apre di
+   * continuo: è la sveglia più frequente che abbiamo, e finora era l'unica a
+   * non essere usata per questo.
+   */
+  const pipeline = await getPipelineHealth();
+  if (
+    allBookings.some((b) => isPendingAiNotesStatus(b.aiNotesStatus)) ||
+    pipeline.verdict === 'stuck'
+  ) {
     runAiNotesQueueAfterResponse();
   }
 
@@ -492,7 +548,9 @@ export default async function CoachDashboardPage() {
                     {booking.scheduledFor && (
                       <EditAppointmentButton
                         bookingId={booking.id}
-                        bookableDays={bookableDays}
+                        bookableDays={
+                          editDaysByBooking.get(booking.id) ?? bookableDays
+                        }
                         currentDay={formatRomeDateValue(
                           booking.scheduledFor
                         )}

@@ -1,9 +1,11 @@
 import 'server-only';
 import { and, eq, inArray, sql } from 'drizzle-orm';
+import { db } from '@/lib/db/drizzle';
 import {
   sessionAiNotes,
   sessionAiProcessingJobs,
   sessionAudioRecordings,
+  sessionTranscriptSegments,
 } from '@/lib/db/schema';
 import { advanceAiNotesSessionStatus } from './session-status';
 import { persistedTimelineFingerprint } from './timeline';
@@ -70,6 +72,24 @@ async function activeJobCount(
   return rows.length;
 }
 
+/**
+ * C'è del testo trascritto, anche se la timeline non è ancora stata
+ * costruita.
+ *
+ * La timeline è un passaggio successivo alla trascrizione: guardare solo
+ * quella significa scambiare «non ho ancora normalizzato» per «non ha
+ * parlato nessuno». È esattamente l'errore che ha marcato «senza parlato»
+ * una seduta con milleduecento segmenti.
+ */
+async function hasTranscriptSegments(sessionId: number): Promise<boolean> {
+  const [row] = await db
+    .select({ id: sessionTranscriptSegments.id })
+    .from(sessionTranscriptSegments)
+    .where(eq(sessionTranscriptSegments.sessionAiNotesId, sessionId))
+    .limit(1);
+  return Boolean(row);
+}
+
 async function hasRecordedAudio(
   sessionId: number,
   dependencies: AiSessionNotesDependencies
@@ -102,14 +122,45 @@ async function expireSession(
   },
   dependencies: AiSessionNotesDependencies
 ): Promise<boolean> {
+  /*
+   * Ultimo controllo prima di scrivere uno stato terminale.
+   *
+   * Una sessione con lavoro ancora vivo non e' ferma: e' in corso. Chiuderla
+   * qui significa dichiararla fallita mentre la sua trascrizione sta
+   * arrivando — ed e' successo davvero: una seduta e' stata marcata «senza
+   * parlato» cinque secondi prima che ne uscissero milleduecento segmenti.
+   * Il verdetto va preso adesso, non con i numeri letti da chi ci ha portati
+   * fin qui, perche' fra quella lettura e questa scrittura la coda ha potuto
+   * muoversi.
+   */
+  if ((await activeJobCount(params.sessionId, dependencies)) > 0) {
+    logPipeline({
+      phase: 'session_expiry',
+      outcome: 'skipped',
+      sessionId: params.sessionId,
+      detail: { reason: params.reason, motivo: 'lavoro ancora in coda' },
+    });
+    return false;
+  }
+
   const hasTranscript = Boolean(
     await persistedTimelineFingerprint(params.sessionId)
   );
+
+  /*
+   * E se il testo c'e' ma la timeline non e' ancora stata costruita, la
+   * sessione non e' muta: le manca solo un passaggio. Guardare solo la
+   * timeline e' ciò che ha prodotto il verdetto «senza parlato» su una
+   * trascrizione completa.
+   */
+  const hasRawTranscript = hasTranscript || (await hasTranscriptSegments(params.sessionId));
   const recorded = await hasRecordedAudio(params.sessionId, dependencies);
-  const nextStatus = terminalStatusForExpiredSession({ hasTranscript });
+  const nextStatus = terminalStatusForExpiredSession({
+    hasTranscript: hasRawTranscript,
+  });
   const errorCode = expiryErrorCode({
     reason: params.reason,
-    hasTranscript,
+    hasTranscript: hasRawTranscript,
     hasRecordedAudio: recorded,
   });
 

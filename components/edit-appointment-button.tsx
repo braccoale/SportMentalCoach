@@ -10,6 +10,7 @@ import {
   timeValueToMinutes,
 } from '@/lib/core/availability/validation';
 import { SLOT_TONE_CLASS, SLOT_TONE_STYLE } from '@/components/slot-tone';
+import { SESSION_DURATION_OPTIONS } from '@/lib/core/bookings/duration';
 import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
 import { rescheduleBookingAction } from '@/app/(dashboard)/dashboard/appointments/actions';
@@ -99,6 +100,16 @@ export function EditAppointmentButton({
         );
   const [day, setDay] = useState(initialDay);
   const [time, setTime] = useState(initialTime);
+  /**
+   * La durata è modificabile qui dentro, non solo la data.
+   *
+   * Spostare una sessione in uno spazio più stretto è esattamente il caso in
+   * cui serve accorciarla: separare le due operazioni obbligherebbe a passare
+   * da uno stato che il server rifiuta comunque.
+   */
+  const [duration, setDuration] = useState(durationMin);
+  /** La durata voluta, a cui tornare quando un orario torna a contenerla. */
+  const [preferredDuration, setPreferredDuration] = useState(durationMin);
 
   const selectedDay = useMemo(
     () => bookableDays.find((candidate) => candidate.value === day),
@@ -109,7 +120,22 @@ export function EditAppointmentButton({
   function openDialog() {
     setDay(initialDay);
     setTime(initialTime);
+    setDuration(durationMin);
+    setPreferredDuration(durationMin);
     setOpen(true);
+  }
+
+  /** Sceglie l'orario e adatta la durata, in entrambe le direzioni. */
+  function chooseTime(next: string) {
+    setTime(next);
+    if (!selectedDay) return;
+    const slot = slotPresentation(
+      selectedDay.maxDurationMin,
+      next,
+      preferredDuration,
+      true
+    );
+    setDuration(slot.fitsDurationMin ?? preferredDuration);
   }
 
   return (
@@ -216,7 +242,7 @@ export function EditAppointmentButton({
                   <select
                     value={time}
                     required
-                    onChange={(event) => setTime(event.target.value)}
+                    onChange={(event) => chooseTime(event.target.value)}
                     className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
                   >
                     {!time && (
@@ -225,43 +251,66 @@ export function EditAppointmentButton({
                       </option>
                     )}
                     {selectedDay?.times.map((candidateTime) => {
-                      const occupied = isBusy(
-                        selectedDay,
+                      const own = isOwnSessionTime(
+                        selectedDay.value,
                         candidateTime,
                         currentDay,
                         currentTime,
                         durationMin
                       );
-                      /* La durata qui è fissata dall'appuntamento: uno slot
-                         stretto non è recuperabile accorciando, quindi resta
-                         rosso e non selezionabile. L'etichetta pero' resta
-                         informativa e dice quanto spazio ci sarebbe. */
-                      const slot = slotPresentation(
-                        selectedDay.maxDurationMin,
-                        candidateTime,
-                        durationMin,
-                        false
-                      );
+                      /* Gli orari della sessione che si sta spostando non
+                         sono occupati da nessuno: è lei stessa, e spostandola
+                         si liberano. */
+                      const slot = own
+                        ? {
+                            suffix: '',
+                            selectable: true,
+                            tone: 'free' as const,
+                          }
+                        : slotPresentation(
+                            selectedDay.maxDurationMin,
+                            candidateTime,
+                            duration,
+                            true
+                          );
                       return (
                         <option
                           key={candidateTime}
                           value={candidateTime}
-                          disabled={occupied}
-                          className={
-                            occupied ? SLOT_TONE_CLASS[slot.tone] : undefined
-                          }
-                          style={
-                            occupied ? SLOT_TONE_STYLE[slot.tone] : undefined
-                          }
+                          disabled={!slot.selectable}
+                          className={SLOT_TONE_CLASS[slot.tone]}
+                          style={SLOT_TONE_STYLE[slot.tone]}
                         >
                           {candidateTime}
-                          {occupied ? slot.suffix : ''}
+                          {slot.suffix}
                         </option>
                       );
                     })}
                   </select>
                 </label>
               </div>
+
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium text-gray-700">
+                  Durata
+                </span>
+                <select
+                  name="durationMin"
+                  value={duration}
+                  onChange={(event) => {
+                    const next = Number(event.target.value);
+                    setDuration(next);
+                    setPreferredDuration(next);
+                  }}
+                  className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+                >
+                  {SESSION_DURATION_OPTIONS.map((minutes) => (
+                    <option key={minutes} value={minutes}>
+                      {minutes} minuti
+                    </option>
+                  ))}
+                </select>
+              </label>
 
               <p className="text-xs text-gray-500">
                 Gli orari occupati restano visibili in rosso e non sono

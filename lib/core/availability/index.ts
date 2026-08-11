@@ -242,6 +242,7 @@ export async function getCoachBusyIntervalsByProviderIds(
 
   const rows = await db
     .select({
+      bookingId: bookings.id,
       providerId: bookings.providerId,
       scheduledFor: bookings.scheduledFor,
       durationMin: effectiveBookingDurationMin,
@@ -262,6 +263,7 @@ export async function getCoachBusyIntervalsByProviderIds(
     if (!row.scheduledFor) continue;
     const list = grouped.get(row.providerId) ?? [];
     list.push({
+      bookingId: row.bookingId,
       scheduledFor: row.scheduledFor,
       durationMin: row.durationMin ?? DEFAULT_SERVICE_DURATION_MIN,
     });
@@ -284,13 +286,25 @@ export function getBookableDays(
     stepMinutes?: number;
     from?: Date;
     busyIntervals?: CoachBusyInterval[];
+    /**
+     * Prenotazione da non considerare occupata.
+     *
+     * Serve a chi sta spostando un appuntamento: quello in modifica non deve
+     * bloccare sé stesso, altrimenti il selettore vieta spostamenti che il
+     * server accetterebbe — il controllo conflitti lo esclude già.
+     */
+    excludeBookingId?: number;
   } = {}
 ): BookableDay[] {
   if (slots.length === 0) return [];
   const daysAhead = opts.daysAhead ?? 21;
   const step = opts.stepMinutes ?? BOOKING_START_STEP_MINUTES;
   const from = opts.from ?? new Date();
-  const busyIntervals = opts.busyIntervals ?? [];
+  const busyIntervals = (opts.busyIntervals ?? []).filter(
+    (interval) =>
+      opts.excludeBookingId === undefined ||
+      interval.bookingId !== opts.excludeBookingId
+  );
   const { minuteOfDay: nowMinute } =
     romeWeekdayAndMinute(from);
 

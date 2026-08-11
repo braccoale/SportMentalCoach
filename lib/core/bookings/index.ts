@@ -525,6 +525,8 @@ export type RelationshipCoach = {
   availabilityHint: string;
   /** Selectable day/time options from that availability; empty if none configured. */
   bookableDays: BookableDay[];
+  /** Opzioni di spostamento per prenotazione, con quella esclusa da sé stessa. */
+  bookableDaysExcluding: Record<number, BookableDay[]>;
   /**
    * Se in questo momento il coach è dentro le sue fasce settimanali, e quindi
    * l'atleta può avviare una chiamata subito. Calcolato sul server: l'orologio
@@ -654,6 +656,24 @@ export async function getAthleteRelationshipCoaches(
       bookableDays: getBookableDays(availByProvider.get(c.id) ?? [], {
         busyIntervals: busyByProvider.get(c.id) ?? [],
       }),
+      /*
+       * Le opzioni per spostare un appuntamento già fissato, una per
+       * prenotazione: ognuna esclude sé stessa, perché quella che si sposta
+       * non occupa il calendario contro cui la si verifica — se la si sposta,
+       * il posto che teneva si libera. Senza, una sessione da 40 minuti non si
+       * poteva anticipare di mezz'ora perché a bloccarla era lei stessa.
+       */
+      bookableDaysExcluding: Object.fromEntries(
+        (busyByProvider.get(c.id) ?? [])
+          .filter((interval) => interval.bookingId !== undefined)
+          .map((interval) => [
+            interval.bookingId!,
+            getBookableDays(availByProvider.get(c.id) ?? [], {
+              busyIntervals: busyByProvider.get(c.id) ?? [],
+              excludeBookingId: interval.bookingId,
+            }),
+          ])
+      ),
       canCallNow: isWithinAvailability(availByProvider.get(c.id) ?? [], now),
       _favorite: favedIds.has(c.id),
       _recency: lastByProvider.get(c.id) ?? 0,
@@ -1330,10 +1350,22 @@ export async function cancelBooking(params: {
  * Either participant can correct the date/time of a future open booking.
  * Availability, full service duration and collisions are checked atomically.
  */
+/**
+ * Sposta un appuntamento, e se serve lo accorcia o lo allunga.
+ *
+ * La durata fa parte della modifica e non di un'operazione a parte: spostare
+ * una sessione in uno spazio più stretto è esattamente il caso in cui serve
+ * cambiarla, e obbligare a due passaggi separati significherebbe passare per
+ * uno stato intermedio che il sistema rifiuta comunque.
+ *
+ * `durationMin` assente lascia la durata com'è: chi sposta soltanto non deve
+ * dichiarare di nuovo qualcosa che non sta cambiando.
+ */
 export async function rescheduleBooking(params: {
   bookingId: number;
   userId: number;
   scheduledFor: Date;
+  durationMin?: number;
 }): Promise<Result> {
   const [row] = await db
     .select({
@@ -1363,7 +1395,13 @@ export async function rescheduleBooking(params: {
     return { ok: false, error: 'Scegli una data e un orario futuri.' };
   }
 
-  const durationMin = row.durationMin ?? DEFAULT_SERVICE_DURATION_MIN;
+  // La durata proposta deve essere una di quelle offerte: un valore libero
+  // arrivato da un form manomesso non deve diventare una sessione di 3 ore.
+  if (params.durationMin !== undefined && !isSessionDuration(params.durationMin)) {
+    return { ok: false, error: 'Durata non valida.' };
+  }
+  const durationMin =
+    params.durationMin ?? row.durationMin ?? DEFAULT_SERVICE_DURATION_MIN;
   const slots = await getCoachAvailabilityByProviderId(row.providerId);
   if (!isWithinAvailability(slots, params.scheduledFor, durationMin)) {
     return {
@@ -1391,6 +1429,11 @@ export async function rescheduleBooking(params: {
       .update(bookings)
       .set({
         scheduledFor: params.scheduledFor,
+        // Solo se richiesta: scriverla sempre trasformerebbe uno spostamento
+        // in una riscrittura anche della durata ereditata dal servizio.
+        ...(params.durationMin === undefined
+          ? {}
+          : { durationMin: params.durationMin }),
         updatedAt: new Date(),
         updatedBy: params.userId,
       })

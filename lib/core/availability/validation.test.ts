@@ -320,3 +320,25 @@ test('dove la durata è fissata, lo slot stretto non è selezionabile', () => {
   // L'etichetta resta informativa: dice perché.
   assert.equal(slot.suffix, ' · Solo 30 min');
 });
+
+test('l’appuntamento che si sposta non deve bloccare sé stesso', () => {
+  // Sessione alle 11:00 da 40 minuti. Contandola, alle 10:30 restano trenta
+  // minuti e non si può anticipare di mezz'ora; escludendola, il calendario
+  // è vuoto e lo spostamento è lecito — che è quello che il server accetta,
+  // perché il controllo conflitti la esclude già.
+  const own = {
+    bookingId: 7,
+    scheduledFor: new Date('2026-08-11T09:00:00.000Z'),
+    durationMin: 40,
+  };
+  const start = new Date('2026-08-11T08:30:00.000Z');
+
+  assert.equal(maxSessionMinutesAt(start, [own]), 30);
+  assert.equal(
+    maxSessionMinutesAt(
+      start,
+      [own].filter((interval) => interval.bookingId !== 7)
+    ),
+    null
+  );
+});

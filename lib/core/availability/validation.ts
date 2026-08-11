@@ -10,6 +10,16 @@ export type AvailabilityInput = {
 export type BusyInterval = {
   scheduledFor: Date;
   durationMin: number;
+  /**
+   * La prenotazione da cui viene l'intervallo, quando si sa.
+   *
+   * Serve a escluderla da sé stessa: modificando un appuntamento, quello che
+   * si sta spostando non deve occupare il calendario contro cui lo si
+   * verifica — se lo si sposta, il posto che teneva si libera. Il server lo
+   * fa già nel controllo conflitti; senza questo riferimento il selettore non
+   * poteva farlo, e vietava spostamenti che il server avrebbe accettato.
+   */
+  bookingId?: number;
 };
 
 export const MAX_AVAILABILITY_SLOTS = 50;

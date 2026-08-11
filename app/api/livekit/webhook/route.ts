@@ -51,9 +51,23 @@ export async function POST(request: Request) {
     // LiveKit non attende, e un suo fallimento non invalida la consegna.
     if (!result.duplicate && (event.event ?? '').startsWith('egress_')) {
       after(async () => {
-        // Prima la corsa in casa: e' quella che non puo' fallire per
-        // motivi di trasporto. La sveglia HTTP resta come seconda strada.
-        await runAiNotesQueueInline();
+        /*
+         * L'ordine qui è stato pagato caro.
+         *
+         * Prima si eseguiva l'intera coda in linea, poi si chiamava il worker,
+         * poi si registrava l'esito. Il problema è che la corsa in linea è la
+         * parte cara — drena tutta la coda dentro la risposta a un webhook — e
+         * quando non finisce nel tempo residuo della funzione, Vercel uccide
+         * il resto: niente chiamata al worker e **nessuna riga nel registro**.
+         * Il guasto diventa così invisibile: sembra che la sveglia non sia mai
+         * stata tentata, e non si distingue da un webhook mai arrivato.
+         *
+         * Ora prima parte la sveglia HTTP, che è economica e ottiene una
+         * funzione tutta sua con il suo budget di tempo; l'esito si scrive
+         * subito dopo; e solo alla fine, se resta tempo, si dà una mano in
+         * linea. Se veniamo troncati, veniamo troncati sulla parte meno
+         * importante — e comunque dopo aver lasciato traccia.
+         */
         const outcome = await triggerAiNotesWorker(
           fetch,
           new URL(request.url).origin
@@ -61,9 +75,13 @@ export async function POST(request: Request) {
         if (outcome !== 'triggered') {
           console.warn('[LiveKit webhook] worker non svegliato', { outcome });
         }
-        // L'esito va anche su disco: un log runtime che nessuno conserva non
-        // è servito a nulla quando la coda è rimasta ferma per giorni.
         await recordAiWorkerTrigger(event, outcome).catch(() => {});
+
+        // Rete di sicurezza per quando la sveglia HTTP non parte: qui la coda
+        // avanza comunque, con quel che resta del tempo.
+        if (outcome !== 'triggered') {
+          await runAiNotesQueueInline();
+        }
       });
     }
 
