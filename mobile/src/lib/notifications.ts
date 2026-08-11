@@ -67,16 +67,64 @@ async function deviceId(): Promise<string> {
   return created;
 }
 
+/**
+ * L'ultimo motivo per cui non si è ottenuto un recapito.
+ *
+ * Vive qui, in un modulo, perché il fallimento capita all'accesso e la domanda
+ * («perché non mi arriva niente?») arriva molto dopo, dalle impostazioni. Senza
+ * conservarlo, l'unica risposta possibile sarebbe «non attive», che manda a
+ * cercare nel posto sbagliato.
+ */
+let lastTokenError: string | null = null;
+
 async function currentToken(): Promise<string | null> {
   const projectId =
     Constants.expoConfig?.extra?.eas?.projectId ??
     Constants.easConfig?.projectId;
   if (!projectId) {
+    lastTokenError = 'Identificativo del progetto mancante nella build.';
     console.warn('[notifications] projectId mancante: token non richiesto');
     return null;
   }
-  const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
-  return data ?? null;
+  try {
+    const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
+    lastTokenError = data ? null : 'Il servizio non ha restituito un recapito.';
+    return data ?? null;
+  } catch (error) {
+    /*
+     * Su Android questo fallisce quando mancano le credenziali FCM della
+     * build — il caso piu' comune, e il piu' invisibile: l'app sembra a posto,
+     * il permesso e' concesso, e semplicemente non esiste un indirizzo a cui
+     * spedire. Prima l'eccezione risaliva silenziosa e il risultato era un
+     * telefono che non squillava mai senza che nessuno sapesse perche'.
+     */
+    lastTokenError =
+      error instanceof Error ? error.message.slice(0, 160) : 'Errore sconosciuto.';
+    console.warn('[notifications] token non ottenuto', error);
+    return null;
+  }
+}
+
+export type NotificationState = {
+  /** Vero solo se esiste davvero un recapito valido. */
+  enabled: boolean;
+  permissionGranted: boolean;
+  /** Perché non funziona, quando il permesso c'è ma il recapito no. */
+  reason: string | null;
+};
+
+/** Lo stato da mostrare nelle impostazioni, senza chiedere nessun permesso. */
+export async function notificationState(): Promise<NotificationState> {
+  const permission = await Notifications.getPermissionsAsync();
+  if (!permission.granted) {
+    return { enabled: false, permissionGranted: false, reason: null };
+  }
+  const token = await currentToken();
+  return {
+    enabled: token !== null,
+    permissionGranted: true,
+    reason: token ? null : lastTokenError,
+  };
 }
 
 /**

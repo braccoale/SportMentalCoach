@@ -5,6 +5,8 @@ import { registerGlobals } from '@livekit/react-native';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { SessionsScreen } from './src/screens/SessionsScreen';
 import { CallScreen } from './src/screens/CallScreen';
+import { SettingsScreen } from './src/screens/SettingsScreen';
+import { ThemeProvider, useTheme } from './src/theme';
 import {
   onNotificationTap,
   registerForPushNotifications,
@@ -23,6 +25,7 @@ registerGlobals();
 type Route =
   | { name: 'login' }
   | { name: 'sessions' }
+  | { name: 'settings' }
   | { name: 'call'; session: UpcomingSession };
 
 /** `/dashboard/video/171` → 171. Il resto non ci interessa. */
@@ -33,9 +36,10 @@ function bookingIdFromUrl(url: string): number | null {
 }
 
 /**
- * Un'app sola per coach e atleta, con la navigazione ridotta a tre schermate.
+ * Un'app sola per coach e atleta, con la navigazione ridotta a quattro
+ * schermate.
  *
- * Niente libreria di routing: tre stati e una transizione per ciascuno. Una
+ * Niente libreria di routing: quattro stati e una transizione per ciascuno. Una
  * dipendenza in più andrebbe giustificata da uno scenario che qui non c'è, e
  * il giorno in cui le schermate saranno otto si aggiunge allora — con in mano
  * i percorsi veri invece che quelli immaginati.
@@ -87,18 +91,56 @@ export default function App() {
   }, []);
 
   return (
-    <SafeAreaProvider>
-      <StatusBar style="light" />
-      {route.name === 'login' && <LoginScreen onSignedIn={signedIn} />}
+    <ThemeProvider>
+      <SafeAreaProvider>
+        <Chrome
+          route={route}
+          onSignedIn={signedIn}
+          onSignedOut={signedOut}
+          onOpenCall={openCall}
+          onOpenSettings={() => setRoute({ name: 'settings' })}
+          onBack={() => setRoute({ name: 'sessions' })}
+        />
+      </SafeAreaProvider>
+    </ThemeProvider>
+  );
+}
+
+/**
+ * Separato da `App` per una ragione sola: la barra di stato deve sapere che
+ * tema è in uso, e `useTheme` funziona solo dentro il provider.
+ */
+function Chrome({
+  route,
+  onSignedIn,
+  onSignedOut,
+  onOpenCall,
+  onOpenSettings,
+  onBack,
+}: {
+  route: Route;
+  onSignedIn: () => void;
+  onSignedOut: () => void;
+  onOpenCall: (session: UpcomingSession) => void;
+  onOpenSettings: () => void;
+  onBack: () => void;
+}) {
+  const { resolved } = useTheme();
+
+  return (
+    <>
+      {/* Su fondo chiaro le icone di sistema vanno scure, o spariscono. */}
+      <StatusBar style={resolved === 'light' ? 'dark' : 'light'} />
+      {route.name === 'login' && <LoginScreen onSignedIn={onSignedIn} />}
       {route.name === 'sessions' && (
-        <SessionsScreen onOpenCall={openCall} onSignedOut={signedOut} />
+        <SessionsScreen onOpenCall={onOpenCall} onOpenSettings={onOpenSettings} />
+      )}
+      {route.name === 'settings' && (
+        <SettingsScreen onClose={onBack} onSignedOut={onSignedOut} />
       )}
       {route.name === 'call' && (
-        <CallScreen
-          session={route.session}
-          onLeave={() => setRoute({ name: 'sessions' })}
-        />
+        <CallScreen session={route.session} onLeave={onBack} />
       )}
-    </SafeAreaProvider>
+    </>
   );
 }

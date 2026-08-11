@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   AppState,
@@ -10,8 +10,8 @@ import {
   View,
 } from 'react-native';
 import { fetchSessions, type UpcomingSession } from '../lib/api';
-import { signOut } from '../lib/auth';
-import { theme } from '../theme';
+import { currentSession } from '../lib/auth';
+import { useTheme, type Palette } from '../theme';
 
 /** «Oggi alle 18:40», «domani alle 9:00», o la data per il resto. */
 function whenLabel(iso: string | null): string {
@@ -53,15 +53,18 @@ type Row =
  */
 export function SessionsScreen({
   onOpenCall,
-  onSignedOut,
+  onOpenSettings,
 }: {
   onOpenCall: (session: UpcomingSession) => void;
-  onSignedOut: () => void;
+  onOpenSettings: () => void;
 }) {
   const [sessions, setSessions] = useState<UpcomingSession[]>([]);
   const [past, setPast] = useState<UpcomingSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const [initial, setInitial] = useState('\u00b7');
 
   const load = useCallback(async () => {
     try {
@@ -79,6 +82,15 @@ export function SessionsScreen({
   useEffect(() => {
     void load();
   }, [load]);
+
+  // L’iniziale al posto di una foto: non abbiamo un’immagine del profilo, e un
+  // segnaposto generico non direbbe di chi è questo spazio.
+  useEffect(() => {
+    void currentSession().then((session) => {
+      const email = session?.user.email ?? '';
+      if (email) setInitial(email.slice(0, 1).toUpperCase());
+    });
+  }, []);
 
   /*
    * Ricarica quando l'app torna in primo piano, e ogni minuto mentre è aperta.
@@ -120,13 +132,22 @@ export function SessionsScreen({
     <View style={styles.screen}>
       <View style={styles.header}>
         <Text style={styles.title}>Le tue sessioni</Text>
+        {/*
+          * Il proprio nome in alto a destra, non «Esci».
+          *
+          * «Esci» era l'unica cosa raggiungibile da qui, ed era anche la piu`
+          * distruttiva: un tocco sbagliato e si ricominciava dall'accesso. Ora
+          * il tocco porta dove uno si aspetta di trovare le proprie cose, e
+          * l'uscita e` una voce dentro, dove va chiesta apposta.
+          */}
         <Pressable
-          onPress={async () => {
-            await signOut();
-            onSignedOut();
-          }}
+          onPress={onOpenSettings}
+          accessibilityRole="button"
+          accessibilityLabel="Impostazioni"
+          hitSlop={12}
+          style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}
         >
-          <Text style={styles.signOut}>Esci</Text>
+          <Text style={styles.avatarText}>{initial}</Text>
         </Pressable>
       </View>
 
@@ -195,7 +216,8 @@ export function SessionsScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Palette) =>
+  StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.ink, paddingTop: 60 },
   header: {
     flexDirection: 'row',
@@ -205,7 +227,17 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   title: { color: theme.hi, fontSize: 26, fontWeight: '800' },
-  signOut: { color: theme.mid, fontSize: 14 },
+  avatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: theme.surface,
+    borderColor: theme.line,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { color: theme.hi, fontSize: 16, fontWeight: '700' },
   loader: { marginTop: 40 },
   list: { paddingHorizontal: 20, paddingBottom: 40, gap: 12 },
   card: {

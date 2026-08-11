@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -18,7 +18,7 @@ import {
   currentSession,
   signInWithPassword,
 } from '../lib/auth';
-import { theme } from '../theme';
+import { useTheme, type Palette } from '../theme';
 
 /**
  * Accesso all'app.
@@ -41,6 +41,8 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
   const [biometricLabel, setBiometricLabel] = useState<string | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
   const passwordRef = useRef<TextInput>(null);
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   // All'avvio: c'è già una sessione? Allora la porta si apre col volto.
   useEffect(() => {
@@ -218,6 +220,8 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
 }
 
 function LegalLink({ label, path }: { label: string; path: string }) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   return (
     <Pressable
       onPress={() => {
@@ -233,7 +237,8 @@ function LegalLink({ label, path }: { label: string; path: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Palette) =>
+  StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.ink },
   centered: { alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, justifyContent: 'center', paddingHorizontal: 24, gap: 8 },

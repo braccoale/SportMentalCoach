@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -22,7 +22,7 @@ import {
   type RoomCredentials,
   type UpcomingSession,
 } from '../lib/api';
-import { theme } from '../theme';
+import { useTheme, type Palette } from '../theme';
 
 /**
  * La schermata chiamata: il motivo per cui questa app esiste.
@@ -40,6 +40,8 @@ export function CallScreen({
   onLeave: () => void;
 }) {
   const [credentials, setCredentials] = useState<RoomCredentials | null>(null);
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -124,6 +126,8 @@ function RoomStage({
   const local = published.find((track) => track.participant.isLocal);
   // Qualcuno c'e', ma non si vede: e' un'informazione diversa da «sei solo».
   const someoneElseHere = participants.some((participant) => !participant.isLocal);
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
 
@@ -236,6 +240,8 @@ function Control({
   active: boolean;
   onPress: () => void;
 }) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   return (
     <Pressable
       onPress={onPress}
@@ -250,7 +256,8 @@ function Control({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Palette) =>
+  StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.ink },
   centered: { alignItems: 'center', justifyContent: 'center', gap: 16 },
   connecting: { color: theme.mid },
