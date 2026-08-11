@@ -1,0 +1,81 @@
+# Il worker degli Appunti AI, a intervalli regolari.
+#
+# Perché qui e non nei cron di Vercel. Il piano Hobby ammette un solo cron al
+# giorno: con quello, una trascrizione pronta alle 10:00 aspetta fino alle
+# 03:00 del giorno dopo. Il prodotto ha provato a rimediare con tre "sveglie"
+# — il webhook di LiveKit, la catena che il worker passa a sé stesso, la
+# pagina aperta da qualcuno — e ognuna copre un caso lasciandone scoperto un
+# altro. Il risultato pratico è stato che qualcuno doveva premere un pulsante
+# a mano perché un riepilogo uscisse.
+#
+# Le sveglie restano utili: fanno partire il lavoro entro secondi quando
+# funzionano. Questo è il pavimento sotto di loro — la garanzia che nessun
+# lavoro pronto resti fermo più di qualche minuto, comunque vada.
+#
+# La rotta è già pensata per essere chiamata dall'esterno: protetta da
+# CRON_SECRET, e ogni job è idempotente, quindi una corsa ripetuta o
+# sovrapposta non fa danni.
+#
+# Passando al piano Pro di Vercel, questo workflow si può eliminare e la voce
+# torna in `vercel.json` con uno schedule frequente.
+#
+# CONFIGURAZIONE (Settings → Secrets and variables → Actions):
+#   secret  CRON_SECRET    lo stesso valore impostato nelle env di Vercel
+#   var     APP_BASE_URL   origine di produzione, es. https://www.kaipaicoaching.com
+#
+# Finché mancano, il job si ferma con un avviso e NON fallisce: un workflow
+# rosso ogni cinque minuti sarebbe solo rumore. Attenzione però — è successo:
+# un workflow che esce verde senza aver chiamato niente sembra funzionante e
+# non lo è. Il messaggio di avviso è l'unico modo per accorgersene.
+
+name: Worker Appunti AI
+
+on:
+  schedule:
+    # Ogni cinque minuti è il minimo che GitHub consente, e sotto carico può
+    # ritardare. Va bene: qui non serve puntualità, serve che nessun lavoro
+    # resti fermo per ore.
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  # Una corsa alla volta. Il worker prende i job con un lock, quindi due corse
+  # non si pestano i piedi — ma accodarle evita di sprecare minuti di CI.
+  group: ai-notes-worker
+  cancel-in-progress: false
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fai avanzare la coda
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_BASE_URL: ${{ vars.APP_BASE_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$APP_BASE_URL" ]; then
+            echo "::warning::CRON_SECRET o APP_BASE_URL non configurati: la coda NON viene fatta avanzare."
+            exit 0
+          fi
+
+          status=$(curl -sS -o response.json -w '%{http_code}' \
+            --max-time 120 \
+            -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_BASE_URL/api/internal/ai-notes/process")
+
+          echo "HTTP $status"
+          cat response.json || true
+
+          # Chiamata senza `mode=async`, di proposito: così la rotta lavora e
+          # poi risponde 200 con il conto dei job smaltiti, e quel numero
+          # finisce qui nel log. In modalità asincrona riceveremmo un 202
+          # immediato e non sapremmo mai se ha fatto qualcosa.
+          #
+          # Un 404 qui non è una rotta mancante: è il segreto sbagliato. La
+          # rotta si nasconde a chi non lo conosce.
+          if [ "$status" != "200" ] && [ "$status" != "202" ]; then
+            echo "::error::Il worker ha risposto $status"
+            exit 1
+          fi
