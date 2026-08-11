@@ -52,7 +52,24 @@ const DEFAULT_TIMEOUT_MS = 45_000;
  * qualita' dell'estrazione: cambiarli senza toccare questa riga diventa
  * impossibile.
  */
-const COMPASS_REASONING_EFFORT = 'medium' as const;
+/*
+ * Tre livelli provati sul campo, su una seduta da un'ora e milleduecento
+ * segmenti:
+ *
+ * - `minimal`: veloce, ma temi e momenti chiave arrivavano **vuoti**. Il
+ *   prompt permette di omettere quando manca l'evidenza, e senza ragionare
+ *   quell'evidenza non si trova: la regola prudente diventava un permesso.
+ * - `medium`: estrae davvero, ma impiega dai quaranta ai cinquanta secondi.
+ *   Il timeout del provider e' a 45 s e la funzione Vercel muore a 60: non
+ *   c'e' spazio per validare e salvare, e si finisce in timeout.
+ * - `low`: la via di mezzo, ed e' quella che stiamo tenendo. Ragiona
+ *   abbastanza da cercare le evidenze, abbastanza poco da rientrare nel
+ *   minuto che la piattaforma concede.
+ *
+ * Se un giorno il limite della funzione sale — o la generazione viene spezzata
+ * in due chiamate — questo torna a `medium` senza altre modifiche.
+ */
+const COMPASS_REASONING_EFFORT = 'low' as const;
 const COMPASS_MAX_OUTPUT_TOKENS = 16_000;
 
 export const SESSION_COMPASS_PROMPT_REVISION =
