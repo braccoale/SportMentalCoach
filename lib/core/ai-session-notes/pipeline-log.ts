@@ -28,6 +28,7 @@
 export type PipelinePhase =
   | 'session_close'
   | 'recording_stop'
+  | 'recording_resume'
   | 'transcription_submit'
   | 'transcription_callback'
   | 'transcription_fallback'

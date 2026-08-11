@@ -9,6 +9,7 @@ import {
   recoverStaleTranscriptionRequests,
 } from '@/lib/core/ai-session-notes/processing';
 import { closeExpiredAiNotesSessions } from '@/lib/core/ai-session-notes/maintenance';
+import { resumeInterruptedRecordings } from '@/lib/core/ai-session-notes/recording-resume';
 import { closeStuckProcessingSessions } from '@/lib/core/ai-session-notes/stuck-sessions';
 import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
 import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger';
@@ -111,6 +112,20 @@ async function drainQueue(workerId: string, limit: number) {
     dependencies
   );
   const recovered = await recoverStaleAiProcessingJobs({ limit });
+  // Prima della coda, e non dopo: una registrazione interrotta si riprende
+  // solo mentre la seduta è ancora in corso. Fra pochi minuti la stanza sarà
+  // chiusa e non ci sarà più niente da recuperare.
+  //
+  // Isolata: un guasto qui non deve fermare i riepiloghi. È la lezione della
+  // sessione che teneva ferma tutta la coda perché sollevava un'eccezione
+  // prima che qualcun altro potesse essere servito.
+  const recordingsResumed = await resumeInterruptedRecordings(
+    { limit },
+    dependencies
+  ).catch((error: unknown) => {
+    console.error('[ai-notes] ripresa registrazioni fallita', error);
+    return { retried: 0, skipped: 0 };
+  });
   const compassJobsQueued = await enqueueReadySessionCompassJobs(
     { limit },
     dependencies
@@ -122,6 +137,7 @@ async function drainQueue(workerId: string, limit: number) {
     expiredClosed,
     staleRequests,
     recovered,
+    recordingsResumed,
     compassJobsQueued,
     stuckClosed,
     ...processed,
