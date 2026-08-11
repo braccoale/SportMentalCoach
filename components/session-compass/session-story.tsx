@@ -34,11 +34,16 @@ export function SessionStoryCta({
           <BookOpen className="size-4.5" aria-hidden="true" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[11px] font-bold uppercase tracking-[0.16em] text-violet-600">
-            Com’è andata
-          </span>
-          <span className="mt-1 block text-lg font-bold leading-snug text-gray-950">
-            {story.title}
+          {/* Sopratitolo e titolo insieme: dentro una sezione richiudibile
+              sono gia' scritti nell'intestazione che si clicca, e ripeterli
+              costa spazio senza aggiungere niente. */}
+          <span data-compass-heading className="block">
+            <span className="block text-[11px] font-bold uppercase tracking-[0.16em] text-violet-600">
+              Com’è andata
+            </span>
+            <span className="mt-1 block text-lg font-bold leading-snug text-gray-950">
+              {story.title}
+            </span>
           </span>
           <span className="mt-2 line-clamp-2 block text-sm leading-6 text-gray-600">
             {opening}
