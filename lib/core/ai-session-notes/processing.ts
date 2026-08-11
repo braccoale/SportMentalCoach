@@ -548,7 +548,33 @@ export async function enqueueReadySessionCompassJobs(
   `)) as unknown as Array<{ id: number }>;
   let queued = 0;
   for (const row of rows) {
-    if (await enqueueSessionCompassIfReady(row.id, dependencies)) queued += 1;
+    /*
+     * Una sessione che non si puo' elaborare non deve fermare le altre.
+     *
+     * Qui il ciclo era nudo: la prima sessione che sollevava un'eccezione
+     * abbatteva l'intero giro di coda, prima ancora che toccasse il lavoro
+     * vero. E ne bastava una sola, vecchia e malmessa — una seduta senza
+     * righe di consenso, che la guardia respinge giustamente — per bloccare
+     * ogni esecuzione del worker, per sempre: l'ordinamento la metteva per
+     * prima, quindi esplodeva subito e tutto il resto non partiva.
+     *
+     * E' il difetto che ha tenuto ferma la coda per giorni facendo sembrare
+     * che il worker non venisse svegliato, mentre veniva svegliato e moriva.
+     *
+     * Ogni sessione ora e' isolata: la sua eccezione la salta e basta, e
+     * lascia traccia con il proprio identificativo — senza il quale si torna
+     * a indovinare quale delle sessioni in coda sia quella rotta.
+     */
+    try {
+      if (await enqueueSessionCompassIfReady(row.id, dependencies)) queued += 1;
+    } catch (error) {
+      logPipeline({
+        phase: 'queue_run',
+        outcome: 'skipped',
+        sessionId: row.id,
+        errorCode: pipelineErrorCode(error),
+      });
+    }
   }
   return queued;
 }
