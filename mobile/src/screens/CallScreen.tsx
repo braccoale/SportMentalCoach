@@ -32,6 +32,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AiNotesConsentPanel } from '../components/AiNotesConsentPanel';
 import { SessionExitStep } from '../components/SessionExitStep';
+import { Icon, type IconName } from '../components/Icon';
 import { useTheme, type Palette } from '../theme';
 
 /**
@@ -533,7 +534,7 @@ function RoomStage({
         */}
       <View style={[styles.topBar, { top: insets.top + 8 }]}>
         <RoundButton
-          glyph="←"
+          icon="back"
           label="Esci dalla chiamata"
           onPress={onLeave}
         />
@@ -544,7 +545,7 @@ function RoomStage({
         </View>
         {isCameraEnabled && (
           <RoundButton
-            glyph="⟳"
+            icon="flip"
             label="Gira la fotocamera"
             onPress={flipCamera}
           />
@@ -570,13 +571,13 @@ function RoomStage({
         */}
       <View style={[styles.dock, { bottom: insets.bottom + 12 }]}>
         <Control
-          short="Video"
+          icon={isCameraEnabled ? 'videocam' : 'videocamOff'}
           label="Telecamera"
           active={isCameraEnabled}
           onPress={() => localParticipant.setCameraEnabled(!isCameraEnabled)}
         />
         <Control
-          short="Micro"
+          icon={isMicrophoneEnabled ? 'mic' : 'micOff'}
           label="Microfono"
           active={isMicrophoneEnabled}
           onPress={() =>
@@ -584,13 +585,13 @@ function RoomStage({
           }
         />
         <Control
-          short="Cond."
+          icon="present"
           label="Condividi lo schermo"
           active={sharing}
           onPress={toggleScreenShare}
         />
         <Control
-          short="Altro"
+          icon="more"
           label="Altre azioni"
           active={false}
           onPress={() => setMenuOpen(true)}
@@ -604,7 +605,7 @@ function RoomStage({
           accessibilityLabel="Chiudi la chiamata"
           style={({ pressed }) => [styles.hangup, pressed && styles.pressed]}
         >
-          <Text style={styles.hangupText}>Fine</Text>
+          <Icon name="callEnd" size={24} color="#fff" />
         </Pressable>
       </View>
 
@@ -629,6 +630,7 @@ function RoomStage({
               accessibilityRole="button"
               style={({ pressed }) => [styles.sheetItem, pressed && styles.pressed]}
             >
+              <Icon name="personAdd" size={22} color={theme.hi} />
               <Text style={styles.sheetText}>Invita un ospite</Text>
             </Pressable>
             {isCameraEnabled && (
@@ -640,6 +642,7 @@ function RoomStage({
                 accessibilityRole="button"
                 style={({ pressed }) => [styles.sheetItem, pressed && styles.pressed]}
               >
+                <Icon name="flip" size={22} color={theme.hi} />
                 <Text style={styles.sheetText}>Gira la fotocamera</Text>
               </Pressable>
             )}
@@ -667,13 +670,12 @@ function RoomStage({
  * molte persone.
  */
 function Control({
-  short,
+  icon,
   label,
   active,
   onPress,
 }: {
-  /** Una parola corta: si disegna sempre, a differenza di un font di icone. */
-  short: string;
+  icon: IconName;
   label: string;
   active: boolean;
   onPress: () => void;
@@ -695,20 +697,18 @@ function Control({
         pressed && styles.pressed,
       ]}
     >
-      <Text style={[styles.controlText, !active && styles.controlTextOff]}>
-        {short}
-      </Text>
+      <Icon name={icon} size={22} color={active ? theme.hi : '#fff'} />
     </Pressable>
   );
 }
 
 /** Il pulsante tondo della testata: solo icona, su fondo semitrasparente. */
 function RoundButton({
-  glyph,
+  icon,
   label,
   onPress,
 }: {
-  glyph: string;
+  icon: IconName;
   label: string;
   onPress: () => void;
 }) {
@@ -721,7 +721,7 @@ function RoundButton({
       accessibilityLabel={label}
       style={({ pressed }) => [styles.roundButton, pressed && styles.pressed]}
     >
-      <Text style={styles.roundGlyph}>{glyph}</Text>
+      <Icon name={icon} size={22} color={theme.hi} />
     </Pressable>
   );
 }

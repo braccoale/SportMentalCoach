@@ -16,6 +16,7 @@ import {
   type UpcomingSession,
 } from '../lib/api';
 import { dayKey, dayTitle, romeInstant, timeLabel } from '../lib/day-grouping';
+import { Icon, type IconName } from '../components/Icon';
 import { useTheme, type Palette } from '../theme';
 
 /**
@@ -128,12 +129,14 @@ export function SessionActionsSheet({
                 */}
               {canAct && (
                 <Item
+                  icon="editCalendar"
                   label="Modifica giorno e ora"
                   onPress={() => setMode('reschedule')}
                 />
               )}
               {canShareLink && (
               <Item
+                icon="link"
                 label="Link per l’atleta"
                 hint="Da rimandare se non riesce a entrare"
                 onPress={() =>
@@ -148,6 +151,7 @@ export function SessionActionsSheet({
               )}
               {canAct && (
                 <Item
+                  icon="eventBusy"
                   label="Annulla la sessione"
                   destructive
                   onPress={() => setMode('confirmCancel')}
@@ -262,11 +266,13 @@ export function SessionActionsSheet({
 }
 
 function Item({
+  icon,
   label,
   hint,
   destructive,
   onPress,
 }: {
+  icon: IconName;
   label: string;
   hint?: string;
   destructive?: boolean;
@@ -281,6 +287,7 @@ function Item({
       accessibilityLabel={hint ? `${label}. ${hint}` : label}
       style={({ pressed }) => [styles.item, pressed && styles.pressed]}
     >
+      <Icon name={icon} size={22} color={destructive ? theme.red2 : theme.hi} />
 
       <View style={styles.itemText}>
         <Text style={[styles.itemLabel, destructive && styles.itemDanger]}>

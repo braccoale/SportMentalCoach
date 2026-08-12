@@ -22,6 +22,7 @@ import {
 import { currentSession } from '../lib/auth';
 import { SessionActionsSheet } from '../components/SessionActionsSheet';
 import { NewAppointmentSheet } from '../components/NewAppointmentSheet';
+import { Icon } from '../components/Icon';
 import { useTheme, type Palette } from '../theme';
 
 /** «Oggi alle 18:40», «domani alle 9:00», o la data per il resto. */
@@ -369,7 +370,7 @@ export function SessionsScreen({
                     hitSlop={12}
                     style={styles.more}
                   >
-                    <Text style={styles.moreGlyph}>⋮</Text>
+                    <Icon name="more" size={18} color={theme.mid} />
                   </Pressable>
                 </View>
                 <Text style={item.hero ? styles.whoHero : styles.who}>
@@ -481,7 +482,7 @@ export function SessionsScreen({
           pressed && styles.pressed,
         ]}
       >
-        <Text style={styles.fabGlyph}>+</Text>
+        <Icon name="add" size={26} color="#fff" />
       </Pressable>
 
       <NewAppointmentSheet
