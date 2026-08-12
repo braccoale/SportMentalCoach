@@ -36,6 +36,8 @@ export function AiNotesConsentPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  // Nascosto per questa chiamata: chi ha gia' deciso non vuole rileggerlo.
+  const [dismissed, setDismissed] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -90,23 +92,35 @@ export function AiNotesConsentPanel({
     }
   }
 
-  if (!loaded) return null;
+  if (!loaded || dismissed) return null;
 
-  // Nessuna sessione: solo il coach può aprirla, e finché non lo fa l'atleta
-  // non deve vedere un pulsante che non gli appartiene.
+  /*
+   * Nessuna sessione ancora aperta: una riga, non un pannello.
+   *
+   * Prima questa era una scheda alta con titolo, tre righe di spiegazione e un
+   * pulsante largo, piantata sopra il video per tutta la chiamata. Attivare
+   * gli appunti è una cosa che si fa una volta all'inizio: non merita un
+   * quarto dello schermo, e soprattutto non merita di non potersi chiudere.
+   *
+   * La spiegazione lunga non sparisce — arriva al momento del consenso, che è
+   * quando serve davvero saperlo.
+   */
   if (!session) {
     if (!canActivate) return null;
     return (
-      <View style={styles.panel}>
-        <Text style={styles.title}>Appunti AI</Text>
-        <Text style={styles.body}>
-          Se attivi gli appunti, la seduta viene registrata e trasformata in un
-          riepilogo. Serve il consenso di entrambi.
-        </Text>
-        <Row>
-          <Action label="Attiva" primary onPress={activate} busy={busy} />
-        </Row>
-        {error && <Text style={styles.error}>{error}</Text>}
+      <View style={styles.pill}>
+        <Text style={styles.pillText}>Appunti AI non attivi</Text>
+        <Pressable onPress={activate} disabled={busy} hitSlop={8}>
+          <Text style={styles.pillAction}>{busy ? '…' : 'Attiva'}</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setDismissed(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Nascondi per questa chiamata"
+          hitSlop={10}
+        >
+          <Text style={styles.close}>✕</Text>
+        </Pressable>
       </View>
     );
   }
@@ -267,5 +281,7 @@ const createStyles = (theme: Palette) =>
     dotLive: { backgroundColor: theme.red2 },
     dotWaiting: { backgroundColor: theme.low },
     pillText: { flex: 1, color: theme.mid, fontSize: 12 },
+    pillAction: { color: theme.green, fontSize: 12, fontWeight: '700' },
+    close: { color: theme.low, fontSize: 14, paddingHorizontal: 4 },
     revoke: { color: theme.red2, fontSize: 12, fontWeight: '700' },
   });
