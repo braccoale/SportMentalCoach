@@ -21,6 +21,7 @@ import {
   timeLabel,
 } from '../lib/day-grouping';
 import { currentSession } from '../lib/auth';
+import { SessionActionsSheet } from '../components/SessionActionsSheet';
 import { useTheme, type Palette } from '../theme';
 
 /** «Oggi alle 18:40», «domani alle 9:00», o la data per il resto. */
@@ -87,6 +88,8 @@ export function SessionsScreen({
   // Il conto alla rovescia va aggiornato, non calcolato una volta sola: una
   // schermata aperta che dice \u00abfra 12 minuti\u00bb per mezz'ora sta mentendo.
   const [now, setNow] = useState(() => Date.now());
+  // Su quale sessione e` aperto il menu: null quando e` chiuso.
+  const [menuFor, setMenuFor] = useState<UpcomingSession | null>(null);
   // Il ruolo serve solo allo stato vuoto, e lo si sa da una sessione qualsiasi.
   const isCoach = sessions[0]?.viewerIsCoach ?? past[0]?.viewerIsCoach ?? false;
 
@@ -277,6 +280,7 @@ export function SessionsScreen({
                   pressed && styles.pressed,
                 ]}
               >
+                <View style={styles.cardTop}>
                 <Text
                   style={[
                     styles.when,
@@ -290,11 +294,37 @@ export function SessionsScreen({
                       ? timeLabel(session.scheduledFor)
                       : whenLabel(session.scheduledFor))}
                 </Text>
+                  {/*
+                    * Lo stato, in chiaro.
+                    *
+                    * «Confermata», «da accettare», «annullata» sono cose
+                    * diverse che finora si vedevano uguali. Chi guarda un
+                    * elenco deve sapere a che punto e` ogni riga senza
+                    * aprirla.
+                    */}
+                  {statusLabel(session.status) && (
+                    <Text style={styles.badge}>{statusLabel(session.status)}</Text>
+                  )}
+                  <Pressable
+                    onPress={() => setMenuFor(session)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Azioni per la sessione con ${session.otherName}`}
+                    hitSlop={12}
+                    style={styles.more}
+                  >
+                    <MaterialIcons
+                      name="more-vert"
+                      size={20}
+                      color={theme.mid}
+                    />
+                  </Pressable>
+                </View>
                 <Text style={item.hero ? styles.whoHero : styles.who}>
                   {session.otherName}
                 </Text>
                 <Text style={styles.meta}>
                   {session.title} · {session.durationMin} min
+                  {session.status === 'completed' ? ' · svolta' : ''}
                 </Text>
 
                 {waiting && (
@@ -347,8 +377,41 @@ export function SessionsScreen({
       >
         <MaterialIcons name="add" size={28} color="#fff" />
       </Pressable>
+
+      {menuFor && (
+        <SessionActionsSheet
+          session={menuFor}
+          visible
+          onClose={() => setMenuFor(null)}
+          onChanged={() => void load()}
+        />
+      )}
     </View>
   );
+}
+
+/**
+ * Lo stato della prenotazione in una parola.
+ *
+ * `accepted` non compare: una sessione confermata e` il caso normale, e
+ * un'etichetta su ogni riga normale e` rumore. Si dicono solo gli stati che
+ * cambiano cosa ci si puo` aspettare.
+ */
+function statusLabel(status: string): string | null {
+  switch (status) {
+    case 'requested':
+      return 'da confermare';
+    case 'cancelled':
+      return 'annullata';
+    case 'declined':
+      return 'rifiutata';
+    case 'expired':
+      return 'scaduta';
+    case 'completed':
+      return 'completata';
+    default:
+      return null;
+  }
 }
 
 const createStyles = (theme: Palette) =>
@@ -373,6 +436,15 @@ const createStyles = (theme: Palette) =>
     justifyContent: 'center',
   },
   avatarText: { color: theme.hi, fontSize: 16, fontWeight: '700' },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  badge: {
+    color: theme.mid,
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  more: { marginLeft: 'auto', padding: 2 },
   fab: {
     position: 'absolute',
     right: 20,

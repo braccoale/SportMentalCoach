@@ -123,6 +123,32 @@ export function respondToAiNotesConsent(
   );
 }
 
+/** Le azioni su una prenotazione: annulla, sposta, collegamento per l'atleta. */
+export function cancelBooking(bookingId: number) {
+  return request<{ ok: true }>(`/api/mobile/bookings/${bookingId}`, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'cancel' }),
+  });
+}
+
+export function rescheduleBooking(
+  bookingId: number,
+  scheduledFor: string,
+  durationMin?: number
+) {
+  return request<{ ok: true }>(`/api/mobile/bookings/${bookingId}`, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'reschedule', scheduledFor, durationMin }),
+  });
+}
+
+export function athleteCallLink(bookingId: number) {
+  return request<{ url: string }>(`/api/mobile/bookings/${bookingId}`, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'athlete-link' }),
+  });
+}
+
 export function saveClosingNote(sessionId: number, note: string) {
   return request<{ saved: boolean }>(
     `/api/ai-session-notes/${sessionId}/closing-note`,

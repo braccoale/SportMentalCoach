@@ -3,6 +3,7 @@
 import { getUser } from '@/lib/db/queries';
 import { getAppBaseUrl } from '@/lib/core/app-url';
 import { createGuestInviteToken } from '@/lib/core/video';
+import { buildAthleteCallLink } from '@/lib/core/video/athlete-call-link';
 import { getBookingChatContext } from '@/lib/core/messages';
 import { canParticipateInSessions } from '@/lib/core/guardians';
 import { isSessionJoinable } from '@/lib/core/sessions';
@@ -71,34 +72,5 @@ export async function createAthleteCallLink(
 ): Promise<AthleteCallLinkResult> {
   const user = await getUser();
   if (!user) return { ok: false, error: 'Accedi per inviare il link.' };
-  if (!Number.isInteger(bookingId) || bookingId <= 0) {
-    return { ok: false, error: 'Sessione non valida.' };
-  }
-
-  const context = await getBookingChatContext(bookingId, user.id);
-  // The athlete must never be able to generate a link presented as coming
-  // from their coach, even though the destination itself is authenticated.
-  if (!context || context.coachUserId !== user.id) {
-    return { ok: false, error: 'Non sei autorizzato a inviare questo link.' };
-  }
-  if (context.status !== 'accepted') {
-    return { ok: false, error: 'La sessione non è più disponibile.' };
-  }
-  if (!(await canParticipateInSessions(context.clientId)).ok) {
-    return {
-      ok: false,
-      error: 'La sessione è bloccata: manca un’autorizzazione valida del tutore.',
-    };
-  }
-  if (!isSessionJoinable(context.scheduledFor, context.durationMin)) {
-    return { ok: false, error: 'La finestra della videochiamata è terminata.' };
-  }
-
-  return {
-    ok: true,
-    // Deliberately return only an authenticated application path. The browser
-    // resolves it against the active public origin, avoiding a stale/missing
-    // deployment URL while never exposing a room credential.
-    path: `/dashboard/video/${bookingId}`,
-  };
+  return buildAthleteCallLink(bookingId, user.id);
 }
