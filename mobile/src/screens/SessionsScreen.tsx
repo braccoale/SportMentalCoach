@@ -305,7 +305,7 @@ export function SessionsScreen({
                 accessibilityRole={openable ? 'button' : undefined}
                 accessibilityLabel={
                   openable
-                    ? `Sessione con ${session.otherName}, ${whenLabel(session.scheduledFor)}. Entra nella stanza.`
+                    ? `Sessione con ${session.otherName}, ${whenLabel(session.scheduledFor)}. Apri videochiamata.`
                     : undefined
                 }
                 style={({ pressed }) => [
@@ -452,7 +452,7 @@ export function SessionsScreen({
                     </Text>
                   ) : (
                     <View style={styles.enterButton}>
-                      <Text style={styles.enterButtonText}>Entra nella stanza</Text>
+                      <Text style={styles.enterButtonText}>Apri videochiamata</Text>
                     </View>
                   ))}
               </Pressable>
@@ -655,8 +655,15 @@ const createStyles = (theme: Palette) =>
   who: { color: theme.hi, fontSize: 16, fontWeight: '600' },
   whoHero: { color: theme.hi, fontSize: 24, fontWeight: '800', letterSpacing: -0.3 },
   meta: { color: theme.mid, fontSize: 13 },
+  /*
+   * Verde, e «Apri videochiamata»: le stesse parole e lo stesso colore del web.
+   *
+   * Due nomi per lo stesso gesto costringono a impararlo due volte, e il rosso
+   * qui era ambiguo — nel prodotto marca ciò che è irreversibile (chiudi,
+   * annulla) e la stessa tinta diceva «entra» e «riaggancia».
+   */
   enterButton: {
-    backgroundColor: theme.red,
+    backgroundColor: theme.green,
     borderRadius: 999,
     minHeight: 48,
     marginTop: 14,

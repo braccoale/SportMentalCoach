@@ -9,7 +9,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
 import {
   athleteCallLink,
   cancelBooking,
@@ -129,14 +128,12 @@ export function SessionActionsSheet({
                 */}
               {canAct && (
                 <Item
-                  icon="edit-calendar"
                   label="Modifica giorno e ora"
                   onPress={() => setMode('reschedule')}
                 />
               )}
               {canShareLink && (
               <Item
-                icon="link"
                 label="Link per l’atleta"
                 hint="Da rimandare se non riesce a entrare"
                 onPress={() =>
@@ -151,7 +148,6 @@ export function SessionActionsSheet({
               )}
               {canAct && (
                 <Item
-                  icon="event-busy"
                   label="Annulla la sessione"
                   destructive
                   onPress={() => setMode('confirmCancel')}
@@ -266,13 +262,11 @@ export function SessionActionsSheet({
 }
 
 function Item({
-  icon,
   label,
   hint,
   destructive,
   onPress,
 }: {
-  icon: keyof typeof MaterialIcons.glyphMap;
   label: string;
   hint?: string;
   destructive?: boolean;
@@ -287,11 +281,7 @@ function Item({
       accessibilityLabel={hint ? `${label}. ${hint}` : label}
       style={({ pressed }) => [styles.item, pressed && styles.pressed]}
     >
-      <MaterialIcons
-        name={icon}
-        size={22}
-        color={destructive ? theme.red2 : theme.hi}
-      />
+
       <View style={styles.itemText}>
         <Text style={[styles.itemLabel, destructive && styles.itemDanger]}>
           {label}

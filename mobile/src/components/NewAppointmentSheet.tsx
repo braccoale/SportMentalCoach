@@ -58,7 +58,19 @@ export function NewAppointmentSheet({
     if (!visible) return;
     setError(null);
     void newAppointmentOptions()
-      .then(setOptions)
+      .then((data) => {
+        setOptions(data);
+        /*
+         * Quando la scelta è una sola, non è una scelta.
+         *
+         * Con un atleta e un servizio, «inizia adesso» era sepolto sotto due
+         * tocchi che non decidevano nulla — e chi cerca una sessione immediata
+         * la cerca perché ha fretta. Preselezionare non toglie niente: restano
+         * entrambi visibili e cambiabili.
+         */
+        if (data.athletes.length === 1) setAthlete(data.athletes[0].userId);
+        if (data.services.length === 1) setService(data.services[0].id);
+      })
       .catch(() => setError('Non riesco a caricare atleti e servizi.'));
   }, [visible]);
 

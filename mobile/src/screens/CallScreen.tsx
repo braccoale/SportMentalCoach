@@ -21,7 +21,6 @@ import {
 } from '@livekit/react-native';
 import { ConnectionState, Track } from 'livekit-client';
 import { useKeepAwake } from 'expo-keep-awake';
-import { MaterialIcons } from '@expo/vector-icons';
 import {
   ApiError,
   ROOM_ERROR_TEXT,
@@ -515,7 +514,7 @@ function RoomStage({
             {otherName}
           </Text>
           {someoneElseHere && remoteMuted && (
-            <MaterialIcons name="mic-off" size={14} color="#fff" />
+            <Text style={styles.nameTagMuted}>muto</Text>
           )}
         </View>
 
@@ -534,7 +533,7 @@ function RoomStage({
         */}
       <View style={[styles.topBar, { top: insets.top + 8 }]}>
         <RoundButton
-          icon="arrow-back"
+          glyph="←"
           label="Esci dalla chiamata"
           onPress={onLeave}
         />
@@ -545,7 +544,7 @@ function RoomStage({
         </View>
         {isCameraEnabled && (
           <RoundButton
-            icon="flip-camera-ios"
+            glyph="⟳"
             label="Gira la fotocamera"
             onPress={flipCamera}
           />
@@ -571,13 +570,13 @@ function RoomStage({
         */}
       <View style={[styles.dock, { bottom: insets.bottom + 12 }]}>
         <Control
-          icon={isCameraEnabled ? 'videocam' : 'videocam-off'}
+          short="Video"
           label="Telecamera"
           active={isCameraEnabled}
           onPress={() => localParticipant.setCameraEnabled(!isCameraEnabled)}
         />
         <Control
-          icon={isMicrophoneEnabled ? 'mic' : 'mic-off'}
+          short="Micro"
           label="Microfono"
           active={isMicrophoneEnabled}
           onPress={() =>
@@ -585,13 +584,13 @@ function RoomStage({
           }
         />
         <Control
-          icon="present-to-all"
+          short="Cond."
           label="Condividi lo schermo"
           active={sharing}
           onPress={toggleScreenShare}
         />
         <Control
-          icon="more-horiz"
+          short="Altro"
           label="Altre azioni"
           active={false}
           onPress={() => setMenuOpen(true)}
@@ -605,7 +604,7 @@ function RoomStage({
           accessibilityLabel="Chiudi la chiamata"
           style={({ pressed }) => [styles.hangup, pressed && styles.pressed]}
         >
-          <MaterialIcons name="call-end" size={24} color="#fff" />
+          <Text style={styles.hangupText}>Fine</Text>
         </Pressable>
       </View>
 
@@ -630,7 +629,6 @@ function RoomStage({
               accessibilityRole="button"
               style={({ pressed }) => [styles.sheetItem, pressed && styles.pressed]}
             >
-              <MaterialIcons name="person-add" size={22} color={theme.hi} />
               <Text style={styles.sheetText}>Invita un ospite</Text>
             </Pressable>
             {isCameraEnabled && (
@@ -642,7 +640,6 @@ function RoomStage({
                 accessibilityRole="button"
                 style={({ pressed }) => [styles.sheetItem, pressed && styles.pressed]}
               >
-                <MaterialIcons name="flip-camera-ios" size={22} color={theme.hi} />
                 <Text style={styles.sheetText}>Gira la fotocamera</Text>
               </Pressable>
             )}
@@ -670,12 +667,13 @@ function RoomStage({
  * molte persone.
  */
 function Control({
-  icon,
+  short,
   label,
   active,
   onPress,
 }: {
-  icon: keyof typeof MaterialIcons.glyphMap;
+  /** Una parola corta: si disegna sempre, a differenza di un font di icone. */
+  short: string;
   label: string;
   active: boolean;
   onPress: () => void;
@@ -697,18 +695,20 @@ function Control({
         pressed && styles.pressed,
       ]}
     >
-      <MaterialIcons name={icon} size={22} color={active ? theme.hi : '#fff'} />
+      <Text style={[styles.controlText, !active && styles.controlTextOff]}>
+        {short}
+      </Text>
     </Pressable>
   );
 }
 
 /** Il pulsante tondo della testata: solo icona, su fondo semitrasparente. */
 function RoundButton({
-  icon,
+  glyph,
   label,
   onPress,
 }: {
-  icon: keyof typeof MaterialIcons.glyphMap;
+  glyph: string;
   label: string;
   onPress: () => void;
 }) {
@@ -721,7 +721,7 @@ function RoundButton({
       accessibilityLabel={label}
       style={({ pressed }) => [styles.roundButton, pressed && styles.pressed]}
     >
-      <MaterialIcons name={icon} size={22} color={theme.hi} />
+      <Text style={styles.roundGlyph}>{glyph}</Text>
     </Pressable>
   );
 }
@@ -896,6 +896,19 @@ const createStyles = (theme: Palette) =>
   // Spento = riempito, come in tutte le app di chiamata: e` lo stato
   // anomalo, e deve saltare all'occhio piu` di quello normale.
   controlOff: { backgroundColor: '#5b5b66' },
+  /*
+   * Parole, non icone.
+   *
+   * Il font delle icone non si disegnava — i controlli erano cerchi vuoti — e
+   * dopo due tentativi di caricarlo ho smesso: un'icona invisibile è peggio di
+   * una parola corta. «Micro», «Video», «Cond.» si leggono sempre, in
+   * qualunque tema e su qualunque dispositivo.
+   */
+  controlText: { color: theme.hi, fontSize: 12, fontWeight: '700' },
+  controlTextOff: { color: '#fff' },
+  roundGlyph: { color: theme.hi, fontSize: 20, fontWeight: '700' },
+  hangupText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  nameTagMuted: { color: '#fff', fontSize: 11, fontWeight: '700' },
   pressed: { opacity: 0.85 },
   hangup: {
     width: 58,

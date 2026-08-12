@@ -183,12 +183,27 @@ export async function GET(request: Request) {
   return Response.json({
     // Le prossime in ordine di arrivo: la più imminente per prima.
     sessions: all
-      .filter((s) => isUpcoming(s) && s.status !== 'completed')
+      /*
+       * Annullate, rifiutate e scadute non sono «in arrivo».
+       *
+       * Restavano fra le prossime con tanto di conto alla rovescia: una
+       * sessione disdetta annunciata come «fra 71 minuti» e' peggio di non
+       * mostrarla, perche' qualcuno potrebbe presentarsi.
+       */
+      .filter(
+        (s) =>
+          isUpcoming(s) &&
+          (s.status === 'accepted' || s.status === 'requested')
+      )
       .sort((a, b) =>
         (a.scheduledFor ?? '').localeCompare(b.scheduledFor ?? '')
       ),
     // Le passate al contrario: la più recente per prima, che è quella che si
     // cerca quando si guarda indietro.
-    past: all.filter((s) => !isUpcoming(s) || s.status === 'completed'),
+    past: all.filter(
+      (s) =>
+        !isUpcoming(s) ||
+        !(s.status === 'accepted' || s.status === 'requested')
+    ),
   });
 }

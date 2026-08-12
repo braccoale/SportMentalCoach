@@ -77,6 +77,9 @@ async function deviceId(): Promise<string> {
  */
 let lastTokenError: string | null = null;
 
+/** L'ultimo esito della registrazione presso il server. */
+let lastRegistrationError: string | null = null;
+
 async function currentToken(): Promise<string | null> {
   const projectId =
     Constants.expoConfig?.extra?.eas?.projectId ??
@@ -121,9 +124,15 @@ export async function notificationState(): Promise<NotificationState> {
   }
   const token = await currentToken();
   return {
-    enabled: token !== null,
+    // «Pronto a ricevere» vuol dire due cose insieme: avere un recapito **e**
+    // che il server lo conosca. Con una sola delle due non arriva niente.
+    enabled: token !== null && lastRegistrationError === null,
     permissionGranted: true,
-    reason: token ? null : lastTokenError,
+    reason: token
+      ? lastRegistrationError
+        ? `Il server non ha registrato questo telefono: ${lastRegistrationError}`
+        : null
+      : lastTokenError,
   };
 }
 
@@ -151,22 +160,42 @@ export async function registerForPushNotifications(): Promise<string | null> {
   const auth = await accessToken();
   if (!auth) return null;
 
-  await fetch(`${API_BASE_URL}/api/mobile/devices`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${auth}`,
-    },
-    body: JSON.stringify({
-      token,
-      platform: Platform.OS,
-      deviceId: await deviceId(),
-      appVersion: Constants.expoConfig?.version ?? null,
-    }),
-  }).catch((error) => {
-    // Best effort: senza notifiche l'app funziona lo stesso.
-    console.warn('[notifications] registrazione fallita', error);
-  });
+  /*
+   * L'esito della registrazione va detto, non ingoiato.
+   *
+   * Prima un fallimento finiva in un `catch` che scriveva nel nulla: il
+   * telefono risultava «pronto a ricevere» nelle impostazioni — il permesso
+   * c'era, il recapito pure — mentre il server non sapeva dove spedire.
+   * Sono due cose diverse e sembravano la stessa.
+   */
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/mobile/devices`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${auth}`,
+      },
+      body: JSON.stringify({
+        token,
+        platform: Platform.OS,
+        deviceId: await deviceId(),
+        appVersion: Constants.expoConfig?.version ?? null,
+      }),
+    });
+    // Solo il prefisso: un recapito completo nei log e' un recapito regalato.
+    console.log(
+      '[notifiche] registrazione dispositivo:',
+      response.status,
+      token.slice(0, 24) + '…'
+    );
+    lastRegistrationError = response.ok
+      ? null
+      : `Il server ha risposto ${response.status}.`;
+  } catch (error) {
+    lastRegistrationError =
+      error instanceof Error ? error.message.slice(0, 120) : 'rete non raggiungibile';
+    console.warn('[notifiche] registrazione fallita', error);
+  }
 
   return token;
 }
