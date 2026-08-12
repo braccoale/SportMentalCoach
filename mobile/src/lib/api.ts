@@ -123,6 +123,36 @@ export function respondToAiNotesConsent(
   );
 }
 
+export type AppointmentOptions = {
+  athletes: { userId: number; name: string }[];
+  services: { id: number; title: string; durationMin: number }[];
+};
+
+/** Atleti e servizi fra cui scegliere per un nuovo appuntamento. */
+export function newAppointmentOptions() {
+  return request<AppointmentOptions>('/api/mobile/new-appointment');
+}
+
+export function createAppointment(input: {
+  clientUserId: number;
+  serviceId: number;
+  durationMin?: number;
+  scheduledFor: string;
+}) {
+  return request<{ ok: true; bookingId: number }>('/api/mobile/new-appointment', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+/** Il coach risponde a una richiesta, dal telefono. */
+export function decideBooking(bookingId: number, accept: boolean) {
+  return request<{ ok: true }>(`/api/mobile/bookings/${bookingId}`, {
+    method: 'POST',
+    body: JSON.stringify({ action: accept ? 'accept' : 'decline' }),
+  });
+}
+
 /** Le azioni su una prenotazione: annulla, sposta, collegamento per l'atleta. */
 export function cancelBooking(bookingId: number) {
   return request<{ ok: true }>(`/api/mobile/bookings/${bookingId}`, {

@@ -13,7 +13,7 @@ import { Linking } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { API_BASE_URL } from '../lib/config';
-import { fetchSessions, type UpcomingSession } from '../lib/api';
+import { decideBooking, fetchSessions, type UpcomingSession } from '../lib/api';
 import {
   countdownLabel,
   dayKey,
@@ -22,6 +22,7 @@ import {
 } from '../lib/day-grouping';
 import { currentSession } from '../lib/auth';
 import { SessionActionsSheet } from '../components/SessionActionsSheet';
+import { NewAppointmentSheet } from '../components/NewAppointmentSheet';
 import { useTheme, type Palette } from '../theme';
 
 /** «Oggi alle 18:40», «domani alle 9:00», o la data per il resto. */
@@ -90,6 +91,9 @@ export function SessionsScreen({
   const [now, setNow] = useState(() => Date.now());
   // Su quale sessione e` aperto il menu: null quando e` chiuso.
   const [menuFor, setMenuFor] = useState<UpcomingSession | null>(null);
+  // Quale richiesta si sta decidendo: evita il doppio invio e mostra dove.
+  const [deciding, setDeciding] = useState<number | null>(null);
+  const [newOpen, setNewOpen] = useState(false);
   // Il ruolo serve solo allo stato vuoto, e lo si sa da una sessione qualsiasi.
   const isCoach = sessions[0]?.viewerIsCoach ?? past[0]?.viewerIsCoach ?? false;
 
@@ -109,6 +113,18 @@ export function SessionsScreen({
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function respond(session: UpcomingSession, accept: boolean) {
+    setDeciding(session.bookingId);
+    try {
+      await decideBooking(session.bookingId, accept);
+      await load();
+    } catch {
+      setError('Non sono riuscito a rispondere alla richiesta.');
+    } finally {
+      setDeciding(null);
+    }
+  }
 
   // L’iniziale al posto di una foto: non abbiamo un’immagine del profilo, e un
   // segnaposto generico non direbbe di chi è questo spazio.
@@ -327,18 +343,57 @@ export function SessionsScreen({
                   {session.status === 'completed' ? ' · svolta' : ''}
                 </Text>
 
-                {waiting && (
-                  /*
-                   * La stessa riga dice due cose opposte a seconda di chi
-                   * guarda: per l'atleta è un'attesa, per il coach è una cosa
-                   * da fare. Una formula sola — «in attesa» — lascerebbe il
-                   * coach a pensare che tocchi a qualcun altro.
-                   */
-                  <Text style={waiting && isCoach ? styles.todo : styles.waiting}>
-                    {isCoach
-                      ? 'Ti ha chiesto una sessione · rispondi dal web'
-                      : 'In attesa che il coach accetti'}
+                {waiting && !isCoach && (
+                  <Text style={styles.waiting}>
+                    In attesa che il coach accetti
                   </Text>
+                )}
+
+                {waiting && isCoach && (
+                  /*
+                   * Si risponde da qui, non «dal web».
+                   *
+                   * Una richiesta arriva mentre si è in palestra o in viaggio,
+                   * ed è esattamente il momento in cui il telefono è l'unica
+                   * cosa che si ha in mano. Rimandare al computer significa far
+                   * aspettare un atleta per ore un gesto che dura un secondo —
+                   * e un'app che rimanda altrove per la cosa più frequente non
+                   * serve a niente.
+                   *
+                   * «Rifiuta» è a sinistra e senza riempimento: le due risposte
+                   * hanno peso diverso perché una è quella che l'atleta spera,
+                   * ma nessuna delle due deve partire per sbaglio.
+                   */
+                  <View style={styles.decide}>
+                    <Pressable
+                      onPress={() => void respond(session, false)}
+                      disabled={deciding === session.bookingId}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Rifiuta la richiesta di ${session.otherName}`}
+                      style={({ pressed }) => [
+                        styles.decline,
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <Text style={styles.declineText}>Rifiuta</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => void respond(session, true)}
+                      disabled={deciding === session.bookingId}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Accetta la richiesta di ${session.otherName}`}
+                      style={({ pressed }) => [
+                        styles.accept,
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      {deciding === session.bookingId ? (
+                        <ActivityIndicator color="#fff" />
+                      ) : (
+                        <Text style={styles.acceptText}>Accetta</Text>
+                      )}
+                    </Pressable>
+                  </View>
                 )}
                 {item.hero && (
                   <View style={styles.enterButton}>
@@ -362,11 +417,7 @@ export function SessionsScreen({
         * lo cerchi.
         */}
       <Pressable
-        onPress={() => {
-          void Linking.openURL(
-            `${API_BASE_URL}/dashboard/${isCoach ? 'coach' : 'athlete'}`
-          );
-        }}
+        onPress={() => setNewOpen(true)}
         accessibilityRole="button"
         accessibilityLabel="Nuovo appuntamento"
         style={({ pressed }) => [
@@ -377,6 +428,13 @@ export function SessionsScreen({
       >
         <MaterialIcons name="add" size={28} color="#fff" />
       </Pressable>
+
+      <NewAppointmentSheet
+        visible={newOpen}
+        isCoach={isCoach}
+        onClose={() => setNewOpen(false)}
+        onCreated={() => void load()}
+      />
 
       {menuFor && (
         <SessionActionsSheet
@@ -457,6 +515,26 @@ const createStyles = (theme: Palette) =>
   },
   // Per il coach non e` un'attesa: e` una cosa da fare, e si vede.
   todo: { color: theme.red2, fontSize: 13, fontWeight: '600', marginTop: 10 },
+  decide: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  accept: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 999,
+    backgroundColor: theme.red,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  acceptText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  decline: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  declineText: { color: theme.mid, fontSize: 14, fontWeight: '600' },
   loader: { marginTop: 40 },
   list: { paddingHorizontal: 20, paddingBottom: 40, gap: 12 },
   hero: {

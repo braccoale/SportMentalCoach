@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BackHandler } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { registerGlobals } from '@livekit/react-native';
 import { LoginScreen } from './src/screens/LoginScreen';
@@ -48,6 +50,20 @@ function bookingIdFromUrl(url: string): number | null {
 export default function App() {
   const [route, setRoute] = useState<Route>({ name: 'login' });
   const pushToken = useRef<string | null>(null);
+
+  /*
+   * Il carattere delle icone va caricato, non dato per scontato.
+   *
+   * `@expo/vector-icons` disegna le icone con un font, e finché quel font non
+   * è in memoria ogni icona è uno spazio vuoto. Nell'app si vedevano un
+   * cerchio rosso senza il «+» dentro e tre puntini invisibili: non icone
+   * sbagliate — icone **assenti**, perché non c'era niente da cui disegnarle.
+   *
+   * Non blocca la partenza: `useFonts` restituisce subito e l'interfaccia si
+   * ridisegna quando il font arriva. Il vuoto dura un istante invece che per
+   * sempre.
+   */
+  useFonts(MaterialIcons.font);
 
   const openCall = useCallback(
     (session: UpcomingSession) => setRoute({ name: 'call', session }),

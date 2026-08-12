@@ -1,5 +1,5 @@
 import { getApiUser } from '@/lib/auth/api-user';
-import { cancelBooking, rescheduleBooking } from '@/lib/core/bookings';
+import { cancelBooking, decideBooking, rescheduleBooking } from '@/lib/core/bookings';
 import { buildAthleteCallLink } from '@/lib/core/video/athlete-call-link';
 import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
 
@@ -35,6 +35,29 @@ export async function POST(
     body = (await request.json()) as typeof body;
   } catch {
     return Response.json({ error: 'Richiesta non valida.' }, { status: 400 });
+  }
+
+  /*
+   * Accettare o rifiutare una richiesta, dal telefono.
+   *
+   * Prima l'app diceva «rispondi dal web», che e' un modo elegante di dire
+   * «questa app non serve». Una richiesta arriva mentre si e' in palestra o in
+   * viaggio, ed e' esattamente il momento in cui il telefono e' l'unica cosa
+   * che si ha in mano: rimandare al computer significa far aspettare un atleta
+   * per ore per un gesto che dura un secondo.
+   *
+   * Chi puo' decidere lo stabilisce `decideBooking`, che verifica che chi
+   * chiede sia il coach di quella prenotazione.
+   */
+  if (body.action === 'accept' || body.action === 'decline') {
+    const result = await decideBooking({
+      bookingId,
+      coachUserId: user.id,
+      decision: body.action === 'accept' ? 'accepted' : 'declined',
+    });
+    return result.ok
+      ? Response.json({ ok: true })
+      : Response.json({ error: result.error }, { status: 400 });
   }
 
   if (body.action === 'cancel') {
