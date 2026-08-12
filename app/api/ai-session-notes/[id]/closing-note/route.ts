@@ -1,4 +1,4 @@
-import { getUser } from '@/lib/db/queries';
+import { getApiUser } from '@/lib/auth/api-user';
 import { setClosingNote } from '@/lib/core/ai-session-notes/session-close';
 import { aiNotesErrorResponse } from '@/lib/core/ai-session-notes/http';
 import { allowRecordingMutation } from '@/lib/core/ai-session-notes/rate-limit';
@@ -8,7 +8,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = await getUser();
+  const user = await getApiUser(request);
   if (!user) {
     return Response.json({ error: 'Non autenticato.' }, { status: 401 });
   }

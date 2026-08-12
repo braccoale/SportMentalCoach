@@ -123,6 +123,19 @@ export function respondToAiNotesConsent(
   );
 }
 
+export function saveClosingNote(sessionId: number, note: string) {
+  return request<{ saved: boolean }>(
+    `/api/ai-session-notes/${sessionId}/closing-note`,
+    { method: 'POST', body: JSON.stringify({ note }) }
+  );
+}
+
+export function closeAiNotes(sessionId: number) {
+  return request<unknown>(`/api/ai-session-notes/${sessionId}/close`, {
+    method: 'POST',
+  });
+}
+
 export function createGuestInvite(bookingId: number) {
   return request<{ url: string; expiresAt: string }>(
     `/api/video/${bookingId}/guest-invite`,

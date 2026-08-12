@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   AppState,
+  BackHandler,
   Pressable,
   Share,
   StyleSheet,
@@ -28,6 +29,7 @@ import {
 } from '../lib/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AiNotesConsentPanel } from '../components/AiNotesConsentPanel';
+import { SessionExitStep } from '../components/SessionExitStep';
 import { useTheme, type Palette } from '../theme';
 
 /**
@@ -52,6 +54,7 @@ export function CallScreen({
   const [choices, setChoices] = useState<{ audio: boolean; video: boolean } | null>(null);
   const [enterWithMic, setEnterWithMic] = useState(true);
   const [enterWithCam, setEnterWithCam] = useState(true);
+  const [left, setLeft] = useState(false);
   // Prima che le credenziali arrivino non si conosce ancora il nome vero.
   const otherLabel = credentials?.otherName ?? session.otherName;
 
@@ -75,6 +78,28 @@ export function CallScreen({
       void AudioSession.stopAudioSession();
     };
   }, [session.bookingId]);
+
+  /*
+   * Indietro, durante la chiamata, deve valere «Chiudi» — non «torna
+   * all'elenco».
+   *
+   * `App` ha gia` un gestore che riporta all'elenco; questo, registrato dopo,
+   * viene consultato per primo, e passa dall'uscita normale. Senza, il tasto
+   * Indietro saltava la schermata d'uscita e con essa la nota a caldo: il
+   * gesto piu` comune su Android sarebbe stato anche quello che fa perdere il
+   * pezzo di lavoro piu` deperibile.
+   */
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        if (left) return false;
+        setLeft(true);
+        return true;
+      }
+    );
+    return () => subscription.remove();
+  }, [left]);
 
   if (error) {
     return (
@@ -162,6 +187,23 @@ export function CallScreen({
     );
   }
 
+  /*
+   * Uscendo, `LiveKitRoom` viene smontato **prima** che compaia la schermata
+   * d'uscita: e` cosi` che la stanza si chiude davvero e microfono e
+   * telecamera tornano al sistema. Tenere la stanza viva dietro una schermata
+   * di commiato significherebbe restare in chiamata a insaputa di chi crede di
+   * aver chiuso.
+   */
+  if (left) {
+    return (
+      <SessionExitStep
+        bookingId={session.bookingId}
+        viewerIsCoach={credentials.viewerIsCoach}
+        onDone={onLeave}
+      />
+    );
+  }
+
   return (
     <LiveKitRoom
       serverUrl={credentials.url}
@@ -169,11 +211,11 @@ export function CallScreen({
       connect
       audio={choices.audio}
       video={choices.video}
-      onDisconnected={onLeave}
+      onDisconnected={() => setLeft(true)}
     >
       <RoomStage
         otherName={credentials.otherName}
-        onLeave={onLeave}
+        onLeave={() => setLeft(true)}
         bookingId={session.bookingId}
         viewerIsCoach={credentials.viewerIsCoach}
         coachIdentity={credentials.coachIdentity}
