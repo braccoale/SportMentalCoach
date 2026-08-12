@@ -20,7 +20,7 @@ import {
   participantRole,
   sessionLabel,
 } from '@/lib/core/email/booking-context';
-import { isPushConfigured, sendPushToUser } from '@/lib/core/push';
+import { sendPushToUser } from '@/lib/core/push';
 import {
   callStartedContent,
   coachCreatedAppointmentContent,
