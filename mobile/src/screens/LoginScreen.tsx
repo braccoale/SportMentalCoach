@@ -18,7 +18,7 @@ import {
   currentSession,
   signInWithPassword,
 } from '../lib/auth';
-import { useTheme, type Palette } from '../theme';
+import { staticDark, useTheme, type Palette } from '../theme';
 
 /**
  * Accesso all'app.
@@ -120,21 +120,32 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.body}>
-        <Image
-          source={require('../../assets/logo.png')}
-          style={styles.logo}
-          // Il marchio è decorazione, non informazione: chi usa lo screen
-          // reader sa già in quale app si trova, e sentirselo annunciare
-          // all'apertura è rumore prima del contenuto.
-          accessibilityElementsHidden
-          importantForAccessibility="no"
-        />
         {/*
-          * Il marchio compariva due volte: il logo e, sotto, la scritta
-          * «KaiPai» da 40 punti. Ripeterlo non lo rende piu` riconoscibile —
-          * toglie solo spazio alla frase che dice davvero a cosa serve questa
-          * schermata.
+          * Il marchio dentro un riquadro scuro, sempre.
+          *
+          * Prima qui c'era l'icona dell'app, che porta dentro un quadrato nero:
+          * su fondo scuro se ne vedeva il bordo arrotondato, e sembrava
+          * un'icona incollata invece di un logo. Sul tema chiaro sarebbe stato
+          * peggio — un rettangolo nero in mezzo alla pagina.
+          *
+          * Il marchio vero esiste in una sola versione, bianca su trasparente:
+          * su fondo chiaro sparirebbe. Il riquadro risolve entrambe le cose —
+          * sul tema scuro e` invisibile perche' ha lo stesso colore dello
+          * sfondo, sul chiaro diventa una targhetta che sembra voluta, perche'
+          * lo e`.
           */}
+        <View style={styles.logoPlate}>
+          <Image
+            source={require('../../assets/wordmark.png')}
+            style={styles.logo}
+            resizeMode="contain"
+            // Il marchio è decorazione, non informazione: chi usa lo screen
+            // reader sa già in quale app si trova, e sentirselo annunciare
+            // all'apertura è rumore prima del contenuto.
+            accessibilityElementsHidden
+            importantForAccessibility="no"
+          />
+        </View>
         <Text style={styles.brand}>Bentornato</Text>
         <Text style={styles.subtitle}>
           Entra per raggiungere le tue sessioni.
@@ -204,7 +215,7 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
           {pending ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.primaryText}>Accedi</Text>
+            <Text style={[styles.primaryText, !(email && password) && styles.disabledText]}>Accedi</Text>
           )}
         </Pressable>
 
@@ -249,7 +260,16 @@ const createStyles = (theme: Palette) =>
   screen: { flex: 1, backgroundColor: theme.ink },
   centered: { alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, justifyContent: 'center', paddingHorizontal: 24, gap: 8 },
-  logo: { width: 72, height: 72, borderRadius: 18, marginBottom: 16 },
+  // 1672x941 nel file: il rapporto va rispettato o il marchio si deforma.
+  logo: { width: 200, height: 113 },
+  logoPlate: {
+    alignSelf: 'flex-start',
+    backgroundColor: staticDark.ink,
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    marginBottom: 20,
+  },
   brand: {
     color: theme.hi,
     fontSize: 34,
@@ -286,7 +306,13 @@ const createStyles = (theme: Palette) =>
     alignItems: 'center',
   },
   primaryText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  disabled: { opacity: 0.5 },
+  // Disabilitato = spento, non «rosso slavato».
+  //
+  // Con la sola opacita` il pulsante restava rosso ma sbiadito, e si leggeva
+  // come guasto invece che come «devi ancora compilare». Un fondo neutro dice
+  // la stessa cosa senza sembrare un errore.
+  disabled: { backgroundColor: theme.surface },
+  disabledText: { color: theme.low },
   pressed: { opacity: 0.85 },
   biometricButton: {
     borderColor: theme.line,
