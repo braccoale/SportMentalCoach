@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import Constants from 'expo-constants';
+import { BuildStamp } from '../components/BuildStamp';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { API_BASE_URL } from '../lib/config';
 import { currentSession, signOut } from '../lib/auth';
@@ -145,9 +145,7 @@ export function SettingsScreen({
         </Pressable>
       </View>
 
-      <Text style={styles.version}>
-        Versione {Constants.expoConfig?.version ?? '—'}
-      </Text>
+      <BuildStamp />
     </ScrollView>
   );
 }
@@ -219,5 +217,4 @@ const createStyles = (theme: Palette) =>
     check: { color: theme.red2, fontSize: 16, fontWeight: '800' },
     signOut: { color: theme.red2, fontSize: 16 },
     pressed: { opacity: 0.7 },
-    version: { color: theme.low, fontSize: 12, textAlign: 'center', marginTop: 28 },
   });

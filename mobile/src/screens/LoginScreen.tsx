@@ -18,6 +18,7 @@ import {
   currentSession,
   signInWithPassword,
 } from '../lib/auth';
+import { BuildStamp } from '../components/BuildStamp';
 import { staticDark, useTheme, type Palette } from '../theme';
 
 /**
@@ -232,6 +233,8 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
           <Text style={styles.legalDot}>·</Text>
           <LegalLink label="Cookie" path="/cookie" />
         </View>
+
+        <BuildStamp />
       </View>
     </KeyboardAvoidingView>
   );
