@@ -73,6 +73,21 @@ test('il giorno scelto resta quel giorno', () => {
   assert.equal(timeLabel(evening.toISOString()), '21:00');
 });
 
+test('«in corso» solo se la stanza e` davvero aperta', () => {
+  // Il caso visto a schermo: la scheda diceva «IN CORSO» e due righe sotto «la
+  // stanza apre pochi minuti prima». Due frasi che si smentiscono valgono meno
+  // di nessuna, perche' chi legge non sa a quale credere.
+  const base = now.getTime();
+  const iniziata = new Date(base - 20 * 60_000).toISOString();
+
+  assert.equal(countdownLabel(iniziata, base, true), 'in corso');
+  assert.equal(countdownLabel(iniziata, base, false), 'terminata');
+  // Prima dell'inizio la stanza chiusa non cambia il conto alla rovescia: si
+  // sta ancora aspettando, ed e` cio` che si vuole sapere.
+  const fraDieci = new Date(base + 10 * 60_000).toISOString();
+  assert.equal(countdownLabel(fraDieci, base, false), 'fra 10 minuti');
+});
+
 test('il conto alla rovescia parla solo quando manca poco', () => {
   const base = now.getTime();
   assert.equal(countdownLabel(new Date(base + 12 * 60_000).toISOString(), base), 'fra 12 minuti');

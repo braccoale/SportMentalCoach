@@ -293,7 +293,7 @@ export function SessionsScreen({
             const openable =
               !item.past && !waiting && session.canJoinNow !== false;
             const countdown = item.hero
-              ? countdownLabel(session.scheduledFor, now)
+              ? countdownLabel(session.scheduledFor, now, session.canJoinNow !== false)
               : null;
 
             return (
@@ -449,7 +449,9 @@ export function SessionsScreen({
                       * apre poco prima, e finche` e` chiusa si dice quando.
                       */
                     <Text style={styles.notYet}>
-                      La stanza apre pochi minuti prima
+                      {new Date(session.scheduledFor ?? 0).getTime() > now
+                        ? 'La stanza apre pochi minuti prima'
+                        : 'Sessione terminata'}
                     </Text>
                   ) : (
                     <View style={styles.enterButton}>

@@ -104,12 +104,23 @@ export function romeInstant(dayKeyValue: string, hour: number): Date {
  * la domanda vera di chi apre l'app poco prima di una sessione. Oltre le due
  * ore la sottrazione non aiuta più e si torna all'orario.
  */
-export function countdownLabel(iso: string | null, now: number): string | null {
+export function countdownLabel(
+  iso: string | null,
+  now: number,
+  /*
+   * Se la stanza è aperta lo sa solo il server, e senza quel dato «in corso»
+   * era una supposizione: bastava che fossero passati venti minuti dall'inizio
+   * perché la scheda dicesse «IN CORSO» e, due righe sotto, «la stanza apre
+   * pochi minuti prima». Due frasi che si smentiscono a vicenda valgono meno
+   * di nessuna: chi legge non sa più a quale credere.
+   */
+  roomOpen = true
+): string | null {
   if (!iso) return null;
   const minutes = Math.round((new Date(iso).getTime() - now) / 60_000);
   if (minutes > 120) return null;
   if (minutes > 1) return `fra ${minutes} minuti`;
   if (minutes >= 0) return 'sta per iniziare';
-  if (minutes > -90) return 'in corso';
+  if (minutes > -90) return roomOpen ? 'in corso' : 'terminata';
   return null;
 }
