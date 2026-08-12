@@ -19,6 +19,7 @@ import {
   useTracks,
 } from '@livekit/react-native';
 import { ConnectionState, Track } from 'livekit-client';
+import { useKeepAwake } from 'expo-keep-awake';
 import {
   ApiError,
   ROOM_ERROR_TEXT,
@@ -237,6 +238,20 @@ function RoomStage({
   viewerIsCoach: boolean;
   coachIdentity: string;
 }) {
+  /*
+   * Lo schermo non si spegne durante la sessione.
+   *
+   * Il telefono spegne lo schermo dopo trenta secondi di inattivita`, e in una
+   * seduta di mental coaching l'inattivita` **e` il lavoro**: si ascolta, si
+   * pensa, si sta in silenzio. Senza questo, chi ascolta viene puntualmente
+   * oscurato proprio nei momenti che contano, e deve toccare il vetro per
+   * restare presente.
+   *
+   * Vale solo qui dentro: `useKeepAwake` rilascia il blocco allo smontaggio,
+   * quindi uscendo dalla chiamata il telefono torna a comportarsi da telefono.
+   */
+  useKeepAwake();
+
   const tracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare]);
   const participants = useParticipants();
   const connection = useConnectionState();
