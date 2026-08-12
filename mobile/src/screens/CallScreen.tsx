@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   AppState,
   Pressable,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -20,6 +21,7 @@ import { ConnectionState, Track } from 'livekit-client';
 import {
   ApiError,
   ROOM_ERROR_TEXT,
+  createGuestInvite,
   fetchRoomCredentials,
   type RoomCredentials,
   type UpcomingSession,
@@ -174,6 +176,7 @@ export function CallScreen({
         onLeave={onLeave}
         bookingId={session.bookingId}
         viewerIsCoach={credentials.viewerIsCoach}
+        coachIdentity={credentials.coachIdentity}
       />
     </LiveKitRoom>
   );
@@ -184,11 +187,13 @@ function RoomStage({
   onLeave,
   bookingId,
   viewerIsCoach,
+  coachIdentity,
 }: {
   otherName: string;
   onLeave: () => void;
   bookingId: number;
   viewerIsCoach: boolean;
+  coachIdentity: string;
 }) {
   const tracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare]);
   const participants = useParticipants();
@@ -201,6 +206,8 @@ function RoomStage({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const cameraWasOn = useRef(false);
   const facingFront = useRef(true);
+  // Il coach non aspetta se stesso: entra diretto.
+  const [admitted, setAdmitted] = useState(viewerIsCoach);
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
 
@@ -250,6 +257,26 @@ function RoomStage({
   const someoneElseHere = participants.some((participant) => !participant.isLocal);
 
   /*
+   * La sala d'attesa: l'atleta non resta solo in una stanza vuota.
+   *
+   * Entrare per primo in una videochiamata e parlare al nulla e` una brutta
+   * esperienza ovunque; in una seduta di mental coaching e` peggio, perche' la
+   * persona sta gia` facendo la fatica di presentarsi. Finche` il coach non
+   * c'e`, l'atleta vede una schermata che dice cosa sta succedendo invece di un
+   * riquadro nero da interpretare.
+   *
+   * Una volta ammessi non si torna indietro: se al coach cade la linea per
+   * venti secondi, rispedire l'atleta in anticamera sarebbe la cosa piu`
+   * sbagliata da fare proprio nel momento peggiore.
+   */
+  const coachPresent = participants.some(
+    (participant) => participant.identity === coachIdentity
+  );
+  useEffect(() => {
+    if (coachPresent) setAdmitted(true);
+  }, [coachPresent]);
+
+  /*
    * La condivisione schermo è il motivo tecnico per cui questa app esiste:
    * nel browser su telefono non è ottenibile, qui sì. Su Android non serve
    * nemmeno un selettore — si chiede, e il sistema mostra la sua richiesta di
@@ -283,6 +310,34 @@ function RoomStage({
   }
 
   /*
+   * Invitare un ospite — un genitore, un preparatore — a questa sessione.
+   *
+   * Si usa il foglio di condivisione del sistema, non una copia negli appunti:
+   * su un telefono il gesto naturale e` «manda a», e chi condivide sceglie il
+   * canale che usa gia`. Copiare e poi cercare dove incollare e` un'abitudine
+   * da scrivania.
+   *
+   * Il collegamento non contiene mai una credenziale della stanza: l'ospite lo
+   * scambia per un accesso di breve durata solo a finestra aperta, e a
+   * decidere e` il server.
+   */
+  async function inviteGuest() {
+    setShareError(null);
+    try {
+      const invite = await createGuestInvite(bookingId);
+      await Share.share({
+        message: `Ti invito alla mia sessione KaiPai: ${invite.url}`,
+      });
+    } catch (error) {
+      setShareError(
+        error instanceof ApiError
+          ? 'Invito non disponibile per questa sessione.'
+          : 'Non sono riuscito a creare l’invito.'
+      );
+    }
+  }
+
+  /*
    * Girare la fotocamera.
    *
    * `restartTrack` con l'altro `facingMode` e` il modo previsto da
@@ -304,6 +359,24 @@ function RoomStage({
       // Alcuni dispositivi hanno una sola fotocamera: non e` un errore da
       // raccontare, semplicemente non c'e` niente da girare.
     }
+  }
+
+  if (!admitted) {
+    return (
+      <View style={[styles.screen, styles.centered]}>
+        <View style={styles.prejoin}>
+          <ActivityIndicator color={theme.red} />
+          <Text style={styles.prejoinTitle}>Sei in sala d’attesa</Text>
+          <Text style={styles.prejoinBody}>
+            {otherName} non è ancora entrato. Appena arriva, la sessione parte
+            da sola — puoi lasciare il telefono acceso.
+          </Text>
+          <Pressable onPress={onLeave} hitSlop={10}>
+            <Text style={styles.prejoinBack}>Esci dalla sala d’attesa</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
   }
 
   return (
@@ -396,10 +469,37 @@ function RoomStage({
             onPress={() => localParticipant.setCameraEnabled(!isCameraEnabled)}
           />
           <Control label="Condividi" active={sharing} onPress={toggleScreenShare} />
+        </View>
+
+        {/*
+          * Le azioni secondarie stanno su una riga a parte, in testo.
+          *
+          * Cinque pillole in fila su uno schermo stretto diventano cinque
+          * bersagli da sessanta punti con le parole spezzate: nessuno si
+          * centra col pollice e nessuna si legge. Microfono, video e
+          * condivisione si usano di continuo e restano pulsanti; girare la
+          * fotocamera e invitare qualcuno si fanno una volta per sessione.
+          */}
+        <View style={styles.secondaryRow}>
           {/* Girare la fotocamera ha senso solo se la fotocamera è accesa. */}
           {isCameraEnabled && (
-            <Control label="Gira" active={false} onPress={flipCamera} />
+            <Pressable
+              onPress={flipCamera}
+              accessibilityRole="button"
+              accessibilityLabel="Gira la fotocamera"
+              hitSlop={10}
+            >
+              <Text style={styles.secondaryAction}>Gira fotocamera</Text>
+            </Pressable>
           )}
+          <Pressable
+            onPress={inviteGuest}
+            accessibilityRole="button"
+            accessibilityLabel="Invita un ospite in questa sessione"
+            hitSlop={10}
+          >
+            <Text style={styles.secondaryAction}>Invita un ospite</Text>
+          </Pressable>
         </View>
         <Pressable
           onPress={onLeave}
@@ -527,6 +627,13 @@ const createStyles = (theme: Palette) =>
     borderTopWidth: 1,
   },
   controls: { flexDirection: 'row', gap: 8 },
+  secondaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 24,
+    paddingVertical: 4,
+  },
+  secondaryAction: { color: theme.mid, fontSize: 13, paddingVertical: 6 },
   control: {
     flex: 1,
     flexDirection: 'row',

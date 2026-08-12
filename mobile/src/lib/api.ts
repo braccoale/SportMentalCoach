@@ -68,6 +68,8 @@ export type RoomCredentials = {
   room: string;
   otherName: string;
   viewerIsCoach: boolean;
+  /** Identità LiveKit del coach: serve a riconoscerlo nella sala d'attesa. */
+  coachIdentity: string;
 };
 
 export function fetchRoomCredentials(bookingId: number) {
@@ -118,6 +120,13 @@ export function respondToAiNotesConsent(
   return request<{ session: AiNotesSession }>(
     `/api/ai-session-notes/${sessionId}/consent`,
     { method: 'POST', body: JSON.stringify({ decision }) }
+  );
+}
+
+export function createGuestInvite(bookingId: number) {
+  return request<{ url: string; expiresAt: string }>(
+    `/api/video/${bookingId}/guest-invite`,
+    { method: 'POST' }
   );
 }
 

@@ -36,5 +36,10 @@ export async function POST(
     room: result.room,
     otherName: result.otherName,
     viewerIsCoach: result.viewerIsCoach,
+    // Serve alla sala d'attesa per riconoscere il coach fra i presenti. Il web
+    // lo prendeva già da `createRoomToken`; qui mancava solo di inoltrarlo, e
+    // senza di esso l'app non poteva distinguere «c'è il coach» da «c'è
+    // qualcuno».
+    coachIdentity: result.coachIdentity,
   });
 }
