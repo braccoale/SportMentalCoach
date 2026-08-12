@@ -11,11 +11,12 @@ import {
   AudioSession,
   LiveKitRoom,
   VideoTrack,
+  useConnectionState,
   useLocalParticipant,
   useParticipants,
   useTracks,
 } from '@livekit/react-native';
-import { Track } from 'livekit-client';
+import { ConnectionState, Track } from 'livekit-client';
 import {
   ApiError,
   ROOM_ERROR_TEXT,
@@ -46,6 +47,11 @@ export function CallScreen({
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [error, setError] = useState<string | null>(null);
+  const [choices, setChoices] = useState<{ audio: boolean; video: boolean } | null>(null);
+  const [enterWithMic, setEnterWithMic] = useState(true);
+  const [enterWithCam, setEnterWithCam] = useState(true);
+  // Prima che le credenziali arrivino non si conosce ancora il nome vero.
+  const otherLabel = credentials?.otherName ?? session.otherName;
 
   useEffect(() => {
     let cancelled = false;
@@ -88,13 +94,79 @@ export function CallScreen({
     );
   }
 
+  /*
+   * Prima di entrare si decide come entrare.
+   *
+   * Finora si veniva scaraventati in stanza con microfono e telecamera accesi
+   * d'ufficio: si scopriva di essere in onda **dopo** esserci finiti. In una
+   * seduta di mental coaching non e` un dettaglio — si arriva da una giornata,
+   * da un allenamento, da una stanza con qualcuno dentro, e decidere in che
+   * stato presentarsi fa parte della seduta.
+   *
+   * Le due scelte finiscono direttamente nelle prop di `LiveKitRoom`, quindi
+   * non c'e` un momento in cui la traccia esiste contro la volonta` di chi
+   * l'ha spenta.
+   */
+  if (!choices) {
+    return (
+      <View style={[styles.screen, styles.centered]}>
+        <View style={styles.prejoin}>
+          <Text style={styles.prejoinTitle}>Sessione con {otherLabel}</Text>
+          <Text style={styles.prejoinBody}>
+            Scegli come entrare. Potrai cambiare in qualsiasi momento.
+          </Text>
+
+          <Pressable
+            onPress={() => setEnterWithMic((value) => !value)}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: enterWithMic }}
+            accessibilityLabel="Entra con il microfono acceso"
+            style={({ pressed }) => [styles.choice, pressed && styles.pressed]}
+          >
+            <Text style={styles.choiceText}>Microfono</Text>
+            <Text style={enterWithMic ? styles.choiceOn : styles.choiceOff}>
+              {enterWithMic ? 'Acceso' : 'Spento'}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setEnterWithCam((value) => !value)}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: enterWithCam }}
+            accessibilityLabel="Entra con la telecamera accesa"
+            style={({ pressed }) => [styles.choice, pressed && styles.pressed]}
+          >
+            <Text style={styles.choiceText}>Telecamera</Text>
+            <Text style={enterWithCam ? styles.choiceOn : styles.choiceOff}>
+              {enterWithCam ? 'Accesa' : 'Spenta'}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() =>
+              setChoices({ audio: enterWithMic, video: enterWithCam })
+            }
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.enter, pressed && styles.pressed]}
+          >
+            <Text style={styles.enterText}>Entra nella stanza</Text>
+          </Pressable>
+
+          <Pressable onPress={onLeave} hitSlop={10}>
+            <Text style={styles.prejoinBack}>Non ora</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <LiveKitRoom
       serverUrl={credentials.url}
       token={credentials.token}
       connect
-      audio
-      video
+      audio={choices.audio}
+      video={choices.video}
       onDisconnected={onLeave}
     >
       <RoomStage
@@ -120,6 +192,7 @@ function RoomStage({
 }) {
   const tracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare]);
   const participants = useParticipants();
+  const connection = useConnectionState();
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } =
     useLocalParticipant();
 
@@ -127,6 +200,7 @@ function RoomStage({
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const cameraWasOn = useRef(false);
+  const facingFront = useRef(true);
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
 
@@ -208,8 +282,53 @@ function RoomStage({
     }
   }
 
+  /*
+   * Girare la fotocamera.
+   *
+   * `restartTrack` con l'altro `facingMode` e` il modo previsto da
+   * livekit-client: la traccia pubblicata resta la stessa, quindi chi guarda
+   * non vede la connessione cadere e riprendere — vede solo l'inquadratura
+   * cambiare, che e` l'unica cosa che ha chiesto.
+   */
+  async function flipCamera() {
+    const publication = localParticipant.getTrackPublication(
+      Track.Source.Camera
+    );
+    const track = publication?.videoTrack;
+    if (!track) return;
+    const next = facingFront.current ? 'environment' : 'user';
+    try {
+      await track.restartTrack({ facingMode: next });
+      facingFront.current = !facingFront.current;
+    } catch {
+      // Alcuni dispositivi hanno una sola fotocamera: non e` un errore da
+      // raccontare, semplicemente non c'e` niente da girare.
+    }
+  }
+
   return (
     <View style={styles.screen}>
+      {/*
+        * Lo stato della connessione, detto solo quando non e` quello normale.
+        *
+        * Un riquadro fermo e nero non distingue «sta ricollegando» da «e`
+        * caduta» da «l'altro ha spento la telecamera»: sono tre cose diverse e
+        * senza una parola si finisce a scuotere il telefono. Un banner
+        * permanente che dice «connesso» sarebbe invece rumore costante.
+        */}
+      {connection !== ConnectionState.Connected && (
+        <View style={styles.connectionBanner}>
+          <Text style={styles.connectionText} accessibilityLiveRegion="polite">
+            {connection === ConnectionState.Reconnecting ||
+            connection === ConnectionState.SignalReconnecting
+              ? 'Connessione instabile, sto riprovando…'
+              : connection === ConnectionState.Connecting
+                ? 'Mi sto collegando…'
+                : 'Connessione persa.'}
+          </Text>
+        </View>
+      )}
+
       <View style={styles.stage}>
         {remote.length > 0 ? (
           remote.map((track) => (
@@ -277,6 +396,10 @@ function RoomStage({
             onPress={() => localParticipant.setCameraEnabled(!isCameraEnabled)}
           />
           <Control label="Condividi" active={sharing} onPress={toggleScreenShare} />
+          {/* Girare la fotocamera ha senso solo se la fotocamera è accesa. */}
+          {isCameraEnabled && (
+            <Control label="Gira" active={false} onPress={flipCamera} />
+          )}
         </View>
         <Pressable
           onPress={onLeave}
@@ -355,6 +478,41 @@ const createStyles = (theme: Palette) =>
     borderWidth: 1,
     borderColor: theme.line,
   },
+  prejoin: { width: '100%', paddingHorizontal: 24, gap: 10 },
+  prejoinTitle: { color: theme.hi, fontSize: 22, fontWeight: '800', textAlign: 'center' },
+  prejoinBody: { color: theme.mid, fontSize: 14, textAlign: 'center', marginBottom: 10 },
+  prejoinBack: { color: theme.mid, fontSize: 14, textAlign: 'center', paddingVertical: 12 },
+  choice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 52,
+    paddingHorizontal: 18,
+    borderRadius: 16,
+    backgroundColor: theme.ink2,
+    borderColor: theme.line,
+    borderWidth: 1,
+  },
+  choiceText: { color: theme.hi, fontSize: 16 },
+  choiceOn: { color: theme.red2, fontSize: 14, fontWeight: '700' },
+  choiceOff: { color: theme.low, fontSize: 14, fontWeight: '700' },
+  enter: {
+    backgroundColor: theme.red,
+    borderRadius: 999,
+    minHeight: 52,
+    marginTop: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  enterText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  connectionBanner: {
+    backgroundColor: theme.surface,
+    borderBottomColor: theme.line,
+    borderBottomWidth: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  connectionText: { color: theme.hi, fontSize: 12, textAlign: 'center' },
   shareError: {
     color: theme.red2,
     fontSize: 12,
