@@ -165,6 +165,10 @@ export function SessionsScreen({
    * — il caso normale — due schede separate sarebbero due schermate quasi
    * vuote.
    */
+  // Quali sono passate: serve al foglio azioni per sapere cosa e` ancora
+  // possibile, con la stessa regola del web.
+  const pastIds = new Set(past.map((s) => s.bookingId));
+
   const rows: Row[] = [];
 
   /*
@@ -335,6 +339,29 @@ export function SessionsScreen({
                   {statusLabel(session.status) && (
                     <Text style={styles.badge}>{statusLabel(session.status)}</Text>
                   )}
+                  {/*
+                    * Il segno del riepilogo.
+                    *
+                    * Senza, l’unico modo di sapere se una seduta ha prodotto
+                    * qualcosa e` aprirle una per una sul web. Il pallino dice
+                    * «c’e`», il resto si legge dove c’e` spazio per leggerlo.
+                    */}
+                  {session.aiNotes && (
+                    <Text
+                      style={styles.aiMark}
+                      accessibilityLabel={
+                        session.aiNotes === 'approved' ||
+                        session.aiNotes === 'shared'
+                          ? 'Riepilogo AI pronto'
+                          : 'Riepilogo AI in preparazione'
+                      }
+                    >
+                      {session.aiNotes === 'approved' ||
+                      session.aiNotes === 'shared'
+                        ? '✦ report'
+                        : '✦'}
+                    </Text>
+                  )}
                   <Pressable
                     onPress={() => setMenuFor(session)}
                     accessibilityRole="button"
@@ -467,6 +494,7 @@ export function SessionsScreen({
       {menuFor && (
         <SessionActionsSheet
           session={menuFor}
+          past={pastIds.has(menuFor.bookingId)}
           visible
           onClose={() => setMenuFor(null)}
           onChanged={() => void load()}
@@ -531,6 +559,7 @@ const createStyles = (theme: Palette) =>
     letterSpacing: 0.5,
   },
   more: { marginLeft: 'auto', paddingHorizontal: 6, paddingVertical: 2 },
+  aiMark: { color: theme.green, fontSize: 11, fontWeight: '700' },
   moreGlyph: { color: theme.mid, fontSize: 20, fontWeight: '700', lineHeight: 22 },
   fabGlyph: { color: '#fff', fontSize: 30, lineHeight: 34, fontWeight: '300' },
   banner: {
@@ -550,7 +579,7 @@ const createStyles = (theme: Palette) =>
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: theme.red,
+    backgroundColor: theme.green,
     alignItems: 'center',
     justifyContent: 'center',
   },

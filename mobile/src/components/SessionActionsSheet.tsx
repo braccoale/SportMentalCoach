@@ -35,11 +35,14 @@ const SLOT_HOURS = [8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21];
 
 export function SessionActionsSheet({
   session,
+  past,
   visible,
   onClose,
   onChanged,
 }: {
   session: UpcomingSession;
+  /** Una seduta gia` trascorsa non si sposta e non si annulla. */
+  past: boolean;
   visible: boolean;
   onClose: () => void;
   onChanged: () => void;
@@ -50,6 +53,24 @@ export function SessionActionsSheet({
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<'menu' | 'reschedule' | 'confirmCancel'>('menu');
   const [day, setDay] = useState<Date | null>(null);
+
+  const isOpen =
+    session.status === 'requested' || session.status === 'accepted';
+  // Spostare e annullare: solo su una sessione aperta e non trascorsa.
+  const canAct = isOpen && !past;
+  // Il collegamento serve a chi deve ancora entrare, quindi solo a stanza
+  // aperta e solo al coach: l`atleta non manda un link a nome proprio.
+  const canShareLink =
+    session.status === 'accepted' &&
+    !past &&
+    session.viewerIsCoach &&
+    session.canJoinNow !== false;
+  const closedReason =
+    session.status === 'cancelled'
+      ? 'Questa sessione è stata annullata: non c’è più niente da modificare.'
+      : session.status === 'declined'
+        ? 'Questa richiesta è stata rifiutata.'
+        : 'La sessione è già trascorsa: si può solo consultarla su KaiPai.'
 
   function close() {
     setMode('menu');
@@ -96,11 +117,24 @@ export function SessionActionsSheet({
                 {timeLabel(session.scheduledFor)}
               </Text>
 
-              <Item
-                icon="edit-calendar"
-                label="Modifica giorno e ora"
-                onPress={() => setMode('reschedule')}
-              />
+              {/*
+                * Le azioni seguono lo stato, come sul web.
+                *
+                * Li` una sessione si annulla e si sposta solo finche` e`
+                * aperta e non ancora trascorsa (`isOpen && !alreadyHappened`).
+                * Qui le voci comparivano sempre: su una seduta annullata
+                * offrivamo «Annulla», e su una gia` fatta «Modifica giorno e
+                * ora» — gesti che il server avrebbe rifiutato, dopo aver
+                * fatto credere che fossero possibili.
+                */}
+              {canAct && (
+                <Item
+                  icon="edit-calendar"
+                  label="Modifica giorno e ora"
+                  onPress={() => setMode('reschedule')}
+                />
+              )}
+              {canShareLink && (
               <Item
                 icon="link"
                 label="Link per l’atleta"
@@ -114,12 +148,20 @@ export function SessionActionsSheet({
                   })
                 }
               />
-              <Item
-                icon="event-busy"
-                label="Annulla la sessione"
-                destructive
-                onPress={() => setMode('confirmCancel')}
-              />
+              )}
+              {canAct && (
+                <Item
+                  icon="event-busy"
+                  label="Annulla la sessione"
+                  destructive
+                  onPress={() => setMode('confirmCancel')}
+                />
+              )}
+              {!canAct && !canShareLink && (
+                <Text style={styles.subtitle}>
+                  {closedReason}
+                </Text>
+              )}
             </>
           )}
 

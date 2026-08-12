@@ -42,7 +42,7 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
   const [biometricLabel, setBiometricLabel] = useState<string | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
   const passwordRef = useRef<TextInput>(null);
-  const { theme } = useTheme();
+  const { theme, resolved } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   // All'avvio: c'è già una sessione? Allora la porta si apre col volto.
@@ -122,31 +122,30 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
     >
       <View style={styles.body}>
         {/*
-          * Il marchio dentro un riquadro scuro, sempre.
+          * Due file per lo stesso marchio, uno per tema.
           *
-          * Prima qui c'era l'icona dell'app, che porta dentro un quadrato nero:
-          * su fondo scuro se ne vedeva il bordo arrotondato, e sembrava
-          * un'icona incollata invece di un logo. Sul tema chiaro sarebbe stato
-          * peggio — un rettangolo nero in mezzo alla pagina.
+          * Il marchio esiste in bianco su trasparente: su fondo chiaro
+          * spariva. Il rimedio precedente — un riquadro scuro dietro — era una
+          * scatola nera in mezzo a una pagina chiara, e si vedeva che era un
+          * rimedio, non una scelta.
           *
-          * Il marchio vero esiste in una sola versione, bianca su trasparente:
-          * su fondo chiaro sparirebbe. Il riquadro risolve entrambe le cose —
-          * sul tema scuro e` invisibile perche' ha lo stesso colore dello
-          * sfondo, sul chiaro diventa una targhetta che sembra voluta, perche'
-          * lo e`.
+          * La versione chiara è lo stesso file col bianco portato a nero e il
+          * rosso lasciato dov'è: è lo stesso marchio, non un secondo marchio.
           */}
-        <View style={styles.logoPlate}>
-          <Image
-            source={require('../../assets/wordmark.png')}
-            style={styles.logo}
-            resizeMode="contain"
-            // Il marchio è decorazione, non informazione: chi usa lo screen
-            // reader sa già in quale app si trova, e sentirselo annunciare
-            // all'apertura è rumore prima del contenuto.
-            accessibilityElementsHidden
-            importantForAccessibility="no"
-          />
-        </View>
+        <Image
+          source={
+            resolved === 'light'
+              ? require('../../assets/wordmark-light.png')
+              : require('../../assets/wordmark.png')
+          }
+          style={styles.logo}
+          resizeMode="contain"
+          // Il marchio è decorazione, non informazione: chi usa lo screen
+          // reader sa già in quale app si trova, e sentirselo annunciare
+          // all'apertura è rumore prima del contenuto.
+          accessibilityElementsHidden
+          importantForAccessibility="no"
+        />
         <Text style={styles.brand}>Bentornato</Text>
         <Text style={styles.subtitle}>
           Entra per raggiungere le tue sessioni.
@@ -264,15 +263,7 @@ const createStyles = (theme: Palette) =>
   centered: { alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, justifyContent: 'center', paddingHorizontal: 24, gap: 8 },
   // 1672x941 nel file: il rapporto va rispettato o il marchio si deforma.
-  logo: { width: 200, height: 113 },
-  logoPlate: {
-    alignSelf: 'flex-start',
-    backgroundColor: staticDark.ink,
-    borderRadius: 20,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    marginBottom: 20,
-  },
+  logo: { width: 210, height: 118, marginBottom: 20 },
   brand: {
     color: theme.hi,
     fontSize: 34,

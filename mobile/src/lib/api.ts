@@ -56,6 +56,8 @@ export type UpcomingSession = {
   canJoinNow?: boolean;
   /** Durata reale, nota solo dopo che la sessione si e` svolta. */
   actualMinutes?: number | null;
+  /** Stato del riepilogo AI, `null` quando la seduta non ne ha uno. */
+  aiNotes?: string | null;
   viewerIsCoach: boolean;
   otherName: string;
 };

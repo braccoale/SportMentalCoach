@@ -7,6 +7,7 @@ import {
   providerProfiles,
   services,
   users,
+  sessionAiNotes,
 } from '@/lib/db/schema';
 import {
   FALLBACK_SESSION_DURATION_MIN,
@@ -49,12 +50,15 @@ export async function GET(request: Request) {
       status: bookings.status,
       sessionStartedAt: bookings.sessionStartedAt,
       sessionEndedAt: bookings.sessionEndedAt,
+      aiNotesStatus: sessionAiNotes.status,
     })
     .from(bookings)
     .innerJoin(providerProfiles, eq(bookings.providerId, providerProfiles.id))
     .innerJoin(users, eq(bookings.clientId, users.id))
     .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
     .leftJoin(services, eq(bookings.serviceId, services.id))
+    // Il riepilogo AI, se esiste: serve solo a dire che c'e' e a che punto e'.
+    .leftJoin(sessionAiNotes, eq(sessionAiNotes.bookingId, bookings.id))
     .where(
       and(
         /*
@@ -118,6 +122,13 @@ export async function GET(request: Request) {
        * ed e' un'informazione che esiste solo dopo, quindi la durata prevista
        * non la sostituisce.
        */
+      /*
+       * Se di questa sessione esiste un riepilogo, e a che punto e'.
+       *
+       * Sulla scheda diventa un segno: senza, l'unico modo di sapere se una
+       * seduta ha prodotto qualcosa e' aprirla sul web una per una.
+       */
+      aiNotes: row.aiNotesStatus ?? null,
       actualMinutes:
         row.sessionStartedAt && row.sessionEndedAt
           ? Math.max(
