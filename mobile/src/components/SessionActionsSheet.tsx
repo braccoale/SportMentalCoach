@@ -16,7 +16,7 @@ import {
   rescheduleBooking,
   type UpcomingSession,
 } from '../lib/api';
-import { dayTitle, timeLabel } from '../lib/day-grouping';
+import { dayKey, dayTitle, romeInstant, timeLabel } from '../lib/day-grouping';
 import { useTheme, type Palette } from '../theme';
 
 /**
@@ -188,8 +188,8 @@ export function SessionActionsSheet({
                       key={hour}
                       disabled={busy}
                       onPress={() => {
-                        const when = new Date(day);
-                        when.setHours(hour, 0, 0, 0);
+                        // Ora italiana, come ovunque nell'app.
+                        const when = romeInstant(dayKey(day.toISOString()), hour);
                         void run(() =>
                           rescheduleBooking(
                             session.bookingId,

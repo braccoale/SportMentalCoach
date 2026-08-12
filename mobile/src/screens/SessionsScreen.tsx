@@ -349,8 +349,15 @@ export function SessionsScreen({
                   {session.otherName}
                 </Text>
                 <Text style={styles.meta}>
-                  {session.title} · {session.durationMin} min
-                  {session.status === 'completed' ? ' · svolta' : ''}
+                  {session.title} ·{' '}
+                  {/*
+                    * Quanto e` durata davvero batte quanto era prevista.
+                    * Una sessione da quaranta minuti finita in dodici
+                    * racconta qualcosa, e la durata prevista lo nasconde.
+                    */}
+                  {session.actualMinutes
+                    ? `${session.actualMinutes} min effettivi`
+                    : `${session.durationMin} min`}
                 </Text>
 
                 {waiting && !isCoach && (

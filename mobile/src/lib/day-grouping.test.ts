@@ -4,6 +4,7 @@ import {
   countdownLabel,
   dayKey,
   dayTitle,
+  romeInstant,
   timeLabel,
 } from './day-grouping';
 
@@ -40,6 +41,36 @@ test('senza orario non si inventa un giorno', () => {
 test('l`ora e` quella italiana', () => {
   // 16:00 UTC in agosto = 18:00 a Roma.
   assert.equal(timeLabel('2026-08-12T16:00:00Z'), '18:00');
+});
+
+test('le 8 scelte sono le 8 italiane, non quelle del telefono', () => {
+  // Il caso reale: si sceglie «8:00» per il 13 agosto e sul web compaiono le
+  // 10:00, perche` l'orario veniva costruito nel fuso del dispositivo (UTC
+  // sull'emulatore). In agosto Roma e` UTC+2, quindi le 8 italiane sono le
+  // 06:00Z.
+  assert.equal(
+    romeInstant('2026-08-13', 8).toISOString(),
+    '2026-08-13T06:00:00.000Z'
+  );
+  // E riletto, torna a dire «8:00».
+  assert.equal(timeLabel(romeInstant('2026-08-13', 8).toISOString()), '08:00');
+});
+
+test('d`inverno l`ora legale non sposta l`appuntamento', () => {
+  // A gennaio Roma e` UTC+1: la stessa scelta vale un'ora diversa in UTC, e
+  // fissare l'offset a due ore romperebbe meta` dell'anno.
+  assert.equal(
+    romeInstant('2027-01-13', 8).toISOString(),
+    '2027-01-13T07:00:00.000Z'
+  );
+  assert.equal(timeLabel(romeInstant('2027-01-13', 8).toISOString()), '08:00');
+});
+
+test('il giorno scelto resta quel giorno', () => {
+  // Un orario serale non deve scivolare al giorno dopo passando per UTC.
+  const evening = romeInstant('2026-08-13', 21);
+  assert.equal(dayKey(evening.toISOString()), '2026-08-13');
+  assert.equal(timeLabel(evening.toISOString()), '21:00');
 });
 
 test('il conto alla rovescia parla solo quando manca poco', () => {

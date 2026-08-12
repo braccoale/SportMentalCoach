@@ -77,6 +77,7 @@ export async function POST(request: Request) {
     serviceId?: unknown;
     durationMin?: unknown;
     scheduledFor?: unknown;
+    startingNow?: unknown;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -84,15 +85,24 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Richiesta non valida.' }, { status: 400 });
   }
 
+  const startingNow = body.startingNow === true;
+
   if (
     typeof body.clientUserId !== 'number' ||
     typeof body.serviceId !== 'number' ||
-    typeof body.scheduledFor !== 'string'
+    (!startingNow && typeof body.scheduledFor !== 'string')
   ) {
     return Response.json({ error: 'Dati incompleti.' }, { status: 400 });
   }
 
-  const scheduledFor = new Date(body.scheduledFor);
+  /*
+   * Una sessione immediata non ha un orario scelto: parte adesso, e nasce
+   * gia' accettata perche' i due sono entrambi presenti — chiedere conferma a
+   * chi ti sta gia' aspettando in stanza sarebbe assurdo.
+   */
+  const scheduledFor = startingNow
+    ? new Date()
+    : new Date(body.scheduledFor as string);
   if (Number.isNaN(scheduledFor.getTime())) {
     return Response.json({ error: 'Data non valida.' }, { status: 400 });
   }
@@ -105,6 +115,7 @@ export async function POST(request: Request) {
       ? body.durationMin
       : DEFAULT_SESSION_DURATION_MIN) as SessionDurationMin,
     scheduledFor,
+    startingNow,
   });
 
   return result.ok

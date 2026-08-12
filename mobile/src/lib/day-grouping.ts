@@ -47,6 +47,57 @@ export function timeLabel(iso: string | null): string {
 }
 
 /**
+ * L'istante corrispondente a un'ora **italiana** di un dato giorno.
+ *
+ * Serve a chi sceglie un orario: toccando «8:00» si intende le otto di Roma,
+ * non le otto del fuso in cui si trova il telefono. Costruire la data con
+ * `setHours` usa il fuso del dispositivo, e su un telefono su UTC — o su un
+ * atleta in trasferta — un appuntamento delle 8 finiva alle 10. Nessun errore,
+ * nessun avviso: solo due persone che si presentano a due ore diverse.
+ *
+ * Non serve una libreria: si prende l'istante «ingenuo», si chiede a `Intl`
+ * che ora sarebbe a Roma, e si sposta della differenza. Il secondo giro
+ * assorbe i cambi d'ora, quando l'offset del primo tentativo appartiene al
+ * versante sbagliato del passaggio.
+ */
+function romeOffsetMs(timestamp: number): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: ZONE,
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(new Date(timestamp));
+
+  const value = (type: string) =>
+    Number(parts.find((part) => part.type === type)?.value ?? 0);
+
+  // `hour` può essere 24 a mezzanotte con hour12:false su alcune versioni.
+  const hour = value('hour') % 24;
+  const asIfUtc = Date.UTC(
+    value('year'),
+    value('month') - 1,
+    value('day'),
+    hour,
+    value('minute'),
+    value('second')
+  );
+  return asIfUtc - timestamp;
+}
+
+/** `('2026-08-13', 8)` → l'istante delle 8:00 italiane di quel giorno. */
+export function romeInstant(dayKeyValue: string, hour: number): Date {
+  const [year, month, day] = dayKeyValue.split('-').map(Number);
+  const naive = Date.UTC(year, month - 1, day, hour, 0, 0, 0);
+  let timestamp = naive - romeOffsetMs(naive);
+  timestamp = naive - romeOffsetMs(timestamp);
+  return new Date(timestamp);
+}
+
+/**
  * «Fra 12 minuti», quando l'attesa è breve abbastanza da contare.
  *
  * Un orario dice *quando*; un conto alla rovescia dice *quanto manca*, che è

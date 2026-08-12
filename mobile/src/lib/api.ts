@@ -54,6 +54,8 @@ export type UpcomingSession = {
   status: string;
   /** La stanza è aperta adesso? Lo decide il server, con la regola del web. */
   canJoinNow?: boolean;
+  /** Durata reale, nota solo dopo che la sessione si e` svolta. */
+  actualMinutes?: number | null;
   viewerIsCoach: boolean;
   otherName: string;
 };
@@ -139,7 +141,8 @@ export function createAppointment(input: {
   clientUserId: number;
   serviceId: number;
   durationMin?: number;
-  scheduledFor: string;
+  scheduledFor?: string;
+  startingNow?: boolean;
 }) {
   return request<{ ok: true; bookingId: number }>('/api/mobile/new-appointment', {
     method: 'POST',

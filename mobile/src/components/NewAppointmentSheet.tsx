@@ -13,7 +13,7 @@ import {
   newAppointmentOptions,
   type AppointmentOptions,
 } from '../lib/api';
-import { dayTitle } from '../lib/day-grouping';
+import { dayKey, dayTitle, romeInstant } from '../lib/day-grouping';
 import { useTheme, type Palette } from '../theme';
 
 /**
@@ -72,8 +72,8 @@ export function NewAppointmentSheet({
 
   async function create(hour: number) {
     if (!athlete || !service || !day) return;
-    const when = new Date(day);
-    when.setHours(hour, 0, 0, 0);
+    // L'ora scelta e' quella italiana, non quella del fuso del telefono.
+    const when = romeInstant(dayKey(day.toISOString()), hour);
     const chosen = options?.services.find((s) => s.id === service);
     setBusy(true);
     setError(null);
@@ -91,6 +91,31 @@ export function NewAppointmentSheet({
         err instanceof Error && err.message !== 'request_failed'
           ? err.message
           : 'Non è stato possibile creare l’appuntamento.'
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createNow() {
+    if (!athlete || !service) return;
+    const chosen = options?.services.find((s) => s.id === service);
+    setBusy(true);
+    setError(null);
+    try {
+      await createAppointment({
+        clientUserId: athlete,
+        serviceId: service,
+        durationMin: chosen?.durationMin,
+        startingNow: true,
+      });
+      onCreated();
+      close();
+    } catch (err) {
+      setError(
+        err instanceof Error && err.message !== 'request_failed'
+          ? err.message
+          : 'Non e stato possibile iniziare la sessione.'
       );
     } finally {
       setBusy(false);
@@ -158,7 +183,26 @@ export function NewAppointmentSheet({
 
               {service !== null && (
                 <>
-                  <Text style={styles.step}>Quando</Text>
+                  {/*
+                    * «Adesso» prima di «quando».
+                    *
+                    * È il caso più frequente e il più urgente: l'atleta è già
+                    * al telefono, o è appena successo qualcosa e serve
+                    * parlarne. Nasce già accettata, perché chiedere conferma a
+                    * chi ti sta aspettando in stanza non ha senso.
+                    */}
+                  <Text style={styles.step}>Subito</Text>
+                  <Pressable
+                    onPress={() => void createNow()}
+                    disabled={busy}
+                    accessibilityRole="button"
+                    accessibilityLabel="Inizia una sessione adesso"
+                    style={({ pressed }) => [styles.now, pressed && styles.pressed]}
+                  >
+                    <Text style={styles.nowText}>Inizia adesso</Text>
+                  </Pressable>
+
+                  <Text style={styles.step}>Oppure quando</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     <View style={styles.chips}>
                       {days.map((d) => (
@@ -184,8 +228,7 @@ export function NewAppointmentSheet({
                     * sembrare rotta l'app invece che sbagliata la scelta.
                     */}
                   {HOURS.filter((hour) => {
-                    const when = new Date(day);
-                    when.setHours(hour, 0, 0, 0);
+                    const when = romeInstant(dayKey(day.toISOString()), hour);
                     return when.getTime() > Date.now();
                   }).map((hour) => (
                     <Pressable
@@ -200,8 +243,7 @@ export function NewAppointmentSheet({
                     </Pressable>
                   ))}
                   {HOURS.every((hour) => {
-                    const when = new Date(day);
-                    when.setHours(hour, 0, 0, 0);
+                    const when = romeInstant(dayKey(day.toISOString()), hour);
                     return when.getTime() <= Date.now();
                   }) && (
                     <Text style={styles.subtitle}>
@@ -302,6 +344,14 @@ const createStyles = (theme: Palette) =>
       backgroundColor: theme.surface,
     },
     slotText: { color: theme.hi, fontSize: 15 },
+    now: {
+      minHeight: 48,
+      borderRadius: 999,
+      backgroundColor: theme.green,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    nowText: { color: '#fff', fontSize: 15, fontWeight: '700' },
     loader: { marginVertical: 20 },
     error: { color: theme.red2, fontSize: 13, marginTop: 10 },
     pressed: { opacity: 0.8 },

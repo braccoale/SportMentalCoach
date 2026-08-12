@@ -47,6 +47,8 @@ export async function GET(request: Request) {
       >`nullif(trim(concat(${users.name}, ' ', coalesce(${users.lastName}, ''))), '')`,
       clientEmail: users.email,
       status: bookings.status,
+      sessionStartedAt: bookings.sessionStartedAt,
+      sessionEndedAt: bookings.sessionEndedAt,
     })
     .from(bookings)
     .innerJoin(providerProfiles, eq(bookings.providerId, providerProfiles.id))
@@ -74,7 +76,21 @@ export async function GET(request: Request) {
          * atleta aspettava una risposta, e nulla segnalava il problema perche'
          * una query che non trova righe non e' un errore.
          */
-        inArray(bookings.status, ['accepted', 'requested', 'completed']),
+        /*
+         * Anche annullate e rifiutate.
+         *
+         * Sparivano dall'elenco, e sparire e' ambiguo: chi guarda non sa se
+         * la sessione non c'e' mai stata, se e' stata disdetta o se l'app non
+         * la carica. Restano nelle passate, con lo stato scritto.
+         */
+        inArray(bookings.status, [
+          'accepted',
+          'requested',
+          'completed',
+          'cancelled',
+          'declined',
+          'expired',
+        ]),
         or(
           eq(bookings.clientId, user.id),
           eq(providerProfiles.userId, user.id)
@@ -95,6 +111,23 @@ export async function GET(request: Request) {
       durationMin: Number(row.durationMin),
       title: row.serviceTitle ?? 'Sessione di mental coaching',
       status: row.status,
+      /*
+       * Quanto e' durata davvero, non quanto era prevista.
+       *
+       * Una sessione da quaranta minuti finita in dodici racconta qualcosa —
+       * ed e' un'informazione che esiste solo dopo, quindi la durata prevista
+       * non la sostituisce.
+       */
+      actualMinutes:
+        row.sessionStartedAt && row.sessionEndedAt
+          ? Math.max(
+              1,
+              Math.round(
+                (row.sessionEndedAt.getTime() - row.sessionStartedAt.getTime()) /
+                  60_000
+              )
+            )
+          : null,
       /*
        * La stanza si apre poco prima, non appena la sessione compare.
        *

@@ -33,6 +33,15 @@ export type Palette = {
   low: string;
   red: string;
   red2: string;
+  /**
+   * Il verde di «aggiungi».
+   *
+   * Il rosso e` il marchio, e nel prodotto marca anche cio` che e` in corso
+   * o irreversibile: registrazione attiva, chiudi, annulla. Un «+» rosso
+   * chiedeva attenzione con lo stesso tono di un allarme, per il gesto piu`
+   * innocuo della schermata.
+   */
+  green: string;
 };
 
 const dark: Palette = {
@@ -45,6 +54,7 @@ const dark: Palette = {
   low: '#6b6b76',
   red: '#e11d2a',
   red2: '#f5333f',
+  green: '#12a150',
 };
 
 /*
@@ -65,6 +75,7 @@ const light: Palette = {
   low: '#8a8a95',
   red: '#c8101d',
   red2: '#e11d2a',
+  green: '#0f8a44',
 };
 
 export type ThemeMode = 'system' | 'light' | 'dark';
