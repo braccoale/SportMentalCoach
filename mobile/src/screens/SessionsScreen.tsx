@@ -11,6 +11,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchSessions, type UpcomingSession } from '../lib/api';
+import {
+  countdownLabel,
+  dayKey,
+  dayTitle,
+  timeLabel,
+} from '../lib/day-grouping';
 import { currentSession } from '../lib/auth';
 import { useTheme, type Palette } from '../theme';
 
@@ -40,26 +46,17 @@ function whenLabel(iso: string | null): string {
   }).format(date)} alle ${time}`;
 }
 
-/**
- * «Fra 12 minuti», quando l'attesa è breve abbastanza da contare.
- *
- * Un orario dice *quando*; un conto alla rovescia dice *quanto manca*, che è
- * la domanda vera di chi apre l'app poco prima di una sessione. Oltre le due
- * ore la sottrazione non aiuta più e si torna all'orario.
- */
-function countdownLabel(iso: string | null, now: number): string | null {
-  if (!iso) return null;
-  const minutes = Math.round((new Date(iso).getTime() - now) / 60_000);
-  if (minutes > 120) return null;
-  if (minutes > 1) return `fra ${minutes} minuti`;
-  if (minutes >= 0) return 'sta per iniziare';
-  if (minutes > -90) return 'in corso';
-  return null;
-}
 
 type Row =
   | { kind: 'header'; title: string }
-  | { kind: 'session'; session: UpcomingSession; past: boolean; hero?: boolean };
+  | {
+      kind: 'session';
+      session: UpcomingSession;
+      past: boolean;
+      hero?: boolean;
+      /** Sotto un'intestazione di giorno basta l'ora; nelle passate serve la data. */
+      timeOnly?: boolean;
+    };
 
 /**
  * L'elenco delle prossime sessioni: l'unica schermata fra l'accesso e la
@@ -147,26 +144,44 @@ export function SessionsScreen({
    * — il caso normale — due schede separate sarebbero due schermate quasi
    * vuote.
    */
-  const rows: Row[] = [
-    ...(sessions.length ? [{ kind: 'header' as const, title: 'In programma' }] : []),
-    /*
-     * La prima sessione è diversa dalle altre.
-     *
-     * Prima erano tutte schede identiche, quindi quella fra dieci minuti
-     * pesava quanto quella di giovedì, e «Entra nella stanza →» si ripeteva su
-     * ognuna: cinque inviti identici non sono cinque inviti, sono rumore. Ora
-     * la prossima è alta e ha l'unico pulsante pieno della schermata; le altre
-     * sono righe compatte, toccabili per intero.
-     */
-    ...sessions.map((session, index) => ({
-      kind: 'session' as const,
+  const rows: Row[] = [];
+
+  /*
+   * Le prossime, raggruppate per giorno.
+   *
+   * La prima resta diversa dalle altre: prima erano tutte schede identiche,
+   * quindi quella fra dieci minuti pesava quanto quella di giovedì, e «Entra
+   * nella stanza» si ripeteva su ognuna — cinque inviti identici sono rumore,
+   * non cinque inviti. Ora la prossima è alta e ha l'unico pulsante pieno
+   * della schermata; le altre sono righe compatte, toccabili per intero.
+   */
+  let lastDay: string | null = null;
+  sessions.forEach((session, index) => {
+    const key = dayKey(session.scheduledFor);
+    if (key !== lastDay) {
+      rows.push({ kind: 'header', title: dayTitle(session.scheduledFor) });
+      lastDay = key;
+    }
+    rows.push({
+      kind: 'session',
       session,
       past: false,
       hero: index === 0 && session.status !== 'pending',
-    })),
-    ...(past.length ? [{ kind: 'header' as const, title: 'Passate' }] : []),
-    ...past.map((session) => ({ kind: 'session' as const, session, past: true })),
-  ];
+      timeOnly: true,
+    });
+  });
+
+  /*
+   * Le passate non si raggruppano per giorno: si estendono su mesi, e una
+   * intestazione per ciascuno darebbe più titoli che righe. Lì la data resta
+   * sulla riga, dove serve.
+   */
+  if (past.length) {
+    rows.push({ kind: 'header', title: 'Passate' });
+    past.forEach((session) => {
+      rows.push({ kind: 'session', session, past: true });
+    });
+  }
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 12 }]}>
@@ -267,7 +282,10 @@ export function SessionsScreen({
                     item.hero ? styles.whenHero : styles.whenQuiet,
                   ]}
                 >
-                  {countdown ?? whenLabel(session.scheduledFor)}
+                  {countdown ??
+                    (item.timeOnly
+                      ? timeLabel(session.scheduledFor)
+                      : whenLabel(session.scheduledFor))}
                 </Text>
                 <Text style={item.hero ? styles.whoHero : styles.who}>
                   {session.otherName}
