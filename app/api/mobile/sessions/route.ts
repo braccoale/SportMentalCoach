@@ -61,7 +61,17 @@ export async function GET(request: Request) {
          * Una richiesta in attesa e' esattamente la cosa che si vuole
          * controllare dal telefono.
          */
-        inArray(bookings.status, ['accepted', 'pending', 'completed']),
+        /*
+         * `requested`, non `pending`.
+         *
+         * Gli stati veri di una prenotazione sono requested / accepted /
+         * declined / cancelled / completed / expired. `pending` non e' mai
+         * esistito: filtrando su un valore inventato, **nessuna richiesta ha
+         * mai raggiunto l'app** — un coach vedeva l'elenco fermo mentre un
+         * atleta aspettava una risposta, e nulla segnalava il problema perche'
+         * una query che non trova righe non e' un errore.
+         */
+        inArray(bookings.status, ['accepted', 'requested', 'completed']),
         or(
           eq(bookings.clientId, user.id),
           eq(providerProfiles.userId, user.id)

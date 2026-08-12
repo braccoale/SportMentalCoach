@@ -1103,12 +1103,24 @@ function FinalCta() {
   return (
     <section className="kp-snap kp-grain relative flex min-h-svh items-center overflow-hidden py-24 sm:py-32">
       <ImageSlot
-        src="/cta-athlete.jpg"
-        position="center 30%"
+        src="/vision-background.jpeg"
+        position="center 68%"
         placeholder="none"
+        label="Una persona legge affacciata sul porto"
+        imageClassName="scale-110 opacity-55 blur-2xl"
         className="absolute inset-0"
       >
-        <div className="absolute inset-0 bg-kp-ink/82" />
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: "url('/vision-background.jpeg')",
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: 'contain',
+          }}
+        />
+        <div className="absolute inset-0 bg-kp-ink/62" />
+        <div className="absolute inset-0 bg-gradient-to-b from-kp-ink/55 via-kp-ink/30 to-kp-ink/75" />
         <div className="kp-vignette absolute inset-0" />
       </ImageSlot>
       <div className="kp-red-glow absolute left-1/2 top-1/2 h-[40rem] w-[40rem] -translate-x-1/2 -translate-y-1/2 opacity-60" />

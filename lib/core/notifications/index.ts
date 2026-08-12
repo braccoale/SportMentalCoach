@@ -916,27 +916,35 @@ export async function notify(
     console.log(`[email] skipped (disabled): "${title}"`);
   }
 
-  // Web Push mirror — native notification on subscribed devices (PWA). Same
-  // best-effort, after-the-response pattern as email; no-op without VAPID keys.
-  if (isPushConfigured()) {
-    const sendPush = async () => {
-      try {
-        // Same switch as the bell: "App" off means silent on the device too.
-        if (!(await isInAppEnabled(recipientUserId, type))) return;
-        await sendPushToUser(recipientUserId, {
-          title,
-          body: body || undefined,
-          url: data.link,
-          tag: `${type}-${data.bookingId ?? ''}`,
-        });
-      } catch (error) {
-        console.error('[push] notify-push failed:', type, error);
-      }
-    };
+  /*
+   * L'avviso sul dispositivo, browser **o** app.
+   *
+   * Qui c'era un `if (isPushConfigured())`, che verifica le chiavi VAPID del
+   * push web. Ma i due canali sono indipendenti: `sendPushToUser` manda al
+   * browser solo se VAPID c'è, e all'app sempre. Con quel cancello davanti, un
+   * progetto senza VAPID restava muto **anche** sull'app — che è precisamente
+   * il canale che non dipende da VAPID.
+   *
+   * Il cancello non serve nemmeno a risparmiare lavoro: senza dispositivi
+   * registrati la funzione esce subito.
+   */
+  const sendPush = async () => {
     try {
-      after(sendPush);
-    } catch {
-      void sendPush();
+      // Same switch as the bell: "App" off means silent on the device too.
+      if (!(await isInAppEnabled(recipientUserId, type))) return;
+      await sendPushToUser(recipientUserId, {
+        title,
+        body: body || undefined,
+        url: data.link,
+        tag: `${type}-${data.bookingId ?? ''}`,
+      });
+    } catch (error) {
+      console.error('[push] notify-push failed:', type, error);
     }
+  };
+  try {
+    after(sendPush);
+  } catch {
+    void sendPush();
   }
 }

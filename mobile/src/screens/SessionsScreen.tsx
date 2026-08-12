@@ -9,7 +9,10 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Linking } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { API_BASE_URL } from '../lib/config';
 import { fetchSessions, type UpcomingSession } from '../lib/api';
 import {
   countdownLabel,
@@ -166,7 +169,7 @@ export function SessionsScreen({
       kind: 'session',
       session,
       past: false,
-      hero: index === 0 && session.status !== 'pending',
+      hero: index === 0 && session.status !== 'requested',
       timeOnly: true,
     });
   });
@@ -249,7 +252,7 @@ export function SessionsScreen({
               return <Text style={styles.section}>{item.title}</Text>;
             }
             const session = item.session;
-            const waiting = session.status === 'pending';
+            const waiting = session.status === 'requested';
             const openable = !item.past && !waiting;
             const countdown = item.hero
               ? countdownLabel(session.scheduledFor, now)
@@ -295,8 +298,16 @@ export function SessionsScreen({
                 </Text>
 
                 {waiting && (
-                  <Text style={styles.waiting}>
-                    In attesa che il coach accetti
+                  /*
+                   * La stessa riga dice due cose opposte a seconda di chi
+                   * guarda: per l'atleta è un'attesa, per il coach è una cosa
+                   * da fare. Una formula sola — «in attesa» — lascerebbe il
+                   * coach a pensare che tocchi a qualcun altro.
+                   */
+                  <Text style={waiting && isCoach ? styles.todo : styles.waiting}>
+                    {isCoach
+                      ? 'Ti ha chiesto una sessione · rispondi dal web'
+                      : 'In attesa che il coach accetti'}
                   </Text>
                 )}
                 {item.hero && (
@@ -309,6 +320,33 @@ export function SessionsScreen({
           }}
         />
       )}
+
+      {/*
+        * Il «+» apre la prenotazione sul web.
+        *
+        * Creare un appuntamento vuol dire scegliere persona, servizio,
+        * durata e slot fra le disponibilita`: un flusso intero, che sul
+        * telefono va progettato, non compresso. Finche` non esiste, il
+        * pulsante porta dove la cosa si fa davvero invece di aprire una
+        * versione mutilata — o peggio, di non esserci e lasciare che uno
+        * lo cerchi.
+        */}
+      <Pressable
+        onPress={() => {
+          void Linking.openURL(
+            `${API_BASE_URL}/dashboard/${isCoach ? 'coach' : 'athlete'}`
+          );
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Nuovo appuntamento"
+        style={({ pressed }) => [
+          styles.fab,
+          { bottom: insets.bottom + 24 },
+          pressed && styles.pressed,
+        ]}
+      >
+        <MaterialIcons name="add" size={28} color="#fff" />
+      </Pressable>
     </View>
   );
 }
@@ -335,6 +373,18 @@ const createStyles = (theme: Palette) =>
     justifyContent: 'center',
   },
   avatarText: { color: theme.hi, fontSize: 16, fontWeight: '700' },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: theme.red,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Per il coach non e` un'attesa: e` una cosa da fare, e si vede.
+  todo: { color: theme.red2, fontSize: 13, fontWeight: '600', marginTop: 10 },
   loader: { marginTop: 40 },
   list: { paddingHorizontal: 20, paddingBottom: 40, gap: 12 },
   hero: {
@@ -347,13 +397,23 @@ const createStyles = (theme: Palette) =>
   },
   // Le altre non sono schede: senza sfondo né bordo si leggono come un
   // elenco, e la prossima resta l’unica cosa che sporge dalla pagina.
-  row: { paddingVertical: 14, paddingHorizontal: 2, gap: 2 },
+  // Schede anche per le altre, non solo per la prossima: un elenco di sole
+  // righe nude su fondo nero sembra un registro, non delle sessioni. La
+  // prossima resta distinguibile perche` ha bordo, piu` spazio e il
+  // pulsante — non perche` le altre sono spoglie.
+  row: {
+    backgroundColor: theme.ink2,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 2,
+  },
   //
   // Le passate si distinguono col colore, non con l’opacità: opacity
   // schiaccia anche il contrasto del testo, e una riga al 55% scende sotto
   // la soglia di leggibilità — un problema di accessibilità, non una scelta
   // estetica.
-  rowPast: {},
+  rowPast: { backgroundColor: theme.surface },
   section: {
     color: theme.mid,
     fontSize: 12,
