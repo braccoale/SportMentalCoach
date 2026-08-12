@@ -270,6 +270,17 @@ function RoomStage({
   const [menuOpen, setMenuOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
+  // Dopo venti secondi senza collegarsi, si smette di far credere che manchi poco.
+  const [stuck, setStuck] = useState(false);
+
+  useEffect(() => {
+    if (connection === ConnectionState.Connected) {
+      setStuck(false);
+      return;
+    }
+    const timer = setTimeout(() => setStuck(true), 20_000);
+    return () => clearTimeout(timer);
+  }, [connection]);
 
   /*
    * L'app che va in secondo piano durante una sessione.
@@ -461,9 +472,22 @@ function RoomStage({
             connection === ConnectionState.SignalReconnecting
               ? 'Connessione instabile, sto riprovando…'
               : connection === ConnectionState.Connecting
-                ? 'Mi sto collegando…'
+                ? stuck
+                  ? 'Non riesco a stabilire la connessione video. Rete o firewall la stanno bloccando.'
+                  : 'Mi sto collegando…'
                 : 'Connessione persa.'}
           </Text>
+          {/*
+            * «Mi sto collegando» che non finisce mai e` peggio di un errore:
+            * sembra che stia per riuscire, e si aspetta. Dopo venti secondi si
+            * dice che non ce la sta facendo, e si offre di riprovare — perche'
+            * restare fermi a guardare non e` un'azione.
+            */}
+          {stuck && connection === ConnectionState.Connecting && (
+            <Pressable onPress={onLeave} hitSlop={10}>
+              <Text style={styles.connectionAction}>Esci e riprova</Text>
+            </Pressable>
+          )}
         </View>
       )}
 
@@ -826,6 +850,14 @@ const createStyles = (theme: Palette) =>
     paddingHorizontal: 16,
   },
   connectionText: { color: '#fff', fontSize: 12, textAlign: 'center', fontWeight: '600' },
+  connectionAction: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+    textDecorationLine: 'underline',
+    paddingTop: 6,
+  },
   shareError: {
     color: '#fff',
     fontSize: 12,

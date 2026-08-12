@@ -58,6 +58,10 @@ export type UpcomingSession = {
   actualMinutes?: number | null;
   /** Stato del riepilogo AI, `null` quando la seduta non ne ha uno. */
   aiNotes?: string | null;
+  /** Foto di chi si ha davanti: coach per l'atleta, atleta per il coach. */
+  otherAvatarUrl?: string | null;
+  /** Quando la seduta e' stata chiusa davvero, se lo e' stata. */
+  endedAt?: string | null;
   viewerIsCoach: boolean;
   otherName: string;
 };

@@ -19,6 +19,7 @@ import {
   signInWithPassword,
 } from '../lib/auth';
 import { BuildStamp } from '../components/BuildStamp';
+import { Icon } from '../components/Icon';
 import { staticDark, useTheme, type Palette } from '../theme';
 
 /**
@@ -38,6 +39,10 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [pending, setPending] = useState(false);
+  // Mostrare la password e` una scelta di chi la scrive, non un rischio da
+  // impedire: su una tastiera del telefono si sbaglia, e riscriverla al buio
+  // tre volte e` peggio di mostrarla per due secondi.
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [biometricLabel, setBiometricLabel] = useState<string | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
@@ -164,6 +169,7 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
         )}
 
         <Text style={styles.label}>Email</Text>
+        <View style={styles.field}>
         <TextInput
           value={email}
           onChangeText={setEmail}
@@ -183,13 +189,26 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
           blurOnSubmit={false}
           onSubmitEditing={() => passwordRef.current?.focus()}
         />
+        {email.length > 0 && (
+          <Pressable
+            onPress={() => setEmail('')}
+            accessibilityRole="button"
+            accessibilityLabel="Cancella l’indirizzo"
+            hitSlop={12}
+            style={styles.fieldAction}
+          >
+            <Text style={styles.fieldGlyph}>✕</Text>
+          </Pressable>
+        )}
+        </View>
 
         <Text style={styles.label}>Password</Text>
+        <View style={styles.field}>
         <TextInput
           ref={passwordRef}
           value={password}
           onChangeText={setPassword}
-          secureTextEntry
+          secureTextEntry={!showPassword}
           autoComplete="current-password"
           placeholder="La tua password"
           placeholderTextColor={theme.low}
@@ -200,6 +219,24 @@ export function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
             if (email && password && !pending) void submit();
           }}
         />
+        {password.length > 0 && (
+          <Pressable
+            onPress={() => setShowPassword((value) => !value)}
+            accessibilityRole="button"
+            accessibilityLabel={
+              showPassword ? 'Nascondi la password' : 'Mostra la password'
+            }
+            hitSlop={12}
+            style={styles.fieldAction}
+          >
+            <Icon
+              name={showPassword ? 'eyeOff' : 'eye'}
+              size={20}
+              color={theme.mid}
+            />
+          </Pressable>
+        )}
+        </View>
 
         {error && <Text style={styles.error}>{error}</Text>}
 
@@ -263,7 +300,10 @@ const createStyles = (theme: Palette) =>
   centered: { alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, justifyContent: 'center', paddingHorizontal: 24, gap: 8 },
   // 1672x941 nel file: il rapporto va rispettato o il marchio si deforma.
-  logo: { width: 210, height: 118, marginBottom: 20 },
+  // Centrato: era allineato a sinistra come il testo, e un marchio
+  // spostato di lato sembra un elemento fra gli altri invece che la firma
+  // della schermata.
+  logo: { width: 210, height: 118, marginBottom: 20, alignSelf: 'center' },
   brand: {
     color: theme.hi,
     fontSize: 34,
@@ -281,13 +321,24 @@ const createStyles = (theme: Palette) =>
   legalDot: { color: theme.low, fontSize: 12 },
   subtitle: { color: theme.mid, fontSize: 15, marginBottom: 24 },
   label: { color: theme.mid, fontSize: 13, marginTop: 12 },
+  field: { justifyContent: 'center' },
+  fieldAction: {
+    position: 'absolute',
+    right: 8,
+    height: 44,
+    width: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fieldGlyph: { color: theme.mid, fontSize: 16, fontWeight: '700' },
   input: {
     backgroundColor: theme.surface,
     borderColor: theme.line,
     borderWidth: 1,
     borderRadius: 14,
     color: theme.hi,
-    paddingHorizontal: 16,
+    paddingLeft: 16,
+    paddingRight: 52,
     paddingVertical: 12,
   },
   primary: {

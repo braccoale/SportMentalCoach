@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, or, sql } from 'drizzle-orm';
+import { aliasedTable, and, desc, eq, gte, inArray, or, sql } from 'drizzle-orm';
 import { getApiUser } from '@/lib/auth/api-user';
 import { db } from '@/lib/db/drizzle';
 import {
@@ -29,6 +29,15 @@ export async function GET(request: Request) {
     return Response.json({ error: 'unauthenticated' }, { status: 401 });
   }
 
+  /*
+   * Il profilo dell'atleta, accanto a quello del coach.
+   *
+   * `profiles` era gia` unito una volta, per il coach: serve un secondo
+   * aggancio con un alias, altrimenti la stessa tabella non puo` comparire
+   * due volte nella stessa query.
+   */
+  const clientProfile = aliasedTable(profiles, "client_profile");
+
   // Quanto passato si porta dietro l'app. Non è lo storico completo — quello
   // sta sul web con i riepiloghi — ma «le ultime settimane», che è ciò che
   // serve per ricordarsi quando si è parlato l'ultima volta.
@@ -43,6 +52,8 @@ export async function GET(request: Request) {
       clientId: bookings.clientId,
       coachUserId: providerProfiles.userId,
       coachName: profiles.displayName,
+      coachAvatar: profiles.avatarUrl,
+      clientAvatar: clientProfile.avatarUrl,
       clientName: sql<
         string | null
       >`nullif(trim(concat(${users.name}, ' ', coalesce(${users.lastName}, ''))), '')`,
@@ -56,6 +67,7 @@ export async function GET(request: Request) {
     .innerJoin(providerProfiles, eq(bookings.providerId, providerProfiles.id))
     .innerJoin(users, eq(bookings.clientId, users.id))
     .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
+    .leftJoin(clientProfile, eq(clientProfile.userId, bookings.clientId))
     .leftJoin(services, eq(bookings.serviceId, services.id))
     // Il riepilogo AI, se esiste: serve solo a dire che c'e' e a che punto e'.
     .leftJoin(sessionAiNotes, eq(sessionAiNotes.bookingId, bookings.id))
@@ -129,6 +141,7 @@ export async function GET(request: Request) {
        * seduta ha prodotto qualcosa e' aprirla sul web una per una.
        */
       aiNotes: row.aiNotesStatus ?? null,
+      endedAt: row.sessionEndedAt?.toISOString() ?? null,
       actualMinutes:
         row.sessionStartedAt && row.sessionEndedAt
           ? Math.max(
@@ -155,6 +168,9 @@ export async function GET(request: Request) {
       otherName: viewerIsCoach
         ? row.clientName ?? row.clientEmail
         : row.coachName ?? 'Coach',
+      // La foto di chi si ha davanti: una scheda con un volto si riconosce
+      // in un colpo d’occhio, una con un’iniziale va letta.
+      otherAvatarUrl: viewerIsCoach ? row.clientAvatar : row.coachAvatar,
     };
   });
 
@@ -172,7 +188,21 @@ export async function GET(request: Request) {
    * minuto in cui si può ancora rientrare se è caduta la linea.
    */
   const GRACE_MIN = 15;
-  const isUpcoming = (session: { scheduledFor: string | null; durationMin: number }) => {
+  const isUpcoming = (session: {
+    scheduledFor: string | null;
+    durationMin: number;
+    endedAt: string | null;
+  }) => {
+    /*
+     * Una seduta gia' conclusa non e' «in arrivo», qualunque cosa dica
+     * l'orario.
+     *
+     * Il conto restava sulla finestra teorica: una sessione iniziata alle
+     * 17:50, chiusa dopo 44 minuti, restava in cima all'elenco come prossima
+     * mentre quella vera delle 18:34 finiva sotto. Se qualcuno l'ha chiusa,
+     * e' finita.
+     */
+    if (session.endedAt) return false;
     if (!session.scheduledFor) return false;
     const endsAt =
       new Date(session.scheduledFor).getTime() +
