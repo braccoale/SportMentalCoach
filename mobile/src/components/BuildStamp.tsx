@@ -24,7 +24,12 @@ export function BuildStamp() {
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   const version = Constants.expoConfig?.version ?? '—';
-  const origin = Updates.isEmbeddedLaunch
+  // In sviluppo il codice arriva da Metro: non e' ne' la build ne' un
+  // aggiornamento pubblicato, e chiamarlo 'agg.' sarebbe fuorviante proprio
+  // per chi sta collaudando.
+  const origin = __DEV__
+    ? 'sviluppo'
+    : Updates.isEmbeddedLaunch
     ? 'build'
     : Updates.createdAt
       ? `agg. ${new Intl.DateTimeFormat('it-IT', {
