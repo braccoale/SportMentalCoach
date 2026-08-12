@@ -176,7 +176,18 @@ export function NewAppointmentSheet({
 
               {day && (
                 <View style={styles.slots}>
-                  {HOURS.map((hour) => (
+                  {/*
+                    * Gli orari gia` passati non si propongono.
+                    *
+                    * Oggi alle 13 non ha senso offrire le 8: il server
+                    * rifiuterebbe comunque, ma offrire e poi negare fa
+                    * sembrare rotta l'app invece che sbagliata la scelta.
+                    */}
+                  {HOURS.filter((hour) => {
+                    const when = new Date(day);
+                    when.setHours(hour, 0, 0, 0);
+                    return when.getTime() > Date.now();
+                  }).map((hour) => (
                     <Pressable
                       key={hour}
                       disabled={busy}
@@ -188,6 +199,15 @@ export function NewAppointmentSheet({
                       <Text style={styles.slotText}>{hour}:00</Text>
                     </Pressable>
                   ))}
+                  {HOURS.every((hour) => {
+                    const when = new Date(day);
+                    when.setHours(hour, 0, 0, 0);
+                    return when.getTime() <= Date.now();
+                  }) && (
+                    <Text style={styles.subtitle}>
+                      Per oggi non ci sono più orari disponibili.
+                    </Text>
+                  )}
                 </View>
               )}
 

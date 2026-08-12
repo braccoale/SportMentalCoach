@@ -10,7 +10,6 @@ import {
   View,
 } from 'react-native';
 import { Linking } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { API_BASE_URL } from '../lib/config';
 import { decideBooking, fetchSessions, type UpcomingSession } from '../lib/api';
@@ -228,6 +227,20 @@ export function SessionsScreen({
         </Pressable>
       </View>
 
+      {/*
+        * L'errore si vede anche quando la lista e` piena.
+        *
+        * Stava dentro il componente della lista vuota: premendo «Accetta»
+        * e fallendo, non compariva assolutamente nulla — e «non e`
+        * successo niente» e` il modo peggiore di fallire, perche` non
+        * lascia capire se il tocco sia stato registrato.
+        */}
+      {error && !loading && (
+        <Text style={styles.banner} accessibilityLiveRegion="polite">
+          {error}
+        </Text>
+      )}
+
       {loading ? (
         <ActivityIndicator color={theme.red} style={styles.loader} />
       ) : (
@@ -272,7 +285,8 @@ export function SessionsScreen({
             }
             const session = item.session;
             const waiting = session.status === 'requested';
-            const openable = !item.past && !waiting;
+            const openable =
+              !item.past && !waiting && session.canJoinNow !== false;
             const countdown = item.hero
               ? countdownLabel(session.scheduledFor, now)
               : null;
@@ -328,11 +342,7 @@ export function SessionsScreen({
                     hitSlop={12}
                     style={styles.more}
                   >
-                    <MaterialIcons
-                      name="more-vert"
-                      size={20}
-                      color={theme.mid}
-                    />
+                    <Text style={styles.moreGlyph}>⋮</Text>
                   </Pressable>
                 </View>
                 <Text style={item.hero ? styles.whoHero : styles.who}>
@@ -395,11 +405,22 @@ export function SessionsScreen({
                     </Pressable>
                   </View>
                 )}
-                {item.hero && (
-                  <View style={styles.enterButton}>
-                    <Text style={styles.enterButtonText}>Entra nella stanza</Text>
-                  </View>
-                )}
+                {item.hero &&
+                  (session.canJoinNow === false ? (
+                    /*
+                      * Prima il pulsante era sempre acceso: si prometteva
+                      * l'ingresso a una sessione delle 18 gia` alle 13, e chi
+                      * lo premeva trovava un rifiuto del server. La stanza
+                      * apre poco prima, e finche` e` chiusa si dice quando.
+                      */
+                    <Text style={styles.notYet}>
+                      La stanza apre pochi minuti prima
+                    </Text>
+                  ) : (
+                    <View style={styles.enterButton}>
+                      <Text style={styles.enterButtonText}>Entra nella stanza</Text>
+                    </View>
+                  ))}
               </Pressable>
             );
           }}
@@ -426,7 +447,7 @@ export function SessionsScreen({
           pressed && styles.pressed,
         ]}
       >
-        <MaterialIcons name="add" size={28} color="#fff" />
+        <Text style={styles.fabGlyph}>+</Text>
       </Pressable>
 
       <NewAppointmentSheet
@@ -502,7 +523,20 @@ const createStyles = (theme: Palette) =>
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  more: { marginLeft: 'auto', padding: 2 },
+  more: { marginLeft: 'auto', paddingHorizontal: 6, paddingVertical: 2 },
+  moreGlyph: { color: theme.mid, fontSize: 20, fontWeight: '700', lineHeight: 22 },
+  fabGlyph: { color: '#fff', fontSize: 30, lineHeight: 34, fontWeight: '300' },
+  banner: {
+    color: '#fff',
+    backgroundColor: theme.red,
+    marginHorizontal: 20,
+    marginBottom: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    fontSize: 13,
+  },
+  notYet: { color: theme.mid, fontSize: 13, marginTop: 12, fontStyle: 'italic' },
   fab: {
     position: 'absolute',
     right: 20,

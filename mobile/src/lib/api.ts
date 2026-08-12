@@ -50,8 +50,10 @@ export type UpcomingSession = {
   scheduledFor: string | null;
   durationMin: number;
   title: string;
-  /** `pending` è una richiesta che il coach non ha ancora accettato. */
+  /** `requested` è una richiesta che il coach non ha ancora accettato. */
   status: string;
+  /** La stanza è aperta adesso? Lo decide il server, con la regola del web. */
+  canJoinNow?: boolean;
   viewerIsCoach: boolean;
   otherName: string;
 };

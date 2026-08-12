@@ -8,7 +8,10 @@ import {
   services,
   users,
 } from '@/lib/db/schema';
-import { FALLBACK_SESSION_DURATION_MIN } from '@/lib/core/sessions';
+import {
+  FALLBACK_SESSION_DURATION_MIN,
+  canJoinVideoNow,
+} from '@/lib/core/sessions';
 
 /**
  * Le sessioni che l'app deve mostrare: poche, imminenti, con dentro solo ciò
@@ -92,6 +95,18 @@ export async function GET(request: Request) {
       durationMin: Number(row.durationMin),
       title: row.serviceTitle ?? 'Sessione di mental coaching',
       status: row.status,
+      /*
+       * La stanza si apre poco prima, non appena la sessione compare.
+       *
+       * La regola e' , la stessa del web: senza, l'app
+       * offriva «Entra nella stanza» per una sessione delle 18 gia' alle 13, e
+       * chi la premeva trovava un rifiuto del server. Meglio non offrire che
+       * offrire e negare.
+       */
+      canJoinNow: canJoinVideoNow(
+        row.scheduledFor,
+        Number(row.durationMin)
+      ),
       viewerIsCoach,
       otherName: viewerIsCoach
         ? row.clientName ?? row.clientEmail
