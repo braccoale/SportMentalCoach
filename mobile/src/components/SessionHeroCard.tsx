@@ -24,7 +24,6 @@ export function SessionHeroCard({
   onMenu,
   onDecide,
   deciding,
-  isCoach,
 }: {
   session: UpcomingSession;
   now: number;
@@ -34,10 +33,20 @@ export function SessionHeroCard({
   onMenu: () => void;
   onDecide: (accept: boolean) => void;
   deciding: boolean;
-  isCoach: boolean;
 }) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+
+  /*
+   * Il ruolo lo dice la sessione, non la schermata.
+   *
+   * Prima arrivava da `sessions[0]`: durante una ricarica
+   * l'elenco resta un istante vuoto, il ruolo diventava «non coach», e una
+   * richiesta da accettare si trasformava per un momento in «in attesa che il
+   * coach accetti» — cioè i due pulsanti sparivano sotto le dita di chi
+   * stava per premerli.
+   */
+  const isCoach = session.viewerIsCoach;
 
   const when = session.scheduledFor ? new Date(session.scheduledFor) : null;
   const day = when

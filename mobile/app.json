@@ -87,7 +87,10 @@
     "updates": {
       "url": "https://u.expo.dev/aeff16e4-c3e5-4a71-bbd7-ad9035a69f15",
       "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 12000
+      "fallbackToCacheTimeout": 12000,
+      "requestHeaders": {
+        "expo-channel-name": "preview"
+      }
     },
     "splash": {
       "image": "./assets/logo.png",

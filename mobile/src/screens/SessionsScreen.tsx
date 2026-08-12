@@ -189,7 +189,6 @@ export function SessionsScreen({
             <SessionHeroCard
               session={sessions[0]}
               now={now}
-              isCoach={isCoach}
               deciding={deciding === sessions[0].bookingId}
               onOpenCall={() => onOpenCall(sessions[0])}
               onMenu={() => setMenuFor(sessions[0])}
@@ -209,7 +208,6 @@ export function SessionsScreen({
                   session={session}
                   now={now}
                   wide={cardWidth}
-                  isCoach={isCoach}
                   deciding={deciding === session.bookingId}
                   onOpenCall={() => onOpenCall(session)}
                   onMenu={() => setMenuFor(session)}
