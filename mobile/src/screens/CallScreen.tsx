@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   AppState,
   BackHandler,
+  Modal,
   Pressable,
   Share,
   StyleSheet,
@@ -20,6 +21,7 @@ import {
 } from '@livekit/react-native';
 import { ConnectionState, Track } from 'livekit-client';
 import { useKeepAwake } from 'expo-keep-awake';
+import { MaterialIcons } from '@expo/vector-icons';
 import {
   ApiError,
   ROOM_ERROR_TEXT,
@@ -265,6 +267,7 @@ function RoomStage({
   const facingFront = useRef(true);
   // Il coach non aspetta se stesso: entra diretto.
   const [admitted, setAdmitted] = useState(viewerIsCoach);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
 
@@ -312,6 +315,11 @@ function RoomStage({
   const local = published.find((track) => track.participant.isLocal);
   // Qualcuno c'e', ma non si vede: e' un'informazione diversa da «sei solo».
   const someoneElseHere = participants.some((participant) => !participant.isLocal);
+  // Se chi hai davanti e` muto va detto: senza, si parla a qualcuno che non
+  // puo` rispondere e non si capisce perche' tace.
+  const remoteMuted = participants.some(
+    (participant) => !participant.isLocal && !participant.isMicrophoneEnabled
+  );
 
   /*
    * La sala d'attesa: l'atleta non resta solo in una stanza vuota.
@@ -459,114 +467,188 @@ function RoomStage({
         </View>
       )}
 
+      {/*
+        * Il video occupa tutto. I controlli ci galleggiano sopra.
+        *
+        * Prima la scena era divisa in due: un riquadro col video e, sotto, una
+        * barra opaca con un bordo che si prendeva novanta punti di altezza per
+        * sempre. Su un telefono sono tanti, e sono sottratti all'unica cosa per
+        * cui si e` aperta l'app — la faccia dell'altra persona.
+        */}
       <View style={styles.stage}>
         {remote.length > 0 ? (
           remote.map((track) => (
-            <View key={track.publication!.trackSid} style={styles.tile}>
-              <VideoTrack trackRef={track} style={styles.video} />
-            </View>
+            <VideoTrack
+              key={track.publication!.trackSid}
+              trackRef={track}
+              style={styles.video}
+            />
           ))
         ) : (
-          <View style={[styles.tile, styles.centered]}>
+          <View style={[styles.video, styles.centered]}>
+            {/*
+              * Telecamera spenta: un cerchio con l'iniziale, non una frase.
+              *
+              * Il nero con del testo sopra si legge come un errore. Un cerchio
+              * grande col nome dice «questa persona c'e`, semplicemente non si
+              * vede», che e` la verita`. La frase resta sotto, piu` piccola,
+              * perche' distinguere «non e` ancora entrato» da «e` qui col video
+              * spento» serve: chiedono cose opposte.
+              */}
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>
+                {otherName.trim().slice(0, 1).toUpperCase() || '·'}
+              </Text>
+            </View>
             <Text style={styles.waiting}>
-              {/*
-                * Due assenze diverse, due frasi diverse. «Non c'è ancora» e «è
-                * qui con la telecamera spenta» si vedono uguali — uno schermo
-                * nero — ma chiedono cose opposte: aspettare, oppure dirle di
-                * accendere. Non distinguerle lascia a guardare il nero senza
-                * sapere cosa fare.
-                */}
               {someoneElseHere
-                ? `${otherName} è in chiamata con la telecamera spenta.`
+                ? `${otherName} ha la telecamera spenta`
                 : `In attesa di ${otherName}…`}
             </Text>
           </View>
         )}
 
+        {/* Il nome di chi si sta guardando, e se e` muto. Senza, un riquadro
+            non dice chi hai davanti ne` se ti sente. */}
+        <View style={[styles.nameTag, { bottom: insets.bottom + 108 }]}>
+          <Text style={styles.nameTagText} numberOfLines={1}>
+            {otherName}
+          </Text>
+          {someoneElseHere && remoteMuted && (
+            <MaterialIcons name="mic-off" size={14} color="#fff" />
+          )}
+        </View>
+
         {/* La propria immagine piccola, in un angolo: serve a controllarsi, non
             a guardarsi. Sotto, mai sopra, la persona con cui si parla. */}
         {local && (
-          <View style={styles.selfTile}>
+          <View style={[styles.selfTile, { bottom: insets.bottom + 108 }]}>
             <VideoTrack trackRef={local} style={styles.video} />
           </View>
         )}
       </View>
 
-      <AiNotesConsentPanel bookingId={bookingId} canActivate={viewerIsCoach} />
+      {/*
+        * Testata leggera: uscire e il nome della sessione, niente altro.
+        * Galleggia sul video invece di occupare una fascia propria.
+        */}
+      <View style={[styles.topBar, { top: insets.top + 8 }]}>
+        <RoundButton
+          icon="arrow-back"
+          label="Esci dalla chiamata"
+          onPress={onLeave}
+        />
+        <View style={styles.titlePill}>
+          <Text style={styles.titleText} numberOfLines={1}>
+            {otherName}
+          </Text>
+        </View>
+        {isCameraEnabled && (
+          <RoundButton
+            icon="flip-camera-ios"
+            label="Gira la fotocamera"
+            onPress={flipCamera}
+          />
+        )}
+      </View>
 
-      {shareError && (
-        <Text style={styles.shareError} accessibilityLiveRegion="polite">
-          {shareError}
-        </Text>
-      )}
+      <View style={[styles.overlayTop, { top: insets.top + 60 }]}>
+        <AiNotesConsentPanel bookingId={bookingId} canActivate={viewerIsCoach} />
+        {shareError && (
+          <Text style={styles.shareError} accessibilityLiveRegion="polite">
+            {shareError}
+          </Text>
+        )}
+      </View>
 
       {/*
-        * Etichette **fisse**, e «Chiudi» staccato dagli altri.
+        * Una sola fila di pulsanti tondi, e il rosso separato da un filo.
         *
-        * Prima l'etichetta cambiava da «Video» a «Video off» a ogni tocco: la
-        * larghezza del pulsante si muoveva, e i tre controlli ballavano sotto
-        * il dito mentre si parla. Ora la parola non cambia mai — lo stato lo
-        * dice il colore e un punto, che si leggono senza rileggere.
-        *
-        * E «Chiudi» ha uno spazio suo: un pulsante distruttivo non sta
-        * appiccicato a quello che si preme ogni due minuti.
+        * Le icone si riconoscono, le parole si leggono: in chiamata si ha il
+        * tempo per la prima cosa e non per la seconda. Il rosso sta dall'altra
+        * parte del divisore perche' e` l'unico gesto irreversibile della
+        * schermata, e non deve trovarsi sotto il pollice per sbaglio.
         */}
-      <View style={[styles.bar, { paddingBottom: insets.bottom + 12 }]}>
-        <View style={styles.controls}>
-          <Control
-            label="Microfono"
-            active={isMicrophoneEnabled}
-            onPress={() =>
-              localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled)
-            }
-          />
-          <Control
-            label="Video"
-            active={isCameraEnabled}
-            onPress={() => localParticipant.setCameraEnabled(!isCameraEnabled)}
-          />
-          <Control label="Condividi" active={sharing} onPress={toggleScreenShare} />
-        </View>
+      <View style={[styles.dock, { bottom: insets.bottom + 12 }]}>
+        <Control
+          icon={isCameraEnabled ? 'videocam' : 'videocam-off'}
+          label="Telecamera"
+          active={isCameraEnabled}
+          onPress={() => localParticipant.setCameraEnabled(!isCameraEnabled)}
+        />
+        <Control
+          icon={isMicrophoneEnabled ? 'mic' : 'mic-off'}
+          label="Microfono"
+          active={isMicrophoneEnabled}
+          onPress={() =>
+            localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled)
+          }
+        />
+        <Control
+          icon="present-to-all"
+          label="Condividi lo schermo"
+          active={sharing}
+          onPress={toggleScreenShare}
+        />
+        <Control
+          icon="more-horiz"
+          label="Altre azioni"
+          active={false}
+          onPress={() => setMenuOpen(true)}
+        />
 
-        {/*
-          * Le azioni secondarie stanno su una riga a parte, in testo.
-          *
-          * Cinque pillole in fila su uno schermo stretto diventano cinque
-          * bersagli da sessanta punti con le parole spezzate: nessuno si
-          * centra col pollice e nessuna si legge. Microfono, video e
-          * condivisione si usano di continuo e restano pulsanti; girare la
-          * fotocamera e invitare qualcuno si fanno una volta per sessione.
-          */}
-        <View style={styles.secondaryRow}>
-          {/* Girare la fotocamera ha senso solo se la fotocamera è accesa. */}
-          {isCameraEnabled && (
-            <Pressable
-              onPress={flipCamera}
-              accessibilityRole="button"
-              accessibilityLabel="Gira la fotocamera"
-              hitSlop={10}
-            >
-              <Text style={styles.secondaryAction}>Gira fotocamera</Text>
-            </Pressable>
-          )}
-          <Pressable
-            onPress={inviteGuest}
-            accessibilityRole="button"
-            accessibilityLabel="Invita un ospite in questa sessione"
-            hitSlop={10}
-          >
-            <Text style={styles.secondaryAction}>Invita un ospite</Text>
-          </Pressable>
-        </View>
+        <View style={styles.dockDivider} />
+
         <Pressable
           onPress={onLeave}
           accessibilityRole="button"
           accessibilityLabel="Chiudi la chiamata"
-          style={({ pressed }) => [styles.leave, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.hangup, pressed && styles.pressed]}
         >
-          <Text style={styles.leaveText}>Chiudi</Text>
+          <MaterialIcons name="call-end" size={24} color="#fff" />
         </Pressable>
       </View>
+
+      {/*
+        * Le azioni rare dietro «altro», come fanno tutte le app di chiamata:
+        * stanno nella stessa schermata ma non contendono spazio a cio` che si
+        * usa di continuo.
+        */}
+      <Modal
+        visible={menuOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setMenuOpen(false)}
+      >
+        <Pressable style={styles.sheetBackdrop} onPress={() => setMenuOpen(false)}>
+          <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
+            <Pressable
+              onPress={() => {
+                setMenuOpen(false);
+                void inviteGuest();
+              }}
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.sheetItem, pressed && styles.pressed]}
+            >
+              <MaterialIcons name="person-add" size={22} color={theme.hi} />
+              <Text style={styles.sheetText}>Invita un ospite</Text>
+            </Pressable>
+            {isCameraEnabled && (
+              <Pressable
+                onPress={() => {
+                  setMenuOpen(false);
+                  void flipCamera();
+                }}
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.sheetItem, pressed && styles.pressed]}
+              >
+                <MaterialIcons name="flip-camera-ios" size={22} color={theme.hi} />
+                <Text style={styles.sheetText}>Gira la fotocamera</Text>
+              </Pressable>
+            )}
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -578,11 +660,22 @@ function RoomStage({
  * annunciato allo screen reader — perché il colore da solo non è
  * un'informazione per tutti.
  */
+/**
+ * Un controllo della barra.
+ *
+ * L'icona porta il significato, l'etichetta accessibile porta la parola: chi
+ * vede riconosce, chi usa lo screen reader sente una frase intera. Lo stato
+ * non e` affidato al solo colore — l'icona stessa cambia (microfono barrato,
+ * telecamera barrata), perche' un rosso e un grigio sono lo stesso grigio per
+ * molte persone.
+ */
 function Control({
+  icon,
   label,
   active,
   onPress,
 }: {
+  icon: keyof typeof MaterialIcons.glyphMap;
   label: string;
   active: boolean;
   onPress: () => void;
@@ -595,15 +688,40 @@ function Control({
       accessibilityRole="switch"
       accessibilityLabel={label}
       accessibilityState={{ checked: active }}
-      accessibilityHint={active ? 'Attivo, tocca per disattivare' : 'Disattivo, tocca per attivare'}
+      accessibilityHint={
+        active ? 'Attivo, tocca per disattivare' : 'Disattivo, tocca per attivare'
+      }
       style={({ pressed }) => [
         styles.control,
-        active && styles.controlActive,
+        !active && styles.controlOff,
         pressed && styles.pressed,
       ]}
     >
-      <View style={[styles.dot, active ? styles.dotOn : styles.dotOff]} />
-      <Text style={styles.controlText}>{label}</Text>
+      <MaterialIcons name={icon} size={22} color={active ? theme.hi : '#fff'} />
+    </Pressable>
+  );
+}
+
+/** Il pulsante tondo della testata: solo icona, su fondo semitrasparente. */
+function RoundButton({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof MaterialIcons.glyphMap;
+  label: string;
+  onPress: () => void;
+}) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed }) => [styles.roundButton, pressed && styles.pressed]}
+    >
+      <MaterialIcons name={icon} size={22} color={theme.hi} />
     </Pressable>
   );
 }
@@ -614,27 +732,61 @@ const createStyles = (theme: Palette) =>
   centered: { alignItems: 'center', justifyContent: 'center', gap: 16 },
   connecting: { color: theme.mid },
   error: { color: theme.red2, textAlign: 'center', paddingHorizontal: 32 },
-  stage: { flex: 1, gap: 8, padding: 8, justifyContent: 'center' },
-  tile: {
-    flex: 1,
-    backgroundColor: '#000',
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
+  stage: { ...StyleSheet.absoluteFillObject, backgroundColor: '#000' },
+
   video: { flex: 1 },
-  waiting: { color: theme.mid, textAlign: 'center', paddingHorizontal: 24 },
+  waiting: { color: theme.mid, fontSize: 15, textAlign: 'center', paddingHorizontal: 24 },
   selfTile: {
     position: 'absolute',
-    right: 16,
-    bottom: 16,
+    right: 12,
     width: 104,
-    height: 148,
-    borderRadius: 12,
+    height: 150,
+    borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: '#000',
-    borderWidth: 1,
-    borderColor: theme.line,
   },
+  nameTag: {
+    position: 'absolute',
+    left: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    maxWidth: 180,
+  },
+  nameTagText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  avatar: {
+    width: 116,
+    height: 116,
+    borderRadius: 58,
+    backgroundColor: theme.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  avatarText: { color: theme.hi, fontSize: 44, fontWeight: '700' },
+  sheetBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  sheet: {
+    backgroundColor: theme.ink2,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    paddingTop: 10,
+  },
+  sheetItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    minHeight: 56,
+    paddingHorizontal: 22,
+  },
+  sheetText: { color: theme.hi, fontSize: 16 },
   prejoin: { width: '100%', paddingHorizontal: 24, gap: 10 },
   prejoinTitle: { color: theme.hi, fontSize: 22, fontWeight: '800', textAlign: 'center' },
   prejoinBody: { color: theme.mid, fontSize: 14, textAlign: 'center', marginBottom: 10 },
@@ -663,61 +815,96 @@ const createStyles = (theme: Palette) =>
   },
   enterText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   connectionBanner: {
-    backgroundColor: theme.surface,
-    borderBottomColor: theme.line,
-    borderBottomWidth: 1,
-    paddingVertical: 8,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 2,
+    backgroundColor: 'rgba(225,29,42,0.92)',
+    paddingTop: 44,
+    paddingBottom: 10,
     paddingHorizontal: 16,
   },
-  connectionText: { color: theme.hi, fontSize: 12, textAlign: 'center' },
+  connectionText: { color: '#fff', fontSize: 12, textAlign: 'center', fontWeight: '600' },
   shareError: {
-    color: theme.red2,
+    color: '#fff',
     fontSize: 12,
     textAlign: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 8,
+    marginHorizontal: 12,
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: 'rgba(225,29,42,0.9)',
   },
-  bar: {
-    gap: 12,
-    padding: 12,
-    borderTopColor: theme.line,
-    borderTopWidth: 1,
-  },
-  controls: { flexDirection: 'row', gap: 8 },
-  secondaryRow: {
+  dock: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: 24,
-    paddingVertical: 4,
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: 'rgba(20,20,26,0.82)',
   },
-  secondaryAction: { color: theme.mid, fontSize: 13, paddingVertical: 6 },
-  control: {
+  dockDivider: { width: 1, height: 26, backgroundColor: 'rgba(255,255,255,0.22)', marginHorizontal: 2 },
+  topBar: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  roundButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(20,20,26,0.72)',
+  },
+  titlePill: {
     flex: 1,
-    flexDirection: 'row',
-    gap: 6,
-    backgroundColor: theme.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     borderRadius: 999,
-    // 44 di altezza minima: sotto, il bersaglio non si centra col pollice.
-    minHeight: 44,
-    paddingVertical: 12,
+    backgroundColor: 'rgba(20,20,26,0.72)',
+  },
+  titleText: { color: theme.hi, fontSize: 14, fontWeight: '600' },
+  // Sotto la testata e non sopra la barra: in basso si scontrerebbe col
+  // riquadro di sé stessi, e un indicatore di registrazione lo si cerca in
+  // alto — è lì che il sistema mette i suoi.
+  overlayTop: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+  },
+  // 48 di lato: la soglia sotto la quale un bersaglio non si centra col
+  // pollice mentre si parla e si guarda altrove.
+  control: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.14)',
   },
-  controlActive: { backgroundColor: theme.line },
-  controlText: { color: theme.hi, fontSize: 12, fontWeight: '600' },
-  dot: { width: 7, height: 7, borderRadius: 4 },
-  dotOn: { backgroundColor: theme.red2 },
-  dotOff: { backgroundColor: theme.low },
+  // Spento = riempito, come in tutte le app di chiamata: e` lo stato
+  // anomalo, e deve saltare all'occhio piu` di quello normale.
+  controlOff: { backgroundColor: '#5b5b66' },
   pressed: { opacity: 0.85 },
-  leave: {
+  hangup: {
+    width: 58,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: theme.red,
-    borderRadius: 999,
-    minHeight: 48,
-    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  leaveText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   secondary: {
     borderColor: theme.line,
     borderWidth: 1,
