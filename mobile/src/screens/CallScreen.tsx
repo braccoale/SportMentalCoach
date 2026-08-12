@@ -849,6 +849,9 @@ const createStyles = (theme: Palette) =>
     paddingHorizontal: 14,
     borderRadius: 999,
     backgroundColor: 'rgba(20,20,26,0.82)',
+    // Vedi SessionsScreen: senza elevation il tocco va a cio' che sta sotto.
+    elevation: 8,
+    zIndex: 10,
   },
   dockDivider: { width: 1, height: 26, backgroundColor: 'rgba(255,255,255,0.22)', marginHorizontal: 2 },
   topBar: {
@@ -858,6 +861,8 @@ const createStyles = (theme: Palette) =>
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    elevation: 8,
+    zIndex: 10,
   },
   roundButton: {
     width: 44,
@@ -882,6 +887,8 @@ const createStyles = (theme: Palette) =>
     position: 'absolute',
     left: 0,
     right: 0,
+    elevation: 6,
+    zIndex: 8,
   },
   // 48 di lato: la soglia sotto la quale un bersaglio non si centra col
   // pollice mentre si parla e si guarda altrove.

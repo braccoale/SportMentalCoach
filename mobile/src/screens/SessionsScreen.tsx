@@ -583,6 +583,18 @@ const createStyles = (theme: Palette) =>
     backgroundColor: theme.green,
     alignItems: 'center',
     justifyContent: 'center',
+    /*
+     * Disegnato sopra non basta: su Android deve stare sopra anche nell'ordine
+     * dei tocchi.
+     *
+     * Il pulsante si vedeva perfettamente e non rispondeva — il gestore non
+     * veniva nemmeno chiamato, verificato con una sonda nei log. Senza
+     * `elevation`, Android consegna il tocco alla lista che sta sotto: due
+     * gerarchie diverse, quella del disegno e quella degli eventi, e sullo
+     * schermo se ne vede una sola.
+     */
+    elevation: 8,
+    zIndex: 10,
   },
   // Per il coach non e` un'attesa: e` una cosa da fare, e si vede.
   todo: { color: theme.red2, fontSize: 13, fontWeight: '600', marginTop: 10 },
