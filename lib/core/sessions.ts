@@ -106,6 +106,60 @@ export function canJoinVideoNow(
 }
 
 /**
+ * Tolleranza dopo la fine prevista, entro cui una sessione conta ancora come
+ * «in arrivo»: qualche minuto per rientrare se e' caduta la linea.
+ */
+export const UPCOMING_GRACE_MINUTES = 15;
+
+/**
+ * Da quanto il battito deve tacere prima di dichiarare finita una sessione.
+ *
+ * `sessionEndedAt` **non** vuol dire «qualcuno l'ha chiusa»: e' l'ora
+ * dell'ultimo ping di chi era collegato, riscritta di continuo durante la
+ * chiamata. Trattarla come una chiusura significa dichiarare finita una
+ * sessione nell'istante stesso in cui qualcuno ci entra.
+ *
+ * Quello che distingue «uscito un attimo fa» da «finita un'ora fa» e' da
+ * quanto quel battito ha smesso di arrivare.
+ */
+export const HEARTBEAT_STALE_MINUTES = 5;
+
+/**
+ * Una sessione e' ancora «in arrivo»?
+ *
+ * Tre modi di essere finita, in ordine di certezza: qualcuno l'ha conclusa o
+ * disdetta (lo stato lo dice), il battito tace da abbastanza (c'era gente e se
+ * n'e' andata), oppure la sua finestra e' passata del tutto.
+ *
+ * Chi esce dalla chiamata senza chiuderla non rientra in nessuno dei tre: la
+ * sessione resta in cima, con la stanza ancora aperta.
+ */
+export function isSessionUpcoming(
+  session: {
+    scheduledFor: Date | null;
+    durationMin: number | null | undefined;
+    status: string;
+    /** Ultimo battito di chi era collegato, cioe' `sessionEndedAt`. */
+    lastHeartbeatAt: Date | null;
+  },
+  now: Date = new Date()
+): boolean {
+  if (session.status !== 'accepted' && session.status !== 'requested') {
+    return false;
+  }
+  // Senza un orario non c'e' un appuntamento da attendere, solo una richiesta.
+  if (!session.scheduledFor) return false;
+
+  if (session.lastHeartbeatAt) {
+    const silentFor = now.getTime() - session.lastHeartbeatAt.getTime();
+    if (silentFor > HEARTBEAT_STALE_MINUTES * 60_000) return false;
+  }
+
+  const endsAt = sessionEndsAt(session.scheduledFor, session.durationMin);
+  return endsAt.getTime() + UPCOMING_GRACE_MINUTES * 60_000 >= now.getTime();
+}
+
+/**
  * Returns the next instant at which `canJoinVideoNow` may change for a
  * scheduled session. Client controls use this to update exactly when the
  * five-minute lead window opens (and when the grace window closes) without

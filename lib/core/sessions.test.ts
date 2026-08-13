@@ -8,6 +8,7 @@ import {
   canJoinVideoNow,
   isRequestExpired,
   isSessionJoinable,
+  isSessionUpcoming,
   nextVideoJoinAvailabilityChange,
   sessionEndsAt,
 } from './sessions';
@@ -192,5 +193,88 @@ test('video controls can schedule their next availability update', () => {
       new Date('2026-07-28T13:10:00.001Z')
     ),
     null
+  );
+});
+
+/*
+ * Il caso che ha rotto tutto: `sessionEndedAt` scambiata per una chiusura.
+ *
+ * E` il battito di chi e` collegato, riscritto a ogni ping. Trattarlo come
+ * «finita» faceva sparire la sessione dalle prossime nell'istante in cui
+ * qualcuno ci entrava: uscivi un attimo e non la ritrovavi piu` in cima.
+ */
+test('una sessione lasciata senza chiuderla resta fra le prossime', () => {
+  const scheduledFor = new Date('2026-07-28T12:00:00.000Z');
+  const base = { scheduledFor, durationMin: D40, status: 'accepted' };
+
+  // Appena usciti: il battito e` di un minuto fa, la sessione e` ancora la
+  // prossima cosa che ci riguarda.
+  assert.equal(
+    isSessionUpcoming(
+      { ...base, lastHeartbeatAt: new Date('2026-07-28T12:09:00.000Z') },
+      new Date('2026-07-28T12:10:00.000Z')
+    ),
+    true
+  );
+
+  // Nessuno c'e` mai entrato: nessun battito, e la finestra e` aperta.
+  assert.equal(
+    isSessionUpcoming(
+      { ...base, lastHeartbeatAt: null },
+      new Date('2026-07-28T11:50:00.000Z')
+    ),
+    true
+  );
+
+  // Il battito tace da piu` di cinque minuti: se n'e` andata davvero, anche
+  // se l'orario direbbe che la finestra e` ancora aperta.
+  assert.equal(
+    isSessionUpcoming(
+      { ...base, lastHeartbeatAt: new Date('2026-07-28T12:05:00.000Z') },
+      new Date('2026-07-28T12:20:00.000Z')
+    ),
+    false
+  );
+});
+
+test('la finestra e lo stato chiudono comunque una sessione', () => {
+  const scheduledFor = new Date('2026-07-28T12:00:00.000Z');
+  const base = { scheduledFor, durationMin: D40, lastHeartbeatAt: null };
+
+  // Finisce alle 12:40, piu` un quarto d'ora di tolleranza per rientrare.
+  assert.equal(
+    isSessionUpcoming(
+      { ...base, status: 'accepted' },
+      new Date('2026-07-28T12:54:00.000Z')
+    ),
+    true
+  );
+  assert.equal(
+    isSessionUpcoming(
+      { ...base, status: 'accepted' },
+      new Date('2026-07-28T12:56:00.000Z')
+    ),
+    false
+  );
+
+  // Disdetta o conclusa: non e` in arrivo, qualunque cosa dica l'orologio.
+  for (const status of ['cancelled', 'declined', 'expired', 'completed']) {
+    assert.equal(
+      isSessionUpcoming(
+        { ...base, status },
+        new Date('2026-07-28T11:30:00.000Z')
+      ),
+      false,
+      status
+    );
+  }
+
+  // Una richiesta senza orario non e` un appuntamento da attendere.
+  assert.equal(
+    isSessionUpcoming(
+      { ...base, scheduledFor: null, status: 'requested' },
+      new Date('2026-07-28T11:30:00.000Z')
+    ),
+    false
   );
 });

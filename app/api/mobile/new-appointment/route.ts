@@ -3,9 +3,21 @@ import { getApiUser } from '@/lib/auth/api-user';
 import { db } from '@/lib/db/drizzle';
 import { bookings, providerProfiles, users } from '@/lib/db/schema';
 import { getCoachServices } from '@/lib/core/services';
+import {
+  getBookableDays,
+  getCoachAvailability,
+  getCoachBusyIntervalsByProviderIds,
+  parseRomeLocalDateTime,
+} from '@/lib/core/availability';
+import {
+  busyIntervalsAt,
+  dropPastStarts,
+  slotPresentation,
+} from '@/lib/core/availability/validation';
 import { createCoachBookingRequest } from '@/lib/core/bookings';
 import {
   DEFAULT_SESSION_DURATION_MIN,
+  SESSION_DURATION_OPTIONS,
   type SessionDurationMin,
 } from '@/lib/core/bookings/duration';
 
@@ -53,7 +65,95 @@ export async function GET(request: Request) {
 
   const services = await getCoachServices(user.id);
 
+  /*
+   * Gli orari veri del coach, gli stessi che vede sul web.
+   *
+   * L'app proponeva un elenco fisso di ore piene — 8, 9, 10 — scritto nel
+   * codice dell'applicazione: ignorava la disponibilita' settimanale del
+   * coach, gli appuntamenti gia' presi e la durata scelta. Dal telefono si
+   * poteva quindi proporre un orario che il coach non lavora, o uno gia'
+   * occupato, e il rifiuto arrivava solo al momento dell'invio.
+   *
+   * Ora la lista la calcola `getBookableDays`, la stessa funzione della
+   * dashboard: una regola sola, in un posto solo.
+   */
+  const [availability, busyByProvider] = await Promise.all([
+    getCoachAvailability(user.id),
+    getCoachBusyIntervalsByProviderIds([provider.id]),
+  ]);
+
+  const now = new Date();
+  const days = dropPastStarts(
+    getBookableDays(availability, {
+      busyIntervals: busyIntervalsAt(busyByProvider.get(provider.id) ?? [], now),
+    }),
+    now
+  );
+
+  /*
+   * Occupato, stretto o libero: lo decide il server, non l'app.
+   *
+   * Il giudizio su un orario non e' un dato ma una **regola** — «ci stanno i
+   * minuti che servono prima del prossimo appuntamento?» — e ricopiarla nel
+   * codice dell'app significherebbe ricreare la divergenza che stiamo
+   * chiudendo. Qui gira `slotPresentation`, la stessa che disegna l'elenco
+   * sul web: se un giorno cambia, cambia per entrambi nello stesso istante.
+   *
+   * La durata arriva da chi chiede, perche' da lei dipende: alle 10:30, con
+   * una sessione alle 11, trenta minuti ci stanno e quaranta no.
+   */
+  const durationParam = Number(
+    new URL(request.url).searchParams.get('durationMin')
+  );
+  const durationMin = Number.isFinite(durationParam) && durationParam > 0
+    ? durationParam
+    : null;
+
+  const bookableDays = days.map((day) => ({
+    value: day.value,
+    label: day.label,
+    slots: day.times.map((time) => {
+      const slot = slotPresentation(day.maxDurationMin, time, durationMin, true);
+      return {
+        time,
+        suffix: slot.suffix,
+        selectable: slot.selectable,
+        tone: slot.tone,
+        fitsDurationMin: slot.fitsDurationMin,
+      };
+    }),
+  }));
+
+  /*
+   * L'ultimo servizio usato con ciascun atleta.
+   *
+   * Con la stessa persona un coach ripete quasi sempre lo stesso servizio: e`
+   * il default che vale un tocco risparmiato. Come sul web, se quel servizio
+   * non e' piu' offerto non si propone: meglio chiedere che proporre un
+   * valore che fallirebbe.
+   */
+  const lastServices = await db
+    .selectDistinctOn([bookings.clientId], {
+      clientId: bookings.clientId,
+      serviceId: bookings.serviceId,
+    })
+    .from(bookings)
+    .where(eq(bookings.providerId, provider.id))
+    .orderBy(bookings.clientId, desc(bookings.createdAt));
+
+  const offered = new Set(services.map((s) => s.id));
+  const lastServiceByAthlete: Record<number, number> = {};
+  for (const row of lastServices) {
+    if (row.serviceId && offered.has(row.serviceId)) {
+      lastServiceByAthlete[row.clientId] = row.serviceId;
+    }
+  }
+
   return Response.json({
+    bookableDays,
+    lastServiceByAthlete,
+    durationOptions: SESSION_DURATION_OPTIONS,
+    defaultDurationMin: DEFAULT_SESSION_DURATION_MIN,
     athletes: athletes.map((a) => ({
       userId: a.userId,
       name: a.name ?? a.email,
@@ -100,9 +200,18 @@ export async function POST(request: Request) {
    * gia' accettata perche' i due sono entrambi presenti — chiedere conferma a
    * chi ti sta gia' aspettando in stanza sarebbe assurdo.
    */
+  /*
+   * L'orario arriva come ora italiana — «2026-08-14T10:10» — e va letto come
+   * tale, con la stessa funzione del web.
+   *
+   * Interpretarlo con `new Date()` lo leggerebbe nel fuso di chi scrive: un
+   * atleta in vacanza fuori Italia avrebbe visto l'appuntamento spostarsi di
+   * ore senza che nessuno l'avesse toccato.
+   */
   const scheduledFor = startingNow
     ? new Date()
-    : new Date(body.scheduledFor as string);
+    : parseRomeLocalDateTime(body.scheduledFor as string) ??
+      new Date(body.scheduledFor as string);
   if (Number.isNaN(scheduledFor.getTime())) {
     return Response.json({ error: 'Data non valida.' }, { status: 400 });
   }

@@ -12,6 +12,7 @@ import {
 import {
   FALLBACK_SESSION_DURATION_MIN,
   canJoinVideoNow,
+  isSessionUpcoming,
 } from '@/lib/core/sessions';
 
 /**
@@ -175,65 +176,41 @@ export async function GET(request: Request) {
   });
 
   /*
-   * Il confine fra «prossime» e «passate» è la **fine** della sessione, non
-   * l'inizio.
+   * Il confine fra «prossime» e «passate» sta in `isSessionUpcoming`, insieme
+   * alle altre regole di tempo della sessione: stato, battito, finestra.
    *
-   * Prima bastava che fossero passate due ore dall'orario d'inizio: una
-   * tolleranza pensata per chi entra in ritardo, che però teneva in cima
-   * all'elenco una sessione da quaranta minuti finita da un'ora. Chi guarda
-   * vede una cosa conclusa presentata come imminente, e smette di fidarsi
-   * dell'ordine.
-   *
-   * La coda di grazia resta, ma parte da quando la sessione finisce: qualche
-   * minuto in cui si può ancora rientrare se è caduta la linea.
+   * Qui c'era una riga sbagliata — «se ha un `sessionEndedAt` e' finita» — che
+   * sembrava ovvia e non lo era: quel campo e' l'ora dell'ultimo ping di chi e'
+   * collegato, riscritta di continuo durante la chiamata. Bastava entrare in
+   * stanza perche' la sessione sparisse dalle prossime e finisse fra le
+   * passate: chi usciva un momento non la ritrovava piu' in cima.
    */
-  const GRACE_MIN = 15;
-  const isUpcoming = (session: {
-    scheduledFor: string | null;
-    durationMin: number;
-    endedAt: string | null;
-  }) => {
-    /*
-     * Una seduta gia' conclusa non e' «in arrivo», qualunque cosa dica
-     * l'orario.
-     *
-     * Il conto restava sulla finestra teorica: una sessione iniziata alle
-     * 17:50, chiusa dopo 44 minuti, restava in cima all'elenco come prossima
-     * mentre quella vera delle 18:34 finiva sotto. Se qualcuno l'ha chiusa,
-     * e' finita.
-     */
-    if (session.endedAt) return false;
-    if (!session.scheduledFor) return false;
-    const endsAt =
-      new Date(session.scheduledFor).getTime() +
-      (session.durationMin + GRACE_MIN) * 60_000;
-    return endsAt >= Date.now();
-  };
+  const upcoming = (s: (typeof all)[number]) =>
+    isSessionUpcoming({
+      scheduledFor: s.scheduledFor ? new Date(s.scheduledFor) : null,
+      durationMin: s.durationMin,
+      status: s.status,
+      lastHeartbeatAt: s.endedAt ? new Date(s.endedAt) : null,
+    });
 
   return Response.json({
-    // Le prossime in ordine di arrivo: la più imminente per prima.
     sessions: all
+      .filter(upcoming)
       /*
-       * Annullate, rifiutate e scadute non sono «in arrivo».
+       * Prima quella in cui si puo' entrare adesso, poi le altre in ordine di
+       * arrivo.
        *
-       * Restavano fra le prossime con tanto di conto alla rovescia: una
-       * sessione disdetta annunciata come «fra 71 minuti» e' peggio di non
-       * mostrarla, perche' qualcuno potrebbe presentarsi.
+       * Con il solo ordine cronologico, una sessione delle 17:50 ancora dentro
+       * la sua coda di grazia precedeva quella delle 18:34 che stava
+       * cominciando davvero: in cima al carosello c'era una scheda senza
+       * pulsante, e quella da aprire stava di lato.
        */
-      .filter(
-        (s) =>
-          isUpcoming(s) &&
-          (s.status === 'accepted' || s.status === 'requested')
-      )
-      .sort((a, b) =>
-        (a.scheduledFor ?? '').localeCompare(b.scheduledFor ?? '')
-      ),
+      .sort((a, b) => {
+        if (a.canJoinNow !== b.canJoinNow) return a.canJoinNow ? -1 : 1;
+        return (a.scheduledFor ?? '').localeCompare(b.scheduledFor ?? '');
+      }),
     // Le passate al contrario: la più recente per prima, che è quella che si
     // cerca quando si guarda indietro.
-    past: all.filter(
-      (s) =>
-        !isUpcoming(s) ||
-        !(s.status === 'accepted' || s.status === 'requested')
-    ),
+    past: all.filter((s) => !upcoming(s)),
   });
 }

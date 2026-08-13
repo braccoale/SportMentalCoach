@@ -12,8 +12,8 @@ import {
   createAppointment,
   newAppointmentOptions,
   type AppointmentOptions,
+  type BookableSlot,
 } from '../lib/api';
-import { dayKey, dayTitle, romeInstant } from '../lib/day-grouping';
 import { useTheme, type Palette } from '../theme';
 
 /**
@@ -31,8 +31,18 @@ import { useTheme, type Palette } from '../theme';
  * telefono non è il posto per cercare fra tutti: si sceglie fra pochi nomi
  * noti, e chi è nuovo passa comunque dal percorso completo sul web.
  */
-const DAYS = 14;
-const HOURS = [8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21];
+/*
+ * Gli orari li decide il coach, non questo file.
+ *
+ * Qui c'era un elenco fisso di ore piene: 8, 9, 10, 11. Non guardava la
+ * disponibilita' settimanale del coach, ne' gli appuntamenti gia' presi. Dal
+ * telefono si poteva proporre un orario in cui il coach non lavora — e sul web
+ * lo stesso coach vedeva le 10:10, cioe' il primo posto davvero libero, mentre
+ * l'app diceva 11:00.
+ *
+ * Ora la lista arriva dal server, calcolata dalla stessa funzione della
+ * dashboard e gia' espressa in ora italiana.
+ */
 
 export function NewAppointmentSheet({
   visible,
@@ -50,14 +60,33 @@ export function NewAppointmentSheet({
   const [options, setOptions] = useState<AppointmentOptions | null>(null);
   const [athlete, setAthlete] = useState<number | null>(null);
   const [service, setService] = useState<number | null>(null);
-  const [day, setDay] = useState<Date | null>(null);
+  /** Il giorno scelto, come lo chiama il server: «AAAA-MM-GG» in ora italiana. */
+  const [day, setDay] = useState<string | null>(null);
+  /**
+   * La durata di **questa** sessione, non quella del servizio.
+   *
+   * Lo stesso percorso dura trenta minuti con un atleta e un'ora con un
+   * altro, ed e` la lunghezza della seduta — non quella del listino — a
+   * decidere quali orari ci stanno ancora. Parte dalla durata del servizio,
+   * che e` la risposta giusta quasi sempre.
+   */
+  const [duration, setDuration] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const chosenService = options?.services.find((s) => s.id === service);
+
+  /*
+   * Le opzioni si richiedono anche quando cambia il servizio.
+   *
+   * Non e` uno spreco: quali orari siano proponibili **dipende dalla durata**.
+   * Alle 10:30, con una sessione alle 11, mezz'ora ci sta e quaranta minuti
+   * no — ed e` il server a saperlo, con la stessa regola del web.
+   */
   useEffect(() => {
     if (!visible) return;
     setError(null);
-    void newAppointmentOptions()
+    void newAppointmentOptions(duration ?? undefined)
       .then((data) => {
         setOptions(data);
         /*
@@ -69,32 +98,55 @@ export function NewAppointmentSheet({
          * entrambi visibili e cambiabili.
          */
         if (data.athletes.length === 1) setAthlete(data.athletes[0].userId);
-        if (data.services.length === 1) setService(data.services[0].id);
+        if (data.services.length === 1) {
+          setService(data.services[0].id);
+          setDuration((d) => d ?? data.services[0].durationMin);
+        }
       })
       .catch(() => setError('Non riesco a caricare atleti e servizi.'));
-  }, [visible]);
+  }, [visible, duration]);
+
+  /** Sceglie l'atleta e, con lui, il servizio dell'ultima volta. */
+  function pickAthlete(userId: number) {
+    setAthlete(userId);
+    const last = options?.lastServiceByAthlete?.[userId];
+    if (last === undefined) return;
+    setService(last);
+    setDuration(options?.services.find((s) => s.id === last)?.durationMin ?? null);
+  }
+
+  function pickService(id: number) {
+    setService(id);
+    setDuration(options?.services.find((s) => s.id === id)?.durationMin ?? null);
+  }
 
   function close() {
     setAthlete(null);
     setService(null);
+    setDuration(null);
     setDay(null);
     setError(null);
     onClose();
   }
 
-  async function create(hour: number) {
+  async function create(slot: BookableSlot) {
     if (!athlete || !service || !day) return;
-    // L'ora scelta e' quella italiana, non quella del fuso del telefono.
-    const when = romeInstant(dayKey(day.toISOString()), hour);
-    const chosen = options?.services.find((s) => s.id === service);
     setBusy(true);
     setError(null);
     try {
       await createAppointment({
         clientUserId: athlete,
         serviceId: service,
-        durationMin: chosen?.durationMin,
-        scheduledFor: when.toISOString(),
+        /*
+         * Su un orario stretto vale la durata che ci sta, non quella del
+         * servizio: e` la stessa scelta del web — proporre le 10:30 e poi
+         * rifiutarla perche' i quaranta minuti non entrano sarebbe offrire e
+         * negare nello stesso gesto.
+         */
+        durationMin: slot.fitsDurationMin ?? duration ?? chosenService?.durationMin,
+        // Ora italiana, nella stessa forma che manda il web: e` il server a
+        // trasformarla in un istante, con una regola sola per i due client.
+        scheduledFor: `${day}T${slot.time}`,
       });
       onCreated();
       close();
@@ -118,7 +170,7 @@ export function NewAppointmentSheet({
       await createAppointment({
         clientUserId: athlete,
         serviceId: service,
-        durationMin: chosen?.durationMin,
+        durationMin: duration ?? chosen?.durationMin,
         startingNow: true,
       });
       onCreated();
@@ -134,11 +186,8 @@ export function NewAppointmentSheet({
     }
   }
 
-  const days = Array.from({ length: DAYS }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() + i);
-    return d;
-  });
+  const days = options?.bookableDays ?? [];
+  const selectedDay = days.find((d) => d.value === day);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
@@ -167,7 +216,7 @@ export function NewAppointmentSheet({
                     key={a.userId}
                     label={a.name}
                     selected={athlete === a.userId}
-                    onPress={() => setAthlete(a.userId)}
+                    onPress={() => pickAthlete(a.userId)}
                   />
                 ))}
                 {options.athletes.length === 0 && (
@@ -186,10 +235,26 @@ export function NewAppointmentSheet({
                         key={s.id}
                         label={`${s.title} · ${s.durationMin} min`}
                         selected={service === s.id}
-                        onPress={() => setService(s.id)}
+                        onPress={() => pickService(s.id)}
                       />
                     ))}
                   </View>
+
+                  {service !== null && (options.durationOptions?.length ?? 0) > 0 && (
+                    <>
+                      <Text style={styles.step}>Quanto dura</Text>
+                      <View style={styles.chips}>
+                        {options.durationOptions?.map((minutes) => (
+                          <Chip
+                            key={minutes}
+                            label={`${minutes} min`}
+                            selected={duration === minutes}
+                            onPress={() => setDuration(minutes)}
+                          />
+                        ))}
+                      </View>
+                    </>
+                  )}
                 </>
               )}
 
@@ -215,51 +280,71 @@ export function NewAppointmentSheet({
                   </Pressable>
 
                   <Text style={styles.step}>Oppure quando</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={styles.chips}>
-                      {days.map((d) => (
-                        <Chip
-                          key={d.toISOString()}
-                          label={dayTitle(d.toISOString())}
-                          selected={day?.toDateString() === d.toDateString()}
-                          onPress={() => setDay(d)}
-                        />
-                      ))}
-                    </View>
-                  </ScrollView>
+                  {days.length === 0 ? (
+                    /*
+                     * Un elenco vuoto deve dire perche' e` vuoto.
+                     *
+                     * Qui succede per una ragione sola e risolvibile: il coach
+                     * non ha ancora dichiarato in che ore lavora. Senza
+                     * spiegazione sembrerebbe l'app rotta.
+                     */
+                    <Text style={styles.subtitle}>
+                      Non hai ancora indicato in che orari lavori: impostali sul
+                      web e qui compariranno i giorni prenotabili.
+                    </Text>
+                  ) : (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      <View style={styles.chips}>
+                        {days.map((d) => (
+                          <Chip
+                            key={d.value}
+                            label={d.label}
+                            selected={day === d.value}
+                            onPress={() => setDay(d.value)}
+                          />
+                        ))}
+                      </View>
+                    </ScrollView>
+                  )}
                 </>
               )}
 
-              {day && (
+              {selectedDay && (
                 <View style={styles.slots}>
-                  {/*
-                    * Gli orari gia` passati non si propongono.
-                    *
-                    * Oggi alle 13 non ha senso offrire le 8: il server
-                    * rifiuterebbe comunque, ma offrire e poi negare fa
-                    * sembrare rotta l'app invece che sbagliata la scelta.
-                    */}
-                  {HOURS.filter((hour) => {
-                    const when = romeInstant(dayKey(day.toISOString()), hour);
-                    return when.getTime() > Date.now();
-                  }).map((hour) => (
+                  {selectedDay.slots.map((slot) => (
                     <Pressable
-                      key={hour}
-                      disabled={busy}
-                      onPress={() => void create(hour)}
+                      key={slot.time}
+                      disabled={busy || !slot.selectable}
+                      onPress={() => void create(slot)}
                       accessibilityRole="button"
-                      accessibilityLabel={`Crea alle ${hour}:00`}
-                      style={({ pressed }) => [styles.slot, pressed && styles.pressed]}
+                      accessibilityState={{ disabled: !slot.selectable }}
+                      accessibilityLabel={`Crea alle ${slot.time}${slot.suffix}`}
+                      style={({ pressed }) => [
+                        styles.slot,
+                        slot.tone === 'occupied' && styles.slotOff,
+                        slot.tone === 'tight' && styles.slotTight,
+                        pressed && styles.pressed,
+                      ]}
                     >
-                      <Text style={styles.slotText}>{hour}:00</Text>
+                      {/*
+                        * Il colore non basta da solo: accanto all'ora resta
+                        * scritto perche', «Occupato» o «Solo 30 min». Rosso e
+                        * arancione sono lo stesso grigio per molte persone.
+                        */}
+                      <Text
+                        style={[
+                          styles.slotText,
+                          slot.tone === 'occupied' && styles.slotTextOff,
+                        ]}
+                      >
+                        {slot.time}
+                        {slot.suffix}
+                      </Text>
                     </Pressable>
                   ))}
-                  {HOURS.every((hour) => {
-                    const when = romeInstant(dayKey(day.toISOString()), hour);
-                    return when.getTime() <= Date.now();
-                  }) && (
+                  {selectedDay.slots.length === 0 && (
                     <Text style={styles.subtitle}>
-                      Per oggi non ci sono più orari disponibili.
+                      Per questo giorno non restano orari liberi.
                     </Text>
                   )}
                 </View>
@@ -349,6 +434,8 @@ const createStyles = (theme: Palette) =>
     slots: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
     slot: {
       minWidth: 72,
+      // «10:30 · Solo 30 min» non sta in una casella pensata per «11:00».
+      paddingHorizontal: 12,
       minHeight: 44,
       alignItems: 'center',
       justifyContent: 'center',
@@ -356,6 +443,11 @@ const createStyles = (theme: Palette) =>
       backgroundColor: theme.surface,
     },
     slotText: { color: theme.hi, fontSize: 15 },
+    // Dentro un appuntamento: non c'e` niente da fare, e si vede.
+    slotOff: { backgroundColor: 'transparent', borderWidth: 1, borderColor: theme.line },
+    slotTextOff: { color: theme.low },
+    // Stretto: ci si sta, accorciando. E` una scelta, non un divieto.
+    slotTight: { borderWidth: 1, borderColor: '#e08b2a55' },
     now: {
       minHeight: 48,
       borderRadius: 999,
