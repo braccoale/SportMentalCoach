@@ -62,7 +62,21 @@ export async function GET(request: Request) {
       status: bookings.status,
       sessionStartedAt: bookings.sessionStartedAt,
       sessionEndedAt: bookings.sessionEndedAt,
-      aiNotesStatus: sessionAiNotes.status,
+      /*
+       * Lo stato degli appunti va **cercato**, non unito.
+       *
+       * Una prenotazione puo' avere piu' di una riga di appunti — un tentativo
+       * annullato e quello buono, come per la 167 e la 177 — e un `leftJoin`
+       * la restituiva due volte: due schede identiche nell'elenco, e React che
+       * protestava per la chiave ripetuta. Qui serve l'ultimo stato, non tutti.
+       */
+      aiNotesStatus: sql<string | null>`(
+        select n.status
+        from ${sessionAiNotes} n
+        where n.booking_id = ${bookings.id}
+        order by n.created_date desc
+        limit 1
+      )`,
     })
     .from(bookings)
     .innerJoin(providerProfiles, eq(bookings.providerId, providerProfiles.id))
@@ -70,8 +84,6 @@ export async function GET(request: Request) {
     .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
     .leftJoin(clientProfile, eq(clientProfile.userId, bookings.clientId))
     .leftJoin(services, eq(bookings.serviceId, services.id))
-    // Il riepilogo AI, se esiste: serve solo a dire che c'e' e a che punto e'.
-    .leftJoin(sessionAiNotes, eq(sessionAiNotes.bookingId, bookings.id))
     .where(
       and(
         /*

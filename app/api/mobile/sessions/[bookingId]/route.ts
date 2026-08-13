@@ -27,6 +27,7 @@ import { sessionCompassDependencies } from '@/lib/core/ai-session-notes/session-
  * scorrendo un telefono e' un modo di approvarlo senza leggerlo.
  */
 const MAX_THEMES = 3;
+const MAX_MOMENTS = 4;
 
 export async function GET(
   request: Request,
@@ -138,12 +139,45 @@ export async function GET(
     );
     const document = compass?.document ?? null;
     if (document) {
+      const overview = document.sessionOverview;
       report = {
         // «Se leggi solo questo, hai fatto il tuo lavoro.»
-        summary: document.sessionOverview.summary,
-        themes: document.sessionOverview.themes
-          .slice(0, MAX_THEMES)
-          .map((theme) => theme.text),
+        summary: overview.summary,
+        themes: overview.themes.slice(0, MAX_THEMES).map((theme) => theme.text),
+        /*
+         * Chi ha parlato, e quanto.
+         *
+         * E` il dato che si legge in un'occhiata e che dice qualcosa di vero
+         * sulla seduta: una in cui il coach ha parlato per due terzi del tempo
+         * e` andata diversamente da una in cui l'atleta si e` preso lo spazio.
+         * Non e` un giudizio — e` una misura, e serve al coach su di se`.
+         */
+        participation: overview.conversationParticipation
+          ? {
+              athleteSharePercent:
+                overview.conversationParticipation.athleteSharePercent,
+              athleteTurns: overview.conversationParticipation.athleteTurns,
+              coachTurns: overview.conversationParticipation.coachTurns,
+            }
+          : null,
+        /*
+         * L'andamento emotivo lungo la seduta: dove si e` aperto un varco e
+         * dove si e` chiuso. Su un telefono e` l'unica cosa che vale un
+         * grafico, perche' e` una forma — si guarda, non si legge.
+         */
+        emotionalTrend: (overview.emotionalTrend ?? []).map((point) => ({
+          value: point.value,
+          label: point.label,
+        })),
+        /*
+         * I momenti che il riepilogo ha marcato: sono la cosa piu` vicina a
+         * «cosa e` successo davvero», e stanno in poche righe.
+         */
+        keyMoments: document.keyMoments.slice(0, MAX_MOMENTS).map((moment) => ({
+          title: moment.title,
+          explanation: moment.explanation,
+          speaker: moment.speaker,
+        })),
         // L'unica parte operativa: cosa era stato deciso di fare.
         commitments: document.commitments.map((commitment) => ({
           text: commitment.text,

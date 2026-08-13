@@ -138,6 +138,15 @@ export type SessionDetail = {
   report: {
     summary: string;
     themes: string[];
+    /** Chi ha parlato e quanto: una misura, non un giudizio. */
+    participation: {
+      athleteSharePercent: number;
+      athleteTurns: number;
+      coachTurns: number;
+    } | null;
+    /** L'andamento lungo la seduta: una forma, si guarda invece di leggerla. */
+    emotionalTrend: { value: number; label: string }[];
+    keyMoments: { title: string; explanation: string; speaker: string }[];
     commitments: {
       text: string;
       owner: string;
