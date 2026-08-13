@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   AppState,
   BackHandler,
+  Image,
   Modal,
   Pressable,
   Share,
@@ -250,6 +251,7 @@ export function CallScreen({
         bookingId={session.bookingId}
         viewerIsCoach={credentials.viewerIsCoach}
         coachIdentity={credentials.coachIdentity}
+        otherAvatarUrl={session.otherAvatarUrl ?? null}
         minimized={minimized}
         onMinimize={onMinimize}
         onExpand={onExpand}
@@ -264,6 +266,7 @@ function RoomStage({
   bookingId,
   viewerIsCoach,
   coachIdentity,
+  otherAvatarUrl,
   minimized = false,
   onMinimize,
   onExpand,
@@ -273,6 +276,8 @@ function RoomStage({
   bookingId: number;
   viewerIsCoach: boolean;
   coachIdentity: string;
+  /** La foto di chi si ha davanti, mostrata quando la sua telecamera e` spenta. */
+  otherAvatarUrl: string | null;
   minimized?: boolean;
   onMinimize?: () => void;
   onExpand?: () => void;
@@ -656,11 +661,23 @@ function RoomStage({
               * perche' distinguere «non e` ancora entrato» da «e` qui col video
               * spento» serve: chiedono cose opposte.
               */}
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {otherName.trim().slice(0, 1).toUpperCase() || '·'}
-              </Text>
-            </View>
+            {/*
+              * La foto, se c'e`. L'iniziale solo quando non c'e`.
+              *
+              * A telecamera spenta si guarda comunque quel cerchio per tutta
+              * la seduta: un volto tiene compagnia, una lettera no. E chi
+              * spegne la telecamera non sta sparendo — sta solo scegliendo di
+              * non mostrare la stanza in cui si trova.
+              */}
+            {otherAvatarUrl ? (
+              <Image source={{ uri: otherAvatarUrl }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {otherName.trim().slice(0, 1).toUpperCase() || '·'}
+                </Text>
+              </View>
+            )}
             <Text style={styles.waiting}>
               {someoneElseHere
                 ? `${otherName} ha la telecamera spenta`

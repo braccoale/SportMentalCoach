@@ -17,6 +17,7 @@ import { SessionActionsSheet } from '../components/SessionActionsSheet';
 import { NewAppointmentSheet } from '../components/NewAppointmentSheet';
 import { SessionHeroCard } from '../components/SessionHeroCard';
 import { SessionHistoryRow } from '../components/SessionHistoryRow';
+import { PastSessionSheet } from '../components/PastSessionSheet';
 import { Icon } from '../components/Icon';
 import { useTheme, type Palette } from '../theme';
 
@@ -61,6 +62,8 @@ export function SessionsScreen({
   const [menuFor, setMenuFor] = useState<UpcomingSession | null>(null);
   const [deciding, setDeciding] = useState<number | null>(null);
   const [newOpen, setNewOpen] = useState(false);
+  /** La seduta passata aperta in scheda: com'è andata, cosa resta da fare. */
+  const [detailFor, setDetailFor] = useState<UpcomingSession | null>(null);
   const [filter, setFilter] = useState<Filter>('tutte');
 
   const isCoach = sessions[0]?.viewerIsCoach ?? past[0]?.viewerIsCoach ?? false;
@@ -281,6 +284,7 @@ export function SessionsScreen({
                     key={session.bookingId}
                     session={session}
                     onMenu={() => setMenuFor(session)}
+                    onOpen={() => setDetailFor(session)}
                   />
                 ))}
                 {visiblePast.length === 0 && (
@@ -314,6 +318,18 @@ export function SessionsScreen({
           visible
           onClose={() => setMenuFor(null)}
           onChanged={() => void load()}
+        />
+      )}
+
+      {detailFor && (
+        <PastSessionSheet
+          session={detailFor}
+          visible
+          onClose={() => setDetailFor(null)}
+          onBookAgain={() => {
+            setDetailFor(null);
+            setNewOpen(true);
+          }}
         />
       )}
 

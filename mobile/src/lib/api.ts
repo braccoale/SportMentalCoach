@@ -120,6 +120,40 @@ export function sendSessionHeartbeat(bookingId: number) {
   });
 }
 
+/**
+ * Una seduta passata, come serve su un telefono: com'e` andata, e cosa resta
+ * da fare. Il resto del Session Compass sta sul web, dove si legge da fermi.
+ */
+export type SessionDetail = {
+  bookingId: number;
+  status: string;
+  scheduledFor: string | null;
+  title: string;
+  viewerIsCoach: boolean;
+  otherName: string;
+  otherAvatarUrl: string | null;
+  actualMinutes: number | null;
+  /** Stato degli appunti AI, `null` quando non erano attivi. */
+  notes: string | null;
+  report: {
+    summary: string;
+    themes: string[];
+    commitments: {
+      text: string;
+      owner: string;
+      status: string;
+      dueDate: string | null;
+    }[];
+    /** Se il coach l'ha gia` confermato. Una bozza va letta come tale. */
+    approved: boolean;
+    stale: boolean;
+  } | null;
+};
+
+export function fetchSessionDetail(bookingId: number) {
+  return request<SessionDetail>(`/api/mobile/sessions/${bookingId}`);
+}
+
 export type RoomCredentials = {
   token: string;
   url: string;

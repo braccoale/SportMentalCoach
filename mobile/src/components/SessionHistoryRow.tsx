@@ -47,9 +47,12 @@ const STATUS: Record<
 export function SessionHistoryRow({
   session,
   onMenu,
+  onOpen,
 }: {
   session: UpcomingSession;
   onMenu: () => void;
+  /** Toccare la riga apre la scheda della seduta: com'è andata, cosa resta da fare. */
+  onOpen: () => void;
 }) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -87,7 +90,12 @@ export function SessionHistoryRow({
     : '';
 
   return (
-    <View style={styles.row}>
+    <Pressable
+      onPress={onOpen}
+      accessibilityRole="button"
+      accessibilityLabel={`Apri la sessione del ${day} ${rest}`}
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+    >
       <View style={[styles.mark, { backgroundColor: `${color}22` }]}>
         <Icon name={info.icon} size={18} color={color} />
       </View>
@@ -119,7 +127,7 @@ export function SessionHistoryRow({
       >
         <Icon name="more" size={18} color={theme.mid} />
       </Pressable>
-    </View>
+    </Pressable>
   );
 }
 
@@ -149,4 +157,5 @@ const createStyles = (theme: Palette) =>
     note: { color: theme.mid, fontSize: 12, lineHeight: 17 },
     ai: { color: theme.green, fontSize: 11, fontWeight: '700' },
     menu: { padding: 2 },
+    rowPressed: { opacity: 0.75 },
   });
