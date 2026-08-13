@@ -1,4 +1,5 @@
 import type { CoachBooking } from './index';
+import { isSessionUpcoming } from '../sessions';
 
 /**
  * Vista "I miei Atleti": le prenotazioni del coach raggruppate per persona.
@@ -14,7 +15,35 @@ import type { CoachBooking } from './index';
 
 /** Stati che indicano una sessione realmente avvenuta o concordata. */
 const ACTIVE_STATUSES = ['requested', 'accepted'];
-const DONE_STATUSES = ['completed'];
+/**
+ * Una sessione si e' svolta se si e' svolta, non se qualcuno l'ha archiviata.
+ *
+ * Prima contava solo `completed`, cioe' solo le sedute che il coach aveva
+ * chiuso a mano. Ma la chiusura e' un gesto amministrativo, e chi dimentica di
+ * farlo non cancella un'ora di lavoro: la seduta c'e' stata, l'audio esiste, il
+ * riepilogo e' pronto — e restava invisibile. Nell'elenco degli atleti si
+ * leggeva «ultima sessione» una data vecchia di giorni, e il riepilogo da
+ * validare non compariva affatto: il lavoro dell'AI, gia' fatto, non lo vedeva
+ * nessuno.
+ *
+ * Le prove che si e' svolta sono due, entrambe necessarie: qualcuno si e'
+ * collegato davvero (`sessionStartedAt`), e la sua finestra e' finita — quella
+ * in corso adesso non e' passato, e' presente.
+ */
+function wasHeld(booking: CoachBooking, now: Date): boolean {
+  if (booking.status === 'completed') return true;
+  if (booking.status !== 'accepted') return false;
+  if (!booking.sessionStartedAt) return false;
+  return !isSessionUpcoming(
+    {
+      scheduledFor: booking.scheduledFor,
+      durationMin: booking.durationMin,
+      status: booking.status,
+      lastHeartbeatAt: booking.sessionEndedAt,
+    },
+    now
+  );
+}
 
 export type CoachAthleteSummary = {
   userId: number;
@@ -94,12 +123,12 @@ export function buildCoachAthletes(
       )[0];
 
     const held = list
-      .filter((b) => DONE_STATUSES.includes(b.status) && heldAt(b) != null)
+      .filter((b) => wasHeld(b, now) && heldAt(b) != null)
       .sort((a, b) => heldAt(b)!.getTime() - heldAt(a)!.getTime())[0];
     const latestCompass = list
       .filter(
         (b) =>
-          DONE_STATUSES.includes(b.status) &&
+          wasHeld(b, now) &&
           ['ready_for_review', 'approved', 'shared'].includes(
             b.aiNotesStatus ?? ''
           )
@@ -117,8 +146,7 @@ export function buildCoachAthletes(
       level: latest.athleteLevel,
       goals: latest.athleteGoals,
       isMinor: latest.athleteIsMinor,
-      completedSessions: list.filter((b) => DONE_STATUSES.includes(b.status))
-        .length,
+      completedSessions: list.filter((b) => wasHeld(b, now)).length,
       pendingRequests: list.filter((b) => b.status === 'requested').length,
       nextSessionAt: upcoming?.scheduledFor ?? null,
       lastSessionAt: held ? heldAt(held) : null,

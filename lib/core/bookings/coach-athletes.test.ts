@@ -371,3 +371,63 @@ test('senza alcun riepilogo non si segnala nulla da validare', () => {
   assert.equal(athlete.latestCompassBookingId, null);
   assert.equal(athlete.latestCompassNeedsReview, false);
 });
+
+/*
+ * Il caso reale: una seduta di un'ora, con tanto di riepilogo pronto, che
+ * l'elenco non vedeva perche' il coach non aveva premuto «Concludi».
+ */
+test('una sessione svolta ma mai chiusa conta come svolta', () => {
+  const now = new Date('2026-08-13T08:00:00Z');
+  const held = booking({
+    id: 167,
+    clientId: 7,
+    status: 'accepted',
+    scheduledFor: new Date('2026-08-11T06:30:00Z'),
+    sessionStartedAt: new Date('2026-08-11T06:29:30Z'),
+    sessionEndedAt: new Date('2026-08-11T07:37:26Z'),
+    aiNotesStatus: 'ready_for_review',
+    aiReportStatus: 'ready_for_review',
+  });
+
+  const [athlete] = buildCoachAthletes([held], now);
+
+  assert.equal(athlete.completedSessions, 1);
+  assert.equal(
+    athlete.lastSessionAt?.toISOString(),
+    '2026-08-11T07:37:26.000Z'
+  );
+  // Il riepilogo pronto deve emergere: e` il lavoro gia` fatto che nessuno
+  // vedeva.
+  assert.equal(athlete.latestCompassBookingId, 167);
+  assert.equal(athlete.latestCompassNeedsReview, true);
+});
+
+test('una sessione in corso non e` gia` passato', () => {
+  // Iniziata dieci minuti fa, dura un'ora: sta succedendo adesso.
+  const now = new Date('2026-08-13T10:10:00Z');
+  const live = booking({
+    id: 200,
+    clientId: 7,
+    status: 'accepted',
+    scheduledFor: new Date('2026-08-13T10:00:00Z'),
+    sessionStartedAt: new Date('2026-08-13T10:00:05Z'),
+    sessionEndedAt: new Date('2026-08-13T10:09:50Z'),
+  });
+
+  const [athlete] = buildCoachAthletes([live], now);
+  assert.equal(athlete.completedSessions, 0);
+});
+
+test('una sessione confermata a cui nessuno si e` collegato non e` svolta', () => {
+  const now = new Date('2026-08-13T08:00:00Z');
+  const noShow = booking({
+    id: 201,
+    clientId: 7,
+    status: 'accepted',
+    scheduledFor: new Date('2026-08-11T06:30:00Z'),
+  });
+
+  const [athlete] = buildCoachAthletes([noShow], now);
+  assert.equal(athlete.completedSessions, 0);
+  assert.equal(athlete.lastSessionAt, null);
+});
