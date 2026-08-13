@@ -13,8 +13,10 @@ Verified in this repository — do not assume beyond it:
 
 - **Expo SDK 52.0.49**, **React Native 0.76.9**, **React 18.3.1**
 - **No navigation library.** No `expo-router`, no `react-navigation`. Navigation is a discriminated union of route states in `App.tsx`, rendered by a single switch. This is deliberate for a handful of screens.
-- Present: `expo-secure-store`, `expo-local-authentication`, `expo-notifications`, `expo-updates`, `expo-constants`, `expo-asset`, `expo-status-bar`, `@livekit/react-native`, `@supabase/supabase-js`, `@react-native-async-storage/async-storage`
-- Not present: `expo-keep-awake`, `react-native-reanimated`, `react-native-gesture-handler`
+- Present: `expo-secure-store`, `expo-local-authentication`, `expo-notifications`, `expo-updates`, `expo-constants`, `expo-asset`, `expo-status-bar`, `expo-system-ui`, `expo-font`, `expo-keep-awake`, `expo-dev-client`, `expo-build-properties`, `@livekit/react-native` (2.12), `@livekit/react-native-webrtc`, `livekit-client` (2.21), `@supabase/supabase-js`, `@react-native-async-storage/async-storage`, `react-native-safe-area-context`, `react-native-screens`, `react-native-svg` (15.8), `react-native-url-polyfill`
+- Not present: `react-native-reanimated`, `react-native-gesture-handler`
+
+**Icons are SVG, not a font.** `src/components/Icon.tsx` draws Material Symbols paths with `react-native-svg`. `@expo/vector-icons` renders from a font file that never made it into the built app: every icon was an invisible blank, and no error said so. Add a new icon by adding its path there — do not reintroduce the icon font.
 
 Two consequences that are easy to get wrong:
 
