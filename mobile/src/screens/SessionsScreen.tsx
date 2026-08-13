@@ -177,13 +177,45 @@ export function SessionsScreen({
           </Text>
 
           {sessions.length === 0 ? (
+            /*
+             * «Nessuna sessione» solo quando e` vero.
+             *
+             * Se la richiesta e` fallita non sappiamo cosa c'e`: dirlo lo
+             * stesso e` una bugia, e per giunta quella piu` scoraggiante —
+             * chi legge pensa di non avere appuntamenti e chiude l'app.
+             */
             <View style={styles.emptyBox}>
-              <Text style={styles.emptyTitle}>Nessuna sessione in programma</Text>
-              <Text style={styles.empty}>
-                {isCoach
-                  ? 'Quando un atleta prenota, la sessione compare qui.'
-                  : 'Prenota una sessione con il tuo coach, e la trovi qui.'}
-              </Text>
+              {error ? (
+                <>
+                  <Text style={styles.emptyTitle}>Non ho i tuoi appuntamenti</Text>
+                  <Text style={styles.empty}>
+                    La connessione non ha risposto. Non vuol dire che non ce ne
+                    siano.
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      setLoading(true);
+                      void load();
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Riprova a caricare le sessioni"
+                    style={({ pressed }) => [styles.retry, pressed && styles.pressed]}
+                  >
+                    <Text style={styles.retryText}>Riprova</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.emptyTitle}>
+                    Nessuna sessione in programma
+                  </Text>
+                  <Text style={styles.empty}>
+                    {isCoach
+                      ? 'Quando un atleta prenota, la sessione compare qui.'
+                      : 'Prenota una sessione con il tuo coach, e la trovi qui.'}
+                  </Text>
+                </>
+              )}
             </View>
           ) : sessions.length === 1 ? (
             <SessionHeroCard
@@ -340,7 +372,18 @@ const createStyles = (theme: Palette) =>
     filterText: { color: theme.mid, fontSize: 13, fontWeight: '600' },
     filterTextOn: { color: '#fff', fontWeight: '700' },
     history: { gap: 10, marginTop: 4 },
-    emptyBox: { marginTop: 20, gap: 8 },
+    emptyBox: { marginTop: 20, gap: 8, alignItems: 'flex-start' },
+    retry: {
+      marginTop: 8,
+      minHeight: 48,
+      paddingHorizontal: 24,
+      justifyContent: 'center',
+      borderRadius: 999,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.line,
+    },
+    retryText: { color: theme.hi, fontSize: 15, fontWeight: '700' },
     emptyTitle: { color: theme.hi, fontSize: 17, fontWeight: '700' },
     empty: { color: theme.mid, fontSize: 14, lineHeight: 20 },
     banner: {

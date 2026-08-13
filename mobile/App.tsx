@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BackHandler } from 'react-native';
+import { BackHandler, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -29,7 +29,11 @@ type Route =
   | { name: 'login' }
   | { name: 'sessions' }
   | { name: 'settings' }
-  | { name: 'call'; session: UpcomingSession };
+  /**
+   * In chiamata. `minimized` non e` un'altra schermata: e` la stessa, disegnata
+   * come una barra sopra l'elenco — la stanza resta collegata.
+   */
+  | { name: 'call'; session: UpcomingSession; minimized: boolean };
 
 /** `/dashboard/video/171` → 171. Il resto non ci interessa. */
 function bookingIdFromUrl(url: string): number | null {
@@ -66,7 +70,16 @@ export default function App() {
   useFonts(MaterialIcons.font);
 
   const openCall = useCallback(
-    (session: UpcomingSession) => setRoute({ name: 'call', session }),
+    (session: UpcomingSession) =>
+      setRoute({ name: 'call', session, minimized: false }),
+    []
+  );
+
+  const setMinimized = useCallback(
+    (minimized: boolean) =>
+      setRoute((current) =>
+        current.name === 'call' ? { ...current, minimized } : current
+      ),
     []
   );
 
@@ -106,10 +119,22 @@ export default function App() {
           setRoute({ name: 'sessions' });
           return true;
         }
+        /*
+         * Con una chiamata ridotta, «indietro» la riapre: non esce dall'app.
+         *
+         * Ridotta, la sessione e` viva ma quasi invisibile — una barra in
+         * fondo. Lasciare che il gesto piu` frequente di Android chiuda l'app
+         * sopra una seduta in corso significherebbe farla proseguire a
+         * insaputa di chi crede di averla lasciata. Riaprendola, chi voleva
+         * davvero chiudere si trova davanti il pulsante rosso.
+         *
+         * A schermo pieno non si arriva qui: `CallScreen` registra il proprio
+         * gestore dopo, e viene consultato per primo.
+         */
         if (route.name === 'call') {
-          // La chiamata si chiude passando dall'uscita normale, cosi` la
-          // stanza viene lasciata invece di restare aperta a nome nostro.
-          setRoute({ name: 'sessions' });
+          setRoute((current) =>
+            current.name === 'call' ? { ...current, minimized: false } : current
+          );
           return true;
         }
         return false;
@@ -133,7 +158,7 @@ export default function App() {
         const session = sessions.find((s) => s.bookingId === bookingId);
         // Se la sessione non è nell'elenco (finita, o non ancora aperta) si
         // resta dove si è: meglio della schermata chiamata che fallisce.
-        if (session) setRoute({ name: 'call', session });
+        if (session) setRoute({ name: 'call', session, minimized: false });
       } catch {
         // Senza rete non si apre nulla: la lista resta il punto di partenza.
       }
@@ -150,6 +175,7 @@ export default function App() {
           onOpenCall={openCall}
           onOpenSettings={() => setRoute({ name: 'settings' })}
           onBack={() => setRoute({ name: 'sessions' })}
+          onMinimize={setMinimized}
         />
       </SafeAreaProvider>
     </ThemeProvider>
@@ -167,6 +193,7 @@ function Chrome({
   onOpenCall,
   onOpenSettings,
   onBack,
+  onMinimize,
 }: {
   route: Route;
   onSignedIn: () => void;
@@ -174,6 +201,7 @@ function Chrome({
   onOpenCall: (session: UpcomingSession) => void;
   onOpenSettings: () => void;
   onBack: () => void;
+  onMinimize: (minimized: boolean) => void;
 }) {
   const { resolved } = useTheme();
 
@@ -182,14 +210,51 @@ function Chrome({
       {/* Su fondo chiaro le icone di sistema vanno scure, o spariscono. */}
       <StatusBar style={resolved === 'light' ? 'dark' : 'light'} />
       {route.name === 'login' && <LoginScreen onSignedIn={onSignedIn} />}
-      {route.name === 'sessions' && (
+      {/*
+        Le impostazioni stanno **sopra** l'elenco, non al suo posto.
+
+        Prima erano schermate alternative: aprire le impostazioni distruggeva
+        l'elenco, e tornare indietro lo ricostruiva da zero — niente dati, e
+        una nuova richiesta al server da attendere. Se quella richiesta non
+        tornava, restava la rotella a girare su una lista vuota: cambiavi il
+        tema, tornavi, e non c'era piu' niente.
+
+        Sovrapporle e' anche il comportamento che ci si aspetta: si va nelle
+        impostazioni e si torna dov'eravamo, non si riparte.
+      */}
+      {(route.name === 'sessions' ||
+        route.name === 'settings' ||
+        (route.name === 'call' && route.minimized)) && (
         <SessionsScreen onOpenCall={onOpenCall} onOpenSettings={onOpenSettings} />
       )}
       {route.name === 'settings' && (
-        <SettingsScreen onClose={onBack} onSignedOut={onSignedOut} />
+        // Riempie lo schermo per intero: due fratelli con `flex: 1` se lo
+        // dividerebbero a meta`, mostrando entrambe le schermate dimezzate.
+        <View style={StyleSheet.absoluteFill}>
+          <SettingsScreen onClose={onBack} onSignedOut={onSignedOut} />
+        </View>
       )}
       {route.name === 'call' && (
-        <CallScreen session={route.session} onLeave={onBack} />
+        /*
+          A schermo pieno riempie tutto; ridotta, e` una barra che si posiziona
+          da se` e non deve rubare spazio all'elenco sotto.
+        */
+        <View
+          style={StyleSheet.absoluteFill}
+          /*
+            Ridotta, i tocchi devono attraversare: sotto c'e` l'elenco, e solo
+            la barra li raccoglie. A schermo pieno se li prende tutti lei.
+          */
+          pointerEvents={route.minimized ? 'box-none' : 'auto'}
+        >
+          <CallScreen
+            session={route.session}
+            onLeave={onBack}
+            minimized={route.minimized}
+            onMinimize={() => onMinimize(true)}
+            onExpand={() => onMinimize(false)}
+          />
+        </View>
       )}
     </>
   );

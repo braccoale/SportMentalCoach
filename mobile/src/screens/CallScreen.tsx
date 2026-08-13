@@ -26,12 +26,14 @@ import {
   ROOM_ERROR_TEXT,
   createGuestInvite,
   fetchRoomCredentials,
+  sendSessionHeartbeat,
   type RoomCredentials,
   type UpcomingSession,
 } from '../lib/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AiNotesConsentPanel } from '../components/AiNotesConsentPanel';
 import { SessionExitStep } from '../components/SessionExitStep';
+import { AudioOutputPicker } from '../components/AudioOutputPicker';
 import { Icon, type IconName } from '../components/Icon';
 import { useTheme, type Palette } from '../theme';
 
@@ -46,9 +48,22 @@ import { useTheme, type Palette } from '../theme';
 export function CallScreen({
   session,
   onLeave,
+  minimized = false,
+  onMinimize,
+  onExpand,
 }: {
   session: UpcomingSession;
   onLeave: () => void;
+  /**
+   * La chiamata continua, ma occupa solo una barra: sotto c'e` l'app.
+   *
+   * Serve a guardare il prossimo appuntamento mentre si parla — cosa che
+   * prima costringeva a chiudere la stanza e rientrare, cioe` a interrompere
+   * la seduta per una domanda di dieci secondi.
+   */
+  minimized?: boolean;
+  onMinimize?: () => void;
+  onExpand?: () => void;
 }) {
   const [credentials, setCredentials] = useState<RoomCredentials | null>(null);
   const { theme } = useTheme();
@@ -97,12 +112,25 @@ export function CallScreen({
       'hardwareBackPress',
       () => {
         if (left) return false;
+        /*
+         * A stanza aperta, «indietro» riduce: non chiude.
+         *
+         * Chiudere per sbaglio una sessione in corso e` il danno peggiore che
+         * un gesto involontario possa fare qui, e «indietro» e` il gesto piu`
+         * frequente su Android. Per uscire davvero c'e` il pulsante rosso, che
+         * si preme apposta.
+         */
+        if (onMinimize && !minimized) {
+          onMinimize();
+          return true;
+        }
+        if (minimized) return false;
         setLeft(true);
         return true;
       }
     );
     return () => subscription.remove();
-  }, [left]);
+  }, [left, minimized, onMinimize]);
 
   if (error) {
     return (
@@ -222,6 +250,9 @@ export function CallScreen({
         bookingId={session.bookingId}
         viewerIsCoach={credentials.viewerIsCoach}
         coachIdentity={credentials.coachIdentity}
+        minimized={minimized}
+        onMinimize={onMinimize}
+        onExpand={onExpand}
       />
     </LiveKitRoom>
   );
@@ -233,12 +264,18 @@ function RoomStage({
   bookingId,
   viewerIsCoach,
   coachIdentity,
+  minimized = false,
+  onMinimize,
+  onExpand,
 }: {
   otherName: string;
   onLeave: () => void;
   bookingId: number;
   viewerIsCoach: boolean;
   coachIdentity: string;
+  minimized?: boolean;
+  onMinimize?: () => void;
+  onExpand?: () => void;
 }) {
   /*
    * Lo schermo non si spegne durante la sessione.
@@ -268,6 +305,7 @@ function RoomStage({
   // Il coach non aspetta se stesso: entra diretto.
   const [admitted, setAdmitted] = useState(viewerIsCoach);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [audioOpen, setAudioOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
   // Dopo venti secondi senza collegarsi, si smette di far credere che manchi poco.
@@ -281,6 +319,33 @@ function RoomStage({
     const timer = setTimeout(() => setStuck(true), 20_000);
     return () => clearTimeout(timer);
   }, [connection]);
+
+  /*
+   * Il battito della sessione, come dal web.
+   *
+   * Dal telefono non lo mandava nessuno, e senza battito il server non sa che
+   * la sessione e` davvero cominciata: nella cronologia una seduta tenuta dal
+   * telefono non aveva durata reale, e l'elenco non poteva distinguere «e`
+   * uscito un attimo fa» da «non c'e` mai entrato».
+   *
+   * Ogni quindici secondi finche` si e` collegati, come il web. Se una
+   * chiamata fallisce si tace: e` una misura, non un comando, e non deve
+   * disturbare chi sta parlando.
+   */
+  useEffect(() => {
+    if (connection !== ConnectionState.Connected) return;
+    let active = true;
+    const ping = () => {
+      if (!active) return;
+      void sendSessionHeartbeat(bookingId).catch(() => {});
+    };
+    ping();
+    const timer = setInterval(ping, 15_000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [connection, bookingId]);
 
   /*
    * L'app che va in secondo piano durante una sessione.
@@ -437,6 +502,78 @@ function RoomStage({
     }
   }
 
+  /*
+   * La chiamata ridotta: una barra, e sotto l'app.
+   *
+   * La stanza non viene smontata — e` lo stesso albero di componenti, disegnato
+   * in piccolo — quindi audio e video non si interrompono: si continua a
+   * parlare mentre si guarda l'elenco degli appuntamenti. Smontare e rimontare
+   * avrebbe significato uscire e rientrare, con i suoi secondi di silenzio e
+   * la stanza che si chiude a chi resta dentro.
+   *
+   * Resta il minimo indispensabile: chi c'e`, il microfono (la cosa che si
+   * cambia di corsa), il ritorno a schermo pieno, e la chiusura.
+   */
+  if (minimized) {
+    return (
+      <Pressable
+        onPress={onExpand}
+        accessibilityRole="button"
+        accessibilityLabel={`Torna alla videochiamata con ${otherName}`}
+        style={[styles.miniBar, { bottom: insets.bottom + 12 }]}
+      >
+        {local ? (
+          <View style={styles.miniVideo}>
+            <VideoTrack trackRef={local} style={styles.video} />
+          </View>
+        ) : (
+          <View style={[styles.miniVideo, styles.centered]}>
+            <Icon name="videocamOff" size={16} color={theme.mid} />
+          </View>
+        )}
+
+        <View style={styles.miniText}>
+          <Text style={styles.miniTitle} numberOfLines={1}>
+            {otherName}
+          </Text>
+          <Text style={styles.miniHint}>
+            {connection === ConnectionState.Connected
+              ? 'Sessione in corso'
+              : 'Mi sto collegando…'}
+          </Text>
+        </View>
+
+        <Pressable
+          onPress={() =>
+            void localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled)
+          }
+          accessibilityRole="button"
+          accessibilityLabel={
+            isMicrophoneEnabled ? 'Spegni il microfono' : 'Accendi il microfono'
+          }
+          hitSlop={8}
+          style={styles.miniButton}
+        >
+          <Icon
+            name={isMicrophoneEnabled ? 'mic' : 'micOff'}
+            size={20}
+            color={isMicrophoneEnabled ? theme.hi : theme.red2}
+          />
+        </Pressable>
+
+        <Pressable
+          onPress={onLeave}
+          accessibilityRole="button"
+          accessibilityLabel="Chiudi la videochiamata"
+          hitSlop={8}
+          style={[styles.miniButton, styles.miniEnd]}
+        >
+          <Icon name="callEnd" size={20} color="#fff" />
+        </Pressable>
+      </Pressable>
+    );
+  }
+
   if (!admitted) {
     return (
       <View style={[styles.screen, styles.centered]}>
@@ -546,9 +683,28 @@ function RoomStage({
         {/* La propria immagine piccola, in un angolo: serve a controllarsi, non
             a guardarsi. Sotto, mai sopra, la persona con cui si parla. */}
         {local && (
-          <View style={[styles.selfTile, { bottom: insets.bottom + 108 }]}>
+          /*
+           * Girare la fotocamera si fa **sulla propria immagine**.
+           *
+           * Era un pulsante nella testata e una voce nel menu: due posti in cui
+           * nessuno lo cerca. Il gesto standard — Meet, WhatsApp, la fotocamera
+           * del telefono — e` toccare l'anteprima di se stessi, perche' e` li'
+           * che si guarda quando ci si accorge di essere inquadrati male.
+           *
+           * Il piccolo simbolo nell'angolo dice che si puo' toccare: senza,
+           * resterebbe una funzione che si scopre per caso.
+           */
+          <Pressable
+            onPress={() => void flipCamera()}
+            accessibilityRole="button"
+            accessibilityLabel="Gira la fotocamera"
+            style={[styles.selfTile, { bottom: insets.bottom + 108 }]}
+          >
             <VideoTrack trackRef={local} style={styles.video} />
-          </View>
+            <View style={styles.selfFlip}>
+              <Icon name="flip" size={16} color="#fff" />
+            </View>
+          </Pressable>
         )}
       </View>
 
@@ -557,23 +713,38 @@ function RoomStage({
         * Galleggia sul video invece di occupare una fascia propria.
         */}
       <View style={[styles.topBar, { top: insets.top + 8 }]}>
+        {/*
+          * La freccia riduce, non chiude.
+          *
+          * Chi tocca «indietro» durante una sessione vuole quasi sempre
+          * guardare qualcosa nell'app, non riagganciare — e la chiusura per
+          * sbaglio di una seduta in corso e` il danno peggiore possibile qui.
+          * Per chiudere c'e` il pulsante rosso, che si preme di proposito.
+          */}
         <RoundButton
           icon="back"
-          label="Esci dalla chiamata"
-          onPress={onLeave}
+          label="Torna all’app, la sessione continua"
+          onPress={onMinimize ?? onLeave}
         />
         <View style={styles.titlePill}>
           <Text style={styles.titleText} numberOfLines={1}>
             {otherName}
           </Text>
         </View>
-        {isCameraEnabled && (
-          <RoundButton
-            icon="flip"
-            label="Gira la fotocamera"
-            onPress={flipCamera}
-          />
-        )}
+        {/*
+          * Da dove esce l'audio, a portata di pollice.
+          *
+          * Si cambia a meta` sessione — entra qualcuno nella stanza e si passa
+          * alle cuffie — cioe` nel momento in cui non si puo` andare a
+          * cercarlo nelle impostazioni del telefono. Sta qui, dov'era la
+          * rotazione della fotocamera prima che tornasse sulla propria
+          * immagine.
+          */}
+        <RoundButton
+          icon="volumeUp"
+          label="Da dove esce l’audio"
+          onPress={() => setAudioOpen(true)}
+        />
       </View>
 
       <View style={[styles.overlayTop, { top: insets.top + 60 }]}>
@@ -657,22 +828,17 @@ function RoomStage({
               <Icon name="personAdd" size={22} color={theme.hi} />
               <Text style={styles.sheetText}>Invita un ospite</Text>
             </Pressable>
-            {isCameraEnabled && (
-              <Pressable
-                onPress={() => {
-                  setMenuOpen(false);
-                  void flipCamera();
-                }}
-                accessibilityRole="button"
-                style={({ pressed }) => [styles.sheetItem, pressed && styles.pressed]}
-              >
-                <Icon name="flip" size={22} color={theme.hi} />
-                <Text style={styles.sheetText}>Gira la fotocamera</Text>
-              </Pressable>
-            )}
+            {/* «Gira la fotocamera» non e` piu` qui: si tocca la propria
+                immagine, dov'e` naturale cercarlo. E l'uscita audio sta in
+                alto, perche' si cambia mentre si parla. */}
           </View>
         </Pressable>
       </Modal>
+
+      <AudioOutputPicker
+        visible={audioOpen}
+        onClose={() => setAudioOpen(false)}
+      />
     </View>
   );
 }
@@ -768,6 +934,56 @@ const createStyles = (theme: Palette) =>
     borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: '#000',
+    // Su Android un elemento sovrapposto riceve i tocchi solo se e` anche
+    // sollevato: senza, il video coprirebbe il gesto.
+    elevation: 6,
+    zIndex: 6,
+  },
+  miniBar: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 8,
+    borderRadius: 18,
+    backgroundColor: theme.ink2,
+    borderWidth: 1,
+    borderColor: theme.line,
+    // Galleggia sopra l'elenco, e deve anche ricevere i tocchi.
+    elevation: 12,
+    zIndex: 20,
+  },
+  miniVideo: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+  },
+  miniText: { flex: 1, gap: 1 },
+  miniTitle: { color: theme.hi, fontSize: 14, fontWeight: '700' },
+  miniHint: { color: theme.mid, fontSize: 12 },
+  miniButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.surface,
+  },
+  miniEnd: { backgroundColor: theme.red },
+  selfFlip: {
+    position: 'absolute',
+    right: 6,
+    bottom: 6,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
   },
   nameTag: {
     position: 'absolute',
