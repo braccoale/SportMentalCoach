@@ -95,3 +95,49 @@ test('il telefono pubblica meno livelli simulcast del desktop', () => {
     assert.ok(layer.height <= compact.resolution.height);
   }
 });
+
+/*
+ * Il guasto vero: la seduta del 16 agosto ha perso l'intera voce dell'atleta.
+ * L'egress ha registrato un'ora a 91 kbps — il valore di fabbrica di
+ * `livekit-client`, 48 kbps di preset `music` raddoppiati da `red` — e il
+ * caricamento è morto con `413 EntityTooLarge` contro il limite di 50 MB del
+ * bucket. Non si perde l'eccedenza: si perde tutto il file.
+ *
+ * Questo test è la soglia, scritta una volta. Se qualcuno toglie il preset o
+ * lo alza, qui si vede prima che in una seduta vera.
+ */
+const STOP_DI_SICUREZZA_SECONDI = 3 * 60 * 60;
+
+/*
+ * Il tetto che il codice chiede per il bucket audio: il default di
+ * `getAiNotesAudioMaxBytes` in `lib/core/ai-session-notes/recording-config.ts`.
+ *
+ * In produzione il bucket era fermo a 50 MB — Supabase non alza un bucket
+ * sopra il limite globale del progetto e non lo dice — ed è il numero che ha
+ * fatto fallire il caricamento. Abbassare il bitrate non bastava da solo: a
+ * 32 kbps tre ore fanno comunque 82 MB. Questo test è il posto in cui quel
+ * conto viene fatto invece che sperato.
+ */
+const LIMITE_BUCKET_BYTE = 128 * 1024 * 1024;
+
+test('la voce si pubblica abbastanza leggera da stare nel bucket per tutta la seduta', () => {
+  for (const compact of [true, false]) {
+    const { publishDefaults } = videoPublishSettings(compact);
+    const bitrate = publishDefaults.audioPreset?.maxBitrate;
+    assert.ok(
+      bitrate !== undefined,
+      'senza preset esplicito valgono i 48 kbps di fabbrica, che con red diventano ~96'
+    );
+
+    // `red: true` è il default e resta acceso: la ridondanza raddoppia il
+    // payload effettivo, e il conto va fatto sul caso peggiore, non sul
+    // nominale.
+    const byteAlSecondo = (bitrate * 2) / 8;
+    const peggioreCaso = byteAlSecondo * STOP_DI_SICUREZZA_SECONDI;
+    assert.ok(
+      peggioreCaso < LIMITE_BUCKET_BYTE,
+      `a ${bitrate / 1000} kbps una seduta al limite delle tre ore produrrebbe ` +
+        `${Math.round(peggioreCaso / 1024 / 1024)} MB, oltre il tetto del bucket`
+    );
+  }
+});

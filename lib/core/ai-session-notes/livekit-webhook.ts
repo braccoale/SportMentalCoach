@@ -203,6 +203,17 @@ function nsDurationSeconds(startedAt: bigint, endedAt: bigint): number | null {
   return Number.isSafeInteger(seconds) ? seconds : null;
 }
 
+/**
+ * Il motivo del fallimento, ridotto a quel che sta nella colonna.
+ *
+ * Errore d'infrastruttura, non contenuto della seduta: si conserva com'e'.
+ */
+function sanitizeEgressFailure(error: string | undefined): string | null {
+  const detail = error?.trim();
+  if (!detail) return null;
+  return detail.slice(0, 500);
+}
+
 async function auditEgress(params: {
   sessionId: number;
   requestedBy: number;
@@ -388,9 +399,20 @@ async function handleEgressEvent(event: WebhookEvent, executor: DbOrTx = db): Pr
       status: 'failed',
       endedAt: nsToDate(info.endedAt) ?? new Date(),
       errorCode,
-      errorMessageSanitized: info.error
-        ? 'LiveKit Egress ha segnalato un errore.'
-        : null,
+      /*
+       * Il motivo vero, non un segnaposto.
+       *
+       * Qui c'era «LiveKit Egress ha segnalato un errore», e il messaggio di
+       * LiveKit veniva buttato. Quel messaggio diceva `S3 upload failed ...
+       * 413 EntityTooLarge`: la causa esatta, in chiaro, cestinata. Per
+       * ritrovarla e' servito interrogare a mano l'API degli egress giorni
+       * dopo, quando la seduta era gia' persa.
+       *
+       * Non e' un dato sensibile: e' un errore d'infrastruttura, non contiene
+       * nulla della conversazione. La colonna e' comunque limitata a 500
+       * caratteri, e il testo viene tagliato.
+       */
+      errorMessageSanitized: sanitizeEgressFailure(info.error),
     })
     .where(eq(sessionAudioRecordings.id, recording.id));
   await auditEgress({
