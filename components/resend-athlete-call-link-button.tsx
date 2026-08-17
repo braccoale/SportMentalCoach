@@ -47,10 +47,13 @@ export function ResendAthleteCallLinkButton({
   bookingId,
   athleteName,
   appearance = 'standard',
+  compact = false,
 }: {
   bookingId: number;
   athleteName: string;
   appearance?: 'standard' | 'room' | 'room-compact';
+  /** Taglia ridotta per le righe d'azione di una scheda. Vedi `ShareButton`. */
+  compact?: boolean;
 }) {
   const [pending, setPending] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
@@ -124,6 +127,7 @@ export function ResendAthleteCallLinkButton({
         <Button
           type="button"
           variant="outline"
+          size={compact ? 'sm' : 'default'}
           disabled={pending}
           aria-label={`Invia a ${athleteName} il link per rientrare nella videochiamata`}
           className={`rounded-full ${

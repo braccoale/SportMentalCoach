@@ -23,9 +23,20 @@ async function copyText(value: string): Promise<void> {
 export function ShareButton({
   bookingId,
   appearance = 'standard',
+  compact = false,
 }: {
   bookingId: number;
   appearance?: 'standard' | 'room';
+  /**
+   * Taglia ridotta, per le righe d'azione di una scheda.
+   *
+   * La riga di una scheda ha due livelli e non sette: l'azione principale e
+   * la sua alternativa alla taglia piena, tutti gli strumenti a `sm`. Senza
+   * questa prop il pulsante restava a `default` accanto a `Modifica` e
+   * `Aggiungi al calendario` che erano gia' `sm`, ed e' da li' che nasceva la
+   * riga sfrangiata.
+   */
+  compact?: boolean;
 }) {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -82,6 +93,7 @@ export function ShareButton({
       <Button
         type="button"
         variant="outline"
+        size={compact ? 'sm' : 'default'}
         onClick={() => void shareCall()}
         disabled={pending}
         className={`rounded-full ${

@@ -87,6 +87,18 @@ export function VideoCallButton({
 
   const tooltip =
     'La videochiamata sarà disponibile 5 minuti prima dell’orario previsto.';
+  /*
+   * L'altezza della variante da scheda combacia con `Button size="default"`.
+   *
+   * Prima era `px-5 py-2.5` e basta: un'altezza calcolata dal padding, che non
+   * coincideva con nessuno dei pulsanti accanto. In una riga dove `Modifica` e
+   * `Aggiungi al calendario` stanno a `h-8` e gli altri a `h-9`, questo si
+   * piazzava a meta' strada e faceva sembrare sbagliati anche quelli giusti.
+   *
+   * Non e' un dettaglio da pignoli: quando le altezze non tornano, l'occhio
+   * legge la riga come un elenco di cose scollegate invece che come un gruppo
+   * di azioni fra cui scegliere.
+   */
   const controlClass = cn(
     'inline-flex items-center justify-center gap-2 rounded-full text-sm font-semibold transition-colors',
     prominent
@@ -95,7 +107,7 @@ export function VideoCallButton({
         ? 'h-9 w-full px-3'
         : variant === 'calendar'
           ? 'w-full px-4 py-2.5 font-medium'
-          : 'px-5 py-2.5',
+          : 'h-9 px-4',
     isEnabled
       ? 'bg-green-600 text-white hover:bg-green-700'
       : variant === 'calendar'
