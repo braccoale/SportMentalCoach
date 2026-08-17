@@ -10,6 +10,7 @@ import {
 } from '@/lib/core/ai-session-notes/processing';
 import { closeExpiredAiNotesSessions } from '@/lib/core/ai-session-notes/maintenance';
 import { resumeInterruptedRecordings } from '@/lib/core/ai-session-notes/recording-resume';
+import { sendPendingSessionOutcomes } from '@/lib/core/ai-session-notes/session-outcome-email';
 import { closeStuckProcessingSessions } from '@/lib/core/ai-session-notes/stuck-sessions';
 import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
 import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger';
@@ -133,11 +134,29 @@ async function drainQueue(workerId: string, limit: number) {
   const processed = await processAiNotesBatch({ workerId, limit }, dependencies);
   // Ultima cosa: nessuna sessione deve restare a girare per sempre.
   const stuckClosed = await closeStuckProcessingSessions({ limit }, dependencies);
+
+  /*
+   * Il rapporto d'esito, dopo tutto il resto.
+   *
+   * Dopo, e non prima: `closeStuckProcessingSessions` è ciò che porta allo
+   * stato terminale una seduta scaduta, e raccontare l'esito prima che
+   * l'esito esista significherebbe non raccontarlo mai per il caso che
+   * interessa di più.
+   *
+   * Isolato come la ripresa: nessuna mail deve poter fermare la coda.
+   */
+  const outcomesReported = await sendPendingSessionOutcomes({ limit }).catch(
+    (error: unknown) => {
+      console.error('[ai-notes] rapporto esiti fallito', error);
+      return { sent: 0, skipped: 0, failed: 0 };
+    }
+  );
   return {
     expiredClosed,
     staleRequests,
     recovered,
     recordingsResumed,
+    outcomesReported,
     compassJobsQueued,
     stuckClosed,
     ...processed,

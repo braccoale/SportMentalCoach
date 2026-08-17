@@ -502,3 +502,44 @@ export async function sendContactMessageEmail(input: {
     }),
   });
 }
+
+/**
+ * Il rapporto d'esito di una seduta, alla casella di servizio.
+ *
+ * Non e' posta di prodotto: nessun link alle preferenze, nessun invito
+ * all'azione, nessuna traduzione. E' un log incolonnato dentro `<pre>`,
+ * perche' chi lo apre lo legge come leggerebbe un terminale — e spesso lo
+ * incolla da qualche parte.
+ *
+ * Il contenuto arriva gia' costruito da `session-outcome-report.ts`, che e'
+ * anche il posto in cui e' scritta la regola su cosa non deve mai entrarci:
+ * niente frasi della seduta, niente nome dell'atleta.
+ */
+export async function sendSessionOutcomeEmail(input: {
+  to: string;
+  subject: string;
+  report: string;
+}): Promise<SendResult> {
+  const { privacyUrl, baseUrl } = footerUrls();
+  return sendEmail({
+    to: input.to,
+    subject: input.subject,
+    html: wrapEmailHtml({
+      preview: input.subject,
+      eyebrow: 'Appunti AI · esito seduta',
+      title: escapeHtml(input.subject),
+      bodyHtml: `<pre style="margin:0;padding:14px;background:#0f0f14;color:#e6e6ea;border-radius:8px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.55;white-space:pre-wrap;word-break:break-word">${escapeHtml(input.report)}</pre>`,
+      action: null,
+      preferencesUrl: null,
+      privacyUrl,
+      baseUrl,
+    }),
+    text: wrapEmailText({
+      eyebrow: 'Appunti AI · esito seduta',
+      title: input.subject,
+      bodyText: input.report,
+      action: null,
+      preferencesUrl: null,
+    }),
+  });
+}
