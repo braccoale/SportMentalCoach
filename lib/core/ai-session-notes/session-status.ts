@@ -35,6 +35,15 @@ export async function advanceAiNotesSessionStatus(params: {
   nextStatus: AiSessionNoteStatus;
   actorUserId: number;
   executor?: DbOrTx;
+  /**
+   * Che cosa scrivere nel registro oltre al passaggio.
+   *
+   * Serve a distinguere un avanzamento deciso dalla pipeline da una
+   * riapertura decisa da qualcuno: nel registro devono restare due cose
+   * diverse, altrimenti fra un anno una sessione tornata in lavorazione a
+   * mano è indistinguibile da una che ci è arrivata da sola.
+   */
+  auditMetadata?: Record<string, unknown>;
 }): Promise<boolean> {
   const run = async (tx: DbOrTx): Promise<boolean> => {
     const locked = (await tx.execute(sql`
@@ -69,7 +78,7 @@ export async function advanceAiNotesSessionStatus(params: {
       actorUserId,
       previousStatus: session.status,
       newStatus: params.nextStatus,
-      eventMetadata: { automatic: true },
+      eventMetadata: { automatic: true, ...params.auditMetadata },
       createdBy: actorUserId,
       updatedBy: actorUserId,
     });

@@ -102,6 +102,39 @@ export async function ensureAudioBucketPrivate(
       if (verifyError || !verified || verified.public) {
         throw new Error('AUDIO_BUCKET_NOT_PRIVATE');
       }
+
+      /*
+       * Si verifica anche il tetto, non solo la privatezza.
+       *
+       * Qui sopra si chiede un bucket da `maxBytes` (128 MB di default) e
+       * Supabase **non protesta** se il progetto ha un limite globale piu'
+       * basso: accetta la chiamata e tiene il valore che gli pare. Il bucket
+       * di produzione e' rimasto a 50 MB per mesi mentre il codice era
+       * convinto di averne chiesti 128, e nessuno poteva accorgersene perche'
+       * l'unica cosa che si rileggeva era `public`.
+       *
+       * Il conto lo ha pagato la seduta del 16 agosto: la traccia dell'atleta
+       * ha superato i 50 MB, S3 ha risposto `413 EntityTooLarge`, e non si e'
+       * persa l'eccedenza ma l'intero file — e con esso il riepilogo di
+       * un'ora di seduta.
+       *
+       * Non si blocca la registrazione: un tetto piu' basso registra comunque
+       * le sedute corte, e rifiutare tutto sarebbe un danno peggiore. Ma il
+       * disallineamento non resta piu' muto.
+       */
+      const effettivo = verified.file_size_limit ?? null;
+      if (effettivo !== null && effettivo < config.maxBytes) {
+        console.error(
+          '[ai-notes] il bucket audio ha un tetto piu' +
+            ' basso di quello richiesto: alzare il limite di upload del ' +
+            'progetto Supabase, altrimenti le sedute lunghe perdono il file',
+          {
+            bucket: config.bucket,
+            richiesto: config.maxBytes,
+            effettivo,
+          }
+        );
+      }
     })().catch((error) => {
       readyBucket = null;
       throw error;

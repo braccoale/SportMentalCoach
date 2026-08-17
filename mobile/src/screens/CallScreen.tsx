@@ -32,7 +32,10 @@ import {
   type UpcomingSession,
 } from '../lib/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KAIPAI_ROOM_OPTIONS } from '../lib/call-audio';
 import { AiNotesConsentPanel } from '../components/AiNotesConsentPanel';
+import { CallBookmarkButton } from '../components/CallBookmarkButton';
+import { RecordingGapNotice } from '../components/RecordingGapNotice';
 import { SessionExitStep } from '../components/SessionExitStep';
 import { AudioOutputPicker } from '../components/AudioOutputPicker';
 import { Icon, type IconName } from '../components/Icon';
@@ -241,6 +244,7 @@ export function CallScreen({
       serverUrl={credentials.url}
       token={credentials.token}
       connect
+      options={KAIPAI_ROOM_OPTIONS}
       audio={choices.audio}
       video={choices.video}
       onDisconnected={() => setLeft(true)}
@@ -766,12 +770,24 @@ function RoomStage({
 
       <View style={[styles.overlayTop, { top: insets.top + 60 }]}>
         <AiNotesConsentPanel bookingId={bookingId} canActivate={viewerIsCoach} />
+        {/* Se una voce ha smesso di entrare, si dice adesso: fra dieci minuti
+            non c'è più niente da salvare. */}
+        <RecordingGapNotice bookingId={bookingId} />
         {shareError && (
           <Text style={styles.shareError} accessibilityLiveRegion="polite">
             {shareError}
           </Text>
         )}
       </View>
+
+      {/* Segna questo momento: sopra i comandi e a destra, dove il pollice
+          arriva senza coprire il volto di chi si ha davanti. Fuori dalla fila
+          dei tondi perché un gesto da un tocco non può costarne due. */}
+      <CallBookmarkButton
+        bookingId={bookingId}
+        viewerIsCoach={viewerIsCoach}
+        bottom={insets.bottom + 88}
+      />
 
       {/*
         * Una sola fila di pulsanti tondi, e il rosso separato da un filo.

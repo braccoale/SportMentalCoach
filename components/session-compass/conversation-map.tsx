@@ -67,10 +67,32 @@ const ROLE_STYLE: Record<
   athlete: { fill: '#d97706', label: 'Atleta', share: 'text-amber-200' },
 };
 
+const MISSING_VOICE_LABEL: Record<ConversationRole, string> = {
+  coach: 'la tua voce',
+  athlete: 'la voce dell’atleta',
+};
+
 function shareSentence(map: ConversationMap): string {
   const coach = map.lanes[0];
   const athlete = map.lanes[1];
   if (map.durationMs === 0) return 'Nessun parlato registrato.';
+
+  /*
+   * Con un microfono perso non si dice chi ha parlato di più.
+   *
+   * Qui c'era «Hai parlato tu per il 100% del tempo» sopra una seduta in cui
+   * l'audio dell'atleta non era mai arrivato: una frase che suona come un
+   * appunto sul lavoro del coach e invece descrive un guasto nostro. Il
+   * numero era pure esatto — ed è proprio questo il problema, perché esatto
+   * non vuol dire vero.
+   */
+  if (map.rolesWithoutRecording.length > 0) {
+    const mancanti = map.rolesWithoutRecording
+      .map((role) => MISSING_VOICE_LABEL[role])
+      .join(' e ');
+    return `Non è stata registrata ${mancanti}: la quota di parola non è calcolabile.`;
+  }
+
   if (!map.dominantRole) {
     return `Spazio di parola equilibrato: ${coach.sharePercent}% coach, ${athlete.sharePercent}% atleta.`;
   }
@@ -82,9 +104,16 @@ function shareSentence(map: ConversationMap): string {
 function Lane({
   lane,
   onHover,
+  shareUnknown,
 }: {
   lane: ConversationMap['lanes'][number];
   onHover: (block: { startMs: number; endMs: number; role: ConversationRole } | null) => void;
+  /*
+   * Con una voce mancante la percentuale non e' bassa: e' priva di senso.
+   * Mostrare «0%» accanto a «100%» invita a leggere un rapporto fra due
+   * quantita' di cui una non e' mai stata misurata.
+   */
+  shareUnknown: boolean;
 }) {
   const style = ROLE_STYLE[lane.role];
   return (
@@ -119,7 +148,11 @@ function Lane({
       <span
         className={`w-10 shrink-0 text-right text-sm font-bold tabular-nums ${style.share}`}
       >
-        {lane.sharePercent}%
+        {shareUnknown ? (
+          <span aria-label="Quota non calcolabile">&mdash;</span>
+        ) : (
+          `${lane.sharePercent}%`
+        )}
       </span>
     </div>
   );
@@ -202,7 +235,12 @@ export function ConversationMapBand({
 
       <div className="mt-5 space-y-2">
         {map.lanes.map((lane) => (
-          <Lane key={lane.role} lane={lane} onHover={setHovered} />
+          <Lane
+            key={lane.role}
+            lane={lane}
+            onHover={setHovered}
+            shareUnknown={map.rolesWithoutRecording.length > 0}
+          />
         ))}
       </div>
 
@@ -237,7 +275,10 @@ export function ConversationMapBand({
           bene o un male. La riga sotto glielo dice: e' la differenza fra un
           cruscotto e uno strumento. */}
       <div className="mt-5 grid gap-3 border-t border-white/10 pt-5 sm:grid-cols-2 lg:grid-cols-3">
-        {describeConversationInsight(map.insight).map((stat) => (
+        {describeConversationInsight(
+          map.insight,
+          map.rolesWithoutRecording
+        ).map((stat) => (
           <Stat key={stat.key} stat={stat} />
         ))}
       </div>

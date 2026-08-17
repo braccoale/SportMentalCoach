@@ -73,3 +73,34 @@ test('ogni voce ha sempre valore, etichetta e significato', () => {
     assert.ok(stat.meaning.length > 0, `significato vuoto per ${stat.key}`);
   }
 });
+
+test('con una voce mancante non si confrontano le durate dei turni', () => {
+  const insight = {
+    coachTurns: 592,
+    coachQuestionTurns: 70,
+    coachAverageTurnSec: 2,
+    athleteAverageTurnSec: 0,
+    athleteOpenedUp: null,
+    athleteFirstHalfSec: 0,
+    athleteSecondHalfSec: 0,
+  };
+
+  // «2s vs 0s → turni di durata simile» descriveva un microfono perso come
+  // una simmetria fra due persone.
+  const conVoceMancante = describeConversationInsight(insight, ['athlete']);
+  assert.equal(
+    conVoceMancante.some((stat) => stat.key === 'durata'),
+    false
+  );
+  // Le domande del coach restano: dipendono solo dalla sua voce, che c'è.
+  assert.equal(
+    conVoceMancante.some((stat) => stat.key === 'domande'),
+    true
+  );
+
+  // Se invece manca il coach, cade anche quella.
+  assert.equal(
+    describeConversationInsight(insight, ['coach']).length,
+    0
+  );
+});

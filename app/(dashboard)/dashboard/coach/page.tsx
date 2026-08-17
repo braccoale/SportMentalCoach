@@ -527,12 +527,14 @@ export default async function CoachDashboardPage() {
               primaryActions={
                 isSessionJoinable(booking.scheduledFor, booking.durationMin) ? (
                   <>
-                    <Link
-                      href={`/dashboard/chat/${booking.id}`}
-                      className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
-                    >
-                      <MessageSquare className="h-4 w-4" /> Apri chat
-                    </Link>
+                    {/*
+                      L'ordine e' la gerarchia.
+                      La videochiamata viene prima della chat perche' e' cio'
+                      per cui la sessione esiste: il posto dice cosa conta
+                      anche quando il pulsante e' ancora spento. La chat resta
+                      subito accanto, ma come alternativa — contorno, non
+                      pieno — cosi' nella riga c'e' un solo peso forte.
+                    */}
                     <VideoCallButton
                       bookingId={booking.id}
                       enabled={canJoinVideoNow(booking.scheduledFor, booking.durationMin)}
@@ -545,6 +547,16 @@ export default async function CoachDashboardPage() {
                           : undefined
                       }
                     />
+                    <Button
+                      asChild
+                      type="button"
+                      variant="outline"
+                      className="rounded-full"
+                    >
+                      <Link href={`/dashboard/chat/${booking.id}`}>
+                        <MessageSquare className="h-4 w-4" /> Apri chat
+                      </Link>
+                    </Button>
                     {booking.scheduledFor && (
                       <EditAppointmentButton
                         bookingId={booking.id}
@@ -568,30 +580,20 @@ export default async function CoachDashboardPage() {
                       userRole="coach"
                       compact
                     />
-                    <ShareButton bookingId={booking.id} />
+                    <ShareButton bookingId={booking.id} compact />
                     <ResendAthleteCallLinkButton
                       bookingId={booking.id}
                       athleteName={booking.clientName ?? 'l’atleta'}
+                      compact
                     />
-                    <ActionForm
-                      action={cancelBookingAction}
-                      confirmTitle="Annullare la sessione?"
-                      confirmMessage="La sessione verrà annullata. Potrai prenotarne una nuova in qualsiasi momento."
-                      confirmActionLabel="Annulla sessione"
-                    >
-                      <input
-                        type="hidden"
-                        name="bookingId"
-                        value={booking.id}
-                      />
-                      <Button
-                        type="submit"
-                        variant="destructive"
-                        className="rounded-full"
-                      >
-                        Annulla
-                      </Button>
-                    </ActionForm>
+                    {/*
+                      `Annulla` non sta qui.
+                      Era un pulsante rosso pieno, cioe' l'oggetto piu' acceso
+                      dell'intera scheda: l'azione piu' pericolosa era anche la
+                      piu' facile da premere di sfuggita. E' scesa nel menu
+                      `⋯`, dove costa un gesto in piu' — che e' esattamente il
+                      prezzo che deve avere.
+                    */}
                   </>
                 ) : (
                   <p className="text-sm text-gray-400">Sessione trascorsa</p>
@@ -618,6 +620,20 @@ export default async function CoachDashboardPage() {
                       Completabile dopo la videochiamata
                     </DropdownMenuItem>
                   )}
+                  <ActionForm
+                    action={cancelBookingAction}
+                    className="w-full"
+                    confirmTitle="Annullare la sessione?"
+                    confirmMessage="La sessione verrà annullata. Potrai prenotarne una nuova in qualsiasi momento."
+                    confirmActionLabel="Annulla sessione"
+                  >
+                    <input type="hidden" name="bookingId" value={booking.id} />
+                    <button type="submit" className="flex w-full">
+                      <DropdownMenuItem className="w-full flex-1 cursor-pointer text-red-600 focus:text-red-600">
+                        Annulla sessione
+                      </DropdownMenuItem>
+                    </button>
+                  </ActionForm>
                 </>
               }
               detailContent={

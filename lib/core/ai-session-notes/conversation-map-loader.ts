@@ -4,12 +4,14 @@ import { db, type DbOrTx } from '@/lib/db/drizzle';
 import {
   sessionAiNotes,
   sessionCoachBookmarks,
+  sessionParticipantRecordings,
   sessionTranscriptTimelineSegments,
 } from '@/lib/db/schema';
 import {
   buildConversationMap,
   type ConversationMap,
   type ConversationMomentInput,
+  type ConversationRole,
 } from './conversation-map';
 
 /**
@@ -62,7 +64,31 @@ export async function loadConversationMap(
       ? session.endedAt.getTime() - session.startedAt.getTime()
       : undefined;
 
+  /*
+   * Chi non e' stato registrato affatto.
+   *
+   * E' l'unica differenza fra «non ha parlato» e «non l'abbiamo sentito», e
+   * si vede solo da qui: nella timeline le due cose sono la stessa assenza.
+   * Senza, la mappa attribuisce il 100% del tempo a chi resta e il coach
+   * legge un giudizio sul proprio lavoro dove c'e' un microfono perso.
+   */
+  const partecipanti = await executor
+    .select({
+      role: sessionParticipantRecordings.participantRole,
+      status: sessionParticipantRecordings.status,
+    })
+    .from(sessionParticipantRecordings)
+    .where(eq(sessionParticipantRecordings.sessionAiNotesId, sessionId));
+
+  const rolesWithoutRecording = partecipanti
+    .filter((p) => p.status === 'failed' || p.status === 'deleted')
+    .map((p) => p.role)
+    .filter((role): role is ConversationRole =>
+      role === 'coach' || role === 'athlete'
+    );
+
   return buildConversationMap({
+    rolesWithoutRecording,
     segments: rows.flatMap((row) =>
       row.role === 'coach' || row.role === 'athlete'
         ? [{ startMs: row.startMs, endMs: row.endMs, role: row.role, text: row.text }]

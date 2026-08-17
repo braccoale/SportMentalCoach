@@ -12,6 +12,28 @@ export const KAIPAI_AUDIO_CAPTURE_DEFAULTS = {
   voiceIsolation: true,
 } satisfies AudioCaptureOptions;
 
+/**
+ * Con quanta banda si pubblica la voce.
+ *
+ * Il valore non è un dettaglio di qualità audio: è la dimensione del file che
+ * finisce nello storage. L'egress di LiveKit registra la traccia **così come
+ * arriva**, senza ricodificarla, quindi il bitrate scelto qui moltiplicato per
+ * la durata della seduta è, byte più byte meno, il file `.ogg` da caricare.
+ *
+ * Lasciato al valore di fabbrica, `livekit-client` pubblica con
+ * `AudioPresets.music` (48 kbps) e `red: true` — la ridondanza raddoppia il
+ * payload. Sono ~96 kbps per una voce sola: la seduta 72 ha prodotto 40,4 MB
+ * in 62 minuti, e la traccia dell'altro partecipante ha superato i 50 MB
+ * consentiti dal bucket, tornando `413 EntityTooLarge`. Non si è persa
+ * l'eccedenza: si è perso **tutto** il file, e con esso il riepilogo.
+ *
+ * 32 kbps è ampiamente trasparente per il parlato — Opus lo è già a 24 — e
+ * lascia un margine di quattro volte rispetto al tetto, anche nel caso
+ * peggiore dello stop di sicurezza a tre ore. `red` resta acceso: protegge la
+ * conversazione dal vero, che è il mestiere principale della chiamata.
+ */
+export const KAIPAI_AUDIO_PUBLISH_PRESET = { maxBitrate: 32_000 };
+
 export type VideoPublishSettings = {
   /** Cosa si chiede alla telecamera di catturare. */
   resolution: VideoPreset;
@@ -40,6 +62,7 @@ export function videoPublishSettings(compact: boolean): VideoPublishSettings {
         simulcast: true,
         videoSimulcastLayers: [VideoPresets.h180],
         videoCodec: 'vp8',
+        audioPreset: KAIPAI_AUDIO_PUBLISH_PRESET,
       },
     };
   }
@@ -49,6 +72,7 @@ export function videoPublishSettings(compact: boolean): VideoPublishSettings {
       simulcast: true,
       videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360],
       videoCodec: 'vp8',
+      audioPreset: KAIPAI_AUDIO_PUBLISH_PRESET,
     },
   };
 }

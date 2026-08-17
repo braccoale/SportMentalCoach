@@ -100,6 +100,46 @@ export function retryDelayMs(attemptCount: number): number {
   return Math.min(15 * 60_000, (attempt - 1) * 60_000);
 }
 
+/**
+ * Se le trascrizioni di una sessione sono al capolinea.
+ *
+ * La regola era «ogni partecipante ha una trascrizione completata», e per
+ * quasi tutte le sedute è la stessa cosa. Non lo è quando una registrazione
+ * fallisce: quella traccia non avrà **mai** un job di trascrizione, quindi la
+ * condizione non diventa vera mai più. La seduta del 16 agosto è morta qui —
+ * un'ora di voce del coach già trascritta, 592 segmenti in tabella, e nessuno
+ * che accodasse il passo successivo. Cinque minuti dopo la scadenza l'ha
+ * chiusa in `report_failed`, e il coach ha letto «report non riuscito» di una
+ * seduta che era stata registrata benissimo per metà.
+ *
+ * Quindi non si aspetta che tutti abbiano parlato: si aspetta che di tutti si
+ * sappia com'è andata. Una registrazione fallita è una risposta, non
+ * un'attesa. Serve però almeno una trascrizione vera: senza nemmeno una voce
+ * non c'è niente da riassumere, e quel caso è già `transcription_failed`.
+ */
+export function transcriptionRoundIsSettled(params: {
+  participants: { id: number; recordingStatus: string }[];
+  completedTranscriptionParticipantIds: number[];
+}): boolean {
+  if (params.participants.length < 2) return false;
+  const completed = new Set(params.completedTranscriptionParticipantIds);
+  const risolti = params.participants.every(
+    (p) =>
+      completed.has(p.id) ||
+      RECORDING_STATUSES_WITHOUT_HOPE.includes(p.recordingStatus)
+  );
+  return risolti && params.participants.some((p) => completed.has(p.id));
+}
+
+/**
+ * Gli stati da cui una registrazione non torna più indietro.
+ *
+ * `pending` e `recording` restano fuori di proposito: sono attese legittime, e
+ * scambiarle per un fallimento produrrebbe un riepilogo a metà mentre la
+ * seduta è ancora viva — il difetto opposto, e peggiore.
+ */
+const RECORDING_STATUSES_WITHOUT_HOPE = ['failed', 'deleted'];
+
 export function sessionCanProcess(params: {
   sessionStatus: string;
   consentStatuses: string[];

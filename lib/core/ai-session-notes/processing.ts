@@ -24,6 +24,7 @@ import {
   retryDelayMs,
   retryStatus,
   sessionCanProcess,
+  transcriptionRoundIsSettled,
   STALE_TRANSCRIPTION_REQUEST_MINUTES,
 } from './processing-policy';
 import { dispatchPendingTranscriptionRequests } from './transcription-dispatch';
@@ -455,10 +456,15 @@ export async function enqueueNormalizationIfReady(
   sessionId: number,
   dependencies: AiSessionNotesDependencies
 ): Promise<boolean> {
-  const participants = await dependencies.db.select({ id: sessionParticipantRecordings.id }).from(sessionParticipantRecordings).where(eq(sessionParticipantRecordings.sessionAiNotesId, sessionId));
-  if (participants.length < 2) return false;
+  const participants = await dependencies.db.select({ id: sessionParticipantRecordings.id, recordingStatus: sessionParticipantRecordings.status }).from(sessionParticipantRecordings).where(eq(sessionParticipantRecordings.sessionAiNotesId, sessionId));
   const completed = await dependencies.db.select({ participantId: sessionAiProcessingJobs.participantRecordingId }).from(sessionAiProcessingJobs).where(and(eq(sessionAiProcessingJobs.sessionAiNotesId, sessionId), eq(sessionAiProcessingJobs.jobType, 'transcription'), eq(sessionAiProcessingJobs.status, 'completed')));
-  if (!participants.every(p => completed.some(j => j.participantId === p.id))) return false;
+  const settled = transcriptionRoundIsSettled({
+    participants,
+    completedTranscriptionParticipantIds: completed
+      .map((j) => j.participantId)
+      .filter((id): id is number => id !== null),
+  });
+  if (!settled) return false;
   const sources = await dependencies.db.select({ id: sessionTranscriptSegments.id, participantRecordingId: sessionTranscriptSegments.participantRecordingId, participantUserId: sessionTranscriptSegments.participantUserId, participantRole: sessionTranscriptSegments.speakerRole, participantSequence: sessionTranscriptSegments.sequenceNumber, startMs: sessionTranscriptSegments.startedAtMs, endMs: sessionTranscriptSegments.endedAtMs, text: sessionTranscriptSegments.text, provider: sessionTranscriptSegments.provider, model: sessionTranscriptSegments.providerModel }).from(sessionTranscriptSegments).where(eq(sessionTranscriptSegments.sessionAiNotesId, sessionId));
   const fingerprintSources = sources
     .filter((s) => s.participantRecordingId !== null && (s.participantRole === 'coach' || s.participantRole === 'athlete'))

@@ -6,8 +6,87 @@ import {
   retryDelayMs,
   retryStatus,
   sessionCanProcess,
+  transcriptionRoundIsSettled,
   STALE_TRANSCRIPTION_REQUEST_MINUTES,
 } from './processing-policy';
+
+/*
+ * La seduta 72, ricostruita: il coach registrato e trascritto, l'atleta con
+ * l'egress fallito. Prima di questa regola nessuno accodava la
+ * normalizzazione, e un'ora di conversazione trascritta finiva in
+ * `report_failed` senza che nulla fosse davvero rotto a valle.
+ */
+test('una registrazione fallita non blocca il riepilogo degli altri', () => {
+  assert.equal(
+    transcriptionRoundIsSettled({
+      participants: [
+        { id: 84, recordingStatus: 'recorded' },
+        { id: 85, recordingStatus: 'failed' },
+      ],
+      completedTranscriptionParticipantIds: [84],
+    }),
+    true
+  );
+});
+
+test('si aspetta chi sta ancora registrando, non chi ha già fallito', () => {
+  // `recording` è un'attesa legittima: chiudere qui produrrebbe un riepilogo a
+  // metà mentre la seduta è ancora viva.
+  assert.equal(
+    transcriptionRoundIsSettled({
+      participants: [
+        { id: 84, recordingStatus: 'recorded' },
+        { id: 85, recordingStatus: 'recording' },
+      ],
+      completedTranscriptionParticipantIds: [84],
+    }),
+    false
+  );
+  assert.equal(
+    transcriptionRoundIsSettled({
+      participants: [
+        { id: 84, recordingStatus: 'recorded' },
+        { id: 85, recordingStatus: 'pending' },
+      ],
+      completedTranscriptionParticipantIds: [84],
+    }),
+    false
+  );
+});
+
+test('senza nemmeno una voce trascritta non c’è niente da riassumere', () => {
+  assert.equal(
+    transcriptionRoundIsSettled({
+      participants: [
+        { id: 84, recordingStatus: 'failed' },
+        { id: 85, recordingStatus: 'failed' },
+      ],
+      completedTranscriptionParticipantIds: [],
+    }),
+    false
+  );
+});
+
+test('con entrambe le trascrizioni pronte la regola resta quella di prima', () => {
+  assert.equal(
+    transcriptionRoundIsSettled({
+      participants: [
+        { id: 84, recordingStatus: 'recorded' },
+        { id: 85, recordingStatus: 'recorded' },
+      ],
+      completedTranscriptionParticipantIds: [84, 85],
+    }),
+    true
+  );
+  // Una sessione con un solo partecipante non è una seduta.
+  assert.equal(
+    transcriptionRoundIsSettled({
+      participants: [{ id: 84, recordingStatus: 'recorded' }],
+      completedTranscriptionParticipantIds: [84],
+    }),
+    false
+  );
+});
 
 test('job types require the correct logical recording scope', () => {
   assert.equal(jobRequiresParticipantRecording('transcription'), true);

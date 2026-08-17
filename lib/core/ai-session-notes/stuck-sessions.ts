@@ -290,6 +290,39 @@ export async function closeStuckProcessingSessions(
       now,
     });
     if (!verdict.expired) continue;
+
+    /*
+     * Un ultimo tentativo prima di dichiararla persa.
+     *
+     * Una sessione arriva qui anche quando non c'era niente di rotto a valle:
+     * basta che una registrazione sia fallita perche' il passo di
+     * normalizzazione non venga mai accodato, e allora la coda resta vuota,
+     * la scadenza corta scatta, e un'ora di conversazione gia' trascritta
+     * finisce in `report_failed`. E' successo alla seduta del 16 agosto.
+     *
+     * La regola giusta la conosce `enqueueNormalizationIfReady`, che ora
+     * accetta anche i partecipanti la cui registrazione e' fallita. Chiamarla
+     * qui copre ogni ordine in cui gli eventi possono arrivare — la
+     * registrazione che fallisce prima dell'ultima trascrizione o dopo, la
+     * callback che si perde e torna tardi — invece di rincorrerli uno a uno.
+     *
+     * Se accoda qualcosa, la sessione ha di nuovo lavoro vivo e non e' piu'
+     * scaduta: si passa oltre e la si rivaluta al giro successivo.
+     */
+    if (verdict.reason === 'no_active_work') {
+      /*
+       * Importata qui e non in testa al file: `processing` importa gia'
+       * `stuck-sessions`, e un import statico chiuderebbe il cerchio. Il
+       * modulo viene risolto una volta sola e resta in cache.
+       */
+      const { enqueueNormalizationIfReady } = await import('./processing');
+      const ripartita = await enqueueNormalizationIfReady(
+        session.id,
+        dependencies
+      );
+      if (ripartita) continue;
+    }
+
     const advanced = await expireSession(
       {
         sessionId: session.id,

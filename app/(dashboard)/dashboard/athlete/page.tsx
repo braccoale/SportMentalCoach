@@ -471,12 +471,8 @@ function AcceptedAppointments({
                   <p className="text-sm text-gray-400">Sessione trascorsa</p>
                 ) : (
                   <>
-                    <Link
-                      href={`/dashboard/chat/${b.id}`}
-                      className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
-                    >
-                      <MessageSquare className="h-4 w-4" /> Apri chat
-                    </Link>
+                    {/* Stessa gerarchia della scheda coach: la videochiamata
+                        prima, la chat accanto come alternativa. */}
                     <VideoCallButton
                       bookingId={b.id}
                       enabled={canJoinVideoNow(b.scheduledFor, b.durationMin)}
@@ -487,6 +483,16 @@ function AcceptedAppointments({
                           : undefined
                       }
                     />
+                    <Button
+                      asChild
+                      type="button"
+                      variant="outline"
+                      className="rounded-full"
+                    >
+                      <Link href={`/dashboard/chat/${b.id}`}>
+                        <MessageSquare className="h-4 w-4" /> Apri chat
+                      </Link>
+                    </Button>
                     {b.scheduledFor && (
                       <EditAppointmentButton
                         bookingId={b.id}
@@ -506,22 +512,9 @@ function AcceptedAppointments({
                       userRole="athlete"
                       compact
                     />
-                    <ShareButton bookingId={b.id} />
-                    <ActionForm
-                      action={cancelBookingAction}
-                      confirmTitle="Annullare la sessione?"
-                      confirmMessage="La sessione verrà annullata. Potrai prenotarne una nuova in qualsiasi momento."
-                      confirmActionLabel="Annulla sessione"
-                    >
-                      <input type="hidden" name="bookingId" value={b.id} />
-                      <Button
-                        type="submit"
-                        variant="destructive"
-                        className="rounded-full"
-                      >
-                        Annulla
-                      </Button>
-                    </ActionForm>
+                    <ShareButton bookingId={b.id} compact />
+                    {/* `Annulla` sta nel menu `⋯`, non qui: vedi la scheda
+                        coach per il motivo. */}
                   </>
                 )
               }
@@ -536,6 +529,22 @@ function AcceptedAppointments({
                     <DropdownMenuItem asChild className="cursor-pointer">
                       <Link href={`/coaches/${b.coachSlug}`}>Vedi coach</Link>
                     </DropdownMenuItem>
+                  )}
+                  {!past && (
+                    <ActionForm
+                      action={cancelBookingAction}
+                      className="w-full"
+                      confirmTitle="Annullare la sessione?"
+                      confirmMessage="La sessione verrà annullata. Potrai prenotarne una nuova in qualsiasi momento."
+                      confirmActionLabel="Annulla sessione"
+                    >
+                      <input type="hidden" name="bookingId" value={b.id} />
+                      <button type="submit" className="flex w-full">
+                        <DropdownMenuItem className="w-full flex-1 cursor-pointer text-red-600 focus:text-red-600">
+                          Annulla sessione
+                        </DropdownMenuItem>
+                      </button>
+                    </ActionForm>
                   )}
                 </>
               }

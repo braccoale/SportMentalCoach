@@ -78,3 +78,42 @@ test('transition patch records updated timestamp and actor', () => {
   assert.equal(cancelled.updatedBy, 7);
   assert.equal(cancelled.endedAt, now);
 });
+
+/*
+ * La seduta del 16 agosto: registrazione dell'atleta persa, trascrizione del
+ * coach completa, e la sessione chiusa in `report_failed` con 592 segmenti
+ * intatti a fianco. Senza una riapertura quel materiale resta illeggibile per
+ * sempre — non perché manchi, ma perché lo stato dice di no.
+ */
+test('da report_failed si può tornare in lavorazione, da transcription_failed no', () => {
+  assert.equal(canTransitionAiNotesSession('report_failed', 'processing'), true);
+
+  // Senza trascrizione non c'è niente da riprendere: riaprire regalerebbe solo
+  // un secondo giro di attesa prima dello stesso esito.
+  assert.equal(
+    canTransitionAiNotesSession('transcription_failed', 'processing'),
+    false
+  );
+
+  // La riapertura porta in lavorazione, non direttamente a un esito.
+  assert.equal(
+    canTransitionAiNotesSession('report_failed', 'ready_for_review'),
+    false
+  );
+  assert.equal(canTransitionAiNotesSession('report_failed', 'approved'), false);
+
+  // Gli altri stati terminali restano chiusi.
+  for (const terminale of ['cancelled', 'consent_rejected', 'shared'] as const) {
+    assert.equal(canTransitionAiNotesSession(terminale, 'processing'), false);
+  }
+});
+
+test('un esito sano non si porta addosso il motivo di un fallimento precedente', () => {
+  const now = new Date('2026-08-17T09:40:00.000Z');
+  for (const sano of ['processing', 'ready_for_review', 'approved', 'shared'] as const) {
+    assert.equal(transitionAuditPatch(sano, 1, now).errorCode, null);
+  }
+  // Un fallimento invece il motivo lo scrive, e non è questo il posto in cui
+  // viene deciso: la patch non lo tocca.
+  assert.equal(transitionAuditPatch('report_failed', 1, now).errorCode, undefined);
+});
