@@ -74,8 +74,18 @@ export type ConversationMap = {
   durationMs: number;
   lanes: ConversationLane[];
   moments: ConversationMoment[];
-  /** Chi ha parlato di più. `null` quando la differenza è sotto i 2 punti. */
+  /**
+   * Chi ha parlato di più. `null` quando la differenza è sotto i 2 punti, e
+   * sempre `null` se una voce non è stata registrata: lì non c'è un confronto
+   * da fare, c'è materiale che manca.
+   */
   dominantRole: ConversationRole | null;
+  /**
+   * Le voci non registrate. Finché non è vuota, le quote descrivono che cosa
+   * è finito nella registrazione e non come è andata la seduta: chi le mostra
+   * deve dirlo.
+   */
+  rolesWithoutRecording: ConversationRole[];
   insight: ConversationInsight;
 };
 
@@ -122,6 +132,17 @@ export function buildConversationMap(input: {
   moments?: ConversationMomentInput[];
   /** Durata della sessione; se assente si usa l'ultimo istante parlato. */
   durationMs?: number;
+  /**
+   * Le voci che non sono state registrate affatto.
+   *
+   * Senza questo, «zero minuti di parlato» e «microfono mai registrato»
+   * arrivano qui identici, e la mappa li racconta allo stesso modo: una quota
+   * del 100% a chi resta. Non è un arrotondamento, è una frase falsa su una
+   * persona vera — la seduta 181 ha detto a un coach che l'atleta aveva
+   * parlato per l'83% del tempo mentre erano *i suoi* quarantotto minuti a
+   * non essere stati registrati.
+   */
+  rolesWithoutRecording?: readonly ConversationRole[];
 }): ConversationMap {
   const lastMs = input.segments.reduce(
     (max, segment) => Math.max(max, segment.endMs),
@@ -147,10 +168,23 @@ export function buildConversationMap(input: {
       totalSpeaking > 0 ? Math.round((lane.speakingMs / totalSpeaking) * 100) : 0;
   }
 
+  const rolesWithoutRecording = [...(input.rolesWithoutRecording ?? [])];
+
   const coach = lanes[0].sharePercent;
   const athlete = lanes[1].sharePercent;
+  /*
+   * Con una voce mancante non c'è nessuno che «ha parlato di più»: c'è un
+   * microfono che non è stato registrato. Dichiarare un dominante qui
+   * significa trasformare un guasto in un giudizio sul lavoro del coach.
+   */
   const dominantRole =
-    Math.abs(coach - athlete) < 2 ? null : coach > athlete ? 'coach' : 'athlete';
+    rolesWithoutRecording.length > 0
+      ? null
+      : Math.abs(coach - athlete) < 2
+        ? null
+        : coach > athlete
+          ? 'coach'
+          : 'athlete';
 
   const moments: ConversationMoment[] = (input.moments ?? [])
     .filter((moment) => moment.atMs >= 0 && moment.atMs <= durationMs)
@@ -166,6 +200,7 @@ export function buildConversationMap(input: {
     lanes,
     moments,
     dominantRole,
+    rolesWithoutRecording,
     insight: buildInsight(input.segments, durationMs),
   };
 }

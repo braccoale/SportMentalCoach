@@ -1,4 +1,4 @@
-import type { ConversationInsight } from './conversation-map';
+import type { ConversationInsight, ConversationRole } from './conversation-map';
 
 /**
  * Cosa vuol dire quel numero.
@@ -34,11 +34,23 @@ const QUESTION_RATIO_LOW = 0.3;
 const TURN_LENGTH_DOMINANCE = 1.5;
 
 export function describeConversationInsight(
-  insight: ConversationInsight
+  insight: ConversationInsight,
+  /*
+   * Le voci non registrate.
+   *
+   * Un confronto ha bisogno di due termini. Con il microfono dell'atleta mai
+   * arrivato, «2s vs 0s → turni di durata simile» non e' un'imprecisione: e'
+   * una lettura sicura di se' costruita su un dato che non esiste, e il coach
+   * la legge come un fatto sulla propria seduta. Le statistiche che
+   * dipendono da una voce mancante non si attenuano: si tolgono.
+   */
+  rolesWithoutRecording: readonly ConversationRole[] = []
 ): InsightStat[] {
   const stats: InsightStat[] = [];
+  const mancante = (role: ConversationRole) =>
+    rolesWithoutRecording.includes(role);
 
-  if (insight.coachTurns > 0) {
+  if (insight.coachTurns > 0 && !mancante('coach')) {
     const ratio = insight.coachQuestionTurns / insight.coachTurns;
     stats.push({
       key: 'domande',
@@ -59,7 +71,10 @@ export function describeConversationInsight(
     });
   }
 
-  if (insight.coachAverageTurnSec > 0 || insight.athleteAverageTurnSec > 0) {
+  if (
+    (insight.coachAverageTurnSec > 0 || insight.athleteAverageTurnSec > 0) &&
+    rolesWithoutRecording.length === 0
+  ) {
     const coach = insight.coachAverageTurnSec;
     const athlete = insight.athleteAverageTurnSec;
     const coachLeads = athlete > 0 && coach >= athlete * TURN_LENGTH_DOMINANCE;
@@ -77,7 +92,7 @@ export function describeConversationInsight(
     });
   }
 
-  if (insight.athleteOpenedUp !== null) {
+  if (insight.athleteOpenedUp !== null && !mancante('athlete')) {
     stats.push({
       key: 'apertura',
       value: insight.athleteOpenedUp ? 'Sì' : 'No',

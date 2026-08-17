@@ -173,3 +173,34 @@ test('con troppo pochi turni non si dichiara nulla sull apertura', () => {
     'due turni possono ribaltarsi per caso: meglio tacere che sbagliare'
   );
 });
+
+/*
+ * La seduta 72: registrazione dell'atleta persa, un'ora di coach trascritta.
+ * La mappa diceva «Hai parlato tu per il 100% del tempo» — esatto come
+ * aritmetica, falso come frase, e letto dal coach come un appunto sul proprio
+ * modo di condurre.
+ */
+test('una voce non registrata non produce un dominante', () => {
+  const map = buildConversationMap({
+    segments: [
+      { startMs: 0, endMs: 20_000, role: 'coach', text: 'ciao?' },
+      { startMs: 30_000, endMs: 60_000, role: 'coach', text: 'allora' },
+    ],
+    durationMs: 3_600_000,
+    rolesWithoutRecording: ['athlete'],
+  });
+  assert.equal(map.dominantRole, null);
+  assert.deepEqual(map.rolesWithoutRecording, ['athlete']);
+});
+
+test('senza voci mancanti il dominante si calcola come prima', () => {
+  const map = buildConversationMap({
+    segments: [
+      { startMs: 0, endMs: 60_000, role: 'coach' },
+      { startMs: 70_000, endMs: 80_000, role: 'athlete' },
+    ],
+    durationMs: 120_000,
+  });
+  assert.equal(map.dominantRole, 'coach');
+  assert.deepEqual(map.rolesWithoutRecording, []);
+});
