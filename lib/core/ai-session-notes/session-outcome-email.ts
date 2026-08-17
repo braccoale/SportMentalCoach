@@ -199,8 +199,17 @@ export async function sendPendingSessionOutcomes(params: {
     .where(
       and(
         inArray(sessionAiNotes.status, TERMINAL_STATUSES),
-        // Solo sedute davvero iniziate: vedi TERMINAL_STATUSES.
-        sql`${sessionAiNotes.startedAt} is not null or ${sessionAiNotes.status} = 'consent_rejected'`,
+        /*
+         * Solo sedute davvero iniziate: vedi TERMINAL_STATUSES.
+         *
+         * Le parentesi non sono cosmesi. Senza, `AND` lega piu' stretto di
+         * `OR` e la condizione si spezza in
+         * `(terminale AND iniziata) OR (rifiutata AND recente)`: la finestra
+         * temporale finisce per valere solo sul secondo ramo, e il worker
+         * spedisce il rapporto di ogni seduta mai chiusa. E' successo in
+         * produzione al primo giro dopo il rilascio.
+         */
+        sql`(${sessionAiNotes.startedAt} is not null or ${sessionAiNotes.status} = 'consent_rejected')`,
         /*
          * Solo le chiusure recenti.
          *
