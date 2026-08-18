@@ -107,6 +107,71 @@ The question worth asking is in `session-outcome-report.ts`: *did this session p
 
 **Never put session content or the athlete's name in that mail.** Identifiers, timings, codes and counts only — the same rule as `pipeline-log.ts`, and stricter, because a mail leaves the system.
 
+## The time budget, measured in production
+
+Numbers from August 2026, on real sessions. They cost a day to obtain; do not
+re-derive them by reading the code, because the code does not contain them.
+
+**Report generation is output-bound, not input-bound.** A three-segment session
+takes 31 seconds. A 1206-segment session takes 39. The time goes into *writing*
+the compass — summary, themes, six metrics, emotional trend, key moments,
+story, commitments, prep, each with its quote — not into reading the
+transcript. Any plan that starts from "the transcript is too long" is aimed at
+the wrong thing.
+
+**Every generation runs at 85–95% of its budget.** Successful first-attempt
+runs land between 38 and 43 seconds against a 45-second cut. Session 58 made it
+by two seconds; session 66 by six. `COMPASS_TIMEOUT` is therefore not an
+anomaly of one session — it is the expected tail of a distribution that brushes
+the limit on every session, whatever its length.
+
+The 45 seconds are not a guess about the model: they are what is left under the
+60-second Vercel function ceiling once you reserve time to validate and persist.
+On the Hobby plan that ceiling cannot be raised. `AI_NOTES_COMPASS_TIMEOUT_MS`
+overrides the provider timeout, which is only useful **outside** Vercel — a
+local `ai-notes:process` run has no ceiling at all, and is the way to recover a
+session that keeps timing out.
+
+**End-to-end latency is bimodal, and the shape is the diagnosis.** Either ~1–2
+minutes or ~45–105 minutes, with nothing in between. The fast mode is "a wakeup
+fired"; the slow mode is "no wakeup fired and the floor caught it". Session 66:
+82 minutes end to end, of which **60 seconds were work** — 10 s per voice of
+transcription, 1 s of normalisation, 39 s of report. Everything else was jobs
+sitting in the queue waiting to be claimed.
+
+**The wakeups are unobservable.** `triggerAiNotesWorker` returns
+`'triggered' | 'skipped' | 'failed'` and **every caller discards it**. Its own
+comment lists the ways it fails — the `kaipaicoaching.com` → `www` redirect
+that strips `Authorization`, Vercel system variables that may not be exposed.
+So the difference between the two latency modes is invisible from the code and
+from the logs. Do not assume the chain works because it is written; measure it.
+
+**At the observed bitrate the 50 MB ceiling is about 79 minutes of session.**
+That is the practical form of the storage limit documented above: a 94-minute
+session loses its audio entirely.
+
+## When a report fails, read the audit table first
+
+`session_ai_audit_events` holds the truth that the job row and the session row
+do not. A `compass_report_failed` event carries `{ code: 'COMPASS_TIMEOUT' }`
+while `session_ai_processing_jobs.error_code` said `PROCESSING_FAILED` and
+`session_ai_notes.error_code` was **null** — which is how a timeout was read as
+a transcription problem for a whole day.
+
+`sanitizeFailure` in `processing.ts` decides what survives into the job, the
+session and therefore the outcome mail. It knows `AiNotesProcessingError`,
+`SessionCompassGenerationError` and `SessionCompassError`; anything else is
+flattened to `PROCESSING_FAILED`. **Adding a new error class without adding it
+there makes the next failure anonymous**, and the pipeline has now paid for that
+twice.
+
+Order of inspection for a failed session:
+
+1. `session_ai_audit_events` — the real code, and the claim/fail timeline;
+2. `session_ai_processing_jobs` — attempts, timings, which step;
+3. `session_audio_recordings` — sizes and per-track errors;
+4. only then the Vercel logs.
+
 ## Rules for changing this pipeline
 
 1. **Every step must be resumable.** The process can die between any two steps; assume it will.
