@@ -1,0 +1,26 @@
+# Che cosa NON caricare su EAS Build.
+#
+# Quando questo file esiste, EAS lo usa *al posto* di .gitignore: quindi qui
+# dentro va anche tutto ciò che .gitignore già escludeva, node_modules per
+# primo — altrimenti l'archivio torna a pesare mezzo giga.
+#
+# Le due cartelle native sono il motivo per cui questo file è nato. Sono
+# generate da `expo prebuild`, e chi sviluppa in locale se le ritrova sul
+# disco. Finendo nell'archivio, il prebuild dentro il container non le
+# rigenera: le *riusa* — «Created native directory | reusing /android» — e si
+# porta dietro i percorsi del computer da cui sono uscite. Il risultato è una
+# build che fallisce con «No matching variant of project
+# :livekit_react-native ... No variants exist» su ogni libreria React Native,
+# cioè un errore che non nomina mai la vera causa.
+#
+# Le native le deve costruire EAS, sempre, da app.json e dai plugin.
+
+node_modules/
+android/
+ios/
+.expo/
+dist/
+*.apk
+*.aab
+.env
+.env*.local
