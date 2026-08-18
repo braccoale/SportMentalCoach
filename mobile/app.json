@@ -50,6 +50,9 @@
           "android": {
             "audioType": "communication",
             "enableScreenShareService": true
+          },
+          "ios": {
+            "enableMultitaskingCameraAccess": true
           }
         }
       ],

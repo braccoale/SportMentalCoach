@@ -1,8 +1,15 @@
 node_modules/
 .expo/
 dist/
-android/
-ios/
+# Solo le due cartelle di prebuild alla radice, non qualunque cartella che si
+# chiami cosi'. Senza la barra iniziale la regola ingoiava anche
+# `modules/*/android/`, cioe' il codice nativo dei moduli locali: restava fuori
+# dal commit, EAS costruiva da git e produceva un APK senza il servizio, senza
+# che niente lo segnalasse.
+/android/
+/ios/
 *.apk
 *.aab
 .env
+# Le varianti locali (server di sviluppo sul proprio computer) non si condividono.
+.env*.local

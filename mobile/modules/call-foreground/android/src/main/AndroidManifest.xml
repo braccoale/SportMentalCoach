@@ -1,0 +1,27 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <!--
+    I tre permessi che rendono legale tenere la fotocamera accesa fuori dal
+    primo piano. Da Android 14 il tipo del servizio va dichiarato *e* il
+    permesso corrispondente va chiesto: il solo FOREGROUND_SERVICE non basta
+    piu', e un servizio senza il suo permesso lancia SecurityException
+    all'avvio.
+  -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+
+  <application>
+    <!--
+      `camera|microphone` e non solo `camera`: il microfono ha la stessa
+      restrizione della fotocamera, e l'audio in secondo piano e' la meta' che
+      e' sempre stata data per scontata. Dichiararne uno solo significherebbe
+      scoprire l'altro rotto sul telefono di qualcun altro.
+    -->
+    <service
+      android:name=".CallForegroundService"
+      android:exported="false"
+      android:stopWithTask="true"
+      android:foregroundServiceType="camera|microphone" />
+  </application>
+</manifest>
