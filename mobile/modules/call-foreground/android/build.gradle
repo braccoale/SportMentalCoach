@@ -10,8 +10,18 @@ def expoModulesCorePlugin = new File(
 apply from: expoModulesCorePlugin
 applyKotlinExpoModulesCorePlugin()
 useCoreDependencies()
-useExpoPublishing()
 
+/*
+ * Tre cose imparate da due build fallite, e tutte e tre invisibili leggendo
+ * il codice:
+ *
+ * - `useExpoPublishing()` **non va** in un modulo locale: cerca il componente
+ *   software `release`, che esiste solo nei moduli pubblicati su npm, e la
+ *   configurazione del progetto muore prima di compilare.
+ * - `compileSdk` va dichiarato: qui il progetto radice non lo propaga, e
+ *   Gradle si ferma con «compileSdkVersion is not specified».
+ * - `lintOptions` non esiste piu': AGP 8 lo ha rimosso, si chiama `lint`.
+ */
 def safeExtGet(prop, fallback) {
   rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
 }
@@ -27,7 +37,7 @@ android {
     versionName "0.1.0"
   }
 
-  lintOptions {
+  lint {
     abortOnError false
   }
 }
