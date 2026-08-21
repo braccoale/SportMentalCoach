@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, asc, count, eq, inArray, lte, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, lte, sql } from 'drizzle-orm';
 import { db, type DbOrTx } from '@/lib/db/drizzle';
 import {
   sessionAiAuditEvents,
@@ -22,6 +22,7 @@ import {
   isTranscriptionRequestStale,
   jobRequiresParticipantRecording,
   retryDelayMs,
+  failureOutcome,
   retryStatus,
   sessionCanProcess,
   transcriptionRoundIsSettled,
@@ -29,7 +30,9 @@ import {
 } from './processing-policy';
 import { dispatchPendingTranscriptionRequests } from './transcription-dispatch';
 import { SessionCompassGenerationError } from './session-compass-provider';
+import { SessionCompassError } from './session-compass';
 import { logPipeline, pipelineErrorCode } from './pipeline-log';
+import { notifyAiReportAwaitingReview } from '@/lib/core/notifications/events';
 import { closeSessionWithoutSpeech } from './stuck-sessions';
 import { persistedTimelineFingerprint, rebuildSessionTimeline } from './timeline';
 import { advanceAiNotesSessionStatus } from './session-status';
@@ -603,6 +606,22 @@ function sanitizeFailure(error: unknown): { code: string; message: string } {
       message: 'Riepilogo non generato.',
     };
   }
+  /*
+   * E l'orchestratore del compass ha una terza classe ancora, che finiva
+   * anonima insieme a tutto il resto.
+   *
+   * La sessione 75 e' morta con `COMPASS_TIMEOUT` scritto nella traccia di
+   * audit e `PROCESSING_FAILED` scritto ovunque potesse leggerlo qualcuno: nel
+   * job, nella riga di sessione — che aveva `error_code` addirittura nullo — e
+   * quindi nella mail di esito. Chi l'ha ricevuta ha passato la giornata a
+   * cercare un problema nella trascrizione, che era perfetta.
+   *
+   * Il codice si conserva; il messaggio no, perche' puo' contenere frasi
+   * della seduta.
+   */
+  if (error instanceof SessionCompassError) {
+    return { code: error.code, message: 'Riepilogo non generato.' };
+  }
   return { code: 'PROCESSING_FAILED', message: 'Elaborazione non completata.' };
 }
 
@@ -632,18 +651,24 @@ export async function failAiProcessingJob(params: {
     }>)[0];
     if (!job) return null;
     const failure = sanitizeFailure(params.error);
-    const nextStatus = retryStatus({
+    const outcome = failureOutcome({
       attemptCount: job.attempt_count,
       maxAttempts: job.max_attempts,
+      errorCode: failure.code,
     });
+    const nextStatus = outcome.status;
     const now = dependencies.clock.now();
     await tx
       .update(sessionAiProcessingJobs)
       .set({
         status: nextStatus,
+        // Il tentativo torna indietro quando il rifiuto era «non ancora»:
+        // la presa lo aveva gia' incrementato, e una sessione che deve
+        // ancora entrare in `processing` non ha consumato niente.
+        attemptCount: outcome.attemptCount,
         availableAfter:
           nextStatus === 'queued'
-            ? new Date(now.getTime() + retryDelayMs(job.attempt_count))
+            ? new Date(now.getTime() + retryDelayMs(outcome.attemptCount))
             : now,
         completedAt: nextStatus === 'failed' ? now : null,
         lockedAt: null,
@@ -673,6 +698,92 @@ export async function failAiProcessingJob(params: {
       });
     }
     return nextStatus;
+  });
+}
+
+/**
+ * Rimette in coda il riepilogo di una sessione riaperta.
+ *
+ * La riapertura sapeva riportare la sessione in `processing` ma non sapeva
+ * risvegliare il lavoro: accodava la normalizzazione, e quando la
+ * normalizzazione era gia' fatta — cioe' sempre, in una sessione morta dopo la
+ * trascrizione — non accodava niente. La sessione tornava viva e restava
+ * ferma, in attesa di un job che nessuno avrebbe piu' creato.
+ *
+ * E non bastava crearne uno nuovo: la chiave di idempotenza porta il
+ * fingerprint del trascritto, che non e' cambiato, e l'indice unico su quella
+ * chiave e' globale. Un secondo job con la stessa chiave non puo' esistere.
+ * Quindi si risveglia quello che c'e' gia', che e' anche la cosa giusta: e'
+ * lo stesso lavoro, sullo stesso materiale.
+ *
+ * Il conteggio dei tentativi riparte da zero perche' riaprire e' una
+ * decisione umana su una sessione che ha gia' esaurito il suo budget: se
+ * ripartisse da tre, il primo intoppo la richiuderebbe subito.
+ */
+export async function requeueFailedReportJob(params: {
+  sessionId: number;
+  actorUserId: number;
+}): Promise<number | null> {
+  return db.transaction(async (tx) => {
+    // Se un riepilogo e' gia' in lavorazione non se ne sveglia un secondo:
+    // l'indice parziale sulle operazioni attive lo rifiuterebbe, e avrebbe
+    // ragione.
+    const [active] = await tx
+      .select({ id: sessionAiProcessingJobs.id })
+      .from(sessionAiProcessingJobs)
+      .where(
+        and(
+          eq(sessionAiProcessingJobs.sessionAiNotesId, params.sessionId),
+          eq(sessionAiProcessingJobs.jobType, 'report_generation'),
+          inArray(sessionAiProcessingJobs.status, [
+            'queued',
+            'processing',
+            'awaiting_provider',
+          ])
+        )
+      )
+      .limit(1);
+    if (active) return null;
+
+    const [job] = await tx
+      .select({ id: sessionAiProcessingJobs.id })
+      .from(sessionAiProcessingJobs)
+      .where(
+        and(
+          eq(sessionAiProcessingJobs.sessionAiNotesId, params.sessionId),
+          eq(sessionAiProcessingJobs.jobType, 'report_generation'),
+          eq(sessionAiProcessingJobs.status, 'failed')
+        )
+      )
+      .orderBy(desc(sessionAiProcessingJobs.id))
+      .limit(1);
+    if (!job) return null;
+
+    const now = new Date();
+    await tx
+      .update(sessionAiProcessingJobs)
+      .set({
+        status: 'queued',
+        attemptCount: 0,
+        availableAfter: now,
+        completedAt: null,
+        lockedAt: null,
+        lockedBy: null,
+        errorCode: null,
+        errorMessageSanitized: null,
+        updatedDate: now,
+      })
+      .where(eq(sessionAiProcessingJobs.id, job.id));
+
+    await auditJob(tx, {
+      sessionId: params.sessionId,
+      actorUserId: params.actorUserId,
+      eventType: 'processing_job_queued',
+      jobId: job.id,
+      metadata: { jobType: 'report_generation', requeued: true },
+      occurredAt: now,
+    });
+    return job.id;
   });
 }
 
@@ -922,6 +1033,10 @@ export async function processAiNotesBatch(params: {
             actorUserId: job.requested_by,
             executor: dependencies.db,
           });
+          await announceReportAwaitingReview(
+            job.session_ai_notes_id,
+            dependencies
+          );
         }
       } else {
         await rebuildSessionTimeline(job.session_ai_notes_id, job.requested_by);
@@ -964,4 +1079,69 @@ export async function processAiNotesBatch(params: {
     }
   }
   return result;
+}
+
+/**
+ * Avvisa il coach che un riepilogo aspetta la sua approvazione.
+ *
+ * Fra «l'AI ha finito» e «il coach lo sa» non c'era niente: il riepilogo
+ * restava in `ready_for_review` e lo scopriva solo chi apriva l'elenco atleti.
+ * Il costo non e' estetico — finche' non e' approvato la seduta resta fuori
+ * dal percorso e gli impegni non arrivano all'atleta.
+ *
+ * Non puo' rompere la pipeline. Un avviso che fallisce e' un avviso che non
+ * arriva; un avviso che fa fallire il worker e' una coda che si ferma.
+ */
+async function announceReportAwaitingReview(
+  sessionId: number,
+  dependencies: AiSessionNotesDependencies
+): Promise<void> {
+  try {
+    const rows = (await dependencies.db.execute(sql`
+      SELECT b.id AS booking_id,
+             pp.user_id AS coach_user_id,
+             u.name AS athlete_first_name,
+             u.last_name AS athlete_last_name,
+             sv.title AS service_title
+      FROM session_ai_notes s
+      JOIN bookings b ON b.id = s.booking_id
+      JOIN provider_profiles pp ON pp.id = b.provider_id
+      JOIN users u ON u.id = b.client_id
+      LEFT JOIN services sv ON sv.id = b.service_id
+      WHERE s.id = ${sessionId}
+      LIMIT 1
+    `)) as unknown as Array<{
+      booking_id: number;
+      coach_user_id: number;
+      athlete_first_name: string | null;
+      athlete_last_name: string | null;
+      service_title: string | null;
+    }>;
+
+    const row = rows[0];
+    if (!row) return;
+
+    await notifyAiReportAwaitingReview({
+      coachUserId: row.coach_user_id,
+      bookingId: row.booking_id,
+      athleteName:
+        [row.athlete_first_name, row.athlete_last_name]
+          .filter(Boolean)
+          .join(' ')
+          .trim() || null,
+      serviceTitle: row.service_title,
+    });
+  } catch (error) {
+    logPipeline({
+      phase: 'report_generation',
+      outcome: 'failed',
+      sessionId,
+      // Il codice e' nostro e il messaggio del provider non entra nel log:
+      // qui interessa che l'avviso non e' partito, non perche' lato Resend.
+      errorCode: 'AWAITING_REVIEW_NOTICE_FAILED',
+      detail: {
+        message: error instanceof Error ? error.message.slice(0, 200) : null,
+      },
+    });
+  }
 }

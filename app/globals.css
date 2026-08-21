@@ -65,6 +65,35 @@
   --color-kp-red-deep: #3a080d;
   --color-kp-verify: #34d399;
 
+  /* ── Landing v2 · la metà in luce ──
+     La pagina /v2 passa dal buio alla luce mentre il percorso avanza. Il buio
+     è già il brand; questi sono i suoi opposti, tarati per reggere lo stesso
+     rosso senza spegnerlo. Non sono un tema chiaro del prodotto: vivono solo
+     nella landing sperimentale. */
+  --color-kp2-day: #e9e6e0;
+  --color-kp2-day2: #f5f3ef;
+  --color-kp2-daysurface: #ffffff;
+  --color-kp2-dayline: rgba(12, 12, 18, 0.12);
+  --color-kp2-dayhi: #101016;
+  --color-kp2-daymid: #55555f;
+  --color-kp2-daylow: #8a8a94;
+
+  /* ── Percorso dell'atleta · le cinque fasi del lavoro ──
+     Scala categoriale, non di valore: «problema» non è peggio di «progresso»,
+     è prima. Quattro tinte a saturazione confrontabile perché nessuna prevalga
+     sulle altre, e l'ambra del focus attuale un gradino più calda — quella
+     deve tirare l'occhio, è dove si sta lavorando adesso.
+     Un token per fase: bordo, testo, pallino e gradiente della linea nascono
+     tutti da qui con `color-mix`, così una tinta si cambia in un posto solo. */
+  --color-jp-problema: #f43f5e;
+  --color-jp-strategia: #7c3aed;
+  --color-jp-applicazione: #2563eb;
+  --color-jp-progresso: #16a34a;
+  --color-jp-focus: #f59e0b;
+  /* Una seduta in agenda: azzurra e piu' fredda delle altre, perche' non e'
+     una fase del lavoro — e' un appuntamento che deve ancora succedere. */
+  --color-jp-pianificata: #0ea5e9;
+
   --font-display: var(--font-kp-display), "Space Grotesk", sans-serif;
   --font-body: var(--font-kp-body), "Inter", sans-serif;
   --font-mono: var(--font-kp-mono), "JetBrains Mono", monospace;
@@ -702,6 +731,142 @@
   box-shadow: none;
 }
 
+/*
+  ---break---
+  Scena 3 della home: i quattro pilastri si accendono uno alla volta.
+
+  L'attenuazione vive solo dentro `.kp-lit-list`, una classe che aggiunge il
+  JavaScript. Senza JS, o con `prefers-reduced-motion`, la classe non arriva e
+  i quattro pilastri restano tutti leggibili: lo spegnimento e' un di piu',
+  non la condizione di partenza.
+*/
+.kp-lit-list .kp-pillar-n,
+.kp-lit-list .kp-pillar-t,
+.kp-lit-list .kp-pillar-b {
+  transition:
+    color 0.5s ease,
+    opacity 0.5s ease;
+}
+.kp-lit-list .kp-pillar:not(.is-live) .kp-pillar-n,
+.kp-lit-list .kp-pillar:not(.is-live) .kp-pillar-t {
+  color: var(--color-kp-low);
+}
+.kp-lit-list .kp-pillar:not(.is-live) .kp-pillar-b {
+  color: var(--color-kp-low);
+  opacity: 0.55;
+}
+/* Il pilastro attivo porta il numero in rosso: e' l'unico segnale di stato
+   della sezione, quindi non e' affidato al solo colore del titolo. */
+.kp-lit-list .kp-pillar.is-live .kp-pillar-n {
+  color: var(--color-kp-red);
+}
+
+/*
+  ---break---
+  Scena 2 della home, versione senza movimento.
+
+  Le cinque frasi vivono sovrapposte in `absolute` perche' lo scroll le fa
+  succedere l'una all'altra nello stesso punto. Chi ha chiesto
+  `prefers-reduced-motion` non riceve quella sequenza, quindi qui la scena
+  torna a essere cio' che e' sempre stata sotto: un elenco. Le frasi rientrano
+  in flusso, si leggono dall'alto in basso, e la sezione cresce per contenerle
+  invece di restare alta un viewport.
+
+  In CSS e non in GSAP di proposito: cosi' vale anche prima che il JavaScript
+  parta, e anche se non parte affatto.
+*/
+@media (prefers-reduced-motion: reduce) {
+  .kp-scene-mind {
+    height: auto;
+    min-height: 0;
+    padding-block: 6rem;
+  }
+  .kp-scene-stack {
+    min-height: 0;
+    gap: 1.25rem;
+  }
+  .kp-scene-stack > p {
+    position: relative;
+    inset: auto;
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+
+/*
+  ---break---
+  Scena «l'origine», versione senza movimento.
+
+  La citazione parte con le righe spinte fuori dalla loro finestra e il blocco
+  del fondatore a opacita' zero: senza la timeline che le riporta al loro
+  posto, la scena sarebbe vuota. Qui torna statica — frase intera, fondatore
+  visibile, sezione alta quanto il suo contenuto invece di un viewport.
+*/
+@media (prefers-reduced-motion: reduce) {
+  .kp-scene-founder {
+    height: auto;
+    min-height: 0;
+    padding-block: 6rem;
+  }
+  .kp-scene-founder [data-eyebrow],
+  .kp-scene-founder .kp-founder {
+    opacity: 1;
+  }
+  /* Le righe della citazione non hanno piu' uno spostamento nel markup: lo
+     stato iniziale lo mette GSAP, e con reduced-motion GSAP non gira. Non
+     serve annullare nulla. */
+}
+
+/*
+  ---break---
+  Percorso dell'atleta · l'entrata della striscia.
+
+  Le tappe non compaiono tutte insieme: salgono da sinistra a destra, nello
+  stesso verso in cui si legge il percorso. È l'unico momento animato della
+  pagina, e serve a dire «questa è una sequenza» prima ancora che si legga una
+  data. Il ritardo lo passa il componente, una tappa alla volta.
+*/
+@keyframes jpRise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.jp-rise {
+  animation: jpRise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Il pallino della tappa corrente respira: è l'unica cosa viva della
+   striscia, perché è l'unica che non è ancora finita. */
+@keyframes jpBeat {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.15;
+    transform: scale(1.7);
+  }
+}
+.jp-beat {
+  animation: jpBeat 2.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jp-rise,
+  .jp-beat {
+    animation: none;
+  }
+  .jp-beat {
+    opacity: 0.35;
+  }
+}
 /* Demo controls stay visible to communicate product breadth, but are inert. */
 [data-demo-readonly='true'] [data-demo-readonly-blocked='true'] {
   cursor: not-allowed !important;

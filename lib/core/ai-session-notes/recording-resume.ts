@@ -3,7 +3,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { sessionAiNotes, sessionAudioRecordings } from '@/lib/db/schema';
 import { logPipeline } from './pipeline-log';
-import { decideRecordingRetry } from './recording-retry-policy';
+import { decideRecordingRetry, hasLiveAudioTrack } from './recording-retry-policy';
 import { startAiNotesRecordingSystem } from './recording';
 import type { LiveKitSessionControl } from './livekit-session-control';
 
@@ -35,11 +35,23 @@ const LIVE_SESSION_STATUSES = ['active'] as const;
 export async function findResumeCandidates(limit: number) {
   /*
    * Candidati: una traccia fallita, in una seduta ancora attiva, per un ruolo
-   * che in questo momento non sta registrando.
+   * che **in questo momento** non sta registrando.
    *
    * L'ultima condizione è quella che conta: se il ruolo ha già una
    * registrazione in corso, il fallimento di prima è stato superato e
    * riprovare aprirebbe un doppione sopra l'audio buono.
+   *
+   * Qui dentro c'era anche `recorded`, e quella parola ha fatto perdere
+   * quarantotto minuti di voce del coach nella seduta 181. `recorded` non è
+   * una registrazione in corso: è un **segmento finito**. Un coach che ha
+   * registrato sette minuti, ha ripubblicato la traccia e ha visto fallire il
+   * riavvio aveva per sempre un segmento `recorded` in archivio — e da quel
+   * momento nessuno dei suoi fallimenti poteva più essere ripescato, per il
+   * resto della seduta. Il riavvio automatico esisteva, con il suo backoff, e
+   * questa riga lo spegneva proprio nel caso per cui era stato scritto.
+   *
+   * Gli stati elencati adesso sono solo quelli vivi. Un segmento concluso non
+   * dice nulla su cosa stia succedendo ora.
    */
   const candidates = await db
     .select({
@@ -64,7 +76,7 @@ export async function findResumeCandidates(limit: number) {
           select 1 from ${sessionAudioRecordings} busy
           where busy.session_ai_notes_id = ${sessionAudioRecordings.sessionAiNotesId}
             and busy.participant_role = ${sessionAudioRecordings.participantRole}
-            and busy.status in ('pending','starting','recording','stopping','recorded')
+            and busy.status in ('pending','starting','recording','stopping')
         )`
       )
     )
@@ -92,22 +104,27 @@ export async function resumeInterruptedRecordings(
 
   for (const candidate of candidates) {
     try {
-      // La traccia c'è ancora? Se il partecipante ha chiuso o ha tolto il
-      // microfono non si riprova: produrrebbe lo stesso fallimento e una riga
-      // di registro che non racconta niente.
+      /*
+       * C'è ancora una voce da registrare per questa persona?
+       *
+       * La domanda è questa, e non «esiste ancora *quella* traccia». Il
+       * confronto era sul SID fallito, e chiudeva la seconda porta sullo
+       * stesso guasto: una traccia che si interrompe viene **ripubblicata con
+       * un SID nuovo** — è proprio ciò che è successo al minuto 7 della seduta
+       * 181 — quindi se il coach ripubblica un'altra volta prima che il
+       * ripescaggio arrivi, il SID cercato non esiste più, la traccia risulta
+       * «non recuperabile» e non si riprova mai più. Con il microfono acceso e
+       * la stanza aperta.
+       *
+       * E cercarlo non serviva comunque: il riavvio qui sotto non registra
+       * quel SID, rilegge la stanza e registra ciò che è pubblicato adesso.
+       */
       let trackStillLive = false;
       try {
         const participants = await dependencies.liveKit.listParticipants(
           candidate.roomName
         );
-        trackStillLive = participants.some(
-          (participant) =>
-            participant.identity === candidate.identity &&
-            participant.tracks.some(
-              (track) =>
-                track.sid === candidate.trackSid && track.type === 'audio'
-            )
-        );
+        trackStillLive = hasLiveAudioTrack(participants, candidate.identity);
       } catch {
         // Stanza non raggiungibile: non è una prova che la traccia sia morta,
         // ma non è nemmeno il momento di riprovare.

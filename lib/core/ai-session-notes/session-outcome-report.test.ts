@@ -111,3 +111,43 @@ test('nel rapporto non entra il nome dell’atleta', () => {
   // L'atleta resta un identificativo, che basta a ritrovarlo in database.
   assert.match(report, /atleta \(id\) \.+ 93/);
 });
+
+/*
+ * Il tono dell'oggetto, che non e` un dettaglio di stile.
+ *
+ * Un rifiuto e` un esito previsto: l'atleta ha detto no e il sistema non ha
+ * registrato niente. Se anche quella mail grida come grida un guasto, il
+ * coach impara che gridano tutte — e smette di aprirle proprio prima della
+ * volta in cui una seduta si perde davvero.
+ */
+test('il rifiuto non grida nell’oggetto, il guasto sì', () => {
+  const rifiutata = snapshot({ status: 'consent_rejected' });
+  const oggetto = outcomeSubject(rifiutata);
+
+  assert.match(oggetto, /consenso rifiutato/);
+  assert.doesNotMatch(
+    oggetto,
+    /CONSENSO RIFIUTATO/,
+    'le maiuscole restano dove c’è qualcosa da fare'
+  );
+
+  assert.match(
+    outcomeSubject(snapshot({ status: 'report_failed' })),
+    /FALLITA/,
+    'un guasto deve continuare a farsi riconoscere dall’elenco della posta'
+  );
+});
+
+test('su una seduta rifiutata il rapporto dice che non c’è niente di rotto', () => {
+  const rapporto = buildOutcomeReport(snapshot({ status: 'consent_rejected' }));
+
+  // Nel corpo il maiuscolo resta: li` e` la voce di un log, non un tono.
+  assert.match(rapporto, /ESITO: CONSENSO RIFIUTATO/);
+  assert.match(rapporto, /Esito previsto, non un guasto/);
+
+  assert.doesNotMatch(
+    buildOutcomeReport(snapshot({ status: 'report_failed' })),
+    /Esito previsto/,
+    'la nota vale solo per il rifiuto'
+  );
+});

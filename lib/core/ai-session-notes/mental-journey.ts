@@ -28,6 +28,13 @@ export const MAX_POINTS_TO_REVISIT = 6;
 const MIN_OCCURRENCES_FOR_RECURRING_THEME = 2;
 
 export type ApprovedSessionRecord = {
+  /**
+   * `false` quando il riepilogo è pronto ma il coach non l'ha ancora
+   * validato. Entra comunque nella cronistoria — una seduta si è svolta a
+   * prescindere da chi ha premuto approva — ma non nei conteggi che parlano
+   * di materiale validato.
+   */
+  isApproved: boolean;
   sessionId: number;
   bookingId: number;
   reportId: number;
@@ -85,11 +92,18 @@ export type MentalJourneyEntry = {
   focus: string | null;
   themes: string[];
   emergingResource: string | null;
+  /**
+   * Il filo che quel riepilogo traccia fra la sua seduta e le precedenti.
+   * È già un pensiero sul percorso, e un coach l'ha già approvato.
+   */
+  throughLine: string | null;
   metrics?: JourneyMetric[];
   keyMoments: JourneyKeyMoment[];
   nextSessionPrep: JourneyPrepItem[];
   commitments: JourneyCommitment[];
   compassHref: string;
+  /** `false` quando il riepilogo aspetta ancora la validazione del coach. */
+  isApproved: boolean;
 };
 
 export type RecurringTheme = {
@@ -129,6 +143,8 @@ export type JourneySummary = {
   firstSessionDate: string | null;
   lastSessionDate: string | null;
   approvedSessionCount: number;
+  /** Sedute con un riepilogo pronto ma non ancora validato. */
+  draftSessionCount: number;
   commitments: {
     total: number;
     completed: number;
@@ -161,6 +177,29 @@ export function isApprovedCompassReport(row: {
 }): boolean {
   return (
     row.status === 'approved' &&
+    row.reportKind === SESSION_COMPASS_REPORT_KIND &&
+    row.document !== null &&
+    row.document !== undefined
+  );
+}
+
+/**
+ * Gli stati che entrano nella cronistoria.
+ *
+ * `ready_for_review` c'è perché una seduta si è svolta comunque: nasconderla
+ * finché qualcuno non preme «approva» significa raccontare al coach un
+ * percorso più corto di quello reale. Resta però marcata, e resta fuori da
+ * ogni conteggio che dichiara di parlare di materiale validato.
+ */
+export const JOURNEY_REPORT_STATUSES = ['approved', 'ready_for_review'] as const;
+
+export function isJourneyCompassReport(row: {
+  status: string;
+  reportKind: string;
+  document: unknown;
+}): boolean {
+  return (
+    (JOURNEY_REPORT_STATUSES as readonly string[]).includes(row.status) &&
     row.reportKind === SESSION_COMPASS_REPORT_KIND &&
     row.document !== null &&
     row.document !== undefined
@@ -243,8 +282,55 @@ export class MentalJourneyError extends Error {
   }
 }
 
+/**
+ * Restringe gli ingressi della proiezione alla finestra.
+ *
+ * Le sedute si collocano con `sessionPlacementDate`, la stessa regola che
+ * ordina la timeline: una seduta senza data vale per quando è stata approvata,
+ * qui come là. Due regole di collocamento diverse metterebbero una seduta
+ * dentro la finestra e fuori dall'ordinamento.
+ *
+ * Gli impegni seguono la loro seduta. Un impegno preso otto mesi fa non
+ * appartiene agli «ultimi 3 mesi» solo perché è ancora aperto: il riquadro si
+ * chiama «azioni concordate», e quando sono state concordate è il fatto che
+ * conta.
+ */
+export function windowJourneyInputs(params: {
+  sessions: readonly ApprovedSessionRecord[];
+  commitments: readonly TrackedCommitment[];
+  since: Date | null;
+}): {
+  sessions: ApprovedSessionRecord[];
+  commitments: TrackedCommitment[];
+} {
+  if (!params.since) {
+    return {
+      sessions: [...params.sessions],
+      commitments: [...params.commitments],
+    };
+  }
+
+  const from = params.since.getTime();
+  const sessions = params.sessions.filter(
+    (session) => sessionPlacementDate(session).getTime() >= from
+  );
+  const kept = new Set(sessions.map((session) => session.sessionId));
+
+  return {
+    sessions,
+    commitments: params.commitments.filter((commitment) =>
+      kept.has(commitment.sessionId)
+    ),
+  };
+}
+
 export async function getMentalJourney(
-  params: { athleteUserId: number; actorUserId: number },
+  params: {
+    athleteUserId: number;
+    actorUserId: number;
+    /** Solo le sedute da qui in poi. Assente o `null`: il percorso intero. */
+    since?: Date | null;
+  },
   dependencies: MentalJourneyDependencies
 ): Promise<MentalJourney> {
   if (!Number.isInteger(params.athleteUserId) || params.athleteUserId <= 0) {
@@ -281,10 +367,18 @@ export async function getMentalJourney(
     dependencies.store.loadCommitments(scope),
   ]);
 
-  return buildMentalJourney({
-    athleteUserId: params.athleteUserId,
+  // La finestra si applica agli ingressi, non alle uscite: `buildMentalJourney`
+  // ricalcola sintesi, temi e impegni con le regole che ha già.
+  const windowed = windowJourneyInputs({
     sessions,
     commitments,
+    since: params.since ?? null,
+  });
+
+  return buildMentalJourney({
+    athleteUserId: params.athleteUserId,
+    sessions: windowed.sessions,
+    commitments: windowed.commitments,
     now: dependencies.now(),
   });
 }
@@ -322,6 +416,7 @@ export function buildMentalJourney(params: {
       coachName: session.coachName,
       summary: overview.summary,
       focus: overview.themes[0]?.text ?? null,
+      throughLine: session.document.story?.throughLine ?? null,
       themes: overview.themes.map((theme) => theme.text),
       emergingResource: overview.emergingResource?.text ?? null,
       metrics: (overview.metrics ?? []).map((metric) => ({
@@ -350,14 +445,20 @@ export function buildMentalJourney(params: {
         journeyCommitment(commitment, params.now)
       ),
       compassHref: `/dashboard/appointments/${session.bookingId}`,
+      isApproved: session.isApproved,
     };
   });
+
+  // I temi restano un'affermazione sul materiale validato: un tema «ricorrente»
+  // costruito su bozze direbbe che una cosa torna, quando torna soltanto in
+  // qualcosa che nessuno ha ancora letto.
+  const approved = sessions.filter((session) => session.isApproved);
 
   return {
     athleteUserId: params.athleteUserId,
     summary: summaryOf(sessions, active),
     timeline,
-    recurringThemes: aggregateThemes(sessions),
+    recurringThemes: aggregateThemes(approved),
     followThrough: followThroughOf(timeline),
     pointsToRevisit: derivePointsToRevisit({
       sessions,
@@ -385,7 +486,9 @@ function summaryOf(
   return {
     firstSessionDate: dates[0]?.toISOString() ?? null,
     lastSessionDate: dates.at(-1)?.toISOString() ?? null,
-    approvedSessionCount: sessions.length,
+    // Chi dichiara di contare sedute validate ne conta solo di validate.
+    approvedSessionCount: sessions.filter((session) => session.isApproved).length,
+    draftSessionCount: sessions.filter((session) => !session.isApproved).length,
     commitments: counts,
     completionRate:
       counts.total >= MIN_COMMITMENTS_FOR_RATE
@@ -594,8 +697,19 @@ export function themeKey(text: string): string {
     .trim();
 }
 
+/**
+ * Dove cade una seduta nel tempo. Senza `sessionDate` vale la data di
+ * approvazione: è l'unica altra prova di quando quella seduta è entrata nel
+ * percorso. Esportata perché la finestra temporale deve collocare le sedute
+ * esattamente come le colloca l'ordinamento — due regole diverse metterebbero
+ * la stessa seduta dentro la finestra e fuori dalla timeline.
+ */
+function sessionPlacementDate(session: ApprovedSessionRecord): Date {
+  return session.sessionDate ?? session.approvedAt;
+}
+
 function sessionOrder(session: ApprovedSessionRecord): number {
-  return (session.sessionDate ?? session.approvedAt).getTime();
+  return sessionPlacementDate(session).getTime();
 }
 
 function closedLast(item: FollowThroughItem): number {

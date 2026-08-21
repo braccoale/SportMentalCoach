@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Check,
   Copy,
@@ -24,17 +25,6 @@ import { track } from '@/lib/core/analytics';
  * ARIA dialog semantics, focus restored to the trigger on close.
  */
 
-const SHARE_TITLE = 'KaiPai';
-
-function whatsappText(link: string) {
-  return `Ciao! Ho scoperto KaiPai, una piattaforma per trovare il mental coach sportivo più adatto ai propri obiettivi. Penso potrebbe interessarti. Puoi registrarti qui: ${link}`;
-}
-
-const EMAIL_SUBJECT = 'Ti consiglio KaiPai';
-function emailBody(link: string) {
-  return `Ciao!\n\nHo scoperto KaiPai, una piattaforma che aiuta gli sportivi a trovare il mental coach più adatto ai propri obiettivi.\n\nPenso potrebbe interessarti.\n\nPuoi scoprirla e registrarti gratuitamente qui:\n\n${link}`;
-}
-
 export function InviteModal({
   open,
   onClose,
@@ -42,6 +32,7 @@ export function InviteModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const t = useTranslations('Invite');
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,12 +60,12 @@ export function InviteModal({
       if (typeof data.url === 'string') setUrl(data.url);
       else throw new Error('bad-response');
     } catch {
-      setError('Non è stato possibile generare il link. Riprova.');
+      setError(t('loadError'));
     } finally {
       setLoading(false);
       inFlight.current = false;
     }
-  }, [url]);
+  }, [t, url]);
 
   // On open: remember focus, load the link, emit the event.
   useEffect(() => {
@@ -145,31 +136,35 @@ export function InviteModal({
       track('invite_link_copied');
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      setError('Copia non riuscita. Copia il link manualmente.');
+      setError(t('copyError'));
     }
-  }, [url]);
+  }, [t, url]);
 
   const nativeShare = useCallback(async () => {
     if (!url || !navigator.share) return;
     try {
-      await navigator.share({ title: SHARE_TITLE, text: whatsappText(url), url });
+      await navigator.share({
+        title: t('shareTitle'),
+        text: t('shareText', { link: url }),
+        url,
+      });
       track('invite_native_share');
     } catch {
       // User dismissed the share sheet — not an error worth surfacing.
     }
-  }, [url]);
+  }, [t, url]);
 
   if (!open) return null;
 
   const disabled = loading || !url;
   const waHref = url
-    ? `https://wa.me/?text=${encodeURIComponent(whatsappText(url))}`
+    ? `https://wa.me/?text=${encodeURIComponent(t('shareText', { link: url }))}`
     : '#';
   const mailHref = url
-    ? `mailto:?subject=${encodeURIComponent(EMAIL_SUBJECT)}&body=${encodeURIComponent(emailBody(url))}`
+    ? `mailto:?subject=${encodeURIComponent(t('emailSubject'))}&body=${encodeURIComponent(t('emailBody', { link: url }))}`
     : '#';
   const tgHref = url
-    ? `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(whatsappText(url))}`
+    ? `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(t('shareText', { link: url }))}`
     : '#';
 
   return (
@@ -182,7 +177,7 @@ export function InviteModal({
     >
       <button
         type="button"
-        aria-label="Chiudi"
+        aria-label={t('close')}
         tabIndex={-1}
         onClick={onClose}
         className="absolute inset-0 cursor-default bg-black/40"
@@ -195,17 +190,16 @@ export function InviteModal({
         <div className="flex items-start justify-between">
           <div>
             <h2 id="invite-title" className="text-lg font-semibold text-gray-900">
-              Invita un amico su KaiPai
+              {t('title')}
             </h2>
             <p id="invite-desc" className="mt-1 text-sm text-gray-500">
-              Conosci qualcuno che vuole migliorare concentrazione, motivazione o
-              gestione dell&apos;ansia nello sport? Condividi KaiPai con lui.
+              {t('description')}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Chiudi"
+            aria-label={t('close')}
             className="rounded-full p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
           >
             <X className="h-5 w-5" />
@@ -216,7 +210,7 @@ export function InviteModal({
         <div className="mt-5 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
           <Link2 className="h-4 w-4 shrink-0 text-gray-400" />
           <span className="min-w-0 flex-1 truncate text-sm text-gray-600">
-            {loading ? 'Generazione del link…' : url ?? '—'}
+            {loading ? t('generating') : url ?? '—'}
           </span>
         </div>
 
@@ -239,7 +233,7 @@ export function InviteModal({
                 : 'bg-green-600 hover:bg-green-700'
             }`}
           >
-            <MessageCircle className="h-4 w-4" /> Condividi su WhatsApp
+            <MessageCircle className="h-4 w-4" /> {t('shareWhatsApp')}
           </a>
 
           <a
@@ -255,7 +249,7 @@ export function InviteModal({
                 : 'border-gray-300 text-gray-800 hover:bg-gray-50'
             }`}
           >
-            <Mail className="h-4 w-4" /> Invia via email
+            <Mail className="h-4 w-4" /> {t('sendEmail')}
           </a>
 
           <button
@@ -272,11 +266,11 @@ export function InviteModal({
           >
             {copied ? (
               <>
-                <Check className="h-4 w-4" /> Link copiato
+                <Check className="h-4 w-4" /> {t('copied')}
               </>
             ) : (
               <>
-                <Copy className="h-4 w-4" /> Copia link
+                <Copy className="h-4 w-4" /> {t('copyLink')}
               </>
             )}
           </button>
@@ -296,7 +290,7 @@ export function InviteModal({
                 : 'border-gray-300 text-gray-800 hover:bg-gray-50'
             }`}
           >
-            <Send className="h-4 w-4" /> Condividi su Telegram
+            <Send className="h-4 w-4" /> {t('shareTelegram')}
           </a>
 
           {canNativeShare && (
@@ -315,7 +309,7 @@ export function InviteModal({
               ) : (
                 <Share2 className="h-4 w-4" />
               )}
-              Altre opzioni
+              {t('moreOptions')}
             </button>
           )}
         </div>

@@ -56,23 +56,51 @@ export function SessionsScreen({
   const [sessions, setSessions] = useState<UpcomingSession[]>([]);
   const [past, setPast] = useState<UpcomingSession[]>([]);
   const [loading, setLoading] = useState(true);
+  /** L'aggiornamento tirato giù col dito, distinto dal primo caricamento. */
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [initial, setInitial] = useState('·');
   const [now, setNow] = useState(() => Date.now());
   const [menuFor, setMenuFor] = useState<UpcomingSession | null>(null);
   const [deciding, setDeciding] = useState<number | null>(null);
   const [newOpen, setNewOpen] = useState(false);
+  /** Con chi si sta riprenotando, quando si arriva da una seduta passata. */
+  const [bookWith, setBookWith] = useState<number | null>(null);
   /** La seduta passata aperta in scheda: com'è andata, cosa resta da fare. */
   const [detailFor, setDetailFor] = useState<UpcomingSession | null>(null);
-  const [filter, setFilter] = useState<Filter>('tutte');
+  /*
+   * Si apre sulle completate.
+   *
+   * «Tutte» mescola le sedute svolte con le annullate e le scadute, che sono
+   * rumore quando si guarda indietro: la domanda e' «cosa ci siamo detti», e la
+   * risposta sta solo nelle sedute che si sono svolte davvero. Le altre restano
+   * a un tocco.
+   */
+  const [filter, setFilter] = useState<Filter>('completate');
 
-  const isCoach = sessions[0]?.viewerIsCoach ?? past[0]?.viewerIsCoach ?? false;
+  /*
+   * Il ruolo arriva dal server.
+   *
+   * Prima si leggeva da `sessions[0]?.viewerIsCoach`: un coach senza nemmeno
+   * una sessione — il suo primo giorno — cadeva su `false` e si sentiva dire
+   * di prenotare «dal profilo del tuo coach». Le sessioni restano come
+   * ripiego per un server piu` vecchio dell'app.
+   */
+  const [serverIsCoach, setServerIsCoach] = useState<boolean | null>(null);
+  const isCoach =
+    serverIsCoach ??
+    sessions[0]?.viewerIsCoach ??
+    past[0]?.viewerIsCoach ??
+    false;
 
   const load = useCallback(async () => {
     try {
       const data = await fetchSessions();
       setSessions(data.sessions);
       setPast(data.past ?? []);
+      if (typeof data.viewerIsCoach === 'boolean') {
+        setServerIsCoach(data.viewerIsCoach);
+      }
       setError(null);
     } catch {
       setError('Non riesco a caricare le sessioni.');
@@ -158,7 +186,16 @@ export function SessionsScreen({
         </Pressable>
       </View>
 
-      {error && !loading && (
+      {/*
+        * Una notizia, una volta sola.
+        *
+        * Qui il banner rosso compariva **insieme** al vuoto sotto, che dice la
+        * stessa cosa con altre parole e per giunta offre il rimedio: chi
+        * guardava leggeva due volte lo stesso guasto in due toni diversi. Il
+        * banner resta solo quando qualcosa c'e` gia` a schermo — li` non c'e'
+        * nessun vuoto a spiegarlo, e serve dire che l'elenco e` fermo.
+        */}
+      {error && !loading && (sessions.length > 0 || past.length > 0) && (
         <Text style={styles.banner} accessibilityLiveRegion="polite">
           {error}
         </Text>
@@ -170,7 +207,21 @@ export function SessionsScreen({
         <ScrollView
           contentContainerStyle={styles.body}
           refreshControl={
-            <RefreshControl refreshing={false} onRefresh={load} tintColor={theme.mid} />
+            /*
+             * La rotella resta finché l'aggiornamento non è finito.
+             *
+             * Con `refreshing={false}` fisso rimbalzava indietro all'istante:
+             * chi trascinava non sapeva se stesse succedendo qualcosa, e
+             * trascinava di nuovo.
+             */
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                void load().finally(() => setRefreshing(false));
+              }}
+              tintColor={theme.mid}
+            />
           }
         >
           <Text style={styles.section}>
@@ -327,6 +378,9 @@ export function SessionsScreen({
           visible
           onClose={() => setDetailFor(null)}
           onBookAgain={() => {
+            // Si riprenota con **questa** persona: il modulo si apre con lei
+            // gia' scelta, non su un elenco da rifare.
+            setBookWith(detailFor.otherUserId ?? null);
             setDetailFor(null);
             setNewOpen(true);
           }}
@@ -336,7 +390,11 @@ export function SessionsScreen({
       <NewAppointmentSheet
         visible={newOpen}
         isCoach={isCoach}
-        onClose={() => setNewOpen(false)}
+        withAthleteUserId={bookWith}
+        onClose={() => {
+          setNewOpen(false);
+          setBookWith(null);
+        }}
         onCreated={() => void load()}
       />
     </View>
@@ -423,6 +481,21 @@ const createStyles = (theme: Palette) =>
       justifyContent: 'center',
       // Disegnato sopra non basta: su Android serve anche per ricevere i tocchi.
       elevation: 8,
+      /*
+       * Elevation senza la sua ombra.
+       *
+       * Su Android `elevation` fa due mestieri insieme: decide l'ordine di
+       * sovrapposizione — che qui serve, altrimenti il pulsante non riceve i
+       * tocchi — e disegna un'ombra nativa. Su un fondo quasi nero quell'ombra
+       * non legge come profondita': diventa un alone scuro attorno al cerchio,
+       * e si vede.
+       *
+       * Un pulsante verde su `ink` e' gia' staccato dal contesto per contrasto,
+       * che su un'interfaccia scura e' l'unico modo che funziona davvero.
+       * Quindi si tiene l'elevation e si spegne solo l'ombra: da API 28 in su
+       * `shadowColor` vale anche per l'ombra generata da `elevation`.
+       */
+      shadowColor: 'transparent',
       zIndex: 10,
     },
     pressed: { opacity: 0.85 },

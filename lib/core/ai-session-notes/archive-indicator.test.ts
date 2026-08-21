@@ -78,3 +78,22 @@ test('il silenzio non si annuncia come un guasto', () => {
     { state: 'failed', label: 'Trascrizione non riuscita' }
   );
 });
+
+test('audio mai registrato non si chiama «trascrizione non riuscita»', () => {
+  /*
+   * Tre casi diversi finiscono nello stesso stato terminale, e chiamarli tutti
+   * allo stesso modo manda a cercare nel posto sbagliato: qui non c'era un
+   * file da cui trascrivere, quindi il guasto sta nella chiamata, non nella
+   * trascrizione che non e' mai stata chiamata.
+   */
+  assert.deepEqual(
+    buildAiSessionArchiveIndicator(
+      'transcription_failed',
+      'coach',
+      true,
+      false,
+      'NO_AUDIO_RECORDED'
+    ),
+    { state: 'failed', label: 'Audio non registrato' }
+  );
+});

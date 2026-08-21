@@ -5,15 +5,41 @@ import { notify } from './index';
 import { buildEmailIdempotencyKey, scopeForInvitation } from './idempotency';
 
 /**
- * Typed entry points for the three events whose triggering flows are not wired
- * yet (report sharing, platform-sent invitations, auth security alerts).
+ * Typed entry points for notification flows that need a stable, explicit
+ * payload. The report event is wired to the coach approval; invitations and
+ * auth security alerts remain available to their respective entry points.
  *
  * They exist so those flows land as a one-line call with the channels, the
  * preferences, the template and the deduplication already correct — rather than
  * each growing its own ad-hoc email.
  */
 
-/** The athlete's session report has been shared with them. */
+/**
+ * Il riepilogo di una seduta è pronto e aspetta l'approvazione del coach.
+ *
+ * Va al **coach**, non all'atleta: `notifyAiReportReady` è l'altra metà, e
+ * parte solo dopo, quando il coach condivide. Fra le due c'è il passaggio che
+ * finora non avvisava nessuno.
+ *
+ * Nessuno scope esplicito: l'evento ha un gemello in-app, e ogni riepilogo
+ * generato crea la propria riga — quindi una rigenerazione avvisa di nuovo,
+ * che è corretto, mentre un ritentativo dello stesso lavoro no, perché la
+ * transizione a `ready_for_review` avviene una volta sola per job completato.
+ */
+export async function notifyAiReportAwaitingReview(input: {
+  coachUserId: number;
+  bookingId: number;
+  athleteName?: string | null;
+  serviceTitle?: string | null;
+}): Promise<void> {
+  await notify('ai_report_awaiting_review', input.coachUserId, {
+    bookingId: input.bookingId,
+    athleteName: input.athleteName,
+    serviceTitle: input.serviceTitle,
+  });
+}
+
+/** Il report approvato dal coach è ora visibile all’atleta. */
 export async function notifyAiReportReady(input: {
   athleteUserId: number;
   bookingId: number;

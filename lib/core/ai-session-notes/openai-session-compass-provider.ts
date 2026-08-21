@@ -311,8 +311,37 @@ export function openAiSessionCompassProviderFromEnvironment(
       effectiveSessionCompassPromptVersion(
         environment.AI_NOTES_COMPASS_PROMPT_VERSION ?? ''
       ),
+    timeoutMs: compassTimeoutFromEnvironment(environment),
     client,
   });
+}
+
+/**
+ * Il timeout, quando non lo detta Vercel.
+ *
+ * I 45 secondi predefiniti non sono una stima di quanto serve al modello: sono
+ * quello che avanza sotto il tetto di 60 secondi della funzione sul piano
+ * Hobby, tolto il tempo di validare e salvare. Ma la stessa generazione girata
+ * da `npm run ai-notes:process` — un processo Node su una macchina vera — non
+ * ha nessun tetto, e li' fermarsi a 45 secondi butta via l'unico posto in cui
+ * una seduta lunga potrebbe farcela.
+ *
+ * Da qui si recupera una sessione morta di `COMPASS_TIMEOUT` senza cambiare
+ * piano, e il giorno in cui il piano cambia questa e' gia' la manopola giusta.
+ * In produzione, non impostata, resta 45 s.
+ */
+export function compassTimeoutFromEnvironment(
+  environment: Readonly<Record<string, string | undefined>> = process.env
+): number {
+  const raw = environment.AI_NOTES_COMPASS_TIMEOUT_MS?.trim();
+  if (!raw) return DEFAULT_TIMEOUT_MS;
+  const value = Number(raw);
+  // Un valore assurdo non deve diventare un timeout assurdo: si torna al
+  // predefinito, che e' sempre un valore sicuro.
+  if (!Number.isInteger(value) || value < 1_000 || value > 600_000) {
+    return DEFAULT_TIMEOUT_MS;
+  }
+  return value;
 }
 
 function requestFor(

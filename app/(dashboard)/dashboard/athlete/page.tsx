@@ -506,13 +506,6 @@ function AcceptedAppointments({
                         compact
                       />
                     )}
-                    <AddToGoogleCalendarButton
-                      url={calendarUrl}
-                      uiSource="appointment_card"
-                      userRole="athlete"
-                      compact
-                    />
-                    <ShareButton bookingId={b.id} compact />
                     {/* `Annulla` sta nel menu `⋯`, non qui: vedi la scheda
                         coach per il motivo. */}
                   </>
@@ -520,11 +513,13 @@ function AcceptedAppointments({
               }
               overflowActions={
                 <>
-                  <DropdownMenuItem asChild className="cursor-pointer">
-                    <Link href={`/dashboard/appointments/${b.id}`}>
-                      Vedi dettagli
-                    </Link>
-                  </DropdownMenuItem>
+                  <AddToGoogleCalendarButton
+                    url={calendarUrl}
+                    uiSource="appointment_card"
+                    userRole="athlete"
+                    menuItem
+                  />
+                  <ShareButton bookingId={b.id} menuItem />
                   {b.coachSlug && (
                     <DropdownMenuItem asChild className="cursor-pointer">
                       <Link href={`/coaches/${b.coachSlug}`}>Vedi coach</Link>

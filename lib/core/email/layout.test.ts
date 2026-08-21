@@ -239,7 +239,7 @@ test('i template non contengono markup: la presentazione è nel layout', () => {
 
 test('nessun template espone contenuti sensibili di chat o report', () => {
   const message = DEFAULT_EMAIL_TEMPLATES.new_message;
-  assert.ok(message.outro?.includes('non viene riportato'));
+  assert.match(message.outro ?? '', /non (?:compare|viene riportato)/);
   const report = DEFAULT_EMAIL_TEMPLATES.ai_report_ready;
   assert.ok(report.outro?.includes('riservato'));
   // Nessun segnaposto per il testo del messaggio o del report.

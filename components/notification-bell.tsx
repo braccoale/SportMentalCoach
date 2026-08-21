@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import useSWR from 'swr';
 import { Bell } from 'lucide-react';
 import {
@@ -38,6 +39,7 @@ export function NotificationBell({
 }: {
   appearance?: 'dark' | 'light';
 } = {}) {
+  const t = useTranslations('Notifications');
   const { data, mutate } = useSWR<Data>('/api/notifications', fetcher, {
     refreshInterval: 30000,
   });
@@ -79,17 +81,17 @@ export function NotificationBell({
             {unread > 9 ? '9+' : unread}
           </span>
         )}
-        <span className="sr-only">Notifiche</span>
+        <span className="sr-only">{t('label')}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80 p-0">
         <div className="flex items-center justify-between border-b border-gray-100 px-3 py-2">
-          <span className="text-sm font-semibold text-gray-900">Notifiche</span>
+          <span className="text-sm font-semibold text-gray-900">{t('label')}</span>
           {unread > 0 && (
             <button
               onClick={markAll}
               className="text-xs font-medium text-red-600 hover:text-red-700"
             >
-              Segna tutte come lette
+              {t('markAllRead')}
             </button>
           )}
         </div>
@@ -97,7 +99,7 @@ export function NotificationBell({
         <div className="max-h-80 overflow-y-auto">
           {data.items.length === 0 ? (
             <p className="px-3 py-6 text-center text-sm text-gray-500">
-              Nessuna notifica.
+              {t('empty')}
             </p>
           ) : (
             data.items.map((item) => (
@@ -132,7 +134,7 @@ export function NotificationBell({
             href="/dashboard/notifications"
             className="text-sm font-medium text-red-600 hover:text-red-700"
           >
-            Vedi tutte
+            {t('viewAll')}
           </Link>
         </div>
       </DropdownMenuContent>

@@ -1,6 +1,5 @@
 'use client';
 
-import { ShareButton } from '@/components/share-button';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import {
@@ -8,7 +7,7 @@ import {
   UserRound,
   CalendarCheck,
   AlignLeft,
-  MoreHorizontal,
+  MoreVertical,
   ChevronUp,
   CircleCheck,
 } from 'lucide-react';
@@ -17,6 +16,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { SportIcon } from '@/components/sport-icon';
 import { cn } from '@/lib/utils';
 
 export type UpcomingAppointmentData = {
@@ -24,6 +24,8 @@ export type UpcomingAppointmentData = {
   /** Counterpart shown on the card: the athlete (coach view) or the coach (athlete view). */
   athleteName: string;
   athleteAvatarUrl: string | null;
+  /** Sport dell'atleta, usato per l'icona accanto al nome. */
+  sportKey?: string | null;
   eyebrow: string;
   statusLabel: string;
   /** Huge-date hero; null when there's no fixed time yet. */
@@ -48,14 +50,12 @@ export function UpcomingAppointmentCard({
   primaryActions,
   overflowActions,
   detailContent,
-  isCoachView,
   className,
 }: {
   data: UpcomingAppointmentData;
   primaryActions?: ReactNode;
   overflowActions?: ReactNode;
   detailContent?: ReactNode;
-  isCoachView?: boolean;
   className?: string;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -101,13 +101,28 @@ export function UpcomingAppointmentCard({
       </div>
 
       <div className="flex flex-1 flex-col p-4">
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-emerald-600">
-            <Video className="h-4 w-4" />
-          </span>
-          <span className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-600">
-            Sessione online
-          </span>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-emerald-600">
+              <Video className="h-4 w-4" />
+            </span>
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-600">
+              Sessione online
+            </span>
+          </div>
+          {overflowActions && (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label="Azioni appuntamento"
+                className="-mr-1 -mt-1 rounded-full p-1.5 text-emerald-600 transition hover:bg-emerald-50 hover:text-emerald-700"
+              >
+                <MoreVertical className="h-5 w-5" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-56">
+                {overflowActions}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
         <div className="mt-2">
@@ -153,8 +168,6 @@ export function UpcomingAppointmentCard({
         {primaryActions && (
           <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-3">
             {primaryActions}
-            {/* Aggiunto il pulsante di condivisione, visibile solo per il coach */}
-            {isCoachView && <ShareButton bookingId={data.id} />}
           </div>
         )}
 
@@ -177,16 +190,6 @@ export function UpcomingAppointmentCard({
                 )}
                 Vedi dettagli
               </button>
-            )}
-            {overflowActions && (
-              <DropdownMenu>
-                <DropdownMenuTrigger className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700">
-                  <MoreHorizontal className="h-5 w-5" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="flex flex-col gap-1">
-                  {overflowActions}
-                </DropdownMenuContent>
-              </DropdownMenu>
             )}
           </div>
         </div>

@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { CalendarPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { track } from '@/lib/core/analytics';
 import { cn } from '@/lib/utils';
 
@@ -69,6 +70,7 @@ export function AddToGoogleCalendarButton({
   userRole,
   sessionType = 'online',
   compact = false,
+  menuItem = false,
   className,
 }: {
   url: string | null;
@@ -76,6 +78,7 @@ export function AddToGoogleCalendarButton({
   userRole: 'athlete' | 'coach';
   sessionType?: 'online' | 'in_person';
   compact?: boolean;
+  menuItem?: boolean;
   className?: string;
 }) {
   const opening = useRef(false);
@@ -101,6 +104,18 @@ export function AddToGoogleCalendarButton({
     window.setTimeout(() => {
       opening.current = false;
     }, 750);
+  }
+
+  if (menuItem) {
+    return (
+      <DropdownMenuItem
+        onSelect={handleClick}
+        className={cn('cursor-pointer gap-2', className)}
+      >
+        <CalendarPlus className="h-4 w-4" aria-hidden="true" />
+        Aggiungi al calendario
+      </DropdownMenuItem>
+    );
   }
 
   return (

@@ -194,6 +194,7 @@ const RECIPIENT: Record<NotificationEventKey, 'athlete' | 'coach'> = {
   booking_reminder_24h: 'athlete',
   booking_reminder_1h: 'athlete',
   new_message: 'athlete',
+  ai_report_awaiting_review: 'coach',
   ai_report_ready: 'athlete',
   coach_invitation: 'athlete',
   athlete_registered: 'coach',

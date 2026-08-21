@@ -1,4 +1,4 @@
-import { getUser } from '@/lib/db/queries';
+import { getApiUser } from '@/lib/auth/api-user';
 import { addCoachBookmark } from '@/lib/core/ai-session-notes/coach-bookmarks-store';
 import { aiNotesErrorResponse } from '@/lib/core/ai-session-notes/http';
 import { allowRecordingMutation } from '@/lib/core/ai-session-notes/rate-limit';
@@ -10,12 +10,16 @@ import { isEmptyRecordingMutationBody } from '@/lib/core/ai-session-notes/record
  * Un tocco durante la chiamata: nessun testo da scrivere, perché un coach
  * che scrive smette di guardare l'atleta. La posizione la calcola il server
  * dall'inizio della sessione, così il client non può spostarla.
+ *
+ * Vale anche dall'app, che è il posto dove la chiamata avviene davvero:
+ * `getApiUser` legge il Bearer del telefono o i cookie del browser, e la
+ * regola resta una sola.
  */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = await getUser();
+  const user = await getApiUser(request);
   if (!user) {
     return Response.json({ error: 'Non autenticato.' }, { status: 401 });
   }

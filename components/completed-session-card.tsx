@@ -9,7 +9,7 @@ import {
   CircleCheck,
   Clock,
   XCircle,
-  MessageSquare,
+  UserRound,
   Target,
   CalendarDays,
   AlignLeft,
@@ -267,12 +267,16 @@ export function CompletedSessionCard({
         </div>
 
         <div className="flex flex-col gap-1.5 border-t border-gray-100 pt-2.5 text-sm">
+          {/* Il nome, non «Bisogno». Quella riga chiamava «bisogno» il titolo
+              del servizio — «Sessione Online» non è un bisogno di nessuno — e
+              intanto la cosa che serve per riconoscere la card a colpo
+              d'occhio, cioè di chi si sta parlando, stava solo nel pannello
+              scuro accanto, che su schermo stretto scompare.
+              `personName` è già la controparte giusta per entrambe le viste:
+              l'atleta quando guarda il coach, il coach quando guarda l'atleta. */}
           <div className="flex items-start gap-2">
-            <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
-            <span className="text-gray-700">
-              <span className="text-gray-400">Bisogno: </span>
-              {data.primaryNeed}
-            </span>
+            <UserRound className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
+            <span className="font-medium text-gray-900">{data.personName}</span>
           </div>
           {data.goal && (
             <div className="flex items-start gap-2">

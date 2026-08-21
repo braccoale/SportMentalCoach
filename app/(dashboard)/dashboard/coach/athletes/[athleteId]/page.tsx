@@ -1,27 +1,81 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import {
-  Compass,
-  MessageSquare,
-  ShieldAlert,
-  Sparkles,
-  Target,
-} from 'lucide-react';
+import { MessageSquare, Target } from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
 import { getCoachBookings, bookingStatusLabel } from '@/lib/core/bookings';
 import {
   bookingsForAthlete,
   buildCoachAthletes,
 } from '@/lib/core/bookings/coach-athletes';
-import { CoachAvatar } from '@/components/coach-visuals';
 import { formatDate, formatDateTime, formatMinutes } from '@/lib/core/format';
 import { getVerticalConfig, findTaxonomyItem } from '@/lib/core/config';
 import {
   FEATURE_CODES,
   hasFeatureEntitlement,
 } from '@/lib/core/features';
+import {
+  MentalJourneyError,
+  getMentalJourney,
+  type MentalJourney,
+} from '@/lib/core/ai-session-notes/mental-journey';
+import { mentalJourneyDependencies } from '@/lib/core/ai-session-notes/mental-journey-store';
+import {
+  MIN_JOURNEY_STAGES,
+  buildJourneyStages,
+} from '@/lib/core/ai-session-notes/journey-stages';
+import {
+  buildCommitmentBreakdown,
+  buildThemeBars,
+} from '@/lib/core/ai-session-notes/journey-panels';
+import {
+  buildJourneyGoalRows,
+  selectableGoalThemes,
+} from '@/lib/core/ai-session-notes/journey-goals';
+import {
+  listGoalSessionLinks,
+  listJourneyGoals,
+  reconcileGoalSessionLinks,
+} from '@/lib/core/ai-session-notes/journey-goals-store';
+import {
+  buildJourneyProgress,
+  latestJourneyInsight,
+} from '@/lib/core/ai-session-notes/journey-progress';
+import {
+  addJourneyGoalAction,
+  setJourneyGoalStatusAction,
+} from './actions';
+import { AthleteHeader } from '@/components/session-compass/athlete-header';
+import { JourneyPath } from '@/components/session-compass/journey-path';
+import { JourneyPathPending } from '@/components/session-compass/journey-path-pending';
+import { JourneyGoalsPanel } from '@/components/session-compass/journey-goals';
+import { JourneyProgressPanel } from '@/components/session-compass/journey-progress';
+import {
+  JourneyCommitmentsPanel,
+  JourneyThemesPanel,
+} from '@/components/session-compass/journey-panels';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * Il percorso è un di più: se non è leggibile — la funzionalità è spenta,
+ * l'atleta non ne ha ancora uno — la scheda resta quella di prima invece di
+ * andare in errore. La stessa autorizzazione la riapplica `getMentalJourney`.
+ */
+async function loadJourney(
+  athleteUserId: number,
+  actorUserId: number,
+  since: Date | null
+): Promise<MentalJourney | null> {
+  try {
+    return await getMentalJourney(
+      { athleteUserId, actorUserId, since },
+      mentalJourneyDependencies()
+    );
+  } catch (error) {
+    if (error instanceof MentalJourneyError) return null;
+    throw error;
+  }
+}
 
 function Field({
   label,
@@ -43,11 +97,13 @@ function Field({
 
 export default async function CoachAthletePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ athleteId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = await requireRole('coach');
-  const { athleteId } = await params;
+  const [{ athleteId }, query] = await Promise.all([params, searchParams]);
   const targetId = Number(athleteId);
   if (!Number.isInteger(targetId) || targetId <= 0) notFound();
 
@@ -66,6 +122,51 @@ export default async function CoachAthletePage({
   if (!athlete) notFound();
 
   const history = bookingsForAthlete(bookings, targetId);
+  // Un riepilogo pronto e non approvato è lavoro già fatto che non entra nel
+  // percorso: finora nessuna schermata lo diceva a chi apriva la scheda.
+  const awaitingReview = history.filter(
+    (booking) => booking.aiReportStatus === 'ready_for_review'
+  ).length;
+  const [journey, storedGoals] = await Promise.all([
+    hasAiSessionNotes
+      ? loadJourney(targetId, user.id, null)
+      : Promise.resolve(null),
+    hasAiSessionNotes
+      ? listJourneyGoals({ coachUserId: user.id, athleteUserId: targetId })
+      : Promise.resolve([]),
+  ]);
+  // Le sedute gia' in agenda: il percorso non finisce sull'ultima fatta.
+  const now = new Date();
+  const plannedSessions = history
+    .filter(
+      (booking) =>
+        booking.status === 'accepted' &&
+        booking.scheduledFor != null &&
+        booking.scheduledFor.getTime() > now.getTime()
+    )
+    .map((booking) => ({
+      bookingId: booking.id,
+      scheduledFor: booking.scheduledFor!.toISOString(),
+      serviceTitle: booking.serviceTitle,
+    }));
+
+  // Gli agganci obiettivo/seduta si riallineano all'apertura: e' idempotente,
+  // scrive solo cio' che manca, e sana anche gli obiettivi nati prima che
+  // questa tabella esistesse.
+  if (journey && storedGoals.length > 0) {
+    await reconcileGoalSessionLinks({
+      athleteUserId: targetId,
+      themes: journey.recurringThemes,
+    });
+  }
+  const goalLinks = await listGoalSessionLinks(storedGoals.map((g) => g.id));
+
+  const stages = journey
+    ? buildJourneyStages(journey.timeline, { planned: plannedSessions })
+    : [];
+  const athletePath = `/dashboard/coach/athletes/${athlete.userId}`;
+  const mentalJourneyHref = `${athletePath}/mental-journey`;
+
   const sportLabel = athlete.sport
     ? (findTaxonomyItem(config.taxonomies.categories, athlete.sport)?.label ??
       athlete.sport)
@@ -84,126 +185,109 @@ export default async function CoachAthletePage({
         ← I miei Atleti
       </Link>
 
-      <header className="mt-3 flex flex-wrap items-start gap-4">
-        <CoachAvatar
+      <div className="mt-3">
+        <AthleteHeader
           name={athlete.name}
-          src={athlete.avatarUrl}
-          className="size-16 shrink-0"
+          avatarUrl={athlete.avatarUrl}
+          age={athlete.age}
+          sportLabel={sportLabel}
+          levelLabel={levelLabel}
+          isMinor={athlete.isMinor}
+          nextSessionAt={athlete.nextSessionAt}
+          sportKey={athlete.sport}
+          completedSessions={athlete.completedSessions}
+          commitmentsTotal={journey?.summary.commitments.total ?? 0}
+          since={
+            journey?.summary.firstSessionDate
+              ? new Date(journey.summary.firstSessionDate)
+              : null
+          }
+          exportHref={
+            journey && journey.summary.approvedSessionCount > 0
+              ? `/api/coach/athletes/${athlete.userId}/journey-export`
+              : null
+          }
+          mentalJourneyHref={hasAiSessionNotes ? mentalJourneyHref : null}
         />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold text-gray-900">
-              {athlete.name}
-            </h1>
-            {athlete.isMinor && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">
-                <ShieldAlert className="h-3.5 w-3.5" />
-                Minorenne — autorizzazione del tutore richiesta
-              </span>
-            )}
-          </div>
-          <p className="mt-1 text-sm text-gray-600">
-            {[sportLabel, levelLabel].filter(Boolean).join(' · ') ||
-              'Profilo non ancora compilato'}
-          </p>
-          {athlete.nextSessionAt && (
-            <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-sm font-medium text-green-700">
-              Prossima sessione: {formatDateTime(athlete.nextSessionAt)}
-            </p>
+      </div>
+
+      {/* Il percorso — la prima risposta della pagina: dove siamo arrivati.
+          Sta in cima perché è la domanda con cui un coach apre la scheda di
+          una persona; il profilo e lo storico rispondono a domande che vengono
+          dopo.
+
+          La soglia è una sola, `MIN_JOURNEY_STAGES`, e la decide il dominio.
+          Prima il blocco si apriva a «almeno una tappa» mentre la striscia si
+          disegna da due: con una tappa sola i riquadri comparivano, la
+          striscia spariva senza una parola, e il riquadro di ripiego non
+          scattava perché le tappe non erano zero. Due soglie diverse sullo
+          stesso fatto, e in mezzo il silenzio. */}
+      {hasAiSessionNotes && journey && (
+        <div className="mt-6 flex flex-col gap-4">
+          {stages.length >= MIN_JOURNEY_STAGES ? (
+            <JourneyPath
+              stages={stages}
+              // Tutta la cronistoria, non le sole approvate: da quando la
+              // striscia mostra anche le bozze, contare solo quelle validate
+              // faceva dire «tutte le sessioni (1)» sotto due card.
+              totalSessions={journey.timeline.length}
+              allSessionsHref={mentalJourneyHref}
+            />
+          ) : (
+            <JourneyPathPending
+              approvedSessions={journey.summary.approvedSessionCount}
+              awaitingReview={awaitingReview}
+              reviewHref={
+                athlete.latestCompassBookingId
+                  ? `/dashboard/appointments/${athlete.latestCompassBookingId}#session-compass`
+                  : null
+              }
+              mentalJourneyHref={mentalJourneyHref}
+            />
           )}
-        </div>
-      </header>
 
-      {/* Profilo */}
-      <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-5">
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-          <Target className="h-4 w-4 text-gray-400" />
-          Profilo
-        </h2>
-        <dl className="mt-4 grid gap-4 sm:grid-cols-3">
-          <Field label="Sport" value={sportLabel} />
-          <Field label="Livello" value={levelLabel} />
-          <Field
-            label="Sessioni svolte"
-            value={String(athlete.completedSessions)}
-          />
-        </dl>
-        {athlete.goals && (
-          <div className="mt-4 border-t border-gray-100 pt-4">
-            <dt className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Obiettivi dichiarati
-            </dt>
-            <dd className="mt-1 text-sm leading-6 text-gray-700">
-              {athlete.goals}
-            </dd>
+          {/* La griglia del disegno: gli obiettivi tengono la colonna larga
+              perché sono il filo del percorso, e i due riquadri che li
+              commentano stanno in colonna accanto. Sotto, il progresso occupa
+              la stessa larghezza degli obiettivi: parla di loro. */}
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="flex flex-col gap-4 lg:col-span-2">
+              <JourneyGoalsPanel
+                rows={buildJourneyGoalRows({
+                  goals: storedGoals,
+                  timeline: journey.timeline,
+                  links: goalLinks,
+                })}
+                athleteUserId={athlete.userId}
+                themes={selectableGoalThemes(journey.recurringThemes)}
+                addGoalAction={addJourneyGoalAction}
+                setStatusAction={setJourneyGoalStatusAction}
+              />
+
+              <JourneyProgressPanel
+                progress={buildJourneyProgress(journey.timeline)}
+                insight={latestJourneyInsight(journey.timeline)}
+              />
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <JourneyCommitmentsPanel
+                breakdown={buildCommitmentBreakdown(journey.summary)}
+                allCommitmentsHref={`${mentalJourneyHref}#mental-journey-follow-through`}
+              />
+              <JourneyThemesPanel
+                bars={buildThemeBars(
+                  journey.recurringThemes,
+                  journey.summary.approvedSessionCount
+                )}
+                approvedSessionCount={journey.summary.approvedSessionCount}
+                detailsHref={`${mentalJourneyHref}#mental-journey-themes`}
+              />
+            </div>
           </div>
-        )}
-      </section>
-
-      {/* Percorso mentale — si popola dai report che il coach ha approvato.
-          Visibile solo con la funzionalità AI attiva: i dati sono comunque
-          protetti dall'entitlement, ma mostrare la porta di una stanza chiusa
-          promette qualcosa che non c'è. */}
-      {hasAiSessionNotes && (
-      <section className="mt-4 rounded-2xl border border-violet-200 bg-violet-50/40 p-5">
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-          <Compass className="h-4 w-4 text-violet-600" />
-          Mental Journey
-        </h2>
-        <p className="mt-1 text-sm text-gray-600">
-          Temi ricorrenti, punti da riprendere e impegni presi, costruiti dai
-          report delle sessioni che hai approvato.
-        </p>
-        <Link
-          href={`/dashboard/coach/athletes/${athlete.userId}/mental-journey`}
-          className="mt-3 inline-flex items-center gap-2 rounded-full bg-violet-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-violet-700"
-        >
-          <Sparkles className="h-4 w-4" />
-          Apri il percorso
-        </Link>
-      </section>
+        </div>
       )}
 
-      {/* Storico */}
-      <section className="mt-4">
-        <h2 className="text-sm font-semibold text-gray-900">
-          Storico delle sessioni ({history.length})
-        </h2>
-        <ul className="mt-3 flex flex-col divide-y divide-gray-100 rounded-2xl border border-gray-200 bg-white">
-          {history.map((booking) => (
-            <li
-              key={booking.id}
-              className="flex flex-wrap items-center justify-between gap-3 p-4"
-            >
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-900">
-                  {booking.scheduledFor
-                    ? formatDateTime(booking.scheduledFor)
-                    : `Richiesta del ${formatDate(booking.requestedAt)}`}
-                </p>
-                <p className="mt-0.5 text-xs text-gray-500">
-                  {[
-                    booking.serviceTitle,
-                    booking.durationMin
-                      ? formatMinutes(booking.durationMin)
-                      : null,
-                    bookingStatusLabel(booking.status),
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </p>
-              </div>
-              <Link
-                href={`/dashboard/chat/${booking.id}`}
-                className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
-              >
-                <MessageSquare className="h-3.5 w-3.5" />
-                Apri chat
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
     </section>
   );
 }

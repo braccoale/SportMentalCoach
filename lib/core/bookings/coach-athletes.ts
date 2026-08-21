@@ -53,6 +53,8 @@ export type CoachAthleteSummary = {
   level: string | null;
   goals: string | null;
   isMinor: boolean;
+  /** L'età dell'atleta, quando il profilo porta una data di nascita. */
+  age: number | null;
   /** Sessioni completate: il numero che descrive davvero il percorso. */
   completedSessions: number;
   /** Richieste in attesa di risposta del coach. */
@@ -71,6 +73,15 @@ export type CoachAthleteSummary = {
    * lavoro arretrato senza aprirli uno per uno.
    */
   latestCompassNeedsReview: boolean;
+  /**
+   * **Quanti** riepiloghi aspettano, non se ne aspetta almeno uno.
+   *
+   * Un booleano diceva meno di quanto sembrava: un atleta con due sedute da
+   * validare mostrava un distintivo solo, e il conteggio in cima alla
+   * dashboard — che conta i riepiloghi — non tornava con l'elenco, che
+   * contava gli atleti. Il coach vedeva «3 da validare» e poi due righe.
+   */
+  pendingReviewCount: number;
   /**
    * "In percorso" quando esiste almeno una prenotazione aperta — richiesta o
    * confermata. Altrimenti l'atleta ha lavorato con il coach in passato.
@@ -146,6 +157,7 @@ export function buildCoachAthletes(
       level: latest.athleteLevel,
       goals: latest.athleteGoals,
       isMinor: latest.athleteIsMinor,
+      age: latest.athleteAge,
       completedSessions: list.filter((b) => wasHeld(b, now)).length,
       pendingRequests: list.filter((b) => b.status === 'requested').length,
       nextSessionAt: upcoming?.scheduledFor ?? null,
@@ -155,6 +167,9 @@ export function buildCoachAthletes(
       // valida, ed e' l'unico che cambia quando il coach lo fa.
       latestCompassNeedsReview:
         latestCompass?.aiReportStatus === 'ready_for_review',
+      pendingReviewCount: list.filter(
+        (b) => b.aiReportStatus === 'ready_for_review'
+      ).length,
       status: list.some((b) => ACTIVE_STATUSES.includes(b.status))
         ? 'active'
         : 'past',

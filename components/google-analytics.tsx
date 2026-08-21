@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
 import {
   analyticsConsentCookie,
@@ -57,14 +58,16 @@ export function openCookieSettings() {
 }
 
 export function CookieSettingsButton({ className }: { className?: string }) {
+  const t = useTranslations('CookieConsent');
   return (
     <button type="button" onClick={openCookieSettings} className={className}>
-      Preferenze cookie
+      {t('settings')}
     </button>
   );
 }
 
 export function GoogleAnalytics({ measurementId }: { measurementId: string }) {
+  const t = useTranslations('CookieConsent');
   const pathname = usePathname();
   const configured = useRef(false);
   const lastTrackedPath = useRef<string | null>(null);
@@ -176,24 +179,26 @@ export function GoogleAnalytics({ measurementId }: { measurementId: string }) {
         <button
           type="button"
           onClick={() => choose('denied')}
-          aria-label="Chiudi e continua senza cookie analytics"
+          aria-label={t('closeWithoutAnalytics')}
           className="absolute right-2.5 top-2.5 rounded-full p-1.5 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
         >
           <X className="size-4" />
         </button>
 
         <h2 id="cookie-consent-title" className="pr-8 text-base font-semibold text-gray-950">
-          Cookie e misurazione del sito
+          {t('title')}
         </h2>
         <p className="mt-1.5 text-xs leading-5 sm:text-sm">
-          Usiamo cookie tecnici necessari. Solo con il tuo consenso, Google
-          Analytics ci aiuta a capire in forma aggregata come viene usato KaiPai,
-          senza pubblicità o profilazione. Puoi cambiare scelta in qualsiasi
-          momento dalla{' '}
-          <Link href="/cookie" className="font-medium text-blue-800 underline">
-            Cookie Policy
-          </Link>
-          .
+          {t.rich('description', {
+            policy: (chunks) => (
+              <Link
+                href="/cookie"
+                className="font-medium text-blue-800 underline"
+              >
+                {chunks}
+              </Link>
+            ),
+          })}
         </p>
 
         <div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -202,14 +207,14 @@ export function GoogleAnalytics({ measurementId }: { measurementId: string }) {
             onClick={() => choose('denied')}
             className="rounded-lg border border-gray-300 px-3.5 py-2 text-xs font-semibold text-gray-800 transition hover:bg-gray-50 sm:text-sm"
           >
-            Continua senza analytics
+            {t('continueWithoutAnalytics')}
           </button>
           <button
             type="button"
             onClick={() => choose('granted')}
             className="rounded-lg bg-blue-900 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-blue-800 sm:text-sm"
           >
-            Accetta analytics
+            {t('acceptAnalytics')}
           </button>
         </div>
       </section>

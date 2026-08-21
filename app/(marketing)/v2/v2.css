@@ -1,0 +1,313 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   Landing v2 — «Una sessione, dal prima al dopo»                 (rotta /v2)
+   ══════════════════════════════════════════════════════════════════════════
+
+   Tutto è prefisso `kp2-` e vive solo qui: la home in produzione non importa
+   questo foglio e non cambia di una riga.
+
+   Il principio: le scene non hanno colori propri, hanno *ruoli* — fondo,
+   testo, testo secondario, filo, vetro. I ruoli stanno in variabili, e la
+   pagina cambia stagione ridefinendo le variabili su un antenato. Il buio e
+   la luce non sono due fogli di stile: sono lo stesso foglio letto due volte.
+
+   La transizione cromatica la fa il CSS, non GSAP. GSAP muove le posizioni,
+   dove interpolare numeri è il suo mestiere; il colore passa da una classe
+   (`.kp2-lit`) e da una `transition` — un ordine di grandezza più economica,
+   e non si disallinea mai a metà scrub.                                    */
+
+.kp2 {
+  --kp2-ground: var(--color-kp-ink);
+  --kp2-fg: var(--color-kp-hi);
+  --kp2-mid: var(--color-kp-mid);
+  --kp2-low: var(--color-kp-low);
+  --kp2-line: rgba(255, 255, 255, 0.1);
+  /* La superficie delle card. Piena, non traslucida: il vetro smerigliato
+     sul nero pieno non è vetro, è un rettangolo grigio — e comunque portava
+     il discorso su un biglietto da viaggio invece che sul lavoro di ogni
+     settimana. `background-color` si interpola, quindi la card attraversa
+     l'alba insieme a tutto il resto. */
+  --kp2-card: #121217;
+  --kp2-card-line: rgba(255, 255, 255, 0.09);
+  --kp2-shadow: 0 24px 60px -32px rgba(0, 0, 0, 0.9);
+
+  background-color: var(--kp2-ground);
+  color: var(--kp2-fg);
+}
+
+/* La stessa scena, dopo l'alba. La transizione è lenta di proposito: la luce
+   deve arrivare come arriva la luce, non come si accende un neon. */
+.kp2-lit {
+  --kp2-ground: var(--color-kp2-day);
+  --kp2-fg: var(--color-kp2-dayhi);
+  --kp2-mid: var(--color-kp2-daymid);
+  --kp2-low: var(--color-kp2-daylow);
+  --kp2-line: var(--color-kp2-dayline);
+  --kp2-card: #ffffff;
+  --kp2-card-line: rgba(12, 12, 18, 0.08);
+  --kp2-shadow: 0 30px 70px -35px rgba(20, 20, 30, 0.45);
+}
+
+.kp2-season {
+  transition:
+    background-color 900ms cubic-bezier(0.4, 0, 0.2, 1),
+    color 900ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 900ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.kp2-ground {
+  background-color: var(--kp2-ground);
+}
+.kp2-fg {
+  color: var(--kp2-fg);
+}
+.kp2-mid {
+  color: var(--kp2-mid);
+}
+.kp2-low {
+  color: var(--kp2-low);
+}
+.kp2-hair {
+  background-color: var(--kp2-line);
+}
+.kp2-panel {
+  background-color: var(--kp2-card);
+  border: 1px solid var(--kp2-card-line);
+  box-shadow: var(--kp2-shadow);
+}
+
+/* ── La card ──────────────────────────────────────────────────────────────
+   Una superficie, un filo di bordo, un'ombra corta. Nessuna maschera, nessun
+   `backdrop-filter`: due proprietà in meno da comporre a ogni frame mentre
+   sotto scorre una fotografia in parallasse.                               */
+.kp2-card {
+  position: relative;
+  border-radius: 20px;
+  background-color: var(--kp2-card);
+  border: 1px solid var(--kp2-card-line);
+  box-shadow: var(--kp2-shadow);
+}
+
+.kp2-card-line {
+  background-color: var(--kp2-card-line);
+}
+
+/* ── Atmosfera ─────────────────────────────────────────────────────────────
+   La grana tiene insieme fotografie di provenienza diversa e nasconde il
+   banding dei gradienti larghi sugli schermi scuri. */
+.kp2-grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.3;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+}
+
+.kp2-display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 0.92;
+}
+
+.kp2-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.kp2-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Le parole del titolo entrano da sotto la loro riga: la maschera è la riga
+   stessa, quindi serve un contenitore che nasconda ciò che sborda. */
+.kp2-mask-line {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  /* Il padding in alto non è simmetria: con `line-height` 0.92 la finestra di
+     ritaglio passa sotto gli accenti delle maiuscole, e la È del titolo
+     perdeva il suo. Il margine negativo lo restituisce al layout, così la
+     riga resta dove il compositore l'ha messa. */
+  padding-top: 0.16em;
+  margin-top: -0.16em;
+  padding-bottom: 0.14em;
+}
+
+.kp2-cta {
+  background: linear-gradient(135deg, var(--color-kp-red), var(--color-kp-red2));
+  box-shadow: 0 12px 40px -12px rgba(225, 29, 42, 0.7);
+  transition:
+    transform 220ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 220ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.kp2-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 50px -12px rgba(225, 29, 42, 0.85);
+}
+
+/* La barra 1–5 di una metrica del compass. Il riempimento arriva da GSAP:
+   qui c'è solo il binario, così la scena senza JavaScript resta leggibile —
+   il valore è comunque scritto in cifre accanto all'etichetta. */
+.kp2-meter {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background-color: var(--kp2-line);
+  overflow: hidden;
+}
+.kp2-meter-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  border-radius: 999px;
+}
+
+/* Tutto ciò che porta un ruolo cromatico cambia stagione insieme. Senza
+   questa riga il fondo scivolerebbe verso la luce in novecento millisecondi e
+   il testo ci arriverebbe di scatto, in un frame. */
+.kp2-fg,
+.kp2-mid,
+.kp2-low,
+.kp2-hair,
+.kp2-ground,
+.kp2-panel,
+.kp2-card,
+.kp2-card-line,
+.kp2-meter {
+  transition:
+    color 900ms cubic-bezier(0.4, 0, 0.2, 1),
+    background-color 900ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 900ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* La fotografia della scena del percorso appartiene al buio: quando arriva la
+   luce non va schiarita, va tolta. */
+.kp2-lit .kp2-nightshot {
+  opacity: 0;
+}
+.kp2-nightshot {
+  transition: opacity 900ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── La barra ──────────────────────────────────────────────────────────────
+   Il colore lo detta la stagione della pagina (`html.kp2-day`), non una
+   soglia di scroll propria: una barra con una soglia sua, prima o poi, si
+   schiarisce mentre la scena sotto è ancora buia. */
+.kp2-nav {
+  color: var(--color-kp-hi);
+  transition:
+    color 900ms cubic-bezier(0.4, 0, 0.2, 1),
+    background-color 900ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 900ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.kp2-nav-solid {
+  /* Ottantasei per cento, non settanta: sotto la barra passano i biglietti
+     del percorso, e a settanta il loro testo si leggeva attraverso «Accedi».
+     Una barra è prima di tutto una superficie leggibile. */
+  background-color: rgba(5, 5, 7, 0.86);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+html.kp2-day .kp2-nav {
+  color: var(--color-kp2-dayhi);
+}
+html.kp2-day .kp2-nav-solid {
+  background-color: rgba(233, 230, 224, 0.92);
+  border-bottom-color: var(--color-kp2-dayline);
+}
+
+/* ── Telefono ──────────────────────────────────────────────────────────────
+   Il binario orizzontale su un telefono è una promessa che non si mantiene:
+   il pollice scorre in verticale, e per vedere sei biglietti larghi quanto lo
+   schermo servirebbero tremila pixel di scroll bloccato. Sotto i 768px le
+   tappe tornano una colonna — le stesse sei, nello stesso ordine, con lo
+   stesso testo. GSAP non crea nemmeno la timeline orizzontale (`matchMedia`),
+   quindi non c'è una trasformazione da annullare. */
+@media (max-width: 767px) {
+  .kp2-scene-pinned {
+    height: auto;
+    min-height: 0;
+    padding-block: 4.5rem;
+  }
+  .kp2-rail {
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    height: auto;
+    gap: 1.25rem;
+  }
+  .kp2-rail > * {
+    width: 100%;
+    max-width: 34rem;
+    flex: none;
+  }
+}
+
+/* ── Senza movimento ───────────────────────────────────────────────────────
+   `prefers-reduced-motion` non spegne le animazioni: le renderebbe inutili.
+   Le scene pinnate partono con il contenuto fuori posto o invisibile, e senza
+   timeline resterebbero vuote. Qui tornano pagine normali.
+
+   Le stesse regole sono stampate in un `<noscript>` dal layout: una landing
+   che senza JavaScript è una colonna di riquadri vuoti non è una landing. */
+@media (prefers-reduced-motion: reduce) {
+  .kp2-scene-pinned {
+    height: auto !important;
+    min-height: 0 !important;
+    padding-block: 5rem;
+  }
+  .kp2-anim {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+    visibility: visible !important;
+  }
+  /* Il binario orizzontale diventa quello che è sempre stato sotto: un
+     elenco ordinato di sei tappe. */
+  .kp2-rail {
+    transform: none !important;
+    flex-direction: column;
+    /* `align-items: center` insieme al tetto qui sotto: senza, i biglietti si
+       stirano per tutta la larghezza della finestra e le due tacche finiscono
+       ai lati opposti dello schermo — la forma smette di essere un biglietto
+       e diventa una fascia. */
+    align-items: center;
+    width: 100% !important;
+    height: auto;
+    gap: 1.5rem;
+    padding-inline: 1.25rem;
+  }
+  .kp2-rail > * {
+    width: 100% !important;
+    max-width: 34rem;
+    flex: none !important;
+  }
+  .kp2-season {
+    transition: none;
+  }
+  .kp2-meter-fill {
+    transform: none !important;
+  }
+  .kp2-draw {
+    stroke-dashoffset: 0 !important;
+  }
+  /* Le cinque didascalie del compass stanno una sopra l'altra e si scambiano
+     con il blocco: senza lo scambio si leggerebbero tutte insieme, nello
+     stesso punto. Senza movimento non servono — il documento accanto è
+     comunque leggibile per intero. */
+  .kp2-captions {
+    display: none;
+  }
+  /* La cornice del report ha un'altezza fissa perché il contenuto ci scorre
+     dentro. Se non scorre, deve poter crescere. */
+  .kp2-report {
+    height: auto !important;
+  }
+}

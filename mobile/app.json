@@ -6,6 +6,7 @@
     "version": "0.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
+    "icon": "./assets/logo.png",
     "backgroundColor": "#050507",
     "assetBundlePatterns": [
       "**/*"
@@ -26,6 +27,7 @@
     "android": {
       "package": "com.kaipaicoaching.app",
       "adaptiveIcon": {
+        "foregroundImage": "./assets/icon-adaptive.png",
         "backgroundColor": "#050507"
       },
       "permissions": [
@@ -50,6 +52,9 @@
           "android": {
             "audioType": "communication",
             "enableScreenShareService": true
+          },
+          "ios": {
+            "enableMultitaskingCameraAccess": true
           }
         }
       ],

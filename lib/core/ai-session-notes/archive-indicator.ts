@@ -83,9 +83,15 @@ function baseIndicator(
       // Silenzio e guasto finiscono nello stesso stato ma non sono la stessa
       // cosa: dire «non riuscita» quando semplicemente non si e' parlato
       // manda a cercare un problema che non c'e'.
-      return errorCode === 'NO_SPEECH_DETECTED'
-        ? { state: 'failed', label: 'Nessun parlato nell’audio' }
-        : { state: 'failed', label: 'Trascrizione non riuscita' };
+      if (errorCode === 'NO_SPEECH_DETECTED') {
+        return { state: 'failed', label: 'Nessun parlato nell’audio' };
+      }
+      // E audio mai registrato è un terzo caso ancora: non c'era un file da
+      // cui trascrivere, quindi il guasto sta nella chiamata, non qui.
+      if (errorCode === 'NO_AUDIO_RECORDED') {
+        return { state: 'failed', label: 'Audio non registrato' };
+      }
+      return { state: 'failed', label: 'Trascrizione non riuscita' };
     case 'report_failed':
       return { state: 'failed', label: 'Report non riuscito' };
     default:

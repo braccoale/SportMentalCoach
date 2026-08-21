@@ -1,0 +1,87 @@
+{
+  "Metadata": {
+    "title": "KaiPai — Coaching mentale per atleti e squadre",
+    "description": "KaiPai: trova il tuo mental coach e richiedi una sessione. Coaching mentale per atleti, coach e club."
+  },
+  "MarketplaceAuth": {
+    "dashboard": "Dashboard",
+    "signIn": "Accedi"
+  },
+  "NotFound": {
+    "title": "Pagina non trovata",
+    "description": "La pagina che cerchi non esiste o è stata spostata.",
+    "backHome": "Torna alla home"
+  },
+  "LanguageSettings": {
+    "navigationLabel": "Lingua",
+    "navigationDescription": "Interfaccia e contenuti",
+    "title": "Lingua",
+    "description": "Scegli la lingua dell’interfaccia KaiPai.",
+    "fieldLabel": "Lingua dell’interfaccia",
+    "rolloutNote": "Per ora è disponibile solo l’italiano. Inglese, spagnolo e francese verranno attivati dopo la traduzione e il controllo qualità.",
+    "save": "Salva lingua"
+  },
+  "SharedActions": {
+    "confirm": "Conferma",
+    "confirmOperation": "Conferma operazione",
+    "back": "Torna indietro",
+    "close": "Chiudi",
+    "closeConfirmation": "Chiudi finestra di conferma"
+  },
+  "UserMenu": {
+    "dashboard": "Dashboard",
+    "settings": "Impostazioni",
+    "admin": "Admin",
+    "inviteFriend": "Invita un amico",
+    "signOut": "Esci"
+  },
+  "DashboardShell": {
+    "pricing": "Pricing",
+    "signUp": "Registrati",
+    "findCoach": "Trova un coach"
+  },
+  "Notifications": {
+    "label": "Notifiche",
+    "markAllRead": "Segna tutte come lette",
+    "empty": "Nessuna notifica.",
+    "viewAll": "Vedi tutte"
+  },
+  "CookieConsent": {
+    "settings": "Preferenze cookie",
+    "closeWithoutAnalytics": "Chiudi e continua senza cookie analytics",
+    "title": "Cookie e misurazione del sito",
+    "description": "Usiamo cookie tecnici necessari. Solo con il tuo consenso, Google Analytics ci aiuta a capire in forma aggregata come viene usato KaiPai, senza pubblicità o profilazione. Puoi cambiare scelta in qualsiasi momento dalla <policy>Cookie Policy</policy>.",
+    "continueWithoutAnalytics": "Continua senza analytics",
+    "acceptAnalytics": "Accetta analytics"
+  },
+  "Footer": {
+    "brandName": "KaiPai",
+    "tagline": "Coaching mentale per atleti e squadre",
+    "contacts": "Contatti",
+    "location": "Genova, Italia",
+    "legal": "Legale",
+    "terms": "Termini e Condizioni",
+    "privacyPolicy": "Privacy Policy",
+    "cookiePolicy": "Cookie Policy",
+    "followUs": "Seguici",
+    "allRightsReserved": "© {year} {brand}. Tutti i diritti riservati."
+  },
+  "Invite": {
+    "shareTitle": "KaiPai",
+    "emailSubject": "Ti consiglio KaiPai",
+    "shareText": "Ciao! Ho scoperto KaiPai, una piattaforma per trovare il mental coach sportivo più adatto ai propri obiettivi. Penso potrebbe interessarti. Puoi registrarti qui: {link}",
+    "emailBody": "Ciao!\n\nHo scoperto KaiPai, una piattaforma che aiuta gli sportivi a trovare il mental coach più adatto ai propri obiettivi.\n\nPenso potrebbe interessarti.\n\nPuoi scoprirla e registrarti gratuitamente qui:\n\n{link}",
+    "loadError": "Non è stato possibile generare il link. Riprova.",
+    "copyError": "Copia non riuscita. Copia il link manualmente.",
+    "close": "Chiudi",
+    "title": "Invita un amico su KaiPai",
+    "description": "Conosci qualcuno che vuole migliorare concentrazione, motivazione o gestione dell’ansia nello sport? Condividi KaiPai con lui.",
+    "generating": "Generazione del link…",
+    "shareWhatsApp": "Condividi su WhatsApp",
+    "sendEmail": "Invia via email",
+    "copied": "Link copiato",
+    "copyLink": "Copia link",
+    "shareTelegram": "Condividi su Telegram",
+    "moreOptions": "Altre opzioni"
+  }
+}

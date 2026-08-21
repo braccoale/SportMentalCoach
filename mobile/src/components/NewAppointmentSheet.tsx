@@ -47,11 +47,20 @@ import { useTheme, type Palette } from '../theme';
 export function NewAppointmentSheet({
   visible,
   isCoach,
+  withAthleteUserId,
   onClose,
   onCreated,
 }: {
   visible: boolean;
   isCoach: boolean;
+  /**
+   * Con chi, quando lo si sa gia'.
+   *
+   * «Prenota di nuovo» parte dalla scheda di una seduta con una persona
+   * precisa: chiedere di ripescarla da un elenco e' far ripetere una scelta
+   * gia' fatta un attimo prima.
+   */
+  withAthleteUserId?: number | null;
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -97,14 +106,34 @@ export function NewAppointmentSheet({
          * la cerca perché ha fretta. Preselezionare non toglie niente: restano
          * entrambi visibili e cambiabili.
          */
-        if (data.athletes.length === 1) setAthlete(data.athletes[0].userId);
+        const known =
+          withAthleteUserId != null &&
+          data.athletes.some((a) => a.userId === withAthleteUserId)
+            ? withAthleteUserId
+            : data.athletes.length === 1
+              ? data.athletes[0].userId
+              : null;
+
+        if (known !== null) {
+          setAthlete(known);
+          // Con l'atleta arriva il servizio dell'ultima volta: e` la risposta
+          // giusta quasi sempre, e resta cambiabile.
+          const last = data.lastServiceByAthlete?.[known];
+          if (last !== undefined) {
+            setService(last);
+            setDuration(
+              (d) => d ?? data.services.find((s) => s.id === last)?.durationMin ?? null
+            );
+          }
+        }
+
         if (data.services.length === 1) {
           setService(data.services[0].id);
           setDuration((d) => d ?? data.services[0].durationMin);
         }
       })
       .catch(() => setError('Non riesco a caricare atleti e servizi.'));
-  }, [visible, duration]);
+  }, [visible, duration, withAthleteUserId]);
 
   /** Sceglie l'atleta e, con lui, il servizio dell'ultima volta. */
   function pickAthlete(userId: number) {

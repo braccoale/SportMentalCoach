@@ -28,6 +28,7 @@ function booking(over: Partial<CoachBooking> & { id: number; clientId: number })
     serviceTitle: 'Conoscitiva',
     durationMin: 40,
     athleteIsMinor: false,
+    athleteAge: null,
     aiNotesStatus: null,
     aiReportStatus: null,
   aiNotesErrorCode: null,
@@ -456,4 +457,81 @@ test('una sessione confermata a cui nessuno si e` collegato non e` svolta', () =
   const [athlete] = buildCoachAthletes([noShow], now);
   assert.equal(athlete.completedSessions, 0);
   assert.equal(athlete.lastSessionAt, null);
+});
+
+test('l eta arriva alla scheda, e viene dalla prenotazione piu recente', () => {
+  const vecchia = booking({
+    id: 301,
+    clientId: 9,
+    requestedAt: new Date('2026-01-10T10:00:00Z'),
+    athleteAge: 15,
+  });
+  const recente = booking({
+    id: 302,
+    clientId: 9,
+    requestedAt: new Date('2026-08-01T10:00:00Z'),
+    athleteAge: 16,
+  });
+
+  const [athlete] = buildCoachAthletes([vecchia, recente], NOW);
+  assert.equal(athlete.age, 16);
+});
+
+test('senza data di nascita l eta resta assente invece di diventare zero', () => {
+  const [athlete] = buildCoachAthletes(
+    [booking({ id: 303, clientId: 10, athleteAge: null })],
+    NOW
+  );
+  assert.equal(athlete.age, null);
+});
+
+test('conta i riepiloghi da validare, non gli atleti che ne hanno almeno uno', () => {
+  // Il caso reale: due sedute della stessa persona aspettano il coach. Il
+  // distintivo booleano ne mostrava una, e il conteggio in cima alla dashboard
+  // — che conta i riepiloghi — non tornava con l'elenco.
+  const [athlete] = buildCoachAthletes(
+    [
+      booking({
+        id: 1,
+        clientId: 7,
+        sessionEndedAt: new Date('2026-07-30T11:00:00Z'),
+        aiNotesStatus: 'ready_for_review',
+        aiReportStatus: 'ready_for_review',
+      }),
+      booking({
+        id: 2,
+        clientId: 7,
+        sessionEndedAt: new Date('2026-08-18T11:00:00Z'),
+        aiNotesStatus: 'ready_for_review',
+        aiReportStatus: 'ready_for_review',
+      }),
+      booking({
+        id: 3,
+        clientId: 7,
+        sessionEndedAt: new Date('2026-08-01T11:00:00Z'),
+        aiNotesStatus: 'approved',
+        aiReportStatus: 'approved',
+      }),
+    ],
+    NOW
+  );
+
+  assert.equal(athlete.pendingReviewCount, 2);
+  assert.equal(athlete.latestCompassNeedsReview, true);
+});
+
+test('nessun riepilogo in attesa da un atleta tutto validato', () => {
+  const [athlete] = buildCoachAthletes(
+    [
+      booking({
+        id: 1,
+        clientId: 7,
+        sessionEndedAt: new Date('2026-08-01T11:00:00Z'),
+        aiNotesStatus: 'approved',
+        aiReportStatus: 'approved',
+      }),
+    ],
+    NOW
+  );
+  assert.equal(athlete.pendingReviewCount, 0);
 });

@@ -78,9 +78,10 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     body: [
       'Ciao {{recipient.firstName}},',
       '{{actor.fullName}} ti ha inviato una richiesta per {{session.label}}.',
+      'Apri la richiesta, controlla giorno e orario, poi scegli Accetta oppure Rifiuta.',
     ],
     outro:
-      'Una risposta tempestiva aiuta l’atleta a iniziare il percorso con chiarezza.',
+      'Finché non scegli, l’appuntamento non è confermato.',
     actionLabel: 'Apri la richiesta',
   }),
 
@@ -91,10 +92,11 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     body: [
       'Ciao {{recipient.firstName}},',
       '{{coach.fullName}} ha messo in calendario {{session.label}} con te.',
+      'La videochiamata si svolge dentro KaiPai: non devi installare Zoom, Meet o altre applicazioni.',
     ],
     outro:
-      'Riceverai un promemoria il giorno prima e un’ora prima della sessione.',
-    actionLabel: 'Vedi l’appuntamento',
+      'Cinque minuti prima dell’orario, apri l’appuntamento e premi “Apri videochiamata”. Se richiesto, consenti l’uso di microfono e fotocamera.',
+    actionLabel: 'Apri l’appuntamento',
   }),
 
   // La traccia scritta di una sessione avviata al volo, per chi in quel
@@ -107,10 +109,10 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     title: '{{coach.fullName}} ha avviato la videochiamata',
     body: [
       'Ciao {{recipient.firstName}},',
-      'La sessione è stata avviata: il pulsante qui sotto porta direttamente nella stanza.',
+      'La videochiamata è iniziata. Premi il pulsante verde qui sotto per entrare adesso.',
     ],
     outro:
-      'Se leggi questo messaggio in ritardo e la chiamata è già finita, scrivi in chat per concordare quando rivedervi.',
+      'Se KaiPai lo chiede, consenti l’uso di microfono e fotocamera. Se la chiamata è già finita, scrivi al coach nella chat.',
     actionLabel: 'Entra nella chiamata',
   }),
 
@@ -118,52 +120,64 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     eyebrow: 'Richiesta confermata',
     subject: 'La tua sessione è confermata',
     title: 'La tua sessione è confermata',
-    body: ['Ciao {{recipient.firstName}},', '{{coach.fullName}} ha accettato la tua richiesta.'],
+    body: [
+      'Ciao {{recipient.firstName}},',
+      '{{coach.fullName}} ha accettato la tua richiesta: la sessione indicata qui sotto è confermata.',
+      'La videochiamata si svolge dentro KaiPai: non devi installare Zoom, Meet o altre applicazioni.',
+    ],
     outro:
-      'Riceverai un promemoria il giorno prima e un’ora prima della sessione.',
-    actionLabel: 'Vedi la sessione',
+      'Cinque minuti prima dell’orario, apri l’appuntamento e premi “Apri videochiamata”. Se richiesto, consenti l’uso di microfono e fotocamera.',
+    actionLabel: 'Apri l’appuntamento',
   }),
 
   booking_declined: template('booking_declined', {
     eyebrow: 'Richiesta non accolta',
     subject: 'Aggiornamento sulla tua richiesta di sessione',
-    title: 'La tua richiesta non è andata a buon fine',
+    title: 'La sessione richiesta non è stata confermata',
     body: [
       'Ciao {{recipient.firstName}},',
-      'Questa volta non è stato possibile confermare la sessione con {{coach.fullName}}.',
+      'La richiesta per una sessione con {{coach.fullName}} non è stata confermata. La sessione indicata qui sotto non avrà luogo.',
     ],
     outro:
-      'Puoi inviare una nuova richiesta quando vuoi, scegliendo un altro orario o un altro coach.',
-    actionLabel: 'Invia una nuova richiesta',
+      'Per fissarne un’altra, scegli un coach e invia una nuova richiesta con un giorno e un orario disponibili.',
+    actionLabel: 'Scegli un nuovo appuntamento',
   }),
 
   booking_cancelled: template('booking_cancelled', {
     eyebrow: 'Sessione annullata',
-    subject: 'Una sessione è stata annullata',
-    title: 'Una sessione è stata annullata',
-    body: ['Ciao {{recipient.firstName}},', '{{actor.fullName}} ha annullato la sessione in programma.'],
-    outro: 'Puoi riprogrammarla in qualsiasi momento dalla tua area personale.',
-    actionLabel: 'Riprogramma la sessione',
+    subject: 'La tua sessione è stata annullata',
+    title: 'Questa sessione non avrà luogo',
+    body: [
+      'Ciao {{recipient.firstName}},',
+      '{{actor.fullName}} ha annullato la sessione indicata qui sotto.',
+      'Non devi collegarti alla videochiamata: la stanza non sarà disponibile.',
+    ],
+    outro: 'Se vuoi fissare un’altra sessione, vai ai tuoi appuntamenti.',
+    actionLabel: 'Vai ai tuoi appuntamenti',
   }),
 
   booking_rescheduled: template('booking_rescheduled', {
     eyebrow: 'Orario modificato',
     subject: 'L’orario della tua sessione è cambiato',
     title: 'L’orario della tua sessione è cambiato',
-    body: ['Ciao {{recipient.firstName}},', '{{actor.fullName}} ha spostato la sessione a un nuovo orario.'],
+    body: [
+      'Ciao {{recipient.firstName}},',
+      '{{actor.fullName}} ha cambiato giorno o orario della sessione.',
+      'L’orario corretto è quello indicato nel riquadro qui sotto. Il vecchio orario non è più valido.',
+    ],
     outro:
-      'Aggiorna il tuo calendario: il vecchio orario non è più valido.',
+      'Apri l’appuntamento per controllare i dettagli aggiornati e, se serve, aggiorna il calendario.',
     actionLabel: 'Vedi il nuovo orario',
   }),
 
   booking_completed: template('booking_completed', {
     eyebrow: 'Sessione completata',
-    subject: 'La tua sessione è completata',
-    title: 'La tua sessione è completata',
+    subject: 'La tua sessione si è conclusa',
+    title: 'La sessione si è conclusa',
     body: [
       'Ciao {{recipient.firstName}},',
-      'Grazie per il tempo che dedichi al tuo allenamento mentale.',
-      'Raccontare com’è andata aiuta {{coach.fullName}} a migliorare e orienta gli altri atleti nella scelta.',
+      'La sessione indicata qui sotto è stata segnata come conclusa.',
+      'Premi il pulsante per lasciare una recensione a {{coach.fullName}}. Bastano un voto e, se vuoi, un breve commento.',
     ],
     outro: null,
     actionLabel: 'Lascia una recensione',
@@ -173,10 +187,14 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     eyebrow: 'Promemoria',
     subject: 'La tua sessione è domani',
     title: 'La tua sessione è domani',
-    body: ['Ciao {{recipient.firstName}},', 'domani hai una sessione con {{counterpart.fullName}}.'],
+    body: [
+      'Ciao {{recipient.firstName}},',
+      'Domani hai una sessione con {{counterpart.fullName}}. Giorno e orario esatti sono nel riquadro qui sotto.',
+      'La videochiamata si svolge dentro KaiPai: non devi installare Zoom, Meet o altre applicazioni.',
+    ],
     outro:
-      'Trova un posto tranquillo e prova microfono e webcam qualche minuto prima.',
-    actionLabel: 'Vedi la sessione',
+      'Prima della sessione trova un posto tranquillo. Cinque minuti prima, apri l’appuntamento e premi “Apri videochiamata”.',
+    actionLabel: 'Apri l’appuntamento',
   }),
 
   booking_reminder_1h: template('booking_reminder_1h', {
@@ -186,10 +204,11 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     body: [
       'Ciao {{recipient.firstName}},',
       'Tra circa un’ora hai la sessione con {{counterpart.fullName}}.',
+      'La videochiamata si apre 5 minuti prima dell’orario indicato nel riquadro. Non devi installare altre applicazioni.',
     ],
     outro:
-      'Puoi entrare nella stanza video direttamente da KaiPai, qualche minuto prima dell’orario.',
-    actionLabel: 'Entra nella sessione',
+      'Premi il pulsante per aprire la stanza. Se è ancora presto, KaiPai ti mostrerà l’orario esatto in cui potrai entrare. Quando entri, consenti microfono e fotocamera.',
+    actionLabel: 'Apri la stanza video',
   }),
 
   new_message: template('new_message', {
@@ -198,7 +217,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     title: 'Hai un nuovo messaggio',
     body: ['Ciao {{recipient.firstName}},', '{{sender.fullName}} ti ha scritto su KaiPai.'],
     outro:
-      'Per riservatezza il contenuto del messaggio non viene riportato in questa email.',
+      'Per riservatezza il testo non compare nell’email. Premi il pulsante per leggere il messaggio e rispondere nella chat privata.',
     actionLabel: 'Apri la chat',
   }),
 
@@ -208,11 +227,26 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     title: 'Il report della tua sessione è pronto',
     body: [
       'Ciao {{recipient.firstName}},',
-      '{{coach.fullName}} ha condiviso con te il report di una sessione.',
+      '{{coach.fullName}} ha condiviso con te il report della sessione indicata qui sotto.',
+      'Premi il pulsante per leggerlo nella tua area privata KaiPai. Il pulsante apre il report, non la chat.',
     ],
     outro:
-      'Il contenuto del report è riservato e si consulta solo dalla tua area personale, protetta da accesso.',
+      'Il contenuto è riservato e non viene riportato in questa email.',
     actionLabel: 'Leggi il report',
+  }),
+
+  ai_report_awaiting_review: template('ai_report_awaiting_review', {
+    eyebrow: 'Da validare',
+    subject: 'Un riepilogo di sessione aspetta la tua approvazione',
+    title: 'Un riepilogo è pronto da validare',
+    body: [
+      'Ciao {{recipient.firstName}},',
+      'Il riepilogo di {{session.label}} con {{athlete.fullName}} è stato generato e aspetta la tua approvazione.',
+      'Aprilo, controlla che sia corretto e poi scegli Approva oppure Rigenera. Finché non lo approvi, resta una bozza e l’atleta non lo vede.',
+    ],
+    outro:
+      'Il contenuto non viene riportato nell’email: si consulta soltanto nella tua area coach.',
+    actionLabel: 'Apri il riepilogo',
   }),
 
   coach_invitation: template('coach_invitation', {
@@ -222,7 +256,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     body: [
       'Ciao {{recipient.firstName}},',
       '{{inviter.name}} ti ha invitato a entrare su KaiPai, la piattaforma di coaching mentale per atleti e squadre.',
-      'Il link qui sotto è personale: usalo per creare il tuo account.',
+      'Premi “Accetta l’invito”, crea il tuo account e segui i passaggi mostrati sullo schermo. Il link è personale: non inoltrarlo ad altre persone.',
     ],
     outro: null,
     actionLabel: 'Accetta l’invito',
@@ -235,6 +269,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     body: [
       'Ciao {{recipient.firstName}},',
       '{{athlete.fullName}} ha creato un account atleta su KaiPai.',
+      'Premi il pulsante per aprire la scheda nell’area amministratore.',
     ],
     outro: null,
     actionLabel: 'Apri l’area admin',
@@ -247,7 +282,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     body: [
       'Ciao {{recipient.firstName}},',
       '{{coach.fullName}} ha creato un account coach su KaiPai.',
-      'Il profilo è ancora in bozza. Riceverai un secondo avviso quando verrà inviato per la revisione.',
+      'Il profilo è ancora in bozza: non devi approvarlo adesso. Riceverai un secondo avviso quando il coach lo invierà per la revisione.',
     ],
     outro: null,
     actionLabel: 'Apri l’area admin',
@@ -257,7 +292,11 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     eyebrow: 'Da approvare',
     subject: '{{coach.fullName}} ha inviato il profilo per l’approvazione',
     title: 'Un profilo coach attende la revisione',
-    body: ['Ciao {{recipient.firstName}},', '{{coach.fullName}} ha inviato il proprio profilo per la revisione.'],
+    body: [
+      'Ciao {{recipient.firstName}},',
+      '{{coach.fullName}} ha inviato il proprio profilo per la revisione.',
+      'Apri la scheda, controlla le informazioni e scegli Approva oppure Rifiuta.',
+    ],
     outro: null,
     actionLabel: 'Apri l’area admin',
   }),
@@ -269,7 +308,7 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     body: [
       'Ciao {{recipient.firstName}},',
       'Il tuo profilo è stato approvato ed è ora visibile agli atleti.',
-      'Da oggi puoi ricevere richieste di sessione, gestire calendario e servizi e far crescere la tua presenza sulla piattaforma.',
+      'Non devi fare altro per pubblicarlo. Da ora puoi ricevere richieste di sessione e gestire calendario e servizi dalla tua area coach.',
     ],
     outro: null,
     actionLabel: 'Vai alla tua area coach',
@@ -277,12 +316,12 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
 
   provider_rejected: template('provider_rejected', {
     eyebrow: 'Profilo da rivedere',
-    subject: 'Il tuo profilo coach richiede alcune modifiche',
+    subject: 'Il tuo profilo coach non è ancora pubblicato',
     title: 'Il tuo profilo richiede alcune modifiche',
     body: [
       'Ciao {{recipient.firstName}},',
-      'Il tuo profilo non è stato approvato in questa forma.',
-      'Aggiornalo con le informazioni mancanti e invialo di nuovo: lo rivedremo il prima possibile.',
+      'Il tuo profilo non è stato pubblicato.',
+      'Apri il profilo, controlla e completa tutti i campi richiesti, poi invialo di nuovo per la revisione. Se non sai cosa correggere, scrivi a info@kaipaicoaching.com.',
     ],
     outro: null,
     actionLabel: 'Aggiorna il profilo',
@@ -292,7 +331,11 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     eyebrow: 'Nuova recensione',
     subject: 'Hai ricevuto una nuova recensione',
     title: 'Hai ricevuto una nuova recensione',
-    body: ['Ciao {{recipient.firstName}},', '{{athlete.fullName}} ha lasciato una recensione al tuo profilo.'],
+    body: [
+      'Ciao {{recipient.firstName}},',
+      '{{athlete.fullName}} ha lasciato una recensione verificata sul tuo profilo.',
+      'Premi il pulsante per leggere il voto e il commento, se presente.',
+    ],
     outro:
       'Le recensioni verificate aumentano la fiducia e la visibilità del tuo profilo.',
     actionLabel: 'Leggi la recensione',
@@ -301,14 +344,15 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
   security_alert: template('security_alert', {
     eyebrow: 'Sicurezza',
     subject: 'Avviso di sicurezza sul tuo account KaiPai',
-    title: 'Attività importante sul tuo account',
+    title: 'Controlla questa attività sul tuo account',
     body: [
       'Ciao {{recipient.firstName}},',
       'Abbiamo rilevato questa attività sul tuo account: {{security.event}}.',
+      'Data e ora: {{security.occurredAt}}.',
     ],
     outro:
-      'Se sei stato tu, non devi fare nulla. Se non riconosci questa attività, cambia subito la password e scrivici a info@kaipaicoaching.com.',
-    actionLabel: 'Controlla il tuo account',
+      'Se sei stato tu, non devi fare nulla. Se non sei stato tu, premi il pulsante, cambia subito la password e scrivi a info@kaipaicoaching.com.',
+    actionLabel: 'Cambia la password',
   }),
 };
 

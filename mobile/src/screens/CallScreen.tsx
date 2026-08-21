@@ -5,6 +5,7 @@ import {
   BackHandler,
   Image,
   Modal,
+  Platform,
   Pressable,
   Share,
   StyleSheet,
@@ -22,6 +23,13 @@ import {
 } from '@livekit/react-native';
 import { ConnectionState, Track } from 'livekit-client';
 import { useKeepAwake } from 'expo-keep-awake';
+import Constants from 'expo-constants';
+import {
+  cameraActionFor,
+  keepsCameraInBackground,
+  readLiveKitPluginFlags,
+} from '../lib/background-camera';
+import { callForeground } from '../../modules/call-foreground';
 import {
   ApiError,
   ROOM_ERROR_TEXT,
@@ -309,7 +317,16 @@ function RoomStage({
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const cameraWasOn = useRef(false);
+  /**
+   * Lo stato della fotocamera che l'utente vuole, e chi l'ha spenta.
+   *
+   * Sono due cose diverse e prima erano una sola: `cameraWasOn` non sapeva
+   * distinguere «l'ho spenta io andando in background» da «l'ha spenta lui dal
+   * pulsante», e la differenza decide se al ritorno va riaccesa o lasciata
+   * stare.
+   */
+  const cameraWanted = useRef(true);
+  const releasedByUs = useRef(false);
   const facingFront = useRef(true);
   // Il coach non aspetta se stesso: entra diretto.
   const [admitted, setAdmitted] = useState(viewerIsCoach);
@@ -359,31 +376,114 @@ function RoomStage({
   /*
    * L'app che va in secondo piano durante una sessione.
    *
-   * Prima non succedeva niente: la telecamera restava accesa a riprendere una
-   * tasca, con il costo di batteria che comporta, e su Android il sistema puo`
-   * comunque strappare la fotocamera all'app sospesa lasciando una traccia
-   * pubblicata ma morta — l'altra persona vede un fermo immagine e non capisce.
+   * Per molto tempo qui c'era una sola regola: si esce, la fotocamera si
+   * spegne. Nasceva da un vincolo vero — nessuna delle due piattaforme
+   * lasciava riprendere fuori dal primo piano — e da un difetto peggiore
+   * dello spegnimento: su Android il sistema puo` strappare la fotocamera
+   * all'app sospesa lasciando la traccia pubblicata ma morta, e l'altra
+   * persona guarda un fermo immagine convinta di essere vista.
    *
-   * Il microfono **non** si tocca: uscire un attimo dall'app per guardare
-   * qualcosa non deve zittire chi sta parlando. È la differenza fra mettere
-   * giu` il telefono e riagganciare.
+   * Il vincolo non c'e` piu` dappertutto. iOS 18 concede la fotocamera in
+   * multitasking alle app `voip`, Android la concede a chi tiene un foreground
+   * service di tipo `camera`. Dove la piattaforma regge, questa scena non
+   * tocca piu` niente e la chiamata continua come fa Meet; dove non regge, si
+   * spegne e si riaccende come prima.
+   *
+   * La regola sta in `background-camera.ts`, con i suoi test: qui resta solo
+   * l'esecuzione, perche` una condizione che dipende da versione del sistema e
+   * flag di build non si verifica leggendo un `useEffect`.
+   *
+   * Il microfono **non** si tocca in nessuno dei due casi: uscire un attimo
+   * dall'app per guardare qualcosa non deve zittire chi sta parlando. E` la
+   * differenza fra posare il telefono e riagganciare.
    */
+  /*
+   * Il foreground service della chiamata (solo Android).
+   *
+   * Parte quando la stanza e` collegata e non un istante dopo, ed e` una
+   * costrizione, non una preferenza: Android vieta di avviare un foreground
+   * service *dal* background, quindi farlo partire quando l'utente esce
+   * dall'app — il momento in cui servirebbe — fallirebbe sempre.
+   *
+   * Quello che restituisce conta piu` della sua esistenza: notifiche negate o
+   * permessi mancanti lo fanno fallire in silenzio, e in quel caso la
+   * fotocamera in secondo piano non sopravvive comunque. Meglio saperlo qui
+   * che scoprirlo dall'altra parte della chiamata.
+   */
+  const [foregroundServiceRunning, setForegroundServiceRunning] = useState(false);
+
+  useEffect(() => {
+    if (connection !== ConnectionState.Connected) return;
+    let cancelled = false;
+
+    void callForeground
+      .start(
+        'Sessione KaiPai in corso',
+        'La videochiamata continua anche fuori dall’app.'
+      )
+      .then((started) => {
+        if (!cancelled) setForegroundServiceRunning(started);
+      });
+
+    return () => {
+      cancelled = true;
+      setForegroundServiceRunning(false);
+      void callForeground.stop();
+    };
+  }, [connection]);
+
+  const keepsCameraWhileAway = useMemo(
+    () =>
+      keepsCameraInBackground({
+        os: Platform.OS,
+        version: Platform.Version,
+        multitaskingCameraAccess: readLiveKitPluginFlags(
+          Constants.expoConfig?.plugins
+        ).multitaskingCameraAccess,
+        androidCameraService: foregroundServiceRunning,
+      }),
+    [foregroundServiceRunning]
+  );
+
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (next) => {
+      // In uscita lo stato pubblicato e` ancora quello scelto dall'utente:
+      // e` l'ultimo istante in cui leggerlo significa qualcosa.
       if (next === 'background' || next === 'inactive') {
-        if (localParticipant.isCameraEnabled) {
-          cameraWasOn.current = true;
-          void localParticipant.setCameraEnabled(false);
-        }
-        return;
+        cameraWanted.current = localParticipant.isCameraEnabled;
       }
-      if (next === 'active' && cameraWasOn.current) {
-        cameraWasOn.current = false;
-        void localParticipant.setCameraEnabled(true);
+
+      const action = cameraActionFor({
+        next,
+        keepsCapture: keepsCameraWhileAway,
+        cameraWanted: cameraWanted.current,
+        releasedByUs: releasedByUs.current,
+      });
+
+      switch (action) {
+        case 'release':
+          releasedByUs.current = true;
+          void localParticipant.setCameraEnabled(false);
+          break;
+        case 'restore':
+          releasedByUs.current = false;
+          void localParticipant.setCameraEnabled(true);
+          break;
+        case 'verify':
+          // La piattaforma dice di consentirlo, ma il permesso non e` una
+          // garanzia: sotto pressione di memoria, o se un'altra app chiede la
+          // fotocamera, Android se la riprende comunque. Se al ritorno non sta
+          // riprendendo davvero, si riparte da capo.
+          if (!localParticipant.isCameraEnabled) {
+            void localParticipant.setCameraEnabled(true);
+          }
+          break;
+        case 'none':
+          break;
       }
     });
     return () => subscription.remove();
-  }, [localParticipant]);
+  }, [keepsCameraWhileAway, localParticipant]);
 
   /*
    * `useTracks` non restituisce solo tracce: restituisce anche **segnaposto**

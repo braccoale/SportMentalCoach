@@ -18,12 +18,12 @@ import {
   SessionCompassPanel,
 } from '@/components/session-compass-panel';
 import { OrbitDecor } from '@/components/session-compass/decor';
+import { RecordingCoverageNotice } from '@/components/session-compass/recording-coverage-notice';
 import { loadConversationMap } from '@/lib/core/ai-session-notes/conversation-map-loader';
 import { Button } from '@/components/ui/button';
 import { VideoCallButton } from '@/components/video-call-button';
 import { getAppBaseUrl } from '@/lib/core/app-url';
 import { BackToTop } from '@/components/back-to-top';
-import { RecordingCoverageNotice } from '@/components/session-compass/recording-coverage-notice';
 import { getSessionRecordingCoverage } from '@/lib/core/ai-session-notes/recording';
 import {
   getBookableDays,
@@ -322,8 +322,9 @@ export default async function AppointmentDetailPage({
 
       {showAiReport && aiNotesSession ? (
         <>
-          {/* Prima del riepilogo, non dopo: sapere quanta parte della seduta
-              e' stata registrata cambia come si legge tutto cio' che segue. */}
+          {/* Un contrassegno di una riga, non piu' un riquadro: il dettaglio
+              sta nel fumetto. Ma resta sopra il riepilogo — sapere che una
+              voce manca cambia come si legge tutto cio' che segue. */}
           {recordingCoverage ? (
             <RecordingCoverageNotice coverage={recordingCoverage} />
           ) : null}

@@ -40,6 +40,8 @@ import {
   verifyRoomForTrackEgress,
   type VerifiedMicrophone,
 } from './recording-policy';
+import { assessLiveCoverage } from './live-coverage';
+import { isWithinStartCooldown } from './recording-retry-policy';
 import { AiNotesDomainError } from './state-machine';
 import type { LiveKitSessionControl } from './livekit-session-control';
 
@@ -378,8 +380,44 @@ async function reserveTracks(
       );
     const busyTracks = new Set(busy.map((row) => row.trackSid));
 
+    /*
+     * Le tracce fallite pochissimo tempo fa restano ferme un momento.
+     *
+     * Nella seduta 181 questo blocco ha aperto due egress sulla stessa traccia
+     * a duecento millisecondi di distanza — due `track_published` ravvicinati —
+     * e LiveKit ha rifiutato entrambi con «Too Many Requests». Il secondo
+     * tentativo non aggiungeva una possibilita`: la toglieva, perche' bruciava
+     * uno dei quattro tentativi contro un limite che dura piu' di un istante.
+     * Il ripescaggio periodico riprende in mano la traccia trenta secondi
+     * dopo, con la distanza giusta.
+     */
+    const recentFailures = await tx
+      .select({
+        trackSid: sessionAudioRecordings.livekitTrackSid,
+        lastFailureAt: sql<Date | null>`max(${sessionAudioRecordings.endedAt})`,
+      })
+      .from(sessionAudioRecordings)
+      .where(
+        and(
+          eq(sessionAudioRecordings.sessionAiNotesId, context.sessionId),
+          eq(sessionAudioRecordings.status, 'failed')
+        )
+      )
+      .groupBy(sessionAudioRecordings.livekitTrackSid);
+    const coolingDown = new Set(
+      recentFailures
+        .filter((row) =>
+          isWithinStartCooldown({
+            lastFailureAt: row.lastFailureAt ? new Date(row.lastFailureAt) : null,
+            now,
+          })
+        )
+        .map((row) => row.trackSid)
+    );
+
     for (const track of tracks) {
       if (busyTracks.has(track.trackSid)) continue;
+      if (coolingDown.has(track.trackSid)) continue;
       const objectKey =
         `audio-recordings/${context.sessionId}/${track.role}/` +
         `${randomUUID()}.ogg`;
@@ -879,6 +917,15 @@ export async function stopAiNotesRecordingsByParticipant(
 }
 
 export type RecordingStatusView = {
+  /**
+   * Una voce che non sta entrando, adesso.
+   *
+   * Viaggia insieme allo stato perché è la stessa domanda vista da chi è in
+   * chiamata: non «com'è andata», ma «sta andando?». Vuoto quando non c'è
+   * niente da segnalare — così chi legge non deve interpretare un silenzio.
+   */
+  liveGap?: { role: 'coach' | 'athlete'; sinceSeconds: number }[];
+  liveGapMessage?: string;
   state:
     | 'not_started'
     | 'starting'
@@ -930,9 +977,39 @@ export async function getRecordingStatus(
     endedAt: row.endedAt?.toISOString() ?? null,
     errorCode: row.errorCode,
   }));
+  /*
+   * L'avviso «una voce non sta entrando» nasce qui e non nel client.
+   *
+   * È la stessa regola per il browser e per il telefono, e sta accanto ai dati
+   * che la determinano: un client che se la calcolasse da solo sarebbe un
+   * secondo posto dove tenerla allineata — e nella seduta 181 il costo di
+   * saperlo tardi è stato quarantotto minuti di voce.
+   */
+  const [session] = await executor
+    .select({
+      status: sessionAiNotes.status,
+      startedAt: sessionAiNotes.startedAt,
+    })
+    .from(sessionAiNotes)
+    .where(eq(sessionAiNotes.id, sessionId))
+    .limit(1);
+
+  const live = assessLiveCoverage({
+    sessionStatus: session?.status ?? '',
+    sessionStartedAt: session?.startedAt ?? null,
+    recordings: participants.map((row) => ({
+      role: row.role,
+      status: row.status,
+      endedAt: row.endedAt,
+    })),
+    now: new Date(),
+  });
+
   return {
     state: aggregateStatus(participants.map((row) => row.status)),
     participants,
+    liveGap: live.gaps,
+    liveGapMessage: live.message,
   };
 }
 

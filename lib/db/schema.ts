@@ -2639,7 +2639,14 @@ export const PROVIDER_STATUSES = [
 ] as const;
 export type ProviderStatus = (typeof PROVIDER_STATUSES)[number];
 
-/** Goals owned by the coach-athlete relationship and used by the demo seed. */
+/**
+ * Gli obiettivi del percorso, scritti dal coach.
+ *
+ * Non e' `clientProfiles.goals`: quello e' un campo di testo libero compilato
+ * dall'atleta e dice «cosa vorrei». Questo appartiene alla relazione fra un
+ * coach e un atleta — piu' filoni di lavoro, ciascuno con uno stato che
+ * cambia nel tempo e un autore umano dietro quel giudizio.
+ */
 export const athleteJourneyGoals = pgTable(
   'athlete_journey_goals',
   {
@@ -2653,8 +2660,10 @@ export const athleteJourneyGoals = pgTable(
     title: varchar('title', { length: 160 }).notNull(),
     isPrimary: boolean('is_primary').notNull().default(false),
     status: varchar('status', { length: 24 }).notNull().default('in_corso'),
+    /** Il tema del Session Compass a cui l'obiettivo e' agganciato, se c'e'. */
     themeKey: varchar('theme_key', { length: 120 }),
     position: integer('position').notNull().default(0),
+    /** Archiviato, non cancellato: un obiettivo chiuso e' parte della storia. */
     archivedAt: timestamp('archived_at', { withTimezone: true }),
     createdDate: timestamp('createddate', { withTimezone: true })
       .notNull()
@@ -2688,7 +2697,13 @@ export const JOURNEY_GOAL_STATUSES = [
 ] as const;
 export type JourneyGoalStatus = (typeof JOURNEY_GOAL_STATUSES)[number];
 
-/** Stable links between journey goals and the sessions that addressed them. */
+/**
+ * In quali sedute un obiettivo del percorso e' stato toccato.
+ *
+ * Non si deduce dal tema a ogni lettura: il tema e' una frase scritta da un
+ * modello e cambia formulazione, quindi un aggancio calcolato al volo si
+ * scollega da solo. Qui il legame e' scritto una volta e resta.
+ */
 export const athleteJourneyGoalSessions = pgTable(
   'athlete_journey_goal_sessions',
   {
@@ -2699,6 +2714,7 @@ export const athleteJourneyGoalSessions = pgTable(
     sessionAiNotesId: integer('session_ai_notes_id')
       .notNull()
       .references(() => sessionAiNotes.id, { onDelete: 'cascade' }),
+    /** `theme` se l'ha agganciata il Compass, `coach` se una persona. */
     source: varchar('source', { length: 16 }).notNull().default('theme'),
     createdDate: timestamp('createddate', { withTimezone: true })
       .notNull()

@@ -9,6 +9,7 @@ import {
   useTransition,
 } from 'react';
 import { TriangleAlert, X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import type { ActionState } from '@/lib/auth/middleware';
 
@@ -16,17 +17,18 @@ export function ConfirmationDialog({
   open,
   title,
   message,
-  actionLabel = 'Conferma',
+  actionLabel,
   onCancel,
   onConfirm,
 }: {
   open: boolean;
-  title: string;
+  title?: string;
   message: string;
   actionLabel?: string;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const t = useTranslations('SharedActions');
   const titleId = useId();
   const descriptionId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -85,7 +87,7 @@ export function ConfirmationDialog({
     >
       <button
         type="button"
-        aria-label="Chiudi finestra di conferma"
+        aria-label={t('closeConfirmation')}
         tabIndex={-1}
         onClick={onCancel}
         className="absolute inset-0 cursor-default bg-gray-950/55 backdrop-blur-[2px]"
@@ -98,7 +100,7 @@ export function ConfirmationDialog({
         <button
           type="button"
           onClick={onCancel}
-          aria-label="Chiudi"
+          aria-label={t('close')}
           className="absolute right-4 top-4 rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
         >
           <X className="h-5 w-5" />
@@ -108,7 +110,7 @@ export function ConfirmationDialog({
           <TriangleAlert className="h-6 w-6" aria-hidden="true" />
         </div>
         <h2 id={titleId} className="mt-5 pr-8 text-xl font-semibold text-gray-950">
-          {title}
+          {title ?? t('confirmOperation')}
         </h2>
         <p id={descriptionId} className="mt-2 text-sm leading-6 text-gray-600">
           {message}
@@ -122,7 +124,7 @@ export function ConfirmationDialog({
             onClick={onCancel}
             className="h-11 rounded-full px-5"
           >
-            Torna indietro
+            {t('back')}
           </Button>
           <Button
             type="button"
@@ -130,7 +132,7 @@ export function ConfirmationDialog({
             onClick={onConfirm}
             className="h-11 rounded-full px-5"
           >
-            {actionLabel}
+            {actionLabel ?? t('confirm')}
           </Button>
         </div>
       </div>
@@ -157,8 +159,8 @@ export function ActionForm({
   className,
   onSuccess,
   confirmMessage,
-  confirmTitle = 'Conferma operazione',
-  confirmActionLabel = 'Conferma',
+  confirmTitle,
+  confirmActionLabel,
   messageFirst = false,
 }: {
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;

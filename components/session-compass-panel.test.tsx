@@ -363,6 +363,8 @@ function previousEntry(overrides: Partial<MentalJourneyEntry> = {}): MentalJourn
     keyMoments: [],
     nextSessionPrep: [],
     commitments: [],
+    throughLine: null,
+    isApproved: true,
     compassHref: '/dashboard/appointments/101#session-compass',
     ...overrides,
   };
@@ -614,16 +616,18 @@ test('rende gli stati elaborazione, errore, bozza e approvato', () => {
     /L’elaborazione non è riuscita/
   );
   assert.equal(renderToStaticMarkup(<SessionCompassStatusBanner report={view()} />), '');
-  assert.match(
+  // Un report approvato non annuncia piu' di esserlo: la riga parlava del
+  // meccanismo — versione, immutabilita', rigenerazione — e non della seduta.
+  assert.equal(
     renderToStaticMarkup(
       <SessionCompassStatusBanner report={view({ status: 'approved', isApproved: true, reportVersion: 2 })} />
     ),
-    /Report approvato \(versione 2\)\. È immutabile/
+    ''
   );
   assert.equal(renderToStaticMarkup(<SessionCompassStatusBanner report={view({ isStale: true })} />), '');
-  assert.match(
+  assert.equal(
     renderToStaticMarkup(<SessionCompassStatusBanner report={view({ isStale: true, status: 'approved', isApproved: true })} />),
-    /rigenera per ottenere una bozza aggiornata/
+    ''
   );
   assert.match(
     renderToStaticMarkup(<SessionCompassStatusBanner report={null} />),

@@ -9,6 +9,7 @@ const journey: MentalJourney = {
     firstSessionDate: '2026-07-01T09:00:00.000Z',
     lastSessionDate: '2026-08-01T09:00:00.000Z',
     approvedSessionCount: 2,
+    draftSessionCount: 0,
     commitments: { total: 0, completed: 0, inProgress: 0, pending: 0, skipped: 0 },
     completionRate: null,
   },
@@ -73,6 +74,8 @@ function entry(sessionId: number, sessionDate: string, focus: string): MentalJou
     keyMoments: [],
     nextSessionPrep: [],
     commitments: [],
+    throughLine: null,
+    isApproved: true,
     compassHref: `/dashboard/appointments/${sessionId + 100}`,
   };
 }

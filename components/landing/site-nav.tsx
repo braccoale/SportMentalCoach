@@ -14,12 +14,18 @@ import { NotificationBell } from '@/components/notification-bell';
 import { fetcher } from '@/lib/fetcher';
 import type { SessionUser } from '@/lib/auth/session-user';
 
+/*
+ * Le ancore seguono le sei scene della home. Quando la home è stata ridotta,
+ * `#ecosistema-atleta`, `#academy`, `#pacchetti` e `#visione` sono rimasti a
+ * puntare a sezioni che non esistono più: quattro voci su sei non facevano
+ * nulla, e un menu che non si muove sembra un sito rotto prima ancora che una
+ * scelta di contenuto. Ogni voce qui sotto corrisponde a un `id` reale.
+ */
 const LINKS = [
-  { href: '#ecosistema-atleta', label: 'Ecosistema' },
   { href: '#metodo', label: 'Metodo' },
-  { href: '#academy', label: 'Academy' },
-  { href: '#pacchetti', label: 'Prezzi' },
-  { href: '#visione', label: 'Visione' },
+  { href: '#prodotto', label: 'Piattaforma' },
+  { href: '#ecosistema-atleta', label: 'Ecosistema' },
+  { href: '#per-chi', label: 'Percorsi' },
   { href: '/coaches', label: 'Coach' },
 ];
 
@@ -107,6 +113,7 @@ export function SiteNav() {
                 name={[user.name, user.lastName].filter(Boolean).join(' ') || null}
                 email={user.email}
                 avatarUrl={user.avatarUrl}
+                isDemo={user.isDemo}
               />
             </div>
           ) : (

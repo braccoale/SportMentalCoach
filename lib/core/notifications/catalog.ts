@@ -92,6 +92,7 @@ const BOOKING_VARIABLES = [
 ] as const;
 
 export type NotificationEventKey =
+  | 'ai_report_awaiting_review'
   | 'booking_requested'
   | 'booking_created_by_coach'
   | 'call_started'
@@ -301,6 +302,32 @@ export const NOTIFICATION_EVENTS: Record<
   }),
 
   // --- Account -------------------------------------------------------------
+  /**
+   * Il riepilogo di una seduta è pronto e aspetta il coach.
+   *
+   * Esisteva già `ai_report_ready`, ma va all'**atleta** e solo quando il
+   * coach condivide: fra «l'AI ha finito» e «il coach lo sa» non c'era niente.
+   * Il riepilogo restava in `ready_for_review` e lo scopriva solo chi apriva
+   * l'elenco atleti e notava un distintivo — con la conseguenza che la seduta
+   * non entrava nel percorso e gli impegni non arrivavano all'atleta, perché
+   * è l'approvazione a materializzarli.
+   *
+   * Non obbligatoria: è una notifica di lavoro, e un coach può legittimamente
+   * volerla solo in-app.
+   */
+  ai_report_awaiting_review: event({
+    key: 'ai_report_awaiting_review',
+    category: 'ai_reports',
+    label: 'Riepilogo pronto da validare',
+    hint: 'Quando l’AI ha finito un riepilogo e aspetta la tua approvazione.',
+    templateKey: 'ai_report_awaiting_review',
+    mandatoryEmail: false,
+    emailDefault: true,
+    inAppDefault: true,
+    hasInApp: true,
+    variables: [...COMMON_VARIABLES, 'athlete.fullName', 'session.label'],
+  }),
+
   coach_invitation: event({
     key: 'coach_invitation',
     category: 'account',

@@ -51,6 +51,61 @@ export function retryStatus(params: {
 }
 
 /**
+ * Gli errori che dicono «non ancora», non «non si può».
+ *
+ * La differenza costa un riepilogo. La sessione 75 aveva tre tentativi e ne ha
+ * usati due: il primo è stato speso alle 15:55:22 su una sessione ancora
+ * `active`, undici secondi prima che passasse a `processing`. Il job era già
+ * in coda, l'ha preso un worker, la sessione non era ancora eleggibile, e quel
+ * rifiuto — che non ha nemmeno provato a generare niente — ha consumato un
+ * terzo del budget. Poi i due tentativi veri sono scaduti entrambi, e la
+ * seduta è finita in `report_failed`.
+ *
+ * Un rifiuto per stato non è un fallimento del lavoro: è il lavoro che non è
+ * ancora il suo turno.
+ */
+export const NOT_YET_ERROR_CODES = [
+  'SESSION_NOT_ELIGIBLE',
+  'SESSION_NOT_PROCESSABLE',
+] as const;
+
+export type JobFailureOutcome = {
+  status: Extract<AiProcessingJobStatus, 'queued' | 'failed'>;
+  /** Il conteggio da scrivere: la presa l'ha già incrementato. */
+  attemptCount: number;
+};
+
+/**
+ * Che ne è di un job che ha appena fallito.
+ *
+ * Il conteggio dei tentativi viene incrementato quando il job viene *preso*,
+ * non quando fallisce: per non consumare il tentativo bisogna quindi
+ * restituirlo, non semplicemente evitare di aggiungerlo.
+ */
+export function failureOutcome(params: {
+  attemptCount: number;
+  maxAttempts: number;
+  errorCode: string;
+}): JobFailureOutcome {
+  const notYet = (NOT_YET_ERROR_CODES as readonly string[]).includes(
+    params.errorCode
+  );
+  if (notYet) {
+    return {
+      status: 'queued',
+      attemptCount: Math.max(0, params.attemptCount - 1),
+    };
+  }
+  return {
+    status: retryStatus({
+      attemptCount: params.attemptCount,
+      maxAttempts: params.maxAttempts,
+    }),
+    attemptCount: params.attemptCount,
+  };
+}
+
+/**
  * Oltre questo tempo senza risposta, una richiesta di trascrizione è
  * considerata persa.
  *

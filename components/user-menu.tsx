@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   Home,
   LogOut,
@@ -31,11 +32,14 @@ export function UserMenu({
   name,
   email,
   avatarUrl,
+  isDemo = false,
 }: {
   name: string | null;
   email: string;
   avatarUrl?: string | null;
+  isDemo?: boolean;
 }) {
+  const t = useTranslations('UserMenu');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const router = useRouter();
@@ -80,19 +84,31 @@ export function UserMenu({
               className="flex w-full items-center"
             >
               <Home className="mr-2 h-4 w-4" />
-              <span>Dashboard</span>
+              <span>{t('dashboard')}</span>
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem className="cursor-pointer" onSelect={closeMenu}>
-            <Link
-              href="/dashboard/settings"
-              onClick={closeMenu}
-              className="flex w-full items-center"
+          {isDemo ? (
+            <DropdownMenuItem
+              disabled
+              aria-disabled="true"
+              data-demo-settings-disabled="true"
+              title="Non disponibile in modalità demo"
             >
               <Settings className="mr-2 h-4 w-4" />
-              <span>Impostazioni</span>
-            </Link>
-          </DropdownMenuItem>
+              <span>{t('settings')}</span>
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem className="cursor-pointer" onSelect={closeMenu}>
+              <Link
+                href="/dashboard/settings"
+                onClick={closeMenu}
+                className="flex w-full items-center"
+              >
+                <Settings className="mr-2 h-4 w-4" />
+                <span>{t('settings')}</span>
+              </Link>
+            </DropdownMenuItem>
+          )}
           {isAdmin && (
             <>
               <DropdownMenuItem
@@ -105,7 +121,7 @@ export function UserMenu({
                   className="flex w-full items-center"
                 >
                   <ShieldCheck className="mr-2 h-4 w-4" />
-                  <span>Admin</span>
+                  <span>{t('admin')}</span>
                 </Link>
               </DropdownMenuItem>
             </>
@@ -118,7 +134,7 @@ export function UserMenu({
             }}
           >
             <UserPlus className="mr-2 h-4 w-4" />
-            <span>Invita un amico</span>
+            <span>{t('inviteFriend')}</span>
           </DropdownMenuItem>
           <form action={handleSignOut} className="w-full">
             <button
@@ -131,7 +147,7 @@ export function UserMenu({
                 onSelect={closeMenu}
               >
                 <LogOut className="mr-2 h-4 w-4" />
-                <span>Esci</span>
+                <span>{t('signOut')}</span>
               </DropdownMenuItem>
             </button>
           </form>

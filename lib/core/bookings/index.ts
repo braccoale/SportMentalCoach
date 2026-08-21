@@ -1069,6 +1069,11 @@ export type CoachBooking = {
   durationMin: number | null;
   /** True when the athlete is 15-17. The coach needs to know before the call. */
   athleteIsMinor: boolean;
+  /**
+   * L'età, non la data di nascita. Stessa regola del flag qui sopra: al coach
+   * serve sapere che ha davanti un sedicenne, non quando compie gli anni.
+   */
+  athleteAge: number | null;
   aiNotesStatus: AiSessionNoteStatus | null;
   aiNotesErrorCode: string | null;
   aiReportStatus: string | null;
@@ -1167,10 +1172,10 @@ export async function getCoachBookings(
 
   // Derive the minor flag here rather than exposing the birth date: the coach
   // needs to know they are working with a 15-17 year old, not their birthday.
-  return rows.map(({ athleteBirthDate, ...b }) => ({
-    ...b,
-    athleteIsMinor: requiresGuardian(ageFromBirthDate(athleteBirthDate)),
-  }));
+  return rows.map(({ athleteBirthDate, ...b }) => {
+    const age = ageFromBirthDate(athleteBirthDate);
+    return { ...b, athleteIsMinor: requiresGuardian(age), athleteAge: age };
+  });
 }
 
 /**

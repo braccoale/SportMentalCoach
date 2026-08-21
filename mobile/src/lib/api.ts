@@ -99,12 +99,22 @@ export type UpcomingSession = {
   endedAt?: string | null;
   viewerIsCoach: boolean;
   otherName: string;
+  /** Chi si ha davanti: serve a riprenotare con lui senza ricercarlo. */
+  otherUserId?: number | null;
 };
 
 export function fetchSessions() {
-  return request<{ sessions: UpcomingSession[]; past: UpcomingSession[] }>(
-    '/api/mobile/sessions'
-  );
+  return request<{
+    /**
+     * Chi sta guardando, detto dal server.
+     *
+     * Non si ricava dalla prima sessione dell'elenco: un elenco vuoto non ha
+     * una prima sessione, e il ruolo esiste lo stesso.
+     */
+    viewerIsCoach?: boolean;
+    sessions: UpcomingSession[];
+    past: UpcomingSession[];
+  }>('/api/mobile/sessions');
 }
 
 /**
@@ -135,9 +145,13 @@ export type SessionDetail = {
   actualMinutes: number | null;
   /** Stato degli appunti AI, `null` quando non erano attivi. */
   notes: string | null;
+  /** Id della sessione di appunti: serve a cambiare stato agli impegni. */
+  aiNotesSessionId?: number | null;
   report: {
     summary: string;
     themes: string[];
+    /** Su cosa è costruito il riepilogo, quando manca parte dell'audio. */
+    coverageNotice?: string | null;
     /** Chi ha parlato e quanto: una misura, non un giudizio. */
     participation: {
       athleteSharePercent: number;
@@ -146,8 +160,35 @@ export type SessionDetail = {
     } | null;
     /** L'andamento lungo la seduta: una forma, si guarda invece di leggerla. */
     emotionalTrend: { value: number; label: string }[];
-    keyMoments: { title: string; explanation: string; speaker: string }[];
+    /** Stime 1–5 sulla seduta, con quanto sono affidabili. */
+    metrics: { key: string; value: number; confidence: string }[];
+    /** Come ha parlato l'atleta: un'etichetta sul linguaggio, non sulla persona. */
+    tone: { key: string; description: string; confidence: string } | null;
+    keyMoments: {
+      title: string;
+      explanation: string;
+      speaker: string;
+      /** Minuto della seduta in cui è successo. */
+      minute?: number | null;
+      /** La frase da cui il momento nasce: senza, è da credere sulla parola. */
+      quote?: string | null;
+    }[];
+    /** Cosa preparare per la prossima seduta. */
+    prep: string[];
+    /** Le domande rimaste aperte, da riprendere la volta successiva. */
+    followUps: string[];
+    /** Il filo che lega questa seduta alle precedenti, se ne emerge uno. */
+    throughLine: string | null;
+    /** La leva emersa nella seduta: una riga da usare la volta dopo. */
+    emergingResource?: string | null;
+    /** La nota del coach: l'unica parte del riepilogo scritta da lui. */
+    coachNote?: string | null;
     commitments: {
+      /**
+       * L'impegno esiste come entita` con stato proprio solo dopo
+       * l'approvazione del report: finche` e` `null` si legge e basta.
+       */
+      trackedId: number | null;
       text: string;
       owner: string;
       status: string;
@@ -161,6 +202,29 @@ export type SessionDetail = {
 
 export function fetchSessionDetail(bookingId: number) {
   return request<SessionDetail>(`/api/mobile/sessions/${bookingId}`);
+}
+
+/**
+ * Segna un impegno come fatto, o lo rimette in sospeso.
+ *
+ * Va alla stessa rotta del web: la regola su chi puo` cambiare cosa sta li`,
+ * scritta una volta. L'app manda il Bearer, il browser i cookie.
+ */
+export function updateCommitmentStatus(params: {
+  aiNotesSessionId: number;
+  commitmentId: number;
+  status: 'pending' | 'completed';
+}) {
+  return request<unknown>(
+    `/api/coach/ai-session-notes/${params.aiNotesSessionId}/compass/commitments`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({
+        commitmentId: params.commitmentId,
+        status: params.status,
+      }),
+    }
+  );
 }
 
 export type RoomCredentials = {
@@ -212,6 +276,41 @@ export function startAiNotes(bookingId: number) {
     method: 'POST',
     body: JSON.stringify({ appointmentId: bookingId }),
   });
+}
+
+/**
+ * Sta entrando l'audio, adesso?
+ *
+ * La domanda che nella seduta 181 nessuno ha fatto per quarantotto minuti. La
+ * risposta la calcola il server — stessa regola del web — e qui serve solo a
+ * dirlo a chi è in chiamata, mentre può ancora rimediare.
+ */
+export type RecordingLiveStatus = {
+  recording: {
+    state: string;
+    liveGapMessage?: string;
+    liveGap?: { role: 'coach' | 'athlete'; sinceSeconds: number }[];
+  };
+};
+
+export function fetchRecordingStatus(sessionId: number) {
+  return request<RecordingLiveStatus>(
+    `/api/ai-session-notes/${sessionId}/recording`
+  );
+}
+
+/**
+ * Posa un segnalibro sul momento che si sta vivendo.
+ *
+ * Nessun corpo: il minuto lo calcola il server dall'inizio della sessione, e
+ * un client che potesse spostarlo sposterebbe l'unica cosa che rende il
+ * segnalibro affidabile. Stessa rotta del web.
+ */
+export function addSessionBookmark(sessionId: number) {
+  return request<{ duplicate: boolean }>(
+    `/api/ai-session-notes/${sessionId}/bookmark`,
+    { method: 'POST' }
+  );
 }
 
 export function respondToAiNotesConsent(

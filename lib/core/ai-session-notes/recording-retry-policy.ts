@@ -75,3 +75,58 @@ export function decideRecordingRetry(input: {
   }
   return { retry: true, attempt: input.failedAttempts + 1 };
 }
+
+/**
+ * C'è ancora una voce da registrare per questa persona?
+ *
+ * È la domanda giusta per decidere se riprovare, e non «esiste ancora *quella*
+ * traccia»: una traccia che si interrompe viene ripubblicata con un SID nuovo,
+ * quindi cercare il SID fallito significa non trovarlo proprio nel caso in cui
+ * il recupero serve. Il riavvio non registra un SID scelto prima: rilegge la
+ * stanza e registra ciò che è pubblicato in quel momento.
+ */
+export function hasLiveAudioTrack(
+  participants: readonly {
+    identity: string;
+    tracks: readonly { type: 'audio' | 'video' }[];
+  }[],
+  identity: string
+): boolean {
+  return participants.some(
+    (participant) =>
+      participant.identity === identity &&
+      participant.tracks.some((track) => track.type === 'audio')
+  );
+}
+
+/**
+ * Quanto una traccia appena fallita resta ferma prima di essere ritentata.
+ *
+ * Nella seduta 181 il riavvio è stato tentato **due volte a duecento
+ * millisecondi di distanza**, e LiveKit ha risposto «Too Many Requests» a
+ * entrambe. Il secondo tentativo non era una seconda possibilità: era la
+ * causa del rifiuto, e per giunta bruciava uno dei quattro tentativi
+ * disponibili contro un limite che dura più di un istante.
+ *
+ * Dieci secondi: abbastanza perché due eventi ravvicinati non diventino due
+ * chiamate — un `track_published` doppio, un webhook consegnato due volte —
+ * e abbastanza poco da non ritardare il ripescaggio vero, che parte comunque
+ * a trenta secondi.
+ */
+export const START_COOLDOWN_SECONDS = 10;
+
+/**
+ * Vero quando questa traccia ha fallito troppo poco fa perché riprovare adesso
+ * sia qualcosa di diverso dal ripetere la stessa chiamata.
+ */
+export function isWithinStartCooldown(input: {
+  lastFailureAt: Date | null;
+  now: Date;
+}): boolean {
+  if (!input.lastFailureAt) return false;
+  const elapsedSeconds =
+    (input.now.getTime() - input.lastFailureAt.getTime()) / 1000;
+  // Un orologio che va indietro non deve aprire la porta: un fallimento «nel
+  // futuro» è comunque recentissimo.
+  return elapsedSeconds < START_COOLDOWN_SECONDS;
+}

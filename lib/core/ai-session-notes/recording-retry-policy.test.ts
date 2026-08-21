@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   MAX_RETRY_ATTEMPTS,
+  START_COOLDOWN_SECONDS,
   decideRecordingRetry,
+  hasLiveAudioTrack,
+  isWithinStartCooldown,
 } from './recording-retry-policy';
 
 const now = new Date('2026-08-11T18:00:00Z');
@@ -76,4 +79,69 @@ test('se la traccia non c`e` piu` non si riprova', () => {
   });
 
   assert.deepEqual(decision, { retry: false, reason: 'not_recoverable' });
+});
+
+test('due `track_published` ravvicinati non diventano due chiamate', () => {
+  /*
+   * Il caso della seduta 181: due avvii a duecento millisecondi di distanza,
+   * «Too Many Requests» a entrambi. Il secondo non era una seconda
+   * possibilita`, era la causa del rifiuto.
+   */
+  assert.equal(
+    isWithinStartCooldown({ lastFailureAt: secondsAgo(0.2), now }),
+    true
+  );
+});
+
+test('passato il raffreddamento la traccia torna prenotabile', () => {
+  assert.equal(
+    isWithinStartCooldown({
+      lastFailureAt: secondsAgo(START_COOLDOWN_SECONDS + 1),
+      now,
+    }),
+    false
+  );
+});
+
+test('senza un fallimento precedente non si aspetta niente', () => {
+  // Il primo avvio non deve pagare il prezzo di un guasto mai avvenuto.
+  assert.equal(isWithinStartCooldown({ lastFailureAt: null, now }), false);
+});
+
+test('un orologio che va indietro non apre la porta', () => {
+  // Un fallimento datato «nel futuro» e` comunque recentissimo: trattarlo
+  // come vecchio farebbe ripartire la raffica che si vuole evitare.
+  const inTheFuture = new Date(now.getTime() + 5_000);
+  assert.equal(
+    isWithinStartCooldown({ lastFailureAt: inTheFuture, now }),
+    true
+  );
+});
+
+test('la voce c`e` anche quando il SID e` cambiato', () => {
+  /*
+   * Il caso che chiudeva la seconda porta sullo stesso guasto: una traccia
+   * interrotta viene ripubblicata con un SID nuovo, e cercare quello fallito
+   * significava non trovarlo proprio quando il recupero serviva.
+   */
+  const participants = [
+    {
+      identity: 'user-7',
+      tracks: [{ type: 'audio' as const }, { type: 'video' as const }],
+    },
+  ];
+
+  assert.equal(hasLiveAudioTrack(participants, 'user-7'), true);
+});
+
+test('senza microfono acceso non c`e` niente da riprendere', () => {
+  const participants = [
+    { identity: 'user-7', tracks: [{ type: 'video' as const }] },
+  ];
+
+  assert.equal(hasLiveAudioTrack(participants, 'user-7'), false);
+});
+
+test('chi ha lasciato la stanza non e` recuperabile', () => {
+  assert.equal(hasLiveAudioTrack([], 'user-7'), false);
 });

@@ -140,17 +140,13 @@ export function SessionCompassStatusBanner({ report }: { report: SessionCompassV
       </StatusMessage>
     );
   }
-  if (report.isApproved) {
-    return (
-      <StatusMessage tone={report.isStale ? 'warning' : 'success'}>
-        Report approvato (versione {report.reportVersion}). È immutabile: una rigenerazione crea
-        una nuova bozza.
-        {report.isStale
-          ? ' La trascrizione o le istruzioni AI sono cambiate: rigenera per ottenere una bozza aggiornata.'
-          : ''}
-      </StatusMessage>
-    );
-  }
+  // Un report approvato non annuncia più di esserlo.
+  //
+  // La riga diceva tre cose — versione, immutabilità, «rigenera per una bozza
+  // aggiornata» — e tutte e tre parlavano del meccanismo, non della seduta.
+  // Chi apre un riepilogo vuole leggere che cosa è successo con quella
+  // persona; che il documento sia la versione 1 e che una rigenerazione ne
+  // apra una seconda è una regola del sistema, non un fatto del percorso.
   return null;
 }
 

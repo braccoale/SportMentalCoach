@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
   bookings,
@@ -18,7 +18,7 @@ import type {
 } from './session-commitments';
 import { hasRole } from '@/lib/core/auth/roles';
 import { FEATURE_CODES, hasFeatureEntitlement } from '@/lib/core/features';
-import { isApprovedCompassReport } from './mental-journey';
+import { JOURNEY_REPORT_STATUSES, isJourneyCompassReport } from './mental-journey';
 import type {
   ApprovedSessionRecord,
   MentalJourneyDependencies,
@@ -28,8 +28,14 @@ import type {
 /**
  * Adapter read-only della Mental Journey.
  *
- * Legge esclusivamente report con `status = 'approved'`: bozze, report falliti
- * e versioni non approvate non hanno alcun percorso verso questa proiezione.
+ * Legge i report `approved` e `ready_for_review`: una seduta si è svolta a
+ * prescindere da chi ha premuto approva, e nasconderla finché non è validata
+ * racconterebbe al coach un percorso più corto di quello reale. Ogni riga
+ * porta con sé `isApproved`, e il dominio tiene le bozze fuori da tutti i
+ * conteggi che dichiarano di parlare di materiale validato.
+ *
+ * Restano fuori: report falliti, bozze non ancora pronte, e qualunque altro
+ * stato. La cronistoria non è un cestino.
  */
 export function createMentalJourneyStore(): MentalJourneyStore {
   return {
@@ -73,7 +79,7 @@ export function createMentalJourneyStore(): MentalJourneyStore {
         .innerJoin(users, eq(users.id, providerProfiles.userId))
         .where(
           and(
-            eq(sessionAiReports.status, 'approved'),
+            inArray(sessionAiReports.status, [...JOURNEY_REPORT_STATUSES]),
             eq(sessionAiReports.reportKind, SESSION_COMPASS_REPORT_KIND),
             eq(bookings.clientId, athleteUserId),
             ...(coachUserId === null ? [] : [eq(providerProfiles.userId, coachUserId)])
@@ -83,9 +89,10 @@ export function createMentalJourneyStore(): MentalJourneyStore {
       return rows.flatMap((row): ApprovedSessionRecord[] => {
         const document = (row.edited ?? row.generated) as SessionCompassReport | null;
         // Seconda barriera oltre alla clausola SQL: la stessa regola pura.
-        if (document === null || !isApprovedCompassReport({ ...row, document })) return [];
+        if (document === null || !isJourneyCompassReport({ ...row, document })) return [];
         return [
           {
+            isApproved: row.status === 'approved',
             sessionId: row.sessionId,
             bookingId: row.bookingId,
             reportId: row.reportId,

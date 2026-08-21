@@ -101,7 +101,7 @@ export const SUB_PROCESSORS: SubProcessor[] = [
  * different dates for the same revision looks like an oversight, because it
  * usually is one.
  */
-export const LEGAL_LAST_UPDATED = '6 agosto 2026';
+export const LEGAL_LAST_UPDATED = '18 agosto 2026';
 
 /**
  * The address cited across every legal document — informativa, Termini and
@@ -120,7 +120,7 @@ export const LEGAL_CONTACT_EMAIL = 'privacy@kaipaicoaching.com';
  * changes substantively: users who accepted an older version are then asked to
  * accept again, and the old rows keep proving what they actually agreed to.
  */
-export const LEGAL_VERSION = '2026-08-06';
+export const LEGAL_VERSION = '2026-08-18';
 
 /**
  * After how many months without any activity an account is treated as closed,
