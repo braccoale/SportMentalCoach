@@ -3,6 +3,8 @@
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createSupabaseServer } from '@/lib/auth/supabase';
+import { getAppBaseUrl } from '@/lib/core/app-url';
+import { safeRedirectPath } from '@/lib/core/auth/safe-redirect';
 import {
   SIGNUP_ROLE_COOKIE,
   SIGNUP_ROLE_COOKIE_MAX_AGE_SECONDS,
@@ -40,21 +42,32 @@ const SELECTABLE_ROLES = new Set(['athlete', 'coach']);
 const AFTER_OAUTH_PATH = '/registrazione/completa';
 
 /**
- * L'origine di questa richiesta.
+ * L'origine a cui Google deve riportare l'utente.
  *
- * Non una variabile d'ambiente: lo stesso codice gira sull'anteprima, in
- * produzione e in locale, e un indirizzo fisso manderebbe l'utente
- * dell'anteprima a completare la registrazione in produzione.
+ * Si parte dagli header perche' lo stesso codice gira sull'anteprima, in
+ * produzione e in locale: un indirizzo deciso altrove manderebbe chi prova
+ * sull'anteprima a completare la registrazione in produzione.
+ *
+ * Ma gli header possono mancare, e la prima versione in quel caso restituiva
+ * la stringa `https://null` — che Supabase rifiuta come indirizzo di ritorno
+ * non valido, con un errore che non dice nulla a nessuno. Il ripiego e' ora
+ * `getAppBaseUrl()`, la stessa funzione che decide l'origine di tutti i link
+ * in uscita dal prodotto.
  */
-async function requestOrigin(): Promise<string> {
+async function requestOrigin(): Promise<string | null> {
   const requestHeaders = await headers();
+
   const origin = requestHeaders.get('origin');
   if (origin) return origin;
 
   const host =
     requestHeaders.get('x-forwarded-host') ?? requestHeaders.get('host');
-  const proto = requestHeaders.get('x-forwarded-proto') ?? 'https';
-  return `${proto}://${host}`;
+  if (host) {
+    const proto = requestHeaders.get('x-forwarded-proto') ?? 'https';
+    return `${proto}://${host}`;
+  }
+
+  return getAppBaseUrl();
 }
 
 export async function startGoogleOAuth(formData: FormData): Promise<void> {
@@ -76,11 +89,19 @@ export async function startGoogleOAuth(formData: FormData): Promise<void> {
   }
 
   // Dove tornare dopo il completamento (la scheda coach da cui era partita una
-  // richiesta di prenotazione, per esempio). Solo percorsi di questo sito.
-  const rawRedirect = String(formData.get('redirect') ?? '').trim();
-  const backTo = rawRedirect.startsWith('/') ? rawRedirect : '';
+  // richiesta di prenotazione, per esempio). Stessa guardia di tutti gli altri
+  // punti: un `startsWith('/')` lascerebbe passare `//altro-sito`, e avere la
+  // stessa regola scritta in due modi significa che uno dei due e' quello
+  // sbagliato.
+  const backTo =
+    safeRedirectPath(String(formData.get('redirect') ?? '').trim()) ?? '';
 
   const origin = await requestOrigin();
+  if (!origin) {
+    console.error('Avvio OAuth Google: origine della richiesta sconosciuta.');
+    redirect('/sign-in?error=google');
+  }
+
   const next = backTo
     ? `${AFTER_OAUTH_PATH}?redirect=${encodeURIComponent(backTo)}`
     : AFTER_OAUTH_PATH;

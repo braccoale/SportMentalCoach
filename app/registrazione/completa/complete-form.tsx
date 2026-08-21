@@ -1,12 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState, useMemo, useState } from 'react';
+import { useActionState, useEffect, useMemo, useState } from 'react';
 import { Loader2, User, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { ActionState } from '@/lib/auth/middleware';
+import { track } from '@/lib/core/analytics';
+import {
+  MIN_SIGNUP_AGE,
+  ageFromBirthDate,
+  isEligibleAge,
+  requiresGuardian,
+} from '@/lib/core/guardians/age';
 import { completeGoogleSignup } from './actions';
 
 /**
@@ -49,21 +56,6 @@ const ROLES = [
   },
 ] as const;
 
-const MIN_AGE = 15;
-const ADULT_AGE = 18;
-
-/** Età sulla data intera, non una sottrazione di anni. */
-function ageFrom(dateStr: string): number | null {
-  if (!dateStr) return null;
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return null;
-  const now = new Date();
-  let age = now.getFullYear() - d.getFullYear();
-  const m = now.getMonth() - d.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
-  return age;
-}
-
 export function CompleteSignupForm({
   email,
   presetRole,
@@ -88,12 +80,30 @@ export function CompleteSignupForm({
   const [vexatious, setVexatious] = useState(false);
   const [marketing, setMarketing] = useState(false);
 
+  /**
+   * Gli stessi eventi del wizard, con `method` a distinguerli.
+   *
+   * Non eventi nuovi: il funnel deve restare confrontabile fra i due modi di
+   * registrarsi. Senza questi, `signup_age_verified` sarebbe sceso verso zero
+   * mentre gli account continuavano a nascere — e la metrica sui minori
+   * bloccati avrebbe smesso di contare proprio i minori per cui esiste.
+   *
+   * Qui l'identita' e' gia' stata ottenuta, quindi il passo credenziali e'
+   * concluso nel momento in cui questa pagina compare.
+   */
+  useEffect(() => {
+    track('signup_credentials_completed', { method: 'google' });
+  }, []);
+
   const isAthlete = role === 'athlete';
   const isProfessional = role === 'coach' || role === 'club';
-  const age = useMemo(() => ageFrom(birthDate), [birthDate]);
-  const underMin = isAthlete && age != null && age < MIN_AGE;
-  const needsGuardian =
-    isAthlete && age != null && age >= MIN_AGE && age < ADULT_AGE;
+  // Le soglie non si riscrivono qui: `lib/core/guardians/age.ts` dichiara di
+  // esistere proprio perche' il modulo e l'azione validino sulle stesse. Se un
+  // giorno il pavimento si sposta dai quindici anni, si sposta in un punto
+  // solo — e questa e' l'area dove sbagliare non significa una schermata rotta.
+  const age = useMemo(() => ageFromBirthDate(birthDate), [birthDate]);
+  const underMin = isAthlete && age != null && !isEligibleAge(age);
+  const needsGuardian = isAthlete && requiresGuardian(age);
 
   const canSubmit =
     Boolean(role) &&
@@ -132,7 +142,13 @@ export function CompleteSignupForm({
                   <button
                     key={option.value}
                     type="button"
-                    onClick={() => setRole(option.value)}
+                    onClick={() => {
+                      setRole(option.value);
+                      track('signup_role_selected', {
+                        role: option.value,
+                        method: 'google',
+                      });
+                    }}
                     className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left transition ${
                       selected
                         ? 'border-red-500 bg-red-50'
@@ -203,7 +219,18 @@ export function CompleteSignupForm({
               type="date"
               required
               value={birthDate}
-              onChange={(e) => setBirthDate(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setBirthDate(value);
+                const declared = ageFromBirthDate(value);
+                if (declared == null) return;
+                track(
+                  isEligibleAge(declared)
+                    ? 'signup_age_verified'
+                    : 'signup_blocked_underage',
+                  { method: 'google' }
+                );
+              }}
               className={INPUT}
             />
           </div>
@@ -212,7 +239,7 @@ export function CompleteSignupForm({
         {underMin && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm">
             <p className="font-semibold text-red-700">
-              KaiPai è disponibile a partire dai 15 anni.
+              KaiPai è disponibile a partire dai {MIN_SIGNUP_AGE} anni.
             </p>
             <p className="mt-1 text-red-600">
               Al momento non è possibile creare un account. Per maggiori

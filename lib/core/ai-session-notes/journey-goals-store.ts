@@ -4,6 +4,9 @@ import { db } from '@/lib/db/drizzle';
 import {
   athleteJourneyGoalSessions,
   athleteJourneyGoals,
+  bookings,
+  providerProfiles,
+  sessionAiNotes,
 } from '@/lib/db/schema';
 import {
   parseJourneyGoalStatus,
@@ -186,7 +189,13 @@ export async function listGoalSessionLinks(
 export async function linkGoalSessions(params: {
   goalId: number;
   sessionIds: readonly number[];
-  source: 'theme' | 'coach';
+  /**
+   * Solo `coach`: e' l'unico scrittore rimasto. Il tipo lo dice invece di
+   * lasciar credere che esista ancora un aggancio automatico — e obbliga a
+   * passarlo, cosi' il default del database non etichetta come automatico
+   * qualcosa che ha fatto una persona.
+   */
+  source: 'coach';
   actorUserId: number | null;
 }): Promise<void> {
   if (params.sessionIds.length === 0) return;
@@ -258,4 +267,38 @@ export async function toggleGoalSession(params: {
     source: 'coach',
     actorUserId: params.coachUserId,
   });
+}
+
+/**
+ * Gli id delle sedute che appartengono al percorso di questa coppia.
+ *
+ * Serve a validare un id che arriva da un campo del modulo, e i campi si
+ * riscrivono: senza questo confronto una riga di aggancio potrebbe puntare
+ * alla conversazione di qualcun altro.
+ *
+ * **Perche' una query e non il percorso completo.** Prima questa risposta si
+ * otteneva ricostruendo l'intera Mental Journey — permessi, tutte le sedute
+ * approvate, tutti gli impegni, la proiezione — a **ogni clic su un pallino**,
+ * e poi di nuovo al ridisegno della pagina: una decina di andate e ritorno
+ * verso il database per invertire un booleano. La proprieta' che conta e' una
+ * sola, e sta in una riga di SQL: quella seduta e' di una prenotazione fra
+ * questo coach e questo atleta.
+ */
+export async function listAthleteSessionIds(params: {
+  coachUserId: number;
+  athleteUserId: number;
+}): Promise<ReadonlySet<number>> {
+  const rows = await db
+    .select({ id: sessionAiNotes.id })
+    .from(sessionAiNotes)
+    .innerJoin(bookings, eq(bookings.id, sessionAiNotes.bookingId))
+    .innerJoin(providerProfiles, eq(providerProfiles.id, bookings.providerId))
+    .where(
+      and(
+        eq(bookings.clientId, params.athleteUserId),
+        eq(providerProfiles.userId, params.coachUserId)
+      )
+    );
+
+  return new Set(rows.map((row) => row.id));
 }

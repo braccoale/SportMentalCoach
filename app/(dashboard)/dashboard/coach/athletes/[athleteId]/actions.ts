@@ -8,14 +8,10 @@ import { parseJourneyGoalStatus } from '@/lib/core/ai-session-notes/journey-goal
 import {
   archiveJourneyGoal,
   createJourneyGoal,
+  listAthleteSessionIds,
   toggleGoalSession,
   updateJourneyGoalStatus,
 } from '@/lib/core/ai-session-notes/journey-goals-store';
-import {
-  MentalJourneyError,
-  getMentalJourney,
-} from '@/lib/core/ai-session-notes/mental-journey';
-import { mentalJourneyDependencies } from '@/lib/core/ai-session-notes/mental-journey-store';
 
 /**
  * Le azioni sugli obiettivi del percorso.
@@ -43,34 +39,6 @@ function athletePath(athleteUserId: number): string {
   return `/dashboard/coach/athletes/${athleteUserId}`;
 }
 
-/**
- * Le sedute che appartengono davvero al percorso di questa persona.
- *
- * Serve perché l'id della seduta arriva da un campo del modulo, e un campo si
- * riscrive. Senza questo confronto un id qualunque finirebbe nella tabella
- * degli agganci: non mostrerebbe niente — quella seduta non è in questa
- * cronistoria — ma lascerebbe una riga che non dovrebbe esistere, agganciata a
- * una conversazione di qualcun altro.
- *
- * Un percorso illeggibile non è un errore: restituisce l'insieme vuoto, e
- * l'azione non scrive nulla.
- */
-async function journeySessionIds(
-  athleteUserId: number,
-  coachUserId: number
-): Promise<ReadonlySet<number>> {
-  try {
-    const journey = await getMentalJourney(
-      { athleteUserId, actorUserId: coachUserId },
-      mentalJourneyDependencies()
-    );
-    return new Set(journey.timeline.map((entry) => entry.sessionId));
-  } catch (error) {
-    if (!(error instanceof MentalJourneyError)) throw error;
-    return new Set();
-  }
-}
-
 function parsePositiveInt(raw: FormDataEntryValue | null): number | null {
   const value = Number(raw);
   return Number.isInteger(value) && value > 0 ? value : null;
@@ -87,7 +55,7 @@ export async function addJourneyGoalAction(formData: FormData): Promise<void> {
   // che con una traccia vuota su un percorso che dura da mesi. Senza percorso
   // leggibile si crea lo stesso, solo senza storia — i pallini si accendono poi
   // uno a uno dalla riga.
-  const allowed = await journeySessionIds(athleteUserId, coachUserId);
+  const allowed = await listAthleteSessionIds({ coachUserId, athleteUserId });
   const sessionIds = formData
     .getAll('sessionIds')
     .map((raw) => parsePositiveInt(raw))
@@ -142,7 +110,7 @@ export async function toggleJourneyGoalSessionAction(
   const sessionId = parsePositiveInt(formData.get('sessionId'));
   if (goalId === null || sessionId === null) return;
 
-  const allowed = await journeySessionIds(athleteUserId, coachUserId);
+  const allowed = await listAthleteSessionIds({ coachUserId, athleteUserId });
   if (!allowed.has(sessionId)) return;
 
   await toggleGoalSession({ coachUserId, athleteUserId, goalId, sessionId });

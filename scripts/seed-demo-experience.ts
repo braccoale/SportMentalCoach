@@ -17,6 +17,7 @@ import {
 import { db, client } from '@/lib/db/drizzle';
 import {
   athleteJourneyGoals,
+  athleteJourneyGoalSessions,
   bookings,
   clientProfiles,
   coachAvailability,
@@ -1319,6 +1320,9 @@ async function seedDatabase(authIds: Map<string, string>) {
       { title: PHASES[2].focus, status: 'in_corso', isPrimary: false, themeKey: 'dialogo-interno' },
       { title: 'Comunicare bisogni e segnali utili allo staff', status: 'da_riprendere', isPrimary: false, themeKey: 'supporto' },
     ] as const;
+    // Gli id servono piu' sotto: gli agganci si scrivono quando le sedute
+    // esistono, e le sedute nascono dopo gli obiettivi.
+    const goalIds: number[] = [];
     for (const [position, goal] of journeyGoals.entries()) {
       const [existingGoal] = await db
         .select({ id: athleteJourneyGoals.id })
@@ -1336,15 +1340,20 @@ async function seedDatabase(authIds: Map<string, string>) {
           .update(athleteJourneyGoals)
           .set({ ...goal, position, updatedBy: coach.id })
           .where(eq(athleteJourneyGoals.id, existingGoal.id));
+        goalIds.push(existingGoal.id);
       } else {
-        await db.insert(athleteJourneyGoals).values({
-          athleteUserId: user.id,
-          coachUserId: coach.id,
-          ...goal,
-          position,
-          createdBy: coach.id,
-          updatedBy: coach.id,
-        });
+        const [createdGoal] = await db
+          .insert(athleteJourneyGoals)
+          .values({
+            athleteUserId: user.id,
+            coachUserId: coach.id,
+            ...goal,
+            position,
+            createdBy: coach.id,
+            updatedBy: coach.id,
+          })
+          .returning({ id: athleteJourneyGoals.id });
+        goalIds.push(createdGoal.id);
       }
     }
 
@@ -1363,6 +1372,46 @@ async function seedDatabase(authIds: Map<string, string>) {
       );
     }
     completedByAthlete.set(athlete.key, completed);
+
+    /**
+     * Gli agganci fra obiettivo e seduta.
+     *
+     * Vanno scritti qui perche' prima le sedute non esistono. E vanno scritti
+     * **esplicitamente**: finche' l'aggancio si deduceva dai temi bastava
+     * seminare `themeKey`, ma quel meccanismo non ne ha mai prodotto uno solo
+     * in produzione ed e' stato tolto. Senza queste righe la demo mostrerebbe
+     * tre tracce di pallini spenti con «nessuna seduta agganciata» — su una
+     * pagina che serve a far vedere il prodotto.
+     *
+     * La distribuzione non e' casuale, rispecchia lo stato dichiarato: il
+     * primo obiettivo e' «in miglioramento» e attraversa tutto il percorso, il
+     * secondo e' «in corso» e parte a meta', il terzo e' «da riprendere» e si
+     * ferma all'inizio — che e' esattamente cio' che quella dicitura racconta.
+     */
+    const linksByGoal: ReadonlyArray<(index: number) => boolean> = [
+      () => true,
+      (index) => index >= Math.floor(completed.length / 2),
+      (index) => index === 0,
+    ];
+    for (const [goalIndex, goalId] of goalIds.entries()) {
+      const belongs = linksByGoal[goalIndex] ?? (() => false);
+      const sessionIds = completed
+        .filter((_, index) => belongs(index))
+        .map((entry) => entry.session.id);
+      if (sessionIds.length === 0) continue;
+
+      await db
+        .insert(athleteJourneyGoalSessions)
+        .values(
+          sessionIds.map((sessionAiNotesId) => ({
+            goalId,
+            sessionAiNotesId,
+            source: 'coach',
+            createdBy: coach.id,
+          }))
+        )
+        .onConflictDoNothing();
+    }
 
     const upcoming = await ensureBooking({
       athleteId: user.id,

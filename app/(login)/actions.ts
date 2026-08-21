@@ -2,20 +2,14 @@
 
 import { z } from 'zod';
 import { and, eq, isNull, sql } from 'drizzle-orm';
-import { db, type DbOrTx } from '@/lib/db/drizzle';
+import { db } from '@/lib/db/drizzle';
 import {
   User,
   users,
   teams,
   teamMembers,
-  activityLogs,
-  type NewUser,
-  type NewTeam,
-  type NewTeamMember,
-  type NewActivityLog,
   ActivityType,
-  invitations,
-  clientProfiles
+  invitations
 } from '@/lib/db/schema';
 import {
   createSupabaseServer,
@@ -25,7 +19,6 @@ import { sendWelcomeEmail } from '@/lib/core/email';
 import { redirect } from 'next/navigation';
 import { headers, cookies } from 'next/headers';
 import { attributeReferral } from '@/lib/core/referrals';
-import { recordPlatformTermsAcceptance } from '@/lib/core/legal/acceptance';
 import { createCheckoutSession } from '@/lib/payments/stripe';
 import { getUser, getUserWithTeam } from '@/lib/db/queries';
 import {
@@ -33,7 +26,6 @@ import {
   validatedActionWithUser
 } from '@/lib/auth/middleware';
 import { dashboardPathForRoles, getUserRoles } from '@/lib/core/auth';
-import { ensureOnboarding } from '@/lib/core/onboarding';
 import {
   ageFromBirthDate,
   isEligibleAge,
@@ -41,9 +33,7 @@ import {
   requiresGuardian
 } from '@/lib/core/guardians/age';
 import {
-  ensureProfile,
   syncDisplayName,
-  provisionMarketplaceRole,
   notifyAdminsOfAthleteRegistration,
   notifyAdminsOfProviderRegistration,
   type SignupRole
@@ -164,7 +154,6 @@ const signUpSchema = z.object({
 
 export const signUp = validatedAction(signUpSchema, async (data, formData) => {
   const { email, password, name, lastName, inviteId, role, birthDate } = data;
-  const fullName = `${name} ${lastName}`.trim();
   const marketing = data.marketing === 'on';
 
   // Required legal acceptances — enforced server-side too, not just in the UI.

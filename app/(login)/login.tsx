@@ -22,6 +22,14 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
   // Friend-referral code (from /invita/[code] → /sign-up?ref=CODE). Distinct
   // from `inviteId`, which is a team/club membership invitation.
   const ref = searchParams.get('ref');
+  /**
+   * L'accesso con Google e' fallito prima ancora di partire, oppure lo scambio
+   * del codice non e' andato a buon fine. Senza questo, l'azione reindirizzava
+   * qui con `?error=google` e la pagina si ridisegnava identica: l'utente
+   * premeva il pulsante, sembrava una ricarica, non succedeva niente — e
+   * poteva ripetere all'infinito senza capire.
+   */
+  const googleError = searchParams.get('error') === 'google';
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     mode === 'signin' ? signIn : signUp,
     { error: '' }
@@ -62,6 +70,16 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
         {/* Google sta sopra le credenziali perche' per chi ce l'ha e' la via
             piu' corta, e chi non la usa scorre di due centimetri. Sotto resta
             tutto quello che c'era: nessuno perde il proprio modo di entrare. */}
+        {googleError && (
+          <p
+            role="alert"
+            className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+          >
+            Non siamo riusciti a completare l’accesso con Google. Riprova, o
+            entra con email e password.
+          </p>
+        )}
+
         <GoogleButton redirect={redirect} />
 
         <div className="relative my-6">

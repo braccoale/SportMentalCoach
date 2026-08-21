@@ -8,6 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
+import {
+  MIN_SIGNUP_AGE,
+  ageFromBirthDate,
+  isEligibleAge,
+  requiresGuardian,
+} from '@/lib/core/guardians/age';
 import { signUp } from './actions';
 import { GoogleButton } from '@/components/auth/google-button';
 import type { ActionState } from '@/lib/auth/middleware';
@@ -40,21 +46,6 @@ const ROLES = [
     desc: 'Voglio presentare il mio profilo e lavorare con nuovi atleti.',
   },
 ] as const;
-
-const MIN_AGE = 15;
-const ADULT_AGE = 18;
-
-/** Full-date age (not a plain year subtraction). */
-function ageFrom(dateStr: string): number | null {
-  if (!dateStr) return null;
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return null;
-  const now = new Date();
-  let age = now.getFullYear() - d.getFullYear();
-  const m = now.getMonth() - d.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
-  return age;
-}
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const STEPS = ['Ruolo', 'Credenziali', 'Dati e condizioni'];
@@ -97,13 +88,13 @@ export function SignupWizard() {
   // Coach e Club si registrano come professionisti: solo verso di loro
   // l'approvazione specifica dell'art. 1341 produce un effetto reale.
   const isProfessional = role === 'coach' || role === 'club';
-  const age = useMemo(() => ageFrom(birthDate), [birthDate]);
-  const underMin = isAthlete && age != null && age < MIN_AGE;
-  const needsGuardian = isAthlete && age != null && age >= MIN_AGE && age < ADULT_AGE;
+  const age = useMemo(() => ageFromBirthDate(birthDate), [birthDate]);
+  const underMin = isAthlete && age != null && !isEligibleAge(age);
+  const needsGuardian = isAthlete && requiresGuardian(age);
 
   function goCredentials() {
     if (!role) return;
-    track('signup_role_selected', { role });
+    track('signup_role_selected', { role, method: 'password' });
     setLocalError(null);
     setStep(1);
   }
@@ -122,14 +113,16 @@ export function SignupWizard() {
       setLocalError('Le password non coincidono.');
       return;
     }
-    track('signup_credentials_completed');
+    track('signup_credentials_completed', { method: 'password' });
     setStep(2);
   }
 
   // Fire the age telemetry once we can evaluate it on the last step.
   useEffect(() => {
     if (step !== 2 || !isAthlete || age == null) return;
-    track(underMin ? 'signup_blocked_underage' : 'signup_age_verified');
+    track(underMin ? 'signup_blocked_underage' : 'signup_age_verified', {
+      method: 'password',
+    });
   }, [step, isAthlete, age, underMin]);
 
   // The "Registrati" button only enables once every required field is valid —
@@ -353,7 +346,7 @@ export function SignupWizard() {
             {underMin && (
               <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm">
                 <p className="font-semibold text-red-700">
-                  KaiPai è disponibile a partire dai 15 anni.
+                  KaiPai è disponibile a partire dai {MIN_SIGNUP_AGE} anni.
                 </p>
                 <p className="mt-1 text-red-600">
                   Al momento non è possibile creare un account. Per maggiori

@@ -13,6 +13,7 @@ import {
   ageFromBirthDate,
   isEligibleAge,
   MIN_SIGNUP_AGE,
+  requiresGuardian,
 } from '@/lib/core/guardians/age';
 import { attributeReferral } from '@/lib/core/referrals';
 import { sendWelcomeEmail } from '@/lib/core/email';
@@ -94,11 +95,17 @@ export const completeGoogleSignup = validatedAction(
     }
 
     const isAthleteSignup = !role || role === 'athlete';
+    // Dichiarata **fuori** dal blocco: oltre al cancello sull'ingresso, questa
+    // eta' decide se l'email di benvenuto deve spiegare come farsi autorizzare
+    // da un tutore. Tenendola dentro l'if, un sedicenne entrava e riceveva il
+    // testo generico — cioe' proprio chi ha bisogno dell'istruzione non la
+    // riceveva.
+    let athleteAge: number | null = null;
     if (isAthleteSignup) {
-      const age = ageFromBirthDate(data.birthDate ?? null);
-      if (age == null) return { error: 'Indica la tua data di nascita.' };
-      if (age > 120) return { error: 'Data di nascita non valida.' };
-      if (!isEligibleAge(age)) {
+      athleteAge = ageFromBirthDate(data.birthDate ?? null);
+      if (athleteAge == null) return { error: 'Indica la tua data di nascita.' };
+      if (athleteAge > 120) return { error: 'Data di nascita non valida.' };
+      if (!isEligibleAge(athleteAge)) {
         return {
           error: `KaiPai è riservato agli atleti dai ${MIN_SIGNUP_AGE} anni in su.`,
         };
@@ -170,6 +177,8 @@ export const completeGoogleSignup = validatedAction(
       to: email,
       name: result.user.name,
       role: marketplaceRole,
+      guardianAuthorizationRequired:
+        marketplaceRole === 'athlete' && requiresGuardian(athleteAge),
     }).catch(() => {});
 
     if (marketplaceRole === 'coach') {

@@ -9,6 +9,13 @@ import { REQUEST_METHOD_HEADER } from '@/lib/auth/demo-readonly';
 const protectedRoutes = '/dashboard';
 
 /**
+ * Dove si finisce la registrazione iniziata da un fornitore d'identita'.
+ * Sta fuori dall'area riservata: dentro, il cancello qui sotto rimanderebbe
+ * alla pagina stessa all'infinito.
+ */
+const COMPLETE_SIGNUP_PATH = '/registrazione/completa';
+
+/**
  * Refreshes the Supabase Auth session on every request (rotating tokens are
  * written back to cookies) and guards /dashboard for anonymous visitors.
  */
@@ -101,39 +108,57 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Already-authenticated visitors don't need the marketing landing page: send
-  // them straight to their dashboard (which itself routes to the right area).
-  if (user && pathname === '/') {
-    const toDashboard = NextResponse.redirect(new URL('/dashboard', request.url));
-    // Carry over any auth cookies the session refresh above just rotated.
-    for (const cookie of response.cookies.getAll()) {
-      toDashboard.cookies.set(cookie);
-    }
-    return toDashboard;
-  }
-
   if (isProtectedRoute && !user) {
     return NextResponse.redirect(signInUrl);
   }
 
-  // Onboarding gate: an authenticated user whose onboarding is not yet complete
-  // is sent to the wizard before any dashboard page. No loop — `/onboarding`
-  // lives outside `/dashboard`. Legacy users (no row) are treated as complete
-  // (fail-open), so existing accounts are never interrupted.
-  if (isProtectedRoute && user) {
+  /**
+   * I due cancelli dopo l'accesso, in una lettura sola.
+   *
+   * Valgono dove il giro si chiuderebbe — l'area riservata e la home — e non
+   * sulle pagine pubbliche, che non hanno motivo di pagare una query.
+   *
+   * Il primo cancello e' nuovo, e senza di lui esisteva un vicolo cieco. Con
+   * l'accesso Google puo' esistere una **sessione valida senza riga in
+   * `users`**: chi torna dal fornitore e non finisce la registrazione. In quel
+   * caso la home rimandava all'area riservata, `getUser()` restituiva null e si
+   * finiva alla pagina di accesso — dove si e' gia' dentro. Nessuno riportava
+   * al completamento, e il prodotto diventava irraggiungibile per quel browser.
+   *
+   * `leftJoin` e non `innerJoin`: serve distinguere «non c'e' l'account» da
+   * «non c'e' ancora l'onboarding», che prima collassavano nello stesso
+   * risultato vuoto.
+   */
+  if (user && (isProtectedRoute || pathname === '/')) {
     const [row] = await db
-      .select({ status: userOnboarding.status })
+      .select({ userId: users.id, status: userOnboarding.status })
       .from(users)
-      .innerJoin(userOnboarding, eq(userOnboarding.userId, users.id))
+      .leftJoin(userOnboarding, eq(userOnboarding.userId, users.id))
       .where(eq(users.authId, user.id))
       .limit(1);
-    if (row && row.status !== 'completed') {
-      const toWizard = NextResponse.redirect(new URL('/onboarding', request.url));
+
+    const withCookies = (destination: string) => {
+      const redirectResponse = NextResponse.redirect(
+        new URL(destination, request.url)
+      );
+      // Si riportano i cookie che il rinnovo della sessione ha appena ruotato:
+      // perderli qui significherebbe disconnettere l'utente reindirizzandolo.
       for (const cookie of response.cookies.getAll()) {
-        toWizard.cookies.set(cookie);
+        redirectResponse.cookies.set(cookie);
       }
-      return toWizard;
+      return redirectResponse;
+    };
+
+    if (!row) return withCookies(COMPLETE_SIGNUP_PATH);
+
+    // Onboarding: gli account storici (nessuna riga) restano completi, cosi'
+    // nessuno viene interrotto a meta' di quello che stava facendo.
+    if (row.status && row.status !== 'completed') {
+      return withCookies('/onboarding');
     }
+
+    // Chi e' gia' dentro non ha bisogno della pagina di presentazione.
+    if (pathname === '/') return withCookies('/dashboard');
   }
 
   return response;
