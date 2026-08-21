@@ -708,3 +708,28 @@
   opacity: 0.48 !important;
   filter: saturate(0.45);
 }
+
+/* Nel profilo Demo i valori restano leggibili, ma tutti i campi comunicano
+   visivamente e semanticamente che non possono essere modificati. */
+[data-demo-profile-readonly='true']
+  :is(input:not([type='hidden']), textarea, select):disabled {
+  cursor: not-allowed;
+  border-color: #d1d5db !important;
+  background-color: #f3f4f6 !important;
+  color: #6b7280 !important;
+  opacity: 1;
+  box-shadow: none;
+}
+
+[data-demo-profile-readonly='true'] label:has(input:disabled) {
+  cursor: not-allowed;
+  border-color: #d1d5db !important;
+  background-color: #f3f4f6 !important;
+  color: #6b7280 !important;
+}
+
+[data-demo-profile-readonly='true'] button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  filter: grayscale(0.35);
+}

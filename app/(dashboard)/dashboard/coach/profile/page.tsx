@@ -83,41 +83,47 @@ export default async function CoachProfilePage() {
 
   return (
     <section className="flex flex-col gap-6 p-6">
-      {/* Non-approved states keep the explanatory banner; the "Approved"
-          state is shown as a badge inside the photo card instead. */}
-      {provider.status !== 'approved' && <StatusBanner status={provider.status} />}
-      {onboarding && provider.status !== 'approved' && (
-        <OnboardingProgress onboarding={onboarding} />
-      )}
+      <fieldset
+        disabled={user.isDemo}
+        data-demo-profile-readonly={user.isDemo ? 'true' : undefined}
+        className="contents"
+      >
+        {/* Non-approved states keep the explanatory banner; the "Approved"
+            state is shown as a badge inside the photo card instead. */}
+        {provider.status !== 'approved' && <StatusBanner status={provider.status} />}
+        {onboarding && provider.status !== 'approved' && (
+          <OnboardingProgress onboarding={onboarding} />
+        )}
 
-      {/* Compact media + account row: keeps the profile editor above the fold. */}
-      <div className="grid items-stretch gap-4 lg:grid-cols-3">
-        <PhotoForm
-          name={[user.name, user.lastName].filter(Boolean).join(' ') || null}
-          avatarUrl={avatarUrl}
-          status={provider.status}
-        />
-        <div className="h-full rounded-lg border border-gray-200 p-3">
-          <VideoUpload videoUrl={provider.videoUrl} />
+        {/* Compact media + account row: keeps the profile editor above the fold. */}
+        <div className="grid items-stretch gap-4 lg:grid-cols-3">
+          <PhotoForm
+            name={[user.name, user.lastName].filter(Boolean).join(' ') || null}
+            avatarUrl={avatarUrl}
+            status={provider.status}
+          />
+          <div className="h-full rounded-lg border border-gray-200 p-3">
+            <VideoUpload videoUrl={provider.videoUrl} />
+          </div>
+          <AccountInfoCard />
         </div>
-        <AccountInfoCard />
-      </div>
 
-      <div id="onboarding-profilo">
-        <ProfileEditor
-          headline={provider.headline}
-        description={provider.description}
-        categories={provider.categories ?? []}
-        specialties={provider.specialties ?? []}
-        sportOptions={sportOptions}
-        specialtyOptions={specialtyOptions}
-        coachSince={provider.coachSince}
-        languages={provider.languages ?? []}
-        certifications={provider.certifications ?? []}
-        athleteLevels={provider.athleteLevels ?? []}
-        levelOptions={levelOptions}
-        />
-      </div>
+        <div id="onboarding-profilo">
+          <ProfileEditor
+            headline={provider.headline}
+            description={provider.description}
+            categories={provider.categories ?? []}
+            specialties={provider.specialties ?? []}
+            sportOptions={sportOptions}
+            specialtyOptions={specialtyOptions}
+            coachSince={provider.coachSince}
+            languages={provider.languages ?? []}
+            certifications={provider.certifications ?? []}
+            athleteLevels={provider.athleteLevels ?? []}
+            levelOptions={levelOptions}
+          />
+        </div>
+      </fieldset>
     </section>
   );
 }
