@@ -176,9 +176,9 @@ export function buildCoachAthletes(
     });
   }
 
-  // In cima va la persona con cui il coach ha svolto la sessione piu' recente.
-  // Una sessione futura non scavalca una relazione gia' attiva. Solo fra gli
-  // atleti senza sedute svolte viene prima l'appuntamento futuro piu' vicino.
+  // In cima va la persona con cui il coach ha svolto la sessione più recente.
+  // Una sessione futura non scavalca una relazione già attiva. Solo fra gli
+  // atleti senza sedute svolte viene prima l'appuntamento futuro più vicino.
   return summaries.sort((a, b) => {
     const aLast = a.lastSessionAt?.getTime() ?? -Infinity;
     const bLast = b.lastSessionAt?.getTime() ?? -Infinity;

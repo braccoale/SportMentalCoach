@@ -134,17 +134,17 @@ export function UpcomingAppointmentCard({
                 {data.date.day}
               </span>
               <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
-                <div className="flex min-w-0 items-baseline gap-2 text-blue-800">
-                  <span className="text-lg font-bold uppercase tracking-tight">
-                    {data.date.monthYear}
+                <span className="text-lg font-bold uppercase tracking-tight text-blue-800">
+                  {data.date.monthYear}
+                </span>
+                <div className="flex min-w-0 items-end gap-3">
+                  <span className="text-4xl font-bold leading-none tracking-tight text-gray-950">
+                    {data.date.time}
                   </span>
-                  <span className="truncate text-sm font-semibold normal-case">
+                  <span className="truncate pb-0.5 text-sm font-semibold text-emerald-600">
                     {data.date.weekday}
                   </span>
                 </div>
-                <span className="text-4xl font-bold leading-none tracking-tight text-gray-950">
-                  {data.date.time}
-                </span>
               </div>
             </div>
           ) : (
@@ -156,17 +156,11 @@ export function UpcomingAppointmentCard({
 
         <div className="mt-3 flex flex-col gap-2 border-t border-gray-100 pt-3 text-sm text-gray-700">
           <div className="flex items-center gap-2.5">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-500">
+              <UserRound className="h-3.5 w-3.5" />
+            </span>
             <span className="line-clamp-1 font-medium text-gray-900">
               {data.athleteName}
-            </span>
-            <span
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-700"
-            >
-              {data.sportKey ? (
-                <SportIcon sportKey={data.sportKey} className="h-4 w-4" />
-              ) : (
-                <UserRound className="h-3.5 w-3.5 text-gray-500" />
-              )}
             </span>
           </div>
         </div>

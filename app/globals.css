@@ -867,8 +867,7 @@
     opacity: 0.35;
   }
 }
-/* I controlli restano nel layout per mostrare la completezza del prodotto,
-   ma in modalità demo comunicano chiaramente che la scrittura è inibita. */
+/* Demo controls stay visible to communicate product breadth, but are inert. */
 [data-demo-readonly='true'] [data-demo-readonly-blocked='true'] {
   cursor: not-allowed !important;
   opacity: 0.48 !important;
