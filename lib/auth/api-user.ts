@@ -4,6 +4,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { users } from '@/lib/db/schema';
 import { getUser } from '@/lib/db/queries';
+import { assertDemoWriteAllowed } from '@/lib/auth/demo-readonly';
 
 /**
  * Chi sta chiamando questa rotta, dal browser **o** dall'app.
@@ -48,5 +49,7 @@ export async function getApiUser(request: Request) {
     .where(and(eq(users.authId, authUser.id), isNull(users.deletedAt)))
     .limit(1);
 
-  return row ?? null;
+  if (!row) return null;
+  assertDemoWriteAllowed(row, request.method);
+  return row;
 }

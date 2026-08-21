@@ -161,20 +161,20 @@ export function buildCoachAthletes(
     });
   }
 
-  // Prima chi sta lavorando con il coach in questo periodo: sessione imminente,
-  // poi ultima sessione svolta. A parità di attività, il percorso con più
-  // sessioni completate viene prima.
+  // In cima va la persona con cui il coach ha svolto la sessione più recente.
+  // Una sessione futura non scavalca una relazione già attiva. Solo fra gli
+  // atleti senza sedute svolte viene prima l'appuntamento futuro più vicino.
   return summaries.sort((a, b) => {
-    if (a.nextSessionAt && b.nextSessionAt) {
-      const byNextSession =
-        a.nextSessionAt.getTime() - b.nextSessionAt.getTime();
-      if (byNextSession !== 0) return byNextSession;
-    }
-    if (a.nextSessionAt) return -1;
-    if (b.nextSessionAt) return 1;
-    const aLast = a.lastSessionAt?.getTime() ?? 0;
-    const bLast = b.lastSessionAt?.getTime() ?? 0;
+    const aLast = a.lastSessionAt?.getTime() ?? -Infinity;
+    const bLast = b.lastSessionAt?.getTime() ?? -Infinity;
     if (aLast !== bLast) return bLast - aLast;
+
+    if (!a.lastSessionAt && !b.lastSessionAt) {
+      const aNext = a.nextSessionAt?.getTime() ?? Infinity;
+      const bNext = b.nextSessionAt?.getTime() ?? Infinity;
+      if (aNext !== bNext) return aNext - bNext;
+    }
+
     if (a.completedSessions !== b.completedSessions) {
       return b.completedSessions - a.completedSessions;
     }

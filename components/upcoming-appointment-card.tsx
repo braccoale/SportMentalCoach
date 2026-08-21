@@ -5,7 +5,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   Video,
-  MessageSquare,
+  UserRound,
   CalendarCheck,
   AlignLeft,
   MoreHorizontal,
@@ -27,7 +27,12 @@ export type UpcomingAppointmentData = {
   eyebrow: string;
   statusLabel: string;
   /** Huge-date hero; null when there's no fixed time yet. */
-  date: { day: string; monthYear: string; time: string } | null;
+  date: {
+    day: string;
+    monthYear: string;
+    time: string;
+    weekday: string;
+  } | null;
   primaryNeed: string;
   requestedAtLabel: string;
 };
@@ -113,13 +118,18 @@ export function UpcomingAppointmentCard({
               <span className="text-7xl font-bold leading-none tracking-tighter text-blue-800">
                 {data.date.day}
               </span>
-              <div className="flex flex-col justify-between py-0.5">
+              <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
                 <span className="text-lg font-bold uppercase tracking-tight text-blue-800">
                   {data.date.monthYear}
                 </span>
-                <span className="text-4xl font-bold leading-none tracking-tight text-gray-950">
-                  {data.date.time}
-                </span>
+                <div className="flex min-w-0 items-end gap-3">
+                  <span className="text-4xl font-bold leading-none tracking-tight text-gray-950">
+                    {data.date.time}
+                  </span>
+                  <span className="truncate pb-0.5 text-sm font-semibold text-emerald-600">
+                    {data.date.weekday}
+                  </span>
+                </div>
               </div>
             </div>
           ) : (
@@ -132,9 +142,11 @@ export function UpcomingAppointmentCard({
         <div className="mt-3 flex flex-col gap-2 border-t border-gray-100 pt-3 text-sm text-gray-700">
           <div className="flex items-center gap-2.5">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-500">
-              <MessageSquare className="h-3.5 w-3.5" />
+              <UserRound className="h-3.5 w-3.5" />
             </span>
-            <span className="line-clamp-1">{data.primaryNeed}</span>
+            <span className="line-clamp-1 font-medium text-gray-900">
+              {data.athleteName}
+            </span>
           </div>
         </div>
 

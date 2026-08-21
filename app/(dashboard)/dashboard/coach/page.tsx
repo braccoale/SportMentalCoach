@@ -136,7 +136,7 @@ export default async function CoachDashboardPage() {
     getProviderProfileByUser(user.id),
     getCoachBookings(user.id),
     getUnreadCountForType(user.id, 'new_message'),
-    getAllAthletes(),
+    getAllAthletes(user.id),
     getCoachServices(user.id),
     getCoachAvailability(user.id),
     hasFeatureEntitlement(user.id, FEATURE_CODES.AI_SESSION_NOTES),

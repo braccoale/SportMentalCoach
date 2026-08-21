@@ -218,11 +218,13 @@ export async function getCoachExperienceStats(
       ), 0)::int`,
     })
     .from(bookings)
+    .innerJoin(users, eq(users.id, bookings.clientId))
     .leftJoin(services, eq(services.id, bookings.serviceId))
     .where(
       and(
         eq(bookings.status, 'completed'),
-        inArray(bookings.providerId, providerIds)
+        inArray(bookings.providerId, providerIds),
+        eq(users.isDemo, false)
       )
     )
     .groupBy(bookings.providerId);
@@ -242,8 +244,13 @@ export async function getCompletedSessionCount(
   const [row] = await db
     .select({ value: count() })
     .from(bookings)
+    .innerJoin(users, eq(users.id, bookings.clientId))
     .where(
-      and(eq(bookings.providerId, providerId), eq(bookings.status, 'completed'))
+      and(
+        eq(bookings.providerId, providerId),
+        eq(bookings.status, 'completed'),
+        eq(users.isDemo, false)
+      )
     );
   return row?.value ?? 0;
 }
@@ -547,6 +554,13 @@ export type RelationshipCoach = {
 export async function getAthleteRelationshipCoaches(
   userId: number
 ): Promise<RelationshipCoach[]> {
+  const [viewer] = await db
+    .select({ isDemo: users.isDemo })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (!viewer || viewer.isDemo) return [];
+
   // Providers from prior bookings (with recency) ∪ favourites.
   const [booked, faved] = await Promise.all([
     db
@@ -587,11 +601,13 @@ export async function getAthleteRelationshipCoaches(
         avatarUrl: profiles.avatarUrl,
       })
       .from(providerProfiles)
+      .innerJoin(users, eq(users.id, providerProfiles.userId))
       .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
       .where(
         and(
           inArray(providerProfiles.id, providerIds),
-          eq(providerProfiles.status, 'approved')
+          eq(providerProfiles.status, 'approved'),
+          eq(users.isDemo, false)
         )
       ),
     db
@@ -705,6 +721,13 @@ export type RelationshipAthlete = {
 export async function getCoachRelationshipAthletes(
   userId: number
 ): Promise<RelationshipAthlete[]> {
+  const [viewer] = await db
+    .select({ isDemo: users.isDemo })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (!viewer || viewer.isDemo) return [];
+
   const [provider] = await db
     .select({ id: providerProfiles.id })
     .from(providerProfiles)
@@ -736,7 +759,7 @@ export async function getCoachRelationshipAthletes(
     })
     .from(users)
     .leftJoin(profiles, eq(profiles.userId, users.id))
-    .where(inArray(users.id, clientIds));
+    .where(and(inArray(users.id, clientIds), eq(users.isDemo, false)));
 
   return rows
     .map((r) => ({
@@ -757,7 +780,16 @@ export async function getCoachRelationshipAthletes(
  * booking time: `createCoachBookingRequest` rejects minors without a confirmed
  * guardian.
  */
-export async function getAllAthletes(): Promise<RelationshipAthlete[]> {
+export async function getAllAthletes(
+  viewerUserId: number
+): Promise<RelationshipAthlete[]> {
+  const [viewer] = await db
+    .select({ isDemo: users.isDemo })
+    .from(users)
+    .where(eq(users.id, viewerUserId))
+    .limit(1);
+  if (!viewer || viewer.isDemo) return [];
+
   const rows = await db
     .select({
       userId: users.id,
@@ -771,7 +803,7 @@ export async function getAllAthletes(): Promise<RelationshipAthlete[]> {
       and(eq(userRoles.userId, users.id), eq(userRoles.roleKey, 'athlete'))
     )
     .leftJoin(profiles, eq(profiles.userId, users.id))
-    .where(isNull(users.deletedAt));
+    .where(and(isNull(users.deletedAt), eq(users.isDemo, false)));
 
   return rows
     .map((r) => ({

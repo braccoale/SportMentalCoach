@@ -3,8 +3,13 @@ import { desc, and, eq, isNull } from 'drizzle-orm';
 import { db } from './drizzle';
 import { activityLogs, profiles, teamMembers, teams, users } from './schema';
 import { unstable_rethrow } from 'next/navigation';
+import { headers } from 'next/headers';
 import { createSupabaseServer } from '@/lib/auth/supabase';
 import type { SessionUser } from '@/lib/auth/session-user';
+import {
+  REQUEST_METHOD_HEADER,
+  assertDemoWriteAllowed,
+} from '@/lib/auth/demo-readonly';
 
 /**
  * Resolves the current user: Supabase Auth session (cookie) → app profile
@@ -15,7 +20,7 @@ import type { SessionUser } from '@/lib/auth/session-user';
  * (layout + page + `requireRole`) share one Supabase Auth validation + DB read
  * instead of doing a network round-trip each time.
  */
-export const getUser = cache(async () => {
+const getCachedUser = cache(async () => {
   let authUserId: string | null = null;
   try {
     const supabase = await createSupabaseServer();
@@ -44,6 +49,23 @@ export const getUser = cache(async () => {
 
   return user[0];
 });
+
+/**
+ * Restituisce l'utente corrente e, durante una mutazione, applica il vincolo
+ * readonly degli account demo prima che l'action/route raggiunga il database.
+ * `allowDemoMutation` è riservato al logout, che deve restare sempre possibile.
+ */
+export async function getUser(options?: { allowDemoMutation?: boolean }) {
+  const user = await getCachedUser();
+  if (!user || !user.isDemo || options?.allowDemoMutation) return user;
+
+  const requestHeaders = await headers();
+  const method =
+    requestHeaders.get(REQUEST_METHOD_HEADER) ??
+    (requestHeaders.has('next-action') ? 'POST' : 'GET');
+  assertDemoWriteAllowed(user, method);
+  return user;
+}
 
 /** Current account plus the profile photo used by authenticated navigation. */
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {

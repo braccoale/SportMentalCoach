@@ -181,7 +181,7 @@ test('senza nome usa la parte locale dell’indirizzo', () => {
   assert.equal(a.name, 'mario.rossi');
 });
 
-test('chi ha una sessione imminente viene prima', () => {
+test('la sessione svolta più recente viene prima di un appuntamento futuro', () => {
   const athletes = buildCoachAthletes(
     [
       booking({ id: 1, clientId: 7, status: 'completed', sessionEndedAt: NOW }),
@@ -195,7 +195,33 @@ test('chi ha una sessione imminente viene prima', () => {
     ],
     NOW
   );
-  assert.equal(athletes[0].userId, 9);
+  assert.equal(athletes[0].userId, 7);
+});
+
+test('senza sessioni svolte viene prima l’appuntamento futuro più vicino', () => {
+  const athletes = buildCoachAthletes(
+    [
+      booking({
+        id: 1,
+        clientId: 7,
+        clientName: 'Anna Bianchi',
+        status: 'accepted',
+        scheduledFor: new Date('2026-08-20T10:00:00Z'),
+      }),
+      booking({
+        id: 2,
+        clientId: 9,
+        clientName: 'Marco Rossi',
+        status: 'accepted',
+        scheduledFor: new Date('2026-08-06T10:00:00Z'),
+      }),
+    ],
+    NOW
+  );
+  assert.deepEqual(
+    athletes.map((athlete) => athlete.userId),
+    [9, 7]
+  );
 });
 
 test('a parità di attività viene prima chi ha svolto più sessioni', () => {

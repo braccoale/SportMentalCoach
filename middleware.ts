@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { users, userOnboarding } from '@/lib/db/schema';
+import { REQUEST_METHOD_HEADER } from '@/lib/auth/demo-readonly';
 
 const protectedRoutes = '/dashboard';
 
@@ -20,13 +21,18 @@ export async function middleware(request: NextRequest) {
     `${pathname}${request.nextUrl.search}`
   );
 
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(REQUEST_METHOD_HEADER, request.method);
+  const nextResponse = () =>
+    NextResponse.next({ request: { headers: requestHeaders } });
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anonKey) {
     // Auth not configured yet: keep public pages working, protect /dashboard.
     return isProtectedRoute
       ? NextResponse.redirect(signInUrl)
-      : NextResponse.next();
+      : nextResponse();
   }
 
   // Anonymous visitors have no Supabase session cookie, so there is nothing to
@@ -38,10 +44,10 @@ export async function middleware(request: NextRequest) {
   if (!hasAuthCookie) {
     return isProtectedRoute
       ? NextResponse.redirect(signInUrl)
-      : NextResponse.next();
+      : nextResponse();
   }
 
-  let response = NextResponse.next({ request });
+  let response = nextResponse();
 
   const supabase = createServerClient(url, anonKey, {
     cookies: {
@@ -52,7 +58,7 @@ export async function middleware(request: NextRequest) {
         for (const { name, value } of cookiesToSet) {
           request.cookies.set(name, value);
         }
-        response = NextResponse.next({ request });
+        response = nextResponse();
         for (const { name, value, options } of cookiesToSet) {
           response.cookies.set(name, value, options);
         }
@@ -65,6 +71,35 @@ export async function middleware(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // Le API di scrittura degli account demo terminano qui con un 403 chiaro,
+  // prima di raggiungere route handler e database. `/api/demo/login` è il solo
+  // POST di bootstrap e non modifica dati applicativi.
+  const isApiMutation =
+    pathname.startsWith('/api/') &&
+    pathname !== '/api/demo/login' &&
+    !['GET', 'HEAD', 'OPTIONS'].includes(request.method.toUpperCase());
+  if (user && isApiMutation) {
+    const [appUser] = await db
+      .select({ isDemo: users.isDemo })
+      .from(users)
+      .where(eq(users.authId, user.id))
+      .limit(1);
+    if (appUser?.isDemo) {
+      const forbidden = NextResponse.json(
+        {
+          code: 'DEMO_READONLY',
+          error:
+            'Questa è una demo in sola lettura. Puoi esplorare tutti i dati, ma non modificarli.',
+        },
+        { status: 403 }
+      );
+      for (const cookie of response.cookies.getAll()) {
+        forbidden.cookies.set(cookie);
+      }
+      return forbidden;
+    }
+  }
 
   // Already-authenticated visitors don't need the marketing landing page: send
   // them straight to their dashboard (which itself routes to the right area).
@@ -105,6 +140,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
   runtime: 'nodejs'
 };

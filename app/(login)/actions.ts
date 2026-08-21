@@ -131,7 +131,11 @@ export const signIn = validatedAction(signInSchema, async (data, formData) => {
   }
 
   const userWithTeam = await getUserWithTeam(foundUser.id);
-  await logActivity(userWithTeam?.teamId, foundUser.id, ActivityType.SIGN_IN);
+  // Gli account demo sono readonly: anche il semplice accesso non deve
+  // alterare activity_logs quando si entra dal form tradizionale.
+  if (!foundUser.isDemo) {
+    await logActivity(userWithTeam?.teamId, foundUser.id, ActivityType.SIGN_IN);
+  }
 
   const redirectTo = formData.get('redirect') as string | null;
   if (redirectTo === 'checkout') {
@@ -482,8 +486,9 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
 });
 
 export async function signOut() {
-  const user = (await getUser()) as User;
-  if (user) {
+  // Il logout non modifica i dati della demo e deve restare sempre accessibile.
+  const user = (await getUser({ allowDemoMutation: true })) as User;
+  if (user && !user.isDemo) {
     const userWithTeam = await getUserWithTeam(user.id);
     await logActivity(userWithTeam?.teamId, user.id, ActivityType.SIGN_OUT);
   }

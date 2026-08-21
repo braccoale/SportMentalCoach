@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Menu, X } from 'lucide-react';
+import { Menu, PlayCircle, X } from 'lucide-react';
 import useSWR from 'swr';
 import { SignInModal } from './sign-in-modal';
+import { DemoLoginModal } from './demo-login-modal';
 import { ContactModal } from './contact-modal';
 import { UserMenu } from '@/components/user-menu';
 import { UserAvatar } from '@/components/user-avatar';
@@ -43,6 +44,7 @@ export function SiteNav() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | null>(null);
+  const [demoOpen, setDemoOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
   const router = useRouter();
   // Shared auth state (root layout seeds `/api/user` into SWR).
@@ -111,6 +113,14 @@ export function SiteNav() {
             <>
               <button
                 type="button"
+                onClick={() => setDemoOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-kp-red/50 px-4 py-2 text-sm font-semibold text-kp-hi transition-colors hover:border-kp-red hover:bg-kp-red/10"
+              >
+                <PlayCircle className="h-4 w-4 text-kp-red" />
+                Demo
+              </button>
+              <button
+                type="button"
                 onClick={() => setAuthMode('signin')}
                 className="text-sm font-medium text-kp-mid transition-colors hover:text-kp-hi"
               >
@@ -142,13 +152,23 @@ export function SiteNav() {
               </Link>
             </>
           ) : (
-            <button
-              type="button"
-              onClick={() => setAuthMode('signin')}
-              className="rounded-full border border-kp-line px-3.5 py-1.5 text-sm font-medium text-kp-hi"
-            >
-              Accedi
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => setDemoOpen(true)}
+                aria-label="Apri demo"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-kp-red/50 text-kp-red"
+              >
+                <PlayCircle className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuthMode('signin')}
+                className="rounded-full border border-kp-line px-3.5 py-1.5 text-sm font-medium text-kp-hi"
+              >
+                Accedi
+              </button>
+            </>
           )}
           <button
             type="button"
@@ -196,6 +216,17 @@ export function SiteNav() {
               </Link>
             ) : (
               <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    setDemoOpen(true);
+                  }}
+                  className="flex items-center justify-center gap-2 rounded-full border border-kp-red/50 px-5 py-3.5 text-center font-semibold text-kp-hi"
+                >
+                  <PlayCircle className="h-4 w-4 text-kp-red" />
+                  Prova la Demo
+                </button>
                 <Link
                   href="/sign-up"
                   onClick={() => setOpen(false)}
@@ -220,6 +251,7 @@ export function SiteNav() {
       )}
     </header>
     <ContactModal open={contactOpen} onClose={() => setContactOpen(false)} />
+    <DemoLoginModal open={demoOpen} onClose={() => setDemoOpen(false)} />
     <SignInModal
       open={authMode === 'signin'}
       onClose={() => setAuthMode(null)}

@@ -701,3 +701,10 @@
   background: transparent;
   box-shadow: none;
 }
+
+/* Demo controls stay visible to communicate product breadth, but are inert. */
+[data-demo-readonly='true'] [data-demo-readonly-blocked='true'] {
+  cursor: not-allowed !important;
+  opacity: 0.48 !important;
+  filter: saturate(0.45);
+}

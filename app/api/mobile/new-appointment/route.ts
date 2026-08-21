@@ -47,7 +47,9 @@ export async function GET(request: Request) {
 
   // Chi non è coach non crea appuntamenti: liste vuote, e l'app non mostra
   // nulla invece di mostrare un modulo che fallirebbe all'invio.
-  if (!provider) return Response.json({ athletes: [], services: [] });
+  if (!provider || user.isDemo) {
+    return Response.json({ athletes: [], services: [] });
+  }
 
   const athletes = await db
     .selectDistinctOn([bookings.clientId], {
@@ -59,7 +61,13 @@ export async function GET(request: Request) {
     })
     .from(bookings)
     .innerJoin(users, eq(users.id, bookings.clientId))
-    .where(and(eq(bookings.providerId, provider.id), isNull(users.deletedAt)))
+    .where(
+      and(
+        eq(bookings.providerId, provider.id),
+        isNull(users.deletedAt),
+        eq(users.isDemo, false)
+      )
+    )
     .orderBy(bookings.clientId, desc(bookings.createdAt))
     .limit(100);
 

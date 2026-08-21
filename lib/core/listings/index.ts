@@ -10,7 +10,7 @@ import {
   type SQL,
 } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
-import { providerProfiles, profiles, services } from '@/lib/db/schema';
+import { providerProfiles, profiles, services, users } from '@/lib/db/schema';
 import { getVerticalConfig, findTaxonomyItem } from '@/lib/core/config';
 import { getRatingSummaries } from '@/lib/core/reviews';
 import { getCoachExperienceStats } from '@/lib/core/bookings';
@@ -44,6 +44,7 @@ export async function getApprovedCoaches(
   const conditions = [
     eq(providerProfiles.status, 'approved'),
     isNotNull(providerProfiles.slug),
+    eq(users.isDemo, false),
   ];
 
   if (filters.sport) {
@@ -68,6 +69,7 @@ export async function getApprovedCoaches(
       certified: providerProfiles.isKaipaiCertified,
     })
     .from(providerProfiles)
+    .innerJoin(users, eq(users.id, providerProfiles.userId))
     .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
     .where(and(...conditions))
     .orderBy(providerProfiles.id);
@@ -130,11 +132,13 @@ export async function getCoachBySlug(slug: string): Promise<CoachDetail | null> 
       memberSince: providerProfiles.createdAt,
     })
     .from(providerProfiles)
+    .innerJoin(users, eq(users.id, providerProfiles.userId))
     .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
     .where(
       and(
         eq(providerProfiles.slug, slug),
-        eq(providerProfiles.status, 'approved')
+        eq(providerProfiles.status, 'approved'),
+        eq(users.isDemo, false)
       )
     )
     .limit(1);
@@ -225,6 +229,7 @@ export async function getCoachDiscovery(
   const conditions: SQL[] = [
     eq(providerProfiles.status, 'approved'),
     isNotNull(providerProfiles.slug),
+    eq(users.isDemo, false),
   ];
   if (filters.sport)
     conditions.push(arrayContains(providerProfiles.categories, [filters.sport]));
@@ -261,6 +266,7 @@ export async function getCoachDiscovery(
       videoUrl: providerProfiles.videoUrl,
     })
     .from(providerProfiles)
+    .innerJoin(users, eq(users.id, providerProfiles.userId))
     .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
     .where(and(...conditions));
 
