@@ -115,6 +115,47 @@ export async function pauseCameraWhileHidden(room: Room): Promise<boolean> {
 }
 
 /**
+ * Quando ritentare il ripristino della camera, tornando in primo piano.
+ *
+ * Un solo tentativo, immediato, è quello con meno probabilità di riuscire:
+ * l'app da cui si sta tornando può non aver ancora rilasciato il dispositivo,
+ * e su Android questo è il caso normale, non l'eccezione. Il primo tentativo
+ * fallisce, compare l'avviso «Videocamera in pausa», e l'utente si ritrova a
+ * premere un pulsante per una cosa che si sarebbe risolta da sola in mezzo
+ * secondo.
+ *
+ * Tre tentativi in poco più di un secondo e mezzo. Oltre non ha senso: se
+ * dopo un secondo e mezzo la camera non è tornata, il motivo non è più il
+ * tempo — è un permesso revocato o un dispositivo occupato, e lì l'unica cosa
+ * onesta è dirlo e offrire il pulsante.
+ */
+export const CAMERA_RESTORE_DELAYS_MS = [0, 350, 1200] as const;
+
+export type RestoreAttempt = {
+  /** Quanti tentativi sono già stati fatti. */
+  attempt: number;
+  /** La camera sta producendo immagine adesso. */
+  cameraLive: boolean;
+  /** L'utente vuole la camera accesa. */
+  cameraWanted: boolean;
+};
+
+/**
+ * L'attesa prima del prossimo tentativo, oppure `null` se non se ne fanno più.
+ *
+ * Pura di proposito: la sequenza dei tentativi è la parte che si può sbagliare
+ * senza che nessun errore lo dica — un ciclo che non termina, o che rinuncia
+ * al primo colpo — e sbagliarla si paga con una camera spenta durante una
+ * seduta vera.
+ */
+export function nextRestoreDelayMs(state: RestoreAttempt): number | null {
+  if (!state.cameraWanted) return null;
+  if (state.cameraLive) return null;
+  if (state.attempt >= CAMERA_RESTORE_DELAYS_MS.length) return null;
+  return CAMERA_RESTORE_DELAYS_MS[state.attempt] ?? null;
+}
+
+/**
  * Se in questo momento la camera sta davvero producendo immagine.
  *
  * Serve a distinguere "ripristino tentato" da "ripristino riuscito": dopo un

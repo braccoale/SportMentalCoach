@@ -1,5 +1,5 @@
 import 'server-only';
-import { getUser } from '@/lib/db/queries';
+import { getApiUser } from '@/lib/auth/api-user';
 import { updateTrackedCommitmentAsCoach } from '@/lib/core/ai-session-notes/session-compass';
 import { sessionCompassDependencies } from '@/lib/core/ai-session-notes/session-compass-runtime';
 import {
@@ -15,12 +15,21 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-/** Aggiorna un impegno già operativo: testo, owner, scadenza o stato. */
+/**
+ * Aggiorna un impegno già operativo: testo, owner, scadenza o stato.
+ *
+ * Vale per il browser e per l'app: `getApiUser` legge il Bearer quando c'è e i
+ * cookie altrimenti. Segnare «fatto» è la stessa decisione da qualunque parte
+ * arrivi, e una regola si scrive una volta sola.
+ */
 export async function PATCH(
   httpRequest: Request,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
-  const request = await authenticatedCompassRequest(getUser, params);
+  const request = await authenticatedCompassRequest(
+    () => getApiUser(httpRequest),
+    params
+  );
   if (request instanceof Response) return request;
 
   let body: unknown;

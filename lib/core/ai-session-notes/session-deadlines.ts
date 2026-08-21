@@ -97,7 +97,18 @@ export function expiryErrorCode(params: {
   hasRecordedAudio: boolean;
 }): string {
   if (params.hasTranscript) return 'REPORT_NOT_GENERATED';
-  if (params.reason === 'no_active_work' && params.hasRecordedAudio) {
+  /*
+   * Nessuna registrazione è una diagnosi diversa da una trascrizione a metà.
+   *
+   * La seduta 195 è finita in `transcription_failed` con
+   * `TRANSCRIPTION_INCOMPLETE` addosso, e non c'era **nessuna** registrazione:
+   * un partecipante aveva perso la connessione prima di pubblicare il
+   * microfono e la stanza si era chiusa dopo settanta secondi. Non è la
+   * trascrizione ad aver fallito — non è mai stata chiamata. Cercarla lì
+   * significa cercare per ore nel posto sbagliato.
+   */
+  if (!params.hasRecordedAudio) return 'NO_AUDIO_RECORDED';
+  if (params.reason === 'no_active_work') {
     return 'NO_SPEECH_DETECTED';
   }
   return 'TRANSCRIPTION_INCOMPLETE';

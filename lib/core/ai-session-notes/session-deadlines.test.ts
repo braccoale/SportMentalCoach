@@ -85,12 +85,29 @@ test('il silenzio non viene raccontato come un guasto', () => {
     }),
     'NO_SPEECH_DETECTED'
   );
-  // Audio mai arrivato: qui un problema c'è davvero.
+  /*
+   * Audio mai arrivato: qui un problema c'è davvero, ma non è la trascrizione.
+   *
+   * Diceva `TRANSCRIPTION_INCOMPLETE`, e sulla seduta 195 — nessuna
+   * registrazione, un partecipante disconnesso prima di pubblicare il
+   * microfono — quell'etichetta ha mandato a cercare un guasto della
+   * trascrizione che non era mai stata chiamata.
+   */
   assert.equal(
     expiryErrorCode({
       reason: 'no_active_work',
       hasTranscript: false,
       hasRecordedAudio: false,
+    }),
+    'NO_AUDIO_RECORDED'
+  );
+  // Audio registrato ma lavorazione troppo lenta: la trascrizione è davvero
+  // rimasta a metà.
+  assert.equal(
+    expiryErrorCode({
+      reason: 'work_too_slow',
+      hasTranscript: false,
+      hasRecordedAudio: true,
     }),
     'TRANSCRIPTION_INCOMPLETE'
   );

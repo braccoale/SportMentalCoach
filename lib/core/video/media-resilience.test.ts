@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import test, { mock } from 'node:test';
 import { ConnectionState, Room, Track } from 'livekit-client';
 import {
+  CAMERA_RESTORE_DELAYS_MS,
   isCameraLive,
+  nextRestoreDelayMs,
   pauseCameraWhileHidden,
   restoreLocalMediaIfNeeded,
   type LocalMediaPreferences,
@@ -302,4 +304,30 @@ test('una traccia sana non viene mai ri-acquisita inutilmente', async () => {
 
   assert.equal(calls.cameraRestarted, 0, 'basta togliere il muto');
   assert.equal(calls.cameraEnabled, 1);
+});
+
+test('il ripristino ritenta tre volte prima di arrendersi', () => {
+  const delays = [0, 1, 2].map((attempt) =>
+    nextRestoreDelayMs({ attempt, cameraLive: false, cameraWanted: true })
+  );
+  assert.deepEqual(delays, [...CAMERA_RESTORE_DELAYS_MS]);
+
+  assert.equal(
+    nextRestoreDelayMs({ attempt: 3, cameraLive: false, cameraWanted: true }),
+    null,
+    'dopo l’ultimo tentativo si smette: oltre un secondo e mezzo il problema non è più il tempo'
+  );
+});
+
+test('non si ritenta quando non c’è niente da ripristinare', () => {
+  assert.equal(
+    nextRestoreDelayMs({ attempt: 0, cameraLive: true, cameraWanted: true }),
+    null,
+    'la camera sta già riprendendo'
+  );
+  assert.equal(
+    nextRestoreDelayMs({ attempt: 0, cameraLive: false, cameraWanted: false }),
+    null,
+    'l’ha spenta l’utente: riaccenderla sarebbe peggio di lasciarla spenta'
+  );
 });

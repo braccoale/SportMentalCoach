@@ -39,6 +39,13 @@ type AiNotesSession = {
 };
 
 type RecordingStatus = {
+  /**
+   * Una voce che in questo momento non sta entrando nella registrazione.
+   *
+   * La calcola il server (`live-coverage.ts`), con la stessa soglia e la
+   * stessa frase dell'app: qui si mostra soltanto.
+   */
+  liveGapMessage?: string;
   state:
     | 'not_started'
     | 'starting'
@@ -445,6 +452,23 @@ export function AiSessionNotesControl({
           a sinistra, dentro il pannello, era nel punto dove nessuno guarda
           mentre parla con un atleta. */}
       {bookmarkButton}
+
+      {/*
+        * «La tua voce non viene registrata», fuori dal pannello.
+        *
+        * Dentro sarebbe inutile: il pannello sta chiuso quasi sempre, e questo
+        * è l'avviso che ha senso solo se lo si legge subito — nella seduta 181
+        * bastava spegnere e riaccendere il microfono, e nessuno lo ha saputo
+        * per quarantotto minuti.
+        */}
+      {recording?.liveGapMessage && (
+        <div
+          role="status"
+          className="absolute left-1/2 top-3 z-40 w-[min(30rem,calc(100%-1.5rem))] -translate-x-1/2 rounded-xl bg-amber-500/95 px-4 py-2.5 text-sm font-semibold leading-snug text-amber-950 shadow-2xl backdrop-blur"
+        >
+          {recording.liveGapMessage}
+        </div>
+      )}
       <CollapsibleOverlay
         label={recordingLabel}
         tone={recording?.state === 'failed' ? 'error' : 'active'}

@@ -117,11 +117,30 @@ const VERDICT_LABEL: Record<OutcomeVerdict, string> = {
   rifiutata: 'CONSENSO RIFIUTATO',
 };
 
+/**
+ * L'etichetta nell'oggetto, che non è quella nel corpo.
+ *
+ * Nel corpo il maiuscolo è la voce di un log incolonnato e sta bene. Nella
+ * riga della posta è un tono, e il tono deve dire quanto c'è da preoccuparsi.
+ *
+ * `rifiutata` non è un guasto: un atleta ha esercitato un diritto, il sistema
+ * ha obbedito e non ha registrato niente. Gridarlo come si grida `FALLITA`
+ * insegna al coach che queste mail gridano sempre — e il giorno in cui una
+ * seduta si perde davvero, quella mail ha già smesso di essere letta. Le
+ * maiuscole restano dove c'è qualcosa da fare.
+ */
+const SUBJECT_LABEL: Record<OutcomeVerdict, string> = {
+  ok: 'OK',
+  parziale: 'PARZIALE',
+  fallita: 'FALLITA',
+  rifiutata: 'consenso rifiutato',
+};
+
 /** Serve a far riconoscere l'esito dall'elenco della posta, senza aprire. */
 export function outcomeSubject(snapshot: SessionOutcomeSnapshot): string {
   const verdict = classifySessionOutcome(snapshot);
   const reason = snapshot.errorCode ? ` · ${snapshot.errorCode}` : '';
-  return `[KaiPai] Seduta ${snapshot.sessionId} (prenotazione ${snapshot.bookingId}) · ${VERDICT_LABEL[verdict]}${reason}`;
+  return `[KaiPai] Seduta ${snapshot.sessionId} (prenotazione ${snapshot.bookingId}) · ${SUBJECT_LABEL[verdict]}${reason}`;
 }
 
 function minuti(seconds: number): string {
@@ -153,6 +172,17 @@ export function buildOutcomeReport(snapshot: SessionOutcomeSnapshot): string {
 
   lines.push(`ESITO: ${VERDICT_LABEL[verdict]}`);
   if (snapshot.errorCode) lines.push(`MOTIVO: ${snapshot.errorCode}`);
+  /*
+   * Su una seduta rifiutata il resto del rapporto è fuorviante letto di
+   * fretta: la copertura audio dice «0 min su 0 min (100%) ok», che sembra
+   * un successo, e le registrazioni sono «nessuna», che sembra una perdita.
+   * Nessuna delle due. Una riga lo dice prima che qualcuno le interpreti.
+   */
+  if (verdict === 'rifiutata') {
+    lines.push(
+      'NOTA: nessuna registrazione è mai partita. Esito previsto, non un guasto.'
+    );
+  }
   lines.push('');
 
   lines.push('SEDUTA');

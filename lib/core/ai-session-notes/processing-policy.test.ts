@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  NOT_YET_ERROR_CODES,
+  failureOutcome,
   isTranscriptionRequestStale,
   jobRequiresParticipantRecording,
   retryDelayMs,
@@ -167,5 +169,49 @@ test('la soglia supera la finestra di ritentativi del provider', () => {
       staleAfterMinutes: STALE_TRANSCRIPTION_REQUEST_MINUTES,
     }),
     false
+  );
+});
+
+test('un rifiuto per stato non consuma un tentativo', () => {
+  for (const errorCode of NOT_YET_ERROR_CODES) {
+    assert.deepEqual(
+      failureOutcome({ attemptCount: 1, maxAttempts: 3, errorCode }),
+      { status: 'queued', attemptCount: 0 },
+      `${errorCode} deve restituire il tentativo, non spenderlo`
+    );
+  }
+});
+
+test('un rifiuto per stato non porta mai il job a fallito, nemmeno all’ultimo giro', () => {
+  assert.deepEqual(
+    failureOutcome({
+      attemptCount: 3,
+      maxAttempts: 3,
+      errorCode: 'SESSION_NOT_ELIGIBLE',
+    }),
+    { status: 'queued', attemptCount: 2 },
+    'la sessione non era pronta: rimandare non è riprovare'
+  );
+});
+
+test('un errore vero consuma il tentativo e alla fine chiude il job', () => {
+  assert.deepEqual(
+    failureOutcome({ attemptCount: 1, maxAttempts: 3, errorCode: 'COMPASS_TIMEOUT' }),
+    { status: 'queued', attemptCount: 1 }
+  );
+  assert.deepEqual(
+    failureOutcome({ attemptCount: 3, maxAttempts: 3, errorCode: 'COMPASS_TIMEOUT' }),
+    { status: 'failed', attemptCount: 3 }
+  );
+});
+
+test('il conteggio non scende sotto zero', () => {
+  assert.deepEqual(
+    failureOutcome({
+      attemptCount: 0,
+      maxAttempts: 3,
+      errorCode: 'SESSION_NOT_ELIGIBLE',
+    }),
+    { status: 'queued', attemptCount: 0 }
   );
 });

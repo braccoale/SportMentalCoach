@@ -755,6 +755,18 @@ async function viewOf(
   fingerprint: string | null,
   dependencies: SessionCompassDependencies
 ): Promise<SessionCompassView> {
+  /*
+   * Leggere un riepilogo non richiede di saper dire se e' aggiornato.
+   *
+   * Qui si chiamava `requiredPromptVersion`, che **solleva** quando la versione
+   * del prompt non e' configurata: un report gia' scritto e pronto diventava
+   * illeggibile — sull'app «per questa sessione non c'e' un riepilogo», che e'
+   * falso — perche' non si riusciva a calcolare `isStale`. La generazione resta
+   * severa: senza versione non si genera. La lettura no: se la versione manca,
+   * non si sa se il report e' vecchio, e non saperlo non e' una ragione per
+   * nasconderlo.
+   */
+  const currentPromptVersion = (await dependencies.loadPromptVersion()).trim();
   return {
     trackedCommitments: await listSessionCommitmentsForCoach({
       sessionId: stored.sessionId,
@@ -770,7 +782,8 @@ async function viewOf(
       (fingerprint !== null &&
         stored.sourceFingerprint !== null &&
         stored.sourceFingerprint !== fingerprint) ||
-      stored.promptVersion !== (await requiredPromptVersion(dependencies)),
+      (currentPromptVersion !== '' &&
+        stored.promptVersion !== currentPromptVersion),
     approvedAt: stored.approvedAt?.toISOString() ?? null,
     errorCode: stored.errorCode,
     updatedAt: stored.updatedDate.toISOString(),
