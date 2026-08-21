@@ -15,6 +15,7 @@ export function buildWelcomeEmailContent(input: {
   brand: string;
   name?: string | null;
   role?: WelcomeEmailRole;
+  guardianAuthorizationRequired?: boolean;
 }): WelcomeEmailContent {
   const name = input.name?.trim() || null;
   const greeting = name ? `Ciao ${name},` : 'Ciao,';
@@ -39,6 +40,32 @@ export function buildWelcomeEmailContent(input: {
       ],
       actionLabel: 'Completa profilo e servizi',
       actionPath: '/dashboard/coach',
+    };
+  }
+
+  if (input.role === 'athlete' && input.guardianAuthorizationRequired) {
+    return {
+      subject: name
+        ? `Il tuo account KaiPai è pronto, ${name}: serve l’autorizzazione di un genitore`
+        : 'Il tuo account KaiPai è pronto: serve l’autorizzazione di un genitore',
+      preview:
+        'Apri la tua area e invita un genitore o tutore: senza la sua conferma non puoi prenotare sessioni.',
+      eyebrow: 'Account atleta minorenne creato',
+      title: 'Prima di iniziare serve un genitore o tutore',
+      paragraphs: [
+        greeting,
+        'il tuo account KaiPai è stato creato. Poiché hai meno di 18 anni, prima di prenotare o partecipare a una sessione serve l’autorizzazione di un genitore o tutore.',
+        'Ecco cosa devi fare:',
+        '1. Apri la tua area atleta.',
+        '2. Nel riquadro dedicato all’autorizzazione inserisci nome, cognome, rapporto con te ed email personale del genitore o tutore.',
+        '3. Premi “Invia la richiesta”. Il genitore riceverà un’email con un collegamento personale, utilizzabile una sola volta e valido per 72 ore.',
+        '4. Il genitore dovrà aprire il collegamento, leggere il documento, confermare la propria responsabilità genitoriale o tutela, accettare Termini e Privacy e digitare il proprio nome e cognome.',
+        'Fino alla conferma non potrai prenotare o partecipare alle sessioni. Appena il genitore autorizza il percorso, nella tua area vedrai che puoi iniziare.',
+        'Gli Appunti AI sono separati e facoltativi. Il genitore può non autorizzare registrazione audio, trascrizione e preparazione del report: in quel caso potrai comunque svolgere normalmente le sessioni, senza registrazione.',
+        'Se il collegamento scade o l’indirizzo email è sbagliato, torna nella tua area e invia una nuova richiesta.',
+      ],
+      actionLabel: 'Invita il genitore o tutore',
+      actionPath: '/dashboard/athlete',
     };
   }
 

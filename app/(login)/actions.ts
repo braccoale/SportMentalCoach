@@ -37,7 +37,8 @@ import { ensureOnboarding } from '@/lib/core/onboarding';
 import {
   ageFromBirthDate,
   isEligibleAge,
-  MIN_SIGNUP_AGE
+  MIN_SIGNUP_AGE,
+  requiresGuardian
 } from '@/lib/core/guardians/age';
 import {
   ensureProfile,
@@ -445,6 +446,8 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
     to: email,
     name: createdUser.name,
     role: marketplaceRole,
+    guardianAuthorizationRequired:
+      marketplaceRole === 'athlete' && requiresGuardian(athleteAge),
   }).catch(() => {});
 
   // Admin lifecycle alert: registration is distinct from the later request

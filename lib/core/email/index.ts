@@ -382,6 +382,7 @@ export async function sendWelcomeEmail(input: {
   to: string;
   name?: string | null;
   role?: 'athlete' | 'coach' | 'club' | null;
+  guardianAuthorizationRequired?: boolean;
 }): Promise<void> {
   const brand = t('brand.name', getVerticalConfig());
   const { preferencesUrl, privacyUrl, baseUrl } = footerUrls();
@@ -389,6 +390,7 @@ export async function sendWelcomeEmail(input: {
     brand,
     name: input.name,
     role: input.role,
+    guardianAuthorizationRequired: input.guardianAuthorizationRequired,
   });
   const actionUrl = absoluteUrl(content.actionPath);
   const action = actionUrl

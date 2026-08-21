@@ -33,3 +33,26 @@ test('la mail atleta conserva il suo percorso senza istruzioni da coach', () => 
   assert.equal(content.actionPath, '/dashboard');
   assert.doesNotMatch(content.paragraphs.join(' '), /amministratore/i);
 });
+
+test('la mail al minorenne spiega autorizzazione, blocchi e consenso AI facoltativo', () => {
+  const content = buildWelcomeEmailContent({
+    brand: 'KaiPai',
+    name: 'Luca',
+    role: 'athlete',
+    guardianAuthorizationRequired: true,
+  });
+  const copy = content.paragraphs.join(' ');
+
+  assert.match(content.subject, /serve l’autorizzazione di un genitore/);
+  assert.match(copy, /1\. Apri la tua area atleta/);
+  assert.match(copy, /2\. .*nome, cognome, rapporto con te ed email/);
+  assert.match(copy, /3\. .*collegamento personale/);
+  assert.match(copy, /valido per 72 ore/);
+  assert.match(copy, /4\. .*responsabilità genitoriale o tutela/);
+  assert.match(copy, /accettare Termini e Privacy/);
+  assert.match(copy, /Fino alla conferma non potrai prenotare o partecipare/);
+  assert.match(copy, /Appunti AI sono separati e facoltativi/);
+  assert.match(copy, /senza registrazione/);
+  assert.equal(content.actionLabel, 'Invita il genitore o tutore');
+  assert.equal(content.actionPath, '/dashboard/athlete');
+});
