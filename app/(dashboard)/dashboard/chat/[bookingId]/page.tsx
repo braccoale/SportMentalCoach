@@ -26,8 +26,10 @@ export default async function ChatPage({
     notFound();
   }
 
-  // Opening the chat clears its unread-message counters (bell + widgets).
-  await markMessageNotificationsRead(user.id, id);
+  // Consultare la chat Demo non deve produrre scritture collaterali.
+  if (!user.isDemo) {
+    await markMessageNotificationsRead(user.id, id);
+  }
 
   const { context, messages, readOnly } = chat;
   const isClient = user.id === context.clientId;
@@ -79,6 +81,7 @@ export default async function ChatPage({
         currentUserId={user.id}
         initialMessages={initialMessages}
         readOnly={readOnly}
+        demoReadOnly={user.isDemo}
       />
     </section>
   );

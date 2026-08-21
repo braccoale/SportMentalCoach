@@ -40,7 +40,7 @@ Common, vertical-agnostic profile fields. One row per user.
 | display_name  | varchar(120)        |                                  |
 | avatar_url    | text                |                                  |
 | bio           | text                |                                  |
-| locale        | varchar(8)          | default `'it'`                   |
+| locale        | varchar(8)          | default `'it'`; UI language preference, validated against enabled locale codes on write |
 | created_at    | timestamp           | defaultNow()                     |
 | updated_at    | timestamp           | defaultNow()                     |
 

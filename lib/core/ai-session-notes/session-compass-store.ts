@@ -33,6 +33,7 @@ export function createSessionCompassStore(): SessionCompassStore {
       const [row] = await db
         .select({
           sessionId: sessionAiNotes.id,
+          bookingId: bookings.id,
           sessionStatus: sessionAiNotes.status,
           coachUserId: providerProfiles.userId,
           coachHeadline: providerProfiles.headline,
@@ -58,6 +59,7 @@ export function createSessionCompassStore(): SessionCompassStore {
 
       return {
         sessionId: row.sessionId,
+        bookingId: row.bookingId,
         coachUserId: row.coachUserId,
         athleteUserId: row.athleteUserId,
         sessionStatus: row.sessionStatus,

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Check, Loader2, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { createGuestInviteLink } from '@/components/actions';
 
 async function copyText(value: string): Promise<void> {
@@ -24,6 +25,7 @@ export function ShareButton({
   bookingId,
   appearance = 'standard',
   compact = false,
+  menuItem = false,
 }: {
   bookingId: number;
   appearance?: 'standard' | 'room';
@@ -37,6 +39,8 @@ export function ShareButton({
    * riga sfrangiata.
    */
   compact?: boolean;
+  /** Render as a native dropdown item inside appointment action menus. */
+  menuItem?: boolean;
 }) {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -82,6 +86,28 @@ export function ShareButton({
     } finally {
       setPending(false);
     }
+  }
+
+  if (menuItem) {
+    return (
+      <DropdownMenuItem
+        disabled={pending}
+        onSelect={(event) => {
+          event.preventDefault();
+          void shareCall();
+        }}
+        className={`cursor-pointer gap-2 ${error ? 'text-red-600 focus:text-red-600' : ''}`}
+      >
+        {pending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : message ? (
+          <Check className="h-4 w-4 text-green-700" />
+        ) : (
+          <Share2 className="h-4 w-4" />
+        )}
+        {error ?? (pending ? 'Creazione link…' : message ?? 'Aggiungi ospite')}
+      </DropdownMenuItem>
+    );
   }
 
   return (

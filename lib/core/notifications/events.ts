@@ -5,8 +5,9 @@ import { notify } from './index';
 import { buildEmailIdempotencyKey, scopeForInvitation } from './idempotency';
 
 /**
- * Typed entry points for the three events whose triggering flows are not wired
- * yet (report sharing, platform-sent invitations, auth security alerts).
+ * Typed entry points for notification flows that need a stable, explicit
+ * payload. The report event is wired to the coach approval; invitations and
+ * auth security alerts remain available to their respective entry points.
  *
  * They exist so those flows land as a one-line call with the channels, the
  * preferences, the template and the deduplication already correct — rather than
@@ -38,7 +39,7 @@ export async function notifyAiReportAwaitingReview(input: {
   });
 }
 
-/** The athlete's session report has been shared with them. */
+/** Il report approvato dal coach è ora visibile all’atleta. */
 export async function notifyAiReportReady(input: {
   athleteUserId: number;
   bookingId: number;

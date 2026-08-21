@@ -20,7 +20,10 @@ import { eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { sessionAiNotes, sessionTranscriptSegments } from '@/lib/db/schema';
 import { advanceAiNotesSessionStatus } from '@/lib/core/ai-session-notes/session-status';
-import { enqueueNormalizationIfReady } from '@/lib/core/ai-session-notes/processing';
+import {
+  enqueueNormalizationIfReady,
+  requeueFailedReportJob,
+} from '@/lib/core/ai-session-notes/processing';
 
 dotenv.config({ path: '.env.local', override: true });
 dotenv.config();
@@ -51,7 +54,15 @@ async function main() {
     process.exitCode = 1;
     return;
   }
-  if (session.status !== 'report_failed') {
+  /*
+   * `processing` e' ammesso oltre a `report_failed`, ed e' il caso di una
+   * sessione riaperta da una versione precedente di questo script: tornava
+   * viva ma senza risvegliare il job del riepilogo, e restava ferma li'.
+   * Rilanciarlo deve poterla sbloccare invece di rifiutarsi.
+   */
+  const riapribile =
+    session.status === 'report_failed' || session.status === 'processing';
+  if (!riapribile) {
     console.error(
       `Sessione ${sessionId} in stato ${session.status}: si riapre solo report_failed.`
     );
@@ -90,16 +101,20 @@ async function main() {
     return;
   }
 
-  const riaperta = await advanceAiNotesSessionStatus({
-    sessionId,
-    nextStatus: 'processing',
-    actorUserId: session.requestedBy,
-    auditMetadata: {
-      automatic: false,
-      reopened: true,
-      reason: 'recupero manuale: trascrizione presente, riepilogo mai generato',
-    },
-  });
+  const riaperta =
+    session.status === 'processing'
+      ? true
+      : await advanceAiNotesSessionStatus({
+          sessionId,
+          nextStatus: 'processing',
+          actorUserId: session.requestedBy,
+          auditMetadata: {
+            automatic: false,
+            reopened: true,
+            reason:
+              'recupero manuale: trascrizione presente, riepilogo mai generato',
+          },
+        });
   if (!riaperta) {
     console.error('Riapertura rifiutata dalla macchina a stati.');
     process.exitCode = 1;
@@ -121,10 +136,28 @@ async function main() {
     clock: { now: () => new Date() },
   } as unknown as Parameters<typeof enqueueNormalizationIfReady>[1]);
 
+  /*
+   * Il pezzo che mancava. Quando la normalizzazione e' gia' fatta — cioe'
+   * ogni volta che la sessione e' morta *dopo* la trascrizione, che e' il caso
+   * per cui questo script esiste — non c'era nulla da accodare e la sessione
+   * restava viva e ferma. Il riepilogo si risveglia dal job che c'e' gia':
+   * un secondo job con la stessa chiave di idempotenza non puo' esistere.
+   */
+  const riepilogo = accodata
+    ? null
+    : await requeueFailedReportJob({
+        sessionId,
+        actorUserId: session.requestedBy,
+      });
+
   console.log(
-    JSON.stringify({ riaperta, normalizzazioneAccodata: accodata })
+    JSON.stringify({
+      riaperta,
+      normalizzazioneAccodata: accodata,
+      riepilogoRimessoInCoda: riepilogo,
+    })
   );
-  if (!accodata) {
+  if (!accodata && riepilogo === null) {
     console.error(
       'Nessun lavoro accodato: il worker la rivaluterà, ma vale la pena guardare perché.'
     );

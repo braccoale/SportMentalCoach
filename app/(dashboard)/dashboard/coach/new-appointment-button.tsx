@@ -188,9 +188,6 @@ export function CoachNewAppointmentButton({
           <CalendarPlus className="mr-2 h-4 w-4" />
           Nuovo appuntamento
         </Button>
-        <p className="text-xs text-gray-400">
-          Nessun atleta registrato al momento.
-        </p>
       </div>
     );
   }

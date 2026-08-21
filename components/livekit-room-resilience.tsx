@@ -13,6 +13,7 @@ import {
 import {
   getLocalMediaDiagnostics,
   isCameraLive,
+  nextRestoreDelayMs,
   pauseCameraWhileHidden,
   restoreLocalMediaIfNeeded,
   type LocalMediaPreferences,
@@ -75,7 +76,7 @@ export function useLiveKitRoomResilience(room: Room) {
         await restorePromiseRef.current;
       }
 
-      const task = (async () => {
+      const attemptRestore = async (attempt: number) => {
         try {
           const restored = await restoreLocalMediaIfNeeded(
             room,
@@ -83,15 +84,52 @@ export function useLiveKitRoomResilience(room: Room) {
           );
           developmentInfo('[LiveKit] Local media checked', {
             trigger,
+            attempt,
             restored,
             ...getLocalMediaDiagnostics(room),
           });
         } catch (error) {
           console.error('[LiveKit] Failed restoring local media', {
             trigger,
+            attempt,
             error,
             ...getLocalMediaDiagnostics(room),
           });
+        }
+      };
+
+      const task = (async () => {
+        try {
+          /*
+           * Il primo giro è incondizionato, e non è una ripetizione della
+           * politica dei tentativi: il microfono va ripristinato anche quando
+           * la camera è spenta per scelta dell'utente, e la politica parla
+           * solo della camera.
+           */
+          await attemptRestore(0);
+
+          /*
+           * Poi si ritenta, ma solo per la camera e solo finché ha senso.
+           *
+           * Un solo tentativo immediato era quello con meno probabilità di
+           * riuscire: tornando da un'altra app il dispositivo spesso non è
+           * ancora libero, il tentativo falliva, e l'utente si trovava a
+           * premere «Riattiva videocamera» per una cosa che si sarebbe
+           * sistemata da sola in mezzo secondo. Quante volte e con che attesa
+           * lo decide `nextRestoreDelayMs`, che ha i suoi test.
+           */
+          let attempt = 1;
+          for (;;) {
+            const delay = nextRestoreDelayMs({
+              attempt,
+              cameraLive: isCameraLive(room),
+              cameraWanted: preferencesRef.current.camera,
+            });
+            if (delay === null) break;
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            await attemptRestore(attempt);
+            attempt += 1;
+          }
         } finally {
           // Conta come è finita davvero, non se il tentativo è stato fatto:
           // un permesso revocato o una camera occupata da un'altra app
@@ -395,6 +433,12 @@ export function CameraSuspendedNotice({
  * prima. Si mostra per pochi secondi all'ingresso — un avviso permanente
  * verrebbe letto una volta e poi ignorato, rubando spazio allo schermo per
  * tutta la sessione.
+ *
+ * Diceva «non cambiare applicazione», e un divieto è la forma meno utile che
+ * può prendere un'informazione: chi deve uscire esce comunque, e resta solo
+ * con il senso di aver sbagliato. Il mini video è già in alto nella barra, e
+ * con quello aperto la pausa non viene imposta — quindi la frase giusta è
+ * quella che ci manda, non quella che vieta.
  */
 export function ScreenLockHint({ seconds = 8 }: { seconds?: number }) {
   const [visible, setVisible] = useState(true);
@@ -412,8 +456,8 @@ export function ScreenLockHint({ seconds = 8 }: { seconds?: number }) {
       data-testid="screen-lock-hint"
       className="pointer-events-none absolute bottom-24 left-1/2 z-20 w-[min(22rem,calc(100%-1.5rem))] -translate-x-1/2 rounded-2xl bg-gray-950/85 px-4 py-3 text-center text-xs text-white/85 shadow-lg ring-1 ring-white/10"
     >
-      Durante la sessione non bloccare lo schermo e non cambiare applicazione:
-      la videocamera verrebbe sospesa dal telefono.
+      Se devi uscire dalla pagina, apri prima il <strong>mini video</strong> qui
+      sopra: senza, il telefono sospende la videocamera.
     </div>
   );
 }

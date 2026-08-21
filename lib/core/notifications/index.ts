@@ -24,7 +24,10 @@ import { sendPushToUser } from '@/lib/core/push';
 import {
   callStartedContent,
   coachCreatedAppointmentContent,
+  athleteReportReadyContent,
+  reminder24hContent,
   rescheduledAppointmentContent,
+  securityAlertContent,
   type AppointmentNotificationActor,
 } from './appointment-content';
 import {
@@ -544,7 +547,7 @@ export type NotifyContext = {
  * Maps a notification type + context to default title/body/link. This is the
  * one place holding marketplace-default copy; a vertical can override it.
  */
-function buildContent(
+export function buildNotificationContent(
   type: NotificationType,
   ctx: NotifyContext
 ): { title: string; body: string; data: NotificationData } {
@@ -557,8 +560,8 @@ function buildContent(
       return {
         title: 'Nuova richiesta di sessione',
         body: ctx.serviceTitle
-          ? `Hai ricevuto una richiesta per “${ctx.serviceTitle}”.`
-          : 'Hai ricevuto una nuova richiesta di sessione.',
+          ? `Hai ricevuto una richiesta per “${ctx.serviceTitle}”. Aprila e scegli Accetta oppure Rifiuta.`
+          : 'Hai ricevuto una richiesta di sessione. Aprila e scegli Accetta oppure Rifiuta.',
         data: { link: '/dashboard/coach', bookingId: ctx.bookingId },
       };
     case 'booking_created_by_coach':
@@ -567,22 +570,30 @@ function buildContent(
       return callStartedContent(ctx);
     case 'booking_accepted':
       return {
-        title: 'Richiesta accettata',
-        body: 'La tua richiesta di sessione è stata accettata.',
-        data: { link: '/dashboard/athlete', bookingId: ctx.bookingId },
+        title: 'La tua sessione è confermata',
+        body: 'Il coach ha accettato la richiesta. Tocca qui per controllare giorno, orario e accesso alla videochiamata.',
+        data: {
+          link: ctx.bookingId
+            ? `/dashboard/appointments/${ctx.bookingId}`
+            : '/dashboard/athlete',
+          bookingId: ctx.bookingId,
+        },
       };
     case 'booking_declined':
       return {
         title: 'Richiesta rifiutata',
         body: ctx.expired
-          ? 'La tua richiesta di sessione è scaduta senza risposta ed è stata rifiutata automaticamente. Puoi inviarne una nuova.'
-          : 'La tua richiesta di sessione è stata rifiutata.',
-        data: { link: '/dashboard/athlete', bookingId: ctx.bookingId },
+          ? 'La richiesta è scaduta senza risposta. La sessione non avrà luogo: puoi sceglierne un’altra.'
+          : 'Il coach non ha confermato la richiesta. La sessione non avrà luogo: puoi sceglierne un’altra.',
+        data: { link: '/coaches', bookingId: ctx.bookingId },
       };
     case 'booking_cancelled':
       return {
-        title: 'Prenotazione annullata',
-        body: 'Una prenotazione è stata annullata.',
+        title: 'La sessione è stata annullata',
+        body:
+          ctx.audience === 'coach'
+            ? 'L’atleta ha annullato la sessione. Non devi collegarti alla videochiamata.'
+            : 'Il coach ha annullato la sessione. Non devi collegarti alla videochiamata.',
         data: {
           link: ctx.audience === 'coach' ? '/dashboard/coach' : '/dashboard/athlete',
           bookingId: ctx.bookingId,
@@ -590,8 +601,8 @@ function buildContent(
       };
     case 'booking_completed':
       return {
-        title: 'Sessione completata',
-        body: 'La tua sessione è stata completata.',
+        title: 'La sessione si è conclusa',
+        body: 'La sessione è conclusa. Tocca qui se vuoi lasciare una recensione al coach.',
         data: { link: '/dashboard/athlete', bookingId: ctx.bookingId },
       };
     case 'booking_rescheduled':
@@ -604,8 +615,8 @@ function buildContent(
       return {
         title: 'Nuovo messaggio',
         body: ctx.senderName
-          ? `Nuovo messaggio da ${ctx.senderName}.`
-          : 'Hai ricevuto un nuovo messaggio.',
+          ? `${ctx.senderName} ti ha scritto. Tocca qui per leggere e rispondere nella chat privata.`
+          : 'Hai ricevuto un messaggio. Tocca qui per leggerlo e rispondere nella chat privata.',
         data: { link: bookingLink ?? '/dashboard', bookingId: ctx.bookingId },
       };
     case 'athlete_registered':
@@ -636,44 +647,33 @@ function buildContent(
       };
     case 'provider_approved':
       return {
-        title: 'Congratulazioni, sei un coach KaiPai! 🎉',
+        title: 'Il tuo profilo coach è stato approvato',
         body:
-          'Il tuo profilo è stato approvato ed è ora visibile agli atleti. ' +
-          'Da oggi puoi ricevere richieste di sessione, gestire calendario e ' +
-          'servizi, e far crescere la tua presenza sulla piattaforma. Benvenuto!',
+          'Il profilo è pubblicato e visibile agli atleti. Non devi fare altro: puoi già ricevere richieste di sessione.',
         data: { link: '/dashboard/coach' },
       };
     case 'provider_rejected':
       return {
-        title: 'Profilo rifiutato',
-        body: 'Il tuo profilo è stato rifiutato. Aggiornalo e invialo di nuovo.',
-        data: { link: '/dashboard/coach' },
+        title: 'Il profilo coach non è ancora pubblicato',
+        body: 'Apri il profilo, completa i campi richiesti e invialo di nuovo per la revisione.',
+        data: { link: '/dashboard/coach/profile' },
       };
     case 'review_received':
       return {
         title: 'Nuova recensione',
         body: ctx.rating
-          ? `Hai ricevuto una recensione da ${ctx.rating} ${ctx.rating === 1 ? 'stella' : 'stelle'}.`
-          : 'Hai ricevuto una nuova recensione.',
+          ? `Hai ricevuto una recensione verificata da ${ctx.rating} ${ctx.rating === 1 ? 'stella' : 'stelle'}. Tocca qui per leggerla.`
+          : 'Hai ricevuto una recensione verificata. Tocca qui per leggerla.',
         data: { link: '/dashboard/coach#recensioni' },
       };
     case 'booking_reminder_24h':
-      return {
-        title: 'La tua sessione è domani',
-        body: ctx.sessionTime
-          ? `Promemoria: hai una sessione domani alle ${ctx.sessionTime}.`
-          : 'Promemoria: hai una sessione domani.',
-        data: {
-          link: bookingLink ?? '/dashboard',
-          bookingId: ctx.bookingId,
-        },
-      };
+      return reminder24hContent(ctx);
     case 'booking_reminder_1h':
       return {
         title: 'La tua sessione inizia tra un’ora',
         body: ctx.sessionTime
-          ? `La sessione inizia alle ${ctx.sessionTime}. Preparati.`
-          : 'La tua sessione inizia tra circa un’ora.',
+          ? `La sessione inizia alle ${ctx.sessionTime}. La stanza video si apre 5 minuti prima.`
+          : 'La sessione inizia tra circa un’ora. La stanza video si apre 5 minuti prima.',
         data: {
           link: ctx.bookingId ? `/dashboard/video/${ctx.bookingId}` : '/dashboard',
           bookingId: ctx.bookingId,
@@ -683,8 +683,8 @@ function buildContent(
       return {
         title: 'Riepilogo pronto da validare',
         body: ctx.athleteName
-          ? `Il riepilogo della seduta con ${ctx.athleteName} aspetta la tua approvazione.`
-          : 'Un riepilogo di sessione aspetta la tua approvazione.',
+          ? `Il riepilogo della seduta con ${ctx.athleteName} è una bozza. Aprilo, controllalo e scegli Approva oppure Rigenera.`
+          : 'Un riepilogo di sessione è una bozza. Aprilo, controllalo e scegli Approva oppure Rigenera.',
         data: {
           link: ctx.bookingId
             ? `/dashboard/appointments/${ctx.bookingId}#session-compass`
@@ -693,14 +693,7 @@ function buildContent(
         },
       };
     case 'ai_report_ready':
-      return {
-        title: 'Report della sessione pronto',
-        body: 'Il report della tua sessione è disponibile.',
-        data: {
-          link: bookingLink ?? '/dashboard',
-          bookingId: ctx.bookingId,
-        },
-      };
+      return athleteReportReadyContent(ctx);
     case 'coach_invitation':
       return {
         title: 'Ti hanno invitato su KaiPai',
@@ -710,13 +703,7 @@ function buildContent(
         data: { link: '/dashboard' },
       };
     case 'security_alert':
-      return {
-        title: 'Avviso di sicurezza',
-        body: ctx.securityEvent
-          ? `Attività rilevata sul tuo account: ${ctx.securityEvent}.`
-          : 'Abbiamo rilevato un’attività importante sul tuo account.',
-        data: { link: '/dashboard/general' },
-      };
+      return securityAlertContent(ctx);
   }
 }
 
@@ -848,7 +835,7 @@ export async function notify(
   ctx: NotifyContext = {}
 ): Promise<void> {
   const event = NOTIFICATION_EVENTS[type];
-  const rawContent = buildContent(type, ctx);
+  const rawContent = buildNotificationContent(type, ctx);
   const firstName = event.hasInApp
     ? await resolveInAppFirstName(recipientUserId).catch(() => null)
     : null;

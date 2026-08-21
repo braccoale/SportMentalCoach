@@ -1,5 +1,6 @@
 import { aliasedTable, and, desc, eq, gte, inArray, or, sql } from 'drizzle-orm';
 import { getApiUser } from '@/lib/auth/api-user';
+import { hasRole } from '@/lib/core/auth/roles';
 import { db } from '@/lib/db/drizzle';
 import {
   bookings,
@@ -71,10 +72,10 @@ export async function GET(request: Request) {
        * protestava per la chiave ripetuta. Qui serve l'ultimo stato, non tutti.
        */
       aiNotesStatus: sql<string | null>`(
-        select n.status
-        from ${sessionAiNotes} n
-        where n.booking_id = ${bookings.id}
-        order by n.created_date desc
+        select ${sessionAiNotes.status}
+        from ${sessionAiNotes}
+        where ${sessionAiNotes.bookingId} = ${bookings.id}
+        order by ${sessionAiNotes.createdDate} desc
         limit 1
       )`,
     })
@@ -178,6 +179,14 @@ export async function GET(request: Request) {
         Number(row.durationMin)
       ),
       viewerIsCoach,
+      /*
+       * Chi e' l'altra persona, non solo come si chiama.
+       *
+       * Senza l'identificativo «prenota di nuovo» poteva solo riaprire il
+       * modulo vuoto: il nome era davanti agli occhi e l'app chiedeva di
+       * sceglierlo di nuovo da un elenco.
+       */
+      otherUserId: viewerIsCoach ? row.clientId : row.coachUserId,
       otherName: viewerIsCoach
         ? row.clientName ?? row.clientEmail
         : row.coachName ?? 'Coach',
@@ -205,7 +214,18 @@ export async function GET(request: Request) {
       lastHeartbeatAt: s.endedAt ? new Date(s.endedAt) : null,
     });
 
+  /*
+   * Il ruolo lo dice il server, non la prima riga dell'elenco.
+   *
+   * L'app lo deduceva da `sessions[0]?.viewerIsCoach`: con l'elenco vuoto —
+   * il primo giorno di un coach, esattamente quando conta — cadeva su `false`,
+   * e il coach si vedeva rispondere che «le sessioni si prenotano dal profilo
+   * del tuo coach». Un ruolo non e' una proprieta' delle prenotazioni.
+   */
+  const viewerIsCoach = await hasRole(user.id, 'coach');
+
   return Response.json({
+    viewerIsCoach,
     sessions: all
       .filter(upcoming)
       /*

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { UpcomingSession } from '../lib/api';
 import { Icon, type IconName } from './Icon';
 import { useTheme, type Palette } from '../theme';
@@ -93,11 +93,32 @@ export function SessionHistoryRow({
     <Pressable
       onPress={onOpen}
       accessibilityRole="button"
-      accessibilityLabel={`Apri la sessione del ${day} ${rest}`}
+      accessibilityLabel={`Apri la sessione con ${session.otherName} del ${day} ${rest}`}
       style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
     >
-      <View style={[styles.mark, { backgroundColor: `${color}22` }]}>
-        <Icon name={info.icon} size={18} color={color} />
+      {/*
+        * Il volto al posto del simbolo.
+        *
+        * Qui c'era un riquadro con l'icona dello stato — che però lo stato lo
+        * dice già la riga accanto, a parole e a colori: era la terza volta
+        * che la stessa informazione veniva ripetuta, nel posto dove si guarda
+        * per primo. Con la foto la cronologia si scorre riconoscendo le
+        * persone invece di leggendo, e il pallino colorato tiene lo stato
+        * senza rubare il posto.
+        */}
+      <View style={styles.face}>
+        {session.otherAvatarUrl ? (
+          <Image source={{ uri: session.otherAvatarUrl }} style={styles.photo} />
+        ) : (
+          <View style={[styles.photo, styles.photoEmpty]}>
+            <Text style={styles.initial}>
+              {session.otherName.trim().slice(0, 1).toUpperCase() || '·'}
+            </Text>
+          </View>
+        )}
+        <View style={[styles.badge, { backgroundColor: color }]}>
+          <Icon name={info.icon} size={9} color={theme.ink2} />
+        </View>
       </View>
 
       <View style={styles.dateBlock}>
@@ -107,10 +128,20 @@ export function SessionHistoryRow({
       </View>
 
       <View style={styles.body}>
-        <Text style={[styles.label, { color }]}>{info.label}</Text>
-        {session.actualMinutes ? (
-          <Text style={styles.note}>Durata {session.actualMinutes} min</Text>
-        ) : info.note ? (
+        {/* Chi c'era, per primo.
+            Guardando indietro la domanda e' «con chi», non «di che stato»: un
+            elenco di sedute senza nome costringe ad aprirle una per una per
+            ricordarselo. Il nome e' il titolo della riga, lo stato la spiega. */}
+        <Text style={styles.who} numberOfLines={1}>
+          {session.otherName}
+        </Text>
+        <View style={styles.statusLine}>
+          <Text style={[styles.label, { color }]}>{info.label}</Text>
+          {session.actualMinutes ? (
+            <Text style={styles.note}>{session.actualMinutes} min</Text>
+          ) : null}
+        </View>
+        {!session.actualMinutes && info.note ? (
           <Text style={styles.note}>{info.note}</Text>
         ) : null}
         {session.aiNotes && (
@@ -141,10 +172,23 @@ const createStyles = (theme: Palette) =>
       borderRadius: 16,
       padding: 12,
     },
-    mark: {
-      width: 40,
-      height: 40,
-      borderRadius: 12,
+    face: { width: 42, height: 42 },
+    photo: { width: 42, height: 42, borderRadius: 21, backgroundColor: theme.surface },
+    photoEmpty: { alignItems: 'center', justifyContent: 'center' },
+    initial: { color: theme.mid, fontSize: 17, fontWeight: '700' },
+    /*
+     * Il pallino di stato sta sul bordo della foto, con un anello del colore
+     * dello sfondo che lo stacca: senza, su una foto chiara sparisce.
+     */
+    badge: {
+      position: 'absolute',
+      right: -1,
+      bottom: -1,
+      width: 16,
+      height: 16,
+      borderRadius: 8,
+      borderWidth: 2,
+      borderColor: theme.ink2,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -153,6 +197,8 @@ const createStyles = (theme: Palette) =>
     rest: { color: theme.low, fontSize: 10, fontWeight: '600' },
     time: { fontSize: 12, fontWeight: '700', marginTop: 2 },
     body: { flex: 1, gap: 2 },
+    who: { color: theme.hi, fontSize: 15, fontWeight: '700', letterSpacing: -0.2 },
+    statusLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     label: { fontSize: 11, fontWeight: '800', letterSpacing: 0.4 },
     note: { color: theme.mid, fontSize: 12, lineHeight: 17 },
     ai: { color: theme.green, fontSize: 11, fontWeight: '700' },

@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  athleteReportReadyContent,
   callStartedContent,
   coachCreatedAppointmentContent,
+  reminder24hContent,
   rescheduledAppointmentContent,
+  securityAlertContent,
 } from './appointment-content';
 
 test('una chiamata avviata porta dentro la stanza, non alla scheda', () => {
@@ -29,9 +32,33 @@ test('a coach-created appointment is not described as an accepted request', () =
   });
 
   assert.equal(content.title, 'Nuovo appuntamento fissato dal coach');
-  assert.match(content.body, /coach ha fissato un nuovo appuntamento/);
+  assert.match(content.body, /coach ha fissato una sessione/);
   assert.doesNotMatch(`${content.title} ${content.body}`, /accettat/i);
   assert.equal(content.data.link, '/dashboard/appointments/42');
+});
+
+test('il promemoria del giorno prima apre il dettaglio, non la chat', () => {
+  const content = reminder24hContent({ bookingId: 42, sessionTime: '19:00' });
+
+  assert.equal(content.data.link, '/dashboard/appointments/42');
+  assert.match(content.body, /Domani alle 19:00/);
+});
+
+test('il report condiviso apre direttamente il Compass', () => {
+  const content = athleteReportReadyContent({ bookingId: 42 });
+
+  assert.equal(
+    content.data.link,
+    '/dashboard/appointments/42#session-compass'
+  );
+  assert.match(content.body, /report privato/);
+});
+
+test('l’avviso di sicurezza porta al cambio password', () => {
+  const content = securityAlertContent({ securityEvent: 'Nuovo accesso' });
+
+  assert.equal(content.data.link, '/dashboard/settings?section=password');
+  assert.match(content.body, /cambia subito la password/);
 });
 
 test('reschedule copy identifies who changed the appointment', () => {

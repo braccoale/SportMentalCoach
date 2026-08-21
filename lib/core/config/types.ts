@@ -1,3 +1,5 @@
+import type { Locale } from '@/lib/i18n/locales';
+
 /**
  * Vertical configuration contract (Phase 1).
  *
@@ -51,10 +53,10 @@ export type VerticalTaxonomies = {
 };
 
 /**
- * Supported UI locales for a vertical. Phase 1 ships Italian; the union is kept
- * open-ended enough to add locales without changing the contract.
+ * Locale understood by a vertical. Rollout state is intentionally kept in the
+ * central i18n contract, so accepting a locale here does not expose it in UI.
  */
-export type VerticalLocale = 'it' | 'en';
+export type VerticalLocale = Locale;
 
 /**
  * The single object a vertical module exports. Core depends only on this shape.

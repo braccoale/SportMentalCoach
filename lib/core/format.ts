@@ -74,6 +74,7 @@ export function formatBigDateParts(d: Date): {
   day: string;
   monthYear: string;
   time: string;
+  weekday: string;
 } {
   const day = new Intl.DateTimeFormat('it-IT', {
     day: '2-digit',
@@ -92,7 +93,12 @@ export function formatBigDateParts(d: Date): {
     hourCycle: 'h23',
     timeZone: DISPLAY_TIME_ZONE,
   }).format(d);
-  return { day, monthYear, time };
+  const weekday = new Intl.DateTimeFormat('it-IT', {
+    weekday: 'long',
+    timeZone: DISPLAY_TIME_ZONE,
+  }).format(d);
+  const weekdayLabel = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+  return { day, monthYear, time, weekday: weekdayLabel };
 }
 
 /**

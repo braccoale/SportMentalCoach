@@ -160,6 +160,7 @@ function session(
 ): SessionCompassSessionSource {
   return {
     sessionId: SESSION_ID,
+    bookingId: 77,
     coachUserId: COACH_ID,
     athleteUserId: ATHLETE_ID,
     sessionStatus: 'ready_for_review',
@@ -526,9 +527,17 @@ test('approvare porta avanti anche la sessione, una volta sola', async () => {
    * gia' validata.
    */
   const approvals: Array<{ sessionId: number; actorUserId: number }> = [];
+  const notifications: Array<{
+    athleteUserId: number;
+    bookingId: number;
+    coachName: string;
+  }> = [];
   const { dependencies } = harness();
   dependencies.markSessionApproved = async (sessionId, actorUserId) => {
     approvals.push({ sessionId, actorUserId });
+  };
+  dependencies.notifyReportReady = async (input) => {
+    notifications.push(input);
   };
   await ensureSessionCompassDraft(
     { sessionId: SESSION_ID, actorUserId: COACH_ID },
@@ -548,6 +557,13 @@ test('approvare porta avanti anche la sessione, una volta sola', async () => {
   // transizione non valida, e il registro ne conserverebbe due identiche.
   assert.deepEqual(approvals, [
     { sessionId: SESSION_ID, actorUserId: COACH_ID },
+  ]);
+  assert.deepEqual(notifications, [
+    {
+      athleteUserId: ATHLETE_ID,
+      bookingId: 77,
+      coachName: 'Giulia Rossi',
+    },
   ]);
 });
 

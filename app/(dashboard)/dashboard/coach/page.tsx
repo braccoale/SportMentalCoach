@@ -613,13 +613,6 @@ export default async function CoachDashboardPage() {
                         compact
                       />
                     )}
-                    <AddToGoogleCalendarButton
-                      url={calendarUrl}
-                      uiSource="appointment_card"
-                      userRole="coach"
-                      compact
-                    />
-                    <ShareButton bookingId={booking.id} compact />
                     <ResendAthleteCallLinkButton
                       bookingId={booking.id}
                       athleteName={booking.clientName ?? 'l’atleta'}
@@ -640,11 +633,13 @@ export default async function CoachDashboardPage() {
               }
               overflowActions={
                 <>
-                  <DropdownMenuItem asChild className="cursor-pointer">
-                    <Link href={`/dashboard/appointments/${booking.id}`}>
-                      Vedi dettagli
-                    </Link>
-                  </DropdownMenuItem>
+                  <AddToGoogleCalendarButton
+                    url={calendarUrl}
+                    uiSource="appointment_card"
+                    userRole="coach"
+                    menuItem
+                  />
+                  <ShareButton bookingId={booking.id} menuItem />
                   {booking.sessionStartedAt ? (
                     <ActionForm action={completeBookingAction} className="w-full">
                       <input type="hidden" name="bookingId" value={booking.id} />
@@ -959,6 +954,7 @@ function buildUpcomingAppointmentData(
     id: booking.id,
     athleteName: resolveDisplayName(booking.clientName, booking.clientEmail),
     athleteAvatarUrl: booking.clientAvatarUrl,
+    sportKey: booking.athleteSport,
     eyebrow: bookingEyebrow(booking.status),
     statusLabel: bookingStatusLabel(booking.status),
     date: booking.scheduledFor ? formatBigDateParts(booking.scheduledFor) : null,

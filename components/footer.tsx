@@ -8,14 +8,8 @@ import {
   Linkedin,
   Youtube,
 } from 'lucide-react';
-import { getVerticalConfig, t } from '@/lib/core/config';
+import { useTranslations } from 'next-intl';
 import { CookieSettingsButton } from '@/components/google-analytics';
-
-const LEGAL_LINKS = [
-  { href: '/terms', label: 'Termini e Condizioni' },
-  { href: '/privacy', label: 'Privacy Policy' },
-  { href: '/cookie', label: 'Cookie Policy' },
-];
 
 const SOCIALS = [
   { label: 'Instagram', href: 'https://instagram.com/kaipai', Icon: Instagram },
@@ -25,9 +19,14 @@ const SOCIALS = [
 ];
 
 export function Footer() {
-  const config = getVerticalConfig();
-  const brand = t('brand.name', config);
+  const t = useTranslations('Footer');
+  const brand = t('brandName');
   const year = new Date().getFullYear();
+  const legalLinks = [
+    { href: '/terms', label: t('terms') },
+    { href: '/privacy', label: t('privacyPolicy') },
+    { href: '/cookie', label: t('cookiePolicy') },
+  ];
 
   return (
     <footer className="mt-auto border-t border-kp-line bg-kp-ink2">
@@ -38,12 +37,12 @@ export function Footer() {
             <span className="text-lg font-semibold text-kp-hi">{brand}</span>
           </Link>
           <p className="mt-3 max-w-xs text-sm text-kp-mid">
-            {t('brand.tagline', config)}
+            {t('tagline')}
           </p>
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold text-kp-hi">Contatti</h3>
+          <h3 className="text-sm font-semibold text-kp-hi">{t('contacts')}</h3>
           <ul className="mt-3 space-y-2 text-sm text-kp-mid">
             <li className="flex items-center gap-2">
               <Mail className="h-4 w-4 text-kp-low" />
@@ -59,15 +58,15 @@ export function Footer() {
             </li>
             <li className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-kp-low" />
-              <span>Genova, Italia</span>
+              <span>{t('location')}</span>
             </li>
           </ul>
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold text-kp-hi">Legale</h3>
+          <h3 className="text-sm font-semibold text-kp-hi">{t('legal')}</h3>
           <ul className="mt-3 space-y-2 text-sm text-kp-mid">
-            {LEGAL_LINKS.map(({ href, label }) => (
+            {legalLinks.map(({ href, label }) => (
               <li key={href}>
                 <Link href={href} className="hover:text-kp-hi">
                   {label}
@@ -81,7 +80,7 @@ export function Footer() {
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold text-kp-hi">Seguici</h3>
+          <h3 className="text-sm font-semibold text-kp-hi">{t('followUs')}</h3>
           <div className="mt-3 flex items-center gap-3">
             {SOCIALS.map(({ label, href, Icon }) => (
               <a
@@ -102,7 +101,7 @@ export function Footer() {
 
       <div className="border-t border-kp-line">
         <div className="mx-auto max-w-7xl px-4 py-4 text-xs text-kp-low sm:px-6 lg:px-8">
-          © {year} {brand}. Tutti i diritti riservati.
+          {t('allRightsReserved', { year, brand })}
         </div>
       </div>
     </footer>

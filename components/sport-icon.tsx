@@ -16,6 +16,7 @@ import {
   FaVolleyball,
 } from 'react-icons/fa6';
 import { IoTennisball } from 'react-icons/io5';
+import { sports } from '@/lib/verticals/sport-mental-coach/taxonomies';
 
 /**
  * L'icona di uno sport.
@@ -60,6 +61,23 @@ const ICON_BY_SPORT: Record<string, IconType> = {
   other: FaMedal,
 };
 
+const LABEL_BY_SPORT = new Map(sports.map((sport) => [sport.key, sport.label]));
+
+/**
+ * Etichetta leggibile usata dal tooltip. La chiave resta come ripiego per gli
+ * sport storici o aggiunti al database prima dell'aggiornamento del frontend.
+ */
+export function sportLabel(sportKey: string | null): string {
+  if (!sportKey) return 'Sport non indicato';
+
+  return (
+    LABEL_BY_SPORT.get(sportKey) ??
+    sportKey
+      .replaceAll('_', ' ')
+      .replace(/^./, (firstLetter) => firstLetter.toLocaleUpperCase('it-IT'))
+  );
+}
+
 /** Uno sport che non conosciamo prende la medaglia e non rompe niente. */
 export function sportIcon(sportKey: string | null): IconType {
   if (!sportKey) return FaMedal;
@@ -68,11 +86,30 @@ export function sportIcon(sportKey: string | null): IconType {
 
 export function SportIcon({
   sportKey,
+  label,
   className,
 }: {
   sportKey: string | null;
+  /** Etichetta più specifica del nome in tassonomia, quando disponibile. */
+  label?: string | null;
   className?: string;
 }) {
   const Icon = sportIcon(sportKey);
-  return <Icon className={className} aria-hidden="true" />;
+  const tooltip = label?.trim() || sportLabel(sportKey);
+
+  return (
+    <span
+      className="group/sport-icon relative inline-flex shrink-0 items-center justify-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+      tabIndex={0}
+      aria-label={`Sport: ${tooltip}`}
+    >
+      <Icon className={className} aria-hidden="true" />
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-950 px-2.5 py-1.5 text-xs font-medium normal-case tracking-normal text-white opacity-0 shadow-lg transition-opacity group-hover/sport-icon:opacity-100 group-focus-visible/sport-icon:opacity-100"
+      >
+        {tooltip}
+      </span>
+    </span>
+  );
 }

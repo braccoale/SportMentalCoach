@@ -49,6 +49,8 @@ export type SessionCompassStatus = (typeof SESSION_COMPASS_STATUSES)[number];
 
 export type SessionCompassSessionSource = {
   sessionId: number;
+  /** Prenotazione mostrata nelle dashboard e usata dal link della notifica. */
+  bookingId?: number;
   coachUserId: number;
   athleteUserId: number;
   sessionStatus: string;
@@ -157,6 +159,12 @@ export type SessionCompassDependencies = {
     sessionId: number,
     actorUserId: number
   ) => Promise<void>;
+  /** Avvisa l’atleta una sola volta, quando la prima approvazione rende visibile il report. */
+  notifyReportReady?: (input: {
+    athleteUserId: number;
+    bookingId: number;
+    coachName: string;
+  }) => Promise<void>;
   store: SessionCompassStore;
   commitments: SessionCommitmentStore;
   /**
@@ -533,6 +541,13 @@ export async function approveSessionCompass(
       session.sessionId,
       params.actorUserId
     );
+    if (session.bookingId) {
+      await dependencies.notifyReportReady?.({
+        athleteUserId: session.athleteUserId,
+        bookingId: session.bookingId,
+        coachName: session.coachName,
+      });
+    }
   }
 
   await syncApprovedCommitments({

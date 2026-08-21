@@ -34,10 +34,14 @@ export default function MarketingLayout({
     <div
       className={`${display.variable} ${body.variable} ${mono.variable} kp-root min-h-screen`}
     >
-      {/* No-JS fallback: reveal animations depend on JS, so ensure content is
-          fully visible when JS is unavailable. */}
+      {/* No-JS fallback: le animazioni dipendono dal JavaScript, quindi senza
+          di esso il contenuto dev'essere comunque tutto visibile. La classe
+          `kp-no-js` fa tornare la scena 2 al suo elenco statico (le regole
+          stanno in globals.css, accanto a quelle di reduced-motion). */}
       <noscript>
         <style>{`.kp-reveal{opacity:1!important;transform:none!important;filter:none!important}`}</style>
+        <style>{`.kp-scene-mind{height:auto!important;min-height:0!important;padding-block:6rem!important}.kp-scene-stack{min-height:0!important;gap:1.25rem!important}.kp-scene-stack>p{position:relative!important;inset:auto!important;opacity:1!important;visibility:visible!important}`}</style>
+        <style>{`.kp-scene-founder{height:auto!important;min-height:0!important;padding-block:6rem!important}.kp-scene-founder [data-eyebrow],.kp-scene-founder .kp-founder{opacity:1!important}.kp-scene-founder .kp-quote span{transform:none!important}`}</style>
       </noscript>
       {children}
     </div>

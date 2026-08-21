@@ -10,6 +10,7 @@ import { listSessionBookmarksMs } from './coach-bookmarks-store';
 import { loadClosingNote } from './session-close';
 import { advanceAiNotesSessionStatus } from './session-status';
 import { loadActiveHouseGuidelines } from './house-guidelines';
+import { notifyAiReportReady } from '@/lib/core/notifications/events';
 import { promptVersionWithGuidelines } from './house-guidelines-policy';
 import { listSessionVoiceNoteTranscripts } from './voice-notes';
 import { createSessionCommitmentStore } from './session-commitments-store';
@@ -71,6 +72,7 @@ export function sessionCompassDependencies(): SessionCompassDependencies {
         actorUserId,
       });
     },
+    notifyReportReady: notifyAiReportReady,
     now: () => new Date(),
   };
 }

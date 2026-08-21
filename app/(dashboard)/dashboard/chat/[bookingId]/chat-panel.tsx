@@ -77,11 +77,13 @@ export function ChatPanel({
   currentUserId,
   initialMessages,
   readOnly,
+  demoReadOnly,
 }: {
   bookingId: number;
   currentUserId: number;
   initialMessages: SerializedMessage[];
   readOnly: boolean;
+  demoReadOnly: boolean;
 }) {
   const [messages, setMessages] = useState<SerializedMessage[]>(initialMessages);
   const [body, setBody] = useState('');
@@ -102,6 +104,7 @@ export function ChatPanel({
   const longPressStartRef = useRef<{ x: number; y: number } | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const realtimeEnabled = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+  const interactionReadOnly = readOnly || demoReadOnly;
 
   // Re-fetch through the participant-guarded server endpoint. Realtime never
   // carries message content — it only triggers this authenticated fetch.
@@ -120,7 +123,7 @@ export function ChatPanel({
 
   // Optional realtime subscription (Supabase Broadcast — a content-free nudge).
   useEffect(() => {
-    if (readOnly) return;
+    if (interactionReadOnly) return;
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
     const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const channel = client.channel(`chat-${bookingId}`, {
@@ -136,7 +139,7 @@ export function ChatPanel({
       client.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [bookingId, readOnly, refetch]);
+  }, [bookingId, interactionReadOnly, refetch]);
 
   useEffect(() => {
     if (!image) {
@@ -218,7 +221,10 @@ export function ChatPanel({
     messageId: number,
     event: ReactPointerEvent<HTMLDivElement>
   ) {
-    if (readOnly || (event.pointerType === 'mouse' && event.button !== 0)) {
+    if (
+      interactionReadOnly ||
+      (event.pointerType === 'mouse' && event.button !== 0)
+    ) {
       return;
     }
     clearLongPress();
@@ -245,7 +251,7 @@ export function ChatPanel({
   }
 
   async function reactToMessage(messageId: number, emoji: string) {
-    if (reactionPending != null) return;
+    if (interactionReadOnly || reactionPending != null) return;
     setReactionPending(messageId);
     setError(null);
     try {
@@ -278,6 +284,7 @@ export function ChatPanel({
 
   async function submitMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (interactionReadOnly) return;
     const trimmed = body.trim();
     if (!trimmed && !image) {
       setError('Scrivi un messaggio o aggiungi un’immagine.');
@@ -335,7 +342,7 @@ export function ChatPanel({
                 onPointerLeave={clearLongPress}
                 onPointerMove={moveLongPress}
                 onContextMenu={(event) => {
-                  if (!readOnly) {
+                  if (!interactionReadOnly) {
                     event.preventDefault();
                     setReactionPickerFor(m.id);
                   }
@@ -388,12 +395,12 @@ export function ChatPanel({
                         onClick={() =>
                           reactToMessage(m.id, reaction.emoji)
                         }
-                        disabled={readOnly || reactionPending != null}
+                        disabled={interactionReadOnly || reactionPending != null}
                         className={`inline-flex min-h-7 items-center gap-1 rounded-full border px-2 text-xs transition ${
                           reaction.reactedByMe
                             ? 'border-green-500 bg-green-50 text-green-800'
                             : 'border-gray-200 bg-white/80 text-gray-700'
-                        } disabled:cursor-default`}
+                        } disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 disabled:opacity-70`}
                         aria-label={`${reaction.emoji}, ${reaction.count} reazioni`}
                       >
                         <span aria-hidden>{reaction.emoji}</span>
@@ -403,7 +410,7 @@ export function ChatPanel({
                   </div>
                 )}
 
-                {!readOnly && (
+                {!interactionReadOnly && (
                   <button
                     type="button"
                     onClick={() =>
@@ -421,7 +428,7 @@ export function ChatPanel({
                   </button>
                 )}
 
-                {reactionPickerFor === m.id && !readOnly && (
+                {reactionPickerFor === m.id && !interactionReadOnly && (
                   <div
                     role="toolbar"
                     aria-label="Scegli una reazione"
@@ -458,123 +465,140 @@ export function ChatPanel({
         <form
           onSubmit={submitMessage}
           className="mt-4 flex flex-col gap-2"
+          aria-disabled={demoReadOnly}
         >
-          {previewUrl && image && (
-            <div className="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 p-3">
-              <img
-                src={previewUrl}
-                alt="Anteprima dell’immagine da inviare"
-                className="h-20 w-24 rounded-lg bg-white object-contain"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-gray-900">
-                  {image.name}
-                </p>
-                <p className="mt-0.5 text-xs text-gray-500">
-                  {(image.size / (1024 * 1024)).toLocaleString('it-IT', {
-                    maximumFractionDigits: 1,
-                  })}{' '}
-                  MB
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setImage(null);
-                  if (fileRef.current) fileRef.current.value = '';
-                }}
-                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-500 transition hover:bg-white hover:text-red-600"
-                aria-label="Rimuovi immagine"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          )}
-
-          <div className="relative">
-            <textarea
-              ref={textareaRef}
-              name="body"
-              rows={3}
-              value={body}
-              onChange={(event) => setBody(event.target.value)}
-              maxLength={4000}
-              placeholder="Scrivi un messaggio…"
-              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 pr-12 text-sm focus-visible:border-green-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600/20"
-            />
-            <button
-              type="button"
-              onClick={() => setEmojiPickerOpen((open) => !open)}
-              className="absolute bottom-3 right-3 inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600"
-              aria-label="Aggiungi emoji"
-              aria-expanded={emojiPickerOpen}
-            >
-              <Smile className="h-5 w-5" />
-            </button>
-            {emojiPickerOpen && (
-              <div
-                role="toolbar"
-                aria-label="Scegli un’emoji"
-                className="absolute bottom-12 right-2 z-20 grid w-64 grid-cols-8 gap-1 rounded-2xl border border-gray-200 bg-white p-2 shadow-xl"
-              >
-                {COMPOSER_EMOJIS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    type="button"
-                    onClick={() => insertEmoji(emoji)}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-lg transition hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600"
-                    aria-label={`Inserisci ${emoji}`}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {error && (
-            <p className="text-sm text-red-500" role="alert">
-              {error}
+          {demoReadOnly && (
+            <p className="rounded-lg border border-gray-200 bg-gray-100 px-4 py-3 text-sm text-gray-600">
+              Modalità demo in sola lettura: puoi consultare la conversazione,
+              ma non inviare messaggi, allegati o reazioni.
             </p>
           )}
-          <div className="flex flex-wrap items-center gap-3">
-            <input
-              ref={fileRef}
-              type="file"
-              name="image"
-              accept="image/jpeg,image/png,image/webp"
-              className="hidden"
-              onChange={(event) => selectImage(event.target.files?.[0])}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => fileRef.current?.click()}
-              disabled={pending}
-              className="rounded-full"
-            >
-              <ImagePlus className="h-4 w-4" />
-              Aggiungi immagine
-            </Button>
-            <Button
-              type="submit"
-              disabled={pending || (!body.trim() && !image)}
-              className="rounded-full"
-            >
-              {pending ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Invio…
-                </>
-              ) : (
-                'Invia'
+
+          <fieldset
+            disabled={demoReadOnly}
+            data-demo-chat-readonly={demoReadOnly ? 'true' : undefined}
+            className="contents"
+          >
+            {previewUrl && image && (
+              <div className="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 p-3">
+                <img
+                  src={previewUrl}
+                  alt="Anteprima dell’immagine da inviare"
+                  className="h-20 w-24 rounded-lg bg-white object-contain"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-gray-900">
+                    {image.name}
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    {(image.size / (1024 * 1024)).toLocaleString('it-IT', {
+                      maximumFractionDigits: 1,
+                    })}{' '}
+                    MB
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImage(null);
+                    if (fileRef.current) fileRef.current.value = '';
+                  }}
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-500 transition hover:bg-white hover:text-red-600"
+                  aria-label="Rimuovi immagine"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+
+            <div className="relative">
+              <textarea
+                ref={textareaRef}
+                name="body"
+                rows={3}
+                value={body}
+                onChange={(event) => setBody(event.target.value)}
+                maxLength={4000}
+                placeholder="Scrivi un messaggio…"
+                disabled={demoReadOnly}
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 pr-12 text-sm focus-visible:border-green-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600/20 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-500"
+              />
+              <button
+                type="button"
+                onClick={() => setEmojiPickerOpen((open) => !open)}
+                disabled={demoReadOnly}
+                className="absolute bottom-3 right-3 inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 disabled:cursor-not-allowed disabled:text-gray-300"
+                aria-label="Aggiungi emoji"
+                aria-expanded={emojiPickerOpen}
+              >
+                <Smile className="h-5 w-5" />
+              </button>
+              {emojiPickerOpen && !demoReadOnly && (
+                <div
+                  role="toolbar"
+                  aria-label="Scegli un’emoji"
+                  className="absolute bottom-12 right-2 z-20 grid w-64 grid-cols-8 gap-1 rounded-2xl border border-gray-200 bg-white p-2 shadow-xl"
+                >
+                  {COMPOSER_EMOJIS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => insertEmoji(emoji)}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-lg transition hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600"
+                      aria-label={`Inserisci ${emoji}`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
               )}
-            </Button>
-            <span className="text-xs text-gray-400">
-              JPG, PNG o WebP · max 4 MB
-              {realtimeEnabled ? ' · tempo reale attivo' : ''}
-            </span>
-          </div>
+            </div>
+
+            {error && (
+              <p className="text-sm text-red-500" role="alert">
+                {error}
+              </p>
+            )}
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                ref={fileRef}
+                type="file"
+                name="image"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                disabled={demoReadOnly}
+                onChange={(event) => selectImage(event.target.files?.[0])}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => fileRef.current?.click()}
+                disabled={demoReadOnly || pending}
+                className="rounded-full"
+              >
+                <ImagePlus className="h-4 w-4" />
+                Aggiungi immagine
+              </Button>
+              <Button
+                type="submit"
+                disabled={demoReadOnly || pending || (!body.trim() && !image)}
+                className="rounded-full"
+              >
+                {pending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Invio…
+                  </>
+                ) : (
+                  'Invia'
+                )}
+              </Button>
+              <span className="text-xs text-gray-400">
+                JPG, PNG o WebP · max 4 MB
+                {realtimeEnabled ? ' · tempo reale attivo' : ''}
+              </span>
+            </div>
+          </fieldset>
         </form>
       )}
 

@@ -31,6 +31,11 @@ export default function CookiePage() {
           banner a ogni visita. È un cookie tecnico e dura 6 mesi.
         </li>
         <li>
+          <strong>kp_locale</strong> (KaiPai): ricorda la lingua
+          dell’interfaccia scelta nelle impostazioni. Contiene esclusivamente
+          il codice della lingua, è un cookie funzionale e dura 12 mesi.
+        </li>
+        <li>
           <strong>_ga</strong> e <strong>_ga_773FBGVP7J</strong> (Google
           Analytics): distinguono in modo pseudonimo un browser e mantengono lo
           stato della sessione per produrre statistiche aggregate. Vengono

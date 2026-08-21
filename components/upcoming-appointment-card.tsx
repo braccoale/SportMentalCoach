@@ -1,14 +1,13 @@
 'use client';
 
-import { ShareButton } from '@/components/share-button';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   Video,
-  MessageSquare,
+  UserRound,
   CalendarCheck,
   AlignLeft,
-  MoreHorizontal,
+  MoreVertical,
   ChevronUp,
   CircleCheck,
 } from 'lucide-react';
@@ -17,6 +16,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { SportIcon } from '@/components/sport-icon';
 import { cn } from '@/lib/utils';
 
 export type UpcomingAppointmentData = {
@@ -24,10 +24,17 @@ export type UpcomingAppointmentData = {
   /** Counterpart shown on the card: the athlete (coach view) or the coach (athlete view). */
   athleteName: string;
   athleteAvatarUrl: string | null;
+  /** Sport dell'atleta, usato per l'icona accanto al nome. */
+  sportKey?: string | null;
   eyebrow: string;
   statusLabel: string;
   /** Huge-date hero; null when there's no fixed time yet. */
-  date: { day: string; monthYear: string; time: string } | null;
+  date: {
+    day: string;
+    monthYear: string;
+    time: string;
+    weekday: string;
+  } | null;
   primaryNeed: string;
   requestedAtLabel: string;
 };
@@ -43,14 +50,12 @@ export function UpcomingAppointmentCard({
   primaryActions,
   overflowActions,
   detailContent,
-  isCoachView,
   className,
 }: {
   data: UpcomingAppointmentData;
   primaryActions?: ReactNode;
   overflowActions?: ReactNode;
   detailContent?: ReactNode;
-  isCoachView?: boolean;
   className?: string;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -96,13 +101,28 @@ export function UpcomingAppointmentCard({
       </div>
 
       <div className="flex flex-1 flex-col p-4">
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-emerald-600">
-            <Video className="h-4 w-4" />
-          </span>
-          <span className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-600">
-            Sessione online
-          </span>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-emerald-600">
+              <Video className="h-4 w-4" />
+            </span>
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-600">
+              Sessione online
+            </span>
+          </div>
+          {overflowActions && (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label="Azioni appuntamento"
+                className="-mr-1 -mt-1 rounded-full p-1.5 text-emerald-600 transition hover:bg-emerald-50 hover:text-emerald-700"
+              >
+                <MoreVertical className="h-5 w-5" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-56">
+                {overflowActions}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
         <div className="mt-2">
@@ -113,10 +133,15 @@ export function UpcomingAppointmentCard({
               <span className="text-7xl font-bold leading-none tracking-tighter text-blue-800">
                 {data.date.day}
               </span>
-              <div className="flex flex-col justify-between py-0.5">
-                <span className="text-lg font-bold uppercase tracking-tight text-blue-800">
-                  {data.date.monthYear}
-                </span>
+              <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
+                <div className="flex min-w-0 items-baseline gap-2 text-blue-800">
+                  <span className="text-lg font-bold uppercase tracking-tight">
+                    {data.date.monthYear}
+                  </span>
+                  <span className="truncate text-sm font-semibold normal-case">
+                    {data.date.weekday}
+                  </span>
+                </div>
                 <span className="text-4xl font-bold leading-none tracking-tight text-gray-950">
                   {data.date.time}
                 </span>
@@ -131,18 +156,24 @@ export function UpcomingAppointmentCard({
 
         <div className="mt-3 flex flex-col gap-2 border-t border-gray-100 pt-3 text-sm text-gray-700">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-500">
-              <MessageSquare className="h-3.5 w-3.5" />
+            <span className="line-clamp-1 font-medium text-gray-900">
+              {data.athleteName}
             </span>
-            <span className="line-clamp-1">{data.primaryNeed}</span>
+            <span
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-700"
+            >
+              {data.sportKey ? (
+                <SportIcon sportKey={data.sportKey} className="h-4 w-4" />
+              ) : (
+                <UserRound className="h-3.5 w-3.5 text-gray-500" />
+              )}
+            </span>
           </div>
         </div>
 
         {primaryActions && (
           <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-3">
             {primaryActions}
-            {/* Aggiunto il pulsante di condivisione, visibile solo per il coach */}
-            {isCoachView && <ShareButton bookingId={data.id} />}
           </div>
         )}
 
@@ -165,16 +196,6 @@ export function UpcomingAppointmentCard({
                 )}
                 Vedi dettagli
               </button>
-            )}
-            {overflowActions && (
-              <DropdownMenu>
-                <DropdownMenuTrigger className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700">
-                  <MoreHorizontal className="h-5 w-5" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="flex flex-col gap-1">
-                  {overflowActions}
-                </DropdownMenuContent>
-              </DropdownMenu>
             )}
           </div>
         </div>

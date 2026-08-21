@@ -62,13 +62,24 @@ export function SessionSwitcher({
     sessions,
     currentSessionId,
   });
-  if (!previous && !next) return null;
-
+  /*
+   * Il navigatore resta anche quando non c'e` dove andare.
+   *
+   * Prima spariva: `if (!previous && !next) return null`. Sembra ragionevole —
+   * niente vicini, niente navigazione — ma il risultato e` che aprendo l'unica
+   * seduta del percorso la barra svanisce, e con lei l'unico modo di tornare
+   * indietro. Chi ci arriva non capisce di aver perso uno strumento: capisce
+   * che il prodotto e` incoerente, perche` un momento prima c'era.
+   *
+   * `Step` sa gia` disegnare il posto vuoto quando manca la destinazione, e il
+   * conteggio «Seduta 1 di 1» e` un'informazione, non un errore.
+   */
   const placed = placeSessionsOnTimeline(sessions);
   const focusOf = new Map(
     sessions.map((entry) => [entry.sessionId, entry.focus ?? null])
   );
   const preview = hovered === null ? null : placed.find((e) => e.sessionId === hovered);
+  const hasScale = placed.length > 1;
 
   return (
     <nav
@@ -119,7 +130,11 @@ export function SessionSwitcher({
               si è. Tre etichette, non una per punto: un numero su ogni punto
               renderebbe illeggibile proprio ciò che deve orientare. */}
           <div className="mt-1 flex items-baseline justify-between gap-2 text-[11px] text-gray-500">
-            <span>{shortDate(placed[0]?.sessionDate ?? null)}</span>
+            {/* Le due date agli estremi danno la scala, e una scala con un
+                solo punto non e` una scala: con una seduta sola mostravano la
+                stessa data due volte, a sinistra e a destra, come se il
+                percorso andasse dall'11 agosto all'11 agosto. */}
+            <span>{hasScale ? shortDate(placed[0]?.sessionDate ?? null) : ''}</span>
             <span className="truncate text-center font-semibold text-gray-950">
               {preview
                 ? longDate(preview.sessionDate)
@@ -130,7 +145,11 @@ export function SessionSwitcher({
                 </span>
               ) : null}
             </span>
-            <span>{shortDate(placed[placed.length - 1]?.sessionDate ?? null)}</span>
+            <span>
+              {hasScale
+                ? shortDate(placed[placed.length - 1]?.sessionDate ?? null)
+                : ''}
+            </span>
           </div>
         </div>
 

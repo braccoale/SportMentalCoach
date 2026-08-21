@@ -26,15 +26,21 @@ dopo (il percorso che si è scritto da solo).
    primo biglietto in vetro (`FROM: appunti da scrivere` → `TO: un percorso che
    si scrive da solo`).
 
-2. **La convergenza** (ink)
-   Otto strumenti sparsi (calendario, Meet, WhatsApp, note, ChatGPT, email,
-   fogli, promemoria) su orbite lente. Scorrendo collassano lungo tracciati SVG
-   disegnati in scrub dentro il monogramma KaiPai, che si accende in rosso.
+2. **Il confronto** (ink)
+   A sinistra gli otto strumenti che un coach usa oggi, uno per riga. Al centro
+   il marchio, con i fili che ci arrivano dentro disegnandosi in scrub. A destra
+   le stesse cose in un posto solo, ciascuna vera nel prodotto di oggi.
 
-3. **Il percorso — sei tappe, binario orizzontale pinnato** (ink → `#e8e6e1`)
-   Lo scroll verticale muove orizzontalmente sei biglietti in vetro, con la
-   fotografia dietro in parallasse più lenta. Il fondo interpola lungo
-   l'avanzamento del binario: la luce arriva mentre il percorso avanza.
+   *Revisione in corso d'opera.* La prima versione metteva gli otto strumenti su
+   orbite lente in una sezione pinnata e li faceva cadere verso il centro: più
+   spettacolare, e con una metà sola — il «dopo» non si vedeva. Due colonne
+   affiancate si leggono in tre secondi.
+
+3. **Il percorso — sei tappe, binario orizzontale pinnato** (ink → `#e9e6e0`)
+   Lo scroll verticale muove orizzontalmente sei card, con la fotografia dietro
+   in parallasse più lenta. Il fondo interpola lungo l'avanzamento del binario:
+   la luce arriva mentre il percorso avanza. Su telefono il binario diventa una
+   colonna e l'alba si aggancia allo scorrimento della sezione.
 
    1. Prepari la seduta — calendario e disponibilità tue, prenotazione diretta
    2. Entri in sessione — videochiamata integrata, un link solo
@@ -53,7 +59,15 @@ dopo (il percorso che si è scritto da solo).
    solo dopo averlo visto.
 
 6. **CTA finale** (crema + lama di rosso)
-   Un ultimo biglietto: «Il tuo prossimo lunedì sera». CTA verso `/sign-up`.
+   La stessa card «prima → dopo» dell'hero, ora che si è visto succedere. CTA
+   verso `/sign-up`.
+
+   *Revisione in corso d'opera.* Il «biglietto» in vetro smerigliato con tacche
+   e perforazione è stato tolto da tutta la pagina: era una bella forma e una
+   cattiva idea — portava il discorso su un viaggio con partenza e arrivo invece
+   che su un lavoro che si ripete ogni settimana, e sul nero pieno il vetro non
+   è vetro, è un rettangolo grigio. Restano card piene (`SceneCard`), che è la
+   parte che funzionava già.
 
 ## File
 
@@ -63,7 +77,7 @@ app/(marketing)/v2/layout.tsx          (font + noscript fallback)
 components/landing/v2/
   smooth-scroll.tsx   Lenis agganciato a ScrollTrigger.update
   nav.tsx             logo + CTA, colore invertito in luce
-  glass-ticket.tsx    il biglietto in vetro, riusato ovunque
+  card.tsx            la card piena e il blocco «prima → dopo»
   scene-hero.tsx  scene-converge.tsx  scene-journey.tsx
   scene-compass.tsx  scene-continuity.tsx  scene-cta.tsx
   demo-compass.ts     dati demo + demo-compass.test.ts
@@ -82,8 +96,9 @@ Cartella isolata: nessun componente della home in produzione viene modificato.
   leggibile e statico, il binario diventa una lista verticale.
 - **Mobile.** `gsap.matchMedia()`: corse più corte, il binario orizzontale
   diventa uno stack verticale animato.
-- **Un solo ScrollTrigger con scrub per scena.** Quattro pin su una pagina si
-  pagano in scorrevolezza.
+- **Un solo ScrollTrigger con scrub per scena.** I pin sono due — il percorso e
+  il compass. L'hero e il confronto ne facevano tre e quattro nelle prime
+  versioni: ogni pin si paga in scorrevolezza su tutti gli altri.
 - **Nessun tocco al database, a Stripe, alla produzione.**
 
 ## Verifica

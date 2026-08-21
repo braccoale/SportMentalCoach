@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Bell, KeyRound, Lock } from 'lucide-react';
+import { getLocale, getTranslations } from 'next-intl/server';
+import { Bell, KeyRound, Languages, Lock } from 'lucide-react';
 import { getUser } from '@/lib/db/queries';
 import {
   getChannelPreferences,
@@ -10,38 +11,53 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
 import { SecuritySettings } from '@/components/security-settings';
+import { ENABLED_LOCALES, LOCALE_DEFINITIONS } from '@/lib/i18n/locales';
 import { saveNotificationPreferencesAction } from '../notifications/actions';
+import { saveLocalePreferenceAction } from './actions';
 
 export const dynamic = 'force-dynamic';
 
-type SettingsSection = 'notifications' | 'password';
-
-const SECTIONS = [
-  {
-    key: 'notifications',
-    label: 'Notifiche',
-    description: 'App ed email',
-    icon: Bell,
-  },
-  {
-    key: 'password',
-    label: 'Password',
-    description: 'Accesso e account',
-    icon: KeyRound,
-  },
-] as const;
+type SettingsSection = 'notifications' | 'language' | 'password';
 
 export default async function SettingsPage({
   searchParams,
 }: {
   searchParams: Promise<{ section?: string }>;
 }) {
-  const user = await getUser();
+  const [user, requestedParams, locale, languageT] = await Promise.all([
+    getUser(),
+    searchParams,
+    getLocale(),
+    getTranslations('LanguageSettings'),
+  ]);
   if (!user) notFound();
 
-  const requestedSection = (await searchParams).section;
+  const sections = [
+    {
+      key: 'notifications',
+      label: 'Notifiche',
+      description: 'App ed email',
+      icon: Bell,
+    },
+    {
+      key: 'language',
+      label: languageT('navigationLabel'),
+      description: languageT('navigationDescription'),
+      icon: Languages,
+    },
+    {
+      key: 'password',
+      label: 'Password',
+      description: 'Accesso e account',
+      icon: KeyRound,
+    },
+  ] as const;
+
+  const requestedSection = requestedParams.section;
   const activeSection: SettingsSection =
-    requestedSection === 'password' ? 'password' : 'notifications';
+    requestedSection === 'password' || requestedSection === 'language'
+      ? requestedSection
+      : 'notifications';
 
   const prefs =
     activeSection === 'notifications'
@@ -69,7 +85,7 @@ export default async function SettingsPage({
           aria-label="Sezioni impostazioni"
           className="grid grid-cols-2 gap-2 rounded-2xl border border-gray-200 bg-white p-2 shadow-sm md:sticky md:top-6 md:grid-cols-1"
         >
-          {SECTIONS.map((section) => {
+          {sections.map((section) => {
             const active = section.key === activeSection;
             return (
               <Link
@@ -204,6 +220,46 @@ export default async function SettingsPage({
 
                 <Button type="submit" className="mt-5 rounded-full">
                   Salva preferenze
+                </Button>
+              </ActionForm>
+            </div>
+          ) : activeSection === 'language' ? (
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+              <h2 className="text-xl font-semibold text-gray-950">
+                {languageT('title')}
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-gray-500">
+                {languageT('description')}
+              </p>
+
+              <ActionForm
+                action={saveLocalePreferenceAction}
+                className="mt-6 max-w-xl"
+              >
+                <label
+                  htmlFor="locale"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  {languageT('fieldLabel')}
+                </label>
+                <select
+                  id="locale"
+                  name="locale"
+                  defaultValue={locale}
+                  className="mt-2 h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-950 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                >
+                  {ENABLED_LOCALES.map((enabledLocale) => (
+                    <option key={enabledLocale} value={enabledLocale}>
+                      {LOCALE_DEFINITIONS[enabledLocale].nativeLabel}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-2 text-xs leading-5 text-gray-500">
+                  {languageT('rolloutNote')}
+                </p>
+
+                <Button type="submit" className="mt-5 rounded-full">
+                  {languageT('save')}
                 </Button>
               </ActionForm>
             </div>

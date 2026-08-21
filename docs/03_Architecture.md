@@ -36,6 +36,7 @@ app/                         Next.js routes (UI + server actions + API)
     user/, team/             starter endpoints, refactored or gated
 
 lib/
+  i18n/                      shared locale contract and pure resolution rules
   core/                      vertical-agnostic marketplace primitives
     auth/                    session, role checks, requireRole()
     profiles/                profile + provider/client profile services
@@ -74,7 +75,7 @@ A vertical module exports a single object consumed by core at boot:
 // lib/core/config/types.ts (as implemented in Phase 1)
 type VerticalConfig = {
   id: string;                       // 'sport-mental-coach'
-  locale: 'it' | 'en';
+  locale: Locale;                   // central it | en | es | fr contract
   roles: {
     client: { key: string; label: string };        // SMC: 'athlete'
     provider: { key: string; label: string };       // SMC: 'coach'
@@ -109,6 +110,60 @@ Implementation notes (Phase 1):
 - The SMC vertical is split into `config.ts` (implements the contract),
   `taxonomies.ts` (`sports`, `specialties`, `levels`), and `copy.it.ts`
   (Italian strings), re-exported from `index.ts`.
+
+### Locale contract
+
+`lib/i18n/locales.ts` is the single source of truth for language identifiers.
+`PLANNED_LOCALES` describes the cross-channel contract (`it`, `en`, `es`,
+`fr`), while `ENABLED_LOCALES` controls rollout and initially contains only
+Italian. Planning a locale therefore never makes an incomplete translation
+public.
+
+System-boundary values such as `en-GB` and `es_ES` are normalized to stable
+language codes. `lib/i18n/resolve-locale.ts` applies the deterministic
+precedence profile -> cookie -> `Accept-Language` -> default and rejects
+planned-but-disabled locales. Formatting locales (`it-IT`, `en-GB`, `es-ES`,
+`fr-FR`) are mapped separately in `lib/i18n/format-locale.ts`; timezone remains
+an independent concern.
+
+`next-intl` is wired through `lib/i18n/request.ts` without locale routing. The
+request configuration imports the Italian catalogue statically and the root
+layout provides it to both Server and Client Components. Public URLs,
+middleware and authentication redirects therefore remain unchanged.
+
+Locale persistence uses the existing `profiles.locale` column for signed-in
+users and the server-managed `kp_locale` cookie for browser continuity. The
+settings server action accepts enabled locales only, derives the target user
+from the authenticated Supabase session, and never accepts a profile id from
+the browser. Request resolution follows profile -> cookie ->
+`Accept-Language` -> default. While only Italian is enabled, a single-locale
+fast path skips all cookie, header, Auth and profile reads; enabling a second
+locale activates the resolution chain without changing URLs. Additional
+catalogues remain disabled until their content and QA are complete.
+
+Catalogue loading lives in `lib/i18n/catalogs.ts` as an explicit import map.
+`ENABLED_LOCALES` and the loader map must agree at compile time, while the
+catalogue tests compare every enabled language with the Italian key set and
+reject empty values. This makes enabling a language without its complete
+catalogue a failing change instead of a partial rollout.
+
+The root `NextIntlClientProvider` receives only namespaces listed in
+`lib/i18n/client-messages.ts`. Server Components still use the complete request
+catalogue, but server-only namespaces such as metadata and footer copy are not
+serialized into every response. Any new Client Component namespace must be
+added explicitly to that allowlist.
+
+Remaining hardcoded copy is tracked by `scripts/i18n-inventory.mjs`. It scans
+web, core and mobile TypeScript syntax, classifies likely user-facing literals
+by product area, and generates `docs/i18n-inventory.md`. The report is a review
+queue rather than an automatic translation list: technical statuses and domain
+keys may be valid exclusions. Regenerate it with `npm run i18n:inventory` and
+verify it with `npm run i18n:inventory:check`.
+
+The durable rollout status, completed phases, remaining channel work, and
+per-locale definition of done live in `docs/i18n-roadmap.md`. The project-local
+`kaipai-i18n` skill must read and update that checklist whenever multilingual
+work resumes.
 
 ---
 

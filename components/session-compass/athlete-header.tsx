@@ -126,10 +126,13 @@ export function AthleteHeader({
           {/* Lo sport sul ritratto, non nella riga di testo: in un elenco di
               venti atleti il pallone si riconosce prima della parola. */}
           <span
-            title={sportLabel ?? undefined}
             className="absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-full bg-white text-gray-800 shadow ring-1 ring-gray-200"
           >
-            <SportIcon sportKey={sportKey} className="h-4 w-4" />
+            <SportIcon
+              sportKey={sportKey}
+              label={sportLabel}
+              className="h-4 w-4"
+            />
           </span>
         </div>
 
