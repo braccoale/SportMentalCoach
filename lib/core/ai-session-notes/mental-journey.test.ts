@@ -88,6 +88,7 @@ function approvedSession(
   overrides: Partial<ApprovedSessionRecord> = {}
 ): ApprovedSessionRecord {
   return {
+    isApproved: true,
     sessionId: 1,
     bookingId: 101,
     reportId: 1001,
@@ -309,17 +310,20 @@ test('esclude gli impegni archiviati dai conteggi e dalla timeline', () => {
 test('aggrega solo i temi scritti nei report approvati e li conta per sessione', () => {
   const themes = aggregateThemes([
     approvedSession({
+      isApproved: true,
       sessionId: 1,
       sessionDate: new Date('2026-07-01T09:00:00.000Z'),
       document: document({ themes: ['Attivazione pre-gara', 'Sonno'] }),
     }),
     approvedSession({
+      isApproved: true,
       sessionId: 2,
       sessionDate: new Date('2026-07-20T09:00:00.000Z'),
       // Stessa etichetta scritta diversamente: resta un solo tema.
       document: document({ themes: ['attivazione pre gara'] }),
     }),
     approvedSession({
+      isApproved: true,
       sessionId: 3,
       sessionDate: new Date('2026-08-10T09:00:00.000Z'),
       document: document({ themes: ['Attivazione pre-gara'] }),
@@ -380,11 +384,13 @@ test('i punti da riprendere derivano solo da dati approvati e stati reali', () =
     athleteUserId: ATHLETE_ID,
     sessions: [
       approvedSession({
+        isApproved: true,
         sessionId: 1,
         sessionDate: new Date('2026-07-01T09:00:00.000Z'),
         document: document({ themes: ['Attivazione pre-gara'] }),
       }),
       approvedSession({
+        isApproved: true,
         sessionId: 2,
         bookingId: 102,
         sessionDate: new Date('2026-08-10T09:00:00.000Z'),

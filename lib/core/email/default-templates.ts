@@ -215,6 +215,20 @@ export const DEFAULT_EMAIL_TEMPLATES: Record<
     actionLabel: 'Leggi il report',
   }),
 
+  ai_report_awaiting_review: template('ai_report_awaiting_review', {
+    eyebrow: 'Da validare',
+    subject: 'Un riepilogo di sessione aspetta la tua approvazione',
+    title: 'Un riepilogo è pronto da validare',
+    body: [
+      'Ciao {{recipient.firstName}},',
+      'Il riepilogo di {{session.label}} con {{athlete.fullName}} è stato generato e aspetta la tua approvazione.',
+      'Finché non lo approvi resta una bozza: la seduta non entra nel percorso e gli impegni concordati non arrivano all’atleta.',
+    ],
+    outro:
+      'Il contenuto del riepilogo non viene riportato in questa email: si consulta dalla tua area personale, protetta da accesso.',
+    actionLabel: 'Apri il riepilogo',
+  }),
+
   coach_invitation: template('coach_invitation', {
     eyebrow: 'Invito',
     subject: '{{inviter.name}} ti ha invitato su KaiPai',

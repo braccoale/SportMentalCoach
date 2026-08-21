@@ -25,6 +25,8 @@ function entry(
     keyMoments: [],
     nextSessionPrep: [],
     commitments: [],
+    throughLine: null,
+    isApproved: true,
     compassHref: `/dashboard/appointments/${sessionId + 100}`,
   };
 }

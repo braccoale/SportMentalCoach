@@ -61,10 +61,15 @@ function AthleteRow({
                   Minorenne
                 </span>
               )}
-              {canOpenCompass && athlete.latestCompassNeedsReview && (
+              {/* Il numero, non un si'/no: con due sedute da validare il
+                  distintivo diceva «Riepilogo da validare» come per una, e il
+                  conto in cima alla dashboard non tornava con questa lista. */}
+              {canOpenCompass && athlete.pendingReviewCount > 0 && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">
                   <Compass className="h-3 w-3" />
-                  Riepilogo da validare
+                  {athlete.pendingReviewCount === 1
+                    ? 'Riepilogo da validare'
+                    : `${athlete.pendingReviewCount} riepiloghi da validare`}
                 </span>
               )}
               {athlete.pendingRequests > 0 && (
@@ -87,18 +92,24 @@ function AthleteRow({
                 .join(' · ')}
             </p>
 
-            <p className="mt-1 text-sm">
-              {athlete.nextSessionAt ? (
-                <span className="inline-flex items-center gap-1.5 font-medium text-green-700">
-                  <CalendarCheck className="h-4 w-4" />
-                  Prossima: {formatDateTime(athlete.nextSessionAt)}
-                </span>
-              ) : athlete.lastSessionAt ? (
+            {/* Le due date insieme, non una al posto dell'altra.
+                Prima la prossima sessione nascondeva l'ultima: di un atleta
+                con un appuntamento in agenda non si vedeva piu' da quanto non
+                lo si sentiva — che e' proprio la domanda per cui si apre
+                questo elenco. */}
+            <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+              {athlete.lastSessionAt ? (
                 <span className="text-gray-500">
                   Ultima sessione il {formatDate(athlete.lastSessionAt)}
                 </span>
               ) : (
                 <span className="text-gray-400">Nessuna sessione svolta</span>
+              )}
+              {athlete.nextSessionAt && (
+                <span className="inline-flex items-center gap-1.5 font-medium text-green-700">
+                  <CalendarCheck className="h-4 w-4" />
+                  Prossima: {formatDateTime(athlete.nextSessionAt)}
+                </span>
               )}
             </p>
           </div>

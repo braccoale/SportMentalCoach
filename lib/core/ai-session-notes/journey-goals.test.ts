@@ -1,0 +1,172 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import type { MentalJourneyEntry } from './mental-journey';
+import {
+  MAX_GOAL_TRACK_DOTS,
+  buildJourneyGoalRows,
+  parseJourneyGoalStatus,
+  type GoalSessionLinks,
+  type StoredJourneyGoal,
+} from './journey-goals';
+
+function entry(sessionId: number, day: number): MentalJourneyEntry {
+  return {
+    sessionId,
+    bookingId: 500 + sessionId,
+    reportId: sessionId,
+    reportVersion: 1,
+    sessionDate: `2026-05-${String(day).padStart(2, '0')}T10:00:00.000Z`,
+    approvedAt: '2026-08-01T10:00:00.000Z',
+    coachName: 'Coach',
+    summary: 's',
+    focus: null,
+    themes: [],
+    emergingResource: null,
+    keyMoments: [],
+    nextSessionPrep: [],
+    commitments: [],
+    throughLine: null,
+    isApproved: true,
+    compassHref: `/dashboard/appointments/${500 + sessionId}`,
+  };
+}
+
+/** Gli agganci scritti: quali sedute hanno toccato quale obiettivo. */
+function links(...pairs: Array<[number, number[]]>): GoalSessionLinks {
+  return new Map(pairs.map(([goalId, sessionIds]) => [goalId, new Set(sessionIds)]));
+}
+
+function goal(over: Partial<StoredJourneyGoal> & { id: number }): StoredJourneyGoal {
+  return {
+    title: `Obiettivo ${over.id}`,
+    isPrimary: false,
+    status: 'in_corso',
+    themeKey: null,
+    position: 0,
+    updatedAt: new Date('2026-08-01T10:00:00.000Z'),
+    ...over,
+  };
+}
+
+/** La timeline arriva dalla più recente alla più vecchia. */
+const TIMELINE = [entry(3, 9), entry(2, 5), entry(1, 1)];
+
+test("l'obiettivo principale sta sempre in cima", () => {
+  const rows = buildJourneyGoalRows({
+    goals: [
+      goal({ id: 1, position: 0 }),
+      goal({ id: 2, isPrimary: true, position: 5 }),
+      goal({ id: 3, position: 1 }),
+    ],
+    timeline: TIMELINE,
+    links: links(),
+  });
+
+  assert.deepEqual(
+    rows.map((row) => row.id),
+    [2, 1, 3]
+  );
+});
+
+test('i pallini vanno dal passato al presente', () => {
+  const [row] = buildJourneyGoalRows({
+    goals: [goal({ id: 1 })],
+    timeline: TIMELINE,
+    links: links(),
+  });
+
+  assert.deepEqual(
+    row.track.map((dot) => dot.sessionId),
+    [1, 2, 3]
+  );
+});
+
+test('un pallino e pieno solo dove il tema e emerso davvero', () => {
+  const [row] = buildJourneyGoalRows({
+    goals: [goal({ id: 1, themeKey: 'errore' })],
+    timeline: TIMELINE,
+    links: links([1, [1, 3]]),
+  });
+
+  assert.deepEqual(
+    row.track.map((dot) => dot.touched),
+    [true, false, true]
+  );
+  assert.equal(row.lastTouchedAt, '2026-05-09T10:00:00.000Z');
+  assert.equal(row.isTracked, true);
+});
+
+test('un obiettivo senza tema non finge una traccia', () => {
+  const [row] = buildJourneyGoalRows({
+    goals: [goal({ id: 1, themeKey: null })],
+    timeline: TIMELINE,
+    links: links(),
+  });
+
+  assert.ok(row.track.every((dot) => !dot.touched));
+  assert.equal(row.lastTouchedAt, null);
+  assert.equal(row.isTracked, false);
+});
+
+test('la traccia mostra le sedute recenti, non tutte quelle di sempre', () => {
+  const many = Array.from({ length: 20 }, (_, index) =>
+    entry(index + 1, ((index * 1) % 28) + 1)
+  );
+  const [row] = buildJourneyGoalRows({
+    goals: [goal({ id: 1 })],
+    timeline: many,
+    links: links(),
+  });
+
+  assert.equal(row.track.length, MAX_GOAL_TRACK_DOTS);
+});
+
+test('il pallino porta al riepilogo di quella seduta', () => {
+  const [row] = buildJourneyGoalRows({
+    goals: [goal({ id: 1 })],
+    timeline: TIMELINE,
+    links: links(),
+  });
+  assert.equal(row.track[0].href, '/dashboard/appointments/501#session-compass');
+});
+
+test('uno stato sconosciuto non rompe la riga', () => {
+  assert.equal(parseJourneyGoalStatus('in_miglioramento'), 'in_miglioramento');
+  assert.equal(parseJourneyGoalStatus('qualcosa'), 'in_corso');
+});
+
+test('senza obiettivi non ci sono righe', () => {
+  assert.deepEqual(
+    buildJourneyGoalRows({ goals: [], timeline: TIMELINE, links: links() }),
+    []
+  );
+});
+
+
+test('tutte le righe condividono lo stesso asse di sedute', () => {
+  // E' cio' che rende leggibile una colonna in verticale: se due obiettivi
+  // avessero tracce di lunghezza diversa, «il 26 maggio» non starebbe sopra
+  // la stessa posizione in tutte le righe.
+  const rows = buildJourneyGoalRows({
+    goals: [goal({ id: 1 }), goal({ id: 2, position: 1 })],
+    timeline: TIMELINE,
+    links: links([1, [1, 3]]),
+  });
+
+  assert.deepEqual(
+    rows[0].track.map((d) => d.sessionId),
+    rows[1].track.map((d) => d.sessionId)
+  );
+  assert.equal(rows[1].track.length, 3);
+});
+
+test('un aggancio a una seduta fuori dalla finestra non inventa un pallino', () => {
+  const rows = buildJourneyGoalRows({
+    goals: [goal({ id: 1 })],
+    timeline: TIMELINE,
+    links: links([1, [99]]),
+  });
+
+  assert.ok(rows[0].track.every((dot) => !dot.touched));
+  assert.equal(rows[0].isTracked, false, 'agganciato a nulla di visibile');
+});

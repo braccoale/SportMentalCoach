@@ -13,6 +13,31 @@ import { buildEmailIdempotencyKey, scopeForInvitation } from './idempotency';
  * each growing its own ad-hoc email.
  */
 
+/**
+ * Il riepilogo di una seduta è pronto e aspetta l'approvazione del coach.
+ *
+ * Va al **coach**, non all'atleta: `notifyAiReportReady` è l'altra metà, e
+ * parte solo dopo, quando il coach condivide. Fra le due c'è il passaggio che
+ * finora non avvisava nessuno.
+ *
+ * Nessuno scope esplicito: l'evento ha un gemello in-app, e ogni riepilogo
+ * generato crea la propria riga — quindi una rigenerazione avvisa di nuovo,
+ * che è corretto, mentre un ritentativo dello stesso lavoro no, perché la
+ * transizione a `ready_for_review` avviene una volta sola per job completato.
+ */
+export async function notifyAiReportAwaitingReview(input: {
+  coachUserId: number;
+  bookingId: number;
+  athleteName?: string | null;
+  serviceTitle?: string | null;
+}): Promise<void> {
+  await notify('ai_report_awaiting_review', input.coachUserId, {
+    bookingId: input.bookingId,
+    athleteName: input.athleteName,
+    serviceTitle: input.serviceTitle,
+  });
+}
+
 /** The athlete's session report has been shared with them. */
 export async function notifyAiReportReady(input: {
   athleteUserId: number;

@@ -39,6 +39,8 @@ function entry(overrides: Partial<MentalJourneyEntry> = {}): MentalJourneyEntry 
         isOverdue: true,
       },
     ],
+    throughLine: null,
+    isApproved: true,
     compassHref: '/dashboard/appointments/101',
     ...overrides,
   };
@@ -51,6 +53,7 @@ function journey(overrides: Partial<MentalJourney> = {}): MentalJourney {
       firstSessionDate: '2026-07-01T09:00:00.000Z',
       lastSessionDate: '2026-08-01T09:00:00.000Z',
       approvedSessionCount: 2,
+      draftSessionCount: 0,
       commitments: { total: 3, completed: 1, inProgress: 1, pending: 1, skipped: 0 },
       completionRate: null,
     },

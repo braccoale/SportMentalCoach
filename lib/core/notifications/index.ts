@@ -679,6 +679,19 @@ function buildContent(
           bookingId: ctx.bookingId,
         },
       };
+    case 'ai_report_awaiting_review':
+      return {
+        title: 'Riepilogo pronto da validare',
+        body: ctx.athleteName
+          ? `Il riepilogo della seduta con ${ctx.athleteName} aspetta la tua approvazione.`
+          : 'Un riepilogo di sessione aspetta la tua approvazione.',
+        data: {
+          link: ctx.bookingId
+            ? `/dashboard/appointments/${ctx.bookingId}#session-compass`
+            : '/dashboard/coach/athletes',
+          bookingId: ctx.bookingId,
+        },
+      };
     case 'ai_report_ready':
       return {
         title: 'Report della sessione pronto',

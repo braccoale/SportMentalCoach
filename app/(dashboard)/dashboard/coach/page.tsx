@@ -136,7 +136,7 @@ export default async function CoachDashboardPage() {
     getProviderProfileByUser(user.id),
     getCoachBookings(user.id),
     getUnreadCountForType(user.id, 'new_message'),
-    getAllAthletes(),
+    getAllAthletes(user.id),
     getCoachServices(user.id),
     getCoachAvailability(user.id),
     hasFeatureEntitlement(user.id, FEATURE_CODES.AI_SESSION_NOTES),
@@ -277,6 +277,23 @@ export default async function CoachDashboardPage() {
     runAiNotesQueueAfterResponse();
   }
 
+  /*
+   * I riepiloghi pronti che aspettano il coach.
+   *
+   * Finora questa dashboard guardava solo `processing` — «sto elaborando» —
+   * e mai `ready_for_review`. Il risultato e' che un riepilogo generato non lo
+   * sapeva nessuno: restava li' finche' qualcuno non apriva «I miei Atleti» e
+   * notava un distintivo. E' lavoro gia' fatto dall'AI che nessuno vede, ed e'
+   * anche cio' che tiene la seduta fuori dal percorso dell'atleta: gli impegni
+   * diventano righe solo all'approvazione.
+   */
+  const awaitingReview = allBookings.filter(
+    (booking) => booking.aiReportStatus === 'ready_for_review'
+  );
+  const awaitingReviewAthletes = new Set(
+    awaitingReview.map((booking) => booking.clientId)
+  ).size;
+
   const archive = allBookings
     .filter(
       (b) =>
@@ -319,10 +336,6 @@ export default async function CoachDashboardPage() {
           <h1 className="text-3xl font-bold tracking-tight text-gray-950">
             Ogni richiesta racconta un atleta, non solo una prenotazione.
           </h1>
-          <p className="mt-3 text-base leading-7 text-gray-600">
-            Leggi il momento sportivo della persona che ti sta cercando, capisci
-            il suo bisogno e rispondi con il contesto giusto.
-          </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           {isApproved ? (
@@ -396,6 +409,32 @@ export default async function CoachDashboardPage() {
           Profilo inviato il{' '}
           {formatDate(provider.submittedAt ?? provider.updatedAt)}: è in
           revisione. Potrai creare appuntamenti dopo l’approvazione dell’admin.
+        </div>
+      )}
+
+      {/* Sopra le statistiche, non dentro: non e' un numero da guardare, e'
+          una cosa da fare — e finche' non la si fa, il percorso dell'atleta
+          resta fermo. */}
+      {awaitingReview.length > 0 && (
+        <div className="flex flex-col items-start justify-between gap-3 rounded-2xl border border-violet-200 bg-violet-50 p-5 sm:flex-row sm:items-center">
+          <div>
+            <h2 className="text-base font-semibold text-violet-900">
+              {awaitingReview.length === 1
+                ? 'Hai 1 riepilogo pronto da validare'
+                : `Hai ${awaitingReview.length} riepiloghi pronti da validare`}
+            </h2>
+            <p className="mt-1 text-sm text-violet-800">
+              {awaitingReviewAthletes === 1
+                ? 'Approvarlo lo fa entrare nel percorso e consegna gli impegni all’atleta.'
+                : `Su ${awaitingReviewAthletes} atleti. Approvarli li fa entrare nel percorso e consegna gli impegni.`}
+            </p>
+          </div>
+          <Button asChild className="shrink-0 rounded-full">
+            <Link href="/dashboard/coach/athletes">
+              Vai a validare
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
         </div>
       )}
 

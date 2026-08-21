@@ -91,7 +91,7 @@ test('i segnali narrativi mostrano inizialmente due passaggi e un controllo acce
 function trendJourney(values: number[]): MentalJourney {
   return {
     athleteUserId: 1,
-    summary: { firstSessionDate: null, lastSessionDate: null, approvedSessionCount: values.length, commitments: { total: 0, completed: 0, inProgress: 0, pending: 0, skipped: 0 }, completionRate: null },
+    summary: { firstSessionDate: null, lastSessionDate: null, approvedSessionCount: values.length, commitments: { total: 0, completed: 0, inProgress: 0, pending: 0, skipped: 0 }, completionRate: null, draftSessionCount: 0 },
     timeline: values.map((value, index) => ({
       sessionId: index + 1,
       bookingId: index + 1,
@@ -108,6 +108,8 @@ function trendJourney(values: number[]): MentalJourney {
       keyMoments: [],
       nextSessionPrep: [],
       commitments: [],
+      throughLine: null,
+      isApproved: true,
       compassHref: '#',
     })),
     recurringThemes: [],

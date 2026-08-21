@@ -43,6 +43,8 @@ export const users = pgTable('users', {
   // null for accounts created after the switch.
   passwordHash: text('password_hash'),
   role: varchar('role', { length: 20 }).notNull().default('member'),
+  /** Account sintetico usato esclusivamente nelle esperienze demo. */
+  isDemo: boolean('is_demo').notNull().default(false),
   // Optional marketing consent (never required to register). Stored with its
   // timestamp; the required legal acceptances live in `agreement_acceptances`.
   marketingConsent: boolean('marketing_consent').notNull().default(false),
@@ -2636,3 +2638,99 @@ export const PROVIDER_STATUSES = [
   'rejected',
 ] as const;
 export type ProviderStatus = (typeof PROVIDER_STATUSES)[number];
+
+/**
+ * Gli obiettivi del percorso, scritti dal coach.
+ *
+ * Non e' `clientProfiles.goals`: quello e' un campo di testo libero compilato
+ * dall'atleta e dice «cosa vorrei». Questo appartiene alla relazione fra un
+ * coach e un atleta — piu' filoni di lavoro, ciascuno con uno stato che
+ * cambia nel tempo e un autore umano dietro quel giudizio.
+ */
+export const athleteJourneyGoals = pgTable(
+  'athlete_journey_goals',
+  {
+    id: serial('id').primaryKey(),
+    athleteUserId: integer('athlete_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    coachUserId: integer('coach_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    title: varchar('title', { length: 160 }).notNull(),
+    isPrimary: boolean('is_primary').notNull().default(false),
+    status: varchar('status', { length: 24 }).notNull().default('in_corso'),
+    /** Il tema del Session Compass a cui l'obiettivo e' agganciato, se c'e'. */
+    themeKey: varchar('theme_key', { length: 120 }),
+    position: integer('position').notNull().default(0),
+    /** Archiviato, non cancellato: un obiettivo chiuso e' parte della storia. */
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    updatedDate: timestamp('updateddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedBy: integer('updatedby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    index('athlete_journey_goals_pair_idx').on(
+      table.coachUserId,
+      table.athleteUserId
+    ),
+  ]
+);
+
+export type AthleteJourneyGoal = typeof athleteJourneyGoals.$inferSelect;
+export type NewAthleteJourneyGoal = typeof athleteJourneyGoals.$inferInsert;
+
+export const JOURNEY_GOAL_STATUSES = [
+  'in_corso',
+  'in_miglioramento',
+  'da_riprendere',
+  'raggiunto',
+] as const;
+export type JourneyGoalStatus = (typeof JOURNEY_GOAL_STATUSES)[number];
+
+/**
+ * In quali sedute un obiettivo del percorso e' stato toccato.
+ *
+ * Non si deduce dal tema a ogni lettura: il tema e' una frase scritta da un
+ * modello e cambia formulazione, quindi un aggancio calcolato al volo si
+ * scollega da solo. Qui il legame e' scritto una volta e resta.
+ */
+export const athleteJourneyGoalSessions = pgTable(
+  'athlete_journey_goal_sessions',
+  {
+    id: serial('id').primaryKey(),
+    goalId: integer('goal_id')
+      .notNull()
+      .references(() => athleteJourneyGoals.id, { onDelete: 'cascade' }),
+    sessionAiNotesId: integer('session_ai_notes_id')
+      .notNull()
+      .references(() => sessionAiNotes.id, { onDelete: 'cascade' }),
+    /** `theme` se l'ha agganciata il Compass, `coach` se una persona. */
+    source: varchar('source', { length: 16 }).notNull().default('theme'),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    unique('athlete_journey_goal_sessions_unique').on(
+      table.goalId,
+      table.sessionAiNotesId
+    ),
+    index('athlete_journey_goal_sessions_goal_idx').on(table.goalId),
+  ]
+);
+
+export type AthleteJourneyGoalSession =
+  typeof athleteJourneyGoalSessions.$inferSelect;
