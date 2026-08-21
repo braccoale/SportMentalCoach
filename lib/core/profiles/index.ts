@@ -9,8 +9,10 @@ import {
   users,
   clientProfiles,
   providerProfiles,
+  services,
   type ProviderProfile,
 } from '@/lib/db/schema';
+import { defaultCoachServiceValues } from '@/lib/core/services/defaults';
 
 type ProviderAdminEvent =
   | 'provider_registered'
@@ -261,10 +263,19 @@ export async function ensureProviderProfile(
   exec: DbOrTx = db
 ) {
   const slug = await uniqueSlug(slugBase, userId, exec);
-  await exec
+  const [createdProvider] = await exec
     .insert(providerProfiles)
     .values({ userId, slug, createdBy: userId })
-    .onConflictDoNothing({ target: providerProfiles.userId });
+    .onConflictDoNothing({ target: providerProfiles.userId })
+    .returning({ id: providerProfiles.id });
+
+  // Il servizio nasce nella stessa transazione del profilo. Se il profilo
+  // esisteva già, `returning` è vuoto e non rischiamo duplicati.
+  if (createdProvider) {
+    await exec
+      .insert(services)
+      .values(defaultCoachServiceValues(createdProvider.id, userId));
+  }
 }
 
 /** Returns the coach's provider profile (null if none). */
