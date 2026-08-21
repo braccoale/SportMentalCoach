@@ -9,6 +9,7 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { signIn, signUp } from './actions';
+import { GoogleButton } from '@/components/auth/google-button';
 import { ActionState } from '@/lib/auth/middleware';
 
 export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
@@ -58,6 +59,20 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        {/* Google sta sopra le credenziali perche' per chi ce l'ha e' la via
+            piu' corta, e chi non la usa scorre di due centimetri. Sotto resta
+            tutto quello che c'era: nessuno perde il proprio modo di entrare. */}
+        <GoogleButton redirect={redirect} />
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="bg-gray-50 px-2 text-gray-500">oppure</span>
+          </div>
+        </div>
+
         <form className="space-y-6" action={formAction}>
           <input type="hidden" name="redirect" value={redirect || ''} />
           <input type="hidden" name="priceId" value={priceId || ''} />
