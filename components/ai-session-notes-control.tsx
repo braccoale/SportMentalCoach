@@ -290,14 +290,28 @@ export function AiSessionNotesControl({
           <h2 className="font-semibold">Appunti AI della sessione</h2>
           <BetaBadge />
         </div>
+        {/*
+          * Qui si dice **che cosa succede davvero**, e la frase precedente non
+          * lo faceva: diceva che in fase di test nessuna trascrizione reale
+          * sarebbe partita. In produzione la trascrizione parte, e al momento
+          * di questa correzione erano gia' state trascritte quindici sedute di
+          * persone vere. Un consenso raccolto su un'informazione falsa non e'
+          * un consenso informato — ne' per il GDPR, ne' per l'obbligo di
+          * trasparenza dell'AI Act.
+          */}
         <p className="mt-2 text-sm leading-relaxed text-gray-600">
-          L’Assistente AI potrà trascrivere la conversazione e preparare un
-          riepilogo della sessione.
+          La conversazione viene <strong>registrata e trascritta</strong>, e un
+          sistema di intelligenza artificiale prepara una bozza di riepilogo
+          della sessione.
         </p>
         <p className="mt-2 text-sm leading-relaxed text-gray-600">
-          La funzione si attiverà soltanto se tutti i partecipanti accettano.
-          In questa fase di test non verrà ancora avviata alcuna trascrizione
-          reale.
+          La bozza è <strong>letta e approvata dal coach</strong> prima di essere
+          condivisa: nessuna decisione viene presa in automatico. L’audio viene
+          cancellato una volta ottenuta la trascrizione.
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-gray-600">
+          Si attiva soltanto se <strong>tutti i partecipanti accettano</strong>, e
+          puoi revocare il consenso in qualsiasi momento.
         </p>
 
         {ownConsent?.status === 'pending' ? (
