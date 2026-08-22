@@ -553,6 +553,37 @@ function trendsByEntry(
   return result;
 }
 
+/**
+ * La cronologia completa delle sedute.
+ *
+ * Estratta da `MentalJourneyView` per poter vivere dentro la scheda atleta:
+ * la pagina «percorso mentale» conteneva tre blocchi duplicati piu' due utili,
+ * e questa e' uno dei due. La striscia in cima alla scheda e' una **selezione**
+ * — sei tappe al massimo, scelte su tutto l'arco — mentre qui c'e' tutto, in
+ * ordine. Sono due domande diverse: «dove siamo arrivati» e «che cosa e'
+ * successo, seduta per seduta».
+ */
+export function JourneyTimelineSection({
+  timeline,
+}: {
+  timeline: readonly MentalJourneyEntry[];
+}) {
+  if (!timeline.length) return null;
+  const trends = trendsByEntry(timeline);
+
+  return (
+    <ol className="mt-4 space-y-5 border-l border-violet-100">
+      {timeline.map((entry) => (
+        <TimelineCard
+          key={entry.sessionId}
+          entry={entry}
+          trend={trends.get(entry.sessionId) ?? null}
+        />
+      ))}
+    </ol>
+  );
+}
+
 export function MentalJourneyView({
   journey,
   athleteName,

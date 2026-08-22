@@ -19,14 +19,14 @@ export function JourneyPathPending({
   approvedSessions,
   awaitingReview,
   reviewHref,
-  mentalJourneyHref,
+  timelineHref,
 }: {
   approvedSessions: number;
   /** Riepiloghi pronti che aspettano il coach. */
   awaitingReview: number;
   /** Dove si va a validare, quando c'è qualcosa da validare. */
   reviewHref: string | null;
-  mentalJourneyHref: string;
+  timelineHref: string;
 }) {
   const title =
     approvedSessions === 0
@@ -75,7 +75,7 @@ export function JourneyPathPending({
             )}
             {approvedSessions > 0 && (
               <Link
-                href={mentalJourneyHref}
+                href={timelineHref}
                 className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 transition hover:border-gray-300 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
               >
                 Apri il percorso mentale

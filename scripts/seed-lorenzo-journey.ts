@@ -607,15 +607,29 @@ async function main() {
           text: spec.resource,
           evidence: ev(spec.at.resource),
         },
-        metrics: (Object.entries(spec.metrics) as [SessionMetricKey, number][]).map(
-          ([key, value]) => ({
+        /*
+         * Quante metriche, e perche' non sei.
+         *
+         * Il prodotto ne produce pochissime: il prompt ne inserisce una **solo
+         * quando una frase esplicita dell'atleta la sostiene**, e su quindici
+         * sedute reali sono tredici valori in tutto — meno di uno per seduta,
+         * mai piu' di tre, e circa una su tre senza nessuna metrica.
+         *
+         * La prima versione di questo script ne metteva sei su ogni seduta, e
+         * disegnava un grafico con sei serie storiche piene. Una demo che
+         * mostra una cosa che il prodotto non produce non e' una demo
+         * generosa: e' una promessa che qualcuno verra' a riscuotere sui
+         * propri dati.
+         */
+        metrics: (Object.entries(spec.metrics) as [SessionMetricKey, number][])
+          .slice(0, index % 3 === 0 ? 0 : index % 3 === 1 ? 1 : 2)
+          .map(([key, value]) => ({
             id: `${slug}-metric-${key}`,
             key,
             value: suCinque(value),
             confidence: 'medium' as const,
             evidence: ev(spec.at.theme),
-          })
-        ),
+          })),
         // Da -2 a +2, come vuole il contratto: e' un andamento qualitativo,
         // non una percentuale.
         emotionalTrend: [

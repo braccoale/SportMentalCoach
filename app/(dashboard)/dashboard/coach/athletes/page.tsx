@@ -122,7 +122,7 @@ function AthleteRow({
             Come prima, la porta non compare a chi non ha la stanza. */}
         {canOpenCompass ? (
           <Link
-            href={`/dashboard/coach/athletes/${athlete.userId}/mental-journey`}
+            href={`/dashboard/coach/athletes/${athlete.userId}#cronologia`}
             aria-label={`Percorso mentale di ${athlete.name}`}
             title="Percorso mentale"
             className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 transition hover:border-violet-300 hover:text-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 sm:shrink-0"

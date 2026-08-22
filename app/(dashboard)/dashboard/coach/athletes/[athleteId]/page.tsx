@@ -45,6 +45,10 @@ import {
   toggleJourneyGoalSessionAction,
 } from './actions';
 import { AthleteHeader } from '@/components/session-compass/athlete-header';
+import {
+  JourneyTimelineSection,
+  PointsToRevisitSection,
+} from '@/components/mental-journey';
 import { withReturnTo } from '@/lib/core/ai-session-notes/return-to';
 import { JourneyPath } from '@/components/session-compass/journey-path';
 import { JourneyPathPending } from '@/components/session-compass/journey-path-pending';
@@ -154,7 +158,16 @@ export default async function CoachAthletePage({
   const goalLinks = await listGoalSessionLinks(storedGoals.map((g) => g.id));
 
   const athletePath = `/dashboard/coach/athletes/${athlete.userId}`;
-  const mentalJourneyHref = `${athletePath}/mental-journey`;
+  /*
+   * L'ancora della cronologia, in fondo a questa stessa pagina.
+   *
+   * Prima era una seconda pagina — «percorso mentale» — con cinque sezioni: tre
+   * duplicavano quelle qui sopra in forma peggiore, due no. Le due sono venute
+   * qui e la pagina e' sparita: due contenuti non giustificano una schermata da
+   * mantenere, e due schermate che mostrano le stesse cose in modi diversi sono
+   * il modo piu' rapido per farle divergere.
+   */
+  const timelineHref = '#cronologia';
 
   // `backTo`: chi apre una giornata dal percorso deve poter tornare **qui**, e
   // non sulla dashboard. La pagina della seduta si raggiunge da posti diversi e
@@ -206,7 +219,7 @@ export default async function CoachAthletePage({
               ? `/api/coach/athletes/${athlete.userId}/journey-export`
               : null
           }
-          mentalJourneyHref={hasAiSessionNotes ? mentalJourneyHref : null}
+          timelineHref={hasAiSessionNotes ? timelineHref : null}
         />
       </div>
 
@@ -230,7 +243,7 @@ export default async function CoachAthletePage({
               // striscia mostra anche le bozze, contare solo quelle validate
               // faceva dire «tutte le sessioni (1)» sotto due card.
               totalSessions={journey.timeline.length}
-              allSessionsHref={mentalJourneyHref}
+              allSessionsHref={timelineHref}
             />
           ) : (
             <JourneyPathPending
@@ -244,7 +257,7 @@ export default async function CoachAthletePage({
                     )
                   : null
               }
-              mentalJourneyHref={mentalJourneyHref}
+              timelineHref={timelineHref}
             />
           )}
 
@@ -276,7 +289,7 @@ export default async function CoachAthletePage({
             <div className="flex flex-col gap-4">
               <JourneyCommitmentsPanel
                 breakdown={buildCommitmentBreakdown(journey.summary)}
-                allCommitmentsHref={`${mentalJourneyHref}#mental-journey-follow-through`}
+                allCommitmentsHref="#cronologia"
               />
               <JourneyThemesPanel
                 bars={buildThemeBars(
@@ -284,10 +297,40 @@ export default async function CoachAthletePage({
                   journey.summary.approvedSessionCount
                 )}
                 approvedSessionCount={journey.summary.approvedSessionCount}
-                detailsHref={`${mentalJourneyHref}#mental-journey-themes`}
+                detailsHref="#cronologia"
               />
             </div>
           </div>
+
+          {/* I due blocchi che vivevano nella pagina «percorso mentale».
+              Quella pagina aveva cinque sezioni: tre erano gia' qui in forma
+              migliore, queste due no. Invece di tenere in piedi una seconda
+              pagina per due contenuti, i due contenuti sono venuti qui e la
+              pagina e' sparita. */}
+          <PointsToRevisitSection points={journey.pointsToRevisit} />
+
+          {/* La cronologia sta chiusa: la striscia in cima e' la risposta a
+              «dove siamo arrivati», e nella maggior parte delle aperture basta
+              quella. Chi vuole tutto lo apre. */}
+          <details
+            id="cronologia"
+            className="group scroll-mt-6 rounded-2xl border border-gray-200/70 bg-white p-5"
+          >
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+              <span>
+                <span className="block text-base font-bold tracking-tight text-gray-900">
+                  Tutte le sedute
+                </span>
+                <span className="mt-0.5 block text-sm text-gray-500">
+                  La storia completa, in ordine di data.
+                </span>
+              </span>
+              <span className="shrink-0 rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-700 transition group-open:bg-violet-100 group-open:text-violet-800">
+                {journey.timeline.length}
+              </span>
+            </summary>
+            <JourneyTimelineSection timeline={journey.timeline} />
+          </details>
         </div>
       )}
 

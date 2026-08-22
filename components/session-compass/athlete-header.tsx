@@ -60,7 +60,7 @@ export function AthleteHeader({
   commitmentsTotal,
   since,
   exportHref = null,
-  mentalJourneyHref = null,
+  timelineHref = null,
 }: {
   name: string;
   avatarUrl: string | null;
@@ -77,10 +77,11 @@ export function AthleteHeader({
   commitmentsTotal: number;
   /** La prima seduta insieme, quando c'è. */
   since: Date | null;
-  /** Scarica il percorso in un file di testo. Assente se non c'è un percorso. */
+  /** Scarica il percorso in PDF. Assente se non c'è un percorso. */
   exportHref?: string | null;
   /** Dove porta la voce «Percorso mentale» del menu. */
-  mentalJourneyHref?: string | null;
+  /** Ancora alla cronologia completa, in fondo alla stessa pagina. */
+  timelineHref?: string | null;
 }) {
   const identity = [
     age !== null ? `${age} ${age === 1 ? 'anno' : 'anni'}` : null,
@@ -182,8 +183,8 @@ export function AthleteHeader({
             <a
               href={exportHref}
               download
-              title="Scarica il percorso"
-              aria-label="Scarica il percorso"
+              title="Scarica il percorso in PDF"
+              aria-label="Scarica il percorso in PDF"
               className="inline-flex size-10 items-center justify-center rounded-full bg-white/60 text-gray-600 ring-1 ring-white/70 backdrop-blur-md transition hover:bg-white hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
             >
               <Download className="h-4 w-4" aria-hidden="true" />
@@ -198,9 +199,9 @@ export function AthleteHeader({
               <EllipsisVertical className="h-4 w-4" aria-hidden="true" />
             </summary>
             <div className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
-              {mentalJourneyHref && (
+              {timelineHref && (
                 <Link
-                  href={mentalJourneyHref}
+                  href={timelineHref}
                   className="flex items-center gap-2 px-3.5 py-2 text-sm text-gray-600 transition hover:bg-gray-50"
                 >
                   <Route className="h-4 w-4 text-gray-400" aria-hidden="true" />
