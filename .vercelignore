@@ -1,3 +1,6 @@
 .claude/
 .agents/
 skills-lock.json
+mobile/modules/call-foreground/android/.gradle/
+mobile/modules/call-foreground/android/build/
+tmp-*.ts
