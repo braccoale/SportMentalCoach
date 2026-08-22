@@ -45,6 +45,7 @@ import {
   toggleJourneyGoalSessionAction,
 } from './actions';
 import { AthleteHeader } from '@/components/session-compass/athlete-header';
+import { withReturnTo } from '@/lib/core/ai-session-notes/return-to';
 import { JourneyPath } from '@/components/session-compass/journey-path';
 import { JourneyPathPending } from '@/components/session-compass/journey-path-pending';
 import { JourneyGoalsPanel } from '@/components/session-compass/journey-goals';
@@ -152,11 +153,18 @@ export default async function CoachAthletePage({
 
   const goalLinks = await listGoalSessionLinks(storedGoals.map((g) => g.id));
 
-  const stages = journey
-    ? buildJourneyStages(journey.timeline, { planned: plannedSessions })
-    : [];
   const athletePath = `/dashboard/coach/athletes/${athlete.userId}`;
   const mentalJourneyHref = `${athletePath}/mental-journey`;
+
+  // `backTo`: chi apre una giornata dal percorso deve poter tornare **qui**, e
+  // non sulla dashboard. La pagina della seduta si raggiunge da posti diversi e
+  // non puo' indovinare da quale: glielo dice chi costruisce il collegamento.
+  const stages = journey
+    ? buildJourneyStages(journey.timeline, {
+        planned: plannedSessions,
+        backTo: athletePath,
+      })
+    : [];
 
   const sportLabel = athlete.sport
     ? (findTaxonomyItem(config.taxonomies.categories, athlete.sport)?.label ??
@@ -230,7 +238,10 @@ export default async function CoachAthletePage({
               awaitingReview={awaitingReview}
               reviewHref={
                 athlete.latestCompassBookingId
-                  ? `/dashboard/appointments/${athlete.latestCompassBookingId}#session-compass`
+                  ? withReturnTo(
+                      `/dashboard/appointments/${athlete.latestCompassBookingId}#session-compass`,
+                      athletePath
+                    )
                   : null
               }
               mentalJourneyHref={mentalJourneyHref}
@@ -258,7 +269,7 @@ export default async function CoachAthletePage({
 
               <JourneyProgressPanel
                 progress={buildJourneyProgress(journey.timeline)}
-                insight={latestJourneyInsight(journey.timeline)}
+                insight={latestJourneyInsight(journey.timeline, athletePath)}
               />
             </div>
 

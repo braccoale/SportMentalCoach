@@ -18,6 +18,7 @@
  * pixel.
  */
 
+import { withReturnTo } from './return-to';
 import type { KeyMomentCategory } from './session-compass-contract';
 import type { JourneyKeyMoment, MentalJourneyEntry } from './mental-journey';
 
@@ -190,7 +191,10 @@ function decidingMoment(
   })[0];
 }
 
-function stageFor(entry: MentalJourneyEntry): JourneyStage | null {
+function stageFor(
+  entry: MentalJourneyEntry,
+  backTo: string | null
+): JourneyStage | null {
   const moment = decidingMoment(entry.keyMoments);
   if (!moment || !moment.category) return null;
 
@@ -207,7 +211,7 @@ function stageFor(entry: MentalJourneyEntry): JourneyStage | null {
     isCurrent: false,
     // L'ancora, che `compassHref` non porta: senza, dalla striscia si atterra
     // in cima all'appuntamento invece che sul riepilogo.
-    href: `${entry.compassHref}#session-compass`,
+    href: withReturnTo(`${entry.compassHref}#session-compass`, backTo),
     sourceMomentId: moment.id,
     relevance: moment.relevance ?? 1,
     isApproved: entry.isApproved,
@@ -342,12 +346,17 @@ function plannedStage(session: PlannedSession): JourneyStage {
 
 export function buildJourneyStages(
   timeline: readonly MentalJourneyEntry[],
-  options: { max?: number; planned?: readonly PlannedSession[] } = {}
+  options: {
+    max?: number;
+    planned?: readonly PlannedSession[];
+    /** Dove riportare chi clicca una giornata: di norma la scheda da cui parte. */
+    backTo?: string | null;
+  } = {}
 ): JourneyStage[] {
   const max = options.max ?? MAX_JOURNEY_STAGES;
 
   const stages = timeline
-    .map(stageFor)
+    .map((entry) => stageFor(entry, options.backTo ?? null))
     .filter((stage): stage is JourneyStage => stage !== null)
     .sort(byDateAscending);
 

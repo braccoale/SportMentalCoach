@@ -1,3 +1,5 @@
+import { safeRedirectPath } from '@/lib/core/auth/safe-redirect';
+import { RETURN_TO_PARAM } from '@/lib/core/ai-session-notes/return-to';
 import Link from 'next/link';
 import { after } from 'next/server';
 import { headers } from 'next/headers';
@@ -73,7 +75,7 @@ export default async function AppointmentDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ created?: string }>;
+  searchParams: Promise<{ created?: string; back?: string }>;
 }) {
   const user = await getUser();
   const { id: rawId } = await params;
@@ -125,7 +127,8 @@ export default async function AppointmentDetailPage({
     busyIntervals: busyByProvider.get(booking.providerId) ?? [],
   });
 
-  const created = (await searchParams).created === '1';
+  const query = await searchParams;
+  const created = query.created === '1';
   const calendarEvent = buildBookingCalendarEvent({
     id: booking.id,
     status: booking.status,
@@ -144,6 +147,26 @@ export default async function AppointmentDetailPage({
       : booking.athleteName || 'Atleta';
   const dashboardPath =
     booking.viewerRole === 'athlete' ? '/dashboard/athlete' : '/dashboard/coach';
+
+  /**
+   * Il collegamento «indietro» torna dove si era, non dove si finisce di solito.
+   *
+   * A questa pagina si arriva da posti diversi — l'elenco delle sessioni, la
+   * scheda di un atleta, una notifica — e finora ne conosceva uno solo: chi
+   * apriva una giornata dal percorso di un atleta si ritrovava sulla dashboard,
+   * e per riprendere il filo doveva rifare la strada.
+   *
+   * Il valore arriva dall'indirizzo, quindi e' scritto da chi ci arriva: passa
+   * dalla stessa guardia di ogni altra destinazione del prodotto, che accetta
+   * solo percorsi di questo sito.
+   */
+  const returnTo = safeRedirectPath(query[RETURN_TO_PARAM]) ?? dashboardPath;
+  const cameFromJourney = returnTo.startsWith('/dashboard/coach/athletes/');
+  const backLabel = cameFromJourney
+    ? 'Torna al percorso'
+    : booking.viewerRole === 'coach'
+      ? 'Torna alle sessioni'
+      : 'Torna alla dashboard';
   const isOpen = ['requested', 'accepted'].includes(booking.status);
   /*
    * La seduta e' gia' avvenuta.
@@ -199,11 +222,11 @@ export default async function AppointmentDetailPage({
       }`}
     >
       <Link
-        href={dashboardPath}
+        href={returnTo}
         className="inline-flex w-fit items-center gap-2 rounded-lg text-sm font-semibold text-gray-600 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
       >
         <ArrowLeft className="h-4 w-4" />
-        {booking.viewerRole === 'coach' ? 'Torna alle sessioni' : 'Torna alla dashboard'}
+        {backLabel}
       </Link>
 
       <div
