@@ -219,7 +219,6 @@ export default async function CoachAthletePage({
               ? `/api/coach/athletes/${athlete.userId}/journey-export`
               : null
           }
-          timelineHref={hasAiSessionNotes ? timelineHref : null}
         />
       </div>
 
