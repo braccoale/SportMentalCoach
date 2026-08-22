@@ -36,6 +36,8 @@ export type ProviderReviewItem = {
   slug: string | null;
   displayName: string | null;
   email: string;
+  /** Conto di dimostrazione: in elenco va distinto da una persona vera. */
+  isDemo: boolean;
   avatarUrl: string | null;
   headline: string | null;
   categories: string[] | null;
@@ -67,6 +69,7 @@ export async function getProviderProfilesForReview(): Promise<
       slug: providerProfiles.slug,
       displayName: profiles.displayName,
       email: users.email,
+      isDemo: users.isDemo,
       avatarUrl: profiles.avatarUrl,
       headline: providerProfiles.headline,
       description: providerProfiles.description,
@@ -135,6 +138,8 @@ export type AthleteAdminItem = {
   userId: number;
   name: string;
   email: string;
+  /** Conto di dimostrazione: in elenco va distinto da una persona vera. */
+  isDemo: boolean;
   avatarUrl: string | null;
   category: string | null;
   level: string | null;
@@ -154,6 +159,7 @@ export async function getAllAthletesForAdmin(): Promise<AthleteAdminItem[]> {
       userId: users.id,
       rawName: sql<string | null>`nullif(trim(concat(coalesce(${users.name}, ''), ' ', coalesce(${users.lastName}, ''))), '')`,
       email: users.email,
+      isDemo: users.isDemo,
       avatarUrl: profiles.avatarUrl,
       category: clientProfiles.category,
       level: clientProfiles.level,
@@ -216,6 +222,7 @@ export async function getAllAthletesForAdmin(): Promise<AthleteAdminItem[]> {
     userId: r.userId,
     name: resolveDisplayName(r.rawName, r.email),
     email: r.email,
+    isDemo: r.isDemo,
     avatarUrl: r.avatarUrl,
     category: r.category,
     level: r.level,
