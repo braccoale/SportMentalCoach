@@ -16,6 +16,7 @@ import {
   type ProviderReviewItem,
   type AthleteAdminItem,
 } from '@/lib/core/admin';
+import { DemoBadge } from '@/components/demo-badge';
 import { getVerticalConfig, findTaxonomyItem, t } from '@/lib/core/config';
 import { getAllSports } from '@/lib/core/taxonomies';
 import type { TaxonomyItem } from '@/lib/core/config/types';
@@ -134,6 +135,7 @@ function ProviderRow({
             <p className="font-medium text-gray-900">
               {p.displayName ?? p.email}
             </p>
+            {p.isDemo && <DemoBadge />}
             {statusBadge(p.status)}
             {isLive ? <LiveSessionDot /> : null}
           </div>
@@ -264,6 +266,7 @@ function AthleteRow({
   const athlete: AthleteProfileDialogData = {
     name: a.name,
     email: a.email,
+    isDemo: a.isDemo,
     avatarUrl: a.avatarUrl,
     sport,
     level,
