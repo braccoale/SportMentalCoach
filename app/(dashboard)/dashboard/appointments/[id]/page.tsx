@@ -22,6 +22,7 @@ import {
   SessionCompassPanel,
 } from '@/components/session-compass-panel';
 import { OrbitDecor } from '@/components/session-compass/decor';
+import { PointsToRevisitSection } from '@/components/mental-journey';
 import { SessionGoalsCheck } from '@/components/session-compass/session-goals-check';
 import {
   listGoalSessionLinks,
@@ -258,6 +259,24 @@ export default async function AppointmentDetailPage({
         })()
       : null;
 
+  /**
+   * Che cosa riprendere, sulla pagina della seduta che deve ancora svolgersi.
+   *
+   * Il percorso era gia' caricato qui — `mentalJourney` — ma finiva solo
+   * dentro il pannello del riepilogo, che su una seduta futura non si disegna
+   * affatto. Cioè: il coach apriva il prossimo appuntamento per prepararlo e
+   * non trovava niente, mentre il dato che cercava era già in memoria.
+   *
+   * Solo per il coach, e solo prima dell'incontro: dopo, la pagina ha il
+   * riepilogo di quella seduta, ed è quello che si legge.
+   */
+  const preparationPoints =
+    booking.viewerRole === 'coach' &&
+    booking.scheduledFor !== null &&
+    booking.scheduledFor.getTime() > Date.now()
+      ? (mentalJourney?.pointsToRevisit ?? [])
+      : [];
+
   const realDurationMin = getSessionDurationMinutes(
     booking.sessionStartedAt,
     booking.sessionEndedAt
@@ -392,6 +411,17 @@ export default async function AppointmentDetailPage({
           </div>
         ) : null}
       </div>
+
+      {/* Prima del riepilogo, perche' prima dell'incontro non c'e' nessun
+          riepilogo da leggere: qui questa sezione non e' una voce fra le
+          altre, e' la ragione per cui si apre la pagina. */}
+      {preparationPoints.length > 0 ? (
+        <PointsToRevisitSection
+          points={preparationPoints}
+          heading="Da portare in questa seduta"
+          intro="Ricavato dalle sedute precedenti: che cosa era rimasto aperto e che cosa il riepilogo dell'ultima volta aveva lasciato per oggi."
+        />
+      ) : null}
 
       {/* Il riepilogo consegnato all'atleta.
           Sta sulla pagina della seduta, e con l'ancora `#session-compass`,

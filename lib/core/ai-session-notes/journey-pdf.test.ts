@@ -55,6 +55,7 @@ const journey: MentalJourney = {
       id: 'theme:fiducia-gara',
       text: 'Come cambia la fiducia nei minuti che precedono la gara?',
       source: 'recurring_theme',
+      fromDraft: false,
       sourceLabel: 'Tema emerso in 2 sessioni recenti',
       sessionId: 2,
       bookingId: 102,

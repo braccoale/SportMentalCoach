@@ -259,6 +259,15 @@ export default async function CoachAthletePage({
             />
           )}
 
+          {/* Sta **sopra** i pannelli, e non era cosi'.
+              I cinque blocchi qui sotto rispondono tutti alla stessa domanda
+              — «dove siamo arrivati». Questo e' l'unico che risponde a «cosa
+              faccio adesso», ed era il quinto: chi apriva la scheda per
+              preparare la seduta trovava per ultima la sola cosa che cercava.
+              (E' anche uno dei due contenuti sopravvissuti alla pagina
+              «percorso mentale», che e' stata chiusa.) */}
+          <PointsToRevisitSection points={journey.pointsToRevisit} />
+
           {/* La griglia del disegno: gli obiettivi tengono la colonna larga
               perché sono il filo del percorso, e i due riquadri che li
               commentano stanno in colonna accanto. Sotto, il progresso occupa
@@ -298,13 +307,6 @@ export default async function CoachAthletePage({
               />
             </div>
           </div>
-
-          {/* I due blocchi che vivevano nella pagina «percorso mentale».
-              Quella pagina aveva cinque sezioni: tre erano gia' qui in forma
-              migliore, queste due no. Invece di tenere in piedi una seconda
-              pagina per due contenuti, i due contenuti sono venuti qui e la
-              pagina e' sparita. */}
-          <PointsToRevisitSection points={journey.pointsToRevisit} />
 
           {/* La cronologia sta chiusa: la striscia in cima e' la risposta a
               «dove siamo arrivati», e nella maggior parte delle aperture basta
