@@ -96,7 +96,8 @@ del capo III sui sistemi ad alto rischio.
 
 Applicabile dal 2 febbraio 2025 a fornitori e deployer. Riguarda le **persone**,
 non il codice: chi usa il sistema deve capire che cosa fa e dove sbaglia. Non è
-un adempimento che si chiude scrivendo software. Vedi «Cosa resta da fare».
+un adempimento che si chiude scrivendo software — ma una parte si può mettere
+a disposizione, e si può dimostrare di averlo fatto. Vedi più sotto.
 
 ### Trasparenza verso l'atleta, oltre il minimo di legge
 
@@ -131,24 +132,61 @@ che il testo del consenso era inesatto, ed eventualmente richiedere il consenso.
 
 ---
 
-## Cosa resta da fare, e non lo può fare il software
+## Art. 4 — alfabetizzazione: come è stato assolto
 
-1. **Alfabetizzazione in materia di IA (art. 4).** I coach usano un sistema che
-   scrive di persone reali. Serve una nota — mezza pagina, non un corso — che
-   dica che cosa il Compass fa, che la bozza va sempre riletta, e quali errori
-   commette. E va tracciato chi l'ha ricevuta.
-2. **Informare gli utenti esistenti del cambio di privacy.** La piattaforma
-   registra la versione accettata e ne calcola l'hash, ma la funzione che
-   verifica se serve una nuova accettazione — `hasAcceptedCurrentTerms` — **non
-   è richiamata da nessuna parte**. Quindi chi è già iscritto non vedrà nessun
-   avviso. Va deciso se collegarla o se mandare una comunicazione.
-3. **Le cinque persone di cui sopra.**
-4. **Verificare i contratti con OpenAI e Deepgram**: che l'uso sia coperto e che
-   i contenuti non alimentino l'addestramento. La privacy lo afferma già; qui
-   serve il documento che lo dimostra.
-5. **Rivalutare prima di costruire l'area club**, per il motivo scritto sopra.
+Una nota per i coach in `/dashboard/coach/appunti-ai`: che cosa fa il sistema in
+ordine, **dove sbaglia** — i tre errori che si vedono davvero, non un elenco di
+cautele — che cosa non fa, e che cosa significa approvare una bozza. Un avviso
+nella dashboard la propone finché non è stata letta, e la presa visione viene
+registrata nella tabella append-only delle accettazioni con la chiave
+`ai-literacy`.
 
----
+La metà dimostrabile dell'obbligo è quella registrazione. L'altra metà è che la
+nota sia scritta in modo da essere davvero letta, e quella non la certifica
+nessun database.
+
+## Addestramento dei modelli dei fornitori
+
+L'informativa dichiara agli utenti che i contenuti non alimentano
+l'addestramento dei modelli di terzi. Fino al 22 agosto 2026 il codice lo
+garantiva solo a metà:
+
+- **OpenAI**: la richiesta porta `store: false`, e il tipo lo fissa al valore
+  letterale, quindi non può essere acceso per sbaglio. Verificabile leggendo
+  `openai-session-compass-provider.ts`.
+- **Deepgram**: mancava. La partecipazione al *Model Improvement Partnership
+  Program* è il comportamento **predefinito su tutti i piani**: senza rinuncia
+  esplicita, l'audio delle sedute e la trascrizione rientrano contrattualmente
+  fra i dati che il fornitore può conservare e usare per addestrare i propri
+  modelli. Ora la richiesta porta `mip_opt_out=true`, e un test lo fissa —
+  toglierlo non darebbe nessun errore, si vedrebbe solo lì.
+
+**Ha un costo**: i partecipanti al programma hanno tariffe scontate. È una spesa
+accettata di proposito, perché l'alternativa era un'informativa che affermava
+qualcosa che il codice non garantiva.
+
+## Aggiornamento dei documenti legali
+
+`hasAcceptedCurrentTerms` esisteva e non la chiamava nessuno: il meccanismo per
+accorgersi che i Termini erano cambiati era completo e scollegato, quindi chi era
+già iscritto non vedeva mai un avviso. Ora il guscio della dashboard confronta
+l'impronta accettata con quella corrente e mostra un avviso.
+
+**Informa, non blocca.** Un aggiornamento di trasparenza aggiunge una
+spiegazione dovuta, non cambia il contratto: sbarrare il prodotto otterrebbe la
+cosa che l'obbligo vuole evitare, cioè un clic dato per togliersi di mezzo un
+cartello. Il «Ho letto» registra però una nuova accettazione con l'impronta
+aggiornata.
+
+## Cosa resta, e non lo può fare il software
+
+1. **Le cinque persone** le cui sedute sono state trascritte mentre il pannello
+   diceva il contrario. Informarle è una scelta di merito.
+2. **Il contratto con Deepgram e OpenAI.** Il codice ora chiede la rinuncia e
+   non fa memorizzare; che i contratti sottoscritti dicano lo stesso si verifica
+   nei rispettivi pannelli e nei documenti firmati, non da qui. Su Deepgram vale
+   la pena controllare anche l'impatto della rinuncia sulla tariffa.
+3. **Rivalutare prima di costruire l'area club**, per il motivo scritto sopra.
 
 ## Quando rifare questa valutazione
 

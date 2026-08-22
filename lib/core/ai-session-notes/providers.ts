@@ -107,6 +107,25 @@ export class DeepgramNova3SpeechToTextProvider implements SpeechToTextProvider {
       smart_format: 'true',
       utterances: 'true',
       punctuate: 'true',
+      /*
+       * Fuori dal programma di miglioramento dei modelli di Deepgram.
+       *
+       * **La partecipazione e' il comportamento predefinito, su tutti i
+       * piani**: senza questo parametro l'audio delle sedute e la sua
+       * trascrizione rientrano contrattualmente fra i dati che Deepgram puo'
+       * conservare e usare per addestrare i propri modelli. Con la rinuncia,
+       * i dati restano solo per il tempo di elaborare la richiesta.
+       *
+       * Non e' un'ottimizzazione: la nostra informativa privacy dichiara agli
+       * utenti che i contenuti «non vengono usati per addestrare i loro
+       * modelli». Finche' questo parametro non c'era, quella frase non era
+       * garantita dal codice — e parla di conversazioni registrate fra un
+       * atleta e il suo coach.
+       *
+       * Ha un costo: i partecipanti al programma hanno tariffe scontate.
+       * E' una spesa accettata di proposito.
+       */
+      mip_opt_out: 'true',
       callback: input.callbackUrl,
     });
     const controller = new AbortController();

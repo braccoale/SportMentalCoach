@@ -12,6 +12,17 @@ import { LEGAL_CONTENT_HASH } from './content-hash.generated';
  */
 export const PLATFORM_TERMS_KEY = 'platform-terms';
 
+/**
+ * La presa visione della nota sugli Appunti AI da parte del coach.
+ *
+ * L'art. 4 dell'AI Act chiede a fornitori e deployer di garantire un livello
+ * adeguato di alfabetizzazione a chi opera i sistemi per loro conto. Non e' un
+ * obbligo che si chiude scrivendo software: si chiude facendo leggere qualcosa
+ * a delle persone, e potendo dimostrare che l'hanno letto. La seconda meta'
+ * vive qui, nella stessa tabella append-only delle altre accettazioni.
+ */
+export const AI_LITERACY_KEY = 'ai-literacy';
+
 export type AcceptanceContext = {
   ipAddress?: string | null;
   userAgent?: string | null;
@@ -50,6 +61,31 @@ export async function recordPlatformTermsAcceptance(
     documentHash: LEGAL_CONTENT_HASH,
     acceptedTerms: true,
     acceptedVexatious: ctx.acceptedVexatious ?? false,
+    ipAddress: ctx.ipAddress?.slice(0, 64) ?? null,
+    userAgent: ctx.userAgent?.slice(0, 1000) ?? null,
+  });
+}
+
+/**
+ * Registra la presa visione di una nota informativa (non un contratto).
+ *
+ * Separata da `recordPlatformTermsAcceptance` perche' e' un'altra cosa: li' si
+ * accetta un accordo, qui si dichiara di aver letto una spiegazione. Condividono
+ * la tabella, e devono restare distinguibili dalla chiave.
+ */
+export async function recordDocumentRead(
+  userId: number,
+  agreementKey: string,
+  ctx: AcceptanceContext = {},
+  exec: DbOrTx = db
+): Promise<void> {
+  await exec.insert(agreementAcceptances).values({
+    userId,
+    agreementKey,
+    version: LEGAL_VERSION,
+    documentHash: LEGAL_CONTENT_HASH,
+    acceptedTerms: true,
+    acceptedVexatious: false,
     ipAddress: ctx.ipAddress?.slice(0, 64) ?? null,
     userAgent: ctx.userAgent?.slice(0, 1000) ?? null,
   });
