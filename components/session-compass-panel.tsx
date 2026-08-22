@@ -21,6 +21,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import type { MentalJourney } from '@/lib/core/ai-session-notes/mental-journey';
 import type { ConversationMap } from '@/lib/core/ai-session-notes/conversation-map';
@@ -423,9 +424,20 @@ export function SessionCompassPanel({
                 </span>
                 <ReportStateChip report={report} />
               </div>
+              {/* «Come funziona» sta qui e non in un banner nella dashboard.
+                  L'art. 4 chiede di mettere a disposizione la formazione, non
+                  di piazzare un cartello: un link nel punto in cui il coach sta
+                  leggendo davvero l'output dell'AI serve meglio allo scopo di
+                  un riquadro che si impara a saltare in due giorni. */}
               <p className="mt-0.5 max-w-2xl text-xs leading-5 text-gray-600">
                 Report riservato al coach. Non è visibile all’atleta e non sostituisce il tuo
-                giudizio professionale.
+                giudizio professionale.{' '}
+                <Link
+                  href="/dashboard/coach/appunti-ai"
+                  className="whitespace-nowrap font-medium text-violet-700 underline underline-offset-2 hover:text-violet-900"
+                >
+                  Come funziona
+                </Link>
               </p>
             </div>
           </div>
