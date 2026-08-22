@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  buildCoachAthleteSessionStats,
   buildCoachAthletes,
   bookingsForAthlete,
   lastServiceByAthlete,
@@ -197,6 +198,40 @@ test('la sessione svolta più recente viene prima di un appuntamento futuro', ()
     NOW
   );
   assert.equal(athletes[0].userId, 7);
+});
+
+test('calcola sessioni, tempo totale e durata media del percorso', () => {
+  const stats = buildCoachAthleteSessionStats(
+    [
+      booking({
+        id: 1,
+        clientId: 7,
+        sessionStartedAt: new Date('2026-08-01T10:00:00Z'),
+        sessionEndedAt: new Date('2026-08-01T11:10:00Z'),
+        durationMin: 60,
+      }),
+      booking({
+        id: 2,
+        clientId: 7,
+        durationMin: 50,
+      }),
+      booking({ id: 3, clientId: 9, durationMin: 90 }),
+      booking({
+        id: 4,
+        clientId: 7,
+        status: 'cancelled',
+        durationMin: 120,
+      }),
+    ],
+    7,
+    NOW
+  );
+
+  assert.deepEqual(stats, {
+    completedSessions: 2,
+    totalSessionMinutes: 120,
+    averageSessionMinutes: 60,
+  });
 });
 
 test('senza sessioni svolte viene prima l’appuntamento futuro più vicino', () => {

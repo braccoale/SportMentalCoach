@@ -21,6 +21,7 @@ import {
   clientProfiles,
   coachAvailability,
   favorites,
+  messages,
   providerProfiles,
   profiles,
   sessionAudioRecordings,
@@ -68,6 +69,7 @@ import {
   isSessionDuration,
   type SessionDurationMin,
 } from './duration';
+import { buildCancellationMessage } from './cancellation-message';
 
 async function hasOpenBookingConflict(
   exec: DbOrTx,
@@ -1329,7 +1331,16 @@ export async function completeBooking(params: {
 export async function cancelBooking(params: {
   bookingId: number;
   userId: number;
+  sendCancellationMessage?: boolean;
+  cancellationNote?: string | null;
 }, liveKit: LiveKitSessionControl): Promise<Result> {
+  const cancellationMessage = params.sendCancellationMessage
+    ? buildCancellationMessage(params.cancellationNote)
+    : null;
+  if (cancellationMessage && !cancellationMessage.ok) {
+    return { ok: false, error: cancellationMessage.error };
+  }
+
   const [row] = await db
     .select({
       id: bookings.id,
@@ -1338,9 +1349,13 @@ export async function cancelBooking(params: {
       durationMin: effectiveBookingDurationMin,
       clientId: bookings.clientId,
       coachUserId: providerProfiles.userId,
+      clientName: sql<string | null>`nullif(trim(concat(${users.name}, ' ', coalesce(${users.lastName}, ''))), '')`,
+      coachName: profiles.displayName,
     })
     .from(bookings)
     .innerJoin(providerProfiles, eq(bookings.providerId, providerProfiles.id))
+    .innerJoin(users, eq(bookings.clientId, users.id))
+    .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
     .leftJoin(services, eq(bookings.serviceId, services.id))
     .where(eq(bookings.id, params.bookingId))
     .limit(1);
@@ -1361,10 +1376,49 @@ export async function cancelBooking(params: {
     };
   }
 
-  await db
-    .update(bookings)
-    .set({ status: 'cancelled', updatedAt: new Date(), updatedBy: params.userId })
-    .where(eq(bookings.id, params.bookingId));
+  const now = new Date();
+  let cancelled = false;
+  try {
+    cancelled = await db.transaction(async (tx) => {
+      // Lo stato letto sopra entra nella WHERE: due click simultanei non
+      // possono annullare due volte né duplicare il messaggio automatico.
+      const [updated] = await tx
+        .update(bookings)
+        .set({ status: 'cancelled', updatedAt: now, updatedBy: params.userId })
+        .where(
+          and(
+            eq(bookings.id, params.bookingId),
+            eq(bookings.status, row.status as BookingStatus)
+          )
+        )
+        .returning({ id: bookings.id });
+      if (!updated) return false;
+
+      if (cancellationMessage?.ok) {
+        await tx.insert(messages).values({
+          bookingId: row.id,
+          senderId: params.userId,
+          body: cancellationMessage.body,
+          createdAt: now,
+          updatedAt: now,
+          createdBy: params.userId,
+          updatedBy: params.userId,
+        });
+      }
+      return true;
+    });
+  } catch {
+    return {
+      ok: false,
+      error: 'Non è stato possibile annullare l’appuntamento. Riprova.',
+    };
+  }
+  if (!cancelled) {
+    return {
+      ok: false,
+      error: 'L’appuntamento è già stato modificato. Aggiorna la pagina e riprova.',
+    };
+  }
 
   await stopBookingAiNotesRecordings({
     bookingId: params.bookingId,
@@ -1379,6 +1433,16 @@ export async function cancelBooking(params: {
     bookingId: row.id,
     actorUserId: params.userId,
   });
+  if (cancellationMessage?.ok) {
+    await notify('new_message', recipientId, {
+      senderName:
+        params.userId === row.clientId
+          ? row.clientName ?? 'Atleta'
+          : row.coachName ?? 'Coach',
+      bookingId: row.id,
+      actorUserId: params.userId,
+    });
+  }
 
   return { ok: true };
 }

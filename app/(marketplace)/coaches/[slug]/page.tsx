@@ -100,13 +100,13 @@ export default async function CoachDetailPage({
   // After a booking request the user lands back here with ?richiesta=ok and
   // the booking box shows a clear confirmation instead of the form.
   const justRequested = (await searchParams).richiesta === 'ok';
-  const coach = await getCoachBySlug(slug);
+  const user = await getUser();
+  const coach = await getCoachBySlug(slug, { viewerUserId: user?.id });
   if (!coach) {
     notFound();
   }
 
   const [
-    user,
     availability,
     busyByProvider,
     reviewSummary,
@@ -114,7 +114,6 @@ export default async function CoachDetailPage({
     completedSessions,
   ] =
     await Promise.all([
-      getUser(),
       getApprovedCoachAvailabilityBySlug(slug),
       getCoachBusyIntervalsByProviderIds([coach.providerId]),
       getReviewSummary(coach.providerId),

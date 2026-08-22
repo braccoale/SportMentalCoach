@@ -14,10 +14,13 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { CancelBookingDialog } from '@/components/cancel-booking-dialog';
 import { SportIcon } from '@/components/sport-icon';
 import { cn } from '@/lib/utils';
+import type { ActionState } from '@/lib/auth/middleware';
 
 export type UpcomingAppointmentData = {
   id: number;
@@ -49,19 +52,25 @@ export function UpcomingAppointmentCard({
   data,
   primaryActions,
   overflowActions,
+  cancelAction,
+  cancelBookingId,
   detailContent,
   className,
 }: {
   data: UpcomingAppointmentData;
   primaryActions?: ReactNode;
   overflowActions?: ReactNode;
+  cancelAction?: (state: ActionState, formData: FormData) => Promise<ActionState>;
+  cancelBookingId?: number;
   detailContent?: ReactNode;
   className?: string;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [cancellationOpen, setCancellationOpen] = useState(false);
 
   return (
-    <article
+    <>
+      <article
       className={cn(
         'flex overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm ring-1 ring-black/[0.03] transition hover:border-red-200 hover:shadow-md',
         className
@@ -110,7 +119,7 @@ export function UpcomingAppointmentCard({
               Sessione online
             </span>
           </div>
-          {overflowActions && (
+          {(overflowActions || (cancelAction && cancelBookingId)) && (
             <DropdownMenu>
               <DropdownMenuTrigger
                 aria-label="Azioni appuntamento"
@@ -120,6 +129,14 @@ export function UpcomingAppointmentCard({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-56">
                 {overflowActions}
+                {cancelAction && cancelBookingId ? (
+                  <DropdownMenuItem
+                    onSelect={() => setCancellationOpen(true)}
+                    className="cursor-pointer text-red-600 focus:text-red-600"
+                  >
+                    Annulla sessione
+                  </DropdownMenuItem>
+                ) : null}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -204,6 +221,15 @@ export function UpcomingAppointmentCard({
           </div>
         )}
       </div>
-    </article>
+      </article>
+      {cancelAction && cancelBookingId ? (
+        <CancelBookingDialog
+          open={cancellationOpen}
+          onOpenChange={setCancellationOpen}
+          action={cancelAction}
+          bookingId={cancelBookingId}
+        />
+      ) : null}
+    </>
   );
 }

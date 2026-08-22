@@ -4,13 +4,21 @@ import {
   and,
   arrayContains,
   eq,
+  exists,
   gt,
   isNotNull,
   lte,
+  or,
   type SQL,
 } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
-import { providerProfiles, profiles, services, users } from '@/lib/db/schema';
+import {
+  bookings,
+  providerProfiles,
+  profiles,
+  services,
+  users,
+} from '@/lib/db/schema';
 import { getVerticalConfig, findTaxonomyItem } from '@/lib/core/config';
 import { getRatingSummaries } from '@/lib/core/reviews';
 import { getCoachExperienceStats } from '@/lib/core/bookings';
@@ -104,10 +112,32 @@ export type CoachDetail = CoachListItem & {
 };
 
 /**
- * Public detail query for a single approved coach by slug, with their common
- * profile and active services. Returns `null` when not found or not approved.
+ * Detail query for a single approved coach by slug, with their common profile
+ * and active services. Demo coaches stay hidden from the public marketplace,
+ * but an authenticated athlete can still open the profile of a coach with
+ * whom they have a booking.
  */
-export async function getCoachBySlug(slug: string): Promise<CoachDetail | null> {
+export async function getCoachBySlug(
+  slug: string,
+  options: { viewerUserId?: number | null } = {}
+): Promise<CoachDetail | null> {
+  const demoVisibility = options.viewerUserId
+    ? or(
+        eq(users.isDemo, false),
+        exists(
+          db
+            .select({ id: bookings.id })
+            .from(bookings)
+            .where(
+              and(
+                eq(bookings.providerId, providerProfiles.id),
+                eq(bookings.clientId, options.viewerUserId)
+              )
+            )
+        )
+      )
+    : eq(users.isDemo, false);
+
   const [coach] = await db
     .select({
       providerId: providerProfiles.id,
@@ -138,7 +168,7 @@ export async function getCoachBySlug(slug: string): Promise<CoachDetail | null> 
       and(
         eq(providerProfiles.slug, slug),
         eq(providerProfiles.status, 'approved'),
-        eq(users.isDemo, false)
+        demoVisibility
       )
     )
     .limit(1);

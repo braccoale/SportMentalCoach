@@ -32,6 +32,12 @@ export type SessionCompassView = {
   isApproved: boolean;
   isStale: boolean;
   approvedAt: string | null;
+  /**
+   * Quando il riepilogo e' stato consegnato all'atleta, se lo e' stato.
+   * `null` significa «approvato ma non ancora condiviso»: uno stato legittimo,
+   * non un passaggio dimenticato.
+   */
+  sharedAt: string | null;
   errorCode: string | null;
   updatedAt: string;
   document: SessionCompassReport | null;

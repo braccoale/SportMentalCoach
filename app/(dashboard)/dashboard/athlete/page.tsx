@@ -318,7 +318,13 @@ function BookingRow({
           ) : null}
 
           {canCancel ? (
-            <ActionForm action={cancelBookingAction}>
+            <ActionForm
+              action={cancelBookingAction}
+              confirmTitle="Annullare la richiesta?"
+              confirmMessage="Confermi di voler annullare questa richiesta di appuntamento?"
+              confirmActionLabel="Annulla richiesta"
+              collectCancellationMessage
+            >
               <input type="hidden" name="bookingId" value={b.id} />
               <Button
                 type="submit"
@@ -466,6 +472,8 @@ function AcceptedAppointments({
             <UpcomingAppointmentCard
               key={b.id}
               data={buildAthleteUpcomingData(b)}
+              cancelAction={past ? undefined : cancelBookingAction}
+              cancelBookingId={past ? undefined : b.id}
               primaryActions={
                 past ? (
                   <p className="text-sm text-gray-400">Sessione trascorsa</p>
@@ -524,22 +532,6 @@ function AcceptedAppointments({
                     <DropdownMenuItem asChild className="cursor-pointer">
                       <Link href={`/coaches/${b.coachSlug}`}>Vedi coach</Link>
                     </DropdownMenuItem>
-                  )}
-                  {!past && (
-                    <ActionForm
-                      action={cancelBookingAction}
-                      className="w-full"
-                      confirmTitle="Annullare la sessione?"
-                      confirmMessage="La sessione verrà annullata. Potrai prenotarne una nuova in qualsiasi momento."
-                      confirmActionLabel="Annulla sessione"
-                    >
-                      <input type="hidden" name="bookingId" value={b.id} />
-                      <button type="submit" className="flex w-full">
-                        <DropdownMenuItem className="w-full flex-1 cursor-pointer text-red-600 focus:text-red-600">
-                          Annulla sessione
-                        </DropdownMenuItem>
-                      </button>
-                    </ActionForm>
                   )}
                 </>
               }

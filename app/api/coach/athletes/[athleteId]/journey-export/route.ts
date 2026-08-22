@@ -1,7 +1,13 @@
+import { readFile } from 'node:fs/promises';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 import { NextResponse } from 'next/server';
 import { requireRole } from '@/lib/core/auth';
 import { getCoachBookings } from '@/lib/core/bookings';
-import { buildCoachAthletes } from '@/lib/core/bookings/coach-athletes';
+import {
+  buildCoachAthleteSessionStats,
+  buildCoachAthletes,
+} from '@/lib/core/bookings/coach-athletes';
+import { findTaxonomyItem, getVerticalConfig } from '@/lib/core/config';
 import {
   MentalJourneyError,
   getMentalJourney,
@@ -12,11 +18,17 @@ import {
   journeyPeriodSince,
   parseJourneyPeriod,
 } from '@/lib/core/ai-session-notes/journey-period';
+import {
+  buildMentalJourneyPdf,
+  journeyPdfDownloadHeaders,
+  journeyPdfFileName,
+} from '@/lib/core/ai-session-notes/journey-pdf';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Il percorso di un atleta in un file di testo, per il coach che lo segue.
+ * Il percorso di un atleta in un PDF leggibile e presentabile, per il coach
+ * che lo segue.
  *
  * È materiale clinico-adiacente su una persona, spesso minorenne: per questo
  * il file si apre con una riga che dice cos'è e a chi appartiene. Non è una
@@ -38,7 +50,8 @@ export async function GET(
 
   // Stessa barriera della pagina: l'autorizzazione nasce dai dati.
   const bookings = await getCoachBookings(user.id);
-  const athlete = buildCoachAthletes(bookings).find(
+  const generatedAt = new Date();
+  const athlete = buildCoachAthletes(bookings, generatedAt).find(
     (candidate) => candidate.userId === athleteUserId
   );
   if (!athlete) {
@@ -55,7 +68,7 @@ export async function GET(
       {
         athleteUserId,
         actorUserId: user.id,
-        since: journeyPeriodSince(period, new Date()),
+        since: journeyPeriodSince(period, generatedAt),
       },
       mentalJourneyDependencies()
     );
@@ -66,77 +79,106 @@ export async function GET(
     throw error;
   }
 
-  const date = new Intl.DateTimeFormat('it-IT', {
-    dateStyle: 'long',
-    timeZone: 'Europe/Rome',
-  });
-  const day = (iso: string | null) =>
-    iso ? date.format(new Date(iso)) : 'senza data';
-
-  /*
-   * La provenienza, in testa e in chiaro.
-   *
-   * Il contenuto di questo documento e' prodotto da un sistema di
-   * intelligenza artificiale a partire dalla trascrizione delle sedute.
-   * L'art. 50 dell'AI Act, applicabile dal 2 agosto 2026, chiede che i
-   * contenuti generati artificialmente siano riconoscibili come tali: un file
-   * che esce dal prodotto e viaggia per posta o in una cartella deve dirlo da
-   * solo, perche' fuori di qui non c'e' nessuna interfaccia a spiegarlo.
-   *
-   * Il commento HTML iniziale e' la parte leggibile da una macchina; le righe
-   * sotto sono quella leggibile da una persona. Servono entrambe.
-   */
-  const lines: string[] = [
-    '<!-- generator: KaiPai Session Compass -->',
-    '<!-- content-provenance: ai-generated -->',
-    `<!-- reviewed-by-human: coach ${user.id} -->`,
-    `<!-- exported-at: ${new Date().toISOString()} -->`,
-    '',
-    `# Percorso di ${athlete.name}`,
-    '',
-    `> **Contenuto generato da un sistema di intelligenza artificiale** a partire`,
-    `> dalla trascrizione delle sedute, e approvato dal coach prima della`,
-    `> condivisione. Non è una diagnosi e non contiene decisioni automatizzate.`,
-    '',
-    `Documento riservato al coach. Contiene solo riepiloghi già approvati.`,
-    `Finestra: ${JOURNEY_PERIOD_LABELS[period]} · Sedute approvate: ${journey.summary.approvedSessionCount}`,
-    `Generato il ${date.format(new Date())}`,
-    '',
-    '## Impegni',
-    `Totali ${journey.summary.commitments.total} · Completati ${journey.summary.commitments.completed} · In corso ${journey.summary.commitments.inProgress} · Da iniziare ${journey.summary.commitments.pending} · Non completati ${journey.summary.commitments.skipped}`,
-    '',
-  ];
-
-  if (journey.recurringThemes.length > 0) {
-    lines.push('## Temi ricorrenti', '');
-    for (const theme of journey.recurringThemes) {
-      lines.push(
-        `- ${theme.label} — in ${theme.occurrences} sedute su ${journey.summary.approvedSessionCount}`
-      );
-    }
-    lines.push('');
-  }
-
-  lines.push('## Sedute', '');
-  for (const entry of journey.timeline) {
-    lines.push(`### ${day(entry.sessionDate)}`);
-    if (entry.focus) lines.push(`Tema principale: ${entry.focus}`);
-    lines.push(entry.summary, '');
-  }
-
-  const fileName = `percorso-${athlete.name
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')}.md`;
-
-  return new NextResponse(lines.join('\n'), {
-    headers: {
-      'Content-Type': 'text/markdown; charset=utf-8',
-      'Content-Disposition': `attachment; filename="${fileName}"`,
-      // Un percorso non si mette in cache da nessuna parte.
-      'Cache-Control': 'no-store, max-age=0',
+  const [logoBytes, athleteAvatarBytes] = await Promise.all([
+    readFile(join(process.cwd(), 'public', 'email', 'kaipai-logo.png')).catch(
+      () => null
+    ),
+    loadPdfAvatar(athlete.avatarUrl),
+  ]);
+  const config = getVerticalConfig();
+  const sportLabel = athlete.sport
+    ? (findTaxonomyItem(config.taxonomies.categories, athlete.sport)?.label ??
+      athlete.sport)
+    : null;
+  const levelLabel = athlete.level
+    ? (findTaxonomyItem(config.taxonomies.levels ?? [], athlete.level)?.label ??
+      athlete.level)
+    : null;
+  const sessionStats = buildCoachAthleteSessionStats(
+    bookings,
+    athleteUserId,
+    generatedAt
+  );
+  const coachName = [user.name, user.lastName].filter(Boolean).join(' ') || 'Coach';
+  const pdfBytes = await buildMentalJourneyPdf({
+    athleteName: athlete.name,
+    athlete: {
+      age: athlete.age,
+      sportLabel,
+      levelLabel,
+      avatarBytes: athleteAvatarBytes,
     },
+    sessionStats,
+    coachName,
+    periodLabel: JOURNEY_PERIOD_LABELS[period],
+    generatedAt,
+    journey,
+    logoBytes,
   });
+  const fileName = journeyPdfFileName(athlete.name, generatedAt);
+
+  return new NextResponse(Buffer.from(pdfBytes), {
+    // Un percorso non si mette in cache da nessuna parte.
+    headers: journeyPdfDownloadHeaders(fileName),
+  });
+}
+
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Legge solo immagini locali o dal progetto Supabase configurato, poi le
+ * normalizza in un quadrato PNG: niente URL arbitrari e niente foto deformate
+ * nel documento esportato.
+ */
+async function loadPdfAvatar(avatarUrl: string | null): Promise<Buffer | null> {
+  if (!avatarUrl) return null;
+
+  let bytes: Buffer | null = null;
+  if (avatarUrl.startsWith('/')) {
+    const publicRoot = resolve(process.cwd(), 'public');
+    const filePath = resolve(publicRoot, `.${avatarUrl}`);
+    const childPath = relative(publicRoot, filePath);
+    if (childPath.startsWith('..') || isAbsolute(childPath)) return null;
+    bytes = await readFile(filePath).catch(() => null);
+  } else {
+    const supabaseUrl =
+      process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl) return null;
+
+    let source: URL;
+    try {
+      source = new URL(avatarUrl);
+      if (source.origin !== new URL(supabaseUrl).origin) return null;
+    } catch {
+      return null;
+    }
+
+    const response = await fetch(source, {
+      cache: 'no-store',
+      redirect: 'error',
+      signal: AbortSignal.timeout(6_000),
+    }).catch(() => null);
+    if (!response?.ok) return null;
+    if (!(response.headers.get('content-type') ?? '').startsWith('image/')) {
+      return null;
+    }
+    const declaredSize = Number(response.headers.get('content-length') ?? 0);
+    if (declaredSize > MAX_AVATAR_BYTES) return null;
+    bytes = Buffer.from(await response.arrayBuffer());
+  }
+
+  if (!bytes || bytes.byteLength === 0 || bytes.byteLength > MAX_AVATAR_BYTES) {
+    return null;
+  }
+
+  try {
+    const { default: sharp } = await import('sharp');
+    return await sharp(bytes)
+      .rotate()
+      .resize(160, 160, { fit: 'cover', position: 'attention' })
+      .png()
+      .toBuffer();
+  } catch {
+    return null;
+  }
 }

@@ -377,8 +377,9 @@ export default async function AppointmentDetailPage({
                   <ActionForm
                     action={cancelAction}
                     confirmTitle="Annullare la sessione?"
-                    confirmMessage="La sessione verrà annullata. Potrai prenotarne una nuova in qualsiasi momento."
+                    confirmMessage="Confermi di voler annullare questo appuntamento? L’operazione non può essere annullata."
                     confirmActionLabel="Annulla sessione"
+                    collectCancellationMessage
                   >
                     <input type="hidden" name="bookingId" value={booking.id} />
                     <Button type="submit" variant="destructive" className="rounded-full">

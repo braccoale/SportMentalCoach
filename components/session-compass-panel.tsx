@@ -457,15 +457,7 @@ export function SessionCompassPanel({
             </div>
           </div>
 
-          <div className="flex shrink-0 flex-wrap gap-2">
-            {report?.isApproved && report.document ? (
-              <PdfDownloadButton
-                href={`${endpoint}/export`}
-                text="PDF sessione"
-                fallbackFileName="report-sessione-kaipai.pdf"
-                accessibleLabel="Scarica e apri il report PDF della sessione"
-              />
-            ) : null}
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             <Button
               type="button"
               variant="outline"
@@ -519,6 +511,13 @@ export function SessionCompassPanel({
               >
                 <Send className="h-4 w-4" /> Condividi con l’atleta
               </Button>
+            ) : null}
+            {report?.isApproved && report.document ? (
+              <PdfDownloadButton
+                href={`${endpoint}/export`}
+                fallbackFileName="report-sessione-kaipai.pdf"
+                accessibleLabel="Scarica e apri il report PDF della sessione"
+              />
             ) : null}
           </div>
         </div>

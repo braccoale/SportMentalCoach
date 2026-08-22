@@ -88,7 +88,7 @@ del capo III sui sistemi ad alto rischio.
 | Cosa chiede | Stato |
 |---|---|
 | Informare che si interagisce con un'IA | **Fatto.** Il pannello di consenso, prima di ogni seduta, dice che la conversazione viene registrata e trascritta e che un sistema di IA prepara la bozza. |
-| Marcare i contenuti generati artificialmente in formato leggibile da una macchina | **Fatto.** L'export in Markdown porta in testa i marcatori di provenienza (`content-provenance: ai-generated`) più un avviso leggibile da una persona. |
+| Marcare i contenuti generati artificialmente in formato leggibile da una macchina | **Implementato come misura tecnica, da validare sul piano normativo.** Il PDF contiene una nota visibile e metadati strutturati (`AIContentDisclosure`, `HumanReview`, `AutomatedDecisionMaking`, `Confidentiality`, `PrivacyContact`). I metadati proprietari migliorano la persistenza della provenienza, ma da soli non dimostrano ancora l'efficacia, interoperabilità, robustezza e affidabilità richieste dall'art. 50(2): va documentata l'aderenza alle linee guida della Commissione o al Codice di buone pratiche applicabile. |
 | Informare le persone esposte a riconoscimento delle emozioni | **Non applicabile** — vedi la classificazione. |
 | Deep fake e testi di interesse pubblico | **Non applicabile**: i riepiloghi sono documenti privati fra coach e atleta. |
 
@@ -187,6 +187,10 @@ aggiornata.
    nei rispettivi pannelli e nei documenti firmati, non da qui. Su Deepgram vale
    la pena controllare anche l'impatto della rinuncia sulla tariffa.
 3. **Rivalutare prima di costruire l'area club**, per il motivo scritto sopra.
+4. **Validare la marcatura machine-readable dei PDF** rispetto alle linee guida
+   della Commissione e al Codice di buone pratiche sull'art. 50. I campi PDF
+   proprietari sono una misura di difesa e tracciabilità, non una
+   certificazione autonoma di conformità.
 
 ## Quando rifare questa valutazione
 
