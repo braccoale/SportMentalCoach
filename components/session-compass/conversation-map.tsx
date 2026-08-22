@@ -252,7 +252,9 @@ export function ConversationMapBand({
               <button
                 key={`${moment.atMs}-${moment.label}`}
                 type="button"
-                title={moment.label}
+                // Il rombo è minuscolo e non dice né quando né che cosa
+                // fa se lo si preme. Il fumetto porta tutte e tre le cose.
+                title={`Momento chiave a ${formatTranscriptTimestamp(moment.atMs)} — ${moment.label}. Un passaggio che il riepilogo ha segnalato come snodo della conversazione: clicca per andarci nella trascrizione.`}
                 onClick={() => onSeek?.(moment.atMs)}
                 className="absolute top-0 -translate-x-1/2 rounded px-1 text-white/45 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                 style={{ left: `${moment.atPercent}%` }}

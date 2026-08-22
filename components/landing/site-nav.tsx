@@ -116,6 +116,7 @@ export function SiteNav() {
                 name={[user.name, user.lastName].filter(Boolean).join(' ') || null}
                 email={user.email}
                 avatarUrl={user.avatarUrl}
+                isDemo={user.isDemo}
               />
             </div>
           ) : (

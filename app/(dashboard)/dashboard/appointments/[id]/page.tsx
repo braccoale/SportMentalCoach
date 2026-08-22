@@ -22,6 +22,12 @@ import {
   SessionCompassPanel,
 } from '@/components/session-compass-panel';
 import { OrbitDecor } from '@/components/session-compass/decor';
+import { SessionGoalsCheck } from '@/components/session-compass/session-goals-check';
+import {
+  listGoalSessionLinks,
+  listJourneyGoals,
+} from '@/lib/core/ai-session-notes/journey-goals-store';
+import { toggleJourneyGoalSessionAction } from '@/app/(dashboard)/dashboard/coach/athletes/[athleteId]/actions';
 import { RecordingCoverageNotice } from '@/components/session-compass/recording-coverage-notice';
 import { loadConversationMap } from '@/lib/core/ai-session-notes/conversation-map-loader';
 import { Button } from '@/components/ui/button';
@@ -227,6 +233,31 @@ export default async function AppointmentDetailPage({
       aiNotesEnabled,
       hasAiNotesSession: !!aiNotesSession,
     }) && !!aiNotesSession;
+  /**
+   * Gli obiettivi su cui si può spuntare questa seduta.
+   *
+   * Solo per il coach, e solo quando la seduta ha un riepilogo: sono gli
+   * obiettivi che lui stesso ha scritto per quella persona, con l'indicazione
+   * di quali risultano già segnati su questa seduta.
+   */
+  const sessionGoals =
+    showAiReport && aiNotesSession && booking.viewerRole === 'coach'
+      ? await (async () => {
+          const goals = await listJourneyGoals({
+            coachUserId: user.id,
+            athleteUserId: booking.athleteUserId,
+          });
+          const links = await listGoalSessionLinks(goals.map((goal) => goal.id));
+          return goals.map((goal) => ({
+            id: goal.id,
+            title: goal.title,
+            isPrimary: goal.isPrimary,
+            status: goal.status,
+            touched: links.get(goal.id)?.has(aiNotesSession.id) ?? false,
+          }));
+        })()
+      : null;
+
   const realDurationMin = getSessionDurationMinutes(
     booking.sessionStartedAt,
     booking.sessionEndedAt
@@ -387,6 +418,21 @@ export default async function AppointmentDetailPage({
             initialJourney={mentalJourney}
             conversationMap={conversationMap}
           />
+
+          {/* La spunta degli obiettivi sta **dopo** il riepilogo, e solo per
+              il coach: la domanda «su che cosa avete lavorato oggi» ha senso
+              quando si è appena letto di che cosa si è parlato. Nella scheda
+              dell'atleta arrivava lontano dai riepiloghi, e infatti nessuno
+              rispondeva. */}
+          {sessionGoals ? (
+            <SessionGoalsCheck
+              goals={sessionGoals}
+              athleteUserId={booking.athleteUserId}
+              sessionId={aiNotesSession.id}
+              toggleAction={toggleJourneyGoalSessionAction}
+              athleteCardHref={`/dashboard/coach/athletes/${booking.athleteUserId}`}
+            />
+          ) : null}
         </>
       ) : null}
 

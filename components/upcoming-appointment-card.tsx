@@ -134,17 +134,21 @@ export function UpcomingAppointmentCard({
                 {data.date.day}
               </span>
               <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
-                <span className="text-lg font-bold uppercase tracking-tight text-blue-800">
-                  {data.date.monthYear}
-                </span>
-                <div className="flex min-w-0 items-end gap-3">
-                  <span className="text-4xl font-bold leading-none tracking-tight text-gray-950">
-                    {data.date.time}
+                {/* Il giorno della settimana sta con mese e anno, e ne prende
+                    il colore: e' parte della data, non dell'orario. Accanto
+                    alle 11:00 e in un colore suo diventava un terzo dato da
+                    leggere, dove ce ne sono due. */}
+                <div className="flex min-w-0 items-baseline gap-2 text-blue-800">
+                  <span className="text-lg font-bold uppercase tracking-tight">
+                    {data.date.monthYear}
                   </span>
-                  <span className="truncate pb-0.5 text-sm font-semibold text-emerald-600">
+                  <span className="truncate text-sm font-semibold normal-case">
                     {data.date.weekday}
                   </span>
                 </div>
+                <span className="text-4xl font-bold leading-none tracking-tight text-gray-950">
+                  {data.date.time}
+                </span>
               </div>
             </div>
           ) : (

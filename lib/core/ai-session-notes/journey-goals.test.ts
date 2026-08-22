@@ -5,8 +5,10 @@ import {
   MAX_GOAL_TRACK_DOTS,
   buildJourneyGoalRows,
   parseJourneyGoalStatus,
+  summarizeGoalTrack,
   visibleJourneySessions,
   type GoalSessionLinks,
+  type JourneyGoalRow,
   type StoredJourneyGoal,
 } from './journey-goals';
 
@@ -228,4 +230,57 @@ test('una seduta senza data finisce in fondo, non in testa', () => {
   const sessions = visibleJourneySessions([undated, ...TIMELINE]);
 
   assert.equal(sessions.at(-1)?.sessionId, 9);
+});
+
+function rowWith(touched: readonly boolean[]): JourneyGoalRow {
+  const track = touched.map((isTouched, index) => ({
+    sessionId: index + 1,
+    sessionDate: `2026-05-${String(index + 1).padStart(2, '0')}T10:00:00.000Z`,
+    touched: isTouched,
+    href: '#',
+  }));
+  return {
+    id: 1,
+    title: 'Obiettivo',
+    isPrimary: true,
+    status: 'in_corso',
+    track,
+    lastTouchedAt: [...track].reverse().find((dot) => dot.touched)?.sessionDate ?? null,
+    updatedAt: '2026-05-10T10:00:00.000Z',
+    isTracked: track.some((dot) => dot.touched),
+  };
+}
+
+test('conta le sedute segnate e quante ne sono passate dall’ultima', () => {
+  const summary = summarizeGoalTrack(rowWith([true, false, true, false, false]));
+  assert.equal(summary.touchedCount, 2);
+  assert.equal(summary.totalCount, 5);
+  assert.equal(summary.sessionsSinceLastTouch, 2);
+});
+
+test('l’ultima seduta segnata non lascia nessuna distanza', () => {
+  const summary = summarizeGoalTrack(rowWith([false, false, true]));
+  assert.equal(summary.sessionsSinceLastTouch, 0);
+  assert.equal(summary.stale, false);
+});
+
+test('saltare una sola seduta non basta a dirlo fermo', () => {
+  assert.equal(summarizeGoalTrack(rowWith([true, true, false])).stale, false);
+  assert.equal(summarizeGoalTrack(rowWith([true, false, false])).stale, true);
+});
+
+test('un obiettivo mai segnato è fermo, e non ha un’ultima volta', () => {
+  const summary = summarizeGoalTrack(rowWith([false, false, false]));
+  assert.equal(summary.sessionsSinceLastTouch, null);
+  assert.equal(summary.lastTouchedAt, null);
+  assert.equal(summary.stale, true);
+});
+
+/*
+ * Un percorso appena cominciato non ha obiettivi trascurati: senza sedute in
+ * vista non c'e' niente da cui dedurre un abbandono, e l'avviso direbbe una
+ * cosa falsa proprio nel momento in cui il coach scrive il primo obiettivo.
+ */
+test('senza sedute in vista nessun obiettivo risulta fermo', () => {
+  assert.equal(summarizeGoalTrack(rowWith([])).stale, false);
 });

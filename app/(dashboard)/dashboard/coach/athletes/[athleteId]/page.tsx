@@ -42,7 +42,6 @@ import {
 import {
   addJourneyGoalAction,
   setJourneyGoalStatusAction,
-  toggleJourneyGoalSessionAction,
 } from './actions';
 import { AthleteHeader } from '@/components/session-compass/athlete-header';
 import {
@@ -276,7 +275,6 @@ export default async function CoachAthletePage({
                 sessions={visibleJourneySessions(journey.timeline)}
                 addGoalAction={addJourneyGoalAction}
                 setStatusAction={setJourneyGoalStatusAction}
-                toggleSessionAction={toggleJourneyGoalSessionAction}
               />
 
               <JourneyProgressPanel

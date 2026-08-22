@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import {
   Brain,
   CirclePlus,
@@ -10,6 +11,8 @@ import {
 import {
   JOURNEY_GOAL_STATUSES,
   JOURNEY_GOAL_STATUS_LABELS,
+  summarizeGoalTrack,
+  type GoalTrackSummary,
   type JourneyGoalRow,
   type JourneyGoalSession,
   type JourneyGoalStatus,
@@ -78,26 +81,211 @@ function columnLabel(iso: string | null, now: Date): string {
   return shortDate.format(date).replace('.', '').toUpperCase();
 }
 
+/**
+ * A che punto è un obiettivo, in una riga.
+ *
+ * La griglia che stava qui prima chiedeva a chi guarda di contare dei
+ * cerchietti e di ricostruirsi da solo la frase. Questa la scrive.
+ */
+function trackSentence(summary: GoalTrackSummary): string {
+  if (summary.totalCount === 0) {
+    return 'Non ci sono ancora sedute su cui segnarlo.';
+  }
+  if (summary.touchedCount === 0) {
+    return summary.totalCount === 1
+      ? 'Mai segnato nell’unica seduta del percorso.'
+      : `Mai segnato nelle ultime ${summary.totalCount} sedute.`;
+  }
+
+  const coverage = `Segnato in ${summary.touchedCount} ${
+    summary.touchedCount === 1 ? 'seduta' : 'sedute'
+  } su ${summary.totalCount}`;
+
+  if (summary.sessionsSinceLastTouch === 0) {
+    return `${coverage} · l’ultima è la più recente.`;
+  }
+
+  const when = summary.lastTouchedAt
+    ? ` · l’ultima il ${shortDate.format(new Date(summary.lastTouchedAt))}`
+    : '';
+  const gap =
+    summary.sessionsSinceLastTouch && summary.stale
+      ? `, non ripreso nelle ${summary.sessionsSinceLastTouch} sedute successive`
+      : '';
+  return `${coverage}${when}${gap}.`;
+}
+
+/**
+ * La traccia, ridotta a quello che sa dire davvero.
+ *
+ * Non porta più le date in testa e non è più un modulo: è una fila di
+ * pallini che dice **se il lavoro è stato continuo**, e ogni pallino porta a
+ * quella seduta. La differenza fra segnato e non segnato è pieno contro
+ * vuoto — prima erano due anelli di colore diverso, e su dieci pixel non li
+ * distingueva nessuno.
+ */
+function MiniTrack({ row, tint }: { row: JourneyGoalRow; tint: string }) {
+  if (row.track.length === 0) return null;
+
+  return (
+    <ol className="mt-2 flex items-center gap-1">
+      {row.track.map((dot) => {
+        const when = dot.sessionDate
+          ? `seduta del ${fullDate.format(new Date(dot.sessionDate))}`
+          : 'seduta senza data';
+        return (
+          <li key={dot.sessionId}>
+            <Link
+              href={dot.href}
+              title={`${
+                dot.touched ? 'Segnato' : 'Non segnato'
+              } · ${when} · apri il riepilogo per cambiarlo`}
+              className="block size-2.5 rounded-full border transition-transform hover:scale-[1.6]"
+              style={{
+                borderColor: dot.touched ? tint : '#d1d5db',
+                backgroundColor: dot.touched ? tint : 'transparent',
+              }}
+            >
+              <span className="sr-only">
+                {dot.touched ? 'Segnato' : 'Non segnato'}: {when}
+              </span>
+            </Link>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function GoalRow({
+  row,
+  index,
+  athleteUserId,
+  setStatusAction,
+}: {
+  row: JourneyGoalRow;
+  index: number;
+  athleteUserId: number;
+  setStatusAction: (formData: FormData) => Promise<void>;
+}) {
+  const tint = TRACK_TINTS[index % TRACK_TINTS.length];
+  const Icon = GOAL_ICONS[index % GOAL_ICONS.length];
+  const summary = summarizeGoalTrack(row);
+
+  return (
+    <li className="flex items-start gap-3 py-3.5">
+      <span
+        className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full"
+        style={{ backgroundColor: `color-mix(in srgb, ${tint} 10%, white)` }}
+      >
+        <Icon className="h-4 w-4" style={{ color: tint }} aria-hidden="true" />
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+          {/* Il titolo non si tronca più. Era largo 208 px perché doveva
+              stare a sinistra di otto colonne; adesso ha tutta la riga, e un
+              obiettivo scritto da una persona si legge per intero. */}
+          <p className="min-w-0 flex-1 text-sm font-semibold leading-6 text-gray-900">
+            {row.title}
+          </p>
+
+          {/* Lo stato è l'unica cosa qui dentro scritta da un essere umano.
+              Stava dopo le otto colonne, cioè oltre il bordo dello
+              scorrimento: c'era, e non lo vedeva nessuno. */}
+          <details className="relative shrink-0">
+            <summary
+              className={`cursor-pointer list-none whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_TONE[row.status]} [&::-webkit-details-marker]:hidden`}
+              title="Il giudizio del coach su questo obiettivo. Clicca per cambiarlo."
+            >
+              {JOURNEY_GOAL_STATUS_LABELS[row.status]}
+            </summary>
+            <form
+              action={setStatusAction}
+              className="absolute right-0 z-20 mt-1.5 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
+            >
+              <input type="hidden" name="athleteUserId" value={athleteUserId} />
+              <input type="hidden" name="goalId" value={row.id} />
+              {JOURNEY_GOAL_STATUSES.map((status) => (
+                <button
+                  key={status}
+                  type="submit"
+                  name="status"
+                  value={status}
+                  className={`block w-full px-3 py-1.5 text-left text-sm transition hover:bg-gray-50 ${
+                    status === row.status
+                      ? 'font-semibold text-gray-900'
+                      : 'text-gray-600'
+                  }`}
+                >
+                  {JOURNEY_GOAL_STATUS_LABELS[status]}
+                </button>
+              ))}
+            </form>
+          </details>
+        </div>
+
+        {row.isPrimary && (
+          <p className="text-xs text-gray-400">Obiettivo principale</p>
+        )}
+
+        <p
+          className={`mt-1 flex items-center gap-1.5 text-xs ${
+            summary.stale ? 'font-medium text-amber-700' : 'text-gray-500'
+          }`}
+        >
+          {summary.stale && (
+            <TriangleAlert className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          )}
+          {trackSentence(summary)}
+        </p>
+
+        <MiniTrack row={row} tint={tint} />
+      </div>
+    </li>
+  );
+}
+
+/**
+ * «Obiettivi del percorso»: su che cosa il coach sta lavorando con questa
+ * persona, e se ci sta ancora lavorando.
+ *
+ * Si chiamava «Temi e obiettivi nel tempo» ed era una griglia: una colonna
+ * per seduta, una riga per obiettivo, un cerchietto per incrocio. Tre difetti
+ * che si sommavano — il pallino «segnato» non era pieno ma solo di un altro
+ * colore, i titoli erano troncati a 208 px, e lo stato scritto dal coach
+ * finiva oltre il bordo dello scorrimento. Il risultato è che la contabilità
+ * occupava tutto lo spazio e nascondeva l'unica informazione che valeva.
+ *
+ * Adesso ogni obiettivo è una riga che si legge: titolo intero, giudizio del
+ * coach sempre in vista, e una frase che dice se il filone è vivo o fermo. La
+ * traccia resta sotto, piccola, per rispondere alla sola domanda a cui i
+ * pallini rispondono bene: il lavoro è stato continuo o a singhiozzo.
+ *
+ * **Le sedute non si spuntano più qui.** Il gesto è passato in fondo al
+ * riepilogo di seduta, dove il coach ha appena letto di che cosa si è parlato
+ * e la risposta è ovvia. Nella scheda erano ventiquattro clic da fare
+ * ricordandosi otto sedute a memoria, ed è il motivo per cui in produzione
+ * questa griglia era vuota per tutti.
+ */
 export function JourneyGoalsPanel({
   rows,
   athleteUserId,
   sessions,
   addGoalAction,
   setStatusAction,
-  toggleSessionAction,
   now = new Date(),
 }: {
   rows: readonly JourneyGoalRow[];
   athleteUserId: number;
   /**
-   * Le sedute dell'asse. Arrivano dall'esterno e non da `rows[0].track` perché
-   * servono anche quando gli obiettivi sono zero: è proprio allora che il coach
-   * ne scrive il primo, e deve poter spuntare le sedute in cui è già in gioco.
+   * Le sedute su cui si puo' spuntare scrivendo un obiettivo nuovo. Arrivano
+   * dall'esterno e non da `rows[0].track` perche' servono anche quando gli
+   * obiettivi sono zero: e' proprio allora che il coach scrive il primo.
    */
   sessions: readonly JourneyGoalSession[];
   addGoalAction: (formData: FormData) => Promise<void>;
   setStatusAction: (formData: FormData) => Promise<void>;
-  toggleSessionAction: (formData: FormData) => Promise<void>;
   now?: Date;
 }) {
   const axis = sessions;
@@ -106,10 +294,10 @@ export function JourneyGoalsPanel({
     <section className="flex h-full flex-col rounded-2xl border border-gray-200/70 bg-white p-5">
       <div>
         <h2 className="text-base font-bold tracking-tight text-gray-900">
-          Temi e obiettivi nel tempo
+          Obiettivi del percorso
         </h2>
         <p className="mt-0.5 text-sm text-gray-500">
-          Come evolvono i filoni principali attraverso le sessioni.
+          Che cosa state cercando di ottenere, e se ci state ancora lavorando.
         </p>
       </div>
 
@@ -120,203 +308,17 @@ export function JourneyGoalsPanel({
           resta una cosa a sé.
         </p>
       ) : (
-        <div className="-mx-1 mt-5 flex-1 overflow-x-auto px-1 pb-1">
-          <div
-            style={{
-              minWidth: LABEL_WIDTH_PX + axis.length * COLUMN_WIDTH_PX + 150,
-            }}
-          >
-            {/* Le date in testa: è ciò che rende leggibile una colonna in
-                verticale. Senza, la traccia sarebbe una fila di pallini senza
-                un quando. */}
-            <div className="flex items-end">
-              <div style={{ width: LABEL_WIDTH_PX }} />
-              <div className="flex">
-                {axis.map((session) => (
-                  <div
-                    key={session.sessionId}
-                    style={{ width: COLUMN_WIDTH_PX }}
-                    className="text-center"
-                  >
-                    <p className="text-[11px] font-semibold text-gray-400">
-                      S{session.ordinal}
-                    </p>
-                    <p className="text-[11px] font-medium text-gray-500">
-                      {columnLabel(session.sessionDate, now)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <ul className="mt-3 divide-y divide-gray-100">
-              {rows.map((row, rowIndex) => {
-                const tint = TRACK_TINTS[rowIndex % TRACK_TINTS.length];
-                const Icon = GOAL_ICONS[rowIndex % GOAL_ICONS.length];
-                return (
-                  <li key={row.id} className="flex items-center py-3.5">
-                    <div
-                      className="flex shrink-0 items-center gap-3 pr-4"
-                      style={{ width: LABEL_WIDTH_PX }}
-                    >
-                      <span
-                        className="flex size-8 shrink-0 items-center justify-center rounded-full"
-                        style={{
-                          backgroundColor: `color-mix(in srgb, ${tint} 10%, white)`,
-                        }}
-                      >
-                        <Icon
-                          className="h-4 w-4"
-                          style={{ color: tint }}
-                          aria-hidden="true"
-                        />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-gray-900">
-                          {row.title}
-                        </p>
-                        {/* L'avviso vale anche per l'obiettivo principale:
-                            prima «Obiettivo principale» lo copriva, e proprio
-                            la riga più importante era l'unica a non dire
-                            perché la sua traccia era vuota. */}
-                        <p className="truncate text-xs text-gray-400">
-                          {[
-                            row.isPrimary ? 'Obiettivo principale' : null,
-                            row.isTracked ? null : 'nessuna seduta agganciata',
-                          ]
-                            .filter(Boolean)
-                            .join(' · ')}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Un pallino per seduta, pieno dove l'obiettivo è stato
-                        toccato. Il segmento fra due pallini si colora solo se
-                        entrambi lo sono: così si vede dove il lavoro è stato
-                        continuo e dove si è interrotto.
-
-                        Il pallino è anche il comando: si clicca mentre si
-                        rilegge il riepilogo, ed è l'unica cosa che riempie la
-                        traccia. Non c'è una seconda schermata dove «gestire i
-                        collegamenti» — sarebbe un posto in cui nessuno va. */}
-                    <form
-                      action={toggleSessionAction}
-                      className="flex items-center"
-                    >
-                      <input
-                        type="hidden"
-                        name="athleteUserId"
-                        value={athleteUserId}
-                      />
-                      <input type="hidden" name="goalId" value={row.id} />
-                      {row.track.map((dot, index) => {
-                        const previous = index > 0 ? row.track[index - 1] : null;
-                        const continuous = Boolean(previous?.touched && dot.touched);
-                        const when = dot.sessionDate
-                          ? `seduta del ${fullDate.format(new Date(dot.sessionDate))}`
-                          : 'seduta senza data';
-                        const label = dot.touched
-                          ? `Toccato · ${when} · clicca per togliere il segno`
-                          : `Non toccato · ${when} · clicca per segnarlo`;
-                        return (
-                          <div
-                            key={dot.sessionId}
-                            style={{ width: COLUMN_WIDTH_PX }}
-                            className="flex items-center"
-                          >
-                            <span
-                              className="h-px flex-1"
-                              style={{
-                                backgroundColor: previous
-                                  ? continuous
-                                    ? `color-mix(in srgb, ${tint} 55%, white)`
-                                    : '#e5e7eb'
-                                  : 'transparent',
-                              }}
-                              aria-hidden="true"
-                            />
-                            {/* Il pallino resta di dieci pixel, ma l'area
-                                sensibile no: `before` la porta a ventisei
-                                senza spostare niente nel disegno. Un bersaglio
-                                di dieci pixel si guarda bene e si centra male,
-                                e qui si clicca riga dopo riga. */}
-                            <button
-                              type="submit"
-                              name="sessionId"
-                              value={dot.sessionId}
-                              title={label}
-                              aria-label={label}
-                              className="relative size-2.5 shrink-0 cursor-pointer rounded-full border-2 outline-none transition-transform before:absolute before:-inset-2 before:content-[''] hover:scale-[1.6] focus-visible:scale-[1.6] focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
-                              style={{
-                                borderColor: dot.touched ? tint : '#d1d5db',
-                                backgroundColor: dot.touched
-                                  ? 'white'
-                                  : 'transparent',
-                              }}
-                            />
-                            <span className="h-px flex-1" aria-hidden="true" />
-                          </div>
-                        );
-                      })}
-                      {/* Il percorso continua oltre l'ultima seduta registrata. */}
-                      <span
-                        className="ml-1 shrink-0 text-xs leading-none"
-                        style={{
-                          color: `color-mix(in srgb, ${tint} 60%, white)`,
-                        }}
-                        aria-hidden="true"
-                      >
-                        →
-                      </span>
-                    </form>
-
-                    <div className="ml-auto flex shrink-0 items-center gap-2 pl-4">
-                      {row.status === 'da_riprendere' && (
-                        <TriangleAlert
-                          className="h-3.5 w-3.5 text-amber-600"
-                          aria-hidden="true"
-                        />
-                      )}
-                      <details className="relative">
-                        <summary
-                          className={`cursor-pointer list-none whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_TONE[row.status]} [&::-webkit-details-marker]:hidden`}
-                        >
-                          {JOURNEY_GOAL_STATUS_LABELS[row.status]}
-                        </summary>
-                        <form
-                          action={setStatusAction}
-                          className="absolute right-0 z-20 mt-1.5 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
-                        >
-                          <input
-                            type="hidden"
-                            name="athleteUserId"
-                            value={athleteUserId}
-                          />
-                          <input type="hidden" name="goalId" value={row.id} />
-                          {JOURNEY_GOAL_STATUSES.map((status) => (
-                            <button
-                              key={status}
-                              type="submit"
-                              name="status"
-                              value={status}
-                              className={`block w-full px-3 py-1.5 text-left text-sm transition hover:bg-gray-50 ${
-                                status === row.status
-                                  ? 'font-semibold text-gray-900'
-                                  : 'text-gray-600'
-                              }`}
-                            >
-                              {JOURNEY_GOAL_STATUS_LABELS[status]}
-                            </button>
-                          ))}
-                        </form>
-                      </details>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </div>
+        <ul className="mt-4 flex-1 divide-y divide-gray-100">
+          {rows.map((row, index) => (
+            <GoalRow
+              key={row.id}
+              row={row}
+              index={index}
+              athleteUserId={athleteUserId}
+              setStatusAction={setStatusAction}
+            />
+          ))}
+        </ul>
       )}
 
       {/* Il modulo sta dentro un `<details>`: chiuso è la riga del disegno,
