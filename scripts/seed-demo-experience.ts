@@ -421,7 +421,22 @@ function reportFor(params: {
         text: 'Il contesto relazionale può sostenere il ritorno al compito',
         evidence: evidence(11, athlete.support),
       },
-      metrics: metricKeys.map((key, index) => ({
+      /*
+       * Quante metriche, e perche' non sei.
+       *
+       * Il prodotto ne produce pochissime: il prompt ne inserisce una **solo
+       * quando una frase esplicita dell'atleta la sostiene**, e su quindici
+       * sedute reali sono tredici valori in tutto — meno di uno per seduta,
+       * mai piu' di tre, e circa una su tre senza nessuna metrica.
+       *
+       * Prima ne venivano seminate sei su ogni seduta, e la demo mostrava un
+       * grafico con sei serie storiche piene. Una demo che mostra una cosa che
+       * il prodotto non produce non e' generosa: e' una promessa che qualcuno
+       * verra' a riscuotere sui propri dati.
+       */
+      metrics: metricKeys
+        .slice(0, phaseIndex % 3 === 0 ? 0 : phaseIndex % 3 === 1 ? 1 : 2)
+        .map((key, index) => ({
         id: `${prefix}-metric-${key}`,
         key,
         value: phase.metrics[index] as 1 | 2 | 3 | 4 | 5,

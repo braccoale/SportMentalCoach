@@ -7,9 +7,7 @@ import type {
   SessionCompassReport,
 } from '@/lib/core/ai-session-notes/session-compass-contract';
 import {
-  AthleteProgressCharts,
   EmotionalTrendChart,
-  hasComparableMetricTrend,
 } from './charts';
 import { SessionHeroInsight } from './hero-insight';
 import { AthleteJourneySidebar } from './athlete-journey-sidebar';
@@ -93,12 +91,6 @@ export function SessionOverview({
       return history;
     }, {});
 
-  const hasTrend = hasComparableMetricTrend({
-    journey: journey ?? null,
-    report,
-    isApproved,
-    currentSessionId: sessionId,
-  });
 
   /*
    * Con un tema solo, il pannello ripete il titolone.
@@ -248,23 +240,16 @@ export function SessionOverview({
         {nextActions}
       </div>
 
-      {hasTrend ? (
-        <AthleteProgressCharts
-          journey={journey ?? null}
-          report={report}
-          isApproved={isApproved}
-          currentSessionId={sessionId}
-          currentSessionDate={currentSessionDate ?? null}
-        />
-      ) : (
-        <AthleteProgressCharts
-          journey={journey ?? null}
-          report={report}
-          isApproved={isApproved}
-          currentSessionId={sessionId}
-          currentSessionDate={currentSessionDate ?? null}
-        />
-      )}
+      {/* Qui c'era il grafico dei sei indicatori nel tempo.
+          E' stato tolto dalla singola seduta: prometteva sei serie storiche
+          mentre il prompt — giustamente — inserisce una metrica **solo** quando
+          una frase esplicita la sostiene. Su quindici sedute reali erano
+          tredici valori in tutto, meno di uno per seduta: cinque schede su sei
+          restavano vuote, e la sesta aveva un punto.
+          Quello che resta qui sotto riguarda **questa** seduta e i suoi valori,
+          che e' una domanda a cui i dati sanno rispondere. L'andamento nel
+          tempo vive nella scheda dell'atleta, dove ha senso guardarlo.
+          (Il ternario che stava qui rendeva la stessa cosa in entrambi i rami.) */}
 
       {(overview.emotionalTrend?.length ?? 0) > 0 ||
       (overview.metrics?.length ?? 0) > 5 ||

@@ -19,7 +19,6 @@ import {
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { AthleteJourneySidebar } from './athlete-journey-sidebar';
-import { AthleteProgressCharts } from './charts';
 import { compareSessionMetrics, metricDeltaSentence } from './metric-model';
 import { DashboardEmptyState } from './ui';
 import type {
@@ -317,13 +316,8 @@ export function AthleteJourneyPanel({
         />
       </div>
 
-      <AthleteProgressCharts
-        journey={journey}
-        report={report}
-        isApproved={isApproved}
-        currentSessionId={currentSessionId}
-        currentSessionDate={currentSessionDate}
-      />
+      {/* Il grafico dei sei indicatori nel tempo e' stato tolto: vedi la nota
+          in `overview-grid.tsx`. L'andamento vive nella scheda dell'atleta. */}
       <ThemeEvolution journey={journey} />
       <RecurringThemes themes={journey?.recurringThemes ?? []} timeline={timeline} onOpenTranscript={onOpenTranscript} />
     </div>
