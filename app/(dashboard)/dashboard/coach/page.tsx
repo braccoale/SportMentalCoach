@@ -1,8 +1,4 @@
 import Link from 'next/link';
-import {
-  AI_LITERACY_KEY,
-  getLatestAcceptance,
-} from '@/lib/core/legal/acceptance';
 import { after } from 'next/server';
 import type { ReactNode } from 'react';
 import {
@@ -294,9 +290,6 @@ export default async function CoachDashboardPage() {
   const awaitingReview = allBookings.filter(
     (booking) => booking.aiReportStatus === 'ready_for_review'
   );
-  const aiLiteracyRead = Boolean(
-    await getLatestAcceptance(user.id, AI_LITERACY_KEY)
-  );
   const awaitingReviewAthletes = new Set(
     awaitingReview.map((booking) => booking.clientId)
   ).size;
@@ -416,31 +409,6 @@ export default async function CoachDashboardPage() {
           Profilo inviato il{' '}
           {formatDate(provider.submittedAt ?? provider.updatedAt)}: è in
           revisione. Potrai creare appuntamenti dopo l’approvazione dell’admin.
-        </div>
-      )}
-
-      {/* La nota su come funziona il riepilogo automatico, finche' non e'
-          stata letta.
-          Sta qui e non fra le schede della navigazione per due ragioni: le
-          schede sono gia' sei, e questa e' una cosa da leggere una volta, non
-          un posto in cui tornare. Sparisce da sola quando il coach conferma. */}
-      {!aiLiteracyRead && (
-        <div className="flex flex-col items-start justify-between gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-5 sm:flex-row sm:items-center">
-          <div>
-            <h2 className="text-base font-semibold text-sky-900">
-              Come funziona il riepilogo automatico
-            </h2>
-            <p className="mt-0.5 text-sm text-sky-800">
-              Cinque minuti: che cosa fa, dove sbaglia e come accorgersene.
-              Riguarda uno strumento che scrive di persone che hai in cura.
-            </p>
-          </div>
-          <Link
-            href="/dashboard/coach/appunti-ai"
-            className="shrink-0 rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700"
-          >
-            Leggi la nota
-          </Link>
         </div>
       )}
 
