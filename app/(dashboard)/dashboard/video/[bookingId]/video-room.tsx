@@ -538,8 +538,9 @@ function ConnectedVideoRoom({
               Sei uscito dalla call
             </h2>
             <p className="mt-2 text-sm text-gray-600">
-              Puoi rientrare subito: l’appuntamento resta attivo finché non
-              viene completato o termina la finestra prevista.
+              Puoi rientrare finché la stanza resta aperta. Se la sessione non
+              è stata registrata, verrà completata automaticamente quando la
+              stanza si chiude.
             </p>
 
             {/* Il momento in cui il coach ha ancora tutto in mente, e in cui
