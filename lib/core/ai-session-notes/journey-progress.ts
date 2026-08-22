@@ -16,6 +16,7 @@
  * e vale qui per lo stesso motivo.
  */
 
+import { withReturnTo } from './return-to';
 import type { MentalJourneyEntry } from './mental-journey';
 
 export const MIN_PROGRESS_POINTS = 3;
@@ -118,7 +119,9 @@ export type JourneyInsight = {
 };
 
 export function latestJourneyInsight(
-  timeline: readonly MentalJourneyEntry[]
+  timeline: readonly MentalJourneyEntry[],
+  /** Dove riportare chi apre la seduta da qui. */
+  backTo: string | null = null
 ): JourneyInsight | null {
   for (const entry of [...timeline].sort(byDateAscending).reverse()) {
     if (!entry.isApproved) continue;
@@ -128,7 +131,7 @@ export function latestJourneyInsight(
         text,
         sessionId: entry.sessionId,
         sessionDate: entry.sessionDate,
-        href: `${entry.compassHref}#session-compass`,
+        href: withReturnTo(`${entry.compassHref}#session-compass`, backTo),
       };
     }
   }
