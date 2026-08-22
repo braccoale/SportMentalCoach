@@ -40,12 +40,11 @@ import {
   formatDate,
   formatDateTime,
   formatBigDateParts,
-  formatMinutes,
   formatRomeDateValue,
   formatTime,
   resolveDisplayName,
-  getSessionDurationMinutes,
   scheduledForLabel,
+  describeSessionDuration,
 } from '@/lib/core/format';
 import {
   UpcomingAppointmentCard,
@@ -1002,10 +1001,14 @@ function buildArchiveCardData(
   // Completed: real call span (or derived) → date range + duration + timeline.
   const start = booking.sessionStartedAt ?? booking.scheduledFor;
   const end = booking.sessionEndedAt;
-  const durationMin =
-    getSessionDurationMinutes(booking.sessionStartedAt, booking.sessionEndedAt) ??
-    booking.durationMin ??
-    null;
+  // Una regola sola per le due schede: prima la stessa espressione stava
+  // scritta due volte, e la parola «previsti» sarebbe finita in una e non
+  // nell'altra.
+  const sessionDuration = describeSessionDuration({
+    sessionStartedAt: booking.sessionStartedAt,
+    sessionEndedAt: booking.sessionEndedAt,
+    durationMin: booking.durationMin,
+  });
   // Both completed and non-completed render the big date hero (session date, or
   // the scheduled date for closed-without-session states) so every archive card
   // has the same structure and height.
@@ -1028,8 +1031,11 @@ function buildArchiveCardData(
           monthYear: big.monthYear,
           startTime: isCompleted && start ? formatTime(start) : big.time,
           endTime: isCompleted && end ? formatTime(end) : null,
-          durationLabel:
-            isCompleted && durationMin != null ? formatMinutes(durationMin) : null,
+          // La durata si vede sempre. Prima usciva solo con lo stato
+          // `completed`, e una seduta trascorsa ma non ancora chiusa restava
+          // senza — mentre la durata concordata è nota dalla prenotazione e
+          // non dipende né dalla registrazione né dall'approvazione.
+          durationLabel: sessionDuration?.label ?? null,
           lead: isCompleted ? null : 'Era prevista',
         }
       : null,

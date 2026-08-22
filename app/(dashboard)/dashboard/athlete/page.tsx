@@ -23,10 +23,9 @@ import {
   formatDateTime,
   formatTime,
   formatBigDateParts,
-  formatMinutes,
   formatRomeDateValue,
-  getSessionDurationMinutes,
   scheduledForLabel,
+  describeSessionDuration,
 } from '@/lib/core/format';
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
@@ -120,10 +119,14 @@ function buildAthleteArchiveData(b: AthleteBooking): CompletedSessionData {
   const isCompleted = b.status === 'completed';
   const start = b.sessionStartedAt ?? b.scheduledFor;
   const end = b.sessionEndedAt;
-  const durationMin =
-    getSessionDurationMinutes(b.sessionStartedAt, b.sessionEndedAt) ??
-    b.durationMin ??
-    null;
+  // Una regola sola per le due schede: prima la stessa espressione stava
+  // scritta due volte, e la parola «previsti» sarebbe finita in una e non
+  // nell'altra.
+  const sessionDuration = describeSessionDuration({
+    sessionStartedAt: b.sessionStartedAt,
+    sessionEndedAt: b.sessionEndedAt,
+    durationMin: b.durationMin,
+  });
   const dayFrom = b.scheduledFor ?? b.sessionStartedAt;
   const big = dayFrom ? formatBigDateParts(dayFrom) : null;
 
@@ -143,8 +146,11 @@ function buildAthleteArchiveData(b: AthleteBooking): CompletedSessionData {
           monthYear: big.monthYear,
           startTime: isCompleted && start ? formatTime(start) : big.time,
           endTime: isCompleted && end ? formatTime(end) : null,
-          durationLabel:
-            isCompleted && durationMin != null ? formatMinutes(durationMin) : null,
+          // La durata si vede sempre. Prima usciva solo con lo stato
+          // `completed`, e una seduta trascorsa ma non ancora chiusa restava
+          // senza — mentre la durata concordata è nota dalla prenotazione e
+          // non dipende né dalla registrazione né dall'approvazione.
+          durationLabel: sessionDuration?.label ?? null,
           lead: isCompleted ? null : 'Era prevista',
         }
       : null,

@@ -230,3 +230,48 @@ export function formatPrice(
     maximumFractionDigits: 2,
   }).format(cents / 100);
 }
+
+export type SessionDurationLabel = {
+  /** Il testo da mostrare: «52 min», oppure «60 min previsti». */
+  label: string;
+  /** La durata viene dalla videochiamata vera, non da quella concordata. */
+  measured: boolean;
+};
+
+/**
+ * Quanto è durata una seduta, o quanto sarebbe dovuta durare.
+ *
+ * Nasce da una scheda che non mostrava niente: la durata compariva solo con lo
+ * stato `completed`, e una sessione trascorsa ma non ancora chiusa restava
+ * senza. Eppure la durata concordata è nota fin dalla prenotazione — non
+ * dipende dal fatto che la chiamata sia partita, che sia stata registrata o
+ * che il riepilogo sia stato approvato.
+ *
+ * **La parola «previsti» non è ornamentale.** Senza, un «60 min» su una
+ * seduta che non si è mai svolta si legge come un fatto, e non lo è. Le due
+ * durate rispondono a due domande diverse e la scheda deve dire quale sta
+ * rispondendo.
+ */
+export function describeSessionDuration(params: {
+  sessionStartedAt: Date | null;
+  sessionEndedAt: Date | null;
+  /** La durata concordata alla prenotazione. */
+  durationMin: number | null;
+}): SessionDurationLabel | null {
+  const measured = getSessionDurationMinutes(
+    params.sessionStartedAt,
+    params.sessionEndedAt
+  );
+  if (measured !== null) {
+    return { label: formatMinutes(measured), measured: true };
+  }
+
+  if (params.durationMin != null && params.durationMin > 0) {
+    return {
+      label: `${formatMinutes(params.durationMin)} previsti`,
+      measured: false,
+    };
+  }
+
+  return null;
+}
