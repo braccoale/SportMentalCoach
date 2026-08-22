@@ -3,8 +3,8 @@
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createSupabaseServer } from '@/lib/auth/supabase';
-import { getAppBaseUrl } from '@/lib/core/app-url';
 import { safeRedirectPath } from '@/lib/core/auth/safe-redirect';
+import { COMPLETE_SIGNUP_PATH } from '@/lib/core/auth/signup-completion';
 import {
   SIGNUP_ROLE_COOKIE,
   SIGNUP_ROLE_COOKIE_MAX_AGE_SECONDS,
@@ -38,9 +38,6 @@ import {
 /** I ruoli che una registrazione può scegliere da sé. */
 const SELECTABLE_ROLES = new Set(['athlete', 'coach']);
 
-/** Dove si atterra tornando da Google. Vale sia per chi entra sia per chi si registra. */
-const AFTER_OAUTH_PATH = '/registrazione/completa';
-
 /**
  * L'origine a cui Google deve riportare l'utente.
  *
@@ -48,11 +45,15 @@ const AFTER_OAUTH_PATH = '/registrazione/completa';
  * produzione e in locale: un indirizzo deciso altrove manderebbe chi prova
  * sull'anteprima a completare la registrazione in produzione.
  *
- * Ma gli header possono mancare, e la prima versione in quel caso restituiva
- * la stringa `https://null` — che Supabase rifiuta come indirizzo di ritorno
- * non valido, con un errore che non dice nulla a nessuno. Il ripiego e' ora
- * `getAppBaseUrl()`, la stessa funzione che decide l'origine di tutti i link
- * in uscita dal prodotto.
+ * Se mancano tutti, si restituisce `null` e il flusso si ferma con un errore
+ * visibile. **Non** si ripiega sul dominio di produzione: sarebbe l'unico caso
+ * in cui questa funzione manda l'utente di un'anteprima a completare la
+ * registrazione sul sito vero — cioe' esattamente il guaio che partire dagli
+ * header serve a evitare. Meglio fallire dove si vede.
+ *
+ * (La prima versione restituiva la stringa `https://null`, che Supabase
+ * rifiuta come indirizzo di ritorno non valido, con un errore che non dice
+ * nulla a nessuno.)
  */
 async function requestOrigin(): Promise<string | null> {
   const requestHeaders = await headers();
@@ -67,7 +68,7 @@ async function requestOrigin(): Promise<string | null> {
     return `${proto}://${host}`;
   }
 
-  return getAppBaseUrl();
+  return null;
 }
 
 export async function startGoogleOAuth(formData: FormData): Promise<void> {
@@ -103,8 +104,8 @@ export async function startGoogleOAuth(formData: FormData): Promise<void> {
   }
 
   const next = backTo
-    ? `${AFTER_OAUTH_PATH}?redirect=${encodeURIComponent(backTo)}`
-    : AFTER_OAUTH_PATH;
+    ? `${COMPLETE_SIGNUP_PATH}?redirect=${encodeURIComponent(backTo)}`
+    : COMPLETE_SIGNUP_PATH;
 
   const supabase = await createSupabaseServer();
   const { data, error } = await supabase.auth.signInWithOAuth({

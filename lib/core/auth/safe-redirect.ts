@@ -16,8 +16,18 @@
  *
  * Da qui la forma attuale, che non prova più a elencare le scritture
  * pericolose: **risolve l'indirizzo con le stesse regole del browser e verifica
- * che l'origine sia rimasta la nostra.** Una scrittura a cui non avevo pensato
- * non è più un buco, perché non è l'elenco a decidere.
+ * che l'origine sia rimasta la nostra.**
+ *
+ * **E verifica ciò che restituisce, non ciò che riceve.** Questa parte è
+ * costata un secondo tentativo: `/..//altro-sito` risolve a un pathname
+ * `//altro-sito` — i segmenti `..` risalgono oltre la radice e collassano — e
+ * quel pathname supera il controllo sull'origine perché *durante* la
+ * risoluzione siamo ancora in casa. Ma la stringa che tornava indietro era
+ * protocol-relative, e il chiamante la risolve una seconda volta: `//altro-sito`
+ * diventa `https://altro-sito/`. Controllare l'ingresso non serve a niente se
+ * si consegna qualcos'altro. Ora l'esito passa dallo stesso controllo, e
+ * l'unica cosa che esce da qui è una stringa che è già stata verificata **così
+ * com'è**.
  */
 
 /** Origine fittizia: serve solo a risolvere, e non compare mai nel risultato. */
@@ -38,12 +48,19 @@ export function safeRedirectPath(
     return null;
   }
 
-  // Il controllo vero: dopo la risoluzione siamo ancora in casa? `//altro`,
-  // `/\altro` e `/⏎/altro` falliscono tutti qui, e con loro qualunque
-  // variante che non ho previsto.
+  // Dopo la risoluzione siamo ancora in casa? `//altro`, `/\altro` e
+  // `/⏎/altro` falliscono qui.
   if (resolved.origin !== PROBE_ORIGIN) return null;
 
-  // Si restituisce la forma normalizzata, non quella in ingresso: è quella che
-  // il browser userebbe davvero, quindi è quella su cui abbiamo deciso.
-  return `${resolved.pathname}${resolved.search}${resolved.hash}`;
+  // La forma normalizzata è quella che il browser userebbe davvero, quindi è
+  // quella su cui vale la pena decidere — quella in ingresso no.
+  const path = `${resolved.pathname}${resolved.search}${resolved.hash}`;
+
+  // Lo stesso controllo, sull'esito. Non è una ripetizione difensiva: chi
+  // riceve questa stringa la risolve una seconda volta, e `/..//altro` arriva
+  // fin qui come `//altro`, che alla seconda risoluzione esce dal sito. Una
+  // cosa è sicura da restituire solo se sopravvive al viaggio che farà.
+  if (new URL(path, PROBE_ORIGIN).origin !== PROBE_ORIGIN) return null;
+
+  return path;
 }

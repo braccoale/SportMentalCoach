@@ -95,6 +95,7 @@ export function CompleteSignupForm({
     track('signup_credentials_completed', { method: 'google' });
   }, []);
 
+
   const isAthlete = role === 'athlete';
   const isProfessional = role === 'coach' || role === 'club';
   // Le soglie non si riscrivono qui: `lib/core/guardians/age.ts` dichiara di
@@ -104,6 +105,22 @@ export function CompleteSignupForm({
   const age = useMemo(() => ageFromBirthDate(birthDate), [birthDate]);
   const underMin = isAthlete && age != null && !isEligibleAge(age);
   const needsGuardian = isAthlete && requiresGuardian(age);
+  /**
+   * L'eta', una volta sola.
+   *
+   * Non nell'`onChange` del campo data: quello e' l'evento nativo `input`, e
+   * digitando l'anno cifra per cifra passa da valori completi e assurdi —
+   * 0002, 0020, 0201 — ognuno dei quali sembra un'eta' validissima. Tre
+   * `signup_age_verified` e poi un `signup_blocked_underage` per la stessa
+   * persona: la metrica sui minori, che esiste per contarli, diventava
+   * inservibile. Il wizard lo fa gia' cosi'.
+   */
+  useEffect(() => {
+    if (!isAthlete || age == null) return;
+    track(underMin ? 'signup_blocked_underage' : 'signup_age_verified', {
+      method: 'google',
+    });
+  }, [isAthlete, age, underMin]);
 
   const canSubmit =
     Boolean(role) &&
@@ -219,18 +236,7 @@ export function CompleteSignupForm({
               type="date"
               required
               value={birthDate}
-              onChange={(e) => {
-                const value = e.target.value;
-                setBirthDate(value);
-                const declared = ageFromBirthDate(value);
-                if (declared == null) return;
-                track(
-                  isEligibleAge(declared)
-                    ? 'signup_age_verified'
-                    : 'signup_blocked_underage',
-                  { method: 'google' }
-                );
-              }}
+              onChange={(e) => setBirthDate(e.target.value)}
               className={INPUT}
             />
           </div>

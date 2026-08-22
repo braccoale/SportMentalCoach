@@ -56,6 +56,13 @@ export function SignupWizard() {
   const priceId = searchParams.get('priceId');
   const inviteId = searchParams.get('inviteId');
   const ref = searchParams.get('ref');
+  /**
+   * L'accesso con Google non e' andato a buon fine e il callback ha rimandato
+   * qui — qui e non alla pagina di accesso, perche' il cookie del ruolo dice
+   * che era una registrazione. Senza questo messaggio la pagina si ridisegnava
+   * identica e sembrava che il pulsante non facesse niente.
+   */
+  const googleError = searchParams.get('error') === 'google';
 
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     signUp,
@@ -94,7 +101,11 @@ export function SignupWizard() {
 
   function goCredentials() {
     if (!role) return;
-    track('signup_role_selected', { role, method: 'password' });
+    // Senza `method`: qui il modo di registrarsi **non e' ancora stato
+    // scelto**. Il pulsante Google sta al passo dopo, quindi taggare
+    // «password» significava contare come password ogni iscrizione Google
+    // iniziata da qui — e la variante «google» non si vedeva quasi mai.
+    track('signup_role_selected', { role });
     setLocalError(null);
     setStep(1);
   }
@@ -173,6 +184,16 @@ export function SignupWizard() {
             l'approvazione delle clausole al professionista — e Google non lo
             sa. Sta **fuori** dal modulo del wizard perche' e' un modulo a sua
             volta, e un form dentro un form non e' HTML valido. */}
+        {googleError && (
+          <p
+            role="alert"
+            className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+          >
+            Non siamo riusciti a completare l’accesso con Google. Riprova, o
+            prosegui con email e password.
+          </p>
+        )}
+
         {step === 1 && (
           <div className="mb-6">
             <GoogleButton role={role} redirect={redirect} />

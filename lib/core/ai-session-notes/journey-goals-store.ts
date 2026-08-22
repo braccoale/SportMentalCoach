@@ -7,7 +7,10 @@ import {
   bookings,
   providerProfiles,
   sessionAiNotes,
+  sessionAiReports,
 } from '@/lib/db/schema';
+import { JOURNEY_REPORT_STATUSES } from './mental-journey';
+import { SESSION_COMPASS_REPORT_KIND } from './session-compass-contract';
 import {
   parseJourneyGoalStatus,
   type GoalSessionLinks,
@@ -280,9 +283,16 @@ export async function toggleGoalSession(params: {
  * otteneva ricostruendo l'intera Mental Journey — permessi, tutte le sedute
  * approvate, tutti gli impegni, la proiezione — a **ogni clic su un pallino**,
  * e poi di nuovo al ridisegno della pagina: una decina di andate e ritorno
- * verso il database per invertire un booleano. La proprieta' che conta e' una
- * sola, e sta in una riga di SQL: quella seduta e' di una prenotazione fra
- * questo coach e questo atleta.
+ * verso il database per invertire un booleano.
+ *
+ * **Ma la condizione e' la stessa, non una piu' larga.** La prima versione di
+ * questa query filtrava solo sulla coppia coach/atleta, e cosi' accettava
+ * qualunque seduta fra i due: una senza riepilogo, una fallita, una ancora in
+ * bozza. Un id modificato nel modulo sarebbe passato, scrivendo un aggancio a
+ * una seduta che nella riga non compare — «una riga che non dovrebbe
+ * esistere», che e' la ragione per cui questo controllo esiste. Il filtro sullo
+ * stato del riepilogo e' quello che decide chi entra nella cronistoria, ed e'
+ * quello che deve decidere anche qui.
  */
 export async function listAthleteSessionIds(params: {
   coachUserId: number;
@@ -290,11 +300,17 @@ export async function listAthleteSessionIds(params: {
 }): Promise<ReadonlySet<number>> {
   const rows = await db
     .select({ id: sessionAiNotes.id })
-    .from(sessionAiNotes)
+    .from(sessionAiReports)
+    .innerJoin(
+      sessionAiNotes,
+      eq(sessionAiNotes.id, sessionAiReports.sessionAiNotesId)
+    )
     .innerJoin(bookings, eq(bookings.id, sessionAiNotes.bookingId))
     .innerJoin(providerProfiles, eq(providerProfiles.id, bookings.providerId))
     .where(
       and(
+        inArray(sessionAiReports.status, [...JOURNEY_REPORT_STATUSES]),
+        eq(sessionAiReports.reportKind, SESSION_COMPASS_REPORT_KIND),
         eq(bookings.clientId, params.athleteUserId),
         eq(providerProfiles.userId, params.coachUserId)
       )

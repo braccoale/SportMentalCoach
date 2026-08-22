@@ -247,9 +247,27 @@ person later signs in with Google. `users.email` stays unique and no second row
 is created. The completion action still checks for a mismatched account
 explicitly, so the rare case produces a readable message instead of a
 constraint violation.
-- Middleware (`middleware.ts`) is **unchanged** in this step; it still gates the
-  `/dashboard` prefix on session presence. Attaching roles to the request
-  context is deferred.
+### Middleware gates
+
+`middleware.ts` refreshes the Supabase session on every request and then, on
+`/dashboard` only, answers two questions with a single `users` ⟕ `user_onboarding`
+read:
+
+1. **Is there an app account at all?** With Google sign-in a valid session can
+   exist with no row in `users` — someone who came back from the provider and
+   closed the tab. Without this gate the home page sent them to the dashboard,
+   `getUser()` returned null, and they landed on the sign-in page while already
+   signed in. They are sent to the completion page instead. The query filters
+   `deleted_at` exactly as `getCachedUser()` does, so a closed account is not
+   mistaken for a live one.
+2. **Is onboarding finished?** Accounts with no row are treated as complete, so
+   nobody is interrupted mid-task.
+
+The `/` → `/dashboard` hop for authenticated visitors stays **before** that
+read and costs no query: it is the most-visited page in the product, and anyone
+without an account is caught on `/dashboard` anyway.
+
+Attaching roles to the request context is still deferred.
 
 Role-aware redirect after login & signup (`dashboardPathForRoles`):
 

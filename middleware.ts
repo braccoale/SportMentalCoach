@@ -1,19 +1,15 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { users, userOnboarding } from '@/lib/db/schema';
 import { REQUEST_METHOD_HEADER } from '@/lib/auth/demo-readonly';
+import { COMPLETE_SIGNUP_PATH } from '@/lib/core/auth/signup-completion';
 
 const protectedRoutes = '/dashboard';
 
-/**
- * Dove si finisce la registrazione iniziata da un fornitore d'identita'.
- * Sta fuori dall'area riservata: dentro, il cancello qui sotto rimanderebbe
- * alla pagina stessa all'infinito.
- */
-const COMPLETE_SIGNUP_PATH = '/registrazione/completa';
+
 
 /**
  * Refreshes the Supabase Auth session on every request (rotating tokens are
@@ -108,46 +104,60 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  /**
+   * I cookie che il rinnovo della sessione ha appena ruotato viaggiano con
+   * ogni reindirizzamento: perderli qui significherebbe disconnettere l'utente
+   * proprio mentre lo si sposta, e lasciargli in mano un cookie scaduto che a
+   * ogni richiesta successiva costa una chiamata di rete destinata a fallire.
+   */
+  const withCookies = (destination: URL | string) => {
+    const redirectResponse = NextResponse.redirect(
+      destination instanceof URL ? destination : new URL(destination, request.url)
+    );
+    for (const cookie of response.cookies.getAll()) {
+      redirectResponse.cookies.set(cookie);
+    }
+    return redirectResponse;
+  };
+
   if (isProtectedRoute && !user) {
-    return NextResponse.redirect(signInUrl);
+    return withCookies(signInUrl);
+  }
+
+  // Chi e' gia' dentro non ha bisogno della pagina di presentazione. Resta
+  // **prima** della lettura qui sotto e senza query: `/` e' la pagina piu'
+  // visitata del prodotto, e chi non ha ancora un account applicativo viene
+  // comunque intercettato su `/dashboard`, che e' area riservata.
+  if (user && pathname === '/') {
+    return withCookies('/dashboard');
   }
 
   /**
-   * I due cancelli dopo l'accesso, in una lettura sola.
+   * I due cancelli dell'area riservata, in una lettura sola.
    *
-   * Valgono dove il giro si chiuderebbe — l'area riservata e la home — e non
-   * sulle pagine pubbliche, che non hanno motivo di pagare una query.
-   *
-   * Il primo cancello e' nuovo, e senza di lui esisteva un vicolo cieco. Con
-   * l'accesso Google puo' esistere una **sessione valida senza riga in
-   * `users`**: chi torna dal fornitore e non finisce la registrazione. In quel
-   * caso la home rimandava all'area riservata, `getUser()` restituiva null e si
-   * finiva alla pagina di accesso — dove si e' gia' dentro. Nessuno riportava
-   * al completamento, e il prodotto diventava irraggiungibile per quel browser.
+   * Il primo e' nato con l'accesso Google, e senza di lui c'era un vicolo
+   * cieco: puo' esistere una **sessione valida senza riga in `users`** — chi
+   * torna dal fornitore d'identita' e non finisce la registrazione. La home
+   * rimandava all'area riservata, `getUser()` restituiva null e si finiva alla
+   * pagina di accesso, dove si e' gia' dentro. Nessuno riportava al
+   * completamento.
    *
    * `leftJoin` e non `innerJoin`: serve distinguere «non c'e' l'account» da
    * «non c'e' ancora l'onboarding», che prima collassavano nello stesso
    * risultato vuoto.
+   *
+   * `isNull(deletedAt)` come in `getCachedUser`: un account chiuso con una
+   * sessione ancora viva non e', per il resto del prodotto, un account — e
+   * senza questo filtro finirebbe nello stesso vicolo cieco, perche' la riga
+   * risulterebbe presente qui e assente ovunque altro.
    */
-  if (user && (isProtectedRoute || pathname === '/')) {
+  if (user && isProtectedRoute) {
     const [row] = await db
       .select({ userId: users.id, status: userOnboarding.status })
       .from(users)
       .leftJoin(userOnboarding, eq(userOnboarding.userId, users.id))
-      .where(eq(users.authId, user.id))
+      .where(and(eq(users.authId, user.id), isNull(users.deletedAt)))
       .limit(1);
-
-    const withCookies = (destination: string) => {
-      const redirectResponse = NextResponse.redirect(
-        new URL(destination, request.url)
-      );
-      // Si riportano i cookie che il rinnovo della sessione ha appena ruotato:
-      // perderli qui significherebbe disconnettere l'utente reindirizzandolo.
-      for (const cookie of response.cookies.getAll()) {
-        redirectResponse.cookies.set(cookie);
-      }
-      return redirectResponse;
-    };
 
     if (!row) return withCookies(COMPLETE_SIGNUP_PATH);
 
@@ -156,9 +166,6 @@ export async function middleware(request: NextRequest) {
     if (row.status && row.status !== 'completed') {
       return withCookies('/onboarding');
     }
-
-    // Chi e' gia' dentro non ha bisogno della pagina di presentazione.
-    if (pathname === '/') return withCookies('/dashboard');
   }
 
   return response;
