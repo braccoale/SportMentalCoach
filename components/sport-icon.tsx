@@ -17,6 +17,7 @@ import {
 } from 'react-icons/fa6';
 import { IoTennisball } from 'react-icons/io5';
 import { sports } from '@/lib/verticals/sport-mental-coach/taxonomies';
+import { normalizeSportKey } from '@/lib/core/profiles/sport-key';
 
 /**
  * L'icona di uno sport.
@@ -70,18 +71,23 @@ const LABEL_BY_SPORT = new Map(sports.map((sport) => [sport.key, sport.label]));
 export function sportLabel(sportKey: string | null): string {
   if (!sportKey) return 'Sport non indicato';
 
-  return (
-    LABEL_BY_SPORT.get(sportKey) ??
-    sportKey
-      .replaceAll('_', ' ')
-      .replace(/^./, (firstLetter) => firstLetter.toLocaleUpperCase('it-IT'))
-  );
+  // Prima si normalizza, poi si cerca: così una riga storica che contiene
+  // l'etichetta invece della chiave trova comunque la sua voce — ed è la
+  // stessa strada che percorre l'icona. Quando le due funzioni normalizzavano
+  // in modo diverso, il fumetto diceva «Calcio» accanto a una medaglia.
+  const key = normalizeSportKey(sportKey);
+  if (key) return LABEL_BY_SPORT.get(key) ?? key;
+
+  return sportKey
+    .replaceAll('_', ' ')
+    .replace(/^./, (firstLetter) => firstLetter.toLocaleUpperCase('it-IT'));
 }
 
 /** Uno sport che non conosciamo prende la medaglia e non rompe niente. */
 export function sportIcon(sportKey: string | null): IconType {
-  if (!sportKey) return FaMedal;
-  return ICON_BY_SPORT[sportKey] ?? FaMedal;
+  const key = normalizeSportKey(sportKey);
+  if (!key) return FaMedal;
+  return ICON_BY_SPORT[key] ?? FaMedal;
 }
 
 export function SportIcon({
