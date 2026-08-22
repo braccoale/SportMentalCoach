@@ -304,6 +304,50 @@ export default function PrivacyPage() {
         <em>note private del coach</em>, che restano sue. Nessun contenuto della
         sessione ti viene mostrato prima che il coach lo abbia approvato.
       </p>
+      {/*
+        * Trasparenza ai sensi del Regolamento (UE) 2024/1689 (AI Act),
+        * applicabile dal 2 agosto 2026.
+        *
+        * Non e' un duplicato di quanto sta sopra: la parte GDPR spiega **come
+        * trattiamo i dati**, questa spiega **che cosa e' il sistema** e che
+        * cosa non fa. Serve anche a lasciare scritta la classificazione: dedurre
+        * uno stato d'animo dalle parole non e' «riconoscimento delle emozioni»
+        * ai sensi dell'art. 3, punto 39, che parla di dati biometrici — e il
+        * sistema e' costruito perche' resti cosi'.
+        */}
+      <h3 className="mt-6 text-lg font-semibold">
+        Trasparenza sull’intelligenza artificiale
+      </h3>
+      <p>
+        <strong>
+          Il riepilogo della sessione è prodotto da un sistema di intelligenza
+          artificiale
+        </strong>{' '}
+        a partire dalla trascrizione, e te lo diciamo prima di ogni sessione, nel
+        momento in cui ti chiediamo il consenso. Il testo che leggi è generato
+        automaticamente e poi letto e approvato da una persona: il tuo coach.
+      </p>
+      <p>
+        <strong>Che cosa il sistema non fa.</strong> Non prende decisioni al
+        posto del coach e non produce diagnosi. Non ti attribuisce un punteggio
+        che determini l’accesso a un servizio. Non riconosce emozioni dalla tua
+        voce, dal tuo volto o da altri dati biometrici: gli indicatori che vedi
+        nel riepilogo sono ricavati <em>dalle parole dette</em>, e ognuno cita la
+        frase da cui nasce, così che tu e il coach possiate verificarlo.
+      </p>
+      <p>
+        <strong>Dove può sbagliare.</strong> Un sistema di questo tipo può
+        fraintendere, dare peso a una frase detta di sfuggita o non cogliere
+        un’ironia. Per questo il coach rivede la bozza prima di condividerla, e
+        per questo ogni affermazione porta con sé la citazione da cui deriva. Se
+        leggi qualcosa che non ti corrisponde, dillo al tuo coach: può
+        correggerlo o non condividerlo affatto.
+      </p>
+      <p>
+        I documenti esportati dalla piattaforma riportano in modo esplicito che
+        il contenuto è generato da un’intelligenza artificiale, così da restare
+        riconoscibile anche fuori di qui.
+      </p>
       <p>
         Il contenuto della trascrizione e del report{' '}
         <strong>non viene mai inserito nelle email</strong> che ti inviamo: la

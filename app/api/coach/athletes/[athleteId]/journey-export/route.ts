@@ -73,8 +73,30 @@ export async function GET(
   const day = (iso: string | null) =>
     iso ? date.format(new Date(iso)) : 'senza data';
 
+  /*
+   * La provenienza, in testa e in chiaro.
+   *
+   * Il contenuto di questo documento e' prodotto da un sistema di
+   * intelligenza artificiale a partire dalla trascrizione delle sedute.
+   * L'art. 50 dell'AI Act, applicabile dal 2 agosto 2026, chiede che i
+   * contenuti generati artificialmente siano riconoscibili come tali: un file
+   * che esce dal prodotto e viaggia per posta o in una cartella deve dirlo da
+   * solo, perche' fuori di qui non c'e' nessuna interfaccia a spiegarlo.
+   *
+   * Il commento HTML iniziale e' la parte leggibile da una macchina; le righe
+   * sotto sono quella leggibile da una persona. Servono entrambe.
+   */
   const lines: string[] = [
+    '<!-- generator: KaiPai Session Compass -->',
+    '<!-- content-provenance: ai-generated -->',
+    `<!-- reviewed-by-human: coach ${user.id} -->`,
+    `<!-- exported-at: ${new Date().toISOString()} -->`,
+    '',
     `# Percorso di ${athlete.name}`,
+    '',
+    `> **Contenuto generato da un sistema di intelligenza artificiale** a partire`,
+    `> dalla trascrizione delle sedute, e approvato dal coach prima della`,
+    `> condivisione. Non e' una diagnosi e non contiene decisioni automatizzate.`,
     '',
     `Documento riservato al coach. Contiene solo riepiloghi già approvati.`,
     `Finestra: ${JOURNEY_PERIOD_LABELS[period]} · Sedute approvate: ${journey.summary.approvedSessionCount}`,
