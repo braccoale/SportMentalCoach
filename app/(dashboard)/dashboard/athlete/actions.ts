@@ -6,6 +6,7 @@ import { cancelBooking, createBookingRequest } from '@/lib/core/bookings';
 import { parseSessionDuration } from '@/lib/core/bookings/duration';
 import { parseRomeLocalDateTime } from '@/lib/core/availability';
 import { updateClientProfile } from '@/lib/core/profiles';
+import { normalizeSportKey } from '@/lib/core/profiles/sport-key';
 import { inviteGuardian } from '@/lib/core/guardians';
 import { LEGAL_CONTACT_EMAIL } from '@/lib/core/legal/processors';
 import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
@@ -131,8 +132,13 @@ export async function updateAthleteProfileAction(
   const city = String(formData.get('city') ?? '').trim() || null;
   const birthDate = String(formData.get('birthDate') ?? '').trim() || null;
 
-  if (category && category.length > 60) {
-    return { error: 'Sport/categoria troppo lungo (max 60 caratteri).' };
+  // Un'azione server è un endpoint raggiungibile: il fatto che il modulo sia
+  // diventato una scelta chiusa non impedisce a nessuno di inviare
+  // «pippo». Qui la stringa torna a essere una chiave di tassonomia, o si
+  // ferma — perché a valle l'icona, i filtri e le schede leggono una chiave.
+  const sportKey = normalizeSportKey(category);
+  if (category && !sportKey) {
+    return { error: 'Sport non riconosciuto: scegline uno dall’elenco.' };
   }
   if (level && level.length > 40) {
     return { error: 'Livello troppo lungo (max 40 caratteri).' };
@@ -147,7 +153,13 @@ export async function updateAthleteProfileAction(
     }
   }
 
-  await updateClientProfile(user.id, { category, level, goals, city, birthDate });
+  await updateClientProfile(user.id, {
+    category: sportKey,
+    level,
+    goals,
+    city,
+    birthDate,
+  });
 
   revalidatePath('/dashboard/athlete/profile');
   revalidatePath('/dashboard/coach');

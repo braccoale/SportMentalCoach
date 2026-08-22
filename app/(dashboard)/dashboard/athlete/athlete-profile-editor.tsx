@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ActionForm } from '@/components/action-form';
 import type { AthleteProfileFields } from '@/lib/core/profiles';
+import { normalizeSportKey } from '@/lib/core/profiles/sport-key';
+import { sports } from '@/lib/verticals/sport-mental-coach/taxonomies';
 import { updateAthleteProfileAction } from './actions';
 
 const LEVELS = [
@@ -41,13 +43,26 @@ export function AthleteProfileEditor({ profile }: { profile: AthleteProfileField
         <ActionForm action={updateAthleteProfileAction} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="category">Sport / disciplina</Label>
-            <Input
+            {/* Una scelta e non un testo libero. Il campo diceva
+                «Es. Tennis, Calcio, Atletica…», cioè invitava a scrivere
+                l'etichetta — ma questa colonna è una chiave di tassonomia, la
+                stessa che la procedura guidata scrive e che l'icona dello
+                sport legge. Chi seguiva il suggerimento si ritrovava una
+                medaglia al posto del pallone. Il «Livello» qui sotto era già
+                una scelta: questo campo era l'unico rimasto aperto. */}
+            <select
               id="category"
               name="category"
-              defaultValue={profile.category ?? ''}
-              maxLength={60}
-              placeholder="Es. Tennis, Calcio, Atletica…"
-            />
+              defaultValue={normalizeSportKey(profile.category) ?? ''}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+            >
+              <option value="">Seleziona…</option>
+              {sports.map((sport) => (
+                <option key={sport.key} value={sport.key}>
+                  {sport.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="space-y-1.5">
