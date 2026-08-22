@@ -1,7 +1,8 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
-import { Dumbbell, Loader2, ShieldCheck, UserRound, X } from 'lucide-react';
+import { Loader2, ShieldCheck, X } from 'lucide-react';
 import type { DemoLoginRole } from '@/lib/auth/demo-login';
 
 export function DemoLoginModal({
@@ -102,11 +103,17 @@ export function DemoLoginModal({
             onClick={() => void enter('coach')}
             className="group rounded-2xl border border-kp-line bg-kp-surface p-5 text-left transition hover:border-kp-red/50 hover:bg-kp-red/5 disabled:cursor-wait disabled:opacity-60"
           >
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-kp-red/10 text-kp-red">
+            <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-kp-red/30 bg-kp-red/10 text-kp-red shadow-sm">
               {pendingRole === 'coach' ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
-                <UserRound className="h-5 w-5" />
+                <Image
+                  src="/demo/coach-alessandro-riva.png"
+                  alt="Alessandro Riva, coach demo"
+                  width={48}
+                  height={48}
+                  className="h-full w-full object-cover"
+                />
               )}
             </span>
             <span className="mt-4 block font-display text-lg font-semibold text-kp-hi">
@@ -123,11 +130,17 @@ export function DemoLoginModal({
             onClick={() => void enter('athlete')}
             className="group rounded-2xl border border-kp-line bg-kp-surface p-5 text-left transition hover:border-kp-red/50 hover:bg-kp-red/5 disabled:cursor-wait disabled:opacity-60"
           >
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-kp-red/10 text-kp-red">
+            <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-kp-red/30 bg-kp-red/10 text-kp-red shadow-sm">
               {pendingRole === 'athlete' ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
-                <Dumbbell className="h-5 w-5" />
+                <Image
+                  src="/demo/athlete-giulia-martini.png"
+                  alt="Giulia Martini, atleta demo"
+                  width={48}
+                  height={48}
+                  className="h-full w-full object-cover"
+                />
               )}
             </span>
             <span className="mt-4 block font-display text-lg font-semibold text-kp-hi">
