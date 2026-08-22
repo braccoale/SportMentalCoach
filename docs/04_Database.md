@@ -326,3 +326,72 @@ None of these happen in Phase 1.
   exist; realtime delivery is still deferred).
 - Reviews and ratings (Phase 2).
 - AI artifacts: transcripts, embeddings, match scores (Phase 3).
+
+---
+
+## Audit di integrità, indici e permessi (22 agosto 2026)
+
+Fotografia dello stato, e le due decisioni che spiegano ciò che un linter
+continuerà a segnalare.
+
+### Integrità: nessun orfano, e non è un caso
+
+- **121 chiavi esterne**, tutte validate. **52 tabelle su 52 con chiave
+  primaria.** Nessuna tabella senza RLS.
+- `ON DELETE`: 61 `CASCADE`, 53 `SET NULL`, 5 `NO ACTION`.
+- Controllate **58 colonne** che puntano a `users` senza vincolo, comprese le
+  tabelle da 5000 righe delle trascrizioni: **zero righe orfane**.
+
+L'advisor di Supabase segnala *unindexed* foreign keys, non *missing*: i
+vincoli ci sono, e sono loro a impedire gli orfani. L'indice riguarda la
+velocità, non l'integrità — una distinzione che vale la pena ricordare, perché
+il titolo dell'avviso si presta a leggerla al contrario.
+
+### Perché le colonne di audit restano senza indice
+
+`created_by` / `updated_by` compaiono su una trentina di tabelle e sono chiavi
+esterne verso `users`. **Non sono indicizzate, ed è una scelta.**
+
+Un indice su quelle colonne servirebbe a una cosa sola: rendere veloce la
+**cancellazione fisica di un utente**, che deve controllare ogni tabella figlia.
+Qui non avviene mai — la cancellazione è logica (`users.deleted_at`). In cambio
+si pagherebbe un costo in scrittura su ogni inserimento, e la tabella che ne
+soffrirebbe di più è `session_transcript_segments`, che cresce di oltre cento
+righe a seduta.
+
+Quindi il linter continuerà a segnalarne **32**, tutte di audit, per sempre.
+Sono state lasciate lì di proposito: se un giorno la cancellazione degli utenti
+diventerà fisica, questa decisione va rivista.
+
+Le **35 chiavi che l'applicazione percorre davvero** sono invece indicizzate
+(`idx_fk_*`): partecipanti alle trascrizioni e alle registrazioni, autori dei
+messaggi e delle recensioni, servizio di una prenotazione, ruolo di un utente,
+impegni verso il riepilogo d'origine, eventi dei tutori, e le altre.
+
+### Permessi: la Data API è chiusa, e ora davvero
+
+Il prodotto **non usa la Data API di Supabase**: il client serve solo per Auth e
+Storage, `supabase.from()` non compare nel codice. L'applicazione parla a
+Postgres come `postgres`, che ignora la RLS.
+
+Di conseguenza le decine di avvisi «RLS attiva ma nessun criterio» sono l'esito
+atteso, non un difetto: senza permessi e senza criteri, quelle tabelle non sono
+raggiungibili dall'esterno.
+
+**`public.users` era l'eccezione**, e concedeva tutti i privilegi ad `anon` e
+`authenticated`. Non era sfruttabile — la RLS senza criteri restituisce zero
+righe — ma era una difesa a un solo strato: un criterio permissivo aggiunto per
+sbaglio avrebbe esposto l'intera tabella utenti, mentre su ogni altra tabella
+servirebbero due errori. I permessi sono stati revocati.
+
+Le uniche cinque politiche RLS che esistono sono sull'area degli appunti AI
+— riepiloghi, consensi, impegni, note, diritti — e sono in sola lettura per
+`authenticated`, vincolate a «amministratore, oppure chi allena quella seduta,
+oppure l'atleta stesso».
+
+### Cosa resta da fare, e non è codice
+
+**La protezione contro le password compromesse è disattivata.** Supabase può
+verificarle contro HaveIBeenPwned alla registrazione. Si accende dal pannello,
+in Authentication → Policies, e ora che ci sono utenti veri con password vale la
+pena farlo.
