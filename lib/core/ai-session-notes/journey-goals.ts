@@ -11,16 +11,24 @@
  * - **in quali sedute l'obiettivo è comparso è un fatto scritto**, non una
  *   somiglianza calcolata a ogni lettura.
  *
- * Il secondo punto è cambiato dopo averlo visto rompersi in produzione. Prima
- * l'aggancio era la chiave di un tema, che il dominio ricava normalizzando la
- * frase intera del riepilogo — una frase scritta da un modello, che cambia
- * formulazione di seduta in seduta. Quando le due frasi smettevano di
- * coincidere la traccia diventava una fila di pallini vuoti, che si legge
- * «non ci abbiamo più lavorato» invece che «il collegamento si è rotto».
- * Ora il legame si scrive una volta e resta.
+ * Il secondo punto è cambiato due volte, e la seconda dopo aver contato.
+ *
+ * All'inizio l'aggancio era la chiave di un tema, che il dominio ricava
+ * normalizzando la frase intera del riepilogo — una frase scritta da un
+ * modello, che cambia formulazione di seduta in seduta. Quando le due frasi
+ * smettevano di coincidere la traccia diventava una fila di pallini vuoti, che
+ * si legge «non ci abbiamo più lavorato» invece che «il collegamento si è
+ * rotto». Il rimedio fu questa tabella di agganci, più un riallineamento che
+ * li ricavava dai temi.
+ *
+ * Quel riallineamento, in produzione, ha prodotto **zero agganci su quindici
+ * obiettivi**: le frasi non coincidono mai davvero. Due riepiloghi dello stesso
+ * atleta parlavano entrambi di impegno con parole del tutto diverse, e nessun
+ * confronto fra stringhe le avrebbe mai unite. Quindi il tema non aggancia più
+ * niente: **le sedute le indica il coach**, una volta, e restano.
  */
 
-import type { MentalJourneyEntry, RecurringTheme } from './mental-journey';
+import type { MentalJourneyEntry } from './mental-journey';
 
 export const JOURNEY_GOAL_STATUSES = [
   'in_corso',
@@ -45,6 +53,13 @@ export type StoredJourneyGoal = {
   title: string;
   isPrimary: boolean;
   status: JourneyGoalStatus;
+  /**
+   * Lascito degli obiettivi scritti quando il tema li agganciava. La colonna
+   * esiste ancora e conserva quei valori, ma **niente la legge per decidere
+   * qualcosa**: la traccia nasce solo dagli agganci scritti. Sta qui perché la
+   * riga sia restituita per intero, e due test verificano che continui a non
+   * contare nulla.
+   */
   themeKey: string | null;
   position: number;
   updatedAt: Date;
@@ -60,6 +75,48 @@ export type JourneyGoalDot = {
 
 /** Le sedute agganciate a ciascun obiettivo, per id di obiettivo. */
 export type GoalSessionLinks = ReadonlyMap<number, ReadonlySet<number>>;
+
+/** Una colonna dell'asse: la seduta, la sua data e il suo numero d'ordine. */
+export type JourneyGoalSession = {
+  sessionId: number;
+  sessionDate: string | null;
+  /** La posizione sull'asse a partire da 1: è l'etichetta «S3» in testa. */
+  ordinal: number;
+  href: string;
+};
+
+/**
+ * Le sedute che formano l'asse condiviso: le ultime `maxDots`, in ordine
+ * cronologico.
+ *
+ * Vive qui, e non nel componente, perché l'asse disegnato e l'elenco di sedute
+ * su cui il coach spunta **devono essere la stessa cosa**. Calcolarli in due
+ * posti significa che prima o poi divergono, e allora si spunta una seduta che
+ * nella riga non esiste — o peggio, una riga mostra un pallino per una seduta
+ * che nel modulo non era spuntabile.
+ */
+export function visibleJourneySessions(
+  timeline: readonly MentalJourneyEntry[],
+  maxDots: number = MAX_GOAL_TRACK_DOTS
+): JourneyGoalSession[] {
+  // La timeline arriva dalla più recente: qui si legge da sinistra a destra.
+  const chronological = [...timeline].sort((left, right) => {
+    const a = left.sessionDate
+      ? Date.parse(left.sessionDate)
+      : Number.MAX_SAFE_INTEGER;
+    const b = right.sessionDate
+      ? Date.parse(right.sessionDate)
+      : Number.MAX_SAFE_INTEGER;
+    return a - b;
+  });
+
+  return chronological.slice(-maxDots).map((entry, index) => ({
+    sessionId: entry.sessionId,
+    sessionDate: entry.sessionDate,
+    ordinal: index + 1,
+    href: `${entry.compassHref}#session-compass`,
+  }));
+}
 
 export type JourneyGoalRow = {
   id: number;
@@ -104,15 +161,7 @@ export function buildJourneyGoalRows(params: {
   links: GoalSessionLinks;
   maxDots?: number;
 }): JourneyGoalRow[] {
-  const maxDots = params.maxDots ?? MAX_GOAL_TRACK_DOTS;
-
-  // La timeline arriva dalla più recente: qui si legge da sinistra a destra.
-  const chronological = [...params.timeline].sort((left, right) => {
-    const a = left.sessionDate ? Date.parse(left.sessionDate) : Number.MAX_SAFE_INTEGER;
-    const b = right.sessionDate ? Date.parse(right.sessionDate) : Number.MAX_SAFE_INTEGER;
-    return a - b;
-  });
-  const visible = chronological.slice(-maxDots);
+  const visible = visibleJourneySessions(params.timeline, params.maxDots);
 
   return [...params.goals]
     .sort((left, right) => {
@@ -123,11 +172,11 @@ export function buildJourneyGoalRows(params: {
     .map((goal) => {
       const touchedIn = params.links.get(goal.id) ?? new Set<number>();
 
-      const track = visible.map((entry) => ({
-        sessionId: entry.sessionId,
-        sessionDate: entry.sessionDate,
-        touched: touchedIn.has(entry.sessionId),
-        href: `${entry.compassHref}#session-compass`,
+      const track = visible.map((session) => ({
+        sessionId: session.sessionId,
+        sessionDate: session.sessionDate,
+        touched: touchedIn.has(session.sessionId),
+        href: session.href,
       }));
 
       const lastTouched = [...track].reverse().find((dot) => dot.touched);
@@ -143,19 +192,4 @@ export function buildJourneyGoalRows(params: {
         isTracked: track.some((dot) => dot.touched),
       };
     });
-}
-
-/**
- * I temi che un coach può agganciare a un obiettivo: quelli che il Compass ha
- * visto tornare almeno due volte. Proporre un tema comparso una volta sola
- * significherebbe promettere una traccia che resterà quasi tutta vuota.
- */
-export function selectableGoalThemes(
-  themes: readonly RecurringTheme[]
-): Array<{ key: string; label: string; occurrences: number }> {
-  return themes.map((theme) => ({
-    key: theme.key,
-    label: theme.label,
-    occurrences: theme.occurrences,
-  }));
 }

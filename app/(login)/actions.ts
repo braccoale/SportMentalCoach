@@ -2,20 +2,14 @@
 
 import { z } from 'zod';
 import { and, eq, isNull, sql } from 'drizzle-orm';
-import { db, type DbOrTx } from '@/lib/db/drizzle';
+import { db } from '@/lib/db/drizzle';
 import {
   User,
   users,
   teams,
   teamMembers,
-  activityLogs,
-  type NewUser,
-  type NewTeam,
-  type NewTeamMember,
-  type NewActivityLog,
   ActivityType,
-  invitations,
-  clientProfiles
+  invitations
 } from '@/lib/db/schema';
 import {
   createSupabaseServer,
@@ -25,7 +19,6 @@ import { sendWelcomeEmail } from '@/lib/core/email';
 import { redirect } from 'next/navigation';
 import { headers, cookies } from 'next/headers';
 import { attributeReferral } from '@/lib/core/referrals';
-import { recordPlatformTermsAcceptance } from '@/lib/core/legal/acceptance';
 import { createCheckoutSession } from '@/lib/payments/stripe';
 import { getUser, getUserWithTeam } from '@/lib/db/queries';
 import {
@@ -33,49 +26,23 @@ import {
   validatedActionWithUser
 } from '@/lib/auth/middleware';
 import { dashboardPathForRoles, getUserRoles } from '@/lib/core/auth';
-import { ensureOnboarding } from '@/lib/core/onboarding';
 import {
   ageFromBirthDate,
   isEligibleAge,
-  MIN_SIGNUP_AGE
+  MIN_SIGNUP_AGE,
+  requiresGuardian
 } from '@/lib/core/guardians/age';
 import {
-  ensureProfile,
   syncDisplayName,
-  provisionMarketplaceRole,
   notifyAdminsOfAthleteRegistration,
   notifyAdminsOfProviderRegistration,
   type SignupRole
 } from '@/lib/core/profiles';
-
-/**
- * Post-auth destination. Honors an internal `redirect` path (e.g. back to
- * the coach profile the user came from) so the booking context is never
- * lost; falls back to the role dashboard. Only same-origin paths pass.
- */
-function safeRedirectPath(value: string | null): string | null {
-  if (!value) return null;
-  if (!value.startsWith('/') || value.startsWith('//')) return null;
-  return value;
-}
-
-async function logActivity(
-  teamId: number | null | undefined,
-  userId: number,
-  type: ActivityType,
-  exec: DbOrTx = db
-) {
-  if (teamId === null || teamId === undefined) {
-    return;
-  }
-  const newActivity: NewActivityLog = {
-    teamId,
-    userId,
-    action: type,
-    ipAddress: ''
-  };
-  await exec.insert(activityLogs).values(newActivity);
-}
+import {
+  createAccountRecords,
+  logActivity,
+} from '@/lib/core/auth/account-provisioning';
+import { safeRedirectPath } from '@/lib/core/auth/safe-redirect';
 
 const signInSchema = z.object({
   email: z.string().email().min(3).max(255),
@@ -187,7 +154,6 @@ const signUpSchema = z.object({
 
 export const signUp = validatedAction(signUpSchema, async (data, formData) => {
   const { email, password, name, lastName, inviteId, role, birthDate } = data;
-  const fullName = `${name} ${lastName}`.trim();
   const marketing = data.marketing === 'on';
 
   // Required legal acceptances — enforced server-side too, not just in the UI.
@@ -308,108 +274,20 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
   // profile only (their marketplace role is managed within the club).
   const marketplaceRole: SignupRole | null = invitation ? null : role ?? 'athlete';
 
-  // All writes run in a single transaction so a partial failure never leaves
-  // orphaned user / team / profile rows behind.
-  const signupResult = await db
-    .transaction(async (tx) => {
-      const newUser: NewUser = {
-        email,
-        authId,
-        role: 'owner',
-        name,
-        lastName,
-        marketingConsent: marketing,
-        marketingConsentAt: marketing ? new Date() : null
-      };
-      const [createdUser] = await tx.insert(users).values(newUser).returning();
-
-      let teamId: number;
-      let userRole: string;
-      let team: typeof teams.$inferSelect;
-
-      if (invitation) {
-        teamId = invitation.teamId;
-        userRole = invitation.role;
-        await tx
-          .update(invitations)
-          .set({ status: 'accepted' })
-          .where(eq(invitations.id, invitation.id));
-        await logActivity(teamId, createdUser.id, ActivityType.ACCEPT_INVITATION, tx);
-        [team] = await tx
-          .select()
-          .from(teams)
-          .where(eq(teams.id, teamId))
-          .limit(1);
-      } else {
-        const newTeam: NewTeam = { name: `${email}'s Team` };
-        [team] = await tx.insert(teams).values(newTeam).returning();
-        teamId = team.id;
-        userRole = 'owner';
-        await logActivity(teamId, createdUser.id, ActivityType.CREATE_TEAM, tx);
-      }
-
-      const newTeamMember: NewTeamMember = {
-        userId: createdUser.id,
-        teamId,
-        role: userRole
-      };
-      await tx.insert(teamMembers).values(newTeamMember);
-      await logActivity(teamId, createdUser.id, ActivityType.SIGN_UP, tx);
-
-      if (marketplaceRole) {
-        await provisionMarketplaceRole(
-          createdUser.id,
-          marketplaceRole,
-          { email, displayName: fullName },
-          tx
-        );
-      } else {
-        await ensureProfile(createdUser.id, fullName, tx);
-      }
-
-      // Proof of acceptance, written in the same transaction as the account:
-      // an account that exists without a matching acceptance row would be one
-      // we cannot show anyone agreed to anything.
-      await recordPlatformTermsAcceptance(
-        createdUser.id,
-        {
-          ipAddress: signupIp,
-          userAgent: signupUserAgent,
-          acceptedVexatious: isProfessional,
-        },
-        tx
-      );
-
-      // Persist the declared birth date: the guardian gate reads it back from
-      // the athlete profile, so it has to land in the same transaction that
-      // creates the account rather than waiting for a profile edit.
-      if (isAthleteSignup && birthDate) {
-        await tx
-          .insert(clientProfiles)
-          .values({ userId: createdUser.id, birthDate, createdBy: createdUser.id })
-          .onConflictDoUpdate({
-            target: clientProfiles.userId,
-            set: { birthDate, updatedAt: new Date() }
-          });
-      }
-
-      // Onboarding state. Athletes and coaches go through the initial wizard;
-      // club (and invited members) keep the current flow for now and are marked
-      // complete so nothing gates their dashboard.
-      await ensureOnboarding(
-        createdUser.id,
-        marketplaceRole === 'athlete' || marketplaceRole === 'coach'
-          ? 'in_progress'
-          : 'completed',
-        tx
-      );
-
-      return { user: createdUser, team };
-    })
-    .catch((error) => {
-      console.error('Sign-up transaction failed:', error);
-      return null;
-    });
+  const signupResult = await createAccountRecords({
+    authId,
+    email,
+    name,
+    lastName,
+    marketing,
+    marketplaceRole,
+    birthDate: birthDate ?? null,
+    isAthleteSignup,
+    isProfessional,
+    invitation,
+    signupIp,
+    signupUserAgent,
+  });
 
   if (!signupResult) {
     // Roll back the Auth identity so a retry with the same email works.
@@ -445,6 +323,8 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
     to: email,
     name: createdUser.name,
     role: marketplaceRole,
+    guardianAuthorizationRequired:
+      marketplaceRole === 'athlete' && requiresGuardian(athleteAge),
   }).catch(() => {});
 
   // Admin lifecycle alert: registration is distinct from the later request

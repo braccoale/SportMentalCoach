@@ -21,6 +21,7 @@ import {
   type TemplateContext,
 } from './render';
 import { DEFAULT_LOCALE, resolveTemplate } from './templates';
+import { buildWelcomeEmailContent } from './welcome-content';
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 
@@ -381,36 +382,29 @@ export async function sendWelcomeEmail(input: {
   to: string;
   name?: string | null;
   role?: 'athlete' | 'coach' | 'club' | null;
+  guardianAuthorizationRequired?: boolean;
 }): Promise<void> {
   const brand = t('brand.name', getVerticalConfig());
   const { preferencesUrl, privacyUrl, baseUrl } = footerUrls();
-  const dashboardUrl = absoluteUrl('/dashboard');
-  const name = input.name?.trim() || null;
-  const greeting = name ? `Ciao ${name},` : 'Ciao,';
-  const isCoach = input.role === 'coach';
-
-  const paragraphs = [
-    greeting,
-    isCoach
-      ? 'il tuo spazio coach su KaiPai è pronto. Completa il profilo, racconta il tuo approccio e invialo alla revisione: quando sarà approvato potrai incontrare atleti, organizzare le sessioni e far crescere il tuo lavoro.'
-      : 'il tuo spazio KaiPai è pronto. Da qui puoi conoscere i coach, scegliere il percorso più adatto a te e allenare la mente con la stessa cura che dedichi al tuo sport.',
-    isCoach
-      ? 'Il tuo modo di fare coaching merita uno spazio chiaro e professionale.'
-      : 'Ogni piccolo passo conta: quando vuoi, puoi iniziare dalla tua area.',
-  ];
-
-  const action = dashboardUrl
-    ? { label: isCoach ? 'Vai alla tua area coach' : 'Scopri la tua area', url: dashboardUrl }
+  const content = buildWelcomeEmailContent({
+    brand,
+    name: input.name,
+    role: input.role,
+    guardianAuthorizationRequired: input.guardianAuthorizationRequired,
+  });
+  const actionUrl = absoluteUrl(content.actionPath);
+  const action = actionUrl
+    ? { label: content.actionLabel, url: actionUrl }
     : null;
 
   await sendEmail({
     to: input.to,
-    subject: isCoach && name ? `Benvenuto tra i coach KaiPai, ${name}` : `Benvenuto su ${brand}${name ? `, ${name}` : ''}`,
+    subject: content.subject,
     html: wrapEmailHtml({
-      preview: 'Il tuo account è pronto.',
-      eyebrow: 'Benvenuto',
-      title: `Benvenuto su ${escapeHtml(brand)}`,
-      bodyHtml: paragraphs
+      preview: content.preview,
+      eyebrow: content.eyebrow,
+      title: escapeHtml(content.title),
+      bodyHtml: content.paragraphs
         .map((p) => `<p style="margin:0 0 14px">${escapeHtml(p)}</p>`)
         .join('\n'),
       action,
@@ -419,9 +413,9 @@ export async function sendWelcomeEmail(input: {
       baseUrl,
     }),
     text: wrapEmailText({
-      eyebrow: 'Benvenuto',
-      title: `Benvenuto su ${brand}`,
-      bodyText: paragraphs.join('\n\n'),
+      eyebrow: content.eyebrow,
+      title: content.title,
+      bodyText: content.paragraphs.join('\n\n'),
       action,
       preferencesUrl,
     }),

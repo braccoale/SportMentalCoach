@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { users, userOnboarding } from '@/lib/db/schema';
 import { REQUEST_METHOD_HEADER } from '@/lib/auth/demo-readonly';
+import { COMPLETE_SIGNUP_PATH } from '@/lib/core/auth/signup-completion';
 
 const protectedRoutes = '/dashboard';
+
+
 
 /**
  * Refreshes the Supabase Auth session on every request (rotating tokens are
@@ -101,38 +104,67 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Already-authenticated visitors don't need the marketing landing page: send
-  // them straight to their dashboard (which itself routes to the right area).
-  if (user && pathname === '/') {
-    const toDashboard = NextResponse.redirect(new URL('/dashboard', request.url));
-    // Carry over any auth cookies the session refresh above just rotated.
+  /**
+   * I cookie che il rinnovo della sessione ha appena ruotato viaggiano con
+   * ogni reindirizzamento: perderli qui significherebbe disconnettere l'utente
+   * proprio mentre lo si sposta, e lasciargli in mano un cookie scaduto che a
+   * ogni richiesta successiva costa una chiamata di rete destinata a fallire.
+   */
+  const withCookies = (destination: URL | string) => {
+    const redirectResponse = NextResponse.redirect(
+      destination instanceof URL ? destination : new URL(destination, request.url)
+    );
     for (const cookie of response.cookies.getAll()) {
-      toDashboard.cookies.set(cookie);
+      redirectResponse.cookies.set(cookie);
     }
-    return toDashboard;
-  }
+    return redirectResponse;
+  };
 
   if (isProtectedRoute && !user) {
-    return NextResponse.redirect(signInUrl);
+    return withCookies(signInUrl);
   }
 
-  // Onboarding gate: an authenticated user whose onboarding is not yet complete
-  // is sent to the wizard before any dashboard page. No loop — `/onboarding`
-  // lives outside `/dashboard`. Legacy users (no row) are treated as complete
-  // (fail-open), so existing accounts are never interrupted.
-  if (isProtectedRoute && user) {
+  // Chi e' gia' dentro non ha bisogno della pagina di presentazione. Resta
+  // **prima** della lettura qui sotto e senza query: `/` e' la pagina piu'
+  // visitata del prodotto, e chi non ha ancora un account applicativo viene
+  // comunque intercettato su `/dashboard`, che e' area riservata.
+  if (user && pathname === '/') {
+    return withCookies('/dashboard');
+  }
+
+  /**
+   * I due cancelli dell'area riservata, in una lettura sola.
+   *
+   * Il primo e' nato con l'accesso Google, e senza di lui c'era un vicolo
+   * cieco: puo' esistere una **sessione valida senza riga in `users`** — chi
+   * torna dal fornitore d'identita' e non finisce la registrazione. La home
+   * rimandava all'area riservata, `getUser()` restituiva null e si finiva alla
+   * pagina di accesso, dove si e' gia' dentro. Nessuno riportava al
+   * completamento.
+   *
+   * `leftJoin` e non `innerJoin`: serve distinguere «non c'e' l'account» da
+   * «non c'e' ancora l'onboarding», che prima collassavano nello stesso
+   * risultato vuoto.
+   *
+   * `isNull(deletedAt)` come in `getCachedUser`: un account chiuso con una
+   * sessione ancora viva non e', per il resto del prodotto, un account — e
+   * senza questo filtro finirebbe nello stesso vicolo cieco, perche' la riga
+   * risulterebbe presente qui e assente ovunque altro.
+   */
+  if (user && isProtectedRoute) {
     const [row] = await db
-      .select({ status: userOnboarding.status })
+      .select({ userId: users.id, status: userOnboarding.status })
       .from(users)
-      .innerJoin(userOnboarding, eq(userOnboarding.userId, users.id))
-      .where(eq(users.authId, user.id))
+      .leftJoin(userOnboarding, eq(userOnboarding.userId, users.id))
+      .where(and(eq(users.authId, user.id), isNull(users.deletedAt)))
       .limit(1);
-    if (row && row.status !== 'completed') {
-      const toWizard = NextResponse.redirect(new URL('/onboarding', request.url));
-      for (const cookie of response.cookies.getAll()) {
-        toWizard.cookies.set(cookie);
-      }
-      return toWizard;
+
+    if (!row) return withCookies(COMPLETE_SIGNUP_PATH);
+
+    // Onboarding: gli account storici (nessuna riga) restano completi, cosi'
+    // nessuno viene interrotto a meta' di quello che stava facendo.
+    if (row.status && row.status !== 'completed') {
+      return withCookies('/onboarding');
     }
   }
 

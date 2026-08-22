@@ -4,7 +4,13 @@ import { db } from '@/lib/db/drizzle';
 import {
   athleteJourneyGoalSessions,
   athleteJourneyGoals,
+  bookings,
+  providerProfiles,
+  sessionAiNotes,
+  sessionAiReports,
 } from '@/lib/db/schema';
+import { JOURNEY_REPORT_STATUSES } from './mental-journey';
+import { SESSION_COMPASS_REPORT_KIND } from './session-compass-contract';
 import {
   parseJourneyGoalStatus,
   type GoalSessionLinks,
@@ -52,10 +58,9 @@ export async function createJourneyGoal(params: {
   coachUserId: number;
   athleteUserId: number;
   title: string;
-  themeKey: string | null;
   isPrimary: boolean;
-  /** Le sedute in cui quel tema e' gia' emerso, per non partire da zero. */
-  themeSessionIds?: readonly number[];
+  /** Le sedute in cui l'obiettivo e' gia' in gioco, indicate dal coach. */
+  sessionIds?: readonly number[];
 }): Promise<void> {
   const existing = await listJourneyGoals(params);
   // Il primo obiettivo di un percorso è il principale per definizione: nessuno
@@ -70,7 +75,6 @@ export async function createJourneyGoal(params: {
       coachUserId: params.coachUserId,
       athleteUserId: params.athleteUserId,
       title: params.title,
-      themeKey: params.themeKey,
       isPrimary,
       position: existing.length,
       createdBy: params.coachUserId,
@@ -78,14 +82,14 @@ export async function createJourneyGoal(params: {
     })
     .returning({ id: athleteJourneyGoals.id });
 
-  // Le sedute in cui quel tema e' gia' emerso diventano subito storia
-  // dell'obiettivo: un obiettivo nato oggi non parte da una traccia vuota su
-  // un percorso che dura da mesi.
-  if (created && params.themeSessionIds?.length) {
+  // Le sedute spuntate alla creazione diventano subito storia dell'obiettivo:
+  // un obiettivo nato oggi non parte da una traccia vuota su un percorso che
+  // dura da mesi.
+  if (created && params.sessionIds?.length) {
     await linkGoalSessions({
       goalId: created.id,
-      sessionIds: params.themeSessionIds,
-      source: 'theme',
+      sessionIds: params.sessionIds,
+      source: 'coach',
       actorUserId: params.coachUserId,
     });
   }
@@ -183,12 +187,18 @@ export async function listGoalSessionLinks(
 
 /**
  * Scrive gli agganci mancanti. Idempotente: l'indice unico assorbe i doppioni,
- * e il riaggancio automatico gira a ogni approvazione.
+ * quindi un doppio invio del modulo non crea due volte lo stesso legame.
  */
 export async function linkGoalSessions(params: {
   goalId: number;
   sessionIds: readonly number[];
-  source: 'theme' | 'coach';
+  /**
+   * Solo `coach`: e' l'unico scrittore rimasto. Il tipo lo dice invece di
+   * lasciar credere che esista ancora un aggancio automatico — e obbliga a
+   * passarlo, cosi' il default del database non etichetta come automatico
+   * qualcosa che ha fatto una persona.
+   */
+  source: 'coach';
   actorUserId: number | null;
 }): Promise<void> {
   if (params.sessionIds.length === 0) return;
@@ -206,65 +216,105 @@ export async function linkGoalSessions(params: {
     .onConflictDoNothing();
 }
 
-/** Gli obiettivi di un atleta che portano una chiave di tema, per il riaggancio. */
-export async function listGoalsWithThemeKey(
-  athleteUserId: number
-): Promise<Array<{ id: number; themeKey: string }>> {
-  const rows = await db
-    .select({
-      id: athleteJourneyGoals.id,
-      themeKey: athleteJourneyGoals.themeKey,
-    })
+/**
+ * Aggancia o sgancia una seduta da un obiettivo: e' il pallino su cui il coach
+ * clicca nella riga.
+ *
+ * **Perche' un interruttore e non due funzioni separate.** Il comando parte dal
+ * pallino, e il pallino sa gia' com'e' adesso: chiedergli anche di dire cosa
+ * vuole diventare significherebbe far viaggiare uno stato che il server puo'
+ * leggere da se'. Cosi' il doppio clic accidentale torna al punto di partenza
+ * invece di scrivere due volte.
+ *
+ * L'autorizzazione e' la tripla, come per lo stato: l'obiettivo deve
+ * appartenere a **questo** coach per **questo** atleta, altrimenti non si
+ * scrive niente. Un id in un campo nascosto non e' una prova di niente.
+ */
+export async function toggleGoalSession(params: {
+  coachUserId: number;
+  athleteUserId: number;
+  goalId: number;
+  sessionId: number;
+}): Promise<void> {
+  const [goal] = await db
+    .select({ id: athleteJourneyGoals.id })
     .from(athleteJourneyGoals)
     .where(
       and(
-        eq(athleteJourneyGoals.athleteUserId, athleteUserId),
+        eq(athleteJourneyGoals.id, params.goalId),
+        eq(athleteJourneyGoals.coachUserId, params.coachUserId),
+        eq(athleteJourneyGoals.athleteUserId, params.athleteUserId),
         isNull(athleteJourneyGoals.archivedAt)
       )
-    );
+    )
+    .limit(1);
+  if (!goal) return;
 
-  return rows.flatMap((row) =>
-    row.themeKey ? [{ id: row.id, themeKey: row.themeKey }] : []
-  );
+  // Si prova prima a togliere: se c'era, l'operazione e' finita. Il contrario
+  // — leggere, decidere, scrivere — lascerebbe una finestra fra la lettura e
+  // la scrittura, e questo e' un solo comando.
+  const removed = await db
+    .delete(athleteJourneyGoalSessions)
+    .where(
+      and(
+        eq(athleteJourneyGoalSessions.goalId, params.goalId),
+        eq(athleteJourneyGoalSessions.sessionAiNotesId, params.sessionId)
+      )
+    )
+    .returning({ id: athleteJourneyGoalSessions.id });
+  if (removed.length > 0) return;
+
+  await linkGoalSessions({
+    goalId: params.goalId,
+    sessionIds: [params.sessionId],
+    source: 'coach',
+    actorUserId: params.coachUserId,
+  });
 }
 
 /**
- * Riallinea gli agganci a partire dai temi ricorrenti.
+ * Gli id delle sedute che appartengono al percorso di questa coppia.
  *
- * Gira all'apertura della scheda ed e' idempotente: scrive solo cio' che manca.
- * Sta qui e non nell'approvazione perche' deve **sanare anche il passato** —
- * gli obiettivi scritti prima che questa tabella esistesse non avrebbero mai
- * un aggancio, e resterebbero con la traccia vuota per sempre.
+ * Serve a validare un id che arriva da un campo del modulo, e i campi si
+ * riscrivono: senza questo confronto una riga di aggancio potrebbe puntare
+ * alla conversazione di qualcun altro.
  *
- * Una volta scritto, il legame non si tocca piu': se il modello riformula il
- * tema, le sedute gia' agganciate restano. E' esattamente il difetto che
- * questa tabella risolve.
+ * **Perche' una query e non il percorso completo.** Prima questa risposta si
+ * otteneva ricostruendo l'intera Mental Journey — permessi, tutte le sedute
+ * approvate, tutti gli impegni, la proiezione — a **ogni clic su un pallino**,
+ * e poi di nuovo al ridisegno della pagina: una decina di andate e ritorno
+ * verso il database per invertire un booleano.
+ *
+ * **Ma la condizione e' la stessa, non una piu' larga.** La prima versione di
+ * questa query filtrava solo sulla coppia coach/atleta, e cosi' accettava
+ * qualunque seduta fra i due: una senza riepilogo, una fallita, una ancora in
+ * bozza. Un id modificato nel modulo sarebbe passato, scrivendo un aggancio a
+ * una seduta che nella riga non compare — «una riga che non dovrebbe
+ * esistere», che e' la ragione per cui questo controllo esiste. Il filtro sullo
+ * stato del riepilogo e' quello che decide chi entra nella cronistoria, ed e'
+ * quello che deve decidere anche qui.
  */
-export async function reconcileGoalSessionLinks(params: {
+export async function listAthleteSessionIds(params: {
+  coachUserId: number;
   athleteUserId: number;
-  themes: ReadonlyArray<{ key: string; sessionIds: readonly number[] }>;
-}): Promise<void> {
-  if (params.themes.length === 0) return;
+}): Promise<ReadonlySet<number>> {
+  const rows = await db
+    .select({ id: sessionAiNotes.id })
+    .from(sessionAiReports)
+    .innerJoin(
+      sessionAiNotes,
+      eq(sessionAiNotes.id, sessionAiReports.sessionAiNotesId)
+    )
+    .innerJoin(bookings, eq(bookings.id, sessionAiNotes.bookingId))
+    .innerJoin(providerProfiles, eq(providerProfiles.id, bookings.providerId))
+    .where(
+      and(
+        inArray(sessionAiReports.status, [...JOURNEY_REPORT_STATUSES]),
+        eq(sessionAiReports.reportKind, SESSION_COMPASS_REPORT_KIND),
+        eq(bookings.clientId, params.athleteUserId),
+        eq(providerProfiles.userId, params.coachUserId)
+      )
+    );
 
-  const goals = await listGoalsWithThemeKey(params.athleteUserId);
-  if (goals.length === 0) return;
-
-  const byTheme = new Map(
-    params.themes.map((theme) => [theme.key, theme.sessionIds])
-  );
-  const existing = await listGoalSessionLinks(goals.map((goal) => goal.id));
-
-  for (const goal of goals) {
-    const fromTheme = byTheme.get(goal.themeKey);
-    if (!fromTheme) continue;
-    const already = existing.get(goal.id) ?? new Set<number>();
-    const missing = fromTheme.filter((sessionId) => !already.has(sessionId));
-    if (missing.length === 0) continue;
-    await linkGoalSessions({
-      goalId: goal.id,
-      sessionIds: missing,
-      source: 'theme',
-      actorUserId: null,
-    });
-  }
+  return new Set(rows.map((row) => row.id));
 }

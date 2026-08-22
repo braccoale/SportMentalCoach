@@ -213,9 +213,61 @@ Helpers in `lib/core/auth` (`roles.ts`, re-exported from `index.ts`):
   user's own dashboard when they lack every required role; returns the user.
 - `dashboardPathForRoles(roles)` — resolves the post-auth landing page using a
   priority order (`admin` > `coach` > `club` > `athlete`).
-- Middleware (`middleware.ts`) is **unchanged** in this step; it still gates the
-  `/dashboard` prefix on session presence. Attaching roles to the request
-  context is deferred.
+
+### Identity providers (Google)
+
+Supabase Auth owns the identity; `users.auth_id` links it to the app account.
+Google sign-in is enabled in the Supabase dashboard, and the return address must
+be allow-listed under **Authentication → URL Configuration** — otherwise Google
+comes back and is rejected.
+
+- `app/(login)/oauth-actions.ts` starts the flow **from the server**:
+  `signInWithOAuth({ skipBrowserRedirect: true })` returns Google's address and
+  Next redirects. No browser-side Supabase client exists, and none was added for
+  a button. It is also the only place where a cookie can be written *before*
+  leaving, which is how the chosen role survives the round trip
+  (`lib/core/auth/signup-role-cookie.ts`).
+- `app/auth/callback/route.ts` exchanges the code. It serves three flows
+  (password reset, magic links, OAuth) and picks its failure destination from
+  `next`: an OAuth failure must not land on a password-reset page.
+- `app/registrazione/completa/` collects what a provider cannot supply — role,
+  birth date, consents — and then calls the shared provisioning.
+- `lib/core/auth/account-provisioning.ts` — `createAccountRecords()`, the single
+  writer of an account, used by both the password and the Google path. Not
+  exported from `app/(login)/actions.ts`: in a `'use server'` file every export
+  is a network-reachable endpoint.
+- `lib/core/auth/safe-redirect.ts` — the only filter for post-auth
+  destinations. It resolves the value and compares the origin rather than
+  inspecting the first characters: `//other-site` and `/⏎/other-site` both look
+  like internal paths and are not.
+
+**Identity collision.** Supabase links identities with the same verified email
+automatically, so an account created with a password is found when the same
+person later signs in with Google. `users.email` stays unique and no second row
+is created. The completion action still checks for a mismatched account
+explicitly, so the rare case produces a readable message instead of a
+constraint violation.
+### Middleware gates
+
+`middleware.ts` refreshes the Supabase session on every request and then, on
+`/dashboard` only, answers two questions with a single `users` ⟕ `user_onboarding`
+read:
+
+1. **Is there an app account at all?** With Google sign-in a valid session can
+   exist with no row in `users` — someone who came back from the provider and
+   closed the tab. Without this gate the home page sent them to the dashboard,
+   `getUser()` returned null, and they landed on the sign-in page while already
+   signed in. They are sent to the completion page instead. The query filters
+   `deleted_at` exactly as `getCachedUser()` does, so a closed account is not
+   mistaken for a live one.
+2. **Is onboarding finished?** Accounts with no row are treated as complete, so
+   nobody is interrupted mid-task.
+
+The `/` → `/dashboard` hop for authenticated visitors stays **before** that
+read and costs no query: it is the most-visited page in the product, and anyone
+without an account is caught on `/dashboard` anyway.
+
+Attaching roles to the request context is still deferred.
 
 Role-aware redirect after login & signup (`dashboardPathForRoles`):
 

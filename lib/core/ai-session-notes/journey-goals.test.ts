@@ -5,6 +5,7 @@ import {
   MAX_GOAL_TRACK_DOTS,
   buildJourneyGoalRows,
   parseJourneyGoalStatus,
+  visibleJourneySessions,
   type GoalSessionLinks,
   type StoredJourneyGoal,
 } from './journey-goals';
@@ -169,4 +170,61 @@ test('un aggancio a una seduta fuori dalla finestra non inventa un pallino', () 
 
   assert.ok(rows[0].track.every((dot) => !dot.touched));
   assert.equal(rows[0].isTracked, false, 'agganciato a nulla di visibile');
+});
+
+test('le sedute selezionabili sono in ordine cronologico e numerate da 1', () => {
+  const sessions = visibleJourneySessions(TIMELINE);
+
+  assert.deepEqual(
+    sessions.map((session) => [session.sessionId, session.ordinal]),
+    [
+      [1, 1],
+      [2, 2],
+      [3, 3],
+    ]
+  );
+});
+
+test('le sedute selezionabili si fermano alla finestra mostrata', () => {
+  const long = Array.from({ length: 15 }, (_, index) =>
+    entry(index + 1, index + 1)
+  ).reverse();
+
+  const sessions = visibleJourneySessions(long);
+
+  assert.equal(sessions.length, MAX_GOAL_TRACK_DOTS);
+  // Le ultime, non le prime: un obiettivo si aggancia alle sedute recenti.
+  assert.equal(sessions.at(-1)?.sessionId, 15);
+  assert.equal(sessions[0]?.ordinal, 1);
+});
+
+/**
+ * Il motivo per cui la funzione esiste. L'asse disegnato e l'elenco su cui il
+ * coach spunta devono essere la stessa cosa: se divergono, si spunta una seduta
+ * che nella riga non compare, e il pallino acceso non si vede da nessuna parte.
+ */
+test("l'asse selezionabile coincide con la traccia disegnata", () => {
+  const long = Array.from({ length: 12 }, (_, index) =>
+    entry(index + 1, index + 1)
+  ).reverse();
+
+  const sessions = visibleJourneySessions(long);
+  const [row] = buildJourneyGoalRows({
+    goals: [goal({ id: 1 })],
+    timeline: long,
+    links: links(),
+  });
+
+  assert.deepEqual(
+    sessions.map((session) => session.sessionId),
+    row.track.map((dot) => dot.sessionId)
+  );
+});
+
+test('una seduta senza data finisce in fondo, non in testa', () => {
+  const undated = { ...entry(9, 1), sessionDate: null };
+
+  const sessions = visibleJourneySessions([undated, ...TIMELINE]);
+
+  assert.equal(sessions.at(-1)?.sessionId, 9);
 });

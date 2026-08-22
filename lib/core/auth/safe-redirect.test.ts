@@ -1,0 +1,97 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { safeRedirectPath } from './safe-redirect';
+
+/**
+ * Le scritture che hanno davvero provato a portare fuori dal sito.
+ *
+ * Scritte come sequenze di escape e mai come byte veri: con i caratteri di
+ * controllo veri dentro le stringhe, git classifica questo file come binario —
+ * e l'unico test che dimostra la tenuta del filtro diventa illeggibile in un
+ * diff, in un blame e in un merge a tre vie.
+ */
+const FUGHE = [
+  // Indirizzi assoluti.
+  'https://esempio.test/login',
+  'http://esempio.test',
+  // Barre iniziali che sembrano un percorso interno.
+  '//esempio.test',
+  '/\\esempio.test',
+  '/\\\\esempio.test',
+  '//\\esempio.test',
+  // Caratteri di controllo eliminati dal browser prima della risoluzione.
+  '/\n/esempio.test',
+  '/\r/esempio.test',
+  '/\t/esempio.test',
+  '/\n\\esempio.test',
+  '/\r\n//esempio.test',
+  // Risalite oltre la radice: collassano in un percorso protocol-relative.
+  '/..//esempio.test',
+  '/.//esempio.test',
+  '/a/../..//esempio.test',
+  '/../../..//esempio.test',
+  // Schemi senza barre.
+  'javascript:alert(1)',
+  'mailto:qualcuno@esempio.test',
+];
+
+/**
+ * Scritture che *sembrano* una via di fuga e non lo sono.
+ *
+ * Questi caratteri non vengono eliminati come tabulazioni e ritorni a capo, ma
+ * percent-codificati, quindi il percorso resta interno. Stanno qui per passare
+ * dal controllo sull'esito insieme agli altri — non per pretendere un rifiuto
+ * che sarebbe sbagliato.
+ */
+const INNOCUE = [
+  '/\u0000//esempio.test',
+  '/ //esempio.test',
+  '/\v//esempio.test',
+  '/\f//esempio.test',
+];
+
+const NOSTRA_ORIGINE = 'https://kaipai.example';
+
+test('un percorso interno passa', () => {
+  assert.equal(safeRedirectPath('/coaches/mario-rossi'), '/coaches/mario-rossi');
+  assert.equal(safeRedirectPath('/dashboard?tab=1'), '/dashboard?tab=1');
+  assert.equal(safeRedirectPath('/sessione#compass'), '/sessione#compass');
+});
+
+test('niente e vuoto non sono una destinazione', () => {
+  assert.equal(safeRedirectPath(null), null);
+  assert.equal(safeRedirectPath(undefined), null);
+  assert.equal(safeRedirectPath(''), null);
+});
+
+test('nessuna delle scritture note esce dal sito', () => {
+  for (const tentativo of FUGHE) {
+    assert.equal(
+      safeRedirectPath(tentativo),
+      null,
+      `${JSON.stringify(tentativo)} non è stato rifiutato`
+    );
+  }
+});
+
+/**
+ * La prova che conta davvero, e che il primo tentativo non faceva.
+ *
+ * Non basta che l'ingresso venga rifiutato: quello che **esce** da qui viene
+ * risolto una seconda volta da chi lo usa. `/..//altro` usciva come `//altro`
+ * — accettato, perché durante la prima risoluzione l'origine era ancora la
+ * nostra — e alla seconda finiva su un altro sito. Qui si simula quel secondo
+ * passaggio, che è esattamente ciò che fa il browser.
+ */
+test('quello che esce non porta fuori nemmeno alla seconda risoluzione', () => {
+  const tutti = [...FUGHE, ...INNOCUE, '/ok', '/ok?a=1', '/ok#b'];
+  for (const tentativo of tutti) {
+    const esito = safeRedirectPath(tentativo);
+    if (esito === null) continue;
+    assert.equal(
+      new URL(esito, NOSTRA_ORIGINE).origin,
+      NOSTRA_ORIGINE,
+      `${JSON.stringify(tentativo)} è uscito come ${JSON.stringify(esito)}`
+    );
+  }
+});

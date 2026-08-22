@@ -29,12 +29,11 @@ import {
 } from '@/lib/core/ai-session-notes/journey-panels';
 import {
   buildJourneyGoalRows,
-  selectableGoalThemes,
+  visibleJourneySessions,
 } from '@/lib/core/ai-session-notes/journey-goals';
 import {
   listGoalSessionLinks,
   listJourneyGoals,
-  reconcileGoalSessionLinks,
 } from '@/lib/core/ai-session-notes/journey-goals-store';
 import {
   buildJourneyProgress,
@@ -43,6 +42,7 @@ import {
 import {
   addJourneyGoalAction,
   setJourneyGoalStatusAction,
+  toggleJourneyGoalSessionAction,
 } from './actions';
 import { AthleteHeader } from '@/components/session-compass/athlete-header';
 import { JourneyPath } from '@/components/session-compass/journey-path';
@@ -150,15 +150,6 @@ export default async function CoachAthletePage({
       serviceTitle: booking.serviceTitle,
     }));
 
-  // Gli agganci obiettivo/seduta si riallineano all'apertura: e' idempotente,
-  // scrive solo cio' che manca, e sana anche gli obiettivi nati prima che
-  // questa tabella esistesse.
-  if (journey && storedGoals.length > 0) {
-    await reconcileGoalSessionLinks({
-      athleteUserId: targetId,
-      themes: journey.recurringThemes,
-    });
-  }
   const goalLinks = await listGoalSessionLinks(storedGoals.map((g) => g.id));
 
   const stages = journey
@@ -259,9 +250,10 @@ export default async function CoachAthletePage({
                   links: goalLinks,
                 })}
                 athleteUserId={athlete.userId}
-                themes={selectableGoalThemes(journey.recurringThemes)}
+                sessions={visibleJourneySessions(journey.timeline)}
                 addGoalAction={addJourneyGoalAction}
                 setStatusAction={setJourneyGoalStatusAction}
+                toggleSessionAction={toggleJourneyGoalSessionAction}
               />
 
               <JourneyProgressPanel

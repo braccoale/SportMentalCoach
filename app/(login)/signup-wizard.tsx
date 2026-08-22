@@ -8,7 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
+import {
+  MIN_SIGNUP_AGE,
+  ageFromBirthDate,
+  isEligibleAge,
+  requiresGuardian,
+} from '@/lib/core/guardians/age';
 import { signUp } from './actions';
+import { GoogleButton } from '@/components/auth/google-button';
 import type { ActionState } from '@/lib/auth/middleware';
 import { track } from '@/lib/core/analytics';
 
@@ -40,21 +47,6 @@ const ROLES = [
   },
 ] as const;
 
-const MIN_AGE = 15;
-const ADULT_AGE = 18;
-
-/** Full-date age (not a plain year subtraction). */
-function ageFrom(dateStr: string): number | null {
-  if (!dateStr) return null;
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return null;
-  const now = new Date();
-  let age = now.getFullYear() - d.getFullYear();
-  const m = now.getMonth() - d.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
-  return age;
-}
-
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const STEPS = ['Ruolo', 'Credenziali', 'Dati e condizioni'];
 
@@ -64,6 +56,13 @@ export function SignupWizard() {
   const priceId = searchParams.get('priceId');
   const inviteId = searchParams.get('inviteId');
   const ref = searchParams.get('ref');
+  /**
+   * L'accesso con Google non e' andato a buon fine e il callback ha rimandato
+   * qui — qui e non alla pagina di accesso, perche' il cookie del ruolo dice
+   * che era una registrazione. Senza questo messaggio la pagina si ridisegnava
+   * identica e sembrava che il pulsante non facesse niente.
+   */
+  const googleError = searchParams.get('error') === 'google';
 
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     signUp,
@@ -96,12 +95,16 @@ export function SignupWizard() {
   // Coach e Club si registrano come professionisti: solo verso di loro
   // l'approvazione specifica dell'art. 1341 produce un effetto reale.
   const isProfessional = role === 'coach' || role === 'club';
-  const age = useMemo(() => ageFrom(birthDate), [birthDate]);
-  const underMin = isAthlete && age != null && age < MIN_AGE;
-  const needsGuardian = isAthlete && age != null && age >= MIN_AGE && age < ADULT_AGE;
+  const age = useMemo(() => ageFromBirthDate(birthDate), [birthDate]);
+  const underMin = isAthlete && age != null && !isEligibleAge(age);
+  const needsGuardian = isAthlete && requiresGuardian(age);
 
   function goCredentials() {
     if (!role) return;
+    // Senza `method`: qui il modo di registrarsi **non e' ancora stato
+    // scelto**. Il pulsante Google sta al passo dopo, quindi taggare
+    // «password» significava contare come password ogni iscrizione Google
+    // iniziata da qui — e la variante «google» non si vedeva quasi mai.
     track('signup_role_selected', { role });
     setLocalError(null);
     setStep(1);
@@ -121,14 +124,16 @@ export function SignupWizard() {
       setLocalError('Le password non coincidono.');
       return;
     }
-    track('signup_credentials_completed');
+    track('signup_credentials_completed', { method: 'password' });
     setStep(2);
   }
 
   // Fire the age telemetry once we can evaluate it on the last step.
   useEffect(() => {
     if (step !== 2 || !isAthlete || age == null) return;
-    track(underMin ? 'signup_blocked_underage' : 'signup_age_verified');
+    track(underMin ? 'signup_blocked_underage' : 'signup_age_verified', {
+      method: 'password',
+    });
   }, [step, isAthlete, age, underMin]);
 
   // The "Registrati" button only enables once every required field is valid —
@@ -174,6 +179,35 @@ export function SignupWizard() {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        {/* Google al passo delle credenziali, non prima del ruolo: e' il ruolo
+            a decidere che cosa chiedere dopo — la data di nascita all'atleta,
+            l'approvazione delle clausole al professionista — e Google non lo
+            sa. Sta **fuori** dal modulo del wizard perche' e' un modulo a sua
+            volta, e un form dentro un form non e' HTML valido. */}
+        {googleError && (
+          <p
+            role="alert"
+            className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+          >
+            Non siamo riusciti a completare l’accesso con Google. Riprova, o
+            prosegui con email e password.
+          </p>
+        )}
+
+        {step === 1 && (
+          <div className="mb-6">
+            <GoogleButton role={role} redirect={redirect} />
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-gray-50 px-2 text-gray-500">oppure</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         <form action={formAction} className="space-y-6">
           <input type="hidden" name="redirect" value={redirect || ''} />
           <input type="hidden" name="priceId" value={priceId || ''} />
@@ -333,7 +367,7 @@ export function SignupWizard() {
             {underMin && (
               <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm">
                 <p className="font-semibold text-red-700">
-                  KaiPai è disponibile a partire dai 15 anni.
+                  KaiPai è disponibile a partire dai {MIN_SIGNUP_AGE} anni.
                 </p>
                 <p className="mt-1 text-red-600">
                   Al momento non è possibile creare un account. Per maggiori

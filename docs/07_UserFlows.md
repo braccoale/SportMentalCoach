@@ -277,11 +277,47 @@ Admin → /dashboard/admin  (role-guarded by requireRole('admin'))
 
 ## Sign up & role routing (implemented earlier)
 
+Two ways in, one account. They differ only in **where the identity comes
+from** — everything after that is the same code.
+
+### With email and password
+
 ```
 Visitor → /sign-up → choose role (athlete / coach / club)
+        → credentials → birth date + consents
         → provisioned (profiles + user_roles + role profile)
-        → redirected to /dashboard/{role}
+        → redirected to /onboarding, then /dashboard/{role}
 ```
+
+### With Google
+
+```
+Visitor → /sign-up → choose role      (the role is put in the `kp_signup_role`
+        → «Continua con Google»        cookie: the OAuth round trip is a full
+        → Google                       page change and the wizard state is lost)
+        → /auth/callback               (exchanges the code for a session)
+        → /registrazione/completa      (birth date + consents: Google does not
+        → provisioned                   supply them, and the birth date is what
+        → /onboarding                   decides whether a guardian is needed)
+```
+
+The button also sits on `/sign-in`. There it needs no completion step: an
+identity whose email already belongs to an account is **linked automatically by
+Supabase**, so the existing `users` row is found and the person simply lands in
+their own account.
+
+**A state that did not exist before.** With OAuth there can be a valid Supabase
+session with **no row in `users`** — someone who returns from Google and closes
+the tab. `middleware.ts` sends that browser to `/registrazione/completa`
+whenever it asks for the home page or the dashboard; without that gate the
+product became unreachable for them.
+
+Team invitations do not go through Google: an invited member follows their own
+link, which lands on the email + password form.
+
+Account creation itself lives in `lib/core/auth/account-provisioning.ts`, shared
+by both paths. It sits there and not in `app/(login)/actions.ts` because in a
+`'use server'` file **every exported function is a network-reachable endpoint**.
 
 See `docs/03_Architecture.md` for the auth/onboarding detail.
 

@@ -11,6 +11,7 @@ import {
   JOURNEY_GOAL_STATUSES,
   JOURNEY_GOAL_STATUS_LABELS,
   type JourneyGoalRow,
+  type JourneyGoalSession,
   type JourneyGoalStatus,
 } from '@/lib/core/ai-session-notes/journey-goals';
 
@@ -80,22 +81,26 @@ function columnLabel(iso: string | null, now: Date): string {
 export function JourneyGoalsPanel({
   rows,
   athleteUserId,
-  themes,
+  sessions,
   addGoalAction,
   setStatusAction,
+  toggleSessionAction,
   now = new Date(),
 }: {
   rows: readonly JourneyGoalRow[];
   athleteUserId: number;
-  /** I temi ricorrenti a cui un obiettivo si può agganciare. */
-  themes: ReadonlyArray<{ key: string; label: string; occurrences: number }>;
+  /**
+   * Le sedute dell'asse. Arrivano dall'esterno e non da `rows[0].track` perché
+   * servono anche quando gli obiettivi sono zero: è proprio allora che il coach
+   * ne scrive il primo, e deve poter spuntare le sedute in cui è già in gioco.
+   */
+  sessions: readonly JourneyGoalSession[];
   addGoalAction: (formData: FormData) => Promise<void>;
   setStatusAction: (formData: FormData) => Promise<void>;
+  toggleSessionAction: (formData: FormData) => Promise<void>;
   now?: Date;
 }) {
-  // L'asse è lo stesso per tutte le righe: `buildJourneyGoalRows` costruisce
-  // ogni traccia sulle stesse sedute, quindi la prima riga lo definisce.
-  const axis = rows[0]?.track ?? [];
+  const axis = sessions;
 
   return (
     <section className="flex h-full flex-col rounded-2xl border border-gray-200/70 bg-white p-5">
@@ -127,17 +132,17 @@ export function JourneyGoalsPanel({
             <div className="flex items-end">
               <div style={{ width: LABEL_WIDTH_PX }} />
               <div className="flex">
-                {axis.map((dot, index) => (
+                {axis.map((session) => (
                   <div
-                    key={dot.sessionId}
+                    key={session.sessionId}
                     style={{ width: COLUMN_WIDTH_PX }}
                     className="text-center"
                   >
                     <p className="text-[11px] font-semibold text-gray-400">
-                      S{index + 1}
+                      S{session.ordinal}
                     </p>
                     <p className="text-[11px] font-medium text-gray-500">
-                      {columnLabel(dot.sessionDate, now)}
+                      {columnLabel(session.sessionDate, now)}
                     </p>
                   </div>
                 ))}
@@ -188,11 +193,31 @@ export function JourneyGoalsPanel({
                     {/* Un pallino per seduta, pieno dove l'obiettivo è stato
                         toccato. Il segmento fra due pallini si colora solo se
                         entrambi lo sono: così si vede dove il lavoro è stato
-                        continuo e dove si è interrotto. */}
-                    <div className="flex items-center">
+                        continuo e dove si è interrotto.
+
+                        Il pallino è anche il comando: si clicca mentre si
+                        rilegge il riepilogo, ed è l'unica cosa che riempie la
+                        traccia. Non c'è una seconda schermata dove «gestire i
+                        collegamenti» — sarebbe un posto in cui nessuno va. */}
+                    <form
+                      action={toggleSessionAction}
+                      className="flex items-center"
+                    >
+                      <input
+                        type="hidden"
+                        name="athleteUserId"
+                        value={athleteUserId}
+                      />
+                      <input type="hidden" name="goalId" value={row.id} />
                       {row.track.map((dot, index) => {
                         const previous = index > 0 ? row.track[index - 1] : null;
                         const continuous = Boolean(previous?.touched && dot.touched);
+                        const when = dot.sessionDate
+                          ? `seduta del ${fullDate.format(new Date(dot.sessionDate))}`
+                          : 'seduta senza data';
+                        const label = dot.touched
+                          ? `Toccato · ${when} · clicca per togliere il segno`
+                          : `Non toccato · ${when} · clicca per segnarlo`;
                         return (
                           <div
                             key={dot.sessionId}
@@ -210,13 +235,18 @@ export function JourneyGoalsPanel({
                               }}
                               aria-hidden="true"
                             />
-                            <span
-                              title={
-                                dot.sessionDate
-                                  ? `${dot.touched ? 'Toccato' : 'Non toccato'} · seduta del ${fullDate.format(new Date(dot.sessionDate))}`
-                                  : undefined
-                              }
-                              className="size-2.5 shrink-0 rounded-full border-2"
+                            {/* Il pallino resta di dieci pixel, ma l'area
+                                sensibile no: `before` la porta a ventisei
+                                senza spostare niente nel disegno. Un bersaglio
+                                di dieci pixel si guarda bene e si centra male,
+                                e qui si clicca riga dopo riga. */}
+                            <button
+                              type="submit"
+                              name="sessionId"
+                              value={dot.sessionId}
+                              title={label}
+                              aria-label={label}
+                              className="relative size-2.5 shrink-0 cursor-pointer rounded-full border-2 outline-none transition-transform before:absolute before:-inset-2 before:content-[''] hover:scale-[1.6] focus-visible:scale-[1.6] focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
                               style={{
                                 borderColor: dot.touched ? tint : '#d1d5db',
                                 backgroundColor: dot.touched
@@ -238,7 +268,7 @@ export function JourneyGoalsPanel({
                       >
                         →
                       </span>
-                    </div>
+                    </form>
 
                     <div className="ml-auto flex shrink-0 items-center gap-2 pl-4">
                       {row.status === 'da_riprendere' && (
@@ -298,51 +328,66 @@ export function JourneyGoalsPanel({
           <CirclePlus className="h-4 w-4 transition-transform group-open:rotate-45" />
         </summary>
 
-        <form
-          action={addGoalAction}
-          className="mt-3 flex flex-wrap items-end gap-2"
-        >
+        <form action={addGoalAction} className="mt-3">
           <input type="hidden" name="athleteUserId" value={athleteUserId} />
-          <label className="min-w-[12rem] flex-1">
-            <span className="mb-1 block text-xs font-medium text-gray-500">
-              Obiettivo
-            </span>
-            <input
-              name="title"
-              required
-              maxLength={160}
-              placeholder="Gestione dell'errore"
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-            />
-          </label>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="min-w-[12rem] flex-1">
+              <span className="mb-1 block text-xs font-medium text-gray-500">
+                Obiettivo
+              </span>
+              <input
+                name="title"
+                required
+                maxLength={160}
+                placeholder="Gestione dell'errore"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+              />
+            </label>
 
-          {/* Agganciarlo a un tema riempie subito la traccia con le sedute in
-              cui quel tema è già emerso: un obiettivo nato oggi non parte da
-              zero su un percorso che dura da mesi. */}
-          <label className="min-w-[11rem] flex-1">
-            <span className="mb-1 block text-xs font-medium text-gray-500">
-              Tema collegato
-            </span>
-            <select
-              name="themeKey"
-              defaultValue=""
-              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+            <button
+              type="submit"
+              className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-700"
             >
-              <option value="">Nessuno</option>
-              {themes.map((theme) => (
-                <option key={theme.key} value={theme.key}>
-                  {theme.label} · {theme.occurrences}
-                </option>
-              ))}
-            </select>
-          </label>
+              Aggiungi
+            </button>
+          </div>
 
-          <button
-            type="submit"
-            className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-700"
-          >
-            Aggiungi
-          </button>
+          {/* Spuntare le sedute in cui l'obiettivo è già in gioco fa nascere la
+              traccia con la sua storia, invece che vuota su un percorso che
+              dura da mesi. È facoltativo: i pallini si accendono anche dopo,
+              uno a uno, dalla riga. */}
+          {axis.length > 0 && (
+            <fieldset className="mt-3">
+              <legend className="mb-1.5 text-xs font-medium text-gray-500">
+                Sedute in cui è già in gioco{' '}
+                <span className="text-gray-400">(facoltativo)</span>
+              </legend>
+              <div className="flex flex-wrap gap-1.5">
+                {axis.map((session) => (
+                  <label
+                    key={session.sessionId}
+                    className="cursor-pointer select-none"
+                  >
+                    <input
+                      type="checkbox"
+                      name="sessionIds"
+                      value={session.sessionId}
+                      className="peer sr-only"
+                    />
+                    <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 transition peer-checked:border-violet-500 peer-checked:bg-violet-50 peer-checked:text-violet-800 peer-focus-visible:ring-2 peer-focus-visible:ring-violet-400 peer-focus-visible:ring-offset-1">
+                      S{session.ordinal}
+                      {/* L'opacità e non un colore: il colore lo decide lo
+                          stato del `peer`, che è un fratello dello span
+                          esterno e non di questo. */}
+                      <span className="opacity-60">
+                        {columnLabel(session.sessionDate, now)}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
         </form>
       </details>
     </section>

@@ -2714,7 +2714,21 @@ export const athleteJourneyGoalSessions = pgTable(
     sessionAiNotesId: integer('session_ai_notes_id')
       .notNull()
       .references(() => sessionAiNotes.id, { onDelete: 'cascade' }),
-    /** `theme` se l'ha agganciata il Compass, `coach` se una persona. */
+    /**
+     * Chi ha scritto il legame.
+     *
+     * Oggi c'e' **un solo scrittore, `coach`**: l'aggancio automatico dai temi
+     * e' stato tolto dopo aver contato quanti ne aveva prodotti in produzione —
+     * zero su quindici obiettivi, perche' il modello riformula il tema a ogni
+     * seduta e le chiavi non coincidono mai.
+     *
+     * Il valore `theme` resta ammesso, e il default del database resta quello
+     * per non muovere una colonna in produzione senza motivo: non ci sono righe
+     * con quel valore, e ogni scrittura passa da `linkGoalSessions`, che
+     * `source` lo impone. Se un giorno tornera' uno scrittore automatico, il
+     * significato e' gia' pronto — ma finche' non c'e', il default non
+     * descrive nessuno.
+     */
     source: varchar('source', { length: 16 }).notNull().default('theme'),
     createdDate: timestamp('createddate', { withTimezone: true })
       .notNull()
