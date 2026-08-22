@@ -378,11 +378,37 @@ Di conseguenza le decine di avvisi «RLS attiva ma nessun criterio» sono l'esit
 atteso, non un difetto: senza permessi e senza criteri, quelle tabelle non sono
 raggiungibili dall'esterno.
 
-**`public.users` era l'eccezione**, e concedeva tutti i privilegi ad `anon` e
-`authenticated`. Non era sfruttabile — la RLS senza criteri restituisce zero
-righe — ma era una difesa a un solo strato: un criterio permissivo aggiunto per
-sbaglio avrebbe esposto l'intera tabella utenti, mentre su ogni altra tabella
-servirebbero due errori. I permessi sono stati revocati.
+**Non lo era, e il primo controllo lo aveva mancato.** Interrogando
+`information_schema.role_table_grants` risultavano zero permessi per `anon` e
+`authenticated`: quella vista non mostra i permessi di quei ruoli. La verifica
+onesta è un'altra — **chiamare la Data API e guardare la risposta**:
+
+- `permission denied` (42501) → il ruolo non ha il permesso: porta chiusa;
+- `[]` → il permesso c'è, e a fermare la richiesta è stata solo la RLS.
+
+Fatta così, **33 tabelle** rispondevano `[]`: `bookings`, `messages`,
+`client_profiles`, `profiles`, `user_roles`, le note vocali del coach e altre
+concedevano ad `anon` lettura, inserimento, modifica e cancellazione.
+
+La causa non era una svista su una tabella, ma i **privilegi predefiniti** dello
+schema `public` — configurazione di serie di Supabase — che concedono tutto ad
+`anon` e `authenticated` su **ogni tabella nuova**. Ogni migrazione ne creava
+una e la apriva.
+
+Non era sfruttabile: RLS attiva senza criteri restituisce zero righe e blocca le
+scritture. Ma era una difesa a un solo strato, e bastava un criterio permissivo
+aggiunto per sbaglio — o il pulsante «enable read access for all users» del
+pannello — per aprirla davvero.
+
+Sono stati revocati i permessi su **tutte le tabelle senza criteri**, e sono
+stati corretti i privilegi predefiniti, così le tabelle create d'ora in poi non
+nascono più aperte. Stato verificato dalla Data API: **zero tabelle raggiungibili
+da `anon`**, zero scrivibili da `authenticated`.
+
+**La regola, d'ora in poi:** se una tabella non ha criteri RLS, non è destinata
+a essere raggiunta da fuori e non deve avere permessi. Se serve esporla, si
+scrivono insieme criterio e permesso — come è stato fatto per le cinque tabelle
+degli appunti AI.
 
 Le uniche cinque politiche RLS che esistono sono sull'area degli appunti AI
 — riepiloghi, consensi, impegni, note, diritti — e sono in sola lettura per
