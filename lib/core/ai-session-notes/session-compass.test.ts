@@ -558,13 +558,21 @@ test('approvare porta avanti anche la sessione, una volta sola', async () => {
   assert.deepEqual(approvals, [
     { sessionId: SESSION_ID, actorUserId: COACH_ID },
   ]);
-  assert.deepEqual(notifications, [
-    {
-      athleteUserId: ATHLETE_ID,
-      bookingId: 77,
-      coachName: 'Giulia Rossi',
-    },
-  ]);
+  /*
+   * **Approvare non avvisa l'atleta**, e il test lo fissa al contrario di
+   * prima.
+   *
+   * L'approvazione fa entrare la seduta nel percorso del coach. La
+   * condivisione e' un altro atto — stato `shared`, colonna
+   * `shared_report_json` — e nel prodotto il comando per compierlo non esiste
+   * ancora.
+   *
+   * Finche' non esiste, avvisare l'atleta che «il coach ha condiviso il
+   * report» e offrirgli un pulsante «Leggi il report» significa mandarlo su
+   * un'ancora che per lui non c'e': quel pannello e' riservato al coach.
+   * Quando la condivisione sara' costruita, la notifica va agganciata li'.
+   */
+  assert.deepEqual(notifications, []);
 });
 
 test('il coach modifica un impegno operativo senza toccare il report approvato', async () => {
