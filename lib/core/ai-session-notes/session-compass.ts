@@ -541,13 +541,27 @@ export async function approveSessionCompass(
       session.sessionId,
       params.actorUserId
     );
-    if (session.bookingId) {
-      await dependencies.notifyReportReady?.({
-        athleteUserId: session.athleteUserId,
-        bookingId: session.bookingId,
-        coachName: session.coachName,
-      });
-    }
+    /*
+     * Qui partiva `notifyReportReady`, e non doveva.
+     *
+     * **Approvare non e' condividere.** L'approvazione fa entrare la seduta nel
+     * percorso del coach; la condivisione — stato `shared`, colonna
+     * `shared_report_json` — e' un altro atto, e nel prodotto non esiste ancora
+     * il comando per compierlo.
+     *
+     * Nel frattempo la notifica annunciava all'atleta che «il coach ha
+     * condiviso il report» e offriva un pulsante «Leggi il report» che punta a
+     * `#session-compass`: un'ancora che per l'atleta **non esiste**, perche'
+     * quel pannello e' riservato al coach. La prima persona ad averla ricevuta
+     * avrebbe cliccato e non avrebbe trovato niente.
+     *
+     * Non e' mai successo per un soffio: il collegamento e' arrivato in
+     * produzione alle 13:18 del 21 agosto e l'ultima approvazione vera era
+     * delle 07:45. Restava armato per la prossima.
+     *
+     * La dipendenza resta dichiarata: quando la condivisione esistera' davvero,
+     * la notifica va agganciata **li'**, non qui.
+     */
   }
 
   await syncApprovedCommitments({
