@@ -216,6 +216,7 @@ test('ogni punto da riprendere dichiara la propria fonte', () => {
           id: 'prep:1:prep-1',
           text: 'Verificare come è andata la routine.',
           source: 'next_session_prep',
+          fromDraft: false,
           sourceLabel: 'Dal report del 1 agosto',
           sessionId: 1,
           bookingId: 101,
@@ -224,6 +225,7 @@ test('ogni punto da riprendere dichiara la propria fonte', () => {
           id: 'commitment:7',
           text: 'Provare una routine di attivazione',
           source: 'missed_commitment',
+          fromDraft: false,
           sourceLabel: 'Impegno non completato — dalla sessione del 1 agosto',
           sessionId: 1,
           bookingId: 101,
@@ -234,7 +236,33 @@ test('ogni punto da riprendere dichiara la propria fonte', () => {
 
   assert.match(html, /Dal report del 1 agosto/);
   assert.match(html, /Impegno non completato — dalla sessione del 1 agosto/);
-  assert.match(html, /report già approvati/);
+  // Non più «report già approvati»: il percorso legge anche le bozze
+  // (`JOURNEY_REPORT_STATUSES`), quindi quella frase affermava una cosa falsa
+  // proprio nel punto in cui i punti diventano il piano della seduta.
+  assert.match(html, /riepiloghi delle sedute/);
+  assert.doesNotMatch(html, /già approvati/);
+  assert.doesNotMatch(html, /Da validare/);
+});
+
+test('un punto preso da una bozza lo dichiara sulla riga della fonte', () => {
+  const html = renderToStaticMarkup(
+    <PointsToRevisitSection
+      points={[
+        {
+          id: 'prep:1:prep-1',
+          text: 'Riprendere la frase sul gruppo.',
+          source: 'next_session_prep',
+          fromDraft: true,
+          sourceLabel: 'Dal report del 1 agosto',
+          sessionId: 1,
+          bookingId: 101,
+        },
+      ]}
+    />
+  );
+
+  assert.match(html, /Da validare/);
+  assert.match(html, /non hai ancora validato/);
 });
 
 test('la vista è dichiaratamente di sola lettura e senza valutazioni cliniche', () => {

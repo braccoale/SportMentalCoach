@@ -3,6 +3,7 @@ import Link from 'next/link';
 import {
   ArrowUpRight,
   CheckCircle2,
+  Clock3,
   Compass,
   Handshake,
   RotateCcw,
@@ -312,7 +313,23 @@ export function RecurringThemesSection({ themes }: { themes: readonly RecurringT
   );
 }
 
-export function PointsToRevisitSection({ points }: { points: readonly PointToRevisit[] }) {
+/**
+ * «Da riprendere»: che cosa portare alla prossima seduta.
+ *
+ * `heading` esiste perché questa sezione vive in due posti che fanno la
+ * stessa domanda in due momenti diversi: nella scheda dell'atleta è una voce
+ * fra le altre, sulla pagina della seduta in arrivo è **la** ragione per cui
+ * quella pagina si apre prima dell'incontro. Stesso contenuto, due titoli.
+ */
+export function PointsToRevisitSection({
+  points,
+  heading,
+  intro,
+}: {
+  points: readonly PointToRevisit[];
+  heading?: string;
+  intro?: string;
+}) {
   if (!points.length) return null;
   return (
     <section
@@ -325,11 +342,12 @@ export function PointsToRevisitSection({ points }: { points: readonly PointToRev
           id="mental-journey-revisit"
           className="text-xs font-bold uppercase tracking-[0.16em] text-gray-500"
         >
-          Da riprendere
+          {heading ?? 'Da riprendere'}
         </h2>
       </div>
       <p className="mt-2 text-sm text-gray-600">
-        Spunti ricavati da report già approvati e dallo stato reale degli impegni.
+        {intro ??
+          'Spunti ricavati dai riepiloghi delle sedute e dallo stato reale degli impegni.'}
       </p>
       <ul className="mt-4 space-y-2">
         {points.map((point) => (
@@ -338,7 +356,22 @@ export function PointsToRevisitSection({ points }: { points: readonly PointToRev
             className="rounded-2xl bg-gray-50/80 px-4 py-3 ring-1 ring-gray-100"
           >
             <p className="text-sm leading-6 text-gray-900">{point.text}</p>
-            <p className={`mt-0.5 text-xs ${SOURCE_TONE[point.source]}`}>{point.sourceLabel}</p>
+            <p className={`mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs ${SOURCE_TONE[point.source]}`}>
+              {point.sourceLabel}
+              {/* Un punto preso da una bozza non è sbagliato, ma nessuno l'ha
+                  ancora letto — e da qui diventa il piano della seduta. La
+                  differenza va detta dove la si usa, non nella pagina del
+                  riepilogo. */}
+              {point.fromDraft && (
+                <span
+                  title="Viene da un riepilogo che non hai ancora validato: il testo è quello che ha prodotto il sistema."
+                  className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800"
+                >
+                  <Clock3 className="h-3 w-3" aria-hidden="true" />
+                  Da validare
+                </span>
+              )}
+            </p>
           </li>
         ))}
       </ul>

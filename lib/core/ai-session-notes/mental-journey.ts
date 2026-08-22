@@ -25,6 +25,17 @@ export const MIN_COMMITMENTS_FOR_RATE = 5;
 /** Finestra di "recente" per follow-through e punti da riprendere. */
 export const RECENT_SESSION_WINDOW = 3;
 export const MAX_POINTS_TO_REVISIT = 6;
+
+/**
+ * Quanti posti restano comunque ai punti scritti per la prossima seduta.
+ *
+ * Prima venivano accodati per ultimi e poi il taglio a sei li mangiava: con
+ * quattro temi ricorrenti e tre impegni aperti, il segnale più diretto che il
+ * sistema produce — «alla prossima volta chiedi questo» — spariva senza
+ * lasciare traccia. I temi non hanno un tetto proprio, quindi la coda non era
+ * un rischio teorico.
+ */
+export const GUARANTEED_PREP_POINTS = 3;
 const MIN_OCCURRENCES_FOR_RECURRING_THEME = 2;
 
 export type ApprovedSessionRecord = {
@@ -146,6 +157,15 @@ export type PointToRevisit = {
   sourceLabel: string;
   sessionId: number | null;
   bookingId: number | null;
+  /**
+   * Il riepilogo da cui nasce non è ancora stato validato dal coach.
+   *
+   * La cronistoria include di proposito anche le bozze — una seduta si è
+   * svolta a prescindere da chi ha premuto approva — ma qui la differenza
+   * conta: questi punti diventano il piano della prossima seduta, e un piano
+   * costruito su un testo che nessuno ha ancora letto va saputo.
+   */
+  fromDraft: boolean;
 };
 
 export type JourneySummary = {
@@ -584,8 +604,18 @@ function followThroughOf(timeline: readonly MentalJourneyEntry[]): FollowThrough
 }
 
 /**
- * Nessun modello, nessuna inferenza: ogni punto nasce da un dato approvato o
- * da uno stato reale, e porta con sé la propria provenienza.
+ * Che cosa riprendere alla prossima seduta.
+ *
+ * Nessun modello e nessuna inferenza: ogni punto nasce da un dato scritto —
+ * un tema che torna, un impegno che non si è chiuso, una riga che il
+ * riepilogo ha lasciato per la volta dopo — e porta con sé la propria
+ * provenienza.
+ *
+ * **L'ordine non è cosmetico.** I punti di preparazione stanno in testa e
+ * hanno posti garantiti: sono gli unici specifici dell'ultima seduta, e sono
+ * la risposta letterale alla domanda «di che cosa parlo la prossima volta».
+ * Temi e impegni sono il contesto in cui quella risposta si legge, e possono
+ * aspettare la riga sotto.
  */
 export function derivePointsToRevisit(params: {
   sessions: readonly ApprovedSessionRecord[];
@@ -593,22 +623,37 @@ export function derivePointsToRevisit(params: {
   commitments: readonly TrackedCommitment[];
   now: Date;
 }): PointToRevisit[] {
-  const points: PointToRevisit[] = [];
   const recent = params.timeline.slice(0, RECENT_SESSION_WINDOW);
   const recentSessionIds = new Set(recent.map((entry) => entry.sessionId));
+
+  // Le sedute il cui riepilogo il coach non ha ancora validato. Serve a
+  // marcare i punti che ne discendono, non a escluderli.
+  const draftSessionIds = new Set(
+    params.sessions
+      .filter((session) => !session.isApproved)
+      .map((session) => session.sessionId)
+  );
+  const fromDraft = (sessionId: number | null): boolean =>
+    sessionId !== null && draftSessionIds.has(sessionId);
+
+  const themePoints: PointToRevisit[] = [];
+  const commitmentPoints: PointToRevisit[] = [];
+  const prepPoints: PointToRevisit[] = [];
 
   for (const theme of aggregateThemes(
     params.sessions.filter((session) => recentSessionIds.has(session.sessionId))
   )) {
-    points.push({
+    const sessionId = theme.sessionIds.at(-1) ?? null;
+    themePoints.push({
       id: `theme:${theme.key}`,
       text: theme.label,
       source: 'recurring_theme',
       sourceLabel: `Tema emerso in ${theme.occurrences} sessioni recenti`,
-      sessionId: theme.sessionIds.at(-1) ?? null,
+      sessionId,
       bookingId:
-        params.timeline.find((entry) => entry.sessionId === theme.sessionIds.at(-1))?.bookingId ??
+        params.timeline.find((entry) => entry.sessionId === sessionId)?.bookingId ??
         null,
+      fromDraft: fromDraft(sessionId),
     });
   }
 
@@ -620,24 +665,26 @@ export function derivePointsToRevisit(params: {
     const entry = entryBySession.get(commitment.sessionId);
     const when = formatDay(entry?.sessionDate ?? null);
     if (commitment.status === 'skipped') {
-      points.push({
+      commitmentPoints.push({
         id: `commitment:${commitment.id}`,
         text: commitment.title,
         source: 'missed_commitment',
         sourceLabel: `Impegno non completato${when ? ` — dalla sessione del ${when}` : ''}`,
         sessionId: commitment.sessionId,
         bookingId: entry?.bookingId ?? null,
+        fromDraft: fromDraft(commitment.sessionId),
       });
       continue;
     }
     if (commitment.status === 'pending' || commitment.status === 'in_progress') {
-      points.push({
+      commitmentPoints.push({
         id: `commitment:${commitment.id}`,
         text: commitment.title,
         source: 'open_commitment',
         sourceLabel: `Impegno ancora aperto${when ? ` — dalla sessione del ${when}` : ''}`,
         sessionId: commitment.sessionId,
         bookingId: entry?.bookingId ?? null,
+        fromDraft: fromDraft(commitment.sessionId),
       });
     }
   }
@@ -647,17 +694,27 @@ export function derivePointsToRevisit(params: {
     (session) => session.sessionId === latest?.sessionId
   );
   for (const item of latestSession?.document.nextSessionPrep ?? []) {
-    points.push({
+    prepPoints.push({
       id: `prep:${latestSession!.sessionId}:${item.id}`,
       text: item.text,
       source: 'next_session_prep',
       sourceLabel: `Dal report del ${formatDay(latest?.sessionDate ?? latest?.approvedAt ?? null) ?? 'percorso'}`,
       sessionId: latestSession!.sessionId,
       bookingId: latest?.bookingId ?? null,
+      fromDraft: fromDraft(latestSession!.sessionId),
     });
   }
 
-  return points.slice(0, MAX_POINTS_TO_REVISIT);
+  // La riserva: i posti tolti al contesto tornano al contesto se la
+  // preparazione non li usa tutti.
+  const reserved = Math.min(prepPoints.length, GUARANTEED_PREP_POINTS);
+  const context = [...themePoints, ...commitmentPoints].slice(
+    0,
+    MAX_POINTS_TO_REVISIT - reserved
+  );
+  const prep = prepPoints.slice(0, MAX_POINTS_TO_REVISIT - context.length);
+
+  return [...prep, ...context];
 }
 
 function journeyCommitment(

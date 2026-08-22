@@ -7,11 +7,14 @@ import {
 } from './session-compass-contract';
 import type { TrackedCommitment } from './session-commitments';
 import {
+  GUARANTEED_PREP_POINTS,
+  MAX_POINTS_TO_REVISIT,
   MIN_COMMITMENTS_FOR_RATE,
   MentalJourneyError,
   aggregateThemes,
   authorizeMentalJourney,
   buildMentalJourney,
+  derivePointsToRevisit,
   getMentalJourney,
   isApprovedCompassReport,
   themeKey,
@@ -568,4 +571,137 @@ test('solo i report approvati entrano nello storico: bozze e falliti sono esclus
   }
   assert.equal(isApprovedCompassReport({ ...approved, document: null }), false);
   assert.equal(isApprovedCompassReport({ ...approved, reportKind: 'altro_report' }), false);
+});
+
+/* ------------------------------------------------------------------------ */
+/* Che cosa riprendere alla prossima seduta                                  */
+/* ------------------------------------------------------------------------ */
+
+function journeyEntryFor(session: ApprovedSessionRecord) {
+  return {
+    sessionId: session.sessionId,
+    bookingId: session.bookingId,
+    reportId: session.reportId,
+    reportVersion: session.reportVersion,
+    sessionDate: session.sessionDate?.toISOString() ?? null,
+    sharedAt: null,
+    approvedAt: session.approvedAt.toISOString(),
+    isApproved: session.isApproved,
+    coachName: session.coachName,
+    summary: session.document.sessionOverview.summary,
+    themes: session.document.sessionOverview.themes.map((theme) => theme.text),
+    emergingResource: session.document.sessionOverview.emergingResource?.text ?? null,
+    metrics: [],
+    commitments: [],
+    focus: null,
+    throughLine: null,
+    keyMoments: [],
+    nextSessionPrep: session.document.nextSessionPrep.map((item) => ({
+      id: item.id,
+      text: item.text,
+      origin: item.origin,
+    })),
+    compassHref: `/dashboard/appointments/${session.bookingId}`,
+  };
+}
+
+/*
+ * Il caso che ha motivato la riserva: tanti temi e tanti impegni aperti
+ * riempivano i sei posti prima che la preparazione venisse accodata, e i punti
+ * scritti per la prossima seduta sparivano senza lasciare traccia.
+ */
+test('la preparazione non viene mai schiacciata da temi e impegni', () => {
+  const prep = ['Chiedere del rientro', 'Riprendere la frase sul gruppo', 'Verificare la routine'];
+  const session = approvedSession({
+    document: document({ themes: ['tema uno', 'tema due', 'tema tre'], nextSessionPrep: prep }),
+  });
+  const older = approvedSession({
+    sessionId: 2,
+    bookingId: 102,
+    document: document({ themes: ['tema uno', 'tema due', 'tema tre'] }),
+  });
+
+  const points = derivePointsToRevisit({
+    sessions: [session, older],
+    timeline: [journeyEntryFor(session), journeyEntryFor(older)],
+    commitments: [
+      commitment({ id: 1, commitmentKey: 'a', title: 'impegno a' }),
+      commitment({ id: 2, commitmentKey: 'b', title: 'impegno b' }),
+      commitment({ id: 3, commitmentKey: 'c', title: 'impegno c' }),
+    ],
+    now: NOW,
+  });
+
+  assert.equal(points.length, MAX_POINTS_TO_REVISIT);
+  const kept = points.filter((point) => point.source === 'next_session_prep');
+  assert.equal(kept.length, GUARANTEED_PREP_POINTS);
+  // E stanno in testa: sono la risposta letterale a «di che cosa parlo».
+  assert.deepEqual(
+    points.slice(0, GUARANTEED_PREP_POINTS).map((point) => point.source),
+    Array(GUARANTEED_PREP_POINTS).fill('next_session_prep')
+  );
+});
+
+test('i posti riservati e non usati tornano al contesto', () => {
+  const session = approvedSession({
+    document: document({ themes: ['tema uno', 'tema due'], nextSessionPrep: ['una sola riga'] }),
+  });
+  const older = approvedSession({
+    sessionId: 2,
+    bookingId: 102,
+    document: document({ themes: ['tema uno', 'tema due'] }),
+  });
+
+  const points = derivePointsToRevisit({
+    sessions: [session, older],
+    timeline: [journeyEntryFor(session), journeyEntryFor(older)],
+    commitments: [
+      commitment({ id: 1, commitmentKey: 'a', title: 'impegno a' }),
+      commitment({ id: 2, commitmentKey: 'b', title: 'impegno b' }),
+      commitment({ id: 3, commitmentKey: 'c', title: 'impegno c' }),
+      commitment({ id: 4, commitmentKey: 'd', title: 'impegno d' }),
+    ],
+    now: NOW,
+  });
+
+  assert.equal(points.length, MAX_POINTS_TO_REVISIT);
+  assert.equal(points.filter((point) => point.source === 'next_session_prep').length, 1);
+});
+
+/*
+ * La cronistoria include anche le bozze — una seduta si e' svolta a
+ * prescindere da chi ha premuto approva. Ma questi punti diventano il piano
+ * della prossima seduta, e un piano costruito su un testo che nessuno ha
+ * ancora letto va saputo.
+ */
+test('un punto che viene da una bozza lo dichiara', () => {
+  const draft = approvedSession({
+    isApproved: false,
+    document: document({ nextSessionPrep: ['da una bozza'] }),
+  });
+
+  const [point] = derivePointsToRevisit({
+    sessions: [draft],
+    timeline: [journeyEntryFor(draft)],
+    commitments: [],
+    now: NOW,
+  });
+
+  assert.equal(point.source, 'next_session_prep');
+  assert.equal(point.fromDraft, true);
+});
+
+test('un punto che viene da un riepilogo validato non lo dichiara', () => {
+  const approved = approvedSession({
+    document: document({ nextSessionPrep: ['da un report approvato'] }),
+  });
+
+  const [point] = derivePointsToRevisit({
+    sessions: [approved],
+    timeline: [journeyEntryFor(approved)],
+    commitments: [],
+    now: NOW,
+  });
+
+  assert.equal(point.fromDraft, false);
 });
