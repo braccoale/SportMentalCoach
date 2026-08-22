@@ -17,6 +17,7 @@ function entry(sessionId: number, day: number): MentalJourneyEntry {
     reportId: sessionId,
     reportVersion: 1,
     sessionDate: `2026-05-${String(day).padStart(2, '0')}T10:00:00.000Z`,
+    sharedAt: null,
     approvedAt: '2026-08-01T10:00:00.000Z',
     coachName: 'Coach',
     summary: 's',

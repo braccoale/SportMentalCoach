@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import {
+  Send,
   ArrowRight,
   Ban,
   CalendarClock,
@@ -117,9 +118,11 @@ function stageDateLabel(iso: string | null, now: Date): string {
 function stageTooltip(stage: JourneyStage): string {
   const state = stage.isPlanned
     ? 'In agenda'
-    : stage.isApproved
-      ? 'Riepilogo approvato'
-      : 'Riepilogo da validare';
+    : stage.isShared
+      ? 'Condiviso con l’atleta'
+      : stage.isApproved
+        ? 'Riepilogo approvato, non ancora condiviso'
+        : 'Riepilogo da validare';
   const when = stage.sessionDate
     ? ` · ${stage.isPlanned ? 'in programma il' : 'seduta del'} ${fullDate.format(new Date(stage.sessionDate))}`
     : '';
@@ -222,9 +225,19 @@ function StageCard({
       {/* Non basta il tratteggio: un bordo diverso si nota solo se si sa che
           cosa cercare. La riga lo dice a parole. */}
       {!stage.isApproved && !stage.isPlanned && (
-        <p className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-gray-500">
+        <p className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-kp-red">
           <Clock3 className="h-3 w-3" aria-hidden="true" />
           Da validare
+        </p>
+      )}
+      {/* Consegnato all'atleta. Sta accanto a «Da validare» perche' sono i due
+          estremi della stessa domanda: a che punto e' questa seduta. Un
+          riepilogo approvato e non condiviso non porta niente — e' lo stato
+          normale, e non merita rumore. */}
+      {stage.isShared && (
+        <p className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-sky-700">
+          <Send className="h-3 w-3" aria-hidden="true" />
+          Condiviso
         </p>
       )}
       {stage.isPlanned && (

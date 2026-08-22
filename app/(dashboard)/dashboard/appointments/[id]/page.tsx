@@ -1,3 +1,5 @@
+import { SharedSessionReportPanel } from '@/components/shared-session-report';
+import { getSharedReportForAthlete } from '@/lib/core/ai-session-notes/shared-report-store';
 import { safeRedirectPath } from '@/lib/core/auth/safe-redirect';
 import { RETURN_TO_PARAM } from '@/lib/core/ai-session-notes/return-to';
 import Link from 'next/link';
@@ -86,7 +88,9 @@ export default async function AppointmentDetailPage({
   const booking = await getParticipantBooking(bookingId, user.id);
   if (!booking) notFound();
 
-  const [availability, busyByProvider, aiNotesSession, aiNotesEnabled, mentalJourney] = await Promise.all([
+  const [availability, busyByProvider, aiNotesSession, aiNotesEnabled, mentalJourney,
+    sharedReport,
+  ] = await Promise.all([
     getCoachAvailabilityByProviderId(booking.providerId),
     getCoachBusyIntervalsByProviderIds([booking.providerId]),
     booking.viewerRole === 'coach'
@@ -102,6 +106,20 @@ export default async function AppointmentDetailPage({
         ).catch((error: unknown) => {
           if (error instanceof MentalJourneyError) return null;
           throw error;
+        })
+      : Promise.resolve(null),
+    /*
+     * Il riepilogo che il coach ha consegnato a questa persona.
+     *
+     * Solo per l'atleta: il coach la stessa cosa la vede dal pannello
+     * completo, con dentro anche cio' che non esce. Legge
+     * `shared_report_json`, che contiene gia' soltanto la parte consegnabile —
+     * il documento intero non passa mai da questa parte del codice.
+     */
+    booking.viewerRole === 'athlete'
+      ? getSharedReportForAthlete({
+          bookingId: booking.id,
+          athleteUserId: booking.athleteUserId,
         })
       : Promise.resolve(null),
   ]);
@@ -342,6 +360,17 @@ export default async function AppointmentDetailPage({
           </div>
         ) : null}
       </div>
+
+      {/* Il riepilogo consegnato all'atleta.
+          Sta sulla pagina della seduta, e con l'ancora `#session-compass`,
+          perche' e' esattamente dove punta la notifica che riceve: prima quel
+          collegamento portava a un'ancora che per lui non esisteva. */}
+      {sharedReport ? (
+        <SharedSessionReportPanel
+          report={sharedReport}
+          coachName={booking.coachName}
+        />
+      ) : null}
 
       {showAiReport && aiNotesSession ? (
         <>

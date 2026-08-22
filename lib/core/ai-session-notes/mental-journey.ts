@@ -40,6 +40,8 @@ export type ApprovedSessionRecord = {
   reportId: number;
   reportVersion: number;
   approvedAt: Date;
+  /** Quando il coach lo ha consegnato all'atleta, se lo ha fatto. */
+  sharedAt: Date | null;
   sessionDate: Date | null;
   coachUserId: number;
   coachName: string;
@@ -87,6 +89,13 @@ export type MentalJourneyEntry = {
   reportVersion: number;
   sessionDate: string | null;
   approvedAt: string;
+  /**
+   * Quando il coach ha consegnato il riepilogo all'atleta, se lo ha fatto.
+   *
+   * Serve al coach, non all'atleta: la domanda «di questo percorso, che cosa
+   * ha letto lui?» non si puo' rispondere aprendo le sedute una per una.
+   */
+  sharedAt: string | null;
   coachName: string;
   summary: string;
   focus: string | null;
@@ -413,6 +422,7 @@ export function buildMentalJourney(params: {
       reportVersion: session.reportVersion,
       sessionDate: session.sessionDate?.toISOString() ?? null,
       approvedAt: session.approvedAt.toISOString(),
+      sharedAt: session.sharedAt?.toISOString() ?? null,
       coachName: session.coachName,
       summary: overview.summary,
       focus: overview.themes[0]?.text ?? null,

@@ -96,6 +96,7 @@ function trendJourney(values: number[]): MentalJourney {
       sessionId: index + 1,
       bookingId: index + 1,
       reportId: index + 1,
+      sharedAt: null,
       reportVersion: 1,
       sessionDate: `2026-0${index + 5}-01T10:00:00.000Z`,
       approvedAt: `2026-0${index + 5}-01T11:00:00.000Z`,

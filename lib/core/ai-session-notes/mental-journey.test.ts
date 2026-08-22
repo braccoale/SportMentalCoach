@@ -93,6 +93,7 @@ function approvedSession(
     bookingId: 101,
     reportId: 1001,
     reportVersion: 1,
+    sharedAt: null,
     approvedAt: new Date('2026-08-02T10:00:00.000Z'),
     sessionDate: new Date('2026-08-01T09:00:00.000Z'),
     coachUserId: COACH_ID,

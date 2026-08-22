@@ -6,6 +6,7 @@ import {
   Compass,
   Handshake,
   RotateCcw,
+  Send,
   Sparkles,
   Star,
   Target,
@@ -469,7 +470,27 @@ function TimelineCard({
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <p className="min-w-0 flex-1 text-sm leading-6 text-gray-800">{entry.summary}</p>
-              <span className="shrink-0 text-xs text-gray-500">con {entry.coachName}</span>
+              {/* Qui, a differenza della striscia in cima, si mostra anche il
+                  negativo: questa e' la cronologia completa, e la domanda che
+                  ci si fa scorrendola e' «di tutte queste, quali non gli ho
+                  ancora consegnato». Una colonna che tace sulle non condivise
+                  non risponde. */}
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <span className="text-xs text-gray-500">con {entry.coachName}</span>
+                {entry.sharedAt ? (
+                  <span
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-sky-700"
+                    title={`Condiviso con l’atleta il ${formatJourneyDate(entry.sharedAt)}`}
+                  >
+                    <Send className="h-3 w-3" aria-hidden="true" />
+                    Condiviso
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-medium text-gray-400">
+                    Non condiviso
+                  </span>
+                )}
+              </div>
             </div>
 
             {entry.themes.length ? (
