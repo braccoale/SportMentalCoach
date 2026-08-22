@@ -156,3 +156,37 @@ test('disabled STT and report providers fail with typed configuration errors', a
       error.code === 'PROVIDER_NOT_CONFIGURED'
   );
 });
+
+/**
+ * La rinuncia al programma di miglioramento dei modelli di Deepgram.
+ *
+ * Non è un dettaglio di configurazione: la partecipazione è il comportamento
+ * predefinito, e senza questo parametro l'audio di una seduta e la sua
+ * trascrizione rientrano fra i dati che il fornitore può conservare e usare per
+ * addestrare i propri modelli.
+ *
+ * L'informativa privacy dichiara agli utenti il contrario. Questo test esiste
+ * perché quella frase resti vera anche fra due anni: toglierlo dalla query non
+ * romperebbe niente e non darebbe nessun errore — si vedrebbe solo qui.
+ */
+test('la trascrizione rinuncia all’addestramento dei modelli del fornitore', async () => {
+  const calls: string[] = [];
+  const provider = new DeepgramNova3SpeechToTextProvider(
+    'test-key',
+    1_000,
+    (async (url: string) => {
+      calls.push(String(url));
+      return new Response(JSON.stringify({ request_id: 'request-1' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) as unknown as typeof fetch
+  );
+
+  await provider.submit(SUBMIT_INPUT);
+
+  assert.ok(
+    calls[0].includes('mip_opt_out=true'),
+    'la richiesta deve rinunciare al programma di miglioramento dei modelli'
+  );
+});
