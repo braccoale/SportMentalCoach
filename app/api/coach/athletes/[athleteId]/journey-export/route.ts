@@ -96,7 +96,7 @@ export async function GET(
     '',
     `> **Contenuto generato da un sistema di intelligenza artificiale** a partire`,
     `> dalla trascrizione delle sedute, e approvato dal coach prima della`,
-    `> condivisione. Non e' una diagnosi e non contiene decisioni automatizzate.`,
+    `> condivisione. Non è una diagnosi e non contiene decisioni automatizzate.`,
     '',
     `Documento riservato al coach. Contiene solo riepiloghi già approvati.`,
     `Finestra: ${JOURNEY_PERIOD_LABELS[period]} · Sedute approvate: ${journey.summary.approvedSessionCount}`,
