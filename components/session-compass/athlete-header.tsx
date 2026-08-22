@@ -3,8 +3,6 @@ import Link from 'next/link';
 import {
   CalendarCheck,
   Download,
-  EllipsisVertical,
-  Route,
   ShieldAlert,
 } from 'lucide-react';
 import { CoachAvatar } from '@/components/coach-visuals';
@@ -60,7 +58,6 @@ export function AthleteHeader({
   commitmentsTotal,
   since,
   exportHref = null,
-  timelineHref = null,
 }: {
   name: string;
   avatarUrl: string | null;
@@ -80,8 +77,6 @@ export function AthleteHeader({
   /** Scarica il percorso in PDF. Assente se non c'è un percorso. */
   exportHref?: string | null;
   /** Dove porta la voce «Percorso mentale» del menu. */
-  /** Ancora alla cronologia completa, in fondo alla stessa pagina. */
-  timelineHref?: string | null;
 }) {
   const identity = [
     age !== null ? `${age} ${age === 1 ? 'anno' : 'anni'}` : null,
@@ -191,25 +186,12 @@ export function AthleteHeader({
             </a>
           )}
 
-          <details className="relative">
-            <summary
-              aria-label="Altre azioni"
-              className="inline-flex size-10 cursor-pointer list-none items-center justify-center rounded-full bg-white/60 text-gray-600 ring-1 ring-white/70 backdrop-blur-md transition hover:bg-white hover:text-gray-900 [&::-webkit-details-marker]:hidden"
-            >
-              <EllipsisVertical className="h-4 w-4" aria-hidden="true" />
-            </summary>
-            <div className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
-              {timelineHref && (
-                <Link
-                  href={timelineHref}
-                  className="flex items-center gap-2 px-3.5 py-2 text-sm text-gray-600 transition hover:bg-gray-50"
-                >
-                  <Route className="h-4 w-4 text-gray-400" aria-hidden="true" />
-                  Percorso mentale completo
-                </Link>
-              )}
-            </div>
-          </details>
+          {/* Qui c'era un menu con una voce sola, «Percorso mentale completo»,
+              che puntava a una pagina ora assorbita in questa. Diventata
+              un'ancora, era la terza strada per lo stesso posto — dopo «Vedi
+              tutte le sessioni» sotto la striscia e il blocco «Tutte le sedute»
+              in fondo. Un menu che si apre per offrire una scorciatoia a
+              qualcosa che si vede gia' scorrendo non e' una scorciatoia. */}
         </div>
       </div>
     </header>
