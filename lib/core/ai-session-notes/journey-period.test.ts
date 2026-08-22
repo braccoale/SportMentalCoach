@@ -26,6 +26,7 @@ function session(
     bookingId: 500 + sessionId,
     reportId: sessionId,
     reportVersion: 1,
+    sharedAt: null,
     approvedAt: new Date(approvedAt),
     sessionDate: sessionDate ? new Date(sessionDate) : null,
     coachUserId: 1,

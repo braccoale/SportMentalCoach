@@ -121,6 +121,7 @@ class InMemoryCompassStore implements SessionCompassStore {
       reportKind: 'session_compass_v1',
       reportVersion: input.reportVersion,
       status: input.status,
+      sharedAt: null,
       sourceFingerprint: input.sourceFingerprint,
       promptVersion: input.promptVersion,
       generatedReport: input.generatedReport,

@@ -62,3 +62,8 @@ Image/
 
 # Anteprime email generate (pnpm email:preview / email:supabase-auth)
 /tmp
+
+# Local Android build caches and one-off verification scripts
+mobile/modules/call-foreground/android/.gradle/
+mobile/modules/call-foreground/android/build/
+/tmp-*.ts

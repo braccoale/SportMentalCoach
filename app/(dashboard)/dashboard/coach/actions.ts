@@ -86,17 +86,29 @@ export async function cancelBookingAction(
   const user = await requireRole('coach');
   const bookingId = Number(formData.get('bookingId'));
   if (!Number.isInteger(bookingId)) return { error: 'Richiesta non valida.' };
+  const sendCancellationMessage =
+    String(formData.get('sendCancellationMessage') ?? '') === '1';
+  const cancellationNote = String(formData.get('cancellationMessage') ?? '');
 
   const dependencies = createProductionAiSessionNotesDependencies();
   const result = await cancelBooking(
-    { bookingId, userId: user.id },
+    {
+      bookingId,
+      userId: user.id,
+      sendCancellationMessage,
+      cancellationNote,
+    },
     dependencies.liveKit
   );
   if (!result.ok) return { error: result.error };
 
   revalidateBookings();
   revalidatePath(`/dashboard/appointments/${bookingId}`);
-  return { success: 'Prenotazione annullata.' };
+  return {
+    success: sendCancellationMessage
+      ? 'Appuntamento annullato e messaggio inviato.'
+      : 'Appuntamento annullato.',
+  };
 }
 
 /**

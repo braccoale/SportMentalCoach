@@ -9,7 +9,7 @@ import type {
   SessionMetric,
 } from '@/lib/core/ai-session-notes/session-compass-contract';
 import { SESSION_METRIC_KEYS } from '@/lib/core/ai-session-notes/session-compass-contract';
-import { METRIC_META, metricValueLabel } from './metric-model';
+import { METRIC_META, metricTooltip, metricValueLabel } from './metric-model';
 import {
   buildMetricTrend,
   metricTrendLabel,
@@ -153,6 +153,10 @@ export function SessionIndicators({
                   className="h-full w-full min-w-0 rounded-xl border border-gray-200 bg-gray-50/70 p-3 text-left transition hover:border-violet-300 hover:bg-violet-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
                   onClick={() => onOpenEvidence(metric.evidence.transcriptSegmentId)}
                   aria-label={`${meta.label}: ${metric.value} su 5, ${metricValueLabel(metric.value).toLocaleLowerCase('it')}. Evidenza ${evidenceLevel(metric.confidence)}, ${evidenceOrigin(metric.evidence.speaker)}. ${validation}. Vai all’evidenza nella trascrizione.`}
+                  // Lo screen reader aveva la frase intera, chi guarda no: passando
+                  // sopra ora compare che cos’è la metrica, non solo il numero
+                  // che sta già leggendo.
+                  title={metricTooltip(metric.key, metric.value, metric.confidence)}
                 >
                   <div className="flex items-baseline justify-between gap-2">
                     <p className="min-w-0 truncate text-sm font-bold text-gray-950">{meta.label}</p>
@@ -281,6 +285,10 @@ export function SessionMetricsStrip({
                 className="group flex min-h-[7.25rem] w-full flex-col rounded-xl border border-white/90 bg-white/90 p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
                 onClick={() => onOpenEvidence(metric.evidence.transcriptSegmentId)}
                 aria-label={`${meta.label}: ${metric.value} su 5, ${metricValueLabel(metric.value).toLocaleLowerCase('it')}. Evidenza ${level}, ${origin}. ${validation}. Vai all'evidenza nella trascrizione.`}
+                // Lo screen reader aveva la frase intera, chi guarda no: passando
+                // sopra ora compare che cos’è la metrica, non solo il numero
+                // che sta già leggendo.
+                title={metricTooltip(metric.key, metric.value, metric.confidence)}
               >
                 <span className="flex w-full items-start justify-between gap-2">
                   <span className="line-clamp-2 text-sm font-bold leading-5 text-gray-950">{meta.label}</span>
@@ -326,6 +334,17 @@ export function SessionMetricsStrip({
   );
 }
 
+/**
+ * La quota di parola, spiegata.
+ *
+ * L'ultima frase è la parte che serve davvero: una barra divisa a metà
+ * invita a leggerci un giudizio sulla conduzione, e questo dato non ne
+ * contiene nessuno. Dice quanto si è parlato, non quanto bene.
+ */
+function participationTooltip(athleteShare: number): string {
+  return `Quota di parola: l’atleta ha occupato il ${athleteShare}% del parlato trascritto, il coach il ${100 - athleteShare}%. È un conteggio diretto sui segmenti della trascrizione, non una stima dell’AI: dice quanto si è parlato, non quanto bene.`;
+}
+
 function ParticipationSnapshot({ participation }: { participation: ConversationParticipation }) {
   const athleteShare = participation.athleteSharePercent;
   const coachShare = 100 - athleteShare;
@@ -335,6 +354,7 @@ function ParticipationSnapshot({ participation }: { participation: ConversationP
         className="grid h-16 w-16 shrink-0 place-items-center rounded-full"
         role="img"
         aria-label={`Quota di parola trascritta: atleta ${athleteShare}%, coach ${coachShare}%. Deriva dalla durata e dal conteggio degli interventi trascritti.`}
+        title={participationTooltip(athleteShare)}
         style={{ background: `conic-gradient(#0ea5e9 0 ${athleteShare}%, #c4b5fd ${athleteShare}% 100%)` }}
       >
         <span className="grid h-12 w-12 place-items-center rounded-full bg-white text-center"><span><span className="block text-sm font-black text-sky-700">{athleteShare}%</span><span className="block text-[9px] font-bold uppercase tracking-wide text-gray-500">Atleta</span></span></span>
@@ -424,6 +444,7 @@ export function ConversationParticipationCard({
           className="relative mx-auto grid h-24 w-24 place-items-center rounded-full"
           role="img"
           aria-label={`Quota di parola trascritta: atleta ${athleteShare}%, coach ${coachShare}%. Deriva dalla durata e dal conteggio degli interventi trascritti.`}
+        title={participationTooltip(athleteShare)}
           style={{ background: `conic-gradient(#0ea5e9 0 ${athleteShare}%, #a78bfa ${athleteShare}% 100%)` }}
         >
           <span className="grid h-[4.55rem] w-[4.55rem] place-items-center rounded-full bg-white text-center">
@@ -434,6 +455,7 @@ export function ConversationParticipationCard({
           className="flex h-3 overflow-hidden rounded-full bg-gray-100"
           role="img"
           aria-label={`Barra divisa: atleta ${athleteShare}%, coach ${coachShare}%.`}
+        title={participationTooltip(athleteShare)}
         >
           <span className="bg-sky-500" style={{ width: `${athleteShare}%` }} />
           <span className="bg-violet-400" style={{ width: `${coachShare}%` }} />

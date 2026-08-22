@@ -15,6 +15,7 @@ function entry(
     bookingId: sessionId + 100,
     reportId: sessionId + 200,
     reportVersion: 1,
+    sharedAt: null,
     sessionDate,
     approvedAt: sessionDate,
     coachName: 'Coach Test',

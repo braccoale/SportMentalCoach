@@ -6,6 +6,11 @@
  * immutabilità del report approvato) sono testabili senza database.
  */
 
+import {
+  buildSharedReport,
+  sharedReportHasContent,
+  type SharedSessionReport,
+} from './shared-report';
 import { createHash } from 'node:crypto';
 import {
   SESSION_COMPASS_REPORT_KIND,
@@ -74,6 +79,16 @@ export type StoredSessionCompassReport = {
   coachNote: string | null;
   approvedBy: number | null;
   approvedAt: Date | null;
+  /**
+   * Quando il coach ha condiviso con l'atleta, se lo ha fatto.
+   *
+   * **La condivisione non e' uno stato del report**, e non deve diventarlo: la
+   * cronistoria del percorso seleziona i report `approved`, quindi spostare lo
+   * stato a `shared` farebbe sparire dal percorso del coach ogni seduta che ha
+   * condiviso — l'esatto contrario di quello che serve. E' un fatto registrato
+   * accanto allo stato, non al posto suo.
+   */
+  sharedAt: Date | null;
   errorCode: string | null;
   updatedDate: Date;
 };
@@ -100,11 +115,15 @@ export type UpdateSessionCompassReport = {
   coachNote?: string | null;
   approvedBy?: number | null;
   approvedAt?: Date | null;
+  /** La fotografia consegnata all'atleta, e quando. Si scrivono insieme. */
+  sharedReport?: SharedSessionReport | null;
+  sharedAt?: Date | null;
   errorCode?: string | null;
   actorUserId: number;
 };
 
 export type SessionCompassAuditEvent =
+  | 'compass_report_shared'
   | 'compass_report_generated'
   | 'compass_report_regenerated'
   | 'compass_report_approved'
@@ -225,6 +244,12 @@ export type SessionCompassView = {
   isApproved: boolean;
   isStale: boolean;
   approvedAt: string | null;
+  /**
+   * Quando il riepilogo e' stato consegnato all'atleta, se lo e' stato.
+   * `null` significa «approvato ma non ancora condiviso», che e' uno stato
+   * legittimo e non un passaggio dimenticato.
+   */
+  sharedAt: string | null;
   errorCode: string | null;
   updatedAt: string;
   document: SessionCompassReport | null;
@@ -580,6 +605,97 @@ export async function approveSessionCompass(
   return viewOf(saved, authorization, fingerprint, dependencies);
 }
 
+/**
+ * Il coach consegna all'atleta la sua parte del riepilogo.
+ *
+ * **E' un atto separato dall'approvazione, e deve restarlo.** Approvare
+ * significa «questo testo e' corretto e puo' entrare nel percorso»;
+ * condividere significa «questa persona puo' leggerlo di se'». Sono due
+ * giudizi diversi, e ci sono sedute in cui il primo e' si' e il secondo e' no.
+ *
+ * Che cosa esce lo decide `buildSharedReport`, non il coach e non
+ * l'interfaccia: il criterio e' scritto una volta, la' dentro.
+ *
+ * **Fotografia, non puntatore.** Il testo consegnato viene salvato cosi' com'e'
+ * in `shared_report_json`. Se il coach corregge il report piu' tardi, quello
+ * che l'atleta aveva letto non cambia sotto i suoi occhi — e se vorra'
+ * consegnargli la versione nuova, dovra' condividerla di nuovo, che e' una
+ * decisione e non un effetto collaterale.
+ *
+ * **Idempotente.** Ricondividere non riscrive la fotografia e non manda una
+ * seconda notifica: un doppio clic non deve avvisare due volte una persona.
+ */
+export async function shareSessionCompass(
+  params: { sessionId: number; actorUserId: number },
+  dependencies: SessionCompassDependencies
+): Promise<SessionCompassView> {
+  const { session, authorization } = await authorizedSession(
+    params,
+    'approve',
+    dependencies
+  );
+  const stored = await requireReport(session.sessionId, dependencies);
+
+  if (stored.status !== 'approved') {
+    throw new SessionCompassError(
+      'COMPASS_INVALID',
+      'Il riepilogo va prima approvato: si condivide quello che hai gia’ riletto.'
+    );
+  }
+
+  const fingerprint = await currentFingerprint(session.sessionId, dependencies);
+
+  // Gia’ condiviso: si restituisce lo stato senza riscrivere e senza
+  // avvisare di nuovo.
+  if (stored.sharedAt) {
+    return viewOf(stored, authorization, fingerprint, dependencies);
+  }
+
+  const document = effectiveDocument(stored);
+  if (!document) {
+    throw new SessionCompassError(
+      'REPORT_NOT_FOUND',
+      'Il report non è ancora disponibile.'
+    );
+  }
+
+  const now = dependencies.now();
+  const shared = buildSharedReport(document, now);
+  if (!sharedReportHasContent(shared)) {
+    throw new SessionCompassError(
+      'COMPASS_INVALID',
+      'Non c’è ancora niente da consegnare: questo riepilogo non ha né racconto né temi.'
+    );
+  }
+
+  const saved = await dependencies.store.updateReport({
+    reportId: stored.id,
+    sharedReport: shared,
+    sharedAt: now,
+    actorUserId: params.actorUserId,
+  });
+
+  await dependencies.store.recordAudit({
+    sessionId: session.sessionId,
+    actorUserId: params.actorUserId,
+    eventType: 'compass_report_shared',
+    metadata: { reportId: stored.id, reportVersion: stored.reportVersion },
+  });
+
+  // La notifica vive **qui** e non nell'approvazione: prima annunciava una
+  // condivisione che non era avvenuta, e offriva un collegamento a una pagina
+  // che per l'atleta non esisteva.
+  if (session.bookingId) {
+    await dependencies.notifyReportReady?.({
+      athleteUserId: session.athleteUserId,
+      bookingId: session.bookingId,
+      coachName: session.coachName,
+    });
+  }
+
+  return viewOf(saved, authorization, fingerprint, dependencies);
+}
+
 async function generateDocument(
   input: {
     session: SessionCompassSessionSource;
@@ -801,6 +917,7 @@ async function viewOf(
       sessionId: stored.sessionId,
       store: dependencies.commitments,
     }),
+    sharedAt: stored.sharedAt?.toISOString() ?? null,
     reportId: stored.id,
     sessionId: stored.sessionId,
     reportVersion: stored.reportVersion,

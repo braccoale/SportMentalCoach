@@ -43,6 +43,7 @@ function entry(
     bookingId: 100 + sessionId,
     reportId: 200 + sessionId,
     reportVersion: 1,
+    sharedAt: null,
     sessionDate,
     approvedAt: '2026-08-01T10:00:00.000Z',
     coachName: 'Coach',

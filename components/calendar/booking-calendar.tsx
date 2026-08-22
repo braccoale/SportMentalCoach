@@ -701,7 +701,14 @@ function EventDrawer({
               </ActionForm>
               {/* A past session can no longer be cancelled — only completed. */}
               {!isPast && (
-                <ActionForm action={cancelAction} onSuccess={closeAfterSuccess}>
+                <ActionForm
+                  action={cancelAction}
+                  onSuccess={closeAfterSuccess}
+                  confirmTitle="Annullare la sessione?"
+                  confirmMessage="Confermi di voler annullare questo appuntamento? L’operazione non può essere annullata."
+                  confirmActionLabel="Annulla sessione"
+                  collectCancellationMessage
+                >
                   <input type="hidden" name="bookingId" value={event.id} />
                   <Button
                     type="submit"

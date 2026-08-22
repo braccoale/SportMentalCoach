@@ -146,6 +146,14 @@ export type JourneyStage = {
    * più corto di quello reale — ma dichiara di essere provvisoria.
    */
   isApproved: boolean;
+  /**
+   * Consegnato all'atleta.
+   *
+   * Sta sulla tappa e non solo nella pagina della seduta perche' la domanda
+   * del coach e' «di questo percorso, che cosa ha letto lui?»: una risposta
+   * che si ottiene aprendo le sedute una per una non e' una risposta.
+   */
+  isShared: boolean;
   /** Una seduta in agenda, non ancora avvenuta: si guarda, non si apre. */
   isPlanned: boolean;
   /**
@@ -215,6 +223,7 @@ function stageFor(
     sourceMomentId: moment.id,
     relevance: moment.relevance ?? 1,
     isApproved: entry.isApproved,
+    isShared: entry.sharedAt !== null,
     isPlanned: false,
     ticksToNext: [],
   };
@@ -339,6 +348,7 @@ function plannedStage(session: PlannedSession): JourneyStage {
     sourceMomentId: null,
     relevance: 1,
     isApproved: false,
+    isShared: false,
     isPlanned: true,
     ticksToNext: [],
   };

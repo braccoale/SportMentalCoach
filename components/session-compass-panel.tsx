@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Send,
   BookOpen,
   CheckCircle2,
   Compass,
@@ -42,6 +43,7 @@ import { SessionStoryPanel } from './session-compass/session-story';
 import { SessionSwitcher } from './session-compass/session-switcher';
 import { TranscriptPanel } from './session-compass/transcript-panel';
 import { TranscriptHistorySearch } from './session-compass/transcript-history-search';
+import { PdfDownloadButton } from './session-compass/journey-pdf-button';
 import {
   segmentAnchorId,
   type CompassTabId,
@@ -183,6 +185,10 @@ function ReportStateChip({ report }: { report: SessionCompassView | null }) {
   const tones = {
     draft: 'bg-amber-100 text-amber-900',
     approved: 'bg-emerald-100 text-emerald-800',
+    // Condiviso e' uno stato **oltre** approvato, non un suo sinonimo: merita
+    // un colore proprio, altrimenti il coach non distingue a colpo d'occhio
+    // «l'ho riletto» da «gliel'ho consegnato».
+    shared: 'bg-sky-100 text-sky-800',
     working: 'bg-violet-100 text-violet-800',
     failed: 'bg-red-100 text-red-800',
   };
@@ -190,6 +196,15 @@ function ReportStateChip({ report }: { report: SessionCompassView | null }) {
     ? { tone: tones.working, label: 'Elaborazione in corso' }
     : report.status === 'failed'
       ? { tone: tones.failed, label: 'Elaborazione non riuscita' }
+      : report.sharedAt
+        ? {
+            tone: tones.shared,
+            label: `Condiviso il ${new Intl.DateTimeFormat('it-IT', {
+              day: 'numeric',
+              month: 'short',
+              timeZone: 'Europe/Rome',
+            }).format(new Date(report.sharedAt))}`,
+          }
       : report.isApproved
         ? { tone: tones.approved, label: `Approvato · v${report.reportVersion}` }
         : { tone: tones.draft, label: `Bozza · v${report.reportVersion}` };
@@ -442,7 +457,7 @@ export function SessionCompassPanel({
             </div>
           </div>
 
-          <div className="flex shrink-0 flex-wrap gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             <Button
               type="button"
               variant="outline"
@@ -475,6 +490,34 @@ export function SessionCompassPanel({
               >
                 <CheckCircle2 className="h-4 w-4" /> Approva report
               </Button>
+            ) : null}
+            {/* Condividere e' un secondo atto, e ha un pulsante suo.
+                Approvare dice «questo testo e' corretto»; condividere dice
+                «questa persona puo' leggerlo di se'». Ci sono sedute in cui la
+                prima e' si' e la seconda e' no, e un solo pulsante avrebbe
+                deciso per il coach. */}
+            {report?.isApproved && report.document && !report.sharedAt ? (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={() =>
+                  run(() => requestJson(`${endpoint}/share`, 'POST'), () =>
+                    setNotice(
+                      'Condiviso con l’atleta: racconto, sintesi e temi. Citazioni, indicatori e le tue note restano qui.'
+                    )
+                  )
+                }
+              >
+                <Send className="h-4 w-4" /> Condividi con l’atleta
+              </Button>
+            ) : null}
+            {report?.isApproved && report.document ? (
+              <PdfDownloadButton
+                href={`${endpoint}/export`}
+                fallbackFileName="report-sessione-kaipai.pdf"
+                accessibleLabel="Scarica e apri il report PDF della sessione"
+              />
             ) : null}
           </div>
         </div>

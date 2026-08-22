@@ -182,6 +182,10 @@ export function createSessionCompassStore(): SessionCompassStore {
           ...(input.coachNote === undefined ? {} : { privateCoachNotes: input.coachNote }),
           ...(input.approvedBy === undefined ? {} : { approvedBy: input.approvedBy }),
           ...(input.approvedAt === undefined ? {} : { approvedAt: input.approvedAt }),
+          ...(input.sharedReport === undefined
+            ? {}
+            : { sharedReportJson: asJson(input.sharedReport) }),
+          ...(input.sharedAt === undefined ? {} : { sharedAt: input.sharedAt }),
           ...(input.errorCode === undefined
             ? {}
             : { metadata: input.errorCode ? { errorCode: input.errorCode } : {} }),
@@ -251,14 +255,17 @@ function storedReport(
     coachNote: row.privateCoachNotes,
     approvedBy: row.approvedBy,
     approvedAt: row.approvedAt,
+    sharedAt: row.sharedAt,
     errorCode:
       typeof row.metadata?.errorCode === 'string' ? row.metadata.errorCode : null,
     updatedDate: row.updatedDate,
   };
 }
 
+/** Il documento cosi' com'e', per la colonna jsonb. Vale per il report intero
+ *  e per la fotografia condivisa: sono forme diverse dello stesso mestiere. */
 function asJson(
-  report: SessionCompassReport | null | undefined
+  document: object | null | undefined
 ): Record<string, unknown> | null {
-  return report ? (report as unknown as Record<string, unknown>) : null;
+  return document ? (document as unknown as Record<string, unknown>) : null;
 }

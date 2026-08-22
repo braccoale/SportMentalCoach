@@ -563,6 +563,16 @@ export default async function CoachDashboardPage() {
             <UpcomingAppointmentCard
               key={booking.id}
               data={buildUpcomingAppointmentData(booking)}
+              cancelAction={
+                isSessionJoinable(booking.scheduledFor, booking.durationMin)
+                  ? cancelBookingAction
+                  : undefined
+              }
+              cancelBookingId={
+                isSessionJoinable(booking.scheduledFor, booking.durationMin)
+                  ? booking.id
+                  : undefined
+              }
               primaryActions={
                 isSessionJoinable(booking.scheduledFor, booking.durationMin) ? (
                   <>
@@ -654,20 +664,6 @@ export default async function CoachDashboardPage() {
                       Completabile dopo la videochiamata
                     </DropdownMenuItem>
                   )}
-                  <ActionForm
-                    action={cancelBookingAction}
-                    className="w-full"
-                    confirmTitle="Annullare la sessione?"
-                    confirmMessage="La sessione verrà annullata. Potrai prenotarne una nuova in qualsiasi momento."
-                    confirmActionLabel="Annulla sessione"
-                  >
-                    <input type="hidden" name="bookingId" value={booking.id} />
-                    <button type="submit" className="flex w-full">
-                      <DropdownMenuItem className="w-full flex-1 cursor-pointer text-red-600 focus:text-red-600">
-                        Annulla sessione
-                      </DropdownMenuItem>
-                    </button>
-                  </ActionForm>
                 </>
               }
               detailContent={

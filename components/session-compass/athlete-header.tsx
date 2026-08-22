@@ -1,13 +1,9 @@
 import Image from 'next/image';
-import Link from 'next/link';
-import {
-  CalendarCheck,
-  Download,
-  ShieldAlert,
-} from 'lucide-react';
+import { CalendarCheck, ShieldAlert } from 'lucide-react';
 import { CoachAvatar } from '@/components/coach-visuals';
 import { SportIcon } from '@/components/sport-icon';
 import { formatDate, formatDateTime } from '@/lib/core/format';
+import { JourneyPdfButton } from './journey-pdf-button';
 
 /**
  * L'intestazione della scheda atleta: chi è questa persona, e da quanto
@@ -34,11 +30,11 @@ import { formatDate, formatDateTime } from '@/lib/core/format';
  */
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="min-w-[7.5rem] rounded-xl bg-white/65 px-3.5 py-2 shadow-sm ring-1 ring-white/70 backdrop-blur-md">
+    <div className="min-w-[7.5rem] rounded-xl bg-white/30 px-3.5 py-2 shadow-sm ring-1 ring-white/45 backdrop-blur-sm">
       <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-600">
         {label}
       </p>
-      <p className="mt-0.5 text-2xl font-bold leading-none tracking-tight text-gray-950">
+      <p className="mt-0.5 text-center text-2xl font-bold leading-none tracking-tight text-gray-950">
         {value}
       </p>
     </div>
@@ -174,17 +170,7 @@ export function AthleteHeader({
           <Stat label="Sedute svolte" value={completedSessions} />
           <Stat label="Impegni concordati" value={commitmentsTotal} />
 
-          {exportHref && (
-            <a
-              href={exportHref}
-              download
-              title="Scarica il percorso in PDF"
-              aria-label="Scarica il percorso in PDF"
-              className="inline-flex size-10 items-center justify-center rounded-full bg-white/60 text-gray-600 ring-1 ring-white/70 backdrop-blur-md transition hover:bg-white hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
-            >
-              <Download className="h-4 w-4" aria-hidden="true" />
-            </a>
-          )}
+          {exportHref && <JourneyPdfButton href={exportHref} />}
 
           {/* Qui c'era un menu con una voce sola, «Percorso mentale completo»,
               che puntava a una pagina ora assorbita in questa. Diventata

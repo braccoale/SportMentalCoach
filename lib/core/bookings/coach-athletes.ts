@@ -1,5 +1,6 @@
 import type { CoachBooking } from './index';
 import { isSessionUpcoming } from '../sessions';
+import { getSessionDurationMinutes } from '../format';
 
 /**
  * Vista "I miei Atleti": le prenotazioni del coach raggruppate per persona.
@@ -87,6 +88,12 @@ export type CoachAthleteSummary = {
    * confermata. Altrimenti l'atleta ha lavorato con il coach in passato.
    */
   status: 'active' | 'past';
+};
+
+export type CoachAthleteSessionStats = {
+  completedSessions: number;
+  totalSessionMinutes: number;
+  averageSessionMinutes: number | null;
 };
 
 function displayName(booking: CoachBooking): string {
@@ -195,6 +202,39 @@ export function buildCoachAthletes(
     }
     return a.name.localeCompare(b.name, 'it');
   });
+}
+
+/**
+ * Statistiche cumulative dello stesso insieme di sedute che la scheda atleta
+ * considera realmente svolte. Quando la videochiamata ha inizio e fine usa la
+ * durata misurata; per le chiusure manuali o storiche usa quella concordata.
+ */
+export function buildCoachAthleteSessionStats(
+  bookings: readonly CoachBooking[],
+  athleteUserId: number,
+  now: Date = new Date()
+): CoachAthleteSessionStats {
+  const held = bookings.filter(
+    (booking) => booking.clientId === athleteUserId && wasHeld(booking, now)
+  );
+  const totalSessionMinutes = held.reduce((total, booking) => {
+    const measured = getSessionDurationMinutes(
+      booking.sessionStartedAt,
+      booking.sessionEndedAt
+    );
+    const fallback =
+      booking.durationMin != null && booking.durationMin > 0
+        ? booking.durationMin
+        : 0;
+    return total + (measured ?? fallback);
+  }, 0);
+
+  return {
+    completedSessions: held.length,
+    totalSessionMinutes,
+    averageSessionMinutes:
+      held.length > 0 ? Math.round(totalSessionMinutes / held.length) : null,
+  };
 }
 
 /**

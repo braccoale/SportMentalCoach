@@ -105,12 +105,38 @@ function Panel({
  * impegni descrive il caso, non il percorso — e un anello è una percentuale
  * disegnata, quindi vale la stessa regola.
  */
-function CompletionRing({ rate }: { rate: number }) {
+/**
+ * Che cosa dice davvero l'anello.
+ *
+ * L'ultima frase esiste perché un anello a metà si legge come una pagella
+ * dell'atleta, e non lo è: lo stato di un impegno lo aggiorna lui, quando si
+ * ricorda di farlo. «Non completato» e «non spuntato» sono la stessa cosa
+ * qui dentro, e sono due fatti molto diversi.
+ */
+function completionRingTooltip(
+  rate: number,
+  breakdown: CommitmentBreakdown
+): string {
+  const done = breakdown.rows.find((row) => row.key === 'completed')?.count;
+  const counted =
+    done === undefined
+      ? `${rate}% degli impegni concordati risulta completato`
+      : `${done} impegni completati su ${breakdown.total} concordati (${rate}%)`;
+  return `${counted}. Lo stato lo aggiorna l’atleta: un impegno non spuntato non vuol dire che non sia stato fatto.`;
+}
+
+function CompletionRing({
+  rate,
+  breakdown,
+}: {
+  rate: number;
+  breakdown: CommitmentBreakdown;
+}) {
   // `rate` arriva in centesimi dal dominio: 73 vuol dire 73%.
   const filled = Math.max(0, Math.min(1, rate / 100));
 
   return (
-    <div className="relative shrink-0">
+    <div className="relative shrink-0" title={completionRingTooltip(rate, breakdown)}>
       <svg viewBox="0 0 100 100" className="h-28 w-28 -rotate-90" aria-hidden="true">
         <circle
           cx="50"
@@ -168,7 +194,7 @@ export function JourneyCommitmentsPanel({
     >
       <div className="flex h-full items-center gap-6">
         {breakdown.completionRate !== null && (
-          <CompletionRing rate={breakdown.completionRate} />
+          <CompletionRing rate={breakdown.completionRate} breakdown={breakdown} />
         )}
 
         <dl className="min-w-0 flex-1 text-sm">
@@ -193,6 +219,19 @@ export function JourneyCommitmentsPanel({
       </div>
     </Panel>
   );
+}
+
+/**
+ * Che cos'è un tema, e che cosa dice questa barra.
+ *
+ * Prima il fumetto diceva «In 6 sedute su 8»: il conteggio da cui nasce la
+ * percentuale stampata a fianco, cioè la stessa cosa detta due volte.
+ * Mancava l'unica frase che serve a chi guarda per la prima volta una barra
+ * lunga — che misura **quante volte se n'è parlato**, non quanto quel tema
+ * sia importante per la persona.
+ */
+function themeBarTooltip(bar: ThemeBar): string {
+  return `«${bar.label}» — ${bar.countLabel.toLocaleLowerCase('it')} (${bar.percent}%). Un tema è un filone che il riepilogo ha riconosciuto in più di una seduta: la barra dice quante volte è tornato, non quanto conta.`;
 }
 
 export function JourneyThemesPanel({
@@ -233,7 +272,14 @@ export function JourneyThemesPanel({
           const tint = THEME_TINTS[index % THEME_TINTS.length];
           const Icon = THEME_ICONS[index % THEME_ICONS.length];
           return (
-            <li key={bar.key} className="flex items-center gap-3">
+            <li
+              key={bar.key}
+              // Il fumetto sta sulla riga intera, non sulla sola barra: così
+              // risponde anche a chi passa sopra il titolo troncato o la
+              // percentuale, che sono i due punti da cui nasce la domanda.
+              title={themeBarTooltip(bar)}
+              className="flex items-center gap-3"
+            >
               <span
                 className="flex size-8 shrink-0 items-center justify-center rounded-full"
                 style={{ backgroundColor: `color-mix(in srgb, ${tint} 10%, white)` }}
@@ -245,12 +291,7 @@ export function JourneyThemesPanel({
                 <p className="truncate text-sm font-medium text-gray-800">
                   {bar.label}
                 </p>
-                {/* Il fumetto porta il conteggio vero: la percentuale dice la
-                    quota, «in 6 sedute su 8» dice il fatto da cui viene. */}
-                <div
-                  title={bar.countLabel}
-                  className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100"
-                >
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100">
                   <div
                     className="h-full rounded-full"
                     style={{ width: `${(bar.fill * 100).toFixed(1)}%`, backgroundColor: tint }}

@@ -27,6 +27,25 @@ const shortDate = new Intl.DateTimeFormat('it-IT', {
 
 const LEVELS = ['Alto', 'Medio', 'Basso'];
 
+/**
+ * Che cosa dice un punto della linea.
+ *
+ * Prima diceva «3.4 su 5 · 5 indicatori», cioè ripeteva in cifre quello
+ * che il pallino già mostrava in altezza. Non diceva la cosa che serve: che
+ * quel numero è una **media** di stime diverse fra loro, e che sotto c'è il
+ * testo di una conversazione, non una misura.
+ */
+function progressPointTooltip(point: JourneyProgress['points'][number]): string {
+  const when = point.sessionDate
+    ? `Seduta del ${shortDate.format(new Date(point.sessionDate))}`
+    : 'Seduta senza data';
+  const how =
+    point.metricCount === 1
+      ? 'un solo indicatore stimato in quella seduta: un punto che si muove molto con poco'
+      : `media dei ${point.metricCount} indicatori stimati in quella seduta`;
+  return `${when}: ${point.value.toFixed(1)} su 5 — ${how}. Le stime nascono dalle parole dette, non dal tono della voce.`;
+}
+
 function InsightPanel({ insight }: { insight: JourneyInsight | null }) {
   return (
     <aside className="flex min-w-0 flex-1 flex-col rounded-xl bg-violet-50/60 p-4 lg:max-w-[15rem]">
@@ -129,9 +148,7 @@ export function JourneyProgressPanel({
                     return (
                       <span
                         key={point.sessionId}
-                        title={`${point.value.toFixed(1)} su 5 · ${point.metricCount} ${
-                          point.metricCount === 1 ? 'indicatore' : 'indicatori'
-                        }`}
+                        title={progressPointTooltip(point)}
                         className="absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-white"
                         style={{
                           left: `${x}%`,

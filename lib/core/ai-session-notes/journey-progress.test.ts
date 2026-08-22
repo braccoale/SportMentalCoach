@@ -18,6 +18,7 @@ function entry(
     bookingId: 500 + sessionId,
     reportId: sessionId,
     reportVersion: 1,
+    sharedAt: null,
     sessionDate: `2026-05-${String(day).padStart(2, '0')}T10:00:00.000Z`,
     approvedAt: '2026-08-01T10:00:00.000Z',
     coachName: 'Coach',

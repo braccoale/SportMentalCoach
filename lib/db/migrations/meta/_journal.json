@@ -407,6 +407,13 @@
       "when": 1787330558711,
       "tag": "0057_harden-landing-stats-view",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1787384557388,
+      "tag": "0058_harden-database-function-security",
+      "breakpoints": true
     }
   ]
 }

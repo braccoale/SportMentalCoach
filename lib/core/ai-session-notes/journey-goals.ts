@@ -193,3 +193,65 @@ export function buildJourneyGoalRows(params: {
       };
     });
 }
+
+/**
+ * Dopo quante sedute senza essere ripreso un obiettivo va segnalato.
+ *
+ * Due, non una: saltare una seduta è la normalità di un percorso: un
+ * obiettivo non si tocca ogni volta, e un avviso che scatta subito diventa un
+ * avviso che si impara a ignorare.
+ */
+export const GOAL_STALE_AFTER_SESSIONS = 2;
+
+export type GoalTrackSummary = {
+  /** In quante delle sedute mostrate il filone è stato segnato. */
+  touchedCount: number;
+  /** Quante sedute sono in vista: il denominatore della frase. */
+  totalCount: number;
+  /** L'ultima volta che è stato segnato, se è mai successo. */
+  lastTouchedAt: string | null;
+  /**
+   * Quante sedute sono passate dall'ultima volta. `0` significa «l'ultima
+   * seduta», `null` che non è mai stato segnato.
+   */
+  sessionsSinceLastTouch: number | null;
+  /** Il filone è fermo: mai segnato, oppure non ripreso da abbastanza sedute. */
+  stale: boolean;
+};
+
+/**
+ * A che punto è un obiettivo, in numeri.
+ *
+ * Sostituisce la lettura che il coach doveva fare da solo contando i pallini
+ * di una griglia. La domanda vera non era «in quali sedute» — informazione
+ * che una fila di cerchietti dà male — ma **«ci sto ancora lavorando o l'ho
+ * perso di vista»**, e quella è una frase, non un grafico.
+ *
+ * Sta qui e non nel componente perché «fermo» è una decisione: cambia che
+ * cosa il coach vede in cima alla scheda, e va verificata senza aprire un
+ * browser.
+ */
+export function summarizeGoalTrack(row: JourneyGoalRow): GoalTrackSummary {
+  const totalCount = row.track.length;
+  const touchedCount = row.track.filter((dot) => dot.touched).length;
+
+  const lastTouchedIndex = row.track.reduce(
+    (found, dot, index) => (dot.touched ? index : found),
+    -1
+  );
+  const sessionsSinceLastTouch =
+    lastTouchedIndex === -1 ? null : totalCount - 1 - lastTouchedIndex;
+
+  return {
+    touchedCount,
+    totalCount,
+    lastTouchedAt: row.lastTouchedAt,
+    sessionsSinceLastTouch,
+    // Senza sedute in vista non c'è niente da cui dedurre un abbandono: un
+    // percorso appena cominciato non ha obiettivi trascurati.
+    stale:
+      totalCount > 0 &&
+      (sessionsSinceLastTouch === null ||
+        sessionsSinceLastTouch >= GOAL_STALE_AFTER_SESSIONS),
+  };
+}

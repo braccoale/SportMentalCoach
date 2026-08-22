@@ -8,16 +8,26 @@ import {
   useState,
   useTransition,
 } from 'react';
-import { TriangleAlert, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { MessageSquareText, TriangleAlert, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import type { ActionState } from '@/lib/auth/middleware';
+import { CANCELLATION_NOTE_MAX_LENGTH } from '@/lib/core/bookings/cancellation-message';
+
+type ConfirmationSubmission = {
+  sendCancellationMessage: boolean;
+  cancellationMessage: string;
+};
 
 export function ConfirmationDialog({
   open,
   title,
   message,
   actionLabel,
+  collectCancellationMessage = false,
+  busy = false,
+  error,
   onCancel,
   onConfirm,
 }: {
@@ -25,8 +35,11 @@ export function ConfirmationDialog({
   title?: string;
   message: string;
   actionLabel?: string;
+  collectCancellationMessage?: boolean;
+  busy?: boolean;
+  error?: string;
   onCancel: () => void;
-  onConfirm: () => void;
+  onConfirm: (submission?: ConfirmationSubmission) => void;
 }) {
   const t = useTranslations('SharedActions');
   const titleId = useId();
@@ -34,11 +47,15 @@ export function ConfirmationDialog({
   const panelRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const [sendMessage, setSendMessage] = useState(true);
+  const [cancellationMessage, setCancellationMessage] = useState('');
 
   useEffect(() => {
     if (!open) return;
 
     previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+    setSendMessage(true);
+    setCancellationMessage('');
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     cancelRef.current?.focus();
@@ -77,7 +94,7 @@ export function ConfirmationDialog({
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-4"
       role="alertdialog"
@@ -116,12 +133,59 @@ export function ConfirmationDialog({
           {message}
         </p>
 
+        {collectCancellationMessage ? (
+          <div className="mt-5 rounded-2xl border border-gray-200 bg-gray-50/80 p-4">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                checked={sendMessage}
+                onChange={(event) => setSendMessage(event.target.checked)}
+                className="mt-0.5 size-4 rounded border-gray-300 accent-red-600"
+              />
+              <span className="min-w-0">
+                <span className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                  <MessageSquareText className="size-4 text-red-600" aria-hidden="true" />
+                  Manda messaggio
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-gray-500">
+                  Invieremo “Appuntamento Annullato” nella chat della sessione.
+                </span>
+              </span>
+            </label>
+
+            <label className="mt-3 block text-xs font-medium text-gray-700">
+              Messaggio aggiuntivo <span className="font-normal text-gray-400">(opzionale)</span>
+              <textarea
+                value={cancellationMessage}
+                onChange={(event) => setCancellationMessage(event.target.value)}
+                disabled={!sendMessage}
+                maxLength={CANCELLATION_NOTE_MAX_LENGTH}
+                rows={3}
+                placeholder="Aggiungi un breve messaggio…"
+                className="mt-1.5 w-full resize-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-normal leading-5 text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-red-400 focus:ring-2 focus:ring-red-100 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+              />
+            </label>
+            {sendMessage ? (
+              <p className="mt-1 text-right text-[11px] text-gray-400">
+                {cancellationMessage.length}/{CANCELLATION_NOTE_MAX_LENGTH}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {error ? (
+          <p role="alert" className="mt-3 text-sm text-red-600">
+            {error}
+          </p>
+        ) : null}
+
         <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button
             ref={cancelRef}
             type="button"
             variant="outline"
             onClick={onCancel}
+            disabled={busy}
             className="h-11 rounded-full px-5"
           >
             {t('back')}
@@ -129,14 +193,22 @@ export function ConfirmationDialog({
           <Button
             type="button"
             variant="destructive"
-            onClick={onConfirm}
+            disabled={busy}
+            onClick={() =>
+              onConfirm(
+                collectCancellationMessage
+                  ? { sendCancellationMessage: sendMessage, cancellationMessage }
+                  : undefined
+              )
+            }
             className="h-11 rounded-full px-5"
           >
-            {actionLabel ?? t('confirm')}
+            {busy ? 'Annullamento…' : actionLabel ?? t('confirm')}
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -157,21 +229,26 @@ export function ActionForm({
   action,
   children,
   className,
+  formId,
   onSuccess,
   confirmMessage,
   confirmTitle,
   confirmActionLabel,
+  collectCancellationMessage = false,
   messageFirst = false,
 }: {
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
   children: React.ReactNode;
   className?: string;
+  formId?: string;
   /** Called once when the action reports success (e.g. close a drawer). */
   onSuccess?: (state: ActionState) => void;
   /** Optional confirmation shown before submitting a destructive action. */
   confirmMessage?: string;
   confirmTitle?: string;
   confirmActionLabel?: string;
+  /** Aggiunge checkbox e nota opzionale al dialog di annullamento. */
+  collectCancellationMessage?: boolean;
   /**
    * Renders the error/success line at the top of the form instead of after the
    * children. For tall forms — a dialog that fills the screen on a phone — a
@@ -185,7 +262,6 @@ export function ActionForm({
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const submitterRef = useRef<HTMLElement | null>(null);
-  const confirmedRef = useRef(false);
 
   useEffect(() => {
     if (state?.success) onSuccess?.(state);
@@ -196,27 +272,32 @@ export function ActionForm({
     setConfirmationOpen(false);
   }
 
-  function confirmSubmission() {
+  function confirmSubmission(submission?: ConfirmationSubmission) {
     const form = formRef.current;
     if (!form) return;
 
     setConfirmationOpen(false);
-    confirmedRef.current = true;
-    const submitter = submitterRef.current;
-    if (submitter && form.contains(submitter)) {
-      form.requestSubmit(submitter);
-    } else {
-      form.requestSubmit();
-    }
+    dispatch(form, submitterRef.current, submission);
   }
 
-  function dispatch(form: HTMLFormElement, submitter: HTMLElement | null) {
+  function dispatch(
+    form: HTMLFormElement,
+    submitter: HTMLElement | null,
+    submission?: ConfirmationSubmission
+  ) {
     const formData = new FormData(form);
     // `FormData(form)` never includes buttons, so the submitter's own
     // name/value (e.g. `startNow=1`) has to be carried over by hand.
     const button = submitter as HTMLButtonElement | null;
     if (button?.name && !formData.has(button.name)) {
       formData.append(button.name, button.value);
+    }
+    if (submission) {
+      formData.set(
+        'sendCancellationMessage',
+        submission.sendCancellationMessage ? '1' : '0'
+      );
+      formData.set('cancellationMessage', submission.cancellationMessage);
     }
     startTransition(() => formAction(formData));
   }
@@ -235,6 +316,7 @@ export function ActionForm({
     <>
       <form
         ref={formRef}
+        id={formId}
         className={className}
         onSubmit={(event) => {
           event.preventDefault();
@@ -244,13 +326,12 @@ export function ActionForm({
               ? (event.nativeEvent.submitter as HTMLElement | null)
               : null;
 
-          if (confirmMessage && !confirmedRef.current) {
+          if (confirmMessage) {
             submitterRef.current = submitter;
             setConfirmationOpen(true);
             return;
           }
 
-          confirmedRef.current = false;
           dispatch(form, submitter);
         }}
       >
@@ -265,6 +346,7 @@ export function ActionForm({
           title={confirmTitle}
           message={confirmMessage}
           actionLabel={confirmActionLabel}
+          collectCancellationMessage={collectCancellationMessage}
           onCancel={closeConfirmation}
           onConfirm={confirmSubmission}
         />

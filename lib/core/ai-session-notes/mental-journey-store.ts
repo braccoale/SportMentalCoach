@@ -64,6 +64,7 @@ export function createMentalJourneyStore(): MentalJourneyStore {
           status: sessionAiReports.status,
           reportKind: sessionAiReports.reportKind,
           approvedAt: sessionAiReports.approvedAt,
+          sharedAt: sessionAiReports.sharedAt,
           updatedDate: sessionAiReports.updatedDate,
           sessionDate: bookings.scheduledFor,
           coachUserId: providerProfiles.userId,
@@ -93,6 +94,7 @@ export function createMentalJourneyStore(): MentalJourneyStore {
         return [
           {
             isApproved: row.status === 'approved',
+            sharedAt: row.sharedAt,
             sessionId: row.sessionId,
             bookingId: row.bookingId,
             reportId: row.reportId,

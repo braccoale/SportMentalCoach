@@ -21,6 +21,7 @@ function entry(overrides: Partial<MentalJourneyEntry> = {}): MentalJourneyEntry 
     reportId: 1001,
     reportVersion: 1,
     sessionDate: '2026-08-01T09:00:00.000Z',
+    sharedAt: null,
     approvedAt: '2026-08-02T10:00:00.000Z',
     coachName: 'Giulia Rossi',
     summary: 'Emerge una tensione pre-gara riferita dall’atleta.',

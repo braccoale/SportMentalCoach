@@ -95,10 +95,16 @@ export async function setJourneyGoalStatusAction(
 /**
  * Segna che una seduta ha toccato un obiettivo, o toglie il segno.
  *
- * È il pallino della riga: il coach lo clicca mentre rilegge il riepilogo, e
- * quel gesto è l'unica cosa che riempie la traccia. Prima l'aggancio si provava
- * a dedurlo dalla somiglianza fra le frasi dei temi, e su quindici obiettivi in
- * produzione non ne ha mai prodotto uno.
+ * Prima l'aggancio si provava a dedurlo dalla somiglianza fra le frasi dei
+ * temi, e su quindici obiettivi in produzione non ne ha mai prodotto uno.
+ * Quindi lo indica il coach — e da qui in avanti lo indica **in fondo al
+ * riepilogo di seduta**, non in una griglia nella scheda dell'atleta: lì la
+ * domanda arrivava lontano dai riepiloghi, e la risposta andava ricordata a
+ * memoria per otto sedute.
+ *
+ * `bookingId` è facoltativo e serve solo a rinfrescare la pagina della seduta
+ * quando il gesto parte da lì. Senza, il segno si scriverebbe e la casella
+ * resterebbe come prima fino al ricaricamento successivo.
  */
 export async function toggleJourneyGoalSessionAction(
   formData: FormData
@@ -116,6 +122,11 @@ export async function toggleJourneyGoalSessionAction(
   await toggleGoalSession({ coachUserId, athleteUserId, goalId, sessionId });
 
   revalidatePath(athletePath(athleteUserId));
+
+  const bookingId = parsePositiveInt(formData.get('bookingId'));
+  if (bookingId !== null) {
+    revalidatePath(`/dashboard/appointments/${bookingId}`);
+  }
 }
 
 export async function archiveJourneyGoalAction(
