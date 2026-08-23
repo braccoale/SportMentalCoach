@@ -265,6 +265,32 @@ test('un punto preso da una bozza lo dichiara sulla riga della fonte', () => {
   assert.match(html, /non hai ancora validato/);
 });
 
+/*
+ * Il pulsante «Preparati», nella scheda della prossima call, punta all'ancora
+ * di questa sezione. Se la sezione sparisce quando non ci sono spunti, quel
+ * pulsante apre una pagina in cima e sembra non aver fatto niente — la stessa
+ * forma di errore gia' pagata con `#session-compass`.
+ */
+test('senza spunti la sezione resta se le si da un messaggio, e dice perche', () => {
+  const muta = renderToStaticMarkup(<PointsToRevisitSection points={[]} />);
+  assert.equal(muta, '', 'dove è una voce fra le altre, vuota sparisce');
+
+  const html = renderToStaticMarkup(
+    <PointsToRevisitSection
+      points={[]}
+      heading="Da portare in questa seduta"
+      intro="Ricavato dalle sedute precedenti."
+      emptyMessage="Niente da riprendere, per ora. Gli spunti nascono dai riepiloghi delle sedute precedenti."
+    />
+  );
+
+  assert.match(html, /id="mental-journey-revisit"/);
+  assert.match(html, /Da portare in questa seduta/);
+  assert.match(html, /Niente da riprendere/);
+  // Vuota, la sezione non promette un contenuto che non ha.
+  assert.doesNotMatch(html, /Ricavato dalle sedute precedenti/);
+});
+
 test('la vista è dichiaratamente di sola lettura e senza valutazioni cliniche', () => {
   const html = renderToStaticMarkup(
     <MentalJourneyView journey={journey()} athleteName="Marco" />
