@@ -11,6 +11,7 @@ import {
   Video,
   CalendarPlus,
   ArrowRight,
+  Lightbulb,
 } from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
 import {
@@ -580,8 +581,8 @@ export default async function CoachDashboardPage() {
                       La videochiamata viene prima della chat perche' e' cio'
                       per cui la sessione esiste: il posto dice cosa conta
                       anche quando il pulsante e' ancora spento. La chat resta
-                      subito accanto, ma come alternativa — contorno, non
-                      pieno — cosi' nella riga c'e' un solo peso forte.
+                      subito accanto, ridotta alla sola icona: e' l'alternativa
+                      di ripiego, e nella riga c'e' un solo peso forte.
                     */}
                     <VideoCallButton
                       bookingId={booking.id}
@@ -599,12 +600,39 @@ export default async function CoachDashboardPage() {
                       asChild
                       type="button"
                       variant="outline"
+                      size="icon"
                       className="rounded-full"
                     >
-                      <Link href={`/dashboard/chat/${booking.id}`}>
-                        <MessageSquare className="h-4 w-4" /> Apri chat
+                      <Link
+                        href={`/dashboard/chat/${booking.id}`}
+                        aria-label="Apri chat"
+                        title="Apri chat"
+                      >
+                        <MessageSquare className="h-4 w-4" />
                       </Link>
                     </Button>
+                    {/*
+                      «Preparati» porta dritto a «Da portare in questa seduta»,
+                      sulla pagina della seduta: cio' che le volte precedenti
+                      hanno lasciato aperto. Quella sezione esisteva gia', ma
+                      si raggiungeva solo aprendo il dettaglio e scorrendo —
+                      cioe' quasi mai nei minuti prima della call, che sono
+                      l'unico momento in cui serve leggerla.
+                    */}
+                    <Link
+                      href={`/dashboard/appointments/${booking.id}#mental-journey-revisit`}
+                      className="inline-flex items-center gap-2 rounded-full border border-lime-200 bg-lime-50 px-4 py-1.5 text-left transition-colors hover:border-lime-300 hover:bg-lime-100"
+                    >
+                      <Lightbulb className="h-4 w-4 shrink-0 text-lime-600" />
+                      <span className="flex flex-col leading-tight">
+                        <span className="text-sm font-semibold text-lime-900">
+                          Preparati
+                        </span>
+                        <span className="text-[11px] text-lime-700">
+                          Consigli per la call
+                        </span>
+                      </span>
+                    </Link>
                     {booking.scheduledFor && (
                       <EditAppointmentButton
                         bookingId={booking.id}
@@ -628,12 +656,12 @@ export default async function CoachDashboardPage() {
                       compact
                     />
                     {/*
-                      `Annulla` non sta qui.
-                      Era un pulsante rosso pieno, cioe' l'oggetto piu' acceso
-                      dell'intera scheda: l'azione piu' pericolosa era anche la
-                      piu' facile da premere di sfuggita. E' scesa nel menu
-                      `⋯`, dove costa un gesto in piu' — che e' esattamente il
-                      prezzo che deve avere.
+                      `Cancella` chiude la riga, ed e' disegnato dalla scheda:
+                      lo stato della conferma vive li'. Era un pulsante rosso
+                      pieno — l'oggetto piu' acceso della scheda — poi era
+                      finito nel menu `⋯`; ora sta in riga ma a contorno, e il
+                      freno e' la conferma che chiede il motivo, non la fatica
+                      di trovarlo.
                     */}
                   </>
                 ) : (

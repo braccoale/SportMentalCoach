@@ -24,8 +24,8 @@ import {
   formatTime,
   formatBigDateParts,
   formatRomeDateValue,
-  scheduledForLabel,
   describeSessionDuration,
+  scheduledForLabel,
 } from '@/lib/core/format';
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
@@ -520,8 +520,8 @@ function AcceptedAppointments({
                         compact
                       />
                     )}
-                    {/* `Annulla` sta nel menu `⋯`, non qui: vedi la scheda
-                        coach per il motivo. */}
+                    {/* `Cancella` chiude la riga e lo disegna la scheda,
+                        non questa pagina: la conferma vive li'. */}
                   </>
                 )
               }
