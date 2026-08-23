@@ -10,13 +10,14 @@ import {
   MoreVertical,
   ChevronUp,
   CircleCheck,
+  X,
 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
 import { CancelBookingDialog } from '@/components/cancel-booking-dialog';
 import { SportIcon } from '@/components/sport-icon';
 import { cn } from '@/lib/utils';
@@ -67,6 +68,7 @@ export function UpcomingAppointmentCard({
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [cancellationOpen, setCancellationOpen] = useState(false);
+  const canCancel = Boolean(cancelAction && cancelBookingId);
 
   return (
     <>
@@ -119,7 +121,7 @@ export function UpcomingAppointmentCard({
               Sessione online
             </span>
           </div>
-          {(overflowActions || (cancelAction && cancelBookingId)) && (
+          {overflowActions && (
             <DropdownMenu>
               <DropdownMenuTrigger
                 aria-label="Azioni appuntamento"
@@ -129,14 +131,6 @@ export function UpcomingAppointmentCard({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-56">
                 {overflowActions}
-                {cancelAction && cancelBookingId ? (
-                  <DropdownMenuItem
-                    onSelect={() => setCancellationOpen(true)}
-                    className="cursor-pointer text-red-600 focus:text-red-600"
-                  >
-                    Annulla sessione
-                  </DropdownMenuItem>
-                ) : null}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -186,9 +180,28 @@ export function UpcomingAppointmentCard({
           </div>
         </div>
 
-        {primaryActions && (
+        {(primaryActions || canCancel) && (
           <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-3">
             {primaryActions}
+            {/*
+              `Cancella` sta nella riga, non piu' nel menu `⋯`.
+              Chi deve disdire una seduta lo sa gia' prima di aprire la
+              scheda, e cercarla dentro un menu costava a tutti un gesto per
+              proteggere un errore raro. Il freno non e' nasconderla: e' la
+              conferma che chiede il motivo prima di procedere. Resta pero'
+              l'azione piu' leggera della riga - contorno rosso, mai piena -
+              perche' il peso forte nella riga e' uno solo, la videochiamata.
+            */}
+            {canCancel ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCancellationOpen(true)}
+                className="rounded-full border-red-200 text-red-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+              >
+                <X className="h-4 w-4" /> Cancella
+              </Button>
+            ) : null}
           </div>
         )}
 
