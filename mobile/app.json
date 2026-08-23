@@ -28,6 +28,7 @@
       "package": "com.kaipaicoaching.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon-adaptive.png",
+        "monochromeImage": "./assets/icon-monochrome.png",
         "backgroundColor": "#050507"
       },
       "permissions": [
