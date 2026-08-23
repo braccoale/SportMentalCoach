@@ -23,6 +23,7 @@ export function SessionHeroCard({
   onOpenCall,
   onMenu,
   onDecide,
+  onPrepare,
   deciding,
 }: {
   session: UpcomingSession;
@@ -32,6 +33,13 @@ export function SessionHeroCard({
   onOpenCall: () => void;
   onMenu: () => void;
   onDecide: (accept: boolean) => void;
+  /**
+   * Apre «Da portare in questa seduta».
+   *
+   * Assente per l'atleta: quei punti nascono dai riepiloghi, che sono
+   * materiale del coach.
+   */
+  onPrepare?: () => void;
   deciding: boolean;
 }) {
   const { theme } = useTheme();
@@ -75,6 +83,17 @@ export function SessionHeroCard({
 
   const waiting = session.status === 'requested';
   const canJoin = session.canJoinNow !== false && !waiting;
+  /*
+   * Prepararsi si fa **prima**, e prima che la stanza apra.
+   *
+   * Sul web quel pulsante compare solo dentro la finestra in cui si puo'
+   * entrare in call; qui no. Il momento in cui questa scheda viene guardata
+   * davvero e' il quarto d'ora precedente, quando la stanza e' ancora chiusa
+   * e c'e' ancora tempo per leggere. Dopo la seduta invece non serve piu':
+   * quello che resta si legge nel riepilogo.
+   */
+  const ended = !canJoin && Boolean(when && when.getTime() <= now);
+  const canPrepare = isCoach && !waiting && !ended;
 
   return (
     <View style={[styles.card, wide ? { width: wide } : null]}>
@@ -142,22 +161,39 @@ export function SessionHeroCard({
         </View>
       ) : waiting ? (
         <Text style={styles.note}>In attesa che il coach accetti</Text>
-      ) : canJoin ? (
-        <Pressable
-          onPress={onOpenCall}
-          accessibilityRole="button"
-          accessibilityLabel={`Apri la videochiamata con ${session.otherName}`}
-          style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
-        >
-          <Icon name="videocam" size={18} color="#fff" />
-          <Text style={styles.primaryText}>Apri videochiamata</Text>
-        </Pressable>
       ) : (
-        <Text style={styles.note}>
-          {when && when.getTime() > now
-            ? 'La stanza apre pochi minuti prima'
-            : 'Sessione terminata'}
-        </Text>
+        <>
+          {canJoin ? (
+            <Pressable
+              onPress={onOpenCall}
+              accessibilityRole="button"
+              accessibilityLabel={`Apri la videochiamata con ${session.otherName}`}
+              style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
+            >
+              <Icon name="videocam" size={18} color="#fff" />
+              <Text style={styles.primaryText}>Apri videochiamata</Text>
+            </Pressable>
+          ) : (
+            <Text style={styles.note}>
+              {when && when.getTime() > now
+                ? 'La stanza apre pochi minuti prima'
+                : 'Sessione terminata'}
+            </Text>
+          )}
+
+          {onPrepare && canPrepare ? (
+            <Pressable
+              onPress={onPrepare}
+              accessibilityRole="button"
+              accessibilityLabel={`Preparati alla sessione con ${session.otherName}`}
+              accessibilityHint="Mostra cosa riprendere dalle sedute precedenti"
+              style={({ pressed }) => [styles.prepare, pressed && styles.pressed]}
+            >
+              <Icon name="bulb" size={18} color={theme.hi} />
+              <Text style={styles.prepareText}>Preparati per la call</Text>
+            </Pressable>
+          ) : null}
+        </>
       )}
     </View>
   );
@@ -204,6 +240,22 @@ const createStyles = (theme: Palette) =>
       justifyContent: 'center',
     },
     primaryText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+    /*
+     * Di contorno, mai piena: nella scheda il peso forte resta uno solo,
+     * entrare. Stessa altezza del primario perche' due pulsanti impilati di
+     * altezza diversa si leggono come due cose scollegate.
+     */
+    prepare: {
+      flexDirection: 'row',
+      gap: 8,
+      minHeight: 48,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: theme.line,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    prepareText: { color: theme.hi, fontSize: 15, fontWeight: '600' },
     decide: { flexDirection: 'row', gap: 8 },
     decline: {
       flex: 1,

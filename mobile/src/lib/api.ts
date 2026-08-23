@@ -205,6 +205,34 @@ export function fetchSessionDetail(bookingId: number) {
 }
 
 /**
+ * Uno spunto da riprendere nella seduta che sta per cominciare.
+ *
+ * `sourceLabel` non e` decorazione: un punto senza la sua provenienza e` una
+ * frase da credere sulla parola, e `fromDraft` dice che nasce da un riepilogo
+ * che il coach non ha ancora validato.
+ */
+export type SessionPrepPoint = {
+  id: string;
+  text: string;
+  sourceLabel: string;
+  fromDraft: boolean;
+};
+
+/**
+ * Cosa portare in questa seduta.
+ *
+ * Lo decide il server con la stessa funzione del web (`getMentalJourney`):
+ * l'app riceve l'esito, non ricalcola il percorso. Si chiede solo quando
+ * qualcuno apre il foglio — il percorso di ogni atleta non si costruisce per
+ * riempire un elenco che nessuno ha ancora toccato.
+ */
+export function fetchSessionPrep(bookingId: number) {
+  return request<{ points: SessionPrepPoint[] }>(
+    `/api/mobile/sessions/${bookingId}/prep`
+  );
+}
+
+/**
  * Segna un impegno come fatto, o lo rimette in sospeso.
  *
  * Va alla stessa rotta del web: la regola su chi puo` cambiare cosa sta li`,

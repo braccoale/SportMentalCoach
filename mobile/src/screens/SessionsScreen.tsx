@@ -18,6 +18,7 @@ import { NewAppointmentSheet } from '../components/NewAppointmentSheet';
 import { SessionHeroCard } from '../components/SessionHeroCard';
 import { SessionHistoryRow } from '../components/SessionHistoryRow';
 import { PastSessionSheet } from '../components/PastSessionSheet';
+import { SessionPrepSheet } from '../components/SessionPrepSheet';
 import { Icon } from '../components/Icon';
 import { useTheme, type Palette } from '../theme';
 
@@ -68,6 +69,8 @@ export function SessionsScreen({
   const [bookWith, setBookWith] = useState<number | null>(null);
   /** La seduta passata aperta in scheda: com'è andata, cosa resta da fare. */
   const [detailFor, setDetailFor] = useState<UpcomingSession | null>(null);
+  /** La seduta di cui si stanno leggendo gli spunti, prima di entrare in call. */
+  const [prepFor, setPrepFor] = useState<UpcomingSession | null>(null);
   /*
    * Si apre sulle completate.
    *
@@ -278,6 +281,7 @@ export function SessionsScreen({
               deciding={deciding === sessions[0].bookingId}
               onOpenCall={() => onOpenCall(sessions[0])}
               onMenu={() => setMenuFor(sessions[0])}
+              onPrepare={() => setPrepFor(sessions[0])}
               onDecide={(accept) => void respond(sessions[0], accept)}
             />
           ) : (
@@ -297,6 +301,7 @@ export function SessionsScreen({
                   deciding={deciding === session.bookingId}
                   onOpenCall={() => onOpenCall(session)}
                   onMenu={() => setMenuFor(session)}
+                  onPrepare={() => setPrepFor(session)}
                   onDecide={(accept) => void respond(session, accept)}
                 />
               ))}
@@ -369,6 +374,19 @@ export function SessionsScreen({
           visible
           onClose={() => setMenuFor(null)}
           onChanged={() => void load()}
+        />
+      )}
+
+      {prepFor && (
+        <SessionPrepSheet
+          session={prepFor}
+          visible
+          onClose={() => setPrepFor(null)}
+          onOpenCall={() => {
+            const session = prepFor;
+            setPrepFor(null);
+            onOpenCall(session);
+          }}
         />
       )}
 
