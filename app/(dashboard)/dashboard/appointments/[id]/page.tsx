@@ -270,12 +270,13 @@ export default async function AppointmentDetailPage({
    * Solo per il coach, e solo prima dell'incontro: dopo, la pagina ha il
    * riepilogo di quella seduta, ed è quello che si legge.
    */
-  const preparationPoints =
+  const showPreparation =
     booking.viewerRole === 'coach' &&
     booking.scheduledFor !== null &&
-    booking.scheduledFor.getTime() > Date.now()
-      ? (mentalJourney?.pointsToRevisit ?? [])
-      : [];
+    booking.scheduledFor.getTime() > Date.now();
+  const preparationPoints = showPreparation
+    ? (mentalJourney?.pointsToRevisit ?? [])
+    : [];
 
   const realDurationMin = getSessionDurationMinutes(
     booking.sessionStartedAt,
@@ -415,11 +416,19 @@ export default async function AppointmentDetailPage({
       {/* Prima del riepilogo, perche' prima dell'incontro non c'e' nessun
           riepilogo da leggere: qui questa sezione non e' una voce fra le
           altre, e' la ragione per cui si apre la pagina. */}
-      {preparationPoints.length > 0 ? (
+      {showPreparation ? (
         <PointsToRevisitSection
           points={preparationPoints}
           heading="Da portare in questa seduta"
           intro="Ricavato dalle sedute precedenti: che cosa era rimasto aperto e che cosa il riepilogo dell'ultima volta aveva lasciato per oggi."
+          /*
+           * Vuota, questa sezione si mostra lo stesso.
+           * «Preparati», nella scheda della prossima call, punta qui: se la
+           * sezione sparisce il pulsante porta a una pagina che si apre in
+           * cima, e sembra rotto. Un percorso senza spunti non e' un guasto —
+           * va detto, con il motivo.
+           */
+          emptyMessage="Niente da riprendere, per ora. Gli spunti nascono dai riepiloghi delle sedute precedenti e dagli impegni rimasti aperti: dopo questa seduta, qui trovi che cosa portare alla prossima."
         />
       ) : null}
 

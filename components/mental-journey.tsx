@@ -325,12 +325,23 @@ export function PointsToRevisitSection({
   points,
   heading,
   intro,
+  emptyMessage,
 }: {
   points: readonly PointToRevisit[];
   heading?: string;
   intro?: string;
+  /**
+   * Che cosa dire quando non c'e' niente da riprendere.
+   *
+   * Senza, la sezione sparisce — ed e' giusto dove e' una voce fra le altre.
+   * Ma dove qualcuno ci arriva da un collegamento, sparire significa mandarlo
+   * a un'ancora che non esiste: la pagina si apre in cima e sembra che il
+   * pulsante non abbia fatto niente. E' successo con `#session-compass`, ed
+   * era la stessa forma di errore.
+   */
+  emptyMessage?: string;
 }) {
-  if (!points.length) return null;
+  if (!points.length && !emptyMessage) return null;
   return (
     <section
       aria-labelledby="mental-journey-revisit"
@@ -346,8 +357,10 @@ export function PointsToRevisitSection({
         </h2>
       </div>
       <p className="mt-2 text-sm text-gray-600">
-        {intro ??
-          'Spunti ricavati dai riepiloghi delle sedute e dallo stato reale degli impegni.'}
+        {points.length === 0 && emptyMessage
+          ? emptyMessage
+          : (intro ??
+            'Spunti ricavati dai riepiloghi delle sedute e dallo stato reale degli impegni.')}
       </p>
       <ul className="mt-4 space-y-2">
         {points.map((point) => (
