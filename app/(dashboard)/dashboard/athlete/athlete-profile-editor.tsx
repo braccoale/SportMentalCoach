@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { ActionForm } from '@/components/action-form';
 import type { AthleteProfileFields } from '@/lib/core/profiles';
 import { normalizeSportKey } from '@/lib/core/profiles/sport-key';
+import { AGE_OF_MAJORITY, ageFromBirthDate } from '@/lib/core/guardians/age';
 import { sports } from '@/lib/verticals/sport-mental-coach/taxonomies';
 import { updateAthleteProfileAction } from './actions';
 
@@ -18,15 +19,10 @@ const LEVELS = [
   'Professionista',
 ];
 
+/** Display only: the gate itself is recomputed server-side on every check. */
 function ageFrom(birthDate: string | null): number | null {
-  if (!birthDate) return null;
-  const d = new Date(birthDate);
-  if (Number.isNaN(d.getTime())) return null;
-  const now = new Date();
-  let a = now.getFullYear() - d.getFullYear();
-  const m = now.getMonth() - d.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) a--;
-  return a >= 0 && a < 120 ? a : null;
+  const a = ageFromBirthDate(birthDate);
+  return a != null && a >= 0 && a < 120 ? a : null;
 }
 
 /** Editor for the athlete's profile (personal + sport fields). */
@@ -109,6 +105,13 @@ export function AthleteProfileEditor({ profile }: { profile: AthleteProfileField
                 defaultValue={profile.birthDate ?? ''}
                 max={today}
               />
+              {age !== null && age < AGE_OF_MAJORITY && (
+                <p className="text-xs text-gray-500">
+                  Da questa data dipende l’autorizzazione del tuo genitore o
+                  tutore: se è sbagliata e ti fa risultare minorenne, scrivi
+                  all’assistenza invece di correggerla qui.
+                </p>
+              )}
             </div>
           </div>
 
