@@ -29,7 +29,7 @@
     "test:ai-notes:processing": "tsx scripts/verify/ai-session-notes-processing-flow.ts",
     "test:ai-notes:admin": "node --conditions=react-server --import tsx scripts/verify/ai-session-notes-admin.ts",
     "test:ai-notes:integration": "node --conditions=react-server --import tsx scripts/verify/ai-session-notes-integration.ts",
-    "test:ai-notes:testability": "node --conditions=react-server --import tsx --test lib/core/ai-session-notes/testability.test.ts lib/core/ai-session-notes/callback-url.test.ts lib/core/ai-session-notes/audio-storage.test.ts lib/core/ai-session-notes/livekit-dependency-injection.test.ts lib/core/ai-session-notes/transcription-worker-dependency-injection.test.ts lib/core/ai-session-notes/coach-session-report.test.ts lib/core/ai-session-notes/worker-trigger.test.ts",
+    "test:ai-notes:testability": "node --conditions=react-server --import tsx --test lib/core/ai-session-notes/testability.test.ts lib/core/ai-session-notes/callback-url.test.ts lib/core/ai-session-notes/audio-storage.test.ts lib/core/ai-session-notes/livekit-dependency-injection.test.ts lib/core/ai-session-notes/transcription-worker-dependency-injection.test.ts lib/core/ai-session-notes/coach-session-report.test.ts lib/core/ai-session-notes/worker-trigger.test.ts lib/core/profiles/provisioning.test.ts",
     "test:inventory": "node scripts/test-inventory.mjs",
     "ai-notes:diagnose": "node --conditions=react-server --import tsx scripts/diagnose-ai-notes-egress.ts",
     "ai-notes:reconcile": "node --conditions=react-server --import tsx scripts/reconcile-ai-notes-recordings.ts",

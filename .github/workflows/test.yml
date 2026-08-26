@@ -1,0 +1,70 @@
+# La suite, a ogni proposta di modifica.
+#
+# Perché serve. In questo repository esistono 835 test che girano in venti
+# secondi e non toccano rete né database — sono la parte meglio costruita del
+# progetto. Fino a oggi giravano **solo quando qualcuno si ricordava di
+# scrivere `npm test`**: in `.github/workflows/` c'erano due cron per il worker
+# e per i promemoria, e nessun workflow che eseguisse la suite. Una PR che
+# rompeva un test non lo diceva a nessuno.
+#
+# Non è un'ipotesi. Il 2026-08-26 sono stati trovati quattordici file di test
+# scritti e mai eseguiti, e uno di essi descriveva un difetto vivo in
+# produzione da settimane: l'icona dello sport spariva dalla scheda
+# appuntamento. Il test c'era. Nessuno lo lanciava.
+#
+# Che cosa NON copre, e va detto perché un verde qui non significa «funziona»:
+#
+#   * gli scenari end-to-end (`npm run e2e`) restano fuori: creano utenti veri
+#     sul progetto Supabase, che è produzione. Finché non esiste un database
+#     separato, quelli si lanciano a mano e con cognizione.
+#   * gli script `test:ai-notes:*` restano fuori: raggiungono infrastruttura
+#     reale e costano chiamate vere.
+#   * niente qui prova che una schermata sia giusta. Il typecheck e i test puri
+#     dicono che le regole reggono, non che qualcuno le abbia collegate a un
+#     pulsante.
+#
+# Nessun segreto e nessuna variabile: se un giorno un test avrà bisogno del
+# database, il posto giusto non è aggiungere una credenziale qui — è capire
+# perché un test puro ha smesso di esserlo.
+
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Una PR aggiornata tre volte di fila non deve tenere occupati tre runner: la
+# risposta che conta è quella sull'ultimo commit.
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Typecheck e suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # `--frozen-lockfile` fallisce se il lockfile non corrisponde al
+      # package.json: è il controllo che ha già salvato una build in passato
+      # (commit 5e1c0c9, «il lockfile che mancava al package.json»).
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Suite
+        run: npm test
