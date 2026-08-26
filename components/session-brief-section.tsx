@@ -1,5 +1,9 @@
 import { Sparkles, Target, Bookmark, PenLine } from 'lucide-react';
-import type { SessionBrief } from '@/lib/core/ai-session-notes/session-brief';
+import {
+  COLLAPSED_EXCERPT_TURNS,
+  type BriefTurn,
+  type SessionBrief,
+} from '@/lib/core/ai-session-notes/session-brief';
 
 /**
  * La sintesi che il coach legge prima della seduta, sul web.
@@ -22,7 +26,14 @@ import type { SessionBrief } from '@/lib/core/ai-session-notes/session-brief';
  * aprirebbe la pagina in cima e sembrerebbe rotto — è già successo con
  * `#session-compass`.
  */
-export function SessionBriefSection({ brief }: { brief: SessionBrief | null }) {
+export function SessionBriefSection({
+  brief,
+  athleteName,
+}: {
+  brief: SessionBrief | null;
+  /** Il nome di chi si ha davanti: uno stralcio con «Lui/lei» non e' un dialogo. */
+  athleteName?: string | null;
+}) {
   return (
     <section
       id="session-brief"
@@ -104,26 +115,23 @@ export function SessionBriefSection({ brief }: { brief: SessionBrief | null }) {
                   {brief.lastSession.bookmarks.map((bookmark) => (
                     <li key={bookmark.id} className="flex items-start gap-2.5">
                       <Bookmark className="mt-1 h-3.5 w-3.5 shrink-0 text-violet-500" />
-                      <div className="text-sm leading-6 text-gray-700">
+                      <div className="min-w-0 flex-1 text-sm leading-6 text-gray-700">
                         <span className="mr-2 font-semibold text-gray-500">
                           {bookmark.minute}′
                         </span>
                         {/*
-                          Ordine: la nota del coach se c'è, altrimenti quello
-                          che si stava dicendo — parola per parola dalla
-                          trascrizione. Prima qui compariva «Momento segnato
-                          durante la seduta», che occupava una riga senza dire
-                          niente e non aiutava nessuno a prepararsi.
+                          Ordine: la nota del coach se c'è, altrimenti lo
+                          scambio dalla trascrizione. Non un frammento: i
+                          segmenti durano due secondi, e citarne uno mostrava
+                          cose come «ad ascoltare di più».
                         */}
                         {bookmark.note ? (
                           bookmark.note
-                        ) : bookmark.quote ? (
-                          <span>
-                            <span className="text-gray-500">
-                              {bookmark.speaker === 'coach' ? 'Tu' : 'Lui/lei'}:{' '}
-                            </span>
-                            <span className="italic">«{bookmark.quote}»</span>
-                          </span>
+                        ) : bookmark.turns.length > 0 ? (
+                          <BookmarkExcerpt
+                            turns={bookmark.turns}
+                            athleteName={athleteName}
+                          />
                         ) : (
                           <span className="text-gray-500">
                             Segnato qui, ma la trascrizione di questa seduta non
@@ -212,6 +220,56 @@ function EmptyBrief({ reason }: { reason: 'no_sessions' | 'nothing_to_carry' }) 
           : 'Questa sintesi mette insieme gli obiettivi del percorso, il riepilogo dell’ultima seduta e i momenti che segni durante la chiamata. Finché non c’è quel materiale non viene inventato niente: dopo la prima seduta registrata, qui trovi che cosa portare alla successiva.'}
       </p>
     </div>
+  );
+}
+
+/**
+ * Lo scambio attorno al segnalibro.
+ *
+ * Due battute in riga, il resto si apre. Aperto tutto d'un fiato, uno stralcio
+ * di sei battute spingerebbe fuori dallo schermo il resto della sintesi — e
+ * questa e' una preparazione, non la trascrizione. Usa `<details>`, che si
+ * apre senza JavaScript e resta accessibile da tastiera.
+ */
+function BookmarkExcerpt({
+  turns,
+  athleteName,
+}: {
+  turns: readonly BriefTurn[];
+  athleteName?: string | null;
+}) {
+  const visible = turns.slice(0, COLLAPSED_EXCERPT_TURNS);
+  const hidden = turns.slice(COLLAPSED_EXCERPT_TURNS);
+  const label = (turn: BriefTurn) =>
+    turn.speaker === 'coach' ? 'Tu' : athleteName?.trim() || 'Atleta';
+
+  return (
+    <span className="align-top">
+      {visible.map((turn, index) => (
+        <span key={index} className="block">
+          <span className="text-gray-500">{label(turn)}: </span>
+          <span className="italic">{turn.text}</span>
+        </span>
+      ))}
+      {hidden.length > 0 ? (
+        <details className="group/excerpt mt-1">
+          <summary className="cursor-pointer list-none text-xs font-medium text-violet-700 hover:text-violet-900">
+            <span className="group-open/excerpt:hidden">
+              Continua a leggere ({hidden.length} in piu&#39;)
+            </span>
+            <span className="hidden group-open/excerpt:inline">Riduci</span>
+          </summary>
+          <span className="mt-1 block">
+            {hidden.map((turn, index) => (
+              <span key={index} className="block">
+                <span className="text-gray-500">{label(turn)}: </span>
+                <span className="italic">{turn.text}</span>
+              </span>
+            ))}
+          </span>
+        </details>
+      ) : null}
+    </span>
   );
 }
 

@@ -219,15 +219,12 @@ export function SessionPrepSheet({
                         <Text style={styles.bookmarkNote} numberOfLines={3}>
                           {bookmark.note}
                         </Text>
-                      ) : bookmark.quote ? (
-                        <Text style={styles.bookmarkNote} numberOfLines={3}>
-                          <Text style={styles.bookmarkSpeaker}>
-                            {bookmark.speaker === 'coach' ? 'Tu: ' : 'Lui/lei: '}
-                          </Text>
-                          <Text style={styles.bookmarkQuote}>
-                            «{bookmark.quote}»
-                          </Text>
-                        </Text>
+                      ) : bookmark.turns.length > 0 ? (
+                        <BookmarkExcerpt
+                          turns={bookmark.turns}
+                          athleteName={session.otherName}
+                          styles={styles}
+                        />
                       ) : (
                         <Text style={styles.bookmarkMissing} numberOfLines={2}>
                           Segnato qui, ma la trascrizione di questa seduta non e'
@@ -279,6 +276,57 @@ export function SessionPrepSheet({
     </Modal>
   );
 }
+
+/**
+ * Lo scambio attorno al segnalibro.
+ *
+ * Due battute in riga, il resto si apre toccando. Aperto tutto d'un fiato, uno
+ * stralcio da sei battute spingerebbe fuori dal foglio il resto della sintesi —
+ * e questa e' una preparazione, non la trascrizione.
+ */
+function BookmarkExcerpt({
+  turns,
+  athleteName,
+  styles,
+}: {
+  turns: { speaker: 'coach' | 'athlete'; text: string }[];
+  athleteName: string;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? turns : turns.slice(0, COLLAPSED_TURNS);
+  const hidden = turns.length - COLLAPSED_TURNS;
+
+  return (
+    <View style={styles.excerpt}>
+      {visible.map((turn, index) => (
+        <Text key={index} style={styles.bookmarkNote}>
+          <Text style={styles.bookmarkSpeaker}>
+            {turn.speaker === 'coach' ? 'Tu: ' : `${athleteName}: `}
+          </Text>
+          <Text style={styles.bookmarkQuote}>{turn.text}</Text>
+        </Text>
+      ))}
+      {hidden > 0 ? (
+        <Pressable
+          onPress={() => setExpanded((value) => !value)}
+          accessibilityRole="button"
+          accessibilityLabel={
+            expanded ? 'Riduci lo stralcio' : 'Continua a leggere lo stralcio'
+          }
+          hitSlop={8}
+        >
+          <Text style={styles.excerptToggle}>
+            {expanded ? 'Riduci' : `Continua a leggere (${hidden} in piu')`}
+          </Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+/** Quante battute stanno nella riga senza spingere via il resto della sintesi. */
+const COLLAPSED_TURNS = 2;
 
 const createStyles = (theme: Palette) =>
   StyleSheet.create({
@@ -357,6 +405,13 @@ const createStyles = (theme: Palette) =>
     bookmarkNote: { color: theme.hi, fontSize: 14, lineHeight: 20, flexShrink: 1 },
     bookmarkSpeaker: { color: theme.low, fontSize: 14 },
     bookmarkQuote: { color: theme.hi, fontSize: 14, fontStyle: 'italic' },
+    excerpt: { flexShrink: 1, gap: 3 },
+    excerptToggle: {
+      color: theme.mid,
+      fontSize: 12,
+      fontWeight: '700',
+      marginTop: 2,
+    },
     bookmarkMissing: {
       color: theme.low,
       fontSize: 13,

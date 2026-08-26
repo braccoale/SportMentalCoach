@@ -232,12 +232,12 @@ export type SessionPrepBookmark = {
   minute: number;
   note: string | null;
   /**
-   * Che cosa si stava dicendo in quell'istante, parola per parola dalla
-   * trascrizione. Non e' un riassunto e nessun modello la tocca: e' cio' che
-   * la rende sicura da mostrare. `null` quando la trascrizione non c'e'.
+   * Lo scambio attorno a quell'istante, parola per parola dalla trascrizione,
+   * diviso per chi parla. Non un frammento: i segmenti durano due secondi, e
+   * citarne uno mostrava cose come «ad ascoltare di piu'». Nessun modello lo
+   * tocca. Vuoto quando la trascrizione non c'e'.
    */
-  quote: string | null;
-  speaker: 'coach' | 'athlete' | null;
+  turns: { speaker: 'coach' | 'athlete'; text: string }[];
 };
 
 /**

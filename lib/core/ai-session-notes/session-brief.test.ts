@@ -3,9 +3,12 @@ import assert from 'node:assert/strict';
 import {
   MAX_BRIEF_BOOKMARKS,
   MAX_BRIEF_GOALS,
-  MAX_QUOTE_CHARS,
+  MAX_EXCERPT_CHARS,
+  MAX_EXCERPT_TURNS,
   MAX_SUMMARY_CHARS,
   buildSessionBrief,
+  excerptAt,
+  buildTranscriptTurns,
   selectBriefBookmarks,
   selectBriefGoals,
   trimToLength,
@@ -79,47 +82,60 @@ test('il minuto si arrotonda per difetto e non va mai sotto zero', () => {
   assert.equal(byId.get(2), 0);
 });
 
-test('un segnalibro senza nota cita quello che si stava dicendo', () => {
-  const [bookmark] = selectBriefBookmarks(
-    [{ id: 1, atMs: 660_000, note: null }],
-    [
-      {
-        startedAtMs: 600_000,
-        endedAtMs: 700_000,
-        text: 'Non riuscivo a smettere di pensare al rigore sbagliato.',
-        speaker: 'athlete',
-      },
-    ]
-  );
-  assert.equal(bookmark.quote, 'Non riuscivo a smettere di pensare al rigore sbagliato.');
-  assert.equal(bookmark.speaker, 'athlete');
+test('i segmenti consecutivi della stessa persona diventano una battuta sola', () => {
+  const turns = buildTranscriptTurns([
+    { startedAtMs: 1_573_000, endedAtMs: 1_575_000, text: 'ultimamente ti 6', speaker: 'coach' },
+    { startedAtMs: 1_575_000, endedAtMs: 1_576_000, text: 'messo', speaker: 'coach' },
+    { startedAtMs: 1_576_000, endedAtMs: 1_580_000, text: 'ad ascoltare di più', speaker: 'coach' },
+    { startedAtMs: 1_587_000, endedAtMs: 1_589_000, text: 'A volte.', speaker: 'athlete' },
+  ]);
+  assert.equal(turns.length, 2, 'tre frammenti del coach sono una battuta sola');
+  assert.equal(turns[0].text, 'ultimamente ti 6 messo ad ascoltare di più');
+  assert.equal(turns[1].speaker, 'athlete');
+});
+
+test('lo stralcio restituisce lo scambio, non il frammento', () => {
+  // Le battute vere della seduta 77, dove il difetto si e' visto: citare un
+  // segmento solo produceva «ad ascoltare di più», che non dice niente.
+  const segments = [
+    { startedAtMs: 1_573_000, endedAtMs: 1_576_000, text: 'ultimamente ti 6 messo', speaker: 'coach' as const },
+    { startedAtMs: 1_576_000, endedAtMs: 1_582_000, text: 'ad ascoltare di più quelli che sono I tuoi pensieri, o meglio ti è capitato?', speaker: 'coach' as const },
+    { startedAtMs: 1_587_000, endedAtMs: 1_589_000, text: 'A volte.', speaker: 'athlete' as const },
+    { startedAtMs: 1_590_000, endedAtMs: 1_591_000, text: 'E cosa senti?', speaker: 'coach' as const },
+  ];
+  const excerpt = excerptAt(segments, 1_578_042);
+  assert.ok(excerpt.length >= 3, 'almeno domanda, risposta e rilancio');
+  assert.match(excerpt[0].text, /ti è capitato\?/);
+  assert.equal(excerpt[1].text, 'A volte.');
+});
+
+test('uno stralcio si ferma prima di diventare la trascrizione', () => {
+  const segments = Array.from({ length: 40 }, (_, i) => ({
+    startedAtMs: i * 20_000,
+    endedAtMs: i * 20_000 + 1_000,
+    text: `battuta ${i} `.repeat(20),
+    speaker: (i % 2 === 0 ? 'coach' : 'athlete') as 'coach' | 'athlete',
+  }));
+  const excerpt = excerptAt(segments, 0);
+  assert.ok(excerpt.length <= MAX_EXCERPT_TURNS);
+  const chars = excerpt.reduce((sum, turn) => sum + turn.text.length, 0);
+  assert.ok(chars <= MAX_EXCERPT_CHARS + excerpt[0].text.length);
 });
 
 test('un segnalibro caduto nel silenzio prende la battuta successiva, mai la precedente', () => {
-  const [bookmark] = selectBriefBookmarks(
-    [{ id: 1, atMs: 500_000, note: null }],
+  const excerpt = excerptAt(
     [
       { startedAtMs: 100_000, endedAtMs: 200_000, text: 'Prima', speaker: 'coach' },
       { startedAtMs: 600_000, endedAtMs: 700_000, text: 'Dopo', speaker: 'athlete' },
-    ]
+    ],
+    500_000
   );
-  assert.equal(bookmark.quote, 'Dopo');
+  assert.equal(excerpt[0].text, 'Dopo');
 });
 
-test('senza trascrizione la citazione resta nulla, e non si inventa una frase', () => {
+test('senza trascrizione lo stralcio resta vuoto, e non si inventa una frase', () => {
   const [bookmark] = selectBriefBookmarks([{ id: 1, atMs: 60_000, note: null }], []);
-  assert.equal(bookmark.quote, null);
-  assert.equal(bookmark.speaker, null);
-});
-
-test('una citazione lunga si accorcia, ma resta parola per parola', () => {
-  const spoken = 'ecco '.repeat(80);
-  const [bookmark] = selectBriefBookmarks(
-    [{ id: 1, atMs: 1_000, note: null }],
-    [{ startedAtMs: 0, endedAtMs: 10_000, text: spoken, speaker: 'coach' }]
-  );
-  assert.ok(bookmark.quote!.length <= MAX_QUOTE_CHARS + 1);
-  assert.ok(spoken.includes(bookmark.quote!.replace(/…$/, '')));
+  assert.deepEqual(bookmark.turns, []);
 });
 
 test('i segnalibri si fermano a tre', () => {
@@ -261,7 +277,10 @@ test('nessun testo in uscita che non fosse già in ingresso', () => {
     ...brief.goals.flatMap((g) => [g.title, g.statusLabel]),
     brief.lastSession?.summary,
     brief.lastSession?.coachNote,
-    ...(brief.lastSession?.bookmarks ?? []).flatMap((b) => [b.note, b.quote]),
+    ...(brief.lastSession?.bookmarks ?? []).flatMap((b) => [
+      b.note,
+      ...b.turns.map((t) => t.text),
+    ]),
     ...brief.pointsToRevisit.flatMap((p) => [p.text, p.sourceLabel]),
   ].filter((value): value is string => typeof value === 'string');
 

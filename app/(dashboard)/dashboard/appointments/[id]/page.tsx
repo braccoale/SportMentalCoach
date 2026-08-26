@@ -430,7 +430,10 @@ export default async function AppointmentDetailPage({
       {/* Prima del riepilogo, perche' prima dell'incontro non c'e' nessun
           riepilogo da leggere: qui questa sezione non e' una voce fra le
           altre, e' la ragione per cui si apre la pagina. */}
-      {showPreparation ? <SessionBriefSection brief={sessionBrief} /> : null}
+      {showPreparation ? <SessionBriefSection
+          brief={sessionBrief}
+          athleteName={booking.athleteName}
+        /> : null}
 
       {/* Il riepilogo consegnato all'atleta.
           Sta sulla pagina della seduta, e con l'ancora `#session-compass`,
