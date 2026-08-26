@@ -54,20 +54,19 @@ export type BriefBookmark = {
   minute: number;
   note: string | null;
   /**
-   * Che cosa si stava dicendo in quell'istante, **parola per parola** dalla
-   * trascrizione.
+   * Lo scambio attorno a quell'istante, **parola per parola** dalla
+   * trascrizione, diviso per chi parla.
    *
-   * Esiste perché un segnalibro senza nota mostrava «Momento segnato durante
-   * la seduta»: un segnaposto che occupa una riga e non dice niente. Il minuto
-   * da solo non aiuta nessuno a prepararsi.
+   * Non un segmento solo: quelli durano due secondi e valgono trenta
+   * caratteri, e citarne uno mostrava cose come «ad ascoltare di più» — un
+   * frammento di respiro, non una cosa detta. Servono alcune battute perché si
+   * capisca di che si stava parlando.
    *
-   * È una citazione, non un riassunto: nessun modello la tocca, e questo è
-   * ciò che la rende sicura da mostrare. Se la trascrizione manca resta
-   * `null`, e la riga lo dichiara invece di riempirsi.
+   * È una citazione, non un riassunto: nessun modello la tocca, ed è questo
+   * che la rende sicura da mostrare. Vuoto quando la trascrizione manca, e in
+   * quel caso la riga lo dichiara invece di riempirsi.
    */
-  quote: string | null;
-  /** Chi stava parlando. `null` quando non c'è una citazione. */
-  speaker: 'coach' | 'athlete' | null;
+  turns: BriefTurn[];
 };
 
 /** Un pezzo di trascrizione, ridotto a ciò che serve per collocare un segnalibro. */
@@ -78,30 +77,102 @@ export type BriefTranscriptSegment = {
   speaker: 'coach' | 'athlete';
 };
 
-/** Oltre questa lunghezza una citazione smette di essere un promemoria. */
-export const MAX_QUOTE_CHARS = 160;
+/** Una battuta: tutto quello che una persona dice di fila. */
+export type BriefTurn = {
+  speaker: 'coach' | 'athlete';
+  text: string;
+};
 
 /**
- * Il segmento in cui cade l'istante, o il primo che comincia subito dopo.
- *
- * Il secondo caso non è una comodità: fra una battuta e l'altra c'è silenzio,
- * e un segnalibro posato lì non cadrebbe dentro nessun segmento. Guardare
- * avanti — mai indietro — restituisce la frase che il coach stava aspettando
- * di sentire, che è quella per cui ha premuto.
+ * Oltre questi numeri lo stralcio smette di essere un promemoria e diventa
+ * la trascrizione. `EXPANDED` è quello che si vede aprendo; `COLLAPSED` è
+ * quello che sta nella riga senza spingere via il resto della sintesi.
  */
-export function segmentAt(
-  segments: readonly BriefTranscriptSegment[],
-  atMs: number
-): BriefTranscriptSegment | null {
-  const containing = segments.find(
-    (segment) => atMs >= segment.startedAtMs && atMs <= segment.endedAtMs
-  );
-  if (containing) return containing;
+export const MAX_EXCERPT_TURNS = 6;
+export const MAX_EXCERPT_CHARS = 900;
+export const COLLAPSED_EXCERPT_TURNS = 2;
 
-  const following = segments
-    .filter((segment) => segment.startedAtMs > atMs)
-    .sort((a, b) => a.startedAtMs - b.startedAtMs);
-  return following[0] ?? null;
+/**
+ * Quanto silenzio separa due battute della stessa persona.
+ *
+ * Sotto questa soglia sono la stessa frase spezzata dalla trascrizione; sopra,
+ * è tornata a parlare dopo che ha parlato l'altro, o dopo una pausa vera.
+ */
+const TURN_GAP_MS = 10_000;
+
+/**
+ * Unisce i segmenti in battute.
+ *
+ * **Perché serve.** Deepgram non produce frasi: produce segmenti da un paio di
+ * secondi e una trentina di caratteri. In una seduta reale sono seicento pezzi
+ * come «Cioè in in campo» o «ad ascoltare di più» — citarne uno solo mostra un
+ * frammento di respiro, non una cosa detta. Una seduta di prova con dodici
+ * segmenti da cinquanta secondi funzionava benissimo, ed è esattamente il
+ * motivo per cui il difetto non si è visto prima.
+ *
+ * L'unione non riformula niente: concatena il testo così com'è.
+ */
+export function buildTranscriptTurns(
+  segments: readonly BriefTranscriptSegment[]
+): (BriefTurn & { startedAtMs: number; endedAtMs: number })[] {
+  const ordered = [...segments].sort((a, b) => a.startedAtMs - b.startedAtMs);
+  const turns: (BriefTurn & { startedAtMs: number; endedAtMs: number })[] = [];
+
+  for (const segment of ordered) {
+    const text = segment.text.trim();
+    if (!text) continue;
+    const last = turns.at(-1);
+    if (
+      last &&
+      last.speaker === segment.speaker &&
+      segment.startedAtMs - last.endedAtMs <= TURN_GAP_MS
+    ) {
+      last.text = `${last.text} ${text}`.replace(/\s+/g, ' ');
+      last.endedAtMs = Math.max(last.endedAtMs, segment.endedAtMs);
+      continue;
+    }
+    turns.push({
+      speaker: segment.speaker,
+      text,
+      startedAtMs: segment.startedAtMs,
+      endedAtMs: segment.endedAtMs,
+    });
+  }
+
+  return turns;
+}
+
+/**
+ * Lo scambio attorno a un istante.
+ *
+ * Parte dalla battuta che contiene il segnalibro — o dalla prima che comincia
+ * dopo, perché un segnalibro può cadere in un silenzio — e prosegue in avanti
+ * finché non ha abbastanza materiale. In avanti e non indietro:
+ * `bookmarkPositionMs` ha già arretrato l'istante di quindici secondi, quindi
+ * quello che serve è ciò che viene dopo.
+ */
+export function excerptAt(
+  segments: readonly BriefTranscriptSegment[],
+  atMs: number,
+  limits: { maxTurns?: number; maxChars?: number } = {}
+): BriefTurn[] {
+  const maxTurns = limits.maxTurns ?? MAX_EXCERPT_TURNS;
+  const maxChars = limits.maxChars ?? MAX_EXCERPT_CHARS;
+
+  const turns = buildTranscriptTurns(segments);
+  const startIndex = turns.findIndex(
+    (turn) => turn.endedAtMs >= atMs || turn.startedAtMs > atMs
+  );
+  if (startIndex === -1) return [];
+
+  const excerpt: BriefTurn[] = [];
+  let chars = 0;
+  for (const turn of turns.slice(startIndex, startIndex + maxTurns)) {
+    if (excerpt.length > 0 && chars + turn.text.length > maxChars) break;
+    excerpt.push({ speaker: turn.speaker, text: turn.text });
+    chars += turn.text.length;
+  }
+  return excerpt;
 }
 
 /**
@@ -194,14 +265,11 @@ export function selectBriefBookmarks(
     })
     .slice(0, max)
     .map((bookmark) => {
-      const segment = segmentAt(segments, bookmark.atMs);
-      const quote = segment ? nonEmpty(segment.text) : null;
       return {
         id: bookmark.id,
         minute: Math.max(0, Math.floor(bookmark.atMs / 60_000)),
         note: nonEmpty(bookmark.note),
-        quote: quote ? trimToLength(quote, MAX_QUOTE_CHARS) : null,
-        speaker: quote && segment ? segment.speaker : null,
+        turns: excerptAt(segments, bookmark.atMs),
       };
     });
 }

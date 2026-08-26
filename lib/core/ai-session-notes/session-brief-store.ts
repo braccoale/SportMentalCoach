@@ -115,7 +115,10 @@ async function loadSegmentsAround(
 ): Promise<BriefTranscriptSegment[]> {
   if (atMsList.length === 0) return [];
 
-  const WINDOW_MS = 90_000;
+  // Due minuti in avanti: con segmenti da due secondi servono parecchie righe
+  // per arrivare a uno scambio che si capisca. Restano poche decine di righe
+  // per segnalibro, non la trascrizione.
+  const WINDOW_MS = 120_000;
   const rows = await db
     .select({
       startedAtMs: sessionTranscriptSegments.startedAtMs,
