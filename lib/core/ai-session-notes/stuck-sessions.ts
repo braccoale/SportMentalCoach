@@ -8,7 +8,7 @@ import {
   sessionTranscriptSegments,
 } from '@/lib/db/schema';
 import { advanceAiNotesSessionStatus } from './session-status';
-import { persistedTimelineFingerprint } from './timeline';
+import { persistedTimelineFingerprint } from './timeline-store';
 import {
   expiryErrorCode,
   processingDeadlineVerdict,
