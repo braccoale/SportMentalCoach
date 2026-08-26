@@ -292,6 +292,12 @@ export const providerProfiles = pgTable('provider_profiles', {
   // Date the coach started practising. Years of experience are derived from
   // this; `yearsExperience` above is kept in sync on save for backward compat.
   coachSince: date('coach_since'),
+  // Declared at signup and never editable from the profile: it is the only
+  // record that whoever accepted the Terms as a professional had the legal
+  // capacity to do so (art. 1425 c.c.). Nullable because coaches registered
+  // before this check have none — see the spec
+  // docs/superpowers/specs/2026-08-26-eta-coach-registrazione-design.md.
+  birthDate: date('birth_date'),
   languages: text('languages').array(),
   certifications: text('certifications').array(),
   athleteLevels: text('athlete_levels').array(),

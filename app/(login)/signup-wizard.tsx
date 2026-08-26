@@ -9,9 +9,11 @@ import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import {
+  AGE_OF_MAJORITY,
   MIN_SIGNUP_AGE,
   ageFromBirthDate,
   isEligibleAge,
+  isEligibleCoachAge,
   requiresGuardian,
 } from '@/lib/core/guardians/age';
 import { signUp } from './actions';
@@ -96,7 +98,15 @@ export function SignupWizard() {
   // l'approvazione specifica dell'art. 1341 produce un effetto reale.
   const isProfessional = role === 'coach' || role === 'club';
   const age = useMemo(() => ageFromBirthDate(birthDate), [birthDate]);
-  const underMin = isAthlete && age != null && !isEligibleAge(age);
+  // Chi deve dichiarare l'età: l'atleta e il professionista, per ragioni
+  // diverse. Il club non ha una scheda coach dove scriverla, ma la soglia gli
+  // si applica lo stesso — firma le stesse clausole.
+  const declaresAge = isAthlete || isProfessional;
+  // Due soglie, una per lato: 15 per l'atleta, 18 per chi firma da
+  // professionista. `underMin` resta il nome del blocco rosso sotto al campo.
+  const underMin =
+    age != null &&
+    (isAthlete ? !isEligibleAge(age) : isProfessional && !isEligibleCoachAge(age));
   const needsGuardian = isAthlete && requiresGuardian(age);
 
   function goCredentials() {
@@ -130,11 +140,11 @@ export function SignupWizard() {
 
   // Fire the age telemetry once we can evaluate it on the last step.
   useEffect(() => {
-    if (step !== 2 || !isAthlete || age == null) return;
+    if (step !== 2 || !declaresAge || age == null) return;
     track(underMin ? 'signup_blocked_underage' : 'signup_age_verified', {
       method: 'password',
     });
-  }, [step, isAthlete, age, underMin]);
+  }, [step, declaresAge, age, underMin]);
 
   // The "Registrati" button only enables once every required field is valid —
   // role, credentials, name + surname, legal consents (and, for athletes, a
@@ -149,7 +159,7 @@ export function SignupWizard() {
     (!isProfessional || vexatious) &&
     terms &&
     privacy &&
-    (!isAthlete || (!!birthDate && !underMin));
+    (!declaresAge || (!!birthDate && !underMin));
 
   return (
     <div className="min-h-[100dvh] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
@@ -347,7 +357,7 @@ export function SignupWizard() {
               </div>
             </div>
 
-            {isAthlete && (
+            {declaresAge && (
               <div>
                 <Label htmlFor="birthDate">
                   Data di nascita
@@ -367,11 +377,14 @@ export function SignupWizard() {
             {underMin && (
               <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm">
                 <p className="font-semibold text-red-700">
-                  KaiPai è disponibile a partire dai {MIN_SIGNUP_AGE} anni.
+                  {isAthlete
+                    ? `KaiPai è disponibile a partire dai ${MIN_SIGNUP_AGE} anni.`
+                    : `Per registrarti come coach devi avere almeno ${AGE_OF_MAJORITY} anni.`}
                 </p>
                 <p className="mt-1 text-red-600">
-                  Al momento non è possibile creare un account. Per maggiori
-                  informazioni, chiedi a un genitore o tutore di contattarci.
+                  {isAthlete
+                    ? 'Al momento non è possibile creare un account. Per maggiori informazioni, chiedi a un genitore o tutore di contattarci.'
+                    : 'Chi lavora come coach accetta i Termini da professionista: serve la maggiore età.'}
                 </p>
               </div>
             )}
