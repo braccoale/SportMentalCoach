@@ -5,9 +5,9 @@ import { requireRole } from '@/lib/core/auth';
 import { cancelBooking, createBookingRequest } from '@/lib/core/bookings';
 import { parseSessionDuration } from '@/lib/core/bookings/duration';
 import { parseRomeLocalDateTime } from '@/lib/core/availability';
-import { updateClientProfile } from '@/lib/core/profiles';
+import { getClientProfile, updateClientProfile } from '@/lib/core/profiles';
 import { normalizeSportKey } from '@/lib/core/profiles/sport-key';
-import { inviteGuardian } from '@/lib/core/guardians';
+import { canSelfEditBirthDate, inviteGuardian } from '@/lib/core/guardians';
 import { LEGAL_CONTACT_EMAIL } from '@/lib/core/legal/processors';
 import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
 import { submitAthleteCommitmentOutcome } from '@/lib/core/ai-session-notes/athlete-commitments';
@@ -146,12 +146,13 @@ export async function updateAthleteProfileAction(
   if (city && city.length > 120) {
     return { error: 'Città troppo lunga (max 120 caratteri).' };
   }
-  if (birthDate) {
-    const d = new Date(birthDate);
-    if (Number.isNaN(d.getTime()) || d.getTime() > Date.now()) {
-      return { error: 'Data di nascita non valida.' };
-    }
-  }
+  // La data di nascita non è un campo come gli altri: è l'unico ingresso del
+  // gate sul tutore, quindi chi può cambiarsela può togliersi il gate da
+  // solo. La regola vive in lib/core/guardians e non qui, perché la stessa
+  // risposta deve valere ovunque quella data venga scritta.
+  const current = await getClientProfile(user.id);
+  const birthDateChange = canSelfEditBirthDate(current.birthDate, birthDate);
+  if (!birthDateChange.ok) return { error: birthDateChange.error };
 
   await updateClientProfile(user.id, {
     category: sportKey,

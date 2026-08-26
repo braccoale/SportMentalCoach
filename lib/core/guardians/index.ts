@@ -29,6 +29,7 @@ import {
 import { hashGuardianToken, issueGuardianToken } from './tokens';
 
 export * from './age';
+export * from './birth-date';
 export * from './consent-document';
 export * from './policy';
 export * from './revocation';
