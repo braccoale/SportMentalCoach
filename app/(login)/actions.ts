@@ -27,8 +27,10 @@ import {
 } from '@/lib/auth/middleware';
 import { dashboardPathForRoles, getUserRoles } from '@/lib/core/auth';
 import {
+  AGE_OF_MAJORITY,
   ageFromBirthDate,
   isEligibleAge,
+  isEligibleCoachAge,
   MIN_SIGNUP_AGE,
   requiresGuardian
 } from '@/lib/core/guardians/age';
@@ -180,26 +182,52 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
     };
   }
 
-  // Age gate. Only athletes declare a birth date — a coach or a club signing
-  // up is acting in a professional capacity, not as a young athlete.
+  /*
+   * Cancello sull'età. Vale per tutti, con due soglie diverse.
+   *
+   * Qui c'era `if (isAthleteSignup)`, e un commento che dichiarava che «chi si
+   * registra come coach agisce in veste professionale, non come giovane
+   * atleta». Era un'assunzione, non un controllo: un sedicenne che al primo
+   * passo sceglieva «Coach» non incontrava mai la domanda sull'età, e il
+   * sistema glielo lasciava fare — con accesso a sedute con minori, alle
+   * trascrizioni e ai riepiloghi di persone reali.
+   *
+   * Le due soglie non sono intercambiabili. 15 è il pavimento del prodotto per
+   * gli atleti; 18 è la capacità legale, che al professionista serve per
+   * approvare le clausole vessatorie che gli chiediamo di firmare.
+   */
   const isAthleteSignup = !role || role === 'athlete';
-  let athleteAge: number | null = null;
+  const declaredAge = ageFromBirthDate(birthDate ?? null);
+
+  if (declaredAge == null) {
+    return { error: 'Indica la tua data di nascita.', email, password };
+  }
+  if (declaredAge > 120) {
+    return { error: 'Data di nascita non valida.', email, password };
+  }
   if (isAthleteSignup) {
-    athleteAge = ageFromBirthDate(birthDate ?? null);
-    if (athleteAge == null) {
-      return { error: 'Indica la tua data di nascita.', email, password };
-    }
-    if (athleteAge > 120) {
-      return { error: 'Data di nascita non valida.', email, password };
-    }
-    if (!isEligibleAge(athleteAge)) {
+    if (!isEligibleAge(declaredAge)) {
       return {
         error: `KaiPai è riservato agli atleti dai ${MIN_SIGNUP_AGE} anni in su.`,
         email,
         password
       };
     }
+  } else {
+    if (!isEligibleCoachAge(declaredAge)) {
+      return {
+        error: `Per registrarti come coach o club devi avere almeno ${AGE_OF_MAJORITY} anni.`,
+        email,
+        password
+      };
+    }
   }
+
+  // Più sotto decide se l'email di benvenuto deve spiegare come farsi
+  // autorizzare da un tutore: è una domanda che riguarda solo gli atleti, e
+  // `requiresGuardian` su un coach maggiorenne risponderebbe comunque no, ma
+  // dirlo qui è ciò che tiene la distinzione visibile.
+  const athleteAge = isAthleteSignup ? declaredAge : null;
 
   // Who accepted, and from where. Behind Vercel the client address arrives in
   // `x-forwarded-for`; the first entry is the original client.

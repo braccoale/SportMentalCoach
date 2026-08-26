@@ -10,8 +10,10 @@ import { createSupabaseServer } from '@/lib/auth/supabase';
 import { validatedAction } from '@/lib/auth/middleware';
 import { safeRedirectPath } from '@/lib/core/auth/safe-redirect';
 import {
+  AGE_OF_MAJORITY,
   ageFromBirthDate,
   isEligibleAge,
+  isEligibleCoachAge,
   MIN_SIGNUP_AGE,
   requiresGuardian,
 } from '@/lib/core/guardians/age';
@@ -95,22 +97,29 @@ export const completeGoogleSignup = validatedAction(
     }
 
     const isAthleteSignup = !role || role === 'athlete';
-    // Dichiarata **fuori** dal blocco: oltre al cancello sull'ingresso, questa
-    // eta' decide se l'email di benvenuto deve spiegare come farsi autorizzare
-    // da un tutore. Tenendola dentro l'if, un sedicenne entrava e riceveva il
-    // testo generico — cioe' proprio chi ha bisogno dell'istruzione non la
-    // riceveva.
-    let athleteAge: number | null = null;
+    // Le stesse due soglie del percorso con la password, per lo stesso motivo:
+    // se qui il coach non dovesse dichiarare l'età, l'accesso con Google
+    // sarebbe semplicemente il modo di aggirare l'altro.
+    const declaredAge = ageFromBirthDate(data.birthDate ?? null);
+    if (declaredAge == null) return { error: 'Indica la tua data di nascita.' };
+    if (declaredAge > 120) return { error: 'Data di nascita non valida.' };
     if (isAthleteSignup) {
-      athleteAge = ageFromBirthDate(data.birthDate ?? null);
-      if (athleteAge == null) return { error: 'Indica la tua data di nascita.' };
-      if (athleteAge > 120) return { error: 'Data di nascita non valida.' };
-      if (!isEligibleAge(athleteAge)) {
+      if (!isEligibleAge(declaredAge)) {
         return {
           error: `KaiPai è riservato agli atleti dai ${MIN_SIGNUP_AGE} anni in su.`,
         };
       }
+    } else if (!isEligibleCoachAge(declaredAge)) {
+      return {
+        error: `Per registrarti come coach o club devi avere almeno ${AGE_OF_MAJORITY} anni.`,
+      };
     }
+    // Tenuta **fuori** dal cancello: oltre a decidere chi entra, questa età
+    // decide se l'email di benvenuto deve spiegare come farsi autorizzare da un
+    // tutore. Quando viveva dentro l'if, un sedicenne entrava e riceveva il
+    // testo generico — cioè proprio chi aveva bisogno dell'istruzione non la
+    // riceveva.
+    const athleteAge = isAthleteSignup ? declaredAge : null;
 
     // Un'email gia' presente su un altro account applicativo. Con il
     // collegamento automatico di Supabase e' un caso raro — richiede un

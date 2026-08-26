@@ -9,9 +9,11 @@ import { Label } from '@/components/ui/label';
 import type { ActionState } from '@/lib/auth/middleware';
 import { track } from '@/lib/core/analytics';
 import {
+  AGE_OF_MAJORITY,
   MIN_SIGNUP_AGE,
   ageFromBirthDate,
   isEligibleAge,
+  isEligibleCoachAge,
   requiresGuardian,
 } from '@/lib/core/guardians/age';
 import { completeGoogleSignup } from './actions';
@@ -103,7 +105,13 @@ export function CompleteSignupForm({
   // giorno il pavimento si sposta dai quindici anni, si sposta in un punto
   // solo — e questa e' l'area dove sbagliare non significa una schermata rotta.
   const age = useMemo(() => ageFromBirthDate(birthDate), [birthDate]);
-  const underMin = isAthlete && age != null && !isEligibleAge(age);
+  // Chi deve dichiarare l'età: l'atleta e il professionista, per ragioni
+  // diverse — 15 è il pavimento del prodotto, 18 è la capacità legale che
+  // serve per approvare le clausole vessatorie.
+  const declaresAge = isAthlete || isProfessional;
+  const underMin =
+    age != null &&
+    (isAthlete ? !isEligibleAge(age) : isProfessional && !isEligibleCoachAge(age));
   const needsGuardian = isAthlete && requiresGuardian(age);
   /**
    * L'eta', una volta sola.
@@ -116,17 +124,17 @@ export function CompleteSignupForm({
    * inservibile. Il wizard lo fa gia' cosi'.
    */
   useEffect(() => {
-    if (!isAthlete || age == null) return;
+    if (!declaresAge || age == null) return;
     track(underMin ? 'signup_blocked_underage' : 'signup_age_verified', {
       method: 'google',
     });
-  }, [isAthlete, age, underMin]);
+  }, [declaresAge, age, underMin]);
 
   const canSubmit =
     Boolean(role) &&
     terms &&
     (!isProfessional || vexatious) &&
-    (!isAthlete || (Boolean(birthDate) && !underMin));
+    (!declaresAge || (Boolean(birthDate) && !underMin));
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
@@ -222,9 +230,9 @@ export function CompleteSignupForm({
           </div>
         </div>
 
-        {/* Solo l'atleta dichiara la data di nascita: un coach si registra in
-            veste professionale. Ed è questa data che fa scattare il tutore. */}
-        {isAthlete && (
+        {/* La dichiarano entrambi, per ragioni diverse: sull'atleta questa data
+            fa scattare il tutore, sul professionista prova che poteva firmare. */}
+        {declaresAge && (
           <div>
             <Label htmlFor="birthDate" className="text-sm text-gray-700">
               Data di nascita
@@ -245,11 +253,14 @@ export function CompleteSignupForm({
         {underMin && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm">
             <p className="font-semibold text-red-700">
-              KaiPai è disponibile a partire dai {MIN_SIGNUP_AGE} anni.
+              {isAthlete
+                ? `KaiPai è disponibile a partire dai ${MIN_SIGNUP_AGE} anni.`
+                : `Per registrarti come coach devi avere almeno ${AGE_OF_MAJORITY} anni.`}
             </p>
             <p className="mt-1 text-red-600">
-              Al momento non è possibile creare un account. Per maggiori
-              informazioni, chiedi a un genitore o tutore di contattarci.
+              {isAthlete
+                ? 'Al momento non è possibile creare un account. Per maggiori informazioni, chiedi a un genitore o tutore di contattarci.'
+                : 'Chi lavora come coach accetta i Termini da professionista: serve la maggiore età.'}
             </p>
           </div>
         )}

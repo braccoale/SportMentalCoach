@@ -14,6 +14,7 @@ import {
   ActivityType,
   invitations,
   clientProfiles,
+  providerProfiles,
 } from '@/lib/db/schema';
 import { recordPlatformTermsAcceptance } from '@/lib/core/legal/acceptance';
 import { ensureOnboarding } from '@/lib/core/onboarding';
@@ -185,6 +186,21 @@ export async function createAccountRecords(params: {
             target: clientProfiles.userId,
             set: { birthDate, updatedAt: new Date() }
           });
+      }
+
+      // Lo stesso dato per il coach, e per un motivo diverso: non fa scattare
+      // nessun tutore, ma è la sola prova che chi ha approvato le clausole
+      // vessatorie qui sopra aveva la capacità legale per farlo.
+      // `provisionMarketplaceRole` ha già creato la riga, quindi si aggiorna.
+      //
+      // Un `club` non ha una riga in `provider_profiles`: per lui l'età è
+      // verificata all'ingresso ma non resta scritta da nessuna parte. È noto
+      // e accettato — vedi la specifica dell'età del coach.
+      if (marketplaceRole === 'coach' && birthDate) {
+        await tx
+          .update(providerProfiles)
+          .set({ birthDate, updatedAt: new Date() })
+          .where(eq(providerProfiles.userId, createdUser.id));
       }
 
       // Onboarding state. Athletes and coaches go through the initial wizard;

@@ -414,6 +414,13 @@
       "when": 1787384557388,
       "tag": "0058_harden-database-function-security",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1787754793807,
+      "tag": "0059_coach-birth-date",
+      "breakpoints": true
     }
   ]
 }
