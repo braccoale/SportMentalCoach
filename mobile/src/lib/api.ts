@@ -218,18 +218,54 @@ export type SessionPrepPoint = {
   fromDraft: boolean;
 };
 
+/** Un obiettivo del percorso, con lo stato gia` scritto in italiano dal server. */
+export type SessionPrepGoal = {
+  id: number;
+  title: string;
+  isPrimary: boolean;
+  statusLabel: string;
+};
+
+/** Un momento che il coach ha marcato dal vivo durante la chiamata. */
+export type SessionPrepBookmark = {
+  id: number;
+  minute: number;
+  note: string | null;
+};
+
+/**
+ * Cosa resta dell'ultima seduta. Tutto scritto o validato dal coach: la
+ * sintesi che ha approvato, la nota libera che l'AI non tocca mai, i
+ * segnalibri che ha messo lui mentre parlava.
+ */
+export type SessionPrepLastSession = {
+  bookingId: number | null;
+  date: string | null;
+  summary: string | null;
+  coachNote: string | null;
+  bookmarks: SessionPrepBookmark[];
+};
+
 /**
  * Cosa portare in questa seduta.
  *
- * Lo decide il server con la stessa funzione del web (`getMentalJourney`):
- * l'app riceve l'esito, non ricalcola il percorso. Si chiede solo quando
- * qualcuno apre il foglio — il percorso di ogni atleta non si costruisce per
- * riempire un elenco che nessuno ha ancora toccato.
+ * Lo decide il server con la stessa funzione del web (`getSessionBrief`):
+ * l'app riceve l'esito, non ricalcola il percorso, e non decide da sola quanto
+ * mostrare — i tagli (tre obiettivi, tre segnalibri, la sintesi accorciata) li
+ * ha gia` fatti la regola pura, cosi` le due meta` dicono la stessa cosa.
+ * Si chiede solo quando qualcuno apre il foglio.
  */
 export function fetchSessionPrep(bookingId: number) {
-  return request<{ points: SessionPrepPoint[] }>(
-    `/api/mobile/sessions/${bookingId}/prep`
-  );
+  return request<{
+    points: SessionPrepPoint[];
+    goals: SessionPrepGoal[];
+    lastSession: SessionPrepLastSession | null;
+    /**
+     * Perche' non c'e' niente. Il sistema non inventa mai un riepilogo: se il
+     * materiale non c'e' lo dice, e dice quale dei due casi e'.
+     */
+    emptyReason: 'no_sessions' | 'nothing_to_carry' | null;
+  }>(`/api/mobile/sessions/${bookingId}/prep`);
 }
 
 /**

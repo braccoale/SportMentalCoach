@@ -24,7 +24,13 @@ function goal(overrides: Partial<StoredJourneyGoal> = {}): StoredJourneyGoal {
   };
 }
 
-const EMPTY = { goals: [], pointsToRevisit: [], lastSession: null, bookmarks: [] };
+const EMPTY = {
+  goals: [],
+  pointsToRevisit: [],
+  lastSession: null,
+  bookmarks: [],
+  sessionCount: 0,
+};
 
 test("l'obiettivo primario viene per primo, poi la posizione scelta dal coach", () => {
   const selected = selectBriefGoals([
@@ -144,6 +150,84 @@ test('senza niente da mostrare lo dice, invece di fingere contenuto', () => {
   assert.deepEqual(brief.goals, []);
   assert.equal(brief.lastSession, null);
   assert.equal(brief.hasContent, false);
+});
+
+test('i due vuoti sono distinti: nessuna seduta, oppure niente da riprendere', () => {
+  assert.equal(buildSessionBrief(EMPTY).emptyReason, 'no_sessions');
+  assert.equal(
+    buildSessionBrief({ ...EMPTY, sessionCount: 4 }).emptyReason,
+    'nothing_to_carry'
+  );
+});
+
+test('quando c’è contenuto non si dichiara nessun vuoto', () => {
+  const brief = buildSessionBrief({ ...EMPTY, goals: [goal()], sessionCount: 1 });
+  assert.equal(brief.hasContent, true);
+  assert.equal(brief.emptyReason, null);
+});
+
+/**
+ * La regola che questo sistema non può violare mai: **non inventa niente**.
+ *
+ * Non è un principio da commento. Ogni stringa che esce dalla sintesi deve
+ * essere già presente fra gli ingressi — eventualmente accorciata, mai
+ * riformulata, mai integrata. Se un giorno qualcuno aggiungesse qui una frase
+ * di raccordo generata, o una parafrasi «più leggibile», questo test lo ferma:
+ * il coach porta in seduta quello che legge, e una frase che nessuno ha detto
+ * diventerebbe il piano di lavoro con una persona reale.
+ */
+test('nessun testo in uscita che non fosse già in ingresso', () => {
+  const input = {
+    goals: [goal({ id: 1, title: 'Gestire la pressione', isPrimary: true })],
+    pointsToRevisit: [
+      {
+        id: 'commitment:3',
+        text: 'Provare la routine pre-gara',
+        source: 'open_commitment' as const,
+        sourceLabel: 'Impegno ancora aperto',
+        sessionId: 4,
+        bookingId: 9,
+        fromDraft: false,
+      },
+    ],
+    lastSession: {
+      sessionId: 4,
+      bookingId: 9,
+      date: new Date('2026-08-20T17:00:00Z'),
+      summary: 'Ha raccontato la finale persa.',
+      coachNote: 'Tornare sul rapporto con il padre.',
+    },
+    bookmarks: [{ id: 7, atMs: 300_000, note: 'Il punto di svolta' }],
+    sessionCount: 4,
+  };
+
+  const brief = buildSessionBrief(input);
+
+  const allowed = [
+    input.goals[0].title,
+    'In corso', // etichetta di stato, da una tabella chiusa nel codice
+    input.pointsToRevisit[0].text,
+    input.pointsToRevisit[0].sourceLabel,
+    input.lastSession.summary,
+    input.lastSession.coachNote,
+    input.bookmarks[0].note,
+  ];
+
+  const produced = [
+    ...brief.goals.flatMap((g) => [g.title, g.statusLabel]),
+    brief.lastSession?.summary,
+    brief.lastSession?.coachNote,
+    ...(brief.lastSession?.bookmarks ?? []).map((b) => b.note),
+    ...brief.pointsToRevisit.flatMap((p) => [p.text, p.sourceLabel]),
+  ].filter((value): value is string => typeof value === 'string');
+
+  for (const text of produced) {
+    const withoutEllipsis = text.replace(/…$/, '');
+    assert.ok(
+      allowed.some((source) => source.includes(withoutEllipsis)),
+      `«${text}» non viene da nessun ingresso: la sintesi ha inventato del testo`
+    );
+  }
 });
 
 test('i punti da riprendere passano intatti: la regola resta di chi la scrive', () => {

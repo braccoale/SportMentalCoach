@@ -2,11 +2,8 @@ import { and, eq, or } from 'drizzle-orm';
 import { getApiUser } from '@/lib/auth/api-user';
 import { db } from '@/lib/db/drizzle';
 import { bookings, providerProfiles } from '@/lib/db/schema';
-import {
-  MentalJourneyError,
-  getMentalJourney,
-} from '@/lib/core/ai-session-notes/mental-journey';
-import { mentalJourneyDependencies } from '@/lib/core/ai-session-notes/mental-journey-store';
+import { MentalJourneyError } from '@/lib/core/ai-session-notes/mental-journey';
+import { getSessionBrief } from '@/lib/core/ai-session-notes/session-brief-store';
 
 /**
  * «Da portare in questa seduta», come serve su un telefono.
@@ -75,17 +72,45 @@ export async function GET(
   }
 
   try {
-    const journey = await getMentalJourney(
-      { athleteUserId: row.clientId, actorUserId: user.id },
-      mentalJourneyDependencies()
-    );
+    const brief = await getSessionBrief({
+      athleteUserId: row.clientId,
+      coachUserId: user.id,
+    });
+
+    if (!brief) {
+      return Response.json({
+        points: [],
+        goals: [],
+        lastSession: null,
+        emptyReason: 'no_sessions',
+      });
+    }
+
     return Response.json({
-      points: journey.pointsToRevisit.slice(0, MAX_POINTS).map((point) => ({
+      points: brief.pointsToRevisit.slice(0, MAX_POINTS).map((point) => ({
         id: point.id,
         text: point.text,
         sourceLabel: point.sourceLabel,
         fromDraft: point.fromDraft,
       })),
+      /*
+       * Le tre sorgenti che il coach aveva gia' prodotto di suo pugno e che
+       * fino a ieri non arrivavano al momento in cui servono: gli obiettivi
+       * concordati, la sintesi e la nota dell'ultima seduta, e i segnalibri
+       * messi dal vivo. Il taglio l'ha gia' fatto la regola pura — al telefono
+       * arriva la stessa sintesi del web, non una piu' corta decisa qui.
+       */
+      goals: brief.goals,
+      lastSession: brief.lastSession
+        ? {
+            bookingId: brief.lastSession.bookingId,
+            date: brief.lastSession.date?.toISOString() ?? null,
+            summary: brief.lastSession.summary,
+            coachNote: brief.lastSession.coachNote,
+            bookmarks: brief.lastSession.bookmarks,
+          }
+        : null,
+      emptyReason: brief.emptyReason,
     });
   } catch (error) {
     /*
@@ -94,7 +119,12 @@ export async function GET(
      * che qui fa `catch (MentalJourneyError) => null`.
      */
     if (error instanceof MentalJourneyError) {
-      return Response.json({ points: [] });
+      return Response.json({
+        points: [],
+        goals: [],
+        lastSession: null,
+        emptyReason: 'no_sessions',
+      });
     }
     throw error;
   }

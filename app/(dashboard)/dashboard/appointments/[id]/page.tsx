@@ -22,7 +22,6 @@ import {
   SessionCompassPanel,
 } from '@/components/session-compass-panel';
 import { OrbitDecor } from '@/components/session-compass/decor';
-import { PointsToRevisitSection } from '@/components/mental-journey';
 import { SessionGoalsCheck } from '@/components/session-compass/session-goals-check';
 import {
   listGoalSessionLinks,
@@ -59,6 +58,8 @@ import {
   MentalJourneyError,
 } from '@/lib/core/ai-session-notes/mental-journey';
 import { mentalJourneyDependencies } from '@/lib/core/ai-session-notes/mental-journey-store';
+import { getSessionBrief } from '@/lib/core/ai-session-notes/session-brief-store';
+import { SessionBriefSection } from '@/components/session-brief-section';
 import { canShowAiSessionReport } from '@/lib/core/ai-session-notes/report-visibility';
 import { DEFAULT_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
 import { canJoinVideoNow, isSessionJoinable } from '@/lib/core/sessions';
@@ -274,9 +275,22 @@ export default async function AppointmentDetailPage({
     booking.viewerRole === 'coach' &&
     booking.scheduledFor !== null &&
     booking.scheduledFor.getTime() > Date.now();
-  const preparationPoints = showPreparation
-    ? (mentalJourney?.pointsToRevisit ?? [])
-    : [];
+  /*
+   * La sintesi pre-seduta. Riusa il percorso già caricato qui sopra invece di
+   * ricostruirlo: l'autorizzazione l'ha già fatta `getMentalJourney`, con la
+   * stessa funzione che serve l'app.
+   *
+   * Aggiunge ai punti tre cose che il coach aveva già prodotto di suo pugno e
+   * che non arrivavano mai al momento in cui servono: gli obiettivi concordati,
+   * il riepilogo e la nota dell'ultima seduta, e i segnalibri messi dal vivo.
+   */
+  const sessionBrief = showPreparation
+    ? await getSessionBrief({
+        athleteUserId: booking.athleteUserId,
+        coachUserId: user.id,
+        journey: mentalJourney,
+      })
+    : null;
 
   const realDurationMin = getSessionDurationMinutes(
     booking.sessionStartedAt,
@@ -416,21 +430,7 @@ export default async function AppointmentDetailPage({
       {/* Prima del riepilogo, perche' prima dell'incontro non c'e' nessun
           riepilogo da leggere: qui questa sezione non e' una voce fra le
           altre, e' la ragione per cui si apre la pagina. */}
-      {showPreparation ? (
-        <PointsToRevisitSection
-          points={preparationPoints}
-          heading="Da portare in questa seduta"
-          intro="Ricavato dalle sedute precedenti: che cosa era rimasto aperto e che cosa il riepilogo dell'ultima volta aveva lasciato per oggi."
-          /*
-           * Vuota, questa sezione si mostra lo stesso.
-           * «Preparati», nella scheda della prossima call, punta qui: se la
-           * sezione sparisce il pulsante porta a una pagina che si apre in
-           * cima, e sembra rotto. Un percorso senza spunti non e' un guasto —
-           * va detto, con il motivo.
-           */
-          emptyMessage="Niente da riprendere, per ora. Gli spunti nascono dai riepiloghi delle sedute precedenti e dagli impegni rimasti aperti: dopo questa seduta, qui trovi che cosa portare alla prossima."
-        />
-      ) : null}
+      {showPreparation ? <SessionBriefSection brief={sessionBrief} /> : null}
 
       {/* Il riepilogo consegnato all'atleta.
           Sta sulla pagina della seduta, e con l'ancora `#session-compass`,

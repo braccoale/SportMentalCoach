@@ -55,12 +55,22 @@ export type BriefBookmark = {
   note: string | null;
 };
 
+/**
+ * Perché la sintesi è vuota. Non è una sfumatura: le due frasi da mostrare
+ * sono diverse, e dire «non c'è ancora niente da riprendere» a un coach al
+ * primo incontro con un atleta suona come un guasto, mentre «non ci sono
+ * ancora sedute con un riepilogo» è semplicemente vero.
+ */
+export type BriefEmptyReason = 'no_sessions' | 'nothing_to_carry';
+
 export type SessionBrief = {
   goals: BriefGoal[];
   lastSession: BriefLastSession | null;
   pointsToRevisit: readonly PointToRevisit[];
   /** Falso quando non c'è proprio niente da mostrare: il vuoto va spiegato. */
   hasContent: boolean;
+  /** Valorizzato solo quando `hasContent` è falso. */
+  emptyReason: BriefEmptyReason | null;
 };
 
 /**
@@ -153,6 +163,12 @@ export type SessionBriefInput = {
   } | null;
   /** I segnalibri di quella seduta, non di tutto il percorso. */
   bookmarks: readonly { id: number; atMs: number; note: string | null }[];
+  /**
+   * Quante sedute con un riepilogo esistono in questo percorso. Serve solo a
+   * distinguere i due vuoti: zero significa che non c'è ancora materiale, più
+   * di zero che c'è ma non ha lasciato niente in sospeso.
+   */
+  sessionCount: number;
 };
 
 export function buildSessionBrief(input: SessionBriefInput): SessionBrief {
@@ -183,13 +199,20 @@ export function buildSessionBrief(input: SessionBriefInput): SessionBrief {
       lastSession.coachNote !== null ||
       lastSession.bookmarks.length > 0);
 
+  const hasContent =
+    goals.length > 0 ||
+    lastSessionSaysSomething ||
+    input.pointsToRevisit.length > 0;
+
   return {
     goals,
     lastSession: lastSessionSaysSomething ? lastSession : null,
     pointsToRevisit: input.pointsToRevisit,
-    hasContent:
-      goals.length > 0 ||
-      lastSessionSaysSomething ||
-      input.pointsToRevisit.length > 0,
+    hasContent,
+    emptyReason: hasContent
+      ? null
+      : input.sessionCount > 0
+        ? 'nothing_to_carry'
+        : 'no_sessions',
   };
 }
