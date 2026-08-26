@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import {
   fetchSessionPrep,
+  type SessionPrepGoal,
+  type SessionPrepLastSession,
   type SessionPrepPoint,
   type UpcomingSession,
 } from '../lib/api';
@@ -46,21 +48,37 @@ export function SessionPrepSheet({
 }) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  /** `null` e' «non ancora caricato», `[]` e' «non c'e' niente»: due stati diversi. */
-  const [points, setPoints] = useState<SessionPrepPoint[] | null>(null);
+  /** `null` e' «non ancora caricato», vuoto e' «non c'e' niente»: due stati diversi. */
+  const [brief, setBrief] = useState<{
+    points: SessionPrepPoint[];
+    goals: SessionPrepGoal[];
+    lastSession: SessionPrepLastSession | null;
+    emptyReason: 'no_sessions' | 'nothing_to_carry' | null;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
-    setPoints(null);
+    setBrief(null);
     setError(null);
     return fetchSessionPrep(session.bookingId)
       .then((data) => {
         // Un'app aggiornata puo' parlare con un server che non lo e' ancora:
-        // la lista mancante diventa una lista vuota, non uno schianto.
-        setPoints(data.points ?? []);
+        // i campi mancanti diventano vuoti, non uno schianto.
+        setBrief({
+          points: data.points ?? [],
+          goals: data.goals ?? [],
+          lastSession: data.lastSession ?? null,
+          emptyReason: data.emptyReason ?? null,
+        });
       })
       .catch(() => setError('Non riesco a caricare gli spunti.'));
   }, [session.bookingId]);
+
+  const isEmpty =
+    brief !== null &&
+    brief.points.length === 0 &&
+    brief.goals.length === 0 &&
+    brief.lastSession === null;
 
   useEffect(() => {
     if (!visible) return;
@@ -99,21 +117,50 @@ export function SessionPrepSheet({
                 <Text style={styles.retryText}>Riprova</Text>
               </Pressable>
             </View>
-          ) : points === null ? (
+          ) : brief === null ? (
             <View style={styles.state}>
               <ActivityIndicator color={theme.mid} />
               <Text style={styles.stateText}>
                 Cerco cosa avete lasciato aperto…
               </Text>
             </View>
-          ) : points.length === 0 ? (
+          ) : isEmpty ? (
+            /*
+             * Il vuoto si dichiara, non si riempie.
+             *
+             * Questa sintesi non genera testo: monta quello che il coach ha
+             * gia' scritto o validato. Quando non c'e' materiale la risposta
+             * onesta e' dire perche', e le due ragioni non sono la stessa
+             * cosa — al primo incontro con un atleta «niente da riprendere»
+             * suonerebbe come un guasto.
+             */
             <View style={styles.state}>
-              <Text style={styles.emptyTitle}>Niente da riprendere, per ora.</Text>
-              <Text style={styles.stateText}>
-                Gli spunti nascono dai riepiloghi delle sedute precedenti e dagli
-                impegni rimasti aperti. Dopo questa seduta, qui trovi cosa
-                portare alla prossima.
-              </Text>
+              {brief.emptyReason === 'nothing_to_carry' ? (
+                <>
+                  <Text style={styles.emptyTitle}>
+                    Niente rimasto in sospeso.
+                  </Text>
+                  <Text style={styles.stateText}>
+                    Le sedute precedenti hanno un riepilogo, ma non hanno
+                    lasciato impegni aperti ne' punti da riprendere. Quello che
+                    segni durante questa chiamata comparira' qui la prossima
+                    volta.
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.emptyTitle}>
+                    Non ci sono ancora sedute con un riepilogo.
+                  </Text>
+                  <Text style={styles.stateText}>
+                    Questa sintesi mette insieme gli obiettivi del percorso, il
+                    riepilogo dell'ultima seduta e i momenti che segni durante
+                    la chiamata. Finche' non c'e' quel materiale non viene
+                    inventato niente: dopo la prima seduta registrata, qui
+                    trovi cosa portare alla successiva.
+                  </Text>
+                </>
+              )}
             </View>
           ) : (
             <ScrollView
@@ -121,22 +168,76 @@ export function SessionPrepSheet({
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
             >
-              {points.map((point) => (
-                <View key={point.id} style={styles.point}>
-                  <Text style={styles.pointText}>{point.text}</Text>
-                  <View style={styles.pointMeta}>
-                    <Text style={styles.pointSource}>{point.sourceLabel}</Text>
-                    {/*
-                      Un punto preso da una bozza non e' sbagliato, ma nessuno
-                      l'ha ancora letto — e da qui diventa il piano della
-                      seduta. La differenza va detta dove la si usa.
-                    */}
-                    {point.fromDraft ? (
-                      <Text style={styles.draft}>Da validare</Text>
-                    ) : null}
-                  </View>
+              {/* Dove state andando. Prima di tutto: e' la cornice che rende
+                  leggibile tutto il resto. */}
+              {brief.goals.length > 0 ? (
+                <View style={styles.block}>
+                  <Text style={styles.blockTitle}>Dove siete</Text>
+                  {brief.goals.map((goal) => (
+                    <View key={goal.id} style={styles.goal}>
+                      <Text style={styles.goalTitle} numberOfLines={2}>
+                        {goal.isPrimary ? '★ ' : ''}
+                        {goal.title}
+                      </Text>
+                      <Text style={styles.goalStatus}>{goal.statusLabel}</Text>
+                    </View>
+                  ))}
                 </View>
-              ))}
+              ) : null}
+
+              {/* Dove eravate rimasti. Tutto materiale gia' scritto o validato
+                  dal coach: la sintesi che ha approvato, la nota che l'AI non
+                  tocca, i momenti che ha marcato lui dal vivo. */}
+              {brief.lastSession ? (
+                <View style={styles.block}>
+                  <Text style={styles.blockTitle}>
+                    {brief.lastSession.date
+                      ? `L'ultima seduta · ${dayTitle(brief.lastSession.date)}`
+                      : "L'ultima seduta"}
+                  </Text>
+                  {brief.lastSession.summary ? (
+                    <Text style={styles.recap}>{brief.lastSession.summary}</Text>
+                  ) : null}
+                  {brief.lastSession.coachNote ? (
+                    <View style={styles.note}>
+                      <Text style={styles.noteLabel}>La tua nota</Text>
+                      <Text style={styles.noteText}>
+                        {brief.lastSession.coachNote}
+                      </Text>
+                    </View>
+                  ) : null}
+                  {brief.lastSession.bookmarks.map((bookmark) => (
+                    <View key={bookmark.id} style={styles.bookmark}>
+                      <Text style={styles.bookmarkMinute}>{bookmark.minute}′</Text>
+                      <Text style={styles.bookmarkNote} numberOfLines={2}>
+                        {bookmark.note ?? 'Momento segnato durante la seduta'}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+
+              {brief.points.length > 0 ? (
+                <View style={styles.block}>
+                  <Text style={styles.blockTitle}>Da riprendere</Text>
+                  {brief.points.map((point) => (
+                    <View key={point.id} style={styles.point}>
+                      <Text style={styles.pointText}>{point.text}</Text>
+                      <View style={styles.pointMeta}>
+                        <Text style={styles.pointSource}>{point.sourceLabel}</Text>
+                        {/*
+                          Un punto preso da una bozza non e' sbagliato, ma
+                          nessuno l'ha ancora letto — e da qui diventa il piano
+                          della seduta. La differenza va detta dove la si usa.
+                        */}
+                        {point.fromDraft ? (
+                          <Text style={styles.draft}>Da validare</Text>
+                        ) : null}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
             </ScrollView>
           )}
 
@@ -184,8 +285,54 @@ const createStyles = (theme: Palette) =>
     title: { color: theme.hi, fontSize: 18, fontWeight: '700' },
     subtitle: { color: theme.mid, fontSize: 13, marginTop: -6 },
     /** Cinque punti lunghi non devono spingere il foglio fuori dallo schermo. */
-    list: { maxHeight: 360 },
-    listContent: { gap: 10, paddingVertical: 2 },
+    // Con tre blocchi il foglio e' piu' alto di prima, ma resta un foglio:
+    // oltre questa altezza si mangia la videochiamata sotto.
+    list: { maxHeight: 420 },
+    listContent: { gap: 18, paddingVertical: 2 },
+    // Un blocco e' un titolo e le sue righe. Niente riquadro attorno: sarebbero
+    // schede dentro una scheda dentro un foglio, e il contenuto sparirebbe
+    // sotto i bordi.
+    block: { gap: 8 },
+    blockTitle: {
+      color: theme.low,
+      fontSize: 12,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+    },
+    goal: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 10,
+    },
+    goalTitle: { color: theme.hi, fontSize: 15, lineHeight: 21, flexShrink: 1 },
+    goalStatus: { color: theme.low, fontSize: 12, flexShrink: 0 },
+    recap: { color: theme.hi, fontSize: 15, lineHeight: 21 },
+    // La nota del coach e' l'unica cosa qui dentro scritta da lui e non
+    // dall'AI: la barra a lato lo dice senza doverlo spiegare a parole.
+    note: {
+      borderLeftWidth: 2,
+      borderLeftColor: theme.mid,
+      paddingLeft: 10,
+      gap: 2,
+    },
+    noteLabel: {
+      color: theme.low,
+      fontSize: 11,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.6,
+    },
+    noteText: { color: theme.hi, fontSize: 14, lineHeight: 20 },
+    bookmark: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+    bookmarkMinute: {
+      color: theme.mid,
+      fontSize: 13,
+      fontWeight: '700',
+      minWidth: 34,
+    },
+    bookmarkNote: { color: theme.hi, fontSize: 14, lineHeight: 20, flexShrink: 1 },
     point: {
       backgroundColor: theme.surface,
       borderRadius: 16,
