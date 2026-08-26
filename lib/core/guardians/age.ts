@@ -50,3 +50,18 @@ export function requiresGuardian(age: number | null): boolean {
 export function isEligibleAge(age: number | null): boolean {
   return age != null && age >= MIN_SIGNUP_AGE;
 }
+
+/**
+ * Whether the platform accepts a coach or club signup at this age.
+ *
+ * 18, not `MIN_SIGNUP_AGE`: a professional accepts the Terms as a contract and
+ * gives the specific approval of the onerous clauses required by
+ * artt. 1341-1342 c.c. Below the age of legal capacity that acceptance is
+ * voidable (art. 1425 c.c.), so the signature would be worth nothing.
+ *
+ * `null` is refused. An unknown age is not a yes — the same rule the guardian
+ * gate applies to `unknown_age`.
+ */
+export function isEligibleCoachAge(age: number | null): boolean {
+  return age != null && age >= AGE_OF_MAJORITY;
+}
