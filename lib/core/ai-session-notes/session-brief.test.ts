@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   MAX_BRIEF_BOOKMARKS,
   MAX_BRIEF_GOALS,
+  MAX_QUOTE_CHARS,
   MAX_SUMMARY_CHARS,
   buildSessionBrief,
   selectBriefBookmarks,
@@ -76,6 +77,49 @@ test('il minuto si arrotonda per difetto e non va mai sotto zero', () => {
   const byId = new Map(selected.map((b) => [b.id, b.minute]));
   assert.equal(byId.get(1), 1);
   assert.equal(byId.get(2), 0);
+});
+
+test('un segnalibro senza nota cita quello che si stava dicendo', () => {
+  const [bookmark] = selectBriefBookmarks(
+    [{ id: 1, atMs: 660_000, note: null }],
+    [
+      {
+        startedAtMs: 600_000,
+        endedAtMs: 700_000,
+        text: 'Non riuscivo a smettere di pensare al rigore sbagliato.',
+        speaker: 'athlete',
+      },
+    ]
+  );
+  assert.equal(bookmark.quote, 'Non riuscivo a smettere di pensare al rigore sbagliato.');
+  assert.equal(bookmark.speaker, 'athlete');
+});
+
+test('un segnalibro caduto nel silenzio prende la battuta successiva, mai la precedente', () => {
+  const [bookmark] = selectBriefBookmarks(
+    [{ id: 1, atMs: 500_000, note: null }],
+    [
+      { startedAtMs: 100_000, endedAtMs: 200_000, text: 'Prima', speaker: 'coach' },
+      { startedAtMs: 600_000, endedAtMs: 700_000, text: 'Dopo', speaker: 'athlete' },
+    ]
+  );
+  assert.equal(bookmark.quote, 'Dopo');
+});
+
+test('senza trascrizione la citazione resta nulla, e non si inventa una frase', () => {
+  const [bookmark] = selectBriefBookmarks([{ id: 1, atMs: 60_000, note: null }], []);
+  assert.equal(bookmark.quote, null);
+  assert.equal(bookmark.speaker, null);
+});
+
+test('una citazione lunga si accorcia, ma resta parola per parola', () => {
+  const spoken = 'ecco '.repeat(80);
+  const [bookmark] = selectBriefBookmarks(
+    [{ id: 1, atMs: 1_000, note: null }],
+    [{ startedAtMs: 0, endedAtMs: 10_000, text: spoken, speaker: 'coach' }]
+  );
+  assert.ok(bookmark.quote!.length <= MAX_QUOTE_CHARS + 1);
+  assert.ok(spoken.includes(bookmark.quote!.replace(/…$/, '')));
 });
 
 test('i segnalibri si fermano a tre', () => {
@@ -217,7 +261,7 @@ test('nessun testo in uscita che non fosse già in ingresso', () => {
     ...brief.goals.flatMap((g) => [g.title, g.statusLabel]),
     brief.lastSession?.summary,
     brief.lastSession?.coachNote,
-    ...(brief.lastSession?.bookmarks ?? []).map((b) => b.note),
+    ...(brief.lastSession?.bookmarks ?? []).flatMap((b) => [b.note, b.quote]),
     ...brief.pointsToRevisit.flatMap((p) => [p.text, p.sourceLabel]),
   ].filter((value): value is string => typeof value === 'string');
 

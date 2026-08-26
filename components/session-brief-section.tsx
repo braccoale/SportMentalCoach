@@ -104,12 +104,33 @@ export function SessionBriefSection({ brief }: { brief: SessionBrief | null }) {
                   {brief.lastSession.bookmarks.map((bookmark) => (
                     <li key={bookmark.id} className="flex items-start gap-2.5">
                       <Bookmark className="mt-1 h-3.5 w-3.5 shrink-0 text-violet-500" />
-                      <span className="text-sm leading-6 text-gray-700">
+                      <div className="text-sm leading-6 text-gray-700">
                         <span className="mr-2 font-semibold text-gray-500">
                           {bookmark.minute}′
                         </span>
-                        {bookmark.note ?? 'Momento segnato durante la seduta'}
-                      </span>
+                        {/*
+                          Ordine: la nota del coach se c'è, altrimenti quello
+                          che si stava dicendo — parola per parola dalla
+                          trascrizione. Prima qui compariva «Momento segnato
+                          durante la seduta», che occupava una riga senza dire
+                          niente e non aiutava nessuno a prepararsi.
+                        */}
+                        {bookmark.note ? (
+                          bookmark.note
+                        ) : bookmark.quote ? (
+                          <span>
+                            <span className="text-gray-500">
+                              {bookmark.speaker === 'coach' ? 'Tu' : 'Lui/lei'}:{' '}
+                            </span>
+                            <span className="italic">«{bookmark.quote}»</span>
+                          </span>
+                        ) : (
+                          <span className="text-gray-500">
+                            Segnato qui, ma la trascrizione di questa seduta non
+                            è disponibile.
+                          </span>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>

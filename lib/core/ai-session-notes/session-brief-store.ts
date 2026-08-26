@@ -1,7 +1,7 @@
 import 'server-only';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, lte, or } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
-import { sessionAiReports } from '@/lib/db/schema';
+import { sessionAiReports, sessionTranscriptSegments } from '@/lib/db/schema';
 import { listCoachBookmarks } from './coach-bookmarks-store';
 import { listJourneyGoals } from './journey-goals-store';
 import {
@@ -10,7 +10,11 @@ import {
   type MentalJourney,
 } from './mental-journey';
 import { mentalJourneyDependencies } from './mental-journey-store';
-import { buildSessionBrief, type SessionBrief } from './session-brief';
+import {
+  buildSessionBrief,
+  type BriefTranscriptSegment,
+  type SessionBrief,
+} from './session-brief';
 
 /**
  * Carica gli ingressi della sintesi pre-seduta e li passa alla regola pura.
@@ -68,6 +72,14 @@ export async function getSessionBrief(params: {
     latest ? loadCoachNote(latest.sessionId) : null,
   ]);
 
+  // Le battute che coprono quei segnalibri, e nient'altro. Una seduta lunga ha
+  // più di mille segmenti: caricarli tutti per citarne tre sarebbe pagare il
+  // trasporto dell'intera trascrizione a ogni apertura della pagina.
+  const segments =
+    latest && bookmarks.length > 0
+      ? await loadSegmentsAround(latest.sessionId, bookmarks.map((b) => b.atMs))
+      : [];
+
   return buildSessionBrief({
     goals,
     pointsToRevisit: journey.pointsToRevisit,
@@ -81,10 +93,69 @@ export async function getSessionBrief(params: {
         }
       : null,
     bookmarks,
+    transcriptSegments: segments,
     // Distingue i due vuoti: un percorso senza sedute con riepilogo non è un
     // percorso che non ha lasciato niente in sospeso, e al coach vanno dette
     // due frasi diverse.
     sessionCount: journey.timeline.length,
+  });
+}
+
+/**
+ * Le battute che coprono gli istanti dei segnalibri.
+ *
+ * La finestra guarda **avanti**, non indietro: `bookmarkPositionMs` ha già
+ * arretrato l'istante di quindici secondi, perché quando il coach nota
+ * qualcosa la frase è già stata detta. Cercare ancora più indietro
+ * restituirebbe il discorso di prima, cioè la cosa sbagliata.
+ */
+async function loadSegmentsAround(
+  sessionId: number,
+  atMsList: readonly number[]
+): Promise<BriefTranscriptSegment[]> {
+  if (atMsList.length === 0) return [];
+
+  const WINDOW_MS = 90_000;
+  const rows = await db
+    .select({
+      startedAtMs: sessionTranscriptSegments.startedAtMs,
+      endedAtMs: sessionTranscriptSegments.endedAtMs,
+      text: sessionTranscriptSegments.text,
+      speakerRole: sessionTranscriptSegments.speakerRole,
+    })
+    .from(sessionTranscriptSegments)
+    .where(
+      and(
+        eq(sessionTranscriptSegments.sessionAiNotesId, sessionId),
+        or(
+          ...atMsList.map((atMs) =>
+            and(
+              gte(sessionTranscriptSegments.endedAtMs, atMs),
+              lte(sessionTranscriptSegments.startedAtMs, atMs + WINDOW_MS)
+            )
+          )
+        )
+      )
+    )
+    .orderBy(asc(sessionTranscriptSegments.startedAtMs));
+
+  return rows.flatMap((row) => {
+    // Il ruolo arriva dalla trascrizione e non è un insieme chiuso: quello che
+    // non riconosciamo viene scartato, invece di essere attribuito a qualcuno.
+    const speaker =
+      row.speakerRole === 'coach' || row.speakerRole === 'athlete'
+        ? row.speakerRole
+        : null;
+    return speaker
+      ? [
+          {
+            startedAtMs: row.startedAtMs,
+            endedAtMs: row.endedAtMs,
+            text: row.text,
+            speaker,
+          },
+        ]
+      : [];
   });
 }
 
