@@ -171,8 +171,17 @@ export function UpcomingAppointmentCard({
 
         <div className="mt-3 flex flex-col gap-2 border-t border-gray-100 pt-3 text-sm text-gray-700">
           <div className="flex items-center gap-2.5">
+            {/* Lo sport dell'atleta, accanto al suo nome. Era stato aggiunto
+                qui e in un rifacimento della riga è tornato un `UserRound`
+                fisso: l'import di SportIcon è rimasto, l'icona no. La sagoma
+                generica resta il ripiego quando lo sport non è indicato —
+                dire «atleta» dove non sappiamo cosa pratica è corretto. */}
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-500">
-              <UserRound className="h-3.5 w-3.5" />
+              {data.sportKey ? (
+                <SportIcon sportKey={data.sportKey} className="h-4 w-4" />
+              ) : (
+                <UserRound className="h-3.5 w-3.5" />
+              )}
             </span>
             <span className="line-clamp-1 font-medium text-gray-900">
               {data.athleteName}
