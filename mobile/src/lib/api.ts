@@ -231,6 +231,13 @@ export type SessionPrepBookmark = {
   id: number;
   minute: number;
   note: string | null;
+  /**
+   * Che cosa si stava dicendo in quell'istante, parola per parola dalla
+   * trascrizione. Non e' un riassunto e nessun modello la tocca: e' cio' che
+   * la rende sicura da mostrare. `null` quando la trascrizione non c'e'.
+   */
+  quote: string | null;
+  speaker: 'coach' | 'athlete' | null;
 };
 
 /**

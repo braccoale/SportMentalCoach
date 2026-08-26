@@ -206,12 +206,34 @@ export function SessionPrepSheet({
                       </Text>
                     </View>
                   ) : null}
+                  {/*
+                    Ordine: la nota del coach se c'e', altrimenti quello che si
+                    stava dicendo — parola per parola dalla trascrizione. Prima
+                    qui compariva «Momento segnato durante la seduta», che
+                    occupava una riga senza dire niente.
+                  */}
                   {brief.lastSession.bookmarks.map((bookmark) => (
                     <View key={bookmark.id} style={styles.bookmark}>
                       <Text style={styles.bookmarkMinute}>{bookmark.minute}′</Text>
-                      <Text style={styles.bookmarkNote} numberOfLines={2}>
-                        {bookmark.note ?? 'Momento segnato durante la seduta'}
-                      </Text>
+                      {bookmark.note ? (
+                        <Text style={styles.bookmarkNote} numberOfLines={3}>
+                          {bookmark.note}
+                        </Text>
+                      ) : bookmark.quote ? (
+                        <Text style={styles.bookmarkNote} numberOfLines={3}>
+                          <Text style={styles.bookmarkSpeaker}>
+                            {bookmark.speaker === 'coach' ? 'Tu: ' : 'Lui/lei: '}
+                          </Text>
+                          <Text style={styles.bookmarkQuote}>
+                            «{bookmark.quote}»
+                          </Text>
+                        </Text>
+                      ) : (
+                        <Text style={styles.bookmarkMissing} numberOfLines={2}>
+                          Segnato qui, ma la trascrizione di questa seduta non e'
+                          disponibile.
+                        </Text>
+                      )}
                     </View>
                   ))}
                 </View>
@@ -333,6 +355,14 @@ const createStyles = (theme: Palette) =>
       minWidth: 34,
     },
     bookmarkNote: { color: theme.hi, fontSize: 14, lineHeight: 20, flexShrink: 1 },
+    bookmarkSpeaker: { color: theme.low, fontSize: 14 },
+    bookmarkQuote: { color: theme.hi, fontSize: 14, fontStyle: 'italic' },
+    bookmarkMissing: {
+      color: theme.low,
+      fontSize: 13,
+      lineHeight: 19,
+      flexShrink: 1,
+    },
     point: {
       backgroundColor: theme.surface,
       borderRadius: 16,

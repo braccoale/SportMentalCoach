@@ -53,7 +53,56 @@ export type BriefBookmark = {
   /** Minuto della seduta, arrotondato per difetto. */
   minute: number;
   note: string | null;
+  /**
+   * Che cosa si stava dicendo in quell'istante, **parola per parola** dalla
+   * trascrizione.
+   *
+   * Esiste perché un segnalibro senza nota mostrava «Momento segnato durante
+   * la seduta»: un segnaposto che occupa una riga e non dice niente. Il minuto
+   * da solo non aiuta nessuno a prepararsi.
+   *
+   * È una citazione, non un riassunto: nessun modello la tocca, e questo è
+   * ciò che la rende sicura da mostrare. Se la trascrizione manca resta
+   * `null`, e la riga lo dichiara invece di riempirsi.
+   */
+  quote: string | null;
+  /** Chi stava parlando. `null` quando non c'è una citazione. */
+  speaker: 'coach' | 'athlete' | null;
 };
+
+/** Un pezzo di trascrizione, ridotto a ciò che serve per collocare un segnalibro. */
+export type BriefTranscriptSegment = {
+  startedAtMs: number;
+  endedAtMs: number;
+  text: string;
+  speaker: 'coach' | 'athlete';
+};
+
+/** Oltre questa lunghezza una citazione smette di essere un promemoria. */
+export const MAX_QUOTE_CHARS = 160;
+
+/**
+ * Il segmento in cui cade l'istante, o il primo che comincia subito dopo.
+ *
+ * Il secondo caso non è una comodità: fra una battuta e l'altra c'è silenzio,
+ * e un segnalibro posato lì non cadrebbe dentro nessun segmento. Guardare
+ * avanti — mai indietro — restituisce la frase che il coach stava aspettando
+ * di sentire, che è quella per cui ha premuto.
+ */
+export function segmentAt(
+  segments: readonly BriefTranscriptSegment[],
+  atMs: number
+): BriefTranscriptSegment | null {
+  const containing = segments.find(
+    (segment) => atMs >= segment.startedAtMs && atMs <= segment.endedAtMs
+  );
+  if (containing) return containing;
+
+  const following = segments
+    .filter((segment) => segment.startedAtMs > atMs)
+    .sort((a, b) => a.startedAtMs - b.startedAtMs);
+  return following[0] ?? null;
+}
 
 /**
  * Perché la sintesi è vuota. Non è una sfumatura: le due frasi da mostrare
@@ -133,6 +182,7 @@ export function selectBriefGoals(
  */
 export function selectBriefBookmarks(
   bookmarks: readonly { id: number; atMs: number; note: string | null }[],
+  segments: readonly BriefTranscriptSegment[] = [],
   max: number = MAX_BRIEF_BOOKMARKS
 ): BriefBookmark[] {
   return [...bookmarks]
@@ -143,11 +193,17 @@ export function selectBriefBookmarks(
       return a.atMs - b.atMs;
     })
     .slice(0, max)
-    .map((bookmark) => ({
-      id: bookmark.id,
-      minute: Math.max(0, Math.floor(bookmark.atMs / 60_000)),
-      note: nonEmpty(bookmark.note),
-    }));
+    .map((bookmark) => {
+      const segment = segmentAt(segments, bookmark.atMs);
+      const quote = segment ? nonEmpty(segment.text) : null;
+      return {
+        id: bookmark.id,
+        minute: Math.max(0, Math.floor(bookmark.atMs / 60_000)),
+        note: nonEmpty(bookmark.note),
+        quote: quote ? trimToLength(quote, MAX_QUOTE_CHARS) : null,
+        speaker: quote && segment ? segment.speaker : null,
+      };
+    });
 }
 
 export type SessionBriefInput = {
@@ -163,6 +219,12 @@ export type SessionBriefInput = {
   } | null;
   /** I segnalibri di quella seduta, non di tutto il percorso. */
   bookmarks: readonly { id: number; atMs: number; note: string | null }[];
+  /**
+   * I pezzi di trascrizione che coprono quei segnalibri. Servono a dire che
+   * cosa si stava dicendo: senza, un segnalibro senza nota resta un minuto e
+   * basta. Vuoto e' un caso legittimo — una seduta puo' non avere trascrizione.
+   */
+  transcriptSegments?: readonly BriefTranscriptSegment[];
   /**
    * Quante sedute con un riepilogo esistono in questo percorso. Serve solo a
    * distinguere i due vuoti: zero significa che non c'è ancora materiale, più
@@ -187,7 +249,10 @@ export function buildSessionBrief(input: SessionBriefInput): SessionBrief {
           const note = nonEmpty(input.lastSession.coachNote);
           return note ? trimToLength(note, MAX_SUMMARY_CHARS) : null;
         })(),
-        bookmarks: selectBriefBookmarks(input.bookmarks),
+        bookmarks: selectBriefBookmarks(
+          input.bookmarks,
+          input.transcriptSegments ?? []
+        ),
       }
     : null;
 
