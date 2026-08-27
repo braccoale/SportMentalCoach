@@ -25,7 +25,11 @@
  * Run: pnpm e2e
  */
 import { chromium } from 'playwright';
-import { signup as signupUser, login as loginUser } from './lib/accounts.mjs';
+import {
+  signup as signupUser,
+  login as loginUser,
+  completeCoachProfile,
+} from './lib/accounts.mjs';
 
 
 const BASE = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
@@ -40,6 +44,10 @@ const stamp = Date.now();
 const COACH = { email: `e2e-coach-${stamp}@demo.smc`, pass: 'password1234', nome: 'Paolo', cognome: `Verdi${String(stamp).slice(-5)}` };
 const ATHLETE = { email: `e2e-ath-${stamp}@demo.smc`, pass: 'password1234', nome: 'Sara', cognome: 'Blu' };
 const COACH_FULL = `${COACH.nome} ${COACH.cognome}`;
+const ADMIN = {
+  email: process.env.E2E_ADMIN_EMAIL ?? 'admin@kaipai.com',
+  pass: process.env.E2E_ADMIN_PASSWORD ?? '',
+};
 
 const results = [];
 function ok(step, msg) { results.push({ step, pass: true }); console.log(`✅ ${step}. ${msg}`); }
@@ -55,30 +63,16 @@ coach.url().includes('/dashboard/coach')
   ? ok(1, `Coach registrato (${COACH.email})`)
   : ko(1, `atteso /dashboard/coach, trovato ${coach.url()}`);
 
-// Account name (drives the public display name)
-await coach.goto(`${BASE}/dashboard/coach/profile`);
-await coach.waitForSelector('#lastName');
-await coach.fill('#name', COACH.nome);
-await coach.fill('#lastName', COACH.cognome);
-await coach.locator('form:has(#lastName) button[type="submit"]').click();
-await coach.waitForSelector('text=Account aggiornato.');
-
-// Profile: headline + bio + sport + specialty
-await coach.fill('#headline', 'Mental coach E2E per il calcio');
-await coach.fill('#description', 'Percorsi di allenamento mentale per atleti. Profilo creato dal test end-to-end.');
-await coach.check('input[name="categories"][value="football"]');
-await coach.check('input[name="specialties"][value="performance_anxiety"]');
-await coach.locator('form:has(#headline) button[type="submit"]').click();
-await coach.waitForSelector('text=Profilo aggiornato.');
-
-// One service (required by onboarding)
-await coach.goto(`${BASE}/dashboard/coach/services`);
-const newService = coach.locator('form', { hasText: 'Nuovo servizio' });
-await newService.locator('input[name="title"]').fill('Sessione individuale');
-await newService.locator('input[name="durationMin"]').fill('60');
-await newService.locator('input[name="price"]').fill('60');
-await newService.locator('button[type="submit"]').click();
-await coach.waitForSelector('text=Servizio aggiunto.');
+/*
+ * Profilo del coach e un servizio, dall'helper condiviso.
+ *
+ * Qui c'era la stessa sequenza ricopiata a mano, identica a
+ * `completeCoachProfile` in lib/accounts.mjs. Due copie della stessa cosa
+ * significa ripararla due volte a ogni rifacimento dell'interfaccia — ed e'
+ * successo: la pagina dei servizi e' passata a una finestra di dialogo e si
+ * sono rotte entrambe.
+ */
+await completeCoachProfile(coach, COACH, BASE);
 
 // Submit for review
 await coach.goto(`${BASE}/dashboard/coach/profile`);
@@ -89,7 +83,23 @@ ok(2, 'Profilo coach completato (nome, bio, sport, servizio) e inviato in revisi
 /* ── 3: admin approves ── */
 const adminCtx = await browser.newContext();
 const admin = await adminCtx.newPage();
-await login(admin, 'admin@kaipai.com', 'admin1234');
+/*
+ * Le credenziali dell'amministratore arrivano dall'ambiente.
+ *
+ * Erano scritte qui dentro — admin@kaipai.com / admin1234 — e non funzionano
+ * piu' da quando l'autenticazione e' passata a Supabase: la password seminata
+ * non e' quella dell'identita' Auth. Una credenziale scritta in un file del
+ * repository e' sbagliata comunque, anche quando funziona.
+ */
+if (!ADMIN.pass) {
+  console.log('
+⚠️  Manca E2E_ADMIN_PASSWORD: senza, l'approvazione del coach');
+  console.log('   e tutto cio' che viene dopo non si possono verificare.');
+  console.log('   Uso: E2E_ADMIN_PASSWORD=... npm run e2e
+');
+  process.exit(1);
+}
+await login(admin, ADMIN.email, ADMIN.pass);
 await admin.goto(`${BASE}/dashboard/admin`);
 const row = admin.locator('li', { hasText: COACH.email }).first();
 await row.locator('button', { hasText: 'Approva' }).click();
