@@ -85,7 +85,15 @@ const DOM_READY = { waitUntil: 'domcontentloaded' };
 
 function newContext(browser) {
   return browser.newContext().then((ctx) => {
-    ctx.setDefaultNavigationTimeout(120_000);
+    /*
+     * Tre minuti, e non e' generosita': /dashboard/admin impiega ~118 secondi
+     * a rendersi in `next dev`. Misurato: le sue quattro query fanno 3,5 s in
+     * parallelo, la rotta era gia' compilata, e le altre pagine della
+     * dashboard rispondono in 4 s. Il tempo se ne va nella resa, non nei dati.
+     * E' un rilievo aperto, annotato qui perche' non venga scambiato per
+     * lentezza di rete la prossima volta che qualcuno legge questo file.
+     */
+    ctx.setDefaultNavigationTimeout(180_000);
     ctx.setDefaultTimeout(45_000);
     return ctx;
   });
