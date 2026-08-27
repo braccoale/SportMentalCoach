@@ -92,11 +92,12 @@ const admin = await adminCtx.newPage();
  * repository e' sbagliata comunque, anche quando funziona.
  */
 if (!ADMIN.pass) {
-  console.log('
-⚠️  Manca E2E_ADMIN_PASSWORD: senza, l'approvazione del coach');
-  console.log('   e tutto cio' che viene dopo non si possono verificare.');
-  console.log('   Uso: E2E_ADMIN_PASSWORD=... npm run e2e
-');
+  console.log('');
+  console.log('⚠️  Manca E2E_ADMIN_PASSWORD.');
+  console.log("   Senza, l'approvazione del coach e tutto cio' che viene dopo");
+  console.log('   non si possono verificare.');
+  console.log('   Uso: E2E_ADMIN_PASSWORD=... npm run e2e');
+  console.log('');
   process.exit(1);
 }
 await login(admin, ADMIN.email, ADMIN.pass);
