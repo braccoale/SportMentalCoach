@@ -34,7 +34,10 @@ import { SessionCompassError } from './session-compass';
 import { logPipeline, pipelineErrorCode } from './pipeline-log';
 import { notifyAiReportAwaitingReview } from '@/lib/core/notifications/events';
 import { closeSessionWithoutSpeech } from './stuck-sessions';
-import { persistedTimelineFingerprint, rebuildSessionTimeline } from './timeline';
+import {
+  persistedTimelineFingerprint,
+  rebuildSessionTimeline,
+} from './timeline-store';
 import { advanceAiNotesSessionStatus } from './session-status';
 import { sourceFingerprint, type TimelineSource } from './timeline';
 import type { AiSessionNotesDependencies } from './dependencies';
