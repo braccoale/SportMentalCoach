@@ -49,3 +49,28 @@ export function isEmailEnabled(): boolean {
     !!(process.env.EMAIL_FROM_ADDRESS || process.env.RESEND_FROM_EMAIL)
   );
 }
+
+/**
+ * Zittisce **tutto** il ventaglio delle notifiche: campanella, email e push.
+ *
+ * **Perché non basta `EMAIL_NOTIFICATIONS_ENABLED=false`.** Quello spegne solo
+ * le email. `createNotification` scrive comunque, e il push parte comunque:
+ * il 2026-08-27 sette giri degli scenari end-to-end hanno registrato sette
+ * coach, e ognuna di quelle registrazioni ha avvisato tre amministratori veri
+ * — trenta notifiche a persone reali. Spegnere le email non era servito a
+ * niente perché il rumore non veniva da lì.
+ *
+ * **Perché non ha effetto in produzione, e non è prudenza generica.** Una
+ * variabile capace di zittire gli avvisi di un prodotto vivo è un guasto che
+ * nessun errore segnala: le notifiche smetterebbero di arrivare e tutto
+ * continuerebbe a sembrare a posto. Un atleta non saprebbe che la sua sessione
+ * è stata annullata, e nessun log direbbe perché. Qui il doppio controllo è la
+ * garanzia che quella variabile, anche se finisse per errore nelle env di
+ * Vercel, non possa fare danno.
+ */
+export function areNotificationsSilenced(): boolean {
+  return (
+    process.env.NODE_ENV !== 'production' &&
+    process.env.NOTIFICATIONS_SILENCED === 'true'
+  );
+}

@@ -19,6 +19,11 @@
  *   13. Athlete leaves a review
  *   14. Coach replies to the review
  *
+ * IMPORTANTE — il server va avviato con `npm run dev:silent`, non con
+ * `npm run dev`: ogni giro registra un coach, e ogni registrazione avvisa
+ * tutti gli amministratori. Sette giri hanno gia' prodotto trenta notifiche a
+ * persone reali piu' le email di benvenuto.
+ *
  * Prerequisites: dev or prod server on BASE (default http://localhost:3000),
  * seeded admin account (admin@kaipai.com / admin1234).
  *
