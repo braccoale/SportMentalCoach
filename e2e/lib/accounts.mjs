@@ -6,6 +6,17 @@
  * che cambia un passaggio dell'onboarding.
  */
 
+/*
+ * `domcontentloaded`, non `load`.
+ *
+ * Playwright, di suo, aspetta che tutte le risorse siano chiuse. Questa
+ * applicazione tiene aperta una connessione realtime, quindi quel momento non
+ * arriva: le attese restavano appese fino alla scadenza e sembravano pagine
+ * rotte. Al copione serve che il documento ci sia, non che la rete taccia.
+ */
+const DOM_READY = { waitUntil: 'domcontentloaded' };
+const WAIT_URL = { waitUntil: 'domcontentloaded', timeout: 60_000 };
+
 export const ROLE_TITLE = {
   athlete: 'Sono un atleta',
   coach: 'Sono un mental coach',
@@ -13,7 +24,7 @@ export const ROLE_TITLE = {
 };
 
 export async function signup(page, user, role, base) {
-  await page.goto(`${base}/sign-up`);
+  await page.goto(`${base}/sign-up`, DOM_READY);
   // Step 1 — role card.
   await page.getByText(ROLE_TITLE[role]).click();
   await page.getByRole('button', { name: 'Continua', exact: true }).click();
@@ -53,7 +64,7 @@ export async function signup(page, user, role, base) {
     // Chi si registra atterra nella procedura guidata. I campi professionali
     // sono facoltativi qui — il profilo vero lo compila `completeCoachProfile`
     // — quindi si attraversa e basta.
-    await page.waitForURL(/\/onboarding/, { timeout: 30000 });
+    await page.waitForURL(/\/onboarding/, WAIT_URL);
     await clickThroughWizard(page);
 
     // L'ultimo passo non ha «Continua»: l'atleta esce con «Trova il tuo
@@ -63,9 +74,9 @@ export async function signup(page, user, role, base) {
         ? page.getByRole('button', { name: /Trova il tuo coach/ })
         : page.getByRole('button', { name: 'Vai alla dashboard' });
     await exit.click();
-    await page.waitForURL(/\/(coaches|dashboard)/, { timeout: 30000 });
+    await page.waitForURL(/\/(coaches|dashboard)/, WAIT_URL);
   } else {
-    await page.waitForURL(/dashboard/, { timeout: 30000 });
+    await page.waitForURL(/dashboard/, WAIT_URL);
   }
 }
 
@@ -106,7 +117,7 @@ async function clickThroughWizard(page, maxSteps = 8) {
 }
 
 export async function login(page, email, pass, base) {
-  await page.goto(`${base}/sign-in`);
+  await page.goto(`${base}/sign-in`, DOM_READY);
   await page.fill('#email', email);
   await page.fill('#password', pass);
   /*
@@ -119,7 +130,7 @@ export async function login(page, email, pass, base) {
    * ambiguita' gia' vista sul pulsante «Continua» della registrazione.
    */
   await page.locator('form:has(#password) button[type="submit"]').click();
-  await page.waitForURL(/dashboard/, { timeout: 30000 });
+  await page.waitForURL(/dashboard/, WAIT_URL);
 }
 
 /**
@@ -127,7 +138,7 @@ export async function login(page, email, pass, base) {
  * Senza servizio il pulsante "Nuovo appuntamento" resta disabilitato.
  */
 export async function completeCoachProfile(page, coach, base) {
-  await page.goto(`${base}/dashboard/coach/profile`);
+  await page.goto(`${base}/dashboard/coach/profile`, DOM_READY);
   await page.waitForSelector('#lastName');
   await page.fill('#name', coach.nome);
   await page.fill('#lastName', coach.cognome);
@@ -144,7 +155,7 @@ export async function completeCoachProfile(page, coach, base) {
   await page.locator('form:has(#headline) button[type="submit"]').click();
   await page.waitForSelector('text=Profilo aggiornato.');
 
-  await page.goto(`${base}/dashboard/coach/services`);
+  await page.goto(`${base}/dashboard/coach/services`, DOM_READY);
   /*
    * I servizi si aggiungono da una finestra di dialogo, non piu' da un modulo
    * in linea.
