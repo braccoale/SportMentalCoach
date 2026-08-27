@@ -46,7 +46,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "dev:silent": "node scripts/dev-silent.mjs"
+    "dev:silent": "node scripts/dev-silent.mjs",
+    "start:silent": "node scripts/start-silent.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

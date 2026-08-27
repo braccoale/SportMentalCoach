@@ -67,10 +67,20 @@ export function isEmailEnabled(): boolean {
  * è stata annullata, e nessun log direbbe perché. Qui il doppio controllo è la
  * garanzia che quella variabile, anche se finisse per errore nelle env di
  * Vercel, non possa fare danno.
+ *
+ * **Perché `VERCEL_ENV` e non `NODE_ENV`.** La prima versione guardava
+ * `NODE_ENV`, e sbagliava bersaglio: anche una build di produzione **locale**
+ * ha `NODE_ENV=production`, quindi le prove lanciate contro `next start` — che
+ * è come vanno lanciate, perché in `next dev` la dashboard admin impiega oltre
+ * tre minuti a rendersi — avrebbero ricominciato ad avvisare gli
+ * amministratori veri. `VERCEL_ENV` lo imposta Vercel, vale `production` solo
+ * nel deploy vero, e non è sovrascrivibile da una variabile aggiunta a mano:
+ * distingue «costruito in modo ottimizzato» da «è il sito che usano le
+ * persone», che è la differenza che conta davvero.
  */
 export function areNotificationsSilenced(): boolean {
   return (
-    process.env.NODE_ENV !== 'production' &&
+    process.env.VERCEL_ENV !== 'production' &&
     process.env.NOTIFICATIONS_SILENCED === 'true'
   );
 }

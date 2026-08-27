@@ -32,30 +32,30 @@ function withEnv(
   }
 }
 
-test('in produzione non si zittisce niente, nemmeno chiedendolo', () => {
+test('nel deploy di produzione non si zittisce niente, nemmeno chiedendolo', () => {
   withEnv(
-    { NODE_ENV: 'production', NOTIFICATIONS_SILENCED: 'true' },
+    { VERCEL_ENV: 'production', NOTIFICATIONS_SILENCED: 'true' },
     () => assert.equal(areNotificationsSilenced(), false)
   );
 });
 
-test('fuori dalla produzione la richiesta viene accolta', () => {
+test('fuori dal deploy di produzione la richiesta viene accolta', () => {
   withEnv(
-    { NODE_ENV: 'development', NOTIFICATIONS_SILENCED: 'true' },
+    { VERCEL_ENV: undefined, NOTIFICATIONS_SILENCED: 'true' },
     () => assert.equal(areNotificationsSilenced(), true)
   );
 });
 
 test('senza chiederlo esplicitamente le notifiche partono', () => {
   withEnv(
-    { NODE_ENV: 'development', NOTIFICATIONS_SILENCED: undefined },
+    { VERCEL_ENV: undefined, NOTIFICATIONS_SILENCED: undefined },
     () => assert.equal(areNotificationsSilenced(), false)
   );
 });
 
 test('solo la stringa «true» conta: nessun valore approssimato', () => {
   for (const value of ['1', 'yes', 'TRUE', 'si', '']) {
-    withEnv({ NODE_ENV: 'development', NOTIFICATIONS_SILENCED: value }, () =>
+    withEnv({ VERCEL_ENV: undefined, NOTIFICATIONS_SILENCED: value }, () =>
       assert.equal(
         areNotificationsSilenced(),
         false,
@@ -63,4 +63,22 @@ test('solo la stringa «true» conta: nessun valore approssimato', () => {
       )
     );
   }
+});
+
+test('una build di produzione locale si può zittire: è NODE_ENV a dire production, non il deploy', () => {
+  withEnv(
+    {
+      NODE_ENV: 'production',
+      VERCEL_ENV: undefined,
+      NOTIFICATIONS_SILENCED: 'true',
+    },
+    () => assert.equal(areNotificationsSilenced(), true)
+  );
+});
+
+test('su una Preview di Vercel si può zittire', () => {
+  withEnv(
+    { VERCEL_ENV: 'preview', NOTIFICATIONS_SILENCED: 'true' },
+    () => assert.equal(areNotificationsSilenced(), true)
+  );
 });

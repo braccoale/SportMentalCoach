@@ -42,7 +42,7 @@ async function main() {
     return;
   }
 
-  const ids = users.map((u: { id: number }) => u.id);
+  const ids = users.map((u) => u.id as number);
 
   // Solo per dirlo ad alta voce: queste righe hanno ON DELETE CASCADE su
   // user_id e vanno via con l'utente. Se qui comparisse una prenotazione con
@@ -63,7 +63,7 @@ async function main() {
     select id from provider_profiles where user_id = any(${ids})
   `;
   const links = profiles.map(
-    (p: { id: number }) => `/dashboard/admin#coach-${p.id}`
+    (p) => `/dashboard/admin#coach-${p.id as number}`
   );
   const [noise] = links.length
     ? await client`
