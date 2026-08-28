@@ -7,11 +7,18 @@ import { getSessionUser } from '@/lib/db/queries';
 import { SWRConfig } from 'swr';
 import { GoogleAnalytics } from '@/components/google-analytics';
 import { getClientMessages } from '@/lib/i18n/client-messages';
+import { JsonLd } from '@/components/json-ld';
+import { organizationJsonLd, websiteJsonLd } from '@/lib/core/seo';
+import { CANONICAL_APP_URL } from '@/lib/core/site';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('Metadata');
 
   return {
+    // Senza questo, ogni `alternates.canonical` e ogni immagine Open Graph
+    // dichiarati come percorso relativo nelle pagine figlie resterebbero
+    // relativi: un canonical relativo non identifica nulla.
+    metadataBase: new URL(CANONICAL_APP_URL),
     title: t('title'),
     description: t('description'),
     other: {
@@ -45,6 +52,9 @@ export default async function RootLayout({
       className={`bg-white dark:bg-gray-950 text-black dark:text-white ${manrope.className}`}
     >
       <body className="notranslate min-h-[100dvh] bg-gray-50">
+        {/* L'entita' KaiPai, dichiarata una volta sola: le pagine figlie vi si
+            agganciano per @id invece di ridescriverla ognuna a modo suo. */}
+        <JsonLd nodes={[organizationJsonLd(), websiteJsonLd()]} />
         <NextIntlClientProvider locale={locale} messages={clientMessages}>
           <SWRConfig
             value={{

@@ -1,5 +1,7 @@
 import { ShieldCheck, Lock, HeartHandshake } from 'lucide-react';
 import { getVerticalConfig, t } from '@/lib/core/config';
+import { JsonLd } from '@/components/json-ld';
+import { faqJsonLd } from '@/lib/core/seo';
 
 /**
  * Platform-level trust content shown on coach profiles. Generic and reusable —
@@ -50,7 +52,16 @@ export function TrustAndSafeguarding() {
   );
 }
 
-const FAQS = [
+/**
+ * Le domande frequenti del marketplace.
+ *
+ * Esportate perche' la stessa lista alimenta due cose: il `<details>` che
+ * l'utente apre e il nodo `FAQPage` che descrive la pagina ai motori. Devono
+ * restare la stessa lista — dichiarare una risposta che sullo schermo non
+ * c'e' e' markup ingannevole, e in questo repository e' anche l'unico modo
+ * per cui le due potrebbero divergere senza che nessuno se ne accorga.
+ */
+export const MARKETPLACE_FAQS = [
   {
     q: 'Come funziona una sessione?',
     a: 'Scegli un servizio, indichi una data/ora preferita e invii la richiesta. Quando il coach accetta, ricevi conferma e potete parlare in chat e in videochiamata.',
@@ -72,9 +83,10 @@ const FAQS = [
 export function MarketplaceFaq() {
   return (
     <section className="mt-10">
+      <JsonLd nodes={[faqJsonLd(MARKETPLACE_FAQS)]} />
       <h2 className="text-xl font-semibold text-gray-900">Domande frequenti</h2>
       <div className="mt-4 divide-y divide-gray-100 rounded-lg border border-gray-200">
-        {FAQS.map((f) => (
+        {MARKETPLACE_FAQS.map((f) => (
           <details key={f.q} className="group p-4">
             <summary className="cursor-pointer list-none text-sm font-medium text-gray-900 marker:hidden">
               {f.q}

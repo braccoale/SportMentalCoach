@@ -1,7 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { getApprovedCoaches } from '@/lib/core/listings';
-
-const SITE_URL = 'https://www.kaipaicoaching.com';
+import { CANONICAL_APP_URL as SITE_URL } from '@/lib/core/site';
 
 export const revalidate = 3600;
 
@@ -35,6 +34,13 @@ const publicPages: MetadataRoute.Sitemap = [
     url: `${SITE_URL}/cookie`,
     changeFrequency: 'yearly',
     priority: 0.2,
+  },
+  // Listino leggibile da un agente. Sta in sitemap perche' e' una risorsa
+  // pubblica a se' stante, non un doppione della sezione «Pacchetti».
+  {
+    url: `${SITE_URL}/pricing.md`,
+    changeFrequency: 'monthly',
+    priority: 0.6,
   },
 ];
 

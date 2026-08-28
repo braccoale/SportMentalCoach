@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
   ChevronDown,
@@ -24,8 +25,32 @@ import {
   type AthleteNeed,
 } from '@/lib/verticals/sport-mental-coach/athlete-needs';
 import { cn } from '@/lib/utils';
+import { JsonLd } from '@/components/json-ld';
+import { breadcrumbJsonLd, coachListJsonLd } from '@/lib/core/seo';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * Il canonical punta sempre a `/coaches`, senza parametri.
+ *
+ * Sport, specialita', livello, lingua e ordinamento generano un numero
+ * enorme di URL che mostrano ritagli dello stesso elenco. Lasciarli
+ * indicizzare separatamente sparpaglia il segnale su decine di pagine quasi
+ * uguali; il canonical li fa convergere su una sola.
+ */
+export const metadata: Metadata = {
+  title: 'Mental coach sportivi verificati — KaiPai',
+  description:
+    'Trova il mental coach giusto per il tuo sport e il tuo momento: profili verificati da KaiPai, filtrabili per sport, specialità, livello e lingua. Sessioni in videochiamata.',
+  alternates: { canonical: '/coaches' },
+  openGraph: {
+    type: 'website',
+    title: 'Mental coach sportivi verificati — KaiPai',
+    description:
+      'Profili verificati, filtrabili per sport, specialità, livello e lingua. Sessioni di coaching mentale in videochiamata.',
+    url: '/coaches',
+  },
+};
 
 const LANGUAGES = ['Italiano', 'Inglese', 'Spagnolo', 'Francese', 'Tedesco'];
 const SORTS: { value: DiscoverySort; label: string }[] = [
@@ -150,8 +175,31 @@ export default async function CoachesPage({
     fav: undefined,
   });
 
+  // L'`ItemList` descrive l'elenco completo, quindi viene emessa solo quando
+  // l'elenco e' completo. Su una vista filtrata direbbe «questi sono i coach
+  // di KaiPai» mentre il canonical rimanda a una pagina che ne mostra altri.
+  const isCanonicalListing = !anyAdvancedFilter && !hasActiveNeed;
+
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+      <JsonLd
+        nodes={[
+          breadcrumbJsonLd([
+            { name: 'Home', path: '/' },
+            { name: 'Coach', path: '/coaches' },
+          ]),
+          ...(isCanonicalListing
+            ? [
+                coachListJsonLd(
+                  coaches.map((c) => ({
+                    slug: c.slug,
+                    name: c.displayName ?? 'Coach',
+                  }))
+                ),
+              ]
+            : []),
+        ]}
+      />
       <header className="max-w-3xl">
         <h1 className="text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">
           Il mental coach giusto parte dal tuo momento, non da una lista.
