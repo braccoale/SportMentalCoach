@@ -40,6 +40,10 @@ import { CookieSettingsButton } from '@/components/google-analytics';
 import { FooterLinks } from '@/components/landing/footer-links';
 import { BackToTop } from '@/components/back-to-top';
 import { getLandingStats } from '@/lib/db/landing-stats';
+import {
+  COACHING_PACKAGES,
+  formatPackagePrice,
+} from '@/lib/core/pricing';
 
 /** First-letter monogram from a display name (drops trailing ", 17 anni" etc). */
 function initials(name: string) {
@@ -978,41 +982,27 @@ function MovementResources() {
 
 /* ── Packages · pricing ── */
 function Packages() {
-  const packages = [
-    {
-      name: 'Starter & Crisis Prevention',
-      icon: ShieldCheck,
-      price: '1.500 €',
-      period: '/ mese',
-      target: 'Club Serie B, Serie C o realtà locali e dilettantistiche',
-      desc: "L'ingresso strutturato al mental coaching: basi solide e prevenzione, per iniziare nel modo giusto.",
-      features: ['20 sessioni individuali / mese', '1 workshop introduttivo'],
-      lit: false,
-    },
-    {
-      name: 'Triangolo Formativo & Youth Academy',
-      icon: Users,
-      price: '3.500 €',
-      period: '/ mese',
-      target: 'Club con settori giovanili Under 15 – Under 19',
-      desc: 'Il percorso completo che fa crescere insieme atleti, staff e famiglie del vivaio.',
-      features: [
-        'Presenza settimanale fissa',
-        'Workshop per staff e genitori',
-      ],
-      lit: true,
-    },
-    {
-      name: 'Performance Lab & Elite System',
-      icon: Trophy,
-      price: '75.000 €',
-      period: '/ anno',
-      target: "Club Serie A o Academy d'élite",
-      desc: "Il sistema d'élite: mental performance integrata al più alto livello competitivo.",
-      features: ['Presenza full-time o team dedicato'],
-      lit: false,
-    },
-  ];
+  // Cifre e testi vengono da `lib/core/pricing`, lo stesso posto da cui viene
+  // `/pricing.md`. Qui resta solo l'icona, che è l'unica cosa di questi
+  // pacchetti a non avere senso fuori da questa sezione.
+  const PACKAGE_ICONS = {
+    starter: ShieldCheck,
+    academy: Users,
+    elite: Trophy,
+  } as const;
+  const packages = COACHING_PACKAGES.map((pkg) => {
+    const { amount, period } = formatPackagePrice(pkg);
+    return {
+      name: pkg.name,
+      icon: PACKAGE_ICONS[pkg.key],
+      price: amount,
+      period,
+      target: pkg.target,
+      desc: pkg.description,
+      features: pkg.features,
+      lit: pkg.highlighted,
+    };
+  });
   return (
     <section id="pacchetti" className={`${SECTION} bg-kp-ink2`}>
       <div className={WRAP}>

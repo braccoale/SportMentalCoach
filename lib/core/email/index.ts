@@ -1,4 +1,5 @@
 import 'server-only';
+import { areNotificationsSilenced } from '@/lib/core/flags';
 import { getVerticalConfig, t } from '@/lib/core/config';
 import { getAppBaseUrl } from '@/lib/core/app-url';
 import {
@@ -82,6 +83,15 @@ async function sendEmail(input: {
    */
   replyTo?: string | null;
 }): Promise<SendResult> {
+  // Il controllo più a valle che ci sia: qui passa **ogni** email del
+  // prodotto, comprese quelle che non nascono da `notify()` — il benvenuto
+  // dopo la registrazione, gli inviti, il modulo contatti. Metterlo solo
+  // dentro `notify()` avrebbe lasciato aperte proprio quelle.
+  if (areNotificationsSilenced()) {
+    console.log(`[email] silenziato: "${input.subject}"`);
+    return { ok: false, skipped: true, reason: 'silenced' };
+  }
+
   const apiKey = process.env.RESEND_API_KEY;
   const sender = getEmailSender();
 

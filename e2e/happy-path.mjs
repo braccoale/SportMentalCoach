@@ -19,13 +19,26 @@
  *   13. Athlete leaves a review
  *   14. Coach replies to the review
  *
+ * IMPORTANTE — il server va avviato con `npm run dev:silent`, non con
+ * `npm run dev`: ogni giro registra un coach, e ogni registrazione avvisa
+ * tutti gli amministratori. Sette giri hanno gia' prodotto trenta notifiche a
+ * persone reali piu' le email di benvenuto.
+ *
  * Prerequisites: dev or prod server on BASE (default http://localhost:3000),
  * seeded admin account (admin@kaipai.com / admin1234).
  *
  * Run: pnpm e2e
  */
+import { config } from 'dotenv';
+// Le credenziali stanno in .env.local, insieme agli altri segreti del
+// progetto, che git ignora. Cosi' non passano da una riga di comando.
+config({ path: '.env.local' });
 import { chromium } from 'playwright';
-import { signup as signupUser, login as loginUser } from './lib/accounts.mjs';
+import {
+  signup as signupUser,
+  login as loginUser,
+  completeCoachProfile,
+} from './lib/accounts.mjs';
 
 
 const BASE = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
@@ -40,6 +53,10 @@ const stamp = Date.now();
 const COACH = { email: `e2e-coach-${stamp}@demo.smc`, pass: 'password1234', nome: 'Paolo', cognome: `Verdi${String(stamp).slice(-5)}` };
 const ATHLETE = { email: `e2e-ath-${stamp}@demo.smc`, pass: 'password1234', nome: 'Sara', cognome: 'Blu' };
 const COACH_FULL = `${COACH.nome} ${COACH.cognome}`;
+const ADMIN = {
+  email: process.env.E2E_ADMIN_EMAIL ?? 'admin@kaipai.com',
+  pass: process.env.E2E_ADMIN_PASSWORD ?? '',
+};
 
 const results = [];
 function ok(step, msg) { results.push({ step, pass: true }); console.log(`✅ ${step}. ${msg}`); }
@@ -47,66 +64,134 @@ function ko(step, msg) { results.push({ step, pass: false }); console.log(`❌ $
 
 const browser = await chromium.launch();
 
+/**
+ * Tempi d'attesa per un server di **sviluppo**, non di produzione.
+ *
+ * `next dev` compila ogni pagina alla prima richiesta: la dashboard admin ci
+ * ha messo piu' di trenta secondi, e il valore predefinito di Playwright e'
+ * esattamente trenta. Non era lentezza del prodotto, era la compilazione — ma
+ * dallo scenario si vedeva come un guasto.
+ */
+/*
+ * `domcontentloaded`, non `load`.
+ *
+ * Il valore predefinito di Playwright aspetta che **tutte** le risorse siano
+ * chiuse. Questa applicazione tiene aperta una connessione realtime, quindi
+ * quel momento non arriva mai: un `reload()` sulla dashboard admin restava
+ * appeso finche' scadeva, e sembrava una pagina rotta. Al copione serve che il
+ * documento ci sia, non che la rete sia silenziosa.
+ */
+const DOM_READY = { waitUntil: 'domcontentloaded' };
+
+function newContext(browser) {
+  return browser.newContext().then((ctx) => {
+    /*
+     * Tre minuti, e non e' generosita': /dashboard/admin impiega ~118 secondi
+     * a rendersi in `next dev`. Misurato: le sue quattro query fanno 3,5 s in
+     * parallelo, la rotta era gia' compilata, e le altre pagine della
+     * dashboard rispondono in 4 s. Il tempo se ne va nella resa, non nei dati.
+     * E' un rilievo aperto, annotato qui perche' non venga scambiato per
+     * lentezza di rete la prossima volta che qualcuno legge questo file.
+     */
+    ctx.setDefaultNavigationTimeout(180_000);
+    ctx.setDefaultTimeout(45_000);
+    return ctx;
+  });
+}
+
 /* ── 1-2: coach signup + profile ── */
-const coachCtx = await browser.newContext();
+const coachCtx = await newContext(browser);
 const coach = await coachCtx.newPage();
 await signup(coach, COACH, 'coach');
 coach.url().includes('/dashboard/coach')
   ? ok(1, `Coach registrato (${COACH.email})`)
   : ko(1, `atteso /dashboard/coach, trovato ${coach.url()}`);
 
-// Account name (drives the public display name)
-await coach.goto(`${BASE}/dashboard/coach/profile`);
-await coach.waitForSelector('#lastName');
-await coach.fill('#name', COACH.nome);
-await coach.fill('#lastName', COACH.cognome);
-await coach.locator('form:has(#lastName) button[type="submit"]').click();
-await coach.waitForSelector('text=Account aggiornato.');
-
-// Profile: headline + bio + sport + specialty
-await coach.fill('#headline', 'Mental coach E2E per il calcio');
-await coach.fill('#description', 'Percorsi di allenamento mentale per atleti. Profilo creato dal test end-to-end.');
-await coach.check('input[name="categories"][value="football"]');
-await coach.check('input[name="specialties"][value="performance_anxiety"]');
-await coach.locator('form:has(#headline) button[type="submit"]').click();
-await coach.waitForSelector('text=Profilo aggiornato.');
-
-// One service (required by onboarding)
-await coach.goto(`${BASE}/dashboard/coach/services`);
-const newService = coach.locator('form', { hasText: 'Nuovo servizio' });
-await newService.locator('input[name="title"]').fill('Sessione individuale');
-await newService.locator('input[name="durationMin"]').fill('60');
-await newService.locator('input[name="price"]').fill('60');
-await newService.locator('button[type="submit"]').click();
-await coach.waitForSelector('text=Servizio aggiunto.');
+/*
+ * Profilo del coach e un servizio, dall'helper condiviso.
+ *
+ * Qui c'era la stessa sequenza ricopiata a mano, identica a
+ * `completeCoachProfile` in lib/accounts.mjs. Due copie della stessa cosa
+ * significa ripararla due volte a ogni rifacimento dell'interfaccia — ed e'
+ * successo: la pagina dei servizi e' passata a una finestra di dialogo e si
+ * sono rotte entrambe.
+ */
+await completeCoachProfile(coach, COACH, BASE);
 
 // Submit for review
-await coach.goto(`${BASE}/dashboard/coach/profile`);
+await coach.goto(`${BASE}/dashboard/coach/profile`, DOM_READY);
 await coach.locator('button', { hasText: 'Invia per la revisione' }).click();
 await coach.waitForTimeout(1500);
 ok(2, 'Profilo coach completato (nome, bio, sport, servizio) e inviato in revisione');
 
 /* ── 3: admin approves ── */
-const adminCtx = await browser.newContext();
+const adminCtx = await newContext(browser);
 const admin = await adminCtx.newPage();
-await login(admin, 'admin@kaipai.com', 'admin1234');
-await admin.goto(`${BASE}/dashboard/admin`);
-const row = admin.locator('li', { hasText: COACH.email }).first();
-await row.locator('button', { hasText: 'Approva' }).click();
-await admin.waitForTimeout(2000);
-await admin.reload();
-const approved = await admin.locator('li', { hasText: COACH.email }).first().innerText();
-approved.includes('Approvato')
-  ? ok(3, 'Admin ha approvato il coach')
-  : ko(3, `stato dopo approvazione: ${approved.slice(0, 80)}`);
+/*
+ * Le credenziali dell'amministratore arrivano dall'ambiente.
+ *
+ * Erano scritte qui dentro — admin@kaipai.com / admin1234 — e non funzionano
+ * piu' da quando l'autenticazione e' passata a Supabase: la password seminata
+ * non e' quella dell'identita' Auth. Una credenziale scritta in un file del
+ * repository e' sbagliata comunque, anche quando funziona.
+ */
+if (!ADMIN.pass) {
+  console.log('');
+  console.log('⚠️  Manca E2E_ADMIN_PASSWORD.');
+  console.log("   Senza, l'approvazione del coach e tutto cio' che viene dopo");
+  console.log('   non si possono verificare.');
+  console.log('   Uso: E2E_ADMIN_PASSWORD=... npm run e2e');
+  console.log('');
+  process.exit(1);
+}
+await login(admin, ADMIN.email, ADMIN.pass);
+await admin.goto(`${BASE}/dashboard/admin`, DOM_READY);
+/*
+ * Un passo che fallisce non deve uccidere i tredici successivi.
+ *
+ * Prima ogni `await` non protetto interrompeva la corsa: si scopriva **un**
+ * guasto per volta, si correggeva, si rilanciava — e oggi sono stati nove.
+ * Registrando l'esito e proseguendo, un giro solo dice tutto quello che non
+ * va. Lo screenshot serve perche' «non trovato» non e' una diagnosi: quello
+ * che c'era davvero sullo schermo lo si guarda.
+ */
+async function step(n, descrizione, azione) {
+  try {
+    const esito = await azione();
+    if (esito === false) return ko(n, `${descrizione}: condizione non verificata`);
+    return ok(n, typeof esito === 'string' ? esito : descrizione);
+  } catch (error) {
+    const message = String(error?.message ?? error).split('\n')[0];
+    return ko(n, `${descrizione} — ${message}`);
+  }
+}
+
+await step(3, 'Admin approva il coach', async () => {
+  const row = admin.locator('li', { hasText: COACH.email }).first();
+  await row.locator('button', { hasText: 'Approva' }).click();
+  await admin.waitForTimeout(2000);
+  await admin.reload(DOM_READY);
+  const riga = admin.locator('li', { hasText: COACH.email }).first();
+  if (!(await riga.count())) {
+    await admin.screenshot({ path: 'e2e/fail-step3.png', fullPage: true });
+    throw new Error(
+      `coach non trovato in nessuna lista dopo l'approvazione (url ${admin.url()}, screenshot e2e/fail-step3.png)`
+    );
+  }
+  const testo = await riga.innerText();
+  return testo.includes('Approvato')
+    ? 'Admin ha approvato il coach'
+    : (await admin.screenshot({ path: 'e2e/fail-step3.png', fullPage: true }),
+      false);
+});
 await adminCtx.close();
 
 /* ── 4-6: athlete signup, find coach, request session ── */
-const athCtx = await browser.newContext();
+const athCtx = await newContext(browser);
 const ath = await athCtx.newPage();
 await signup(ath, ATHLETE, 'athlete');
 // Athlete sets their name (what the coach will see on requests/chat/reviews)
-await ath.goto(`${BASE}/dashboard/athlete`);
+await ath.goto(`${BASE}/dashboard/athlete`, DOM_READY);
 await ath.waitForSelector('#lastName');
 await ath.fill('#name', ATHLETE.nome);
 await ath.fill('#lastName', ATHLETE.cognome);
@@ -114,14 +199,14 @@ await ath.locator('form:has(#lastName) button[type="submit"]').click();
 await ath.waitForSelector('text=Account aggiornato.');
 ok(4, `Atleta registrato con nome (${ATHLETE.email})`);
 
-await ath.goto(`${BASE}/coaches`);
+await ath.goto(`${BASE}/coaches`, DOM_READY);
 const card = ath.locator(`a[href^="/coaches/"]`, { hasText: COACH_FULL }).first();
 if (await card.count()) {
   ok(5, `Atleta trova "${COACH_FULL}" nel marketplace`);
   await card.click();
 } else {
   ko(5, 'card del coach non trovata nel listing');
-  await ath.goto(`${BASE}/coaches`);
+  await ath.goto(`${BASE}/coaches`, DOM_READY);
 }
 await ath.waitForURL(/\/coaches\/.+/, { timeout: 15000 });
 
@@ -141,7 +226,7 @@ await ath.waitForURL(/richiesta=ok/, { timeout: 20000 }).then(
 );
 
 /* ── 7-8: coach receives and accepts ── */
-await coach.goto(`${BASE}/dashboard/coach`);
+await coach.goto(`${BASE}/dashboard/coach`, DOM_READY);
 const req = coach.locator('li', { hasText: ATHLETE.nome }).first();
 if (await req.count()) {
   ok(7, 'Coach vede la richiesta in "Richieste in attesa"');
@@ -151,20 +236,20 @@ if (await req.count()) {
 }
 await req.locator('button', { hasText: 'Accetta' }).click();
 await coach.waitForTimeout(2000);
-await coach.reload();
+await coach.reload(DOM_READY);
 const acceptedRow = coach.locator('li', { hasText: `${ATHLETE.nome}` }).filter({ hasText: 'Sessione confermata' }).first();
 (await acceptedRow.count())
   ? ok(8, 'Coach ha accettato: "Sessione confermata" visibile')
   : ko(8, 'sessione accettata non trovata');
 
 /* ── 9: both calendars ── */
-await coach.goto(`${BASE}/dashboard/coach/calendar`);
+await coach.goto(`${BASE}/dashboard/coach/calendar`, DOM_READY);
 await coach.locator('button', { hasText: 'Agenda' }).click();
 await coach.waitForTimeout(600);
 (await coach.locator('button', { hasText: `${ATHLETE.nome}` }).count())
   ? ok(9, 'Coach vede la sessione nel calendario')
   : ko(9, 'evento non trovato nel calendario coach');
-await ath.goto(`${BASE}/dashboard/athlete/calendar`);
+await ath.goto(`${BASE}/dashboard/athlete/calendar`, DOM_READY);
 await ath.locator('button', { hasText: 'Agenda' }).click();
 await ath.waitForTimeout(600);
 (await ath.locator('button', { hasText: COACH_FULL }).count())
@@ -173,7 +258,7 @@ await ath.waitForTimeout(600);
 
 /* ── 10-11: video call ── */
 // booking id from the chat link on coach dashboard
-await coach.goto(`${BASE}/dashboard/coach`);
+await coach.goto(`${BASE}/dashboard/coach`, DOM_READY);
 const chatHref = await coach.locator('a[href^="/dashboard/chat/"]').first().getAttribute('href');
 const videoHref = chatHref.replace('/chat/', '/video/');
 await coach.goto(`${BASE}${videoHref}`, { waitUntil: 'networkidle' });
@@ -192,14 +277,14 @@ if (coachRoom && athRoom) {
 }
 
 /* ── 12: coach completes ── */
-await coach.goto(`${BASE}/dashboard/coach`);
+await coach.goto(`${BASE}/dashboard/coach`, DOM_READY);
 await coach.locator('li', { hasText: ATHLETE.nome }).filter({ hasText: 'Completa' }).first()
   .locator('button', { hasText: 'Completa' }).click();
 await coach.waitForTimeout(2000);
 ok(12, 'Coach ha completato la sessione');
 
 /* ── 13: athlete review ── */
-await ath.goto(`${BASE}/dashboard/athlete`);
+await ath.goto(`${BASE}/dashboard/athlete`, DOM_READY);
 const reviewBlock = ath.locator('li', { hasText: 'Lascia una recensione' }).first();
 await reviewBlock.locator('button[aria-pressed]').nth(4).click(); // 5 stars
 await reviewBlock.locator('textarea[name="body"]').fill('Sessione pilota perfetta, coach preparatissimo!');
@@ -208,12 +293,12 @@ await ath.waitForTimeout(2000);
 ok(13, 'Atleta ha lasciato una recensione 5 stelle');
 
 /* ── 14: coach replies ── */
-await coach.goto(`${BASE}/dashboard/coach`);
+await coach.goto(`${BASE}/dashboard/coach`, DOM_READY);
 const revCard = coach.locator('li', { hasText: 'Sessione pilota perfetta' }).first();
 await revCard.locator('textarea[name="reply"]').fill('Grazie Sara, alla prossima!');
 await revCard.locator('button', { hasText: 'Rispondi' }).click();
 await coach.waitForTimeout(2000);
-await coach.reload();
+await coach.reload(DOM_READY);
 (await coach.locator('text=Grazie Sara, alla prossima!').count())
   ? ok(14, 'Coach ha risposto alla recensione (risposta pubblica visibile)')
   : ko(14, 'risposta non visibile');

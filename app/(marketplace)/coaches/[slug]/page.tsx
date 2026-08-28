@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
@@ -46,9 +47,57 @@ import {
   MarketplaceFaq,
   CancellationPolicy,
 } from '@/components/trust-sections';
+import { JsonLd } from '@/components/json-ld';
+import {
+  absoluteUrl,
+  breadcrumbJsonLd,
+  coachJsonLd,
+  metaDescription,
+} from '@/lib/core/seo';
 import { BookingRequest } from './booking-request';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * Fino a ieri questa pagina non aveva titolo proprio: ereditava quello del
+ * layout radice, e ogni profilo coach si presentava a Google e ai modelli con
+ * la stessa identica riga. Erano decine di pagine indistinguibili — la cosa
+ * piu' vicina a non esistere che una pagina indicizzata possa fare.
+ *
+ * La lettura e' quella pubblica (nessun `viewerUserId`): il titolo di una
+ * pagina non puo' dipendere da chi la sta guardando.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const coach = await getCoachBySlug(slug);
+  if (!coach) return {};
+
+  const name = coach.displayName ?? 'Coach';
+  const canonical = `/coaches/${encodeURIComponent(slug)}`;
+  const title = `${name} — ${coach.headline ?? 'Mental coach sportivo'} | KaiPai`;
+  const description = metaDescription([
+    coach.headline,
+    coach.bio ?? coach.description,
+    `Prenota una sessione di coaching mentale con ${name} su KaiPai.`,
+  ]);
+
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      type: 'profile',
+      title,
+      description,
+      url: canonical,
+      images: coach.avatarUrl ? [absoluteUrl(coach.avatarUrl)] : undefined,
+    },
+  };
+}
 
 /**
  * Converts a YouTube/Vimeo URL to a safe embed URL plus the provider name, or
@@ -158,8 +207,40 @@ export default async function CoachDetailPage({
     ? t('coach.certified.yes', config)
     : t('coach.certified.no', config);
 
+  // Gli argomenti che il coach copre, in etichette leggibili: `knowsAbout`
+  // vuole «Calcio» e «Ansia da prestazione», non le chiavi di tassonomia.
+  const topics = [
+    ...(coach.categories ?? []).map((key) => labelFor(categories, key)),
+    ...(coach.specialties ?? []).map((key) => labelFor(specialties, key)),
+  ];
+
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+      <JsonLd
+        nodes={[
+          ...coachJsonLd({
+            slug,
+            name,
+            headline: coach.headline,
+            description: coach.bio ?? coach.description,
+            avatarUrl: coach.avatarUrl,
+            languages: coach.languages,
+            certifications: coach.certifications,
+            topics,
+            rating: reviewSummary,
+            reviews,
+            services: coach.services,
+            // Le tariffe entrano nel markup solo se la pagina le mostra
+            // davvero: in produzione l'interruttore e' spento.
+            publishPrices: SHOW_COACH_HOURLY_RATE,
+          }),
+          breadcrumbJsonLd([
+            { name: 'Home', path: '/' },
+            { name: t('listing.title', config), path: '/coaches' },
+            { name, path: `/coaches/${encodeURIComponent(slug)}` },
+          ]),
+        ]}
+      />
       <Link
         href="/coaches"
         className="text-sm text-gray-500 hover:text-gray-900"

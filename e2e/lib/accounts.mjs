@@ -6,6 +6,17 @@
  * che cambia un passaggio dell'onboarding.
  */
 
+/*
+ * `domcontentloaded`, non `load`.
+ *
+ * Playwright, di suo, aspetta che tutte le risorse siano chiuse. Questa
+ * applicazione tiene aperta una connessione realtime, quindi quel momento non
+ * arriva: le attese restavano appese fino alla scadenza e sembravano pagine
+ * rotte. Al copione serve che il documento ci sia, non che la rete taccia.
+ */
+const DOM_READY = { waitUntil: 'domcontentloaded' };
+const WAIT_URL = { waitUntil: 'domcontentloaded', timeout: 60_000 };
+
 export const ROLE_TITLE = {
   athlete: 'Sono un atleta',
   coach: 'Sono un mental coach',
@@ -13,7 +24,7 @@ export const ROLE_TITLE = {
 };
 
 export async function signup(page, user, role, base) {
-  await page.goto(`${base}/sign-up`);
+  await page.goto(`${base}/sign-up`, DOM_READY);
   // Step 1 — role card.
   await page.getByText(ROLE_TITLE[role]).click();
   await page.getByRole('button', { name: 'Continua', exact: true }).click();
@@ -49,37 +60,77 @@ export async function signup(page, user, role, base) {
   }
   await page.getByRole('button', { name: 'Registrati' }).click();
 
-  if (role === 'athlete') {
-    // New athletes land in the onboarding wizard: name/surname are prefilled,
-    // the rest is optional, so click through to completion (→ /coaches).
-    await page.waitForURL(/\/onboarding/, { timeout: 30000 });
-    for (let i = 0; i < 3; i++) {
-      await page.getByRole('button', { name: 'Continua', exact: true }).click();
-      await page.waitForTimeout(400);
-    }
-    await page.getByRole('button', { name: /Trova il tuo coach/ }).click();
-    await page.waitForURL(/\/(coaches|dashboard)/, { timeout: 30000 });
-  } else if (role === 'coach') {
-    // New coaches also land in the wizard: name/surname prefilled, the pro
-    // fields are optional here (set later on the dashboard) → click through.
-    await page.waitForURL(/\/onboarding/, { timeout: 30000 });
-    await page.getByRole('button', { name: 'Continua', exact: true }).click();
-    await page.waitForTimeout(400);
-    await page.getByRole('button', { name: 'Continua', exact: true }).click();
-    await page.waitForTimeout(400);
-    await page.getByRole('button', { name: 'Vai alla dashboard' }).click();
-    await page.waitForURL(/dashboard/, { timeout: 30000 });
+  if (role === 'athlete' || role === 'coach') {
+    // Chi si registra atterra nella procedura guidata. I campi professionali
+    // sono facoltativi qui — il profilo vero lo compila `completeCoachProfile`
+    // — quindi si attraversa e basta.
+    await page.waitForURL(/\/onboarding/, WAIT_URL);
+    await clickThroughWizard(page);
+
+    // L'ultimo passo non ha «Continua»: l'atleta esce con «Trova il tuo
+    // coach», il coach con «Vai alla dashboard».
+    const exit =
+      role === 'athlete'
+        ? page.getByRole('button', { name: /Trova il tuo coach/ })
+        : page.getByRole('button', { name: 'Vai alla dashboard' });
+    await exit.click();
+    await page.waitForURL(/\/(coaches|dashboard)/, WAIT_URL);
   } else {
-    await page.waitForURL(/dashboard/, { timeout: 30000 });
+    await page.waitForURL(/dashboard/, WAIT_URL);
+  }
+}
+
+/**
+ * Preme «Continua» finche' c'e'.
+ *
+ * **Perche' non conta i passi.** Qui c'erano tre clic per l'atleta e due per
+ * il coach, numeri scritti a mano. Il wizard del coach ne ha due di passi e
+ * al secondo «Continua» non esiste piu': il copione lo cercava lo stesso e
+ * restava fermo trenta secondi prima di morire. Un copione che conta i passi
+ * si rompe il giorno in cui qualcuno ne aggiunge o ne toglie uno — ed e' la
+ * terza volta oggi che questo file si rompe per un'assunzione sull'interfaccia
+ * invece che su cio' che l'interfaccia fa.
+ *
+ * Il limite serve solo a non girare all'infinito se un passo non avanzasse.
+ */
+async function clickThroughWizard(page, maxSteps = 8) {
+  const next = page.getByRole('button', { name: 'Continua', exact: true });
+
+  for (let attempt = 0; attempt < maxSteps; attempt += 1) {
+    /*
+     * Tre stati, non due, ed e' qui che il primo tentativo di correzione ha
+     * sbagliato: «visibile» non vuol dire «cliccabile». Fra un passo e l'altro
+     * il pulsante resta nel DOM **disabilitato** mentre il salvataggio e' in
+     * corso, e cliccarlo in quello stato fa aspettare Playwright trenta
+     * secondi finche' l'elemento non si stacca.
+     */
+    if (await next.isEnabled().catch(() => false)) {
+      await next.click();
+      await page.waitForTimeout(1000);
+      continue;
+    }
+    // Non c'e' piu': e' l'ultimo passo, dove il pulsante ha un altro nome.
+    if (!(await next.isVisible().catch(() => false))) return;
+    // C'e' ma sta salvando: si concede tempo e si guarda di nuovo.
+    await page.waitForTimeout(1500);
   }
 }
 
 export async function login(page, email, pass, base) {
-  await page.goto(`${base}/sign-in`);
+  await page.goto(`${base}/sign-in`, DOM_READY);
   await page.fill('#email', email);
   await page.fill('#password', pass);
-  await page.click('button[type="submit"]');
-  await page.waitForURL(/dashboard/, { timeout: 30000 });
+  /*
+   * Il pulsante del modulo, non il primo `submit` della pagina.
+   *
+   * Da quando esiste l'accesso con Google, «Continua con Google» e' anch'esso
+   * un `button[type="submit"]` e nel DOM viene prima: `click('button[type=
+   * "submit"]')` portava dritto alla schermata di Google, e lo scenario moriva
+   * aspettando una dashboard che non sarebbe mai arrivata. E' la stessa
+   * ambiguita' gia' vista sul pulsante «Continua» della registrazione.
+   */
+  await page.locator('form:has(#password) button[type="submit"]').click();
+  await page.waitForURL(/dashboard/, WAIT_URL);
 }
 
 /**
@@ -87,7 +138,7 @@ export async function login(page, email, pass, base) {
  * Senza servizio il pulsante "Nuovo appuntamento" resta disabilitato.
  */
 export async function completeCoachProfile(page, coach, base) {
-  await page.goto(`${base}/dashboard/coach/profile`);
+  await page.goto(`${base}/dashboard/coach/profile`, DOM_READY);
   await page.waitForSelector('#lastName');
   await page.fill('#name', coach.nome);
   await page.fill('#lastName', coach.cognome);
@@ -104,11 +155,28 @@ export async function completeCoachProfile(page, coach, base) {
   await page.locator('form:has(#headline) button[type="submit"]').click();
   await page.waitForSelector('text=Profilo aggiornato.');
 
-  await page.goto(`${base}/dashboard/coach/services`);
-  const newService = page.locator('form', { hasText: 'Nuovo servizio' });
-  await newService.locator('input[name="title"]').fill('Sessione individuale');
-  await newService.locator('input[name="durationMin"]').fill('60');
-  await newService.locator('input[name="price"]').fill('60');
-  await newService.locator('button[type="submit"]').click();
+  await page.goto(`${base}/dashboard/coach/services`, DOM_READY);
+  /*
+   * I servizi si aggiungono da una finestra di dialogo, non piu' da un modulo
+   * in linea.
+   *
+   * Qui si cercava `form` contenente il testo «Nuovo servizio», che non esiste
+   * piu' da quando la pagina e' stata rifatta: il copione restava fermo trenta
+   * secondi su un elemento mai comparso. I nomi dei campi invece non sono
+   * cambiati — title, durationMin, price — quindi si sposta solo il contenitore.
+   *
+   * Il pulsante ha due etichette a seconda che ci siano gia' servizi o no.
+   */
+  await page
+    .getByRole('button', { name: /Aggiungi (il primo )?servizio/ })
+    .first()
+    .click();
+  // `dialog[open]`, non `dialog`: la pagina ne contiene piu' d'uno — c'e'
+  // anche quello delle disponibilita' — e solo quello aperto ha l'attributo.
+  const dialog = page.locator('dialog[open]');
+  await dialog.locator('input[name="title"]').fill('Sessione individuale');
+  await dialog.locator('input[name="durationMin"]').fill('60');
+  await dialog.locator('input[name="price"]').fill('60');
+  await dialog.locator('button[type="submit"]').click();
   await page.waitForSelector('text=Servizio aggiunto.');
 }

@@ -8,7 +8,7 @@ import {
   users,
   type Notification,
 } from '@/lib/db/schema';
-import { isEmailEnabled } from '@/lib/core/flags';
+import { areNotificationsSilenced, isEmailEnabled } from '@/lib/core/flags';
 import { sendEventEmail } from '@/lib/core/email';
 import type { TemplateContext } from '@/lib/core/email/render';
 import type { DetailsCard } from '@/lib/core/email/details-card';
@@ -834,6 +834,14 @@ export async function notify(
   recipientUserId: number,
   ctx: NotifyContext = {}
 ): Promise<void> {
+  // Prima di qualunque cosa: se gli avvisi sono zittiti non si scrive la
+  // notifica, non si manda la mail, non si sveglia nessun telefono. Vale solo
+  // fuori dalla produzione — vedi `areNotificationsSilenced`.
+  if (areNotificationsSilenced()) {
+    console.log(`[notify] silenziato: "${type}" → utente ${recipientUserId}`);
+    return;
+  }
+
   const event = NOTIFICATION_EVENTS[type];
   const rawContent = buildNotificationContent(type, ctx);
   const firstName = event.hasInApp
