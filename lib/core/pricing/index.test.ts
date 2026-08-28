@@ -14,21 +14,31 @@ import { renderPricingMarkdown } from './markdown';
  * agenti leggono, senza rompere nulla. Questi test bloccano esattamente quello.
  */
 
-/**
- * `Intl` separa cifra e simbolo con uno spazio unificatore (U+00A0), non con
- * uno spazio normale. Confrontarlo alla lettera legherebbe il test alla
- * versione di ICU installata; qui interessa la cifra, non quel byte.
- */
 function amountOf(key: string): string {
   const pkg = COACHING_PACKAGES.find((p) => p.key === key);
   assert.ok(pkg, `pacchetto ${key} assente dal listino`);
-  return formatPackagePrice(pkg).amount.replace(/ /g, ' ');
+  return formatPackagePrice(pkg).amount;
 }
 
-test('gli importi sono in centesimi e si leggono come sulla landing', () => {
+/**
+ * Confronto alla lettera, byte per byte, ed e' il punto.
+ *
+ * La prima versione chiedeva la cifra a `Intl.NumberFormat('it-IT')`: in
+ * locale usciva «1.500 €», sul runner di GitHub Actions «1500 €». I dati ICU
+ * compilati dentro il runtime decidevano il prezzo pubblicato, e la
+ * differenza non sarebbe emersa da nessuna parte se non guardando la pagina
+ * costruita dal runtime sbagliato.
+ */
+test('gli importi si leggono identici ovunque giri la build', () => {
   assert.equal(amountOf('starter'), '1.500 €');
   assert.equal(amountOf('academy'), '3.500 €');
   assert.equal(amountOf('elite'), '75.000 €');
+});
+
+test('la cifra non dipende dai dati locale del runtime', () => {
+  // Se qualcuno rimettesse `Intl` sotto questa funzione, un runtime con ICU
+  // ridotta produrrebbe «75000 €» e questa riga lo direbbe subito.
+  assert.match(amountOf('elite'), /^\d{1,3}(\.\d{3})+ €$/);
 });
 
 test('il periodo distingue il canone mensile da quello annuale', () => {

@@ -1,5 +1,3 @@
-import { formatPrice } from '@/lib/core/format';
-
 /**
  * Il modello commerciale di KaiPai, in un posto solo.
  *
@@ -68,13 +66,41 @@ const PERIOD_LABEL: Record<CoachingPackage['period'], string> = {
   year: '/ anno',
 };
 
+/**
+ * Il separatore delle migliaia, scritto a mano invece che chiesto a `Intl`.
+ *
+ * Non è pignoleria: la suite su GitHub Actions ha reso «1500 €» dove in
+ * locale usciva «1.500 €». `Intl.NumberFormat` dipende dai dati ICU compilati
+ * dentro il runtime, e un runtime con ICU ridotta non conosce il formato
+ * italiano — quindi la cifra sarebbe cambiata a seconda di dove gira la
+ * build, senza che nessun errore lo segnalasse.
+ *
+ * Sul prezzo che finisce sulla landing e dentro `/pricing.md` non è
+ * accettabile: un listino pubblico deve leggersi identico ovunque. Il resto
+ * del prodotto continua a usare `formatPrice`, dove la cifra è un dato di
+ * interfaccia e non un'affermazione commerciale.
+ */
+function formatEuroAmount(cents: number): string {
+  const euros = Math.trunc(cents / 100);
+  const decimals = cents % 100;
+  const grouped = String(euros).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const value =
+    decimals === 0
+      ? grouped
+      : `${grouped},${String(decimals).padStart(2, '0')}`;
+  // Spazio normale, non unificatore: e' il carattere che la landing aveva
+  // nelle sue stringhe fisse, e questo listino non deve cambiare come si
+  // legge la cifra, solo da dove viene.
+  return `${value} €`;
+}
+
 /** Importo e periodo separati, perché la landing li rende in due `span`. */
 export function formatPackagePrice(pkg: CoachingPackage): {
   amount: string;
   period: string;
 } {
   return {
-    amount: formatPrice(pkg.priceCents),
+    amount: formatEuroAmount(pkg.priceCents),
     period: PERIOD_LABEL[pkg.period],
   };
 }
