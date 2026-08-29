@@ -6,15 +6,13 @@ import { ChevronDown } from 'lucide-react';
 /**
  * Un blocco della Panoramica che si può richiudere.
  *
- * La Panoramica era diventata quindici blocchi tutti con lo stesso peso
- * visivo, e questo comunica una cosa precisa: **decidi tu cosa conta**. Che è
- * esattamente il lavoro che il riepilogo dovrebbe aver già fatto. Un cruscotto
- * che mostra tutto allo stesso modo non è un cruscotto, è un archivio.
+ * Aprendo la pagina i blocchi sono **aperti**: il riepilogo si legge
+ * scorrendo, non aprendo quattro pannelli uno per uno per scoprire cosa
+ * contengono. Un titolo con dentro un'anteprima nascosta costringe a cliccare
+ * per sapere se valeva la pena cliccare.
  *
- * Niente viene rimosso: cambia solo cosa si vede aprendo la pagina. Restano
- * aperti la fascia della conversazione — che è anche il colpo d'occhio — la
- * lettura AI e il follow-up; il resto è a un clic, con l'intestazione sempre
- * visibile così si sa che c'è.
+ * Resta il richiudere: chi ha già letto un blocco, o non gliene importa, lo
+ * chiude e quella parte di pagina sparisce fino al prossimo clic.
  *
  * `<details>` nativo di proposito: nessuno stato da gestire, funziona senza
  * JavaScript, e il browser si occupa da solo di tastiera e accessibilità.
@@ -23,13 +21,13 @@ export function CollapsibleSection({
   eyebrow,
   title,
   hint,
-  defaultOpen = false,
+  defaultOpen = true,
   children,
 }: {
   /** Sopratitolo breve e maiuscolo, come nel resto della Panoramica. */
   eyebrow?: string;
   title: string;
-  /** Cosa c'è dentro, per chi decide se aprirlo: «2 momenti», «1 tema». */
+  /** Cosa c'è dentro, per chi decide se richiuderlo: «2 momenti», «1 tema». */
   hint?: string;
   defaultOpen?: boolean;
   children: ReactNode;
