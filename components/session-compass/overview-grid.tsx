@@ -175,12 +175,17 @@ export function SessionOverview({
           eyebrow="Com'è andata"
           title={report.story.title}
           hint="anteprima del racconto"
+          persistKey="story"
         >
           <SessionStoryCta story={report.story} onOpenStory={onOpenStory} />
         </CollapsibleSection>
       ) : null}
 
-      <CollapsibleSection eyebrow="In sintesi" title="Indicatori e partecipazione">
+      <CollapsibleSection
+        eyebrow="In sintesi"
+        title="Indicatori e partecipazione"
+        persistKey="metrics"
+      >
         <SessionMetricsStrip
         metrics={overview.metrics ?? []}
         metricHistory={metricHistory}
@@ -200,6 +205,7 @@ export function SessionOverview({
         eyebrow="Percorso"
         title="Filo logico del percorso"
         hint={previousJourneyEntry ? undefined : 'prima sessione analizzata'}
+        persistKey="journey"
       >
         {previousJourneyEntry ? (
           <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-2 [&>*]:h-full">
@@ -224,6 +230,7 @@ export function SessionOverview({
           eyebrow="Da riascoltare"
           title="Spunti rimasti aperti"
           hint={`${report.missedOpportunities?.length ?? 0}`}
+          persistKey="missed"
         >
           <MissedOpportunities
             items={report.missedOpportunities ?? []}
