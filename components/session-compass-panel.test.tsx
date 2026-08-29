@@ -181,6 +181,47 @@ test('la panoramica segnala i dati non disponibili senza inventare metriche', ()
   assert.doesNotMatch(html, />0\/5</);
 });
 
+/**
+ * I quattro blocchi richiudibili partivano chiusi, e la Panoramica era quattro
+ * titoli da aprire uno per uno per sapere cosa contenessero. Ora si apre tutto:
+ * il test guarda che nel markup non esista un `<details` senza `open`, perche'
+ * e' esattamente cio' che si vede arrivando sulla pagina — il ripristino di una
+ * scelta precedente avviene dopo, sul client, e qui non c'e'.
+ */
+test('i blocchi richiudibili della panoramica arrivano aperti', () => {
+  const html = renderToStaticMarkup(
+    <SessionOverview
+      report={document({
+        story: {
+          title: 'Dalla fatica tattica a un piccolo sistema di controllo',
+          paragraphs: [
+            { id: 'p-1', text: 'La seduta si apre sulla gara di domenica.', evidence: null },
+          ],
+          throughLine: null,
+        },
+        missedOpportunities: [
+          {
+            id: 'missed-1',
+            text: 'Accenna al rapporto con il padre e cambia discorso.',
+            followUp: 'Riprendere quell’accenno la prossima volta.',
+            evidence: evidence(2, 3, 'poi vabbe’, lasciamo stare'),
+          },
+        ],
+      })}
+      isApproved
+      previousJourneyEntry={null}
+      onOpenEvidence={() => undefined}
+      onOpenNotes={() => undefined}
+      onOpenStory={() => undefined}
+    />
+  );
+
+  // Quattro: racconto, indicatori, percorso, spunti. Il quinto `<details>` del
+  // markup e' il percorso atleta ripiegato per lo schermo stretto, che sotto xl
+  // sostituisce la colonna laterale e resta chiuso di proposito.
+  assert.equal((html.match(/<details open/g) ?? []).length, 4);
+});
+
 function metric(
   key: 'confidence' | 'pre_competition_anxiety' | 'concentration',
   value: number,
