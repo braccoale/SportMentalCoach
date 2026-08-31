@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { useCollapsibleMemory } from '@/lib/hooks/use-collapsible-memory';
 
 /** `kaipai-compass-section-<id>`, come le altre preferenze locali. */
 const storageKeyFor = (id: string) => `kaipai-compass-section-${id}`;
@@ -15,17 +16,14 @@ const storageKeyFor = (id: string) => `kaipai-compass-section-${id}`;
  * per sapere se valeva la pena cliccare.
  *
  * Resta il richiudere — e con `persistKey` la scelta sopravvive alla pagina:
- * chi chiude «Da riascoltare» lo ritrova chiuso alla seduta dopo. La memoria
- * sta in `localStorage`, cioè in questo browser: una lettura sincrona al
- * mount, nessuna chiamata di rete, nessuna riga in tabella. Il ritardo non è
- * misurabile, ma la scelta non segue il coach su un altro computer — se un
- * giorno dovrà, il posto giusto sono le preferenze utente, non questo file.
+ * chi chiude «Da riascoltare» lo ritrova chiuso alla seduta dopo. Come lo
+ * ricorda, e cosa costa, sta in `useCollapsibleMemory`: la stessa memoria che
+ * usano i blocchi dell'amministrazione, così le due schermate non finiscono
+ * con due regole diverse per la stessa domanda.
  *
  * `<details>` nativo di proposito: nessuno stato React da gestire, funziona
  * senza JavaScript, e il browser si occupa da solo di tastiera e
- * accessibilità. Anche il ripristino scrive direttamente su `open` via ref:
- * mettere lo stato in React vorrebbe dire ri-renderizzare tutto il contenuto
- * del blocco per un attributo che il browser sa già gestire.
+ * accessibilità.
  */
 export function CollapsibleSection({
   eyebrow,
@@ -48,39 +46,19 @@ export function CollapsibleSection({
   persistKey?: string;
   children: ReactNode;
 }) {
-  const ref = useRef<HTMLDetailsElement>(null);
-
   // Il ripristino avviene dopo l'idratazione: un blocco richiuso si vede
   // aperto per un fotogramma. È il prezzo di servire la pagina dal server
   // senza uno script bloccante nell'head, e riguarda solo i blocchi che il
   // coach ha chiuso di sua mano.
-  useEffect(() => {
-    if (!persistKey || !ref.current) return;
-    try {
-      const stored = window.localStorage.getItem(storageKeyFor(persistKey));
-      if (stored === 'open' || stored === 'closed') {
-        ref.current.open = stored === 'open';
-      }
-    } catch {
-      // localStorage negato (navigazione privata): si resta sul default.
-    }
-  }, [persistKey]);
+  const { ref, onToggle } = useCollapsibleMemory(
+    persistKey ? storageKeyFor(persistKey) : null
+  );
 
   return (
     <details
       ref={ref}
       open={defaultOpen}
-      onToggle={(event) => {
-        if (!persistKey) return;
-        try {
-          window.localStorage.setItem(
-            storageKeyFor(persistKey),
-            event.currentTarget.open ? 'open' : 'closed',
-          );
-        } catch {
-          // Come sopra: non ricordare è meglio che rompere l'apertura.
-        }
-      }}
+      onToggle={onToggle}
       className="group min-w-0 max-w-full rounded-2xl border border-gray-200 bg-white"
     >
       <summary className="flex cursor-pointer list-none items-center gap-3 p-5 [&::-webkit-details-marker]:hidden">

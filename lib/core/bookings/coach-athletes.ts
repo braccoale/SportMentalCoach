@@ -14,6 +14,37 @@ import { getSessionDurationMinutes } from '../format';
  * Modulo puro: nessun I/O, nessun `server-only`, direttamente testabile.
  */
 
+/**
+ * Il minimo che serve per dire chi sono gli atleti di un coach.
+ *
+ * Meno di `CoachBooking`, e non per risparmiare righe: l'amministrazione fa la
+ * stessa domanda per tutti i coach in una query sola, e i campi che mancano
+ * qui — gli stati degli appunti AI, la registrazione, la trascrizione — sono
+ * sottoquery per prenotazione, cioè esattamente ciò che non si può permettere
+ * su tutto il database. Restano opzionali: la dashboard coach li passa e
+ * ottiene anche i riepiloghi da validare, l'amministrazione no e non li vede.
+ */
+export type CoachAthleteBooking = Pick<
+  CoachBooking,
+  | 'id'
+  | 'clientId'
+  | 'status'
+  | 'scheduledFor'
+  | 'requestedAt'
+  | 'sessionStartedAt'
+  | 'sessionEndedAt'
+  | 'clientName'
+  | 'clientEmail'
+  | 'clientAvatarUrl'
+  | 'athleteSport'
+  | 'athleteLevel'
+  | 'athleteGoals'
+  | 'athleteIsMinor'
+  | 'athleteAge'
+  | 'durationMin'
+> &
+  Partial<Pick<CoachBooking, 'aiNotesStatus' | 'aiReportStatus'>>;
+
 /** Stati che indicano una sessione realmente avvenuta o concordata. */
 const ACTIVE_STATUSES = ['requested', 'accepted'];
 /**
@@ -31,7 +62,7 @@ const ACTIVE_STATUSES = ['requested', 'accepted'];
  * collegato davvero (`sessionStartedAt`), e la sua finestra e' finita — quella
  * in corso adesso non e' passato, e' presente.
  */
-function wasHeld(booking: CoachBooking, now: Date): boolean {
+function wasHeld(booking: CoachAthleteBooking, now: Date): boolean {
   if (booking.status === 'completed') return true;
   if (booking.status !== 'accepted') return false;
   if (!booking.sessionStartedAt) return false;
@@ -96,7 +127,7 @@ export type CoachAthleteSessionStats = {
   averageSessionMinutes: number | null;
 };
 
-function displayName(booking: CoachBooking): string {
+export function athleteDisplayName(booking: CoachAthleteBooking): string {
   return booking.clientName?.trim() || booking.clientEmail.split('@')[0];
 }
 
@@ -105,15 +136,15 @@ function displayName(booking: CoachBooking): string {
  * videochiamata quando c'è, altrimenti l'orario concordato. Serve a distinguere
  * "svolta" da "prenotata e mai fatta".
  */
-function heldAt(booking: CoachBooking): Date | null {
+function heldAt(booking: CoachAthleteBooking): Date | null {
   return booking.sessionEndedAt ?? booking.scheduledFor ?? null;
 }
 
 export function buildCoachAthletes(
-  bookings: readonly CoachBooking[],
+  bookings: readonly CoachAthleteBooking[],
   now: Date = new Date()
 ): CoachAthleteSummary[] {
-  const byAthlete = new Map<number, CoachBooking[]>();
+  const byAthlete = new Map<number, CoachAthleteBooking[]>();
   for (const booking of bookings) {
     const list = byAthlete.get(booking.clientId);
     if (list) list.push(booking);
@@ -158,7 +189,7 @@ export function buildCoachAthletes(
 
     summaries.push({
       userId,
-      name: displayName(latest),
+      name: athleteDisplayName(latest),
       avatarUrl: latest.clientAvatarUrl,
       sport: latest.athleteSport,
       level: latest.athleteLevel,
@@ -210,7 +241,7 @@ export function buildCoachAthletes(
  * durata misurata; per le chiusure manuali o storiche usa quella concordata.
  */
 export function buildCoachAthleteSessionStats(
-  bookings: readonly CoachBooking[],
+  bookings: readonly CoachAthleteBooking[],
   athleteUserId: number,
   now: Date = new Date()
 ): CoachAthleteSessionStats {

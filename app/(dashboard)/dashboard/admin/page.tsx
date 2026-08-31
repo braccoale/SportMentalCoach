@@ -13,9 +13,11 @@ import { requireRole } from '@/lib/core/auth';
 import {
   getProviderProfilesForReview,
   getAllAthletesForAdmin,
+  getCoachRostersForAdmin,
   type ProviderReviewItem,
   type AthleteAdminItem,
 } from '@/lib/core/admin';
+import type { CoachRoster } from '@/lib/core/admin/coach-roster';
 import { DemoBadge } from '@/components/demo-badge';
 import { getVerticalConfig, findTaxonomyItem, t } from '@/lib/core/config';
 import { getAllSports } from '@/lib/core/taxonomies';
@@ -24,7 +26,9 @@ import { formatDate, formatDateTime } from '@/lib/core/format';
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
 import { CoachAvatar } from '@/components/coach-visuals';
+import { CollapsiblePanel } from '@/components/collapsible-panel';
 import { LiveSessionDot } from '@/components/admin/live-session-dot';
+import { CoachRosterBlock } from '@/components/admin/coach-roster';
 import { getLiveCoachProviderIds } from '@/lib/core/admin/live-sessions';
 import {
   approveProviderAction,
@@ -112,10 +116,13 @@ function ProviderRequirements({ p }: { p: ProviderReviewItem }) {
 function ProviderRow({
   p,
   sportsList,
+  roster,
   isLive = false,
 }: {
   p: ProviderReviewItem;
   sportsList: TaxonomyItem[];
+  /** Assente quando il coach non ha nessuna prenotazione: allora non c'è nulla da mostrare. */
+  roster?: CoachRoster;
   isLive?: boolean;
 }) {
   const config = getVerticalConfig();
@@ -126,11 +133,11 @@ function ProviderRow({
   return (
     <li
       id={`coach-${p.id}`}
-      className="flex scroll-mt-24 flex-col gap-3 rounded-lg border border-gray-200 p-4 sm:flex-row sm:items-center sm:justify-between"
+      className="flex scroll-mt-24 flex-col gap-3 rounded-lg border border-gray-200 p-4 sm:flex-row sm:items-start sm:justify-between"
     >
-      <div className="flex items-start gap-3">
+      <div className="flex min-w-0 flex-1 items-start gap-3">
         <CoachAvatar name={p.displayName} src={p.avatarUrl} className="size-12" />
-        <div>
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className="font-medium text-gray-900">
               {p.displayName ?? p.email}
@@ -210,6 +217,12 @@ function ProviderRow({
               </button>
             </form>
           </div>
+
+          {roster ? (
+            <div className="mt-3">
+              <CoachRosterBlock roster={roster} sportsList={sportsList} />
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -288,12 +301,14 @@ function AthleteRow({
 
 export default async function AdminDashboardPage() {
   await requireRole('admin');
-  const [all, sportsList, athletes, liveProviderIds] = await Promise.all([
-    getProviderProfilesForReview(),
-    getAllSports(),
-    getAllAthletesForAdmin(),
-    getLiveCoachProviderIds(),
-  ]);
+  const [all, sportsList, athletes, liveProviderIds, rosters] =
+    await Promise.all([
+      getProviderProfilesForReview(),
+      getAllSports(),
+      getAllAthletesForAdmin(),
+      getLiveCoachProviderIds(),
+      getCoachRostersForAdmin(),
+    ]);
   const queue = all.filter((p) => p.status === 'pending');
   const drafts = all.filter((p) => p.status === 'draft');
   const approved = all.filter((p) => p.status === 'approved');
@@ -316,20 +331,11 @@ export default async function AdminDashboardPage() {
         Configura Appunti AI · BETA
       </Link>
 
-      <h2 className="mt-8 text-lg font-medium text-gray-900">
-        Atleti registrati ({athletes.length})
-      </h2>
-      {athletes.length === 0 ? (
-        <p className="mt-2 text-gray-500">Nessun atleta registrato.</p>
-      ) : (
-        <ul className="mt-3 grid items-stretch gap-3 sm:grid-cols-2">
-          {athletes.map((a) => (
-            <AthleteRow key={a.userId} a={a} sportsList={sportsList} />
-          ))}
-        </ul>
-      )}
-
-      {/* Quick stats */}
+      {/*
+        I numeri restano fuori dai blocchi richiudibili: sono il riassunto
+        della pagina, e un riassunto che si può nascondere non riassume più
+        niente.
+      */}
       <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <div className="flex items-center gap-2 text-gray-500">
@@ -364,66 +370,128 @@ export default async function AdminDashboardPage() {
         </div>
       </div>
 
-      <h2 className="mt-8 text-lg font-medium text-gray-900">
-        Coda di revisione ({queue.length})
-      </h2>
-      {queue.length === 0 ? (
-        <p className="mt-2 text-gray-500">Nessun profilo in attesa di revisione.</p>
-      ) : (
-        <ul className="mt-3 flex flex-col gap-3">
-          {queue.map((p) => (
-            <ProviderRow key={p.id} p={p} sportsList={sportsList} isLive={liveProviderIds.has(p.id)} />
-          ))}
-        </ul>
-      )}
+      {/*
+        Da qui in giù la pagina è fatta di blocchi che si aprono e si
+        richiudono. Arrivano aperti — chiusi, sarebbero sei titoli da aprire
+        uno per uno per sapere cosa contengono — tranne quelli vuoti, dove il
+        conteggio a zero è già tutto il contenuto. Quello che richiudi resta
+        richiuso: la scelta la ricorda questo browser.
+      */}
+      <CollapsiblePanel
+        title="Atleti registrati"
+        count={athletes.length}
+        defaultOpen={athletes.length > 0}
+        persistKey="admin-athletes"
+      >
+        {athletes.length === 0 ? (
+          <p className="text-gray-500">Nessun atleta registrato.</p>
+        ) : (
+          <ul className="grid items-stretch gap-3 sm:grid-cols-2">
+            {athletes.map((a) => (
+              <AthleteRow key={a.userId} a={a} sportsList={sportsList} />
+            ))}
+          </ul>
+        )}
+      </CollapsiblePanel>
 
-      <h2 className="mt-8 text-lg font-medium text-gray-900">
-        Coach registrati · profilo non inviato ({drafts.length})
-      </h2>
-      {drafts.length === 0 ? (
-        <p className="mt-2 text-gray-500">
-          Nessun coach con il profilo ancora in bozza.
-        </p>
-      ) : (
-        <>
-          <p className="mt-1 text-sm text-gray-500">
-            Questi coach si sono registrati, ma non hanno ancora inviato il
-            profilo per la revisione.
+      <CollapsiblePanel
+        title="Coda di revisione"
+        count={queue.length}
+        defaultOpen={queue.length > 0}
+        persistKey="admin-queue"
+      >
+        {queue.length === 0 ? (
+          <p className="text-gray-500">Nessun profilo in attesa di revisione.</p>
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {queue.map((p) => (
+              <ProviderRow
+                key={p.id}
+                p={p}
+                sportsList={sportsList}
+                roster={rosters.get(p.id)}
+                isLive={liveProviderIds.has(p.id)}
+              />
+            ))}
+          </ul>
+        )}
+      </CollapsiblePanel>
+
+      <CollapsiblePanel
+        title="Coach registrati · profilo non inviato"
+        count={drafts.length}
+        defaultOpen={drafts.length > 0}
+        persistKey="admin-drafts"
+      >
+        {drafts.length === 0 ? (
+          <p className="text-gray-500">
+            Nessun coach con il profilo ancora in bozza.
           </p>
-          <ul className="mt-3 flex flex-col gap-3">
-            {drafts.map((p) => (
-              <ProviderRow key={p.id} p={p} sportsList={sportsList} isLive={liveProviderIds.has(p.id)} />
+        ) : (
+          <>
+            <p className="text-sm text-gray-500">
+              Questi coach si sono registrati, ma non hanno ancora inviato il
+              profilo per la revisione.
+            </p>
+            <ul className="mt-3 flex flex-col gap-3">
+              {drafts.map((p) => (
+                <ProviderRow
+                  key={p.id}
+                  p={p}
+                  sportsList={sportsList}
+                  roster={rosters.get(p.id)}
+                  isLive={liveProviderIds.has(p.id)}
+                />
+              ))}
+            </ul>
+          </>
+        )}
+      </CollapsiblePanel>
+
+      <CollapsiblePanel
+        title="Profili approvati"
+        count={approved.length}
+        defaultOpen={approved.length > 0}
+        persistKey="admin-approved"
+      >
+        {approved.length === 0 ? (
+          <p className="text-gray-500">Nessun profilo approvato.</p>
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {approved.map((p) => (
+              <ProviderRow
+                key={p.id}
+                p={p}
+                sportsList={sportsList}
+                roster={rosters.get(p.id)}
+                isLive={liveProviderIds.has(p.id)}
+              />
             ))}
           </ul>
-        </>
-      )}
+        )}
+      </CollapsiblePanel>
 
-      <h2 className="mt-8 text-lg font-medium text-gray-900">
-        Profili Approvati ({approved.length})
-      </h2>
-      {approved.length === 0 ? (
-        <p className="mt-2 text-gray-500">Nessun profilo approvato.</p>
-      ) : (
-        <ul className="mt-3 flex flex-col gap-3">
-          {approved.map((p) => (
-            <ProviderRow key={p.id} p={p} sportsList={sportsList} isLive={liveProviderIds.has(p.id)} />
-          ))}
-        </ul>
-      )}
-
+      {/* I rifiutati non hanno un blocco quando non ce ne sono: un elenco a
+          zero che non serve a nessuno è rumore, non informazione. */}
       {rejected.length > 0 && (
-        <>
-          <h2 className="mt-8 text-lg font-medium text-gray-900">
-            Profili rifiutati ({rejected.length})
-          </h2>
-          <ul className="mt-3 flex flex-col gap-3">
+        <CollapsiblePanel
+          title="Profili rifiutati"
+          count={rejected.length}
+          persistKey="admin-rejected"
+        >
+          <ul className="flex flex-col gap-3">
             {rejected.map((p) => (
-              <ProviderRow key={p.id} p={p} sportsList={sportsList} isLive={liveProviderIds.has(p.id)} />
+              <ProviderRow
+                key={p.id}
+                p={p}
+                sportsList={sportsList}
+                roster={rosters.get(p.id)}
+                isLive={liveProviderIds.has(p.id)}
+              />
             ))}
           </ul>
-        </>
+        </CollapsiblePanel>
       )}
-
     </section>
   );
 }
