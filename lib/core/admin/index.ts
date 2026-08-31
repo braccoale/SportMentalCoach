@@ -26,6 +26,8 @@ import { notify } from '@/lib/core/notifications';
 import { effectiveBookingDurationMin } from '@/lib/core/bookings/conflict-query';
 import { ageFromBirthDate, requiresGuardian } from '@/lib/core/guardians';
 import { buildCoachRosters, type CoachRoster } from './coach-roster';
+import { buildTodaySessions, type AdminTodaySession } from './today-sessions';
+import type { AdminBookingRow } from './booking-rows';
 import {
   computeCoachOnboarding,
   type CoachOnboarding,
@@ -240,9 +242,9 @@ export async function getAllAthletesForAdmin(): Promise<AthleteAdminItem[]> {
 }
 
 /**
- * Per ogni coach: chi segue e cosa ha in agenda.
+ * Le prenotazioni che servono all'amministrazione, lette una volta sola.
  *
- * Una query sola per tutti i coach, non una per coach. La differenza non è di
+ * Una query per tutti i coach, non una per coach. La differenza non è di
  * stile: `getCoachBookings` porta con sé una sottoquery per prenotazione per
  * gli stati degli appunti AI, e ripeterla per ogni riga dell'elenco
  * amministrazione significherebbe decine di scansioni per aprire una pagina.
@@ -252,9 +254,10 @@ export async function getAllAthletesForAdmin(): Promise<AthleteAdminItem[]> {
  * Le prenotazioni degli utenti cancellati non entrano: un account eliminato
  * non è un atleta seguito.
  */
-export async function getCoachRostersForAdmin(
-  now: Date = new Date()
-): Promise<Map<number, CoachRoster>> {
+async function getAdminBookingRows(): Promise<AdminBookingRow[]> {
+  const coachUser = alias(users, 'coach_user');
+  const coachProfile = alias(profiles, 'coach_profile');
+
   const rows = await db
     .select({
       providerId: bookings.providerId,
@@ -274,25 +277,60 @@ export async function getCoachRostersForAdmin(
       athleteBirthDate: clientProfiles.birthDate,
       serviceTitle: services.title,
       durationMin: effectiveBookingDurationMin,
+      coachDisplayName: coachProfile.displayName,
+      coachRawName: sql<string | null>`nullif(trim(concat(coalesce(${coachUser.name}, ''), ' ', coalesce(${coachUser.lastName}, ''))), '')`,
+      coachEmail: coachUser.email,
     })
     .from(bookings)
     .innerJoin(users, eq(bookings.clientId, users.id))
     .leftJoin(profiles, eq(profiles.userId, users.id))
     .leftJoin(clientProfiles, eq(clientProfiles.userId, users.id))
     .leftJoin(services, eq(services.id, bookings.serviceId))
+    .innerJoin(providerProfiles, eq(providerProfiles.id, bookings.providerId))
+    .innerJoin(coachUser, eq(coachUser.id, providerProfiles.userId))
+    .leftJoin(coachProfile, eq(coachProfile.userId, providerProfiles.userId))
     .where(isNull(users.deletedAt))
     .orderBy(desc(bookings.requestedAt));
 
   // La data di nascita non esce da qui: all'amministrazione serve sapere che
   // è un minore, non quando compie gli anni. Stessa regola della dashboard
   // coach.
-  return buildCoachRosters(
-    rows.map(({ athleteBirthDate, ...row }) => {
+  return rows.map(
+    ({
+      athleteBirthDate,
+      coachDisplayName,
+      coachRawName,
+      coachEmail,
+      ...row
+    }) => {
       const age = ageFromBirthDate(athleteBirthDate);
-      return { ...row, athleteIsMinor: requiresGuardian(age), athleteAge: age };
-    }),
-    now
+      return {
+        ...row,
+        athleteIsMinor: requiresGuardian(age),
+        athleteAge: age,
+        coachName: resolveDisplayName(coachDisplayName ?? coachRawName, coachEmail),
+      };
+    }
   );
+}
+
+/**
+ * Le due letture che la pagina amministrazione fa sulle stesse prenotazioni:
+ * chi segue ogni coach, e cosa succede oggi.
+ *
+ * Stanno insieme perché vengono dalla stessa query: chiederle separatamente
+ * vorrebbe dire leggere due volte tutte le prenotazioni per disegnare una
+ * pagina sola.
+ */
+export async function getAdminBookingsOverview(now: Date = new Date()): Promise<{
+  rosters: Map<number, CoachRoster>;
+  todaySessions: AdminTodaySession[];
+}> {
+  const rows = await getAdminBookingRows();
+  return {
+    rosters: buildCoachRosters(rows, now),
+    todaySessions: buildTodaySessions(rows, now),
+  };
 }
 
 /** Admin toggles a verification flag on a provider profile. */

@@ -1,10 +1,10 @@
 import {
   athleteDisplayName,
   buildCoachAthletes,
-  type CoachAthleteBooking,
   type CoachAthleteSummary,
 } from '@/lib/core/bookings/coach-athletes';
 import { isSessionUpcoming } from '@/lib/core/sessions';
+import type { AdminBookingRow } from './booking-rows';
 
 /**
  * Chi segue un coach, e cosa ha in agenda — visto dall'amministrazione.
@@ -18,12 +18,6 @@ import { isSessionUpcoming } from '@/lib/core/sessions';
  *
  * Modulo puro: nessun I/O, direttamente testabile.
  */
-
-export type AdminRosterBooking = CoachAthleteBooking & {
-  /** Il coach a cui la prenotazione appartiene: qui i coach sono tutti insieme. */
-  providerId: number;
-  serviceTitle: string | null;
-};
 
 export type CoachUpcomingSession = {
   bookingId: number;
@@ -58,10 +52,10 @@ export type CoachRoster = {
  * zero sotto ogni profilo appena registrato.
  */
 export function buildCoachRosters(
-  rows: readonly AdminRosterBooking[],
+  rows: readonly AdminBookingRow[],
   now: Date = new Date()
 ): Map<number, CoachRoster> {
-  const byProvider = new Map<number, AdminRosterBooking[]>();
+  const byProvider = new Map<number, AdminBookingRow[]>();
   for (const row of rows) {
     const list = byProvider.get(row.providerId);
     if (list) list.push(row);

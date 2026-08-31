@@ -1,18 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildCoachRosters, type AdminRosterBooking } from './coach-roster';
+import { buildCoachRosters } from './coach-roster';
+import type { AdminBookingRow } from './booking-rows';
 
 const NOW = new Date('2026-08-05T10:00:00Z');
 
 function booking(
-  over: Partial<AdminRosterBooking> & {
+  over: Partial<AdminBookingRow> & {
     id: number;
     clientId: number;
     providerId: number;
   }
-): AdminRosterBooking {
+): AdminBookingRow {
   return {
     status: 'completed',
+    coachName: 'Coach Demo',
     scheduledFor: null,
     requestedAt: new Date('2026-08-01T10:00:00Z'),
     sessionStartedAt: null,

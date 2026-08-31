@@ -2,38 +2,20 @@ import 'server-only';
 import { and, eq, gt, inArray, isNotNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { bookings, providerProfiles } from '@/lib/db/schema';
+import {
+  LIVE_SESSION_SILENCE_MS,
+  isSessionLive,
+} from './live-session-state';
 
 /**
  * Quali coach sono in chiamata **adesso**.
  *
- * Il segnale non è l'orario dell'appuntamento: una seduta fissata alle 18:00
- * può non essere mai iniziata, o essere finita dopo dieci minuti. Si guarda il
- * battito che il client manda mentre qualcuno è davvero collegato — lo stesso
- * che serve a misurare la durata reale della sessione. Se l'ultimo battito è
- * di pochi istanti fa, in quella stanza c'è qualcuno.
- *
- * È l'unica lettura che distingue «doveva esserci» da «c'è».
+ * La regola — quanto silenzio del battito rende morta una sessione — sta in
+ * `live-session-state`, dove si può testare senza database. Qui c'è solo la
+ * query che la applica a tutti i coach insieme.
  */
 
-/**
- * Oltre questo silenzio la sessione non è più considerata viva.
- *
- * Il battito arriva a intervalli regolari; due minuti lasciano spazio a un
- * ritardo di rete o a una scheda che rallenta, senza tenere accesa una spia
- * per una chiamata chiusa male — che è il modo più rapido per far smettere di
- * fidarsi di quella spia.
- */
-export const LIVE_SESSION_SILENCE_MS = 2 * 60_000;
-
-export function isSessionLive(
-  lastHeartbeatAt: Date | null,
-  now: Date = new Date()
-): boolean {
-  if (!lastHeartbeatAt) return false;
-  const silence = now.getTime() - lastHeartbeatAt.getTime();
-  // Un battito dal futuro è un orologio sballato, non una sessione viva.
-  return silence >= 0 && silence <= LIVE_SESSION_SILENCE_MS;
-}
+export { LIVE_SESSION_SILENCE_MS, isSessionLive };
 
 /** Gli id dei profili coach con una sessione viva in questo momento. */
 export async function getLiveCoachProviderIds(
