@@ -23,6 +23,9 @@ import {
   type ProviderStatus,
 } from '@/lib/db/schema';
 import { notify } from '@/lib/core/notifications';
+import { effectiveBookingDurationMin } from '@/lib/core/bookings/conflict-query';
+import { ageFromBirthDate, requiresGuardian } from '@/lib/core/guardians';
+import { buildCoachRosters, type CoachRoster } from './coach-roster';
 import {
   computeCoachOnboarding,
   type CoachOnboarding,
@@ -234,6 +237,62 @@ export async function getAllAthletesForAdmin(): Promise<AthleteAdminItem[]> {
     totalMinutes: statsByUser.get(r.userId)?.totalMinutes ?? 0,
     createdAt: r.createdAt,
   }));
+}
+
+/**
+ * Per ogni coach: chi segue e cosa ha in agenda.
+ *
+ * Una query sola per tutti i coach, non una per coach. La differenza non è di
+ * stile: `getCoachBookings` porta con sé una sottoquery per prenotazione per
+ * gli stati degli appunti AI, e ripeterla per ogni riga dell'elenco
+ * amministrazione significherebbe decine di scansioni per aprire una pagina.
+ * Qui quei campi non servono — l'amministrazione guarda persone e agenda, non
+ * riepiloghi da validare — e restano fuori.
+ *
+ * Le prenotazioni degli utenti cancellati non entrano: un account eliminato
+ * non è un atleta seguito.
+ */
+export async function getCoachRostersForAdmin(
+  now: Date = new Date()
+): Promise<Map<number, CoachRoster>> {
+  const rows = await db
+    .select({
+      providerId: bookings.providerId,
+      id: bookings.id,
+      clientId: bookings.clientId,
+      status: bookings.status,
+      scheduledFor: bookings.scheduledFor,
+      requestedAt: bookings.requestedAt,
+      sessionStartedAt: bookings.sessionStartedAt,
+      sessionEndedAt: bookings.sessionEndedAt,
+      clientName: sql<string | null>`nullif(trim(concat(coalesce(${users.name}, ''), ' ', coalesce(${users.lastName}, ''))), '')`,
+      clientEmail: users.email,
+      clientAvatarUrl: profiles.avatarUrl,
+      athleteSport: clientProfiles.category,
+      athleteLevel: clientProfiles.level,
+      athleteGoals: clientProfiles.goals,
+      athleteBirthDate: clientProfiles.birthDate,
+      serviceTitle: services.title,
+      durationMin: effectiveBookingDurationMin,
+    })
+    .from(bookings)
+    .innerJoin(users, eq(bookings.clientId, users.id))
+    .leftJoin(profiles, eq(profiles.userId, users.id))
+    .leftJoin(clientProfiles, eq(clientProfiles.userId, users.id))
+    .leftJoin(services, eq(services.id, bookings.serviceId))
+    .where(isNull(users.deletedAt))
+    .orderBy(desc(bookings.requestedAt));
+
+  // La data di nascita non esce da qui: all'amministrazione serve sapere che
+  // è un minore, non quando compie gli anni. Stessa regola della dashboard
+  // coach.
+  return buildCoachRosters(
+    rows.map(({ athleteBirthDate, ...row }) => {
+      const age = ageFromBirthDate(athleteBirthDate);
+      return { ...row, athleteIsMinor: requiresGuardian(age), athleteAge: age };
+    }),
+    now
+  );
 }
 
 /** Admin toggles a verification flag on a provider profile. */
