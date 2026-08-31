@@ -13,7 +13,7 @@ import { requireRole } from '@/lib/core/auth';
 import {
   getProviderProfilesForReview,
   getAllAthletesForAdmin,
-  getCoachRostersForAdmin,
+  getAdminBookingsOverview,
   type ProviderReviewItem,
   type AthleteAdminItem,
 } from '@/lib/core/admin';
@@ -29,6 +29,7 @@ import { CoachAvatar } from '@/components/coach-visuals';
 import { CollapsiblePanel } from '@/components/collapsible-panel';
 import { LiveSessionDot } from '@/components/admin/live-session-dot';
 import { CoachRosterBlock } from '@/components/admin/coach-roster';
+import { TodaySessionsWidget } from '@/components/admin/today-sessions-widget';
 import { getLiveCoachProviderIds } from '@/lib/core/admin/live-sessions';
 import {
   approveProviderAction,
@@ -301,14 +302,15 @@ function AthleteRow({
 
 export default async function AdminDashboardPage() {
   await requireRole('admin');
-  const [all, sportsList, athletes, liveProviderIds, rosters] =
+  const [all, sportsList, athletes, liveProviderIds, bookingsOverview] =
     await Promise.all([
       getProviderProfilesForReview(),
       getAllSports(),
       getAllAthletesForAdmin(),
       getLiveCoachProviderIds(),
-      getCoachRostersForAdmin(),
+      getAdminBookingsOverview(),
     ]);
+  const { rosters, todaySessions } = bookingsOverview;
   const queue = all.filter((p) => p.status === 'pending');
   const drafts = all.filter((p) => p.status === 'draft');
   const approved = all.filter((p) => p.status === 'approved');
@@ -336,7 +338,7 @@ export default async function AdminDashboardPage() {
         della pagina, e un riassunto che si può nascondere non riassume più
         niente.
       */}
-      <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3">
+      <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <div className="flex items-center gap-2 text-gray-500">
             <Hourglass className="h-4 w-4" />
@@ -368,6 +370,11 @@ export default async function AdminDashboardPage() {
             {athletes.length}
           </p>
         </div>
+
+        {/* Il quarto riquadro è anche un pulsante: cliccato, si apre sulla
+            giornata — orario, coach, atleta, stato. Gli altri tre sono numeri
+            e basta, perché non c'è un elenco dietro. */}
+        <TodaySessionsWidget sessions={todaySessions} />
       </div>
 
       {/*
