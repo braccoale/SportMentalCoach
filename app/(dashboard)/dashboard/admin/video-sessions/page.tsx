@@ -58,15 +58,15 @@ export default async function VideoSessionsTechnicalLogPage() {
   ).length;
 
   return (
-    <section className="mx-auto w-full max-w-7xl p-6">
+    <section className="p-4 lg:p-0">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link
-            href="/dashboard/admin"
+            href="/dashboard/admin/sessioni"
             className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900"
           >
             <ArrowLeft className="h-4 w-4" />
-            Torna all’amministrazione
+            Torna alle sessioni
           </Link>
           <h1 className="mt-3 flex items-center gap-2 text-2xl font-semibold text-gray-950">
             <Activity className="h-6 w-6 text-red-600" />

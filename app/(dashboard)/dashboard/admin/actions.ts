@@ -7,7 +7,18 @@ import {
   setProviderVerification,
   type VerificationField,
 } from '@/lib/core/admin';
+import { recordAdminAudit } from '@/lib/core/admin/audit-log';
 import type { ActionState } from '@/lib/auth/middleware';
+
+/**
+ * Le decisioni sui profili coach.
+ *
+ * Ogni esito finisce nel registro amministrativo, **anche quando fallisce**:
+ * fino a ieri l'approvazione scriveva `reviewed_by` sul profilo — cioè
+ * l'ultimo che ha deciso, non la storia — e la revoca di una verifica non
+ * scriveva niente. A distanza di sei mesi non c'era modo di sapere chi avesse
+ * tolto una spunta, né quando.
+ */
 
 async function review(
   formData: FormData,
@@ -24,12 +35,23 @@ async function review(
     adminUserId: admin.id,
     decision,
   });
+
+  await recordAdminAudit({
+    actor: { id: admin.id, email: admin.email },
+    action: decision === 'approved' ? 'coach_approved' : 'coach_rejected',
+    subjectType: 'provider_profile',
+    subjectId: providerId,
+    outcome: result.ok ? 'ok' : 'fallita',
+    detail: { decisione: decision },
+  });
+
   if (!result.ok) {
     return { error: result.error };
   }
 
   // Refresh the queue and the public listing (approval changes visibility).
   revalidatePath('/dashboard/admin');
+  revalidatePath('/dashboard/admin/coach');
   revalidatePath('/coaches');
   return {
     success: decision === 'approved' ? 'Profilo approvato.' : 'Profilo rifiutato.',
@@ -55,8 +77,25 @@ async function setVerification(formData: FormData, field: VerificationField) {
   const providerId = Number(formData.get('providerId'));
   const value = formData.get('value') === '1';
   if (!Number.isInteger(providerId)) return;
-  await setProviderVerification({ providerId, field, value, actorUserId: admin.id });
+
+  const result = await setProviderVerification({
+    providerId,
+    field,
+    value,
+    actorUserId: admin.id,
+  });
+
+  await recordAdminAudit({
+    actor: { id: admin.id, email: admin.email },
+    action: 'coach_verification_changed',
+    subjectType: 'provider_profile',
+    subjectId: providerId,
+    outcome: result.ok ? 'ok' : 'fallita',
+    detail: { campo: field, valore: value },
+  });
+
   revalidatePath('/dashboard/admin');
+  revalidatePath('/dashboard/admin/coach');
   revalidatePath('/coaches');
 }
 

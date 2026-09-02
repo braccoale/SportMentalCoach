@@ -128,7 +128,10 @@ export async function getFeatureAdminUsers(
         eq(userFeatureEntitlements.featureCode, featureCode)
       )
     )
-    .where(isNull(users.deletedAt))
+    // I conti demo non compaiono nell'amministrazione: abilitare gli Appunti
+    // AI su un account sintetico non vuol dire niente, e in elenco tolgono
+    // spazio alle persone vere. Stessa regola di `lib/core/admin`.
+    .where(and(isNull(users.deletedAt), eq(users.isDemo, false)))
     .orderBy(asc(users.email));
 
   const byUser = new Map<number, FeatureAdminUser>();

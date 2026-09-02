@@ -2754,3 +2754,99 @@ export const athleteJourneyGoalSessions = pgTable(
 
 export type AthleteJourneyGoalSession =
   typeof athleteJourneyGoalSessions.$inferSelect;
+
+/**
+ * Il registro delle azioni amministrative.
+ *
+ * Distinto da `sessionAiAuditEvents`, che è ancorato a una seduta: approvare
+ * un coach o revocare una funzione non appartengono a nessuna seduta. Due
+ * registri, due domande diverse.
+ *
+ * **Append-only**, e non solo per convenzione: un trigger in `app_private`
+ * rifiuta UPDATE e DELETE (migrazione 0060). Un registro correggibile non
+ * prova niente, ed è la riga scomoda quella che si è tentati di correggere.
+ *
+ * In `detail` entrano identificativi, conteggi, esiti e codici. Mai contenuti
+ * di seduta, mai segreti: la stessa regola di `pipeline-log.ts`.
+ */
+export const ADMIN_AUDIT_ACTIONS = [
+  'coach_approved',
+  'coach_rejected',
+  'coach_verification_changed',
+  'user_role_changed',
+  'ai_notes_entitlement_granted',
+  'ai_notes_entitlement_revoked',
+  'ai_notes_session_reopened',
+  'ai_notes_worker_run',
+  'ai_notes_guidelines_saved',
+  'ai_notes_callback_probed',
+  'sensitive_content_accessed',
+  'data_exported',
+  'data_deleted',
+  'configuration_changed',
+] as const;
+export type AdminAuditAction = (typeof ADMIN_AUDIT_ACTIONS)[number];
+
+export const ADMIN_AUDIT_SUBJECTS = [
+  'provider_profile',
+  'user',
+  'ai_session',
+  'feature',
+  'configuration',
+  'system',
+] as const;
+export type AdminAuditSubject = (typeof ADMIN_AUDIT_SUBJECTS)[number];
+
+export const ADMIN_AUDIT_OUTCOMES = ['ok', 'rifiutata', 'fallita'] as const;
+export type AdminAuditOutcome = (typeof ADMIN_AUDIT_OUTCOMES)[number];
+
+export const adminAuditEvents = pgTable(
+  'admin_audit_events',
+  {
+    id: serial('id').primaryKey(),
+    actorUserId: integer('actor_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    /** Denormalizzata: se l'account sparisce, «chi era» resta leggibile. */
+    actorEmail: varchar('actor_email', { length: 255 }),
+    action: varchar('action', { length: 60 }).notNull(),
+    subjectType: varchar('subject_type', { length: 40 }).notNull(),
+    subjectId: integer('subject_id'),
+    outcome: varchar('outcome', { length: 16 }).notNull().default('ok'),
+    detail: jsonb('detail')
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index('admin_audit_events_created_idx').on(table.createdDate),
+    index('admin_audit_events_subject_idx').on(
+      table.subjectType,
+      table.subjectId,
+      table.createdDate
+    ),
+    index('admin_audit_events_actor_idx').on(
+      table.actorUserId,
+      table.createdDate
+    ),
+    index('admin_audit_events_action_idx').on(table.action, table.createdDate),
+    check(
+      'admin_audit_events_action_check',
+      sql`${table.action} in ('coach_approved', 'coach_rejected', 'coach_verification_changed', 'user_role_changed', 'ai_notes_entitlement_granted', 'ai_notes_entitlement_revoked', 'ai_notes_session_reopened', 'ai_notes_worker_run', 'ai_notes_guidelines_saved', 'ai_notes_callback_probed', 'sensitive_content_accessed', 'data_exported', 'data_deleted', 'configuration_changed')`
+    ),
+    check(
+      'admin_audit_events_subject_type_check',
+      sql`${table.subjectType} in ('provider_profile', 'user', 'ai_session', 'feature', 'configuration', 'system')`
+    ),
+    check(
+      'admin_audit_events_outcome_check',
+      sql`${table.outcome} in ('ok', 'rifiutata', 'fallita')`
+    ),
+  ]
+);
+
+export type AdminAuditEvent = typeof adminAuditEvents.$inferSelect;
+export type NewAdminAuditEvent = typeof adminAuditEvents.$inferInsert;

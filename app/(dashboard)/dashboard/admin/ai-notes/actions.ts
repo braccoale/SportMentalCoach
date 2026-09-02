@@ -15,6 +15,7 @@ import {
 import { closeStuckProcessingSessions } from '@/lib/core/ai-session-notes/stuck-sessions';
 import { probeCallbackEndpoint } from '@/lib/core/ai-session-notes/callback-probe';
 import { saveHouseGuidelines } from '@/lib/core/ai-session-notes/house-guidelines';
+import { recordAdminAudit } from '@/lib/core/admin/audit-log';
 import type { ActionState } from '@/lib/auth/middleware';
 
 /**
@@ -35,7 +36,7 @@ export async function runAiNotesWorkerAction(
   _previous: ActionState,
   _formData: FormData
 ): Promise<ActionState> {
-  await requireRole('admin');
+  const admin = await requireRole('admin');
 
   const startedAt = Date.now();
   try {
@@ -50,6 +51,25 @@ export async function runAiNotesWorkerAction(
     // guardare la rotellina — che e' esattamente il caso in cui lo si preme.
     const expired = await closeStuckProcessingSessions({ limit: 20 }, dependencies);
     const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
+
+    // Una corsa a mano del worker e' un'azione amministrativa: cambia lo stato
+    // di sedute vere, e senza traccia non e' distinguibile da una corsa dello
+    // scheduler quando fra un mese si chiede perche' una seduta e' ripartita.
+    await recordAdminAudit({
+      actor: { id: admin.id, email: admin.email },
+      action: 'ai_notes_worker_run',
+      subjectType: 'system',
+      outcome: 'ok',
+      detail: {
+        secondi: Number(seconds),
+        presi: result.claimed,
+        completati: result.completed,
+        falliti: result.failed,
+        annullati: result.cancelled,
+        recuperati: recovered,
+        scaduteChiuse: expired,
+      },
+    });
 
     revalidatePath('/dashboard/admin/ai-notes');
 
@@ -70,6 +90,13 @@ export async function runAiNotesWorkerAction(
     // Il messaggio del provider non arriva mai al browser: resta nei log.
     console.error('[admin] esecuzione worker fallita', error);
     const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
+    await recordAdminAudit({
+      actor: { id: admin.id, email: admin.email },
+      action: 'ai_notes_worker_run',
+      subjectType: 'system',
+      outcome: 'fallita',
+      detail: { secondi: Number(seconds) },
+    });
     return {
       error: `Il worker si è interrotto dopo ${seconds}s. Il dettaglio è nei log del server.`,
     };
@@ -119,11 +146,34 @@ export async function updateAiNotesEntitlementAction(
       return { error: 'Operazione non valida.' };
     }
   } catch (error) {
+    await recordAdminAudit({
+      actor: { id: admin.id, email: admin.email },
+      action:
+        operation === 'revoke'
+          ? 'ai_notes_entitlement_revoked'
+          : 'ai_notes_entitlement_granted',
+      subjectType: 'user',
+      subjectId: targetUserId,
+      outcome: 'fallita',
+      detail: { operazione: operation },
+    });
     if (error instanceof Error && error.message === 'USER_NOT_FOUND') {
       return { error: 'Utente non trovato.' };
     }
     return { error: 'Impossibile aggiornare l’abilitazione.' };
   }
+
+  await recordAdminAudit({
+    actor: { id: admin.id, email: admin.email },
+    action:
+      operation === 'revoke'
+        ? 'ai_notes_entitlement_revoked'
+        : 'ai_notes_entitlement_granted',
+    subjectType: 'user',
+    subjectId: targetUserId,
+    outcome: 'ok',
+    detail: { operazione: operation },
+  });
 
   revalidatePath('/dashboard/admin/ai-notes');
   return {
@@ -146,8 +196,15 @@ export async function probeCallbackAction(
   _previous: ActionState,
   _formData: FormData
 ): Promise<ActionState> {
-  await requireRole('admin');
+  const admin = await requireRole('admin');
   const result = await probeCallbackEndpoint();
+  await recordAdminAudit({
+    actor: { id: admin.id, email: admin.email },
+    action: 'ai_notes_callback_probed',
+    subjectType: 'configuration',
+    outcome: result.reachable ? 'ok' : 'fallita',
+    detail: { origine: result.origin ?? null },
+  });
   revalidatePath('/dashboard/admin/ai-notes');
   return result.reachable
     ? { success: `${result.origin} — ${result.detail}` }
@@ -170,9 +227,25 @@ export async function saveHouseGuidelinesAction(
   const body = String(formData.get('body') ?? '');
   try {
     const saved = await saveHouseGuidelines({ body, actorUserId: admin.id });
+    // Il prompt e' un pezzo di prodotto: cambia cio' che un coach legge su una
+    // persona vera, e la versione salvata entra nella versione del prompt.
+    await recordAdminAudit({
+      actor: { id: admin.id, email: admin.email },
+      action: 'ai_notes_guidelines_saved',
+      subjectType: 'configuration',
+      outcome: 'ok',
+      detail: { versione: saved.version, lunghezza: body.length },
+    });
     revalidatePath('/dashboard/admin/ai-notes');
     return { success: `Linee guida salvate: versione ${saved.version}.` };
   } catch (error) {
+    await recordAdminAudit({
+      actor: { id: admin.id, email: admin.email },
+      action: 'ai_notes_guidelines_saved',
+      subjectType: 'configuration',
+      outcome: 'fallita',
+      detail: { lunghezza: body.length },
+    });
     return {
       error:
         error instanceof Error

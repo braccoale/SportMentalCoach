@@ -60,6 +60,25 @@ export type ProviderReviewItem = {
 export type VerificationField = 'identity' | 'certifications';
 
 /**
+ * I conti demo non entrano nell'amministrazione.
+ *
+ * Sono account sintetici: esistono per far provare il prodotto a chi non ha
+ * ancora un account, e contarli qui significa amministrare un prodotto che
+ * non esiste — nove coach di cui quattro finti, sedute che nessuno ha tenuto,
+ * una coda di revisione con dentro profili che nessuno deve revisionare.
+ *
+ * La regola non e' nuova: e' quella della vista `landing_stats` (migrazione
+ * 0055), dove una seduta e' demo se lo e' **una delle due parti**. Riusata
+ * qui invece di riscritta, perche' due definizioni di «conto vero» che
+ * divergono sono peggio di nessuna.
+ *
+ * Restano visibili dove servono: le superfici demo continuano a funzionare,
+ * e `users.is_demo` resta nel tipo — quello che cambia e' solo chi viene
+ * contato e mostrato all'amministrazione.
+ */
+const NOT_DEMO = eq(users.isDemo, false);
+
+/**
  * All provider profiles for admin review, across every status
  * (draft / pending / approved / rejected), newest first.
  */
@@ -99,6 +118,7 @@ export async function getProviderProfilesForReview(): Promise<
     .innerJoin(users, eq(providerProfiles.userId, users.id))
     .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
     .leftJoin(reviewer, eq(reviewer.id, providerProfiles.reviewedBy))
+    .where(NOT_DEMO)
     .orderBy(desc(users.createdAt));
 
   const providerIds = rows.map((row) => row.id);
@@ -180,7 +200,7 @@ export async function getAllAthletesForAdmin(): Promise<AthleteAdminItem[]> {
     )
     .leftJoin(clientProfiles, eq(clientProfiles.userId, users.id))
     .leftJoin(profiles, eq(profiles.userId, users.id))
-    .where(isNull(users.deletedAt))
+    .where(and(isNull(users.deletedAt), NOT_DEMO))
     .orderBy(desc(users.createdAt));
 
   const userIds = rows.map((row) => row.userId);
@@ -289,7 +309,9 @@ async function getAdminBookingRows(): Promise<AdminBookingRow[]> {
     .innerJoin(providerProfiles, eq(providerProfiles.id, bookings.providerId))
     .innerJoin(coachUser, eq(coachUser.id, providerProfiles.userId))
     .leftJoin(coachProfile, eq(coachProfile.userId, providerProfiles.userId))
-    .where(isNull(users.deletedAt))
+    // Entrambe le parti: una seduta e' demo se lo e' l'atleta **o** il coach,
+    // come nella vista `landing_stats`.
+    .where(and(isNull(users.deletedAt), NOT_DEMO, eq(coachUser.isDemo, false)))
     .orderBy(desc(bookings.requestedAt));
 
   // La data di nascita non esce da qui: all'amministrazione serve sapere che
