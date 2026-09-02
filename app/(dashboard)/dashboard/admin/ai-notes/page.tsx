@@ -45,14 +45,8 @@ export default async function AiNotesAdminPage() {
   ]);
 
   return (
-    <section className="p-6">
-      <Link
-        href="/dashboard/admin"
-        className="text-sm text-gray-500 hover:text-gray-900"
-      >
-        ← Torna alla dashboard admin
-      </Link>
-      <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
+    <section className="p-4 lg:p-0">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-semibold text-gray-900">
@@ -63,8 +57,16 @@ export default async function AiNotesAdminPage() {
             </span>
           </div>
           <p className="mt-1 max-w-2xl text-sm text-gray-600">
-            Abilita la richiesta di consenso per utenti selezionati. In questa
-            fase non viene acquisito o trascritto alcun audio.
+            Abilita la richiesta di consenso per utenti selezionati, esegui il
+            worker a mano e modifica le linee guida del metodo. Per seguire una
+            singola seduta nella pipeline c’è{' '}
+            <Link
+              href="/dashboard/admin/ai"
+              className="font-medium text-red-600 hover:underline"
+            >
+              AI e trascrizioni
+            </Link>
+            .
           </p>
         </div>
       </div>

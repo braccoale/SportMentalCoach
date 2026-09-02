@@ -50,6 +50,11 @@ async function main() {
       select u.id
       from public.users u
       where u.deleted_at is null
+        -- I conti demo non compaiono piu' nella proiezione admin
+        -- (lib/core/features/index.ts): sceglierne uno come bersaglio farebbe
+        -- fallire l'asserzione «la ricerca admin trova il target» per il
+        -- motivo sbagliato.
+        and u.is_demo = false
         and u.id <> ${adminId}
         and not exists (
           select 1 from public.user_roles ur

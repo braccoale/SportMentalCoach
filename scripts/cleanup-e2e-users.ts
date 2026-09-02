@@ -12,7 +12,8 @@
  * **Perché le notifiche vanno cancellate a parte.** Non appartengono agli
  * utenti di prova: sono righe degli amministratori. Il cascade su `users` non
  * le tocca. E il legame non è l'id dell'utente ma quello del profilo coach,
- * perché è lì che punta il collegamento: `{"link":"/dashboard/admin#coach-38"}`.
+ * perché è lì che punta il collegamento: `{"link":"/dashboard/admin/coach#coach-38"}`
+ * (le notifiche più vecchie usano ancora `/dashboard/admin#coach-38`).
  *
  * Uso:
  *   npx tsx scripts/cleanup-e2e-users.ts            → mostra e basta
@@ -62,9 +63,17 @@ async function main() {
   const profiles = await client`
     select id from provider_profiles where user_id = any(${ids})
   `;
-  const links = profiles.map(
-    (p) => `/dashboard/admin#coach-${p.id as number}`
-  );
+  /*
+   * Due forme, non una. Le notifiche generate prima della Control Room
+   * puntavano a `/dashboard/admin#coach-<id>`; da quando i coach hanno la
+   * loro area il collegamento e' `/dashboard/admin/coach#coach-<id>`.
+   * Cercare solo la forma nuova lascerebbe indietro proprio le righe
+   * storiche, che sono quelle che questo script deve ripulire.
+   */
+  const links = profiles.flatMap((p) => [
+    `/dashboard/admin#coach-${p.id as number}`,
+    `/dashboard/admin/coach#coach-${p.id as number}`,
+  ]);
   const [noise] = links.length
     ? await client`
         select count(*)::int as n from notifications

@@ -1,7 +1,7 @@
 import 'server-only';
 import { and, eq, gt, inArray, isNotNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
-import { bookings, providerProfiles } from '@/lib/db/schema';
+import { bookings, providerProfiles, users } from '@/lib/db/schema';
 import {
   LIVE_SESSION_SILENCE_MS,
   isSessionLive,
@@ -27,8 +27,12 @@ export async function getLiveCoachProviderIds(
     .select({ providerId: bookings.providerId })
     .from(bookings)
     .innerJoin(providerProfiles, eq(providerProfiles.id, bookings.providerId))
+    .innerJoin(users, eq(users.id, providerProfiles.userId))
     .where(
       and(
+        // Un coach demo non accende il pallino: la sua riga non esiste piu'
+        // negli elenchi dell'amministrazione.
+        eq(users.isDemo, false),
         inArray(bookings.status, ['accepted', 'completed']),
         isNotNull(bookings.sessionStartedAt),
         gt(bookings.sessionEndedAt, threshold),

@@ -623,7 +623,7 @@ export function buildNotificationContent(
       return {
         title: 'Nuovo atleta registrato',
         body: `${ctx.athleteName?.trim() || 'Un nuovo atleta'} si è registrato su KaiPai.`,
-        data: { link: '/dashboard/admin' },
+        data: { link: '/dashboard/admin/utenti' },
       };
     case 'provider_registered':
       return {
@@ -631,8 +631,8 @@ export function buildNotificationContent(
         body: `${ctx.coachName?.trim() || 'Un nuovo coach'} si è registrato. Il profilo è ancora in bozza.`,
         data: {
           link: ctx.providerId
-            ? `/dashboard/admin#coach-${ctx.providerId}`
-            : '/dashboard/admin',
+            ? `/dashboard/admin/coach#coach-${ctx.providerId}`
+            : '/dashboard/admin/coach',
         },
       };
     case 'provider_review_requested':
@@ -641,8 +641,8 @@ export function buildNotificationContent(
         body: `${ctx.coachName?.trim() || 'Un coach'} ha inviato il proprio profilo per la revisione.`,
         data: {
           link: ctx.providerId
-            ? `/dashboard/admin#coach-${ctx.providerId}`
-            : '/dashboard/admin',
+            ? `/dashboard/admin/coach#coach-${ctx.providerId}`
+            : '/dashboard/admin/coach',
         },
       };
     case 'provider_approved':

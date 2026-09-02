@@ -1,0 +1,434 @@
+import Link from 'next/link';
+import {
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowRight,
+  ArrowUpRight,
+  CircleHelp,
+  CircleSlash,
+  Info,
+  Minus,
+  ShieldAlert,
+} from 'lucide-react';
+import type { AdminKpi, PipelineFunnelStep } from '@/lib/core/admin/overview';
+import type { AttentionItem } from '@/lib/core/admin/attention';
+import {
+  SERVICE_STATUS_LABEL,
+  type ServiceStatus,
+  type ServiceVerdict,
+} from '@/lib/core/admin/service-health';
+import { ADMIN_PERIODS, type AdminPeriodKey } from '@/lib/core/admin/period';
+
+/**
+ * I mattoni della Control Room.
+ *
+ * Componenti server, senza stato: tutto quello che c'è qui dentro è già
+ * deciso dal server prima di arrivare al browser. Il selettore di periodo è
+ * fatto di collegamenti e non di uno stato React — così un periodo si può
+ * incollare in chat, e la pagina si ricarica dal server con i dati giusti
+ * invece di rifiltrarli in memoria.
+ */
+
+/* ── Intestazione di sezione ────────────────────────────────────────────── */
+
+export function SectionHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string;
+  subtitle?: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="min-w-0">
+        <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+        {subtitle ? (
+          <p className="mt-1 max-w-2xl text-sm text-gray-600">{subtitle}</p>
+        ) : null}
+      </div>
+      {action}
+    </div>
+  );
+}
+
+/* ── Selettore di periodo ───────────────────────────────────────────────── */
+
+export function PeriodSelector({
+  current,
+  basePath,
+}: {
+  current: AdminPeriodKey;
+  basePath: string;
+}) {
+  return (
+    <div
+      className="inline-flex rounded-full border border-gray-200 bg-white p-0.5"
+      role="group"
+      aria-label="Periodo dei dati"
+    >
+      {ADMIN_PERIODS.map((period) => (
+        <Link
+          key={period.key}
+          href={`${basePath}?periodo=${period.key}`}
+          aria-current={current === period.key ? 'true' : undefined}
+          className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+            current === period.key
+              ? 'bg-gray-900 text-white'
+              : 'text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          {period.label}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+/* ── Card KPI ───────────────────────────────────────────────────────────── */
+
+const TONE_RING: Record<AdminKpi['tone'], string> = {
+  neutro: 'border-gray-200',
+  attenzione: 'border-amber-200 bg-amber-50/40',
+  critico: 'border-red-200 bg-red-50/40',
+};
+
+export function KpiCard({ kpi }: { kpi: AdminKpi }) {
+  const body = (
+    <>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          {kpi.label}
+        </p>
+        <span
+          title={kpi.description}
+          className="shrink-0 text-gray-300 transition-colors group-hover:text-gray-400"
+        >
+          <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
+          <span className="sr-only">{kpi.description}</span>
+        </span>
+      </div>
+      <p
+        className={`mt-1.5 text-3xl font-bold tabular-nums ${
+          kpi.tone === 'critico' && kpi.value > 0
+            ? 'text-red-700'
+            : 'text-gray-950'
+        }`}
+      >
+        {kpi.value}
+      </p>
+      <p className="mt-1 line-clamp-2 text-xs leading-4 text-gray-600">
+        {kpi.description}
+      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
+          {kpi.scope}
+        </span>
+        {kpi.delta ? <DeltaChip delta={kpi.delta} /> : null}
+      </div>
+    </>
+  );
+
+  const className = `group flex h-full flex-col rounded-2xl border bg-white p-4 ${TONE_RING[kpi.tone]}`;
+
+  if (!kpi.href) {
+    return <div className={className}>{body}</div>;
+  }
+
+  return (
+    <Link
+      href={kpi.href}
+      className={`${className} transition-shadow hover:shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500`}
+    >
+      {body}
+      <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-red-600 opacity-0 transition-opacity group-hover:opacity-100">
+        Apri l’elenco <ArrowRight className="h-3 w-3" aria-hidden="true" />
+      </span>
+    </Link>
+  );
+}
+
+function DeltaChip({
+  delta,
+}: {
+  delta: NonNullable<AdminKpi['delta']>;
+}) {
+  const Icon =
+    delta.direction === 'up'
+      ? ArrowUpRight
+      : delta.direction === 'down'
+        ? ArrowDownRight
+        : Minus;
+  return (
+    <span
+      title="Confronto con il periodo precedente di pari durata"
+      className="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-700"
+    >
+      <Icon className="h-3 w-3" aria-hidden="true" />
+      {delta.percent > 0 ? '+' : ''}
+      {delta.percent}%
+    </span>
+  );
+}
+
+export function KpiSkeleton() {
+  return (
+    <div className="h-[124px] animate-pulse rounded-2xl border border-gray-200 bg-white p-4">
+      <div className="h-3 w-24 rounded bg-gray-100" />
+      <div className="mt-3 h-7 w-12 rounded bg-gray-100" />
+      <div className="mt-3 h-3 w-full rounded bg-gray-100" />
+      <div className="mt-2 h-3 w-2/3 rounded bg-gray-100" />
+    </div>
+  );
+}
+
+/* ── Salute della piattaforma ───────────────────────────────────────────── */
+
+const STATUS_STYLE: Record<ServiceStatus, string> = {
+  operativo: 'bg-emerald-500',
+  degradato: 'bg-amber-500',
+  errore: 'bg-red-600',
+  non_monitorato: 'bg-gray-300',
+};
+
+const STATUS_TEXT: Record<ServiceStatus, string> = {
+  operativo: 'text-emerald-700',
+  degradato: 'text-amber-700',
+  errore: 'text-red-700',
+  non_monitorato: 'text-gray-500',
+};
+
+export function ServiceHealthPanel({
+  services,
+}: {
+  services: ServiceVerdict[];
+}) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white">
+      <ul className="divide-y divide-gray-100">
+        {services.map((service) => (
+          <li
+            key={service.key}
+            className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:gap-4"
+          >
+            <div className="flex min-w-0 flex-1 items-center gap-2.5">
+              <span
+                className={`h-2.5 w-2.5 shrink-0 rounded-full ${STATUS_STYLE[service.status]}`}
+                aria-hidden="true"
+              />
+              <span
+                className="truncate text-sm font-medium text-gray-900"
+                title={service.measures}
+              >
+                {service.label}
+              </span>
+              <span
+                title={service.measures}
+                className="shrink-0 text-gray-300"
+              >
+                <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="sr-only">{service.measures}</span>
+              </span>
+            </div>
+            <div className="flex min-w-0 flex-[2] flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
+              <span
+                className={`shrink-0 text-xs font-semibold uppercase tracking-wide ${STATUS_TEXT[service.status]}`}
+              >
+                {SERVICE_STATUS_LABEL[service.status]}
+              </span>
+              <span className="min-w-0 text-xs text-gray-600">
+                {service.message}
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/* ── Richiede attenzione ────────────────────────────────────────────────── */
+
+const SEVERITY: Record<
+  AttentionItem['severity'],
+  { icon: typeof AlertTriangle; box: string; chip: string; label: string }
+> = {
+  critico: {
+    icon: ShieldAlert,
+    box: 'border-red-200 bg-red-50',
+    chip: 'bg-red-600 text-white',
+    label: 'Critico',
+  },
+  attenzione: {
+    icon: AlertTriangle,
+    box: 'border-amber-200 bg-amber-50',
+    chip: 'bg-amber-500 text-white',
+    label: 'Da sistemare',
+  },
+  informativo: {
+    icon: Info,
+    box: 'border-gray-200 bg-gray-50',
+    chip: 'bg-gray-500 text-white',
+    label: 'Informativo',
+  },
+};
+
+export function AttentionPanel({ items }: { items: AttentionItem[] }) {
+  if (items.length === 0) {
+    return (
+      <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+        <CircleSlash className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+        <div>
+          <p className="text-sm font-semibold text-emerald-900">
+            Niente che richieda un intervento
+          </p>
+          <p className="mt-1 text-sm text-emerald-800">
+            Nessun coach in attesa, nessun processo fallito o fermo, nessuna
+            autorizzazione mancante fra quelle che sappiamo osservare. Questo
+            pannello resta vuoto finché non c’è qualcosa da fare — non è un
+            certificato che tutto funzioni: per quello c’è «Salute della
+            piattaforma» qui sotto.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ul className="flex flex-col gap-2">
+      {items.map((item) => {
+        const severity = SEVERITY[item.severity];
+        const Icon = severity.icon;
+        return (
+          <li key={item.key}>
+            <div
+              className={`flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-start ${severity.box}`}
+            >
+              <Icon
+                className="h-5 w-5 shrink-0 text-gray-700"
+                aria-hidden="true"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${severity.chip}`}
+                  >
+                    {severity.label}
+                  </span>
+                  <p className="text-sm font-semibold text-gray-950">
+                    {item.title}
+                  </p>
+                </div>
+                <p className="mt-1 text-sm text-gray-700">{item.detail}</p>
+              </div>
+              <Link
+                href={item.href}
+                className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-gray-300 bg-white px-3.5 py-2 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
+              >
+                {item.actionLabel}
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </Link>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/* ── Imbuto della pipeline ──────────────────────────────────────────────── */
+
+export function PipelineFunnel({ steps }: { steps: PipelineFunnelStep[] }) {
+  const top = steps[0]?.value ?? 0;
+
+  if (top === 0) {
+    return (
+      <EmptyBlock
+        title="Nessuna seduta con Appunti AI nel periodo"
+        detail="L’imbuto compare quando c’è almeno una seduta da seguire. Non è un errore: è un periodo senza registrazioni."
+      />
+    );
+  }
+
+  return (
+    <ol className="flex flex-col gap-2">
+      {steps.map((step, index) => {
+        const share = top > 0 ? step.value / top : 0;
+        const previous = index > 0 ? steps[index - 1].value : null;
+        const lost = previous !== null ? previous - step.value : 0;
+        return (
+          <li key={step.key}>
+            <div className="flex items-baseline justify-between gap-3 text-sm">
+              <span className="font-medium text-gray-800" title={step.note}>
+                {step.label}
+              </span>
+              <span className="shrink-0 tabular-nums font-semibold text-gray-950">
+                {step.value}
+                {lost > 0 ? (
+                  <span className="ml-2 text-xs font-medium text-red-600">
+                    −{lost}
+                  </span>
+                ) : null}
+              </span>
+            </div>
+            <div className="mt-1 h-2 overflow-hidden rounded-full bg-gray-100">
+              <div
+                className="h-full rounded-full bg-red-500"
+                style={{ width: `${Math.round(share * 100)}%` }}
+              />
+            </div>
+            <p className="mt-1 text-[11px] leading-4 text-gray-500">
+              {step.note}
+            </p>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/* ── Stati vuoti e di errore ────────────────────────────────────────────── */
+
+export function EmptyBlock({
+  title,
+  detail,
+}: {
+  title: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
+      <p className="text-sm font-semibold text-gray-800">{title}</p>
+      <p className="mx-auto mt-1 max-w-md text-sm text-gray-600">{detail}</p>
+    </div>
+  );
+}
+
+export function ErrorBlock({
+  title,
+  detail,
+  retryHref,
+}: {
+  title: string;
+  detail: string;
+  retryHref: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
+      <div className="flex items-start gap-3">
+        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-red-900">{title}</p>
+          <p className="mt-1 text-sm text-red-800">{detail}</p>
+          <Link
+            href={retryHref}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-red-300 bg-white px-3.5 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+          >
+            Riprova
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
