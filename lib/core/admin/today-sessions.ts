@@ -44,18 +44,46 @@ export type AdminTodaySession = {
   isLive: boolean;
 };
 
+/**
+ * La giornata di oggi. E' `buildDaySessions` con «oggi» gia' calcolato.
+ *
+ * Resta perche' e' la domanda che si fa piu' spesso, e perche' un chiamante
+ * che vuole oggi non deve procurarsi la stringa del giorno per dirlo.
+ */
 export function buildTodaySessions(
   rows: readonly AdminBookingRow[],
   now: Date = new Date()
 ): AdminTodaySession[] {
-  const today = formatRomeDateValue(now);
+  return buildDaySessions(rows, formatRomeDateValue(now), now);
+}
 
+/**
+ * Una giornata qualunque, non solo oggi.
+ *
+ * Nasce da un'osservazione che il cruscotto non reggeva: **non si poteva
+ * sapere quante sedute ci sono domani.** La panoramica guardava solo
+ * all'indietro e la pagina Sessioni solo a oggi, quindi l'agenda di domani —
+ * la cosa piu' semplice che un'amministrazione debba sapere — non esisteva da
+ * nessuna parte.
+ *
+ * `day` e' un giorno di calendario `YYYY-MM-DD` **a Roma**, non un istante:
+ * confrontare istanti farebbe cominciare la giornata alle 02:00 in ora legale.
+ *
+ * `now` resta separato dal giorno mostrato, ed e' il motivo per cui sono due
+ * parametri: «in corso adesso» ha senso solo per la giornata di oggi, e
+ * guardando domani deve valere falso per tutte.
+ */
+export function buildDaySessions(
+  rows: readonly AdminBookingRow[],
+  day: string,
+  now: Date = new Date()
+): AdminTodaySession[] {
   return rows
     .filter(
       (row) =>
         row.scheduledFor != null &&
         TODAY_STATUSES.includes(row.status) &&
-        formatRomeDateValue(row.scheduledFor) === today
+        formatRomeDateValue(row.scheduledFor) === day
     )
     .sort((a, b) => a.scheduledFor!.getTime() - b.scheduledFor!.getTime())
     .map((row) => ({

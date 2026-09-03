@@ -9,6 +9,29 @@ export const WEEKDAY_LABELS = [
   'Sabato',
 ] as const;
 
+/**
+ * Italian short month labels, indexed 0=gennaio … 11=dicembre.
+ *
+ * Scritte a mano e non ricavate da `Intl`: il runner di CI gira con una ICU
+ * ridotta, e lo stesso mese esce abbreviato in modo diverso. Per un'etichetta
+ * di grafico — che viene confrontata nei test — la stabilità vale più della
+ * localizzazione automatica.
+ */
+export const MONTH_LABELS_SHORT = [
+  'gen',
+  'feb',
+  'mar',
+  'apr',
+  'mag',
+  'giu',
+  'lug',
+  'ago',
+  'set',
+  'ott',
+  'nov',
+  'dic',
+] as const;
+
 /** Formats minutes-from-midnight as `HH:MM`. */
 export function formatMinutesOfDay(min: number): string {
   const h = Math.floor(min / 60);

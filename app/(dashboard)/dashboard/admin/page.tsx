@@ -10,6 +10,8 @@ import {
 import { getAdminOverview } from '@/lib/core/admin/overview';
 import { formatEur } from '@/lib/core/admin/ai-cost';
 import { formatDateTime } from '@/lib/core/format';
+import { MONTH_LABELS_SHORT, WEEKDAY_LABELS } from '@/lib/core/format';
+import { romeDayValueToInstant } from '@/lib/core/admin/period';
 import {
   AttentionPanel,
   EmptyBlock,
@@ -20,6 +22,7 @@ import {
   PipelineFunnel,
   SectionHeader,
   ServiceHealthPanel,
+  UpcomingAgendaBlock,
 } from '@/components/admin/control-room';
 import {
   OutcomeDistributionChart,
@@ -123,6 +126,20 @@ async function OverviewBody({ period }: { period: AdminPeriod }) {
 
       <div className="mt-8">
         <SectionHeader
+          title="Agenda"
+          subtitle="Che cosa c’è davanti. È l’unico blocco che guarda avanti: il periodo qui sopra copre solo l’indietro."
+        />
+        <div className="mt-3">
+          <UpcomingAgendaBlock
+            agenda={overview.upcoming}
+            weekdayFor={weekdayFor}
+            dayNumberFor={dayNumberFor}
+          />
+        </div>
+      </div>
+
+      <div className="mt-8">
+        <SectionHeader
           title="Salute della piattaforma"
           subtitle="«Operativo» richiede osservazioni nel periodo. Senza, la voce dice «Non monitorato» — che è la verità, non un guasto."
         />
@@ -149,16 +166,24 @@ async function OverviewBody({ period }: { period: AdminPeriod }) {
             Andamento delle sedute
           </h3>
           <p className="mt-0.5 text-xs text-gray-500">
-            Completate e annullate per giorno, ora di Roma.
+            Completate e annullate per{' '}
+            {overview.seriesGranularity === 'mese' ? 'mese' : 'giorno'}, ora di
+            Roma.{' '}
+            {overview.seriesGranularity === 'giorno'
+              ? 'Scegli «12 mesi» qui sopra per confrontare i mesi fra loro.'
+              : 'Ogni barra è un mese di calendario, dal primo all’ultimo giorno.'}
           </p>
           <div className="mt-3">
-            {overview.sessionsByDay.length === 0 ? (
+            {overview.sessionsSeries.length === 0 ? (
               <EmptyBlock
                 title="Nessuna seduta nel periodo"
-                detail="Il grafico compare quando c’è almeno un giorno con attività."
+                detail="Il grafico compare quando c’è almeno un periodo con attività."
               />
             ) : (
-              <SessionsTrendChart data={overview.sessionsByDay} />
+              <SessionsTrendChart
+                data={overview.sessionsSeries}
+                granularity={overview.seriesGranularity}
+              />
             )}
           </div>
         </div>
@@ -273,6 +298,29 @@ async function OverviewBody({ period }: { period: AdminPeriod }) {
       </div>
     </>
   );
+}
+
+/**
+ * Le due etichette di un giorno dell'agenda, risolte sul server.
+ *
+ * Il giorno della settimana viene da `WEEKDAY_LABELS`, che e' una costante
+ * scritta a mano: `Intl` su CI ha una ICU ridotta, e un'etichetta di
+ * calendario che cambia fra ambienti e' esattamente il tipo di dettaglio che
+ * fa dubitare del resto della pagina.
+ */
+function weekdayFor(day: string): string {
+  const instant = romeDayValueToInstant(day);
+  if (!instant) return '';
+  // Mezzogiorno a Roma: lontano da entrambi i confini del giorno, quindi il
+  // giorno della settimana non slitta con il cambio d'ora.
+  const midday = new Date(instant.getTime() + 12 * 3_600_000);
+  return WEEKDAY_LABELS[midday.getUTCDay()].slice(0, 3);
+}
+
+function dayNumberFor(day: string): string {
+  const [, month, dayOfMonth] = day.split('-');
+  const nome = MONTH_LABELS_SHORT[Number(month) - 1] ?? '';
+  return `${Number(dayOfMonth)} ${nome}`;
 }
 
 function OverviewSkeleton() {

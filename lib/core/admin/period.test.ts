@@ -6,6 +6,7 @@ import {
   resolveAdminPeriod,
   romeDayStart,
   romeDayStartShifted,
+  romeMonthStart,
 } from './period';
 
 test('il giorno comincia a mezzanotte a Roma, non a mezzanotte UTC', () => {
@@ -71,4 +72,46 @@ test('la variazione non si calcola da un periodo precedente vuoto', () => {
   assert.deepEqual(periodDelta(12, 10), { percent: 20, direction: 'up' });
   assert.deepEqual(periodDelta(8, 10), { percent: -20, direction: 'down' });
   assert.deepEqual(periodDelta(10, 10), { percent: 0, direction: 'flat' });
+});
+
+test('i dodici mesi partono dal primo del mese, non da 365 giorni fa', () => {
+  // 2 settembre 2026: dodici mesi comprendono ottobre 2025 → settembre 2026.
+  const periodo = adminPeriodRange('12m', new Date('2026-09-02T10:00:00Z'));
+  assert.equal(periodo.granularity, 'mese');
+  // 1 ottobre 2025 a mezzanotte a Roma (ora legale fino al 26 ottobre: UTC+2).
+  assert.equal(periodo.from.toISOString(), '2025-09-30T22:00:00.000Z');
+  // Il periodo precedente ha la stessa forma: altri dodici mesi di calendario.
+  assert.equal(periodo.previousFrom.toISOString(), '2024-09-30T22:00:00.000Z');
+  assert.equal(periodo.previousTo.getTime(), periodo.from.getTime());
+});
+
+test('il mese di calendario comincia a mezzanotte a Roma, non a mezzanotte UTC', () => {
+  // Gennaio è in ora solare (UTC+1), agosto in ora legale (UTC+2): il confine
+  // si sposta, e prenderlo fisso perderebbe un'ora di sedute due volte l'anno.
+  assert.equal(
+    romeMonthStart(new Date('2026-01-15T09:00:00Z')).toISOString(),
+    '2025-12-31T23:00:00.000Z'
+  );
+  assert.equal(
+    romeMonthStart(new Date('2026-08-15T09:00:00Z')).toISOString(),
+    '2026-07-31T22:00:00.000Z'
+  );
+});
+
+test('contare i mesi all’indietro cambia anno da solo', () => {
+  assert.equal(
+    romeMonthStart(new Date('2026-02-10T12:00:00Z'), 3).toISOString(),
+    '2025-10-31T23:00:00.000Z'
+  );
+});
+
+test('«12m» è un periodo valido; il resto resta ignorato', () => {
+  assert.equal(resolveAdminPeriod('12m'), '12m');
+  assert.equal(resolveAdminPeriod('365g'), '7g');
+});
+
+test('i periodi a giorni restano a granularità giornaliera', () => {
+  for (const key of ['oggi', '7g', '30g'] as const) {
+    assert.equal(adminPeriodRange(key).granularity, 'giorno');
+  }
 });

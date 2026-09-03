@@ -18,6 +18,7 @@ import {
   type ServiceVerdict,
 } from '@/lib/core/admin/service-health';
 import { ADMIN_PERIODS, type AdminPeriodKey } from '@/lib/core/admin/period';
+import { upcomingDayName, type UpcomingAgenda } from '@/lib/core/admin/upcoming';
 
 /**
  * I mattoni della Control Room.
@@ -429,6 +430,124 @@ export function ErrorBlock({
           </Link>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ── Prossimi giorni ────────────────────────────────────────────────────── */
+
+/**
+ * L'agenda in avanti.
+ *
+ * Il resto della panoramica guarda all'indietro per costruzione: il periodo
+ * finisce ad «adesso». Questo blocco è l'unico che guarda avanti, e per
+ * questo **non ha il selettore di periodo**: cambiare da sette a trenta
+ * giorni non cambia cosa c'è domani, e legarlo al selettore avrebbe prodotto
+ * un numero che si muove senza motivo.
+ *
+ * I giorni vuoti restano nella fila. Un'agenda che salta i giorni senza
+ * sedute si legge come un calendario fitto: sette barre di cui cinque a zero
+ * dicono «settimana scarica», cinque barre di fila dicono il contrario.
+ */
+export function UpcomingAgendaBlock({
+  agenda,
+  weekdayFor,
+  dayNumberFor,
+}: {
+  agenda: UpcomingAgenda;
+  /** Etichetta breve del giorno della settimana, risolta dal server. */
+  weekdayFor: (day: string) => string;
+  dayNumberFor: (day: string) => string;
+}) {
+  const massimo = Math.max(1, ...agenda.days.map((d) => d.totale));
+
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900">
+            Prossimi 7 giorni
+          </h3>
+          <p className="mt-0.5 text-xs text-gray-500">
+            Confermate e da confermare. Non dipende dal periodo scelto sopra:
+            questo blocco guarda avanti.
+          </p>
+        </div>
+        <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700">
+          {agenda.totale} in totale
+        </span>
+      </div>
+
+      {agenda.vuota ? (
+        <p className="mt-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 text-center text-sm text-gray-600">
+          Nessuna seduta in agenda nei prossimi sette giorni. Non è un errore:
+          è un calendario vuoto.
+        </p>
+      ) : (
+        <ul className="mt-4 grid grid-cols-7 gap-1.5">
+          {agenda.days.map((giorno) => {
+            const nome = upcomingDayName(giorno.offset);
+            const altezza = Math.round((giorno.totale / massimo) * 100);
+            return (
+              <li key={giorno.day}>
+                <Link
+                  href={`/dashboard/admin/sessioni?giorno=${giorno.day}`}
+                  title={`${giorno.confermate} confermate · ${giorno.daConfermare} da confermare`}
+                  className={`flex h-full flex-col items-center gap-1.5 rounded-xl border p-2 transition-colors hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 ${
+                    nome === 'oggi'
+                      ? 'border-gray-900'
+                      : giorno.totale === 0
+                        ? 'border-gray-100'
+                        : 'border-gray-200'
+                  }`}
+                >
+                  <span
+                    className={`text-[11px] font-semibold uppercase tracking-wide ${
+                      nome === 'data' ? 'text-gray-500' : 'text-gray-900'
+                    }`}
+                  >
+                    {nome === 'oggi'
+                      ? 'Oggi'
+                      : nome === 'domani'
+                        ? 'Domani'
+                        : weekdayFor(giorno.day)}
+                  </span>
+                  <span className="text-[11px] text-gray-400">
+                    {dayNumberFor(giorno.day)}
+                  </span>
+
+                  <span
+                    className="flex h-16 w-full items-end justify-center"
+                    aria-hidden="true"
+                  >
+                    <span
+                      className={`w-6 rounded-t ${
+                        giorno.totale === 0 ? 'bg-gray-100' : 'bg-red-500'
+                      }`}
+                      style={{
+                        height: giorno.totale === 0 ? '2px' : `${Math.max(8, altezza)}%`,
+                      }}
+                    />
+                  </span>
+
+                  <span
+                    className={`text-lg font-bold tabular-nums ${
+                      giorno.totale === 0 ? 'text-gray-300' : 'text-gray-950'
+                    }`}
+                  >
+                    {giorno.totale}
+                  </span>
+                  {giorno.daConfermare > 0 ? (
+                    <span className="rounded-full bg-amber-100 px-1.5 text-[10px] font-semibold text-amber-800">
+                      {giorno.daConfermare} da conf.
+                    </span>
+                  ) : null}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
