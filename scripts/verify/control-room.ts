@@ -43,7 +43,13 @@ async function main() {
 
   const overview = await getAdminOverview(period);
   console.log('KPI', overview.kpis.map((k) => `${k.label}=${k.value}`).join(' · '));
-  console.log('SERVIZI', overview.services.map((s) => `${s.label}:${s.status}`).join(' · '));
+  for (const servizio of overview.services) {
+    console.log(`SERVIZIO ${servizio.label}: ${servizio.status} — ${servizio.message}`);
+    for (const causa of servizio.causes) {
+      console.log(`    ${causa.count} ${servizio.unit} · ${causa.code} (${causa.label})`);
+    }
+    if (servizio.action) console.log(`    → ${servizio.action}`);
+  }
   console.log('ATTENZIONE', overview.attention.map((a) => a.key).join(', ') || '(nessuna)');
   console.log('IMBUTO', overview.funnel.map((f) => `${f.label}=${f.value}`).join(' · '));
   console.log('SERIE', overview.seriesGranularity, overview.sessionsSeries.length, 'punti:', JSON.stringify(overview.sessionsSeries.slice(-4)));

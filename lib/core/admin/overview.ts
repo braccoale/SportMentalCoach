@@ -4,7 +4,13 @@ import { db } from '@/lib/db/drizzle';
 import { formatRomeDateValue } from '@/lib/core/format';
 import { getPipelineHealth } from '@/lib/core/ai-session-notes/pipeline-health';
 import { readAiCostRates, estimateAiCost, type AiCostEstimate } from './ai-cost';
-import { assessService, type ServiceVerdict } from './service-health';
+import {
+  assessService,
+  concentrationHint,
+  type ServiceCause,
+  type ServiceVerdict,
+} from './service-health';
+import { describeCause } from './service-causes';
 import { buildAttentionItems, type AttentionItem } from './attention';
 import { type AdminPeriod, type PeriodGranularity } from './period';
 import { getUpcomingAgenda } from './agenda';
@@ -144,7 +150,7 @@ export async function getAdminOverview(
    * incrociano alla fine: sono tutte a riga singola, quindi il prodotto
    * cartesiano è una riga.
    */
-  const [totals, byDay, coachActivityRows] = await Promise.all([
+  const [totals, byDay, causeRows, coachActivityRows] = await Promise.all([
     scalarRow(
       db.execute(sql`
         WITH
@@ -280,13 +286,25 @@ export async function getAdminOverview(
             )
         ),
         video AS (
+          /*
+           * Sedute, non eventi.
+           *
+           * La prima versione contava eventi: «60 fallimenti su 159», dove il
+           * 159 sommava stanze aperte, partecipanti entrati e tracce
+           * pubblicate — cioe' volume di attivita', non operazioni riuscite.
+           * Aritmeticamente vero, semanticamente falso: una seduta che si
+           * riconnette tre volte gonfiava il denominatore e migliorava il
+           * rapporto.
+           *
+           * Il denominatore giusto e' la seduta: ottantuno errori di
+           * dispositivo concentrati su otto sedute sono un problema piccolo e
+           * localizzato, e con il conteggio a eventi sembravano un'emergenza.
+           */
           SELECT
-            count(*) FILTER (
-              WHERE event_type IN ('room_started', 'room_finished', 'participant_joined', 'track_published', 'reconnected')
-            )::int AS video_sane,
-            count(*) FILTER (
+            count(DISTINCT booking_id)::int AS video_sedute,
+            count(DISTINCT booking_id) FILTER (
               WHERE event_type LIKE '%error%' OR event_type = 'participant_connection_aborted'
-            )::int AS video_guaste
+            )::int AS video_sedute_con_problemi
           FROM video_session_events
           WHERE occurred_at >= ${naive(from)} AND occurred_at < ${naive(to)}
             AND booking_id NOT IN (
@@ -342,6 +360,92 @@ export async function getAdminOverview(
       ORDER BY 1
     `) as unknown as Promise<
       { bucket: string; completate: number; annullate: number }[]
+    >,
+
+    /*
+     * Le cause, tutte in una lettura sola.
+     *
+     * Cinque `GROUP BY` su cinque tabelle diverse, uniti da `UNION ALL`: come
+     * cinque query separate sarebbero cinque istruzioni in piu' in volo, e il
+     * pooler in modalita' transazione si e' gia' piantato una volta per
+     * quello. Le liste dei conti demo sono minuscole e si ripetono qui invece
+     * di essere passate, perche' una CTE non attraversa due istruzioni.
+     */
+    db.execute(sql`
+      WITH utenti_demo AS (SELECT id FROM users WHERE is_demo),
+      coach_demo AS (
+        SELECT pp.id FROM provider_profiles pp
+        WHERE pp.user_id IN (SELECT id FROM utenti_demo)
+      ),
+      sedute_demo AS (
+        SELECT n.id FROM session_ai_notes n
+        JOIN bookings b ON b.id = n.booking_id
+        WHERE b.client_id IN (SELECT id FROM utenti_demo)
+           OR b.provider_id IN (SELECT id FROM coach_demo)
+      )
+      SELECT 'videochiamate'::text AS servizio, v.event_type AS codice,
+             count(DISTINCT v.booking_id)::int AS conteggio
+      FROM video_session_events v
+      WHERE v.occurred_at >= ${naive(from)} AND v.occurred_at < ${naive(to)}
+        AND (v.event_type LIKE '%error%' OR v.event_type = 'participant_connection_aborted')
+        AND v.booking_id NOT IN (
+          SELECT b.id FROM bookings b
+          WHERE b.client_id IN (SELECT id FROM utenti_demo)
+             OR b.provider_id IN (SELECT id FROM coach_demo)
+        )
+      GROUP BY 1, 2
+
+      UNION ALL
+      -- Quanti coach diversi sono coinvolti: e' la differenza fra «la
+      -- postazione di una persona» e «la piattaforma», e non si ricava da
+      -- nessun conteggio di eventi.
+      SELECT 'videochiamate_coach', 'coach',
+             count(DISTINCT b.provider_id)::int
+      FROM video_session_events v
+      JOIN bookings b ON b.id = v.booking_id
+      WHERE v.occurred_at >= ${naive(from)} AND v.occurred_at < ${naive(to)}
+        AND (v.event_type LIKE '%error%' OR v.event_type = 'participant_connection_aborted')
+        AND b.client_id NOT IN (SELECT id FROM utenti_demo)
+        AND b.provider_id NOT IN (SELECT id FROM coach_demo)
+
+      UNION ALL
+      SELECT 'registrazioni', coalesce(r.error_code, 'SENZA_CODICE'), count(*)::int
+      FROM session_audio_recordings r
+      WHERE r.createddate >= ${tz(from)} AND r.createddate < ${tz(to)}
+        AND r.status IN ('failed', 'deletion_failed')
+        AND r.session_ai_notes_id NOT IN (SELECT id FROM sedute_demo)
+      GROUP BY 1, 2
+
+      UNION ALL
+      SELECT 'trascrizione', coalesce(n.error_code, 'SENZA_CODICE'), count(*)::int
+      FROM session_ai_notes n
+      WHERE n.createddate >= ${tz(from)} AND n.createddate < ${tz(to)}
+        AND n.status = 'transcription_failed'
+        AND n.id NOT IN (SELECT id FROM sedute_demo)
+      GROUP BY 1, 2
+
+      UNION ALL
+      SELECT 'riepiloghi', coalesce(n.error_code, 'SENZA_CODICE'), count(*)::int
+      FROM session_ai_notes n
+      WHERE n.createddate >= ${tz(from)} AND n.createddate < ${tz(to)}
+        AND n.status = 'report_failed'
+        AND n.id NOT IN (SELECT id FROM sedute_demo)
+      GROUP BY 1, 2
+
+      UNION ALL
+      SELECT 'email', d.template_key, count(*)::int
+      FROM notification_email_deliveries d
+      WHERE d.created_at >= ${tz(from)} AND d.created_at < ${tz(to)}
+        AND d.status = 'failed'
+        AND (
+          d.recipient_user_id IS NULL
+          OR d.recipient_user_id NOT IN (SELECT id FROM utenti_demo)
+        )
+      GROUP BY 1, 2
+
+      ORDER BY 1, 3 DESC
+    `) as unknown as Promise<
+      { servizio: string; codice: string; conteggio: number }[]
     >,
 
     db.execute(sql`
@@ -423,9 +527,22 @@ export async function getAdminOverview(
     fallite: Number(totals.email_fallite ?? 0),
   };
   const video = {
-    sane: Number(totals.video_sane ?? 0),
-    guaste: Number(totals.video_guaste ?? 0),
+    sedute: Number(totals.video_sedute ?? 0),
+    problemi: Number(totals.video_sedute_con_problemi ?? 0),
   };
+
+  /** Le cause raggruppate per servizio, gia' descritte e ordinate. */
+  const causesByService = new Map<string, ServiceCause[]>();
+  for (const row of causeRows) {
+    const count = Number(row.conteggio);
+    if (count <= 0) continue;
+    const described = describeCause(row.servizio, row.codice);
+    const list = causesByService.get(row.servizio) ?? [];
+    list.push({ code: row.codice, count, ...described });
+    causesByService.set(row.servizio, list);
+  }
+  const coachCoinvolti =
+    causesByService.get('videochiamate_coach')?.[0]?.count ?? 0;
 
   const audioMinutes = Math.round(Number(recordings.secondi ?? 0) / 60);
   const rates = readAiCostRates(process.env);
@@ -453,6 +570,8 @@ export async function getAdminOverview(
 
   const services = buildServices({
     video,
+    causes: causesByService,
+    coachCoinvolti,
     recordings,
     transcripts,
     aiSessions,
@@ -720,6 +839,8 @@ function buildKpis(input: {
 
 function buildServices(input: {
   video: Counts;
+  causes: Map<string, ServiceCause[]>;
+  coachCoinvolti: number;
   recordings: Counts;
   transcripts: Counts;
   aiSessions: Counts;
@@ -746,6 +867,11 @@ function buildServices(input: {
       process.env.AI_NOTES_AUDIO_S3_ENDPOINT?.trim()
   );
 
+  const cause = (key: string) => input.causes.get(key) ?? [];
+
+  const seduteVideo = Number(input.video.sedute ?? 0);
+  const problemiVideo = Number(input.video.problemi ?? 0);
+
   /*
    * La coda non si giudica a conteggi.
    *
@@ -769,8 +895,18 @@ function buildServices(input: {
         : input.pipeline.message,
     measures:
       'Job pronti mai presi in carico e sedute ferme oltre la scadenza, in questo momento.',
+    unit: 'job',
+    unitOne: 'job',
     ok: null,
     failed: input.pipeline.untouchedJobs,
+    causes: [],
+    href: '/dashboard/admin/ai?stato=in_coda',
+    hrefLabel: 'Apri la coda',
+    action:
+      input.pipeline.verdict === 'stuck'
+        ? 'Esegui il worker a mano da Configurazione: se dopo resta fermo, il problema non è la sveglia ma il worker.'
+        : null,
+    expandable: true,
   };
 
   return [
@@ -780,10 +916,23 @@ function buildServices(input: {
       configured: livekitConfigured,
       unconfiguredReason:
         'LiveKit non configurato in questo ambiente: nessun evento da leggere.',
-      ok: Number(input.video.sane ?? 0),
-      failed: Number(input.video.guaste ?? 0),
+      ok: Math.max(0, seduteVideo - problemiVideo),
+      failed: problemiVideo,
+      unit: 'sedute',
+      unitOne: 'seduta',
       measures:
-        'Eventi tecnici delle stanze LiveKit nel periodo: connessioni riuscite contro errori e interruzioni.',
+        'Sedute con attività video nel periodo, e quante di esse hanno avuto almeno un errore o una connessione interrotta. Si contano le sedute, non gli eventi: una seduta con dieci errori è una seduta.',
+      causes: cause('videochiamate'),
+      href: '/dashboard/admin/video-sessions',
+      hrefLabel: 'Apri il registro tecnico',
+      action:
+        problemiVideo > 0
+          ? concentrationHint({
+              affected: problemiVideo,
+              people: input.coachCoinvolti,
+              peopleLabel: 'coach',
+            })
+          : null,
     }),
     assessService({
       key: 'registrazioni',
@@ -793,8 +942,17 @@ function buildServices(input: {
         'Archivio audio non configurato: la registrazione non può partire.',
       ok: Number(input.recordings.registrate ?? 0),
       failed: Number(input.recordings.fallite ?? 0),
+      unit: 'tracce',
+      unitOne: 'traccia',
       measures:
         'Tracce audio arrivate a «recorded» contro quelle fallite, nel periodo.',
+      causes: cause('registrazioni'),
+      href: '/dashboard/admin/ai?errore=registrazione',
+      hrefLabel: 'Apri le sedute coinvolte',
+      action:
+        Number(input.recordings.fallite ?? 0) > 0
+          ? 'Senza audio non c’è trascrizione: il messaggio del fornitore sta nel dettaglio della seduta.'
+          : null,
     }),
     assessService({
       key: 'trascrizione',
@@ -804,8 +962,17 @@ function buildServices(input: {
         'Nessun fornitore di trascrizione configurato in questo ambiente.',
       ok: Number(input.transcripts.sedute_trascritte ?? 0),
       failed: Number(input.aiSessions.trascrizione_fallita ?? 0),
+      unit: 'sedute',
+      unitOne: 'seduta',
       measures:
         'Sedute con almeno un segmento trascritto contro quelle finite in «trascrizione fallita».',
+      causes: cause('trascrizione'),
+      href: '/dashboard/admin/ai?stato=trascrizione_fallita',
+      hrefLabel: 'Apri le sedute fallite',
+      action:
+        Number(input.aiSessions.trascrizione_fallita ?? 0) > 0
+          ? 'Stato terminale per scelta: qui il materiale manca, e riaprire comprerebbe solo un secondo giro di attesa.'
+          : null,
     }),
     assessService({
       key: 'riepiloghi',
@@ -814,9 +981,18 @@ function buildServices(input: {
       unconfiguredReason:
         'Nessuna chiave OpenAI configurata: i riepiloghi non vengono generati qui.',
       ok: Number(input.reports.generati ?? 0),
-      failed: Number(input.reports.falliti ?? 0),
+      failed: Number(input.aiSessions.report_fallito ?? 0),
+      unit: 'sedute',
+      unitOne: 'seduta',
       measures:
-        'Riepiloghi arrivati in revisione contro quelli falliti, nel periodo.',
+        'Riepiloghi arrivati in revisione contro le sedute finite in «riepilogo fallito», nel periodo.',
+      causes: cause('riepiloghi'),
+      href: '/dashboard/admin/ai?stato=report_fallito',
+      hrefLabel: 'Apri e riprendi',
+      action:
+        Number(input.aiSessions.report_fallito ?? 0) > 0
+          ? 'Sono le uniche sedute recuperabili: la trascrizione di solito è ancora in tabella e il dettaglio ha il pulsante per riprenderle.'
+          : null,
     }),
     assessService({
       key: 'email',
@@ -826,7 +1002,16 @@ function buildServices(input: {
         'Resend non configurato: le email non partono da questo ambiente.',
       ok: Number(input.email.inviate ?? 0),
       failed: Number(input.email.fallite ?? 0),
-      measures: 'Consegne registrate in `notification_email_deliveries`.',
+      unit: 'consegne',
+      unitOne: 'consegna',
+      measures: 'Consegne registrate in notification_email_deliveries.',
+      causes: cause('email'),
+      href: '/dashboard/admin/audit?vista=email',
+      hrefLabel: 'Apri le consegne',
+      action:
+        Number(input.email.fallite ?? 0) > 0
+          ? 'Una mail che non arriva non lascia traccia nella schermata che l’ha richiesta: si vede solo da qui.'
+          : null,
     }),
     coda,
   ];
