@@ -4,6 +4,7 @@ import {
   ArrowDownRight,
   ArrowRight,
   ArrowUpRight,
+  ChevronRight,
   CircleHelp,
   CircleSlash,
   Info,
@@ -13,6 +14,7 @@ import {
 import type { AdminKpi, PipelineFunnelStep } from '@/lib/core/admin/overview';
 import type { AttentionItem } from '@/lib/core/admin/attention';
 import {
+  countWithUnit,
   SERVICE_STATUS_LABEL,
   type ServiceStatus,
   type ServiceVerdict,
@@ -206,46 +208,132 @@ export function ServiceHealthPanel({
   services: ServiceVerdict[];
 }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white">
+    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
       <ul className="divide-y divide-gray-100">
         {services.map((service) => (
-          <li
-            key={service.key}
-            className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:gap-4"
-          >
-            <div className="flex min-w-0 flex-1 items-center gap-2.5">
-              <span
-                className={`h-2.5 w-2.5 shrink-0 rounded-full ${STATUS_STYLE[service.status]}`}
-                aria-hidden="true"
-              />
-              <span
-                className="truncate text-sm font-medium text-gray-900"
-                title={service.measures}
-              >
-                {service.label}
-              </span>
-              <span
-                title={service.measures}
-                className="shrink-0 text-gray-300"
-              >
-                <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
-                <span className="sr-only">{service.measures}</span>
-              </span>
-            </div>
-            <div className="flex min-w-0 flex-[2] flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
-              <span
-                className={`shrink-0 text-xs font-semibold uppercase tracking-wide ${STATUS_TEXT[service.status]}`}
-              >
-                {SERVICE_STATUS_LABEL[service.status]}
-              </span>
-              <span className="min-w-0 text-xs text-gray-600">
-                {service.message}
-              </span>
-            </div>
+          <li key={service.key}>
+            <ServiceRow service={service} />
           </li>
         ))}
       </ul>
     </div>
+  );
+}
+
+/**
+ * Una voce di stato, apribile quando ha qualcosa da dire.
+ *
+ * La prima versione si fermava a «Degradato · 60 fallimenti su 159», e non
+ * bastava: chi legge vuole sapere **quale** problema e **se deve
+ * intervenire**, e un conteggio non risponde a nessuna delle due. Adesso la
+ * riga si apre e mostra le cause con il loro peso, una lettura ricavata dai
+ * dati e un collegamento a dove si guarda davvero.
+ *
+ * `<details>` nativo, come `CollapsiblePanel`: niente stato React, apertura da
+ * tastiera gia' gestita dal browser, e il contenuto resta nel documento per
+ * la ricerca della pagina. Le voci sane non si aprono — non c'e' niente
+ * dentro, e un triangolino che apre il vuoto insegna a non premerlo.
+ */
+function ServiceRow({ service }: { service: ServiceVerdict }) {
+  const testa = (
+    <>
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
+        <span
+          className={`h-2.5 w-2.5 shrink-0 rounded-full ${STATUS_STYLE[service.status]}`}
+          aria-hidden="true"
+        />
+        <span
+          className="truncate text-sm font-medium text-gray-900"
+          title={service.measures}
+        >
+          {service.label}
+        </span>
+        <span title={service.measures} className="shrink-0 text-gray-300">
+          <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
+          <span className="sr-only">{service.measures}</span>
+        </span>
+      </div>
+      <div className="flex min-w-0 flex-[2] flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
+        <span
+          className={`shrink-0 text-xs font-semibold uppercase tracking-wide ${STATUS_TEXT[service.status]}`}
+        >
+          {SERVICE_STATUS_LABEL[service.status]}
+        </span>
+        <span className="min-w-0 text-xs text-gray-600">{service.message}</span>
+      </div>
+    </>
+  );
+
+  if (!service.expandable) {
+    return (
+      <div className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
+        {testa}
+      </div>
+    );
+  }
+
+  return (
+    <details className="group">
+      <summary className="flex cursor-pointer list-none flex-col gap-1 px-4 py-3 hover:bg-gray-50 sm:flex-row sm:items-center sm:gap-4 [&::-webkit-details-marker]:hidden">
+        {testa}
+        <ChevronRight
+          className="hidden h-4 w-4 shrink-0 text-gray-400 transition-transform group-open:rotate-90 sm:block"
+          aria-hidden="true"
+        />
+      </summary>
+
+      <div className="border-t border-gray-100 bg-gray-50/60 px-4 py-3">
+        <p className="text-xs text-gray-500">{service.measures}</p>
+
+        {service.causes.length > 0 ? (
+          <ul className="mt-3 flex flex-col gap-2">
+            {service.causes.map((cause) => (
+              <li
+                key={cause.code}
+                className="rounded-xl border border-gray-200 bg-white p-3"
+              >
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="text-sm font-semibold text-gray-900">
+                    {cause.label}
+                  </span>
+                  <span className="shrink-0 tabular-nums text-sm font-bold text-gray-950">
+                    {countWithUnit(cause.count, service.unit, service.unitOne)}
+                  </span>
+                </div>
+                <code className="mt-0.5 block text-[11px] text-gray-400">
+                  {cause.code}
+                </code>
+                <p className="mt-1 text-xs leading-5 text-gray-600">
+                  {cause.hint}
+                </p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-xs text-gray-500">
+            Nessuna causa registrata nel periodo: non c’è un elenco di errori
+            dietro questo stato.
+          </p>
+        )}
+
+        {service.action ? (
+          <p className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span>{service.action}</span>
+          </p>
+        ) : null}
+
+        {service.href ? (
+          <Link
+            href={service.href}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3.5 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
+          >
+            {service.hrefLabel ?? 'Apri'}
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </Link>
+        ) : null}
+      </div>
+    </details>
   );
 }
 

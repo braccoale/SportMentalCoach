@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   assessService,
+  countWithUnit,
   worstServiceStatus,
   type ServiceSignal,
 } from './service-health';
@@ -13,6 +14,7 @@ function signal(over: Partial<ServiceSignal> = {}): ServiceSignal {
     configured: true,
     ok: 10,
     failed: 0,
+    unit: 'sedute',
     measures: 'job di trascrizione conclusi nel periodo',
     ...over,
   };
@@ -40,13 +42,15 @@ test('nessuna misura raccolta non vale «Operativo»', () => {
 test('tutte riuscite: operativo, e lo dice con i numeri', () => {
   const verdict = assessService(signal({ ok: 12, failed: 0 }));
   assert.equal(verdict.status, 'operativo');
-  assert.match(verdict.message, /12 operazioni riuscite/);
+  assert.match(verdict.message, /12 su 12 sedute senza problemi/);
 });
 
 test('un fallimento su dieci è degradato, non rotto', () => {
   const verdict = assessService(signal({ ok: 9, failed: 1 }));
   assert.equal(verdict.status, 'degradato');
-  assert.match(verdict.message, /1 fallimento su 10/);
+  // «1 sedute su 10» era la prima forma, ed era sbagliata: «N su M unita'»
+  // regge singolare e plurale senza dover declinare niente.
+  assert.match(verdict.message, /1 su 10 sedute con problemi/);
 });
 
 test('metà delle operazioni fallite è un guasto', () => {
@@ -89,4 +93,45 @@ test('il verdetto complessivo è il peggiore, e non-monitorato non tinge di ross
     worstServiceStatus([assessService(signal({ key: 'e', configured: false }))]),
     'non_monitorato'
   );
+});
+
+test('«1 sedute» non deve esistere: l’unità si declina', () => {
+  assert.equal(countWithUnit(1, 'sedute', 'seduta'), '1 seduta');
+  assert.equal(countWithUnit(8, 'sedute', 'seduta'), '8 sedute');
+  assert.equal(countWithUnit(0, 'sedute', 'seduta'), '0 sedute');
+  // Senza forma singolare dichiarata resta il plurale: mai un errore muto.
+  assert.equal(countWithUnit(1, 'job', 'job'), '1 job');
+});
+
+test('la voce porta con sé dove guardare e cosa fare, quando c’è', () => {
+  const verdict = assessService(
+    signal({
+      ok: 40,
+      failed: 8,
+      causes: [
+        { code: 'media_device_error', label: 'Errore dispositivo', count: 8, hint: '…' },
+      ],
+      href: '/dashboard/admin/video-sessions',
+      hrefLabel: 'Apri il registro tecnico',
+      action: 'Tutto concentrato su un coach solo.',
+    })
+  );
+
+  assert.equal(verdict.expandable, true);
+  assert.equal(verdict.href, '/dashboard/admin/video-sessions');
+  assert.equal(verdict.causes.length, 1);
+  // La causa più frequente entra nel messaggio: si legge senza aprire.
+  assert.match(verdict.message, /errore dispositivo \(8\)/);
+});
+
+test('una causa a zero non compare, e una voce sana non è apribile', () => {
+  const verdict = assessService(
+    signal({
+      ok: 12,
+      failed: 0,
+      causes: [{ code: 'X', label: 'X', count: 0, hint: '…' }],
+    })
+  );
+  assert.deepEqual(verdict.causes, []);
+  assert.equal(verdict.expandable, false);
 });

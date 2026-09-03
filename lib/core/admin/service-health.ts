@@ -28,6 +28,26 @@ export type ServiceStatus =
  */
 export const SERVICE_ERROR_RATIO = 0.5;
 
+/**
+ * Una causa concreta dietro un servizio degradato.
+ *
+ * Esiste perche' «60 fallimenti su 159» non dice a nessuno se deve
+ * intervenire. Ottantuno errori di dispositivo sparsi su otto sedute e
+ * ottantuno sparsi su quaranta sono due situazioni opposte: la prima e' il
+ * microfono di una persona, la seconda e' la piattaforma. Il numero da solo
+ * non le distingue; la causa e la sua concentrazione si'.
+ */
+export type ServiceCause = {
+  /** Codice tecnico, come sta in database: e' quello che si cerca nei log. */
+  code: string;
+  /** Come si chiama per una persona. */
+  label: string;
+  /** Quante volte, nell'unita' del servizio (sedute, consegne, tracce). */
+  count: number;
+  /** Che cosa vuol dire, e se e' il caso di fare qualcosa. */
+  hint: string;
+};
+
 export type ServiceSignal = {
   key: string;
   label: string;
@@ -51,6 +71,32 @@ export type ServiceSignal = {
   hardFailure?: { reason: string };
   /** Cosa stiamo misurando davvero, per il tooltip. */
   measures: string;
+  /**
+   * L'unita' del conteggio, al plurale: «sedute», «consegne», «tracce».
+   *
+   * Non e' cosmesi. La prima versione diceva «60 fallimenti su 159» dove il
+   * 159 sommava eventi di natura diversa — stanze aperte, partecipanti
+   * entrati, tracce pubblicate — cioe' volume di attivita', non operazioni
+   * riuscite. Un rapporto costruito cosi' e' aritmeticamente vero e
+   * semanticamente falso: dichiarare l'unita' costringe a scegliere un
+   * denominatore che voglia dire qualcosa.
+   */
+  unit: string;
+  /** La stessa unita' al singolare: «1 sedute» era la prima versione. */
+  unitOne?: string;
+  /** Le cause piu' frequenti, gia' ordinate. Vuoto quando non ce ne sono. */
+  causes?: ServiceCause[];
+  /** Dove si va a guardare davvero. */
+  href?: string;
+  /** L'etichetta del collegamento: un verbo, non «dettagli». */
+  hrefLabel?: string;
+  /**
+   * Che cosa fare, quando c'e' qualcosa da fare.
+   *
+   * Deve essere ricavata dai dati, non consigliata a caso: «e' concentrato su
+   * un coach» si legge dai numeri, «riavvia il servizio» no.
+   */
+  action?: string | null;
 };
 
 export type ServiceVerdict = {
@@ -60,17 +106,33 @@ export type ServiceVerdict = {
   /** Una riga sola, già scritta: chi legge non deve interpretare i numeri. */
   message: string;
   measures: string;
+  unit: string;
+  unitOne: string;
   ok: number | null;
   failed: number | null;
+  causes: ServiceCause[];
+  href: string | null;
+  hrefLabel: string | null;
+  action: string | null;
+  /** Vero quando c'è qualcosa da aprire: la voce diventa apribile. */
+  expandable: boolean;
 };
 
 export function assessService(signal: ServiceSignal): ServiceVerdict {
+  const causes = (signal.causes ?? []).filter((cause) => cause.count > 0);
   const base = {
     key: signal.key,
     label: signal.label,
     measures: signal.measures,
+    unit: signal.unit,
+    unitOne: signal.unitOne ?? signal.unit,
     ok: signal.ok,
     failed: signal.failed,
+    causes,
+    href: signal.href ?? null,
+    hrefLabel: signal.hrefLabel ?? null,
+    action: signal.action ?? null,
+    expandable: causes.length > 0 || Boolean(signal.href),
   };
 
   if (!signal.configured) {
@@ -112,24 +174,54 @@ export function assessService(signal: ServiceSignal): ServiceVerdict {
     return {
       ...base,
       status: 'operativo',
-      message: `${ok} ${ok === 1 ? 'operazione riuscita' : 'operazioni riuscite'}, nessun fallimento nel periodo.`,
+      message: `${ok} su ${total} ${signal.unit} senza problemi nel periodo.`,
     };
   }
 
   const ratio = failed / total;
+  const quota = `${failed} su ${total} ${signal.unit}`;
+  const principale = causes[0];
+  const coda = principale
+    ? ` La causa più frequente: ${principale.label.toLowerCase()} (${principale.count}).`
+    : '';
+
   if (ratio >= SERVICE_ERROR_RATIO) {
     return {
       ...base,
       status: 'errore',
-      message: `${failed} fallimenti su ${total}: più della metà delle operazioni non riesce.`,
+      message: `${quota}: più della metà non riesce.${coda}`,
     };
   }
 
   return {
     ...base,
     status: 'degradato',
-    message: `${failed} ${failed === 1 ? 'fallimento' : 'fallimenti'} su ${total} nel periodo.`,
+    message: `${quota} con problemi nel periodo.${coda}`,
   };
+}
+
+/**
+ * Quanto e' concentrato un problema, detto in una frase.
+ *
+ * E' la differenza fra «il microfono di una persona» e «la piattaforma», e
+ * nessun conteggio da solo la esprime: ottantuno errori su otto sedute di un
+ * coach solo e ottantuno su quaranta sedute di nove coach sono lo stesso
+ * numero e due problemi diversi. Si ricava dai dati — non e' un consiglio
+ * inventato, e' una lettura.
+ */
+export function concentrationHint(params: {
+  affected: number;
+  people: number;
+  peopleLabel: string;
+}): string {
+  if (params.affected === 0) return '';
+  if (params.people <= 1) {
+    return `Tutto concentrato su un ${params.peopleLabel} solo: è quasi certamente la sua postazione, non la piattaforma.`;
+  }
+  if (params.people >= params.affected) {
+    return `Sparso su ${params.people} ${params.peopleLabel}: se cresce, guarda la piattaforma prima delle singole postazioni.`;
+  }
+  return `Su ${params.people} ${params.peopleLabel} diversi: guarda prima i più colpiti.`;
 }
 
 export const SERVICE_STATUS_LABEL: Record<ServiceStatus, string> = {
@@ -154,4 +246,19 @@ export function worstServiceStatus(
   if (verdicts.some((v) => v.status === 'degradato')) return 'degradato';
   if (verdicts.some((v) => v.status === 'operativo')) return 'operativo';
   return 'non_monitorato';
+}
+
+/**
+ * Un conteggio con la sua unita', declinata.
+ *
+ * «1 sedute su 10» era la prima versione, ed e' il genere di sciatteria che
+ * fa sembrare provvisorio tutto il resto della pagina — anche quando i numeri
+ * sotto sono giusti.
+ */
+export function countWithUnit(
+  count: number,
+  unit: string,
+  unitOne: string
+): string {
+  return `${count} ${count === 1 ? unitOne : unit}`;
 }

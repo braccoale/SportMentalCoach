@@ -13,7 +13,10 @@ import {
   UpcomingAgendaBlock,
 } from './control-room';
 import { buildAttentionItems } from '@/lib/core/admin/attention';
-import { assessService } from '@/lib/core/admin/service-health';
+import {
+  assessService,
+  concentrationHint,
+} from '@/lib/core/admin/service-health';
 import { buildUpcomingAgenda } from '@/lib/core/admin/upcoming';
 import type { AdminKpi } from '@/lib/core/admin/overview';
 
@@ -89,6 +92,76 @@ test('ogni voce del pannello porta un’azione e un collegamento filtrato', () =
   assert.doesNotMatch(html, /CRITICO/i);
 });
 
+test('una voce degradata si apre e dice quale problema è, e se intervenire', () => {
+  const html = renderToStaticMarkup(
+    <ServiceHealthPanel
+      services={[
+        assessService({
+          key: 'videochiamate',
+          label: 'Videochiamate',
+          configured: true,
+          ok: 40,
+          failed: 8,
+          unit: 'sedute',
+          measures: 'Sedute con attività video nel periodo.',
+          causes: [
+            {
+              code: 'media_device_error',
+              label: 'Errore dispositivo',
+              count: 8,
+              hint: 'Si risolve sulla postazione, non sulla piattaforma.',
+            },
+          ],
+          href: '/dashboard/admin/video-sessions',
+          hrefLabel: 'Apri il registro tecnico',
+          action: 'Tutto concentrato su un coach solo.',
+        }),
+      ]}
+    />
+  );
+
+  // Il conteggio non è più un rapporto fra grandezze diverse.
+  assert.match(html, /8 su 48 sedute con problemi/);
+  // La causa, con il suo peso e il suo codice tecnico.
+  assert.match(html, /Errore dispositivo/);
+  assert.match(html, /media_device_error/);
+  // La lettura ricavata dai dati, e dove si va a guardare.
+  assert.match(html, /concentrato su un coach solo/);
+  assert.match(html, /href="\/dashboard\/admin\/video-sessions"/);
+  assert.match(html, /Apri il registro tecnico/);
+  // Apribile, con `details` nativo.
+  assert.match(html, /<details/);
+});
+
+test('una voce senza niente dentro non si apre sul vuoto', () => {
+  const html = renderToStaticMarkup(
+    <ServiceHealthPanel
+      services={[
+        assessService({
+          key: 'trascrizione',
+          label: 'Trascrizione',
+          configured: true,
+          ok: 12,
+          failed: 0,
+          unit: 'sedute',
+          measures: 'Sedute trascritte.',
+        }),
+      ]}
+    />
+  );
+  assert.doesNotMatch(html, /<details/);
+  assert.match(html, /12 su 12 sedute senza problemi/);
+});
+
+test('la concentrazione distingue una postazione da un guasto di piattaforma', () => {
+  const unaPersona = concentrationHint({ affected: 8, people: 1, peopleLabel: 'coach' });
+  const molte = concentrationHint({ affected: 9, people: 9, peopleLabel: 'coach' });
+
+  assert.match(unaPersona, /sua postazione, non la piattaforma/);
+  assert.match(molte, /guarda la piattaforma/);
+  assert.notEqual(unaPersona, molte);
+});
+
 test('un servizio senza osservazioni si mostra «Non monitorato», non verde', () => {
   const html = renderToStaticMarkup(
     <ServiceHealthPanel
@@ -100,6 +173,7 @@ test('un servizio senza osservazioni si mostra «Non monitorato», non verde', (
           unconfiguredReason: 'Nessun fornitore configurato.',
           ok: null,
           failed: null,
+          unit: 'sedute',
           measures: 'job conclusi nel periodo',
         }),
       ]}
