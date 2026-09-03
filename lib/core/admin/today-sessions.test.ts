@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildTodaySessions } from './today-sessions';
+import { buildDaySessions, buildTodaySessions } from './today-sessions';
 import type { AdminBookingRow } from './booking-rows';
 
 /** Ore 14:00 a Roma del 30 giugno 2026 (ora legale: UTC+2). */
@@ -140,4 +140,51 @@ test('«in corso» lo dice il battito, non l’orario', () => {
     sessions.map((s) => `${s.bookingId}:${s.isLive}`),
     ['1:true', '2:false', '3:false']
   );
+});
+
+test('la giornata si può chiedere per una data qualsiasi, non solo per oggi', () => {
+  const domani = buildDaySessions(
+    [
+      booking({ id: 1, providerId: 100, scheduledFor: new Date('2026-06-30T16:00:00Z') }),
+      booking({ id: 2, providerId: 100, scheduledFor: new Date('2026-07-01T08:00:00Z') }),
+      booking({ id: 3, providerId: 100, scheduledFor: new Date('2026-07-01T14:00:00Z') }),
+    ],
+    '2026-07-01',
+    NOW
+  );
+
+  assert.deepEqual(domani.map((s) => s.bookingId), [2, 3]);
+});
+
+test('«in corso» lo decide il battito, non il giorno che si sta guardando', () => {
+  /*
+   * Sembra un controsenso — una seduta di domani che risulta in corso — e
+   * invece e' la risposta giusta: se un battito e' arrivato adesso, qualcuno
+   * e' collegato *davvero*, e nasconderlo perche' la data non torna
+   * significherebbe mentire su una chiamata viva. Con dati veri il caso non
+   * si presenta: i battiti sono freschi solo durante la chiamata.
+   */
+  const domani = buildDaySessions(
+    [
+      booking({
+        id: 1,
+        providerId: 100,
+        scheduledFor: new Date('2026-07-01T08:00:00Z'),
+        sessionStartedAt: new Date('2026-06-30T11:50:00Z'),
+        sessionEndedAt: NOW,
+      }),
+    ],
+    '2026-07-01',
+    NOW
+  );
+  assert.equal(domani.length, 1);
+  assert.equal(domani[0].isLive, true);
+
+  // Senza battito recente, invece, resta spento.
+  const spenta = buildDaySessions(
+    [booking({ id: 2, providerId: 100, scheduledFor: new Date('2026-07-01T08:00:00Z') })],
+    '2026-07-01',
+    NOW
+  );
+  assert.equal(spenta[0].isLive, false);
 });

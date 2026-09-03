@@ -10,6 +10,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { seriesBucketLabel } from '@/lib/core/admin/series-label';
+import type { PeriodGranularity } from '@/lib/core/admin/period';
 
 /**
  * I due soli grafici della panoramica.
@@ -26,17 +28,15 @@ import {
 
 const AXIS = { fontSize: 11, fill: '#6b7280' } as const;
 
-function shortDay(value: string): string {
-  // `YYYY-MM-DD` → `DD/MM`, senza Intl: il runner di CI ha una ICU ridotta e
-  // la stessa data uscirebbe formattata diversamente.
-  const [, month, day] = value.split('-');
-  return `${day}/${month}`;
-}
+/** L'etichetta di un punto: la regola sta in `series-label`, ed e' provata. */
+const bucketLabel = seriesBucketLabel;
 
 export function SessionsTrendChart({
   data,
+  granularity,
 }: {
-  data: { day: string; completate: number; annullate: number }[];
+  data: { bucket: string; completate: number; annullate: number }[];
+  granularity: PeriodGranularity;
 }) {
   return (
     <div className="h-56 w-full">
@@ -44,12 +44,12 @@ export function SessionsTrendChart({
         <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
           <CartesianGrid strokeDasharray="2 4" stroke="#f3f4f6" vertical={false} />
           <XAxis
-            dataKey="day"
-            tickFormatter={shortDay}
+            dataKey="bucket"
+            tickFormatter={bucketLabel}
             tick={AXIS}
             tickLine={false}
             axisLine={{ stroke: '#e5e7eb' }}
-            minTickGap={12}
+            minTickGap={granularity === 'mese' ? 4 : 12}
           />
           <YAxis
             tick={AXIS}
@@ -60,7 +60,11 @@ export function SessionsTrendChart({
           />
           <Tooltip
             cursor={{ fill: '#f9fafb' }}
-            labelFormatter={(value) => shortDay(String(value))}
+            labelFormatter={(value) =>
+              granularity === 'mese'
+                ? `Mese di ${bucketLabel(String(value))}`
+                : bucketLabel(String(value))
+            }
             contentStyle={{
               borderRadius: 12,
               border: '1px solid #e5e7eb',

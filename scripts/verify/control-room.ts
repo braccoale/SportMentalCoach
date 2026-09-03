@@ -46,8 +46,26 @@ async function main() {
   console.log('SERVIZI', overview.services.map((s) => `${s.label}:${s.status}`).join(' · '));
   console.log('ATTENZIONE', overview.attention.map((a) => a.key).join(', ') || '(nessuna)');
   console.log('IMBUTO', overview.funnel.map((f) => `${f.label}=${f.value}`).join(' · '));
-  console.log('GIORNI', overview.sessionsByDay.length, 'ESITI', JSON.stringify(overview.outcomes));
+  console.log('SERIE', overview.seriesGranularity, overview.sessionsSeries.length, 'punti:', JSON.stringify(overview.sessionsSeries.slice(-4)));
+  console.log('AGENDA oggi=' + overview.upcoming.oggi, 'domani=' + overview.upcoming.domani,
+    'sette giorni=' + overview.upcoming.totale,
+    JSON.stringify(overview.upcoming.days.map((d) => `${d.day}:${d.totale}`)));
+  console.log('ESITI', JSON.stringify(overview.outcomes));
   console.log('COACH ATTIVI', JSON.stringify(overview.coachActivity));
+
+  /*
+   * La stessa panoramica a dodici mesi: e' la vista che risponde a «quante ad
+   * agosto, quante a settembre», e va provata perche' cambia la SQL — il
+   * raggruppamento passa da giorno a mese.
+   */
+  const anno = adminPeriodRange('12m');
+  const annuale = await getAdminOverview(anno);
+  console.log(
+    'DODICI MESI', anno.from.toISOString().slice(0, 10), '→', anno.granularity,
+    JSON.stringify(
+      annuale.sessionsSeries.map((b) => `${b.bucket}: ${b.completate} fatte, ${b.annullate} annullate`)
+    )
+  );
 
   const kpis = await getAiConsoleKpis(period);
   console.log('PIPELINE KPI', JSON.stringify({ ...kpis, cost: kpis.cost.totalEur }));

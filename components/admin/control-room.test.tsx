@@ -10,9 +10,11 @@ import {
   PeriodSelector,
   PipelineFunnel,
   ServiceHealthPanel,
+  UpcomingAgendaBlock,
 } from './control-room';
 import { buildAttentionItems } from '@/lib/core/admin/attention';
 import { assessService } from '@/lib/core/admin/service-health';
+import { buildUpcomingAgenda } from '@/lib/core/admin/upcoming';
 import type { AdminKpi } from '@/lib/core/admin/overview';
 
 /**
@@ -164,4 +166,54 @@ test('il selettore di periodo è fatto di collegamenti: un periodo si incolla in
   assert.match(html, /href="\/dashboard\/admin\?periodo=7g"/);
   assert.match(html, /href="\/dashboard\/admin\?periodo=30g"/);
   assert.match(html, /aria-current="true"/);
+});
+
+test('l’agenda mostra anche i giorni vuoti, e ognuno porta alla sua giornata', () => {
+  const agenda = buildUpcomingAgenda(
+    [
+      { day: '2026-06-30', confermate: 2, daConfermare: 1 },
+      { day: '2026-07-02', confermate: 1, daConfermare: 0 },
+    ],
+    new Date('2026-06-30T12:00:00Z')
+  );
+
+  const html = renderToStaticMarkup(
+    <UpcomingAgendaBlock
+      agenda={agenda}
+      weekdayFor={() => 'mar'}
+      dayNumberFor={(day) => day}
+    />
+  );
+
+  // Sette riquadri, non due: i giorni vuoti sono l'informazione.
+  assert.equal(html.match(/href="\/dashboard\/admin\/sessioni\?giorno=/g)?.length, 7);
+  assert.match(html, /href="\/dashboard\/admin\/sessioni\?giorno=2026-07-01"/);
+  assert.match(html, /Oggi/);
+  assert.match(html, /Domani/);
+  assert.match(html, /4 in totale/);
+  // Le richieste da confermare si distinguono: sono un lavoro, non un numero.
+  assert.match(html, /1 da conf\./);
+});
+
+test('un’agenda vuota lo dice invece di mostrare sette zeri muti', () => {
+  const html = renderToStaticMarkup(
+    <UpcomingAgendaBlock
+      agenda={buildUpcomingAgenda([], new Date('2026-06-30T12:00:00Z'))}
+      weekdayFor={() => 'mar'}
+      dayNumberFor={(day) => day}
+    />
+  );
+  assert.match(html, /Nessuna seduta in agenda nei prossimi sette giorni/);
+  assert.match(html, /non è un errore|è un calendario vuoto/i);
+});
+
+test('l’agenda dichiara di non dipendere dal periodo scelto', () => {
+  const html = renderToStaticMarkup(
+    <UpcomingAgendaBlock
+      agenda={buildUpcomingAgenda([], new Date('2026-06-30T12:00:00Z'))}
+      weekdayFor={() => 'mar'}
+      dayNumberFor={(day) => day}
+    />
+  );
+  assert.match(html, /Non dipende dal periodo scelto sopra/);
 });

@@ -254,6 +254,7 @@ test('ogni lettura dell’amministrazione esclude i conti demo', () => {
     'ai-console.ts',
     'guardians.ts',
     'live-sessions.ts',
+    'agenda.ts',
   ];
 
   for (const name of readers) {

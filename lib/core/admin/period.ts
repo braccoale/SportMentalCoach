@@ -20,19 +20,41 @@ import { formatRomeDateValue } from '@/lib/core/format';
 /** Il fuso in cui il prodotto vive, come in `lib/core/format.ts`. */
 const DISPLAY_TIME_ZONE = 'Europe/Rome';
 
-export type AdminPeriodKey = 'oggi' | '7g' | '30g';
+export type AdminPeriodKey = 'oggi' | '7g' | '30g' | '12m';
+
+/**
+ * Quanto e' grosso un punto del grafico.
+ *
+ * Non e' una preferenza estetica: trecentosessantacinque barre su uno schermo
+ * non sono un andamento, sono una texture. La domanda «quante ad agosto,
+ * quante a settembre» si risponde con dodici punti, non con trecento.
+ */
+export type PeriodGranularity = 'giorno' | 'mese';
 
 export type AdminPeriodOption = {
   key: AdminPeriodKey;
   label: string;
-  /** Giorni di calendario coperti, oggi incluso. */
-  days: number;
+  /** Giorni di calendario coperti, oggi incluso. Assente nei periodi a mesi. */
+  days?: number;
+  /** Mesi di calendario coperti, quello corrente incluso. */
+  months?: number;
+  granularity: PeriodGranularity;
 };
 
 export const ADMIN_PERIODS: readonly AdminPeriodOption[] = [
-  { key: 'oggi', label: 'Oggi', days: 1 },
-  { key: '7g', label: '7 giorni', days: 7 },
-  { key: '30g', label: '30 giorni', days: 30 },
+  { key: 'oggi', label: 'Oggi', days: 1, granularity: 'giorno' },
+  { key: '7g', label: '7 giorni', days: 7, granularity: 'giorno' },
+  { key: '30g', label: '30 giorni', days: 30, granularity: 'giorno' },
+  /*
+   * I mesi sono **di calendario**, non trentine di giorni.
+   *
+   * «Quante ne abbiamo fatte ad agosto» e' una domanda sul mese di agosto:
+   * dal primo al trentuno. Un periodo di 365 giorni indietro da oggi
+   * spezzerebbe il primo e l'ultimo mese a meta' e darebbe due numeri che non
+   * corrispondono a nessun mese vero — quelli che poi non tornano quando li
+   * si confronta con qualunque altra cosa.
+   */
+  { key: '12m', label: '12 mesi', months: 12, granularity: 'mese' },
 ] as const;
 
 export const DEFAULT_ADMIN_PERIOD: AdminPeriodKey = '7g';
@@ -112,6 +134,23 @@ export function romeDayStartShifted(at: Date, days: number): Date {
 }
 
 /**
+ * L'istante in cui comincia, a Roma, il primo giorno di un mese di calendario.
+ *
+ * `monthsBack` conta all'indietro dal mese che contiene `at`: zero e' il mese
+ * corrente. `Date.UTC` accetta un indice di mese negativo e cambia anno da
+ * solo, quindi dodici mesi indietro a gennaio finiscono correttamente
+ * nell'anno prima.
+ */
+export function romeMonthStart(at: Date, monthsBack = 0): Date {
+  const [year, month] = formatRomeDateValue(at).split('-').map(Number);
+  const firstOfMonthAsUtc = Date.UTC(year, month - 1 - monthsBack, 1, 0, 0, 0);
+  const firstGuess = new Date(
+    firstOfMonthAsUtc - romeOffsetMinutes(at) * 60_000
+  );
+  return new Date(firstOfMonthAsUtc - romeOffsetMinutes(firstGuess) * 60_000);
+}
+
+/**
  * Un giorno di calendario `YYYY-MM-DD` scritto da una persona in un filtro,
  * riportato all'istante in cui quel giorno comincia a Roma.
  *
@@ -132,7 +171,9 @@ export function romeDayValueToInstant(value: string): Date | null {
 export type AdminPeriod = {
   key: AdminPeriodKey;
   label: string;
+  /** Giorni coperti davvero, anche quando il periodo e' espresso in mesi. */
   days: number;
+  granularity: PeriodGranularity;
   /** Primo istante compreso: mezzanotte a Roma. */
   from: Date;
   /** Adesso. Il periodo non guarda mai avanti. */
@@ -154,18 +195,37 @@ export function adminPeriodRange(
 ): AdminPeriod {
   const option =
     ADMIN_PERIODS.find((period) => period.key === key) ?? ADMIN_PERIODS[1];
-  const from = romeDayStartShifted(now, -(option.days - 1));
-  const previousFrom = romeDayStartShifted(now, -(option.days * 2 - 1));
-  const previousTo = from;
+
+  /*
+   * Due modi di misurare, e nessuno dei due e' convertibile nell'altro senza
+   * mentire: i giorni si contano all'indietro da oggi, i mesi partono dal
+   * primo del mese. Il periodo precedente ha sempre la stessa forma di quello
+   * corrente — confrontare dodici mesi con i trecentosessantacinque giorni che
+   * li precedono darebbe una percentuale vera e priva di significato.
+   */
+  const [from, previousFrom] =
+    option.months !== undefined
+      ? [
+          romeMonthStart(now, option.months - 1),
+          romeMonthStart(now, option.months * 2 - 1),
+        ]
+      : [
+          romeDayStartShifted(now, -((option.days ?? 7) - 1)),
+          romeDayStartShifted(now, -((option.days ?? 7) * 2 - 1)),
+        ];
 
   return {
     key: option.key,
     label: option.label,
-    days: option.days,
+    days: Math.max(
+      1,
+      Math.round((now.getTime() - from.getTime()) / 86_400_000)
+    ),
+    granularity: option.granularity,
     from,
     to: now,
     previousFrom,
-    previousTo,
+    previousTo: from,
   };
 }
 

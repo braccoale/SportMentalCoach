@@ -6,7 +6,9 @@ import { getPipelineHealth } from '@/lib/core/ai-session-notes/pipeline-health';
 import { readAiCostRates, estimateAiCost, type AiCostEstimate } from './ai-cost';
 import { assessService, type ServiceVerdict } from './service-health';
 import { buildAttentionItems, type AttentionItem } from './attention';
-import { type AdminPeriod } from './period';
+import { type AdminPeriod, type PeriodGranularity } from './period';
+import { getUpcomingAgenda } from './agenda';
+import type { UpcomingAgenda } from './upcoming';
 import { ACTIVE_DEFINITION, TOTAL_DEFINITION } from './activity';
 
 /**
@@ -57,6 +59,15 @@ const tz = (at: Date) => sql`${at.toISOString()}::timestamptz`;
 const naive = (at: Date) =>
   sql`${at.toISOString().replace('T', ' ').replace('Z', '')}::timestamp`;
 
+/**
+ * Il mese di calendario a Roma di un `timestamp` senza fuso.
+ *
+ * Stessa doppia conversione di `romeDay`, e per la stessa ragione: una seduta
+ * del primo agosto all'una di notte e' di agosto, non di luglio.
+ */
+const romeMonth = (column: unknown) =>
+  sql<string>`to_char(((${column} AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Rome')::date, 'YYYY-MM')`;
+
 export type AdminKpi = {
   key: string;
   label: string;
@@ -77,11 +88,21 @@ export type PipelineFunnelStep = {
   note: string;
 };
 
+export type SessionsBucket = {
+  /** `YYYY-MM-DD` a granularita' giorno, `YYYY-MM` a granularita' mese. */
+  bucket: string;
+  completate: number;
+  annullate: number;
+};
+
 export type AdminOverview = {
   kpis: AdminKpi[];
   services: ServiceVerdict[];
   attention: AttentionItem[];
-  sessionsByDay: { day: string; completate: number; annullate: number }[];
+  sessionsSeries: SessionsBucket[];
+  seriesGranularity: PeriodGranularity;
+  /** Che cosa c'e' davanti: la domanda che il periodo, all'indietro, non poteva fare. */
+  upcoming: UpcomingAgenda;
   funnel: PipelineFunnelStep[];
   outcomes: { label: string; count: number }[];
   coachActivity: { coachName: string; providerId: number; sessions: number }[];
@@ -302,7 +323,11 @@ export async function getAdminOverview(
 
     db.execute(sql`
       SELECT
-        ${romeDay(sql`coalesce(session_started_at, scheduled_for, requested_at)`)} AS day,
+        ${
+          period.granularity === 'mese'
+            ? romeMonth(sql`coalesce(session_started_at, scheduled_for, requested_at)`)
+            : romeDay(sql`coalesce(session_started_at, scheduled_for, requested_at)`)
+        } AS bucket,
         count(*) FILTER (WHERE status = 'completed')::int AS completate,
         count(*) FILTER (WHERE status IN ('cancelled', 'declined', 'expired'))::int AS annullate
       FROM bookings
@@ -316,7 +341,7 @@ export async function getAdminOverview(
       GROUP BY 1
       ORDER BY 1
     `) as unknown as Promise<
-      { day: string; completate: number; annullate: number }[]
+      { bucket: string; completate: number; annullate: number }[]
     >,
 
     db.execute(sql`
@@ -349,6 +374,14 @@ export async function getAdminOverview(
   // Dopo, e non insieme: `getPipelineHealth` fa tre letture per conto suo, e
   // sommarle alle tre di sopra riporterebbe il pooler dove si era piantato.
   const pipeline = await getPipelineHealth(to);
+
+  /*
+   * L'agenda guarda avanti, quindi **non dipende dal periodo**: cambiare da
+   * sette a trenta giorni non cambia cosa c'e' domani. Tenerla legata al
+   * selettore avrebbe prodotto un numero che si muove senza motivo, cioe' il
+   * modo piu' rapido per smettere di fidarsene.
+   */
+  const upcoming = await getUpcomingAgenda(to);
 
   /*
    * Le stesse forme di prima, ricavate dall'unica riga: il resto della
@@ -412,6 +445,7 @@ export async function getAdminOverview(
     bookingsNow,
     bookingsBefore,
     today,
+    upcoming,
     transcripts,
     aiSessions,
     pipeline,
@@ -449,11 +483,13 @@ export async function getAdminOverview(
     kpis,
     services,
     attention,
-    sessionsByDay: byDay.map((row) => ({
-      day: row.day,
+    sessionsSeries: byDay.map((row) => ({
+      bucket: row.bucket,
       completate: Number(row.completate),
       annullate: Number(row.annullate),
     })),
+    seriesGranularity: period.granularity,
+    upcoming,
     funnel: [
       {
         key: 'sedute',
@@ -518,13 +554,18 @@ function buildKpis(input: {
   bookingsNow: Counts;
   bookingsBefore: Counts;
   today: Counts;
+  upcoming: UpcomingAgenda;
   transcripts: Counts;
   aiSessions: Counts;
   pipeline: { untouchedJobs: number; stuckSessions: number };
 }): AdminKpi[] {
   const { period } = input;
-  const nelPeriodo = `Ultimi ${period.days === 1 ? 'oggi' : `${period.days} giorni`}`;
-  const scope = period.days === 1 ? 'Oggi (Europa/Roma)' : nelPeriodo;
+  // L'etichetta viene dal periodo, non dai giorni: «Ultimi 365 giorni» sarebbe
+  // vero e illeggibile dove l'utente ha chiesto dodici mesi.
+  const scope =
+    period.key === 'oggi'
+      ? 'Oggi (Europa/Roma)'
+      : `Ultimi ${period.label.toLowerCase()}`;
   const sempre = 'Dall’inizio';
 
   const falliti =
@@ -599,12 +640,30 @@ function buildKpis(input: {
     },
     {
       key: 'sessioni-oggi',
-      label: 'Sedute previste oggi',
+      label: 'Sedute oggi',
       value: Number(input.today.previste ?? 0),
       description:
         'Confermate, da confermare e già svolte nella giornata di oggi a Roma.',
       scope: 'Oggi (Europa/Roma)',
       href: '/dashboard/admin/sessioni',
+      delta: null,
+      tone: 'neutro',
+    },
+    /*
+     * Domani accanto a oggi, e non dentro il periodo.
+     *
+     * E' la voce che mancava del tutto: il selettore copre solo l'indietro, e
+     * nessuna delle tre finestre conteneva domani. Un'amministrazione che non
+     * sa quante sedute ci sono domani non e' un'amministrazione.
+     */
+    {
+      key: 'sessioni-domani',
+      label: 'Sedute domani',
+      value: input.upcoming.domani,
+      description:
+        'Confermate e da confermare per la giornata di domani. Non dipende dal periodo scelto: guarda avanti.',
+      scope: 'Domani (Europa/Roma)',
+      href: `/dashboard/admin/sessioni?giorno=${input.upcoming.days[1]?.day ?? ''}`,
       delta: null,
       tone: 'neutro',
     },
