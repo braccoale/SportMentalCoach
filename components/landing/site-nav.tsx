@@ -18,7 +18,6 @@ const LINKS = [
   { href: '#ecosistema-atleta', label: 'Ecosistema' },
   { href: '#metodo', label: 'Metodo' },
   { href: '#academy', label: 'Academy' },
-  { href: '#pacchetti', label: 'Prezzi' },
   { href: '#visione', label: 'Visione' },
   { href: '/coaches', label: 'Coach' },
 ];
