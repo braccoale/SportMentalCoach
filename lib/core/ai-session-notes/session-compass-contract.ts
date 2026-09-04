@@ -13,6 +13,13 @@ export const SESSION_COMPASS_SCHEMA_VERSION = '1.0' as const;
 
 export const MAX_KEY_MOMENTS = 3;
 export const MAX_THEMES = 3;
+/**
+ * Il prompt chiede al modello "da 2 a MAX_THEMES temi" (openai-session-compass-provider.ts),
+ * ma finché nessuno lo impone qui un array vuoto passa la validazione lo stesso: è
+ * così che un retry rifiutato per un'evidenza debole può tornare con zero temi
+ * invece di doverne trovare almeno due.
+ */
+export const MIN_THEMES = 2;
 export const MAX_NEXT_SESSION_PREP = 3;
 export const MAX_SESSION_METRICS = 6;
 export const MAX_EMOTIONAL_TREND_POINTS = 8;
@@ -421,6 +428,9 @@ export function validateSessionCompassReport(
 
   if ((overview?.themes ?? []).length > MAX_THEMES) {
     add(issues, 'TOO_MANY_THEMES', 'sessionOverview.themes', `Massimo ${MAX_THEMES} temi.`);
+  }
+  if ((overview?.themes ?? []).length < MIN_THEMES) {
+    add(issues, 'TOO_FEW_THEMES', 'sessionOverview.themes', `Minimo ${MIN_THEMES} temi.`);
   }
   for (const [index, theme] of (overview?.themes ?? []).entries()) {
     const path = `sessionOverview.themes[${index}]`;

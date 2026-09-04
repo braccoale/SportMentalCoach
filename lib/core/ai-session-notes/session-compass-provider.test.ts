@@ -80,6 +80,7 @@ const CONTENT: RawCompassContent = {
     summaryEvidence: [{ transcriptSegmentId: 2, quote: 'la testa altrove' }],
     themes: [
       { text: 'Attenzione in gara', evidence: { transcriptSegmentId: 2, quote: 'testa altrove' } },
+      { text: 'Il vissuto dell’ultima gara', evidence: { transcriptSegmentId: 1, quote: 'ultima gara' } },
     ],
     emergingResource: null,
   },
@@ -220,7 +221,7 @@ test('omette gli insight privi di evidenza verificabile invece di inventarli', (
 
   assert.equal(report.keyMoments.length, 0);
   assert.equal(report.commitments.length, 0);
-  assert.equal(report.sessionOverview.themes.length, 1);
+  assert.equal(report.sessionOverview.themes.length, 2);
 });
 
 test('scarta i testi che presentano una causa come fatto', () => {
