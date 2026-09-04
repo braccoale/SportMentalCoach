@@ -45,6 +45,10 @@ import { TranscriptPanel } from './session-compass/transcript-panel';
 import { TranscriptHistorySearch } from './session-compass/transcript-history-search';
 import { PdfDownloadButton } from './session-compass/journey-pdf-button';
 import {
+  COMPASS_REGENERATE_MAX_ATTEMPTS,
+  isRetryableCompassRegenerateStatus,
+} from '@/lib/core/ai-session-notes/compass-regenerate-retry';
+import {
   segmentAnchorId,
   type CompassTabId,
   type CompassTranscriptSegment,
@@ -91,6 +95,15 @@ function apiErrorMessage(value: unknown): string {
     : 'Non è stato possibile completare la richiesta. Riprova.';
 }
 
+/** Porta con sé lo status HTTP: serve a decidere se vale la pena ritentare. */
+class ApiError extends Error {
+  readonly status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
 async function requestJson(
   url: string,
   method: 'GET' | 'POST' | 'PATCH',
@@ -107,7 +120,7 @@ async function requestJson(
         }),
   });
   const payload: unknown = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(apiErrorMessage(payload));
+  if (!response.ok) throw new ApiError(response.status, apiErrorMessage(payload));
   return payload;
 }
 
@@ -372,6 +385,32 @@ export function SessionCompassPanel({
     }
   }
 
+  /**
+   * "Rigenera bozza" chiama il modello in modo sincrono, senza il retry
+   * automatico che la coda del worker applica agli stessi errori (la sessione
+   * 114 lo ha mostrato: un timeout del provider lasciava il pulsante senza
+   * aver cambiato niente). Qui il retry lo fa il client: ogni tentativo è una
+   * richiesta HTTP nuova, con un suo budget di 60 s tutto per sé, quindi
+   * costa solo un giro in più — non un cambio del limite di tempo del
+   * provider, che resta quello che è.
+   */
+  async function regenerateReport(): Promise<unknown> {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= COMPASS_REGENERATE_MAX_ATTEMPTS; attempt += 1) {
+      try {
+        return await requestJson(`${endpoint}/regenerate`, 'POST');
+      } catch (requestError) {
+        lastError = requestError;
+        const status = requestError instanceof ApiError ? requestError.status : 0;
+        if (attempt === COMPASS_REGENERATE_MAX_ATTEMPTS || !isRetryableCompassRegenerateStatus(status)) {
+          throw requestError;
+        }
+        setNotice(`Tentativo ${attempt} non riuscito, nuovo tentativo in corso…`);
+      }
+    }
+    throw lastError;
+  }
+
   function openEvidence(segmentId: number, targetSessionId = sessionId) {
     setTranscriptSessionId(targetSessionId);
     setHighlightedSegmentId(segmentId);
@@ -464,7 +503,7 @@ export function SessionCompassPanel({
               disabled={busy || loading}
               onClick={() =>
                 run(
-                  () => requestJson(`${endpoint}/regenerate`, 'POST'),
+                  regenerateReport,
                   (payload) => {
                     if (isRecord(payload) && payload.regenerated === false) {
                       setNotice('La bozza è già allineata alla trascrizione corrente.');
