@@ -21,7 +21,6 @@ const COLUMNS: {
     links: [
       { label: 'Trova la tua guida', href: '/coaches' },
       { label: 'Come funziona', href: '/#ecosistema-atleta' },
-      { label: 'Prezzi', href: '/#pacchetti' },
     ],
   },
   {

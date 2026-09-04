@@ -40,10 +40,6 @@ import { CookieSettingsButton } from '@/components/google-analytics';
 import { FooterLinks } from '@/components/landing/footer-links';
 import { BackToTop } from '@/components/back-to-top';
 import { getLandingStats } from '@/lib/db/landing-stats';
-import {
-  COACHING_PACKAGES,
-  formatPackagePrice,
-} from '@/lib/core/pricing';
 
 /** First-letter monogram from a display name (drops trailing ", 17 anni" etc). */
 function initials(name: string) {
@@ -123,7 +119,6 @@ export default async function KaiPaiLanding() {
       <MarketplaceAcademy />
       <Results />
       <TrustHowItWorks />
-      <Packages />
       <Vision />
       <MovementResources />
       <FinalCta />
@@ -974,114 +969,6 @@ function MovementResources() {
               Questo è KaiPai.
             </p>
           </Reveal>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ── Packages · pricing ── */
-function Packages() {
-  // Cifre e testi vengono da `lib/core/pricing`, lo stesso posto da cui viene
-  // `/pricing.md`. Qui resta solo l'icona, che è l'unica cosa di questi
-  // pacchetti a non avere senso fuori da questa sezione.
-  const PACKAGE_ICONS = {
-    starter: ShieldCheck,
-    academy: Users,
-    elite: Trophy,
-  } as const;
-  const packages = COACHING_PACKAGES.map((pkg) => {
-    const { amount, period } = formatPackagePrice(pkg);
-    return {
-      name: pkg.name,
-      icon: PACKAGE_ICONS[pkg.key],
-      price: amount,
-      period,
-      target: pkg.target,
-      desc: pkg.description,
-      features: pkg.features,
-      lit: pkg.highlighted,
-    };
-  });
-  return (
-    <section id="pacchetti" className={`${SECTION} bg-kp-ink2`}>
-      <div className={WRAP}>
-        <SectionHeader
-          center
-          eyebrow="Pacchetti & abbonamenti"
-          title={
-            <>
-              Un modello su misura per il tuo{' '}
-              <span className="text-kp-red">club</span>.
-            </>
-          }
-          sub="Dal dilettantismo all'élite: scegli il pacchetto adatto alla tua realtà. Nessun costo nascosto, tutto incluso."
-        />
-        <div className="mt-16 grid gap-6 md:grid-cols-3">
-          {packages.map((p, i) => (
-            <Reveal key={p.name} delay={i * 0.1}>
-              <div
-                className={`relative flex h-full flex-col rounded-2xl border p-8 ${
-                  p.lit
-                    ? 'border-kp-red/50 bg-kp-red/5 shadow-[0_0_50px_rgba(225,29,42,0.15)]'
-                    : 'border-kp-line bg-white/[0.02]'
-                }`}
-              >
-                {p.lit && (
-                  <span className="kp-eyebrow absolute right-6 top-6 text-kp-red">
-                    Più scelto
-                  </span>
-                )}
-                <span
-                  className={`flex h-12 w-12 items-center justify-center rounded-xl ${
-                    p.lit
-                      ? 'bg-kp-red/15 text-kp-red'
-                      : 'bg-white/[0.04] text-kp-hi'
-                  }`}
-                >
-                  <p.icon className="h-6 w-6" strokeWidth={1.6} />
-                </span>
-                <h3 className="mt-5 font-display text-xl font-semibold text-kp-hi">
-                  {p.name}
-                </h3>
-                <p className="mt-2 text-sm text-kp-low">{p.target}</p>
-                <p className="mt-4 text-sm leading-relaxed text-kp-mid">
-                  {p.desc}
-                </p>
-
-                <div className="mt-6 flex items-baseline gap-1">
-                  <span className="font-display text-3xl font-bold text-kp-hi">
-                    {p.price}
-                  </span>
-                  <span className="text-sm text-kp-low">{p.period}</span>
-                </div>
-
-                <ul className="mt-5 space-y-2.5">
-                  {p.features.map((f) => (
-                    <li
-                      key={f}
-                      className="flex items-start gap-2 text-sm text-kp-mid"
-                    >
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-kp-verify" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-
-                <a
-                  href="mailto:info@kaipaicoaching.com?subject=Informazioni%20pacchetti%20KaiPai"
-                  className={`mt-8 inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-semibold transition ${
-                    p.lit
-                      ? 'kp-cta text-white'
-                      : 'border border-kp-line text-kp-hi hover:border-kp-red/40'
-                  }`}
-                >
-                  Richiedi informazioni
-                  <ArrowRight className="h-4 w-4" />
-                </a>
-              </div>
-            </Reveal>
-          ))}
         </div>
       </div>
     </section>
