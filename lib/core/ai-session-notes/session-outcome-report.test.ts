@@ -28,6 +28,7 @@ function snapshot(
     ],
     transcriptSegments: 592,
     reportId: 44,
+    reportThemesCount: 2,
     recordings: [],
     jobs: [],
     audit: [],
@@ -54,6 +55,26 @@ test('un riepilogo consegnato sopra una voce persa è parziale, non ok', () => {
   assert.equal(classifySessionOutcome(parziale), 'parziale');
   assert.match(outcomeSubject(parziale), /PARZIALE/);
   assert.match(buildOutcomeReport(parziale), /INCOMPLETA/);
+});
+
+/*
+ * La sessione 114: pipeline tutta verde, riepilogo approvato dal coach sopra
+ * un report con zero temi — il tentativo di generazione, ricominciato da capo
+ * dopo un primo rifiuto della validazione, questa volta ha omesso tutto ciò
+ * che richiedeva un'evidenza invece di trovarne una. `MIN_THEMES` in
+ * generazione dovrebbe impedirlo da qui in avanti; questo test copre il caso
+ * in cui, per qualunque motivo, un report del genere arrivasse comunque.
+ */
+test('un riepilogo consegnato con zero temi è parziale, non ok', () => {
+  const parziale = snapshot({ reportThemesCount: 0 });
+  assert.equal(classifySessionOutcome(parziale), 'parziale');
+  assert.match(outcomeSubject(parziale), /PARZIALE/);
+  assert.match(buildOutcomeReport(parziale), /ZERO TEMI/);
+});
+
+test('nessun riepilogo ancora generato non conta come zero temi', () => {
+  const senzaReport = snapshot({ reportId: null, reportThemesCount: null });
+  assert.equal(classifySessionOutcome(senzaReport), 'ok');
 });
 
 test('gli stati terminali di guasto sono falliti, il rifiuto è cosa sua', () => {

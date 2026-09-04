@@ -76,7 +76,7 @@ export function SessionHeroInsight({
           leggere per prima, e deve essere impossibile leggerne un'altra
           prima di lei. */}
       <h3 className="relative mt-4 max-w-[30ch] text-[1.75rem] font-bold leading-[1.15] tracking-[-0.02em] text-gray-950 sm:text-[2.25rem] lg:text-[2.5rem]">
-        {headline ?? 'Dato non disponibile'}
+        {headline ?? 'Nessun tema identificato con evidenza sufficiente'}
       </h3>
       {summary ? (
         <p className="relative mt-4 max-w-[62ch] text-base leading-7 text-gray-700 sm:text-lg sm:leading-8">
@@ -110,7 +110,7 @@ export function SessionHeroInsight({
       >
         <SupportingFact
           label="Prossimo passo suggerito"
-          value={nextStep?.text ?? 'Dato non disponibile'}
+          value={nextStep?.text ?? 'Nessuna azione emersa dal report'}
           note={
             nextStep
               ? 'Da decidere e validare dal coach.'

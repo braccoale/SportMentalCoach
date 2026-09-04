@@ -177,7 +177,7 @@ test('la panoramica segnala i dati non disponibili senza inventare metriche', ()
     />
   );
 
-  assert.match(html, /Dato non disponibile/);
+  assert.match(html, /Nessun tema identificato con evidenza sufficiente/);
   assert.doesNotMatch(html, />0\/5</);
 });
 

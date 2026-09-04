@@ -17,6 +17,7 @@ import {
   MAX_QUOTE_LENGTH,
   MAX_SESSION_METRICS,
   MAX_THEMES,
+  MIN_THEMES,
   METRIC_CONFIDENCE_LEVELS,
   CONVERSATION_TONE_KEYS,
   SESSION_METRIC_KEYS,
@@ -504,6 +505,7 @@ const COMPASS_CONTENT_SCHEMA: Record<string, unknown> = {
         summaryEvidence: { type: 'array', items: evidenceSchema() },
         themes: {
           type: 'array',
+          minItems: MIN_THEMES,
           maxItems: MAX_THEMES,
           items: {
             type: 'object',

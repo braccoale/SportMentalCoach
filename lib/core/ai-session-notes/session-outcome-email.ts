@@ -134,7 +134,10 @@ async function loadSnapshot(
     .where(eq(sessionTranscriptSegments.sessionAiNotesId, sessionId));
 
   const [report] = await db
-    .select({ id: sessionAiReports.id })
+    .select({
+      id: sessionAiReports.id,
+      themesCount: sql<number | null>`jsonb_array_length(${sessionAiReports.generatedReportJson}->'sessionOverview'->'themes')`,
+    })
     .from(sessionAiReports)
     .where(eq(sessionAiReports.sessionAiNotesId, sessionId))
     .limit(1);
@@ -169,6 +172,7 @@ async function loadSnapshot(
     coverage: coverage.participants,
     transcriptSegments: Number(segments?.total ?? 0),
     reportId: report?.id ?? null,
+    reportThemesCount: report?.themesCount ?? null,
     recordings,
     jobs,
     audit,

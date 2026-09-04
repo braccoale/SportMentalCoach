@@ -80,6 +80,14 @@ export type SessionOutcomeSnapshot = {
   coverage: OutcomeCoverage[];
   transcriptSegments: number;
   reportId: number | null;
+  /**
+   * `null` quando non c'è ancora un report. Serve a scoprire il gemello della
+   * seduta 181: un riepilogo consegnato regolarmente sopra zero temi, che
+   * nessuno stato segnala perché la sessione è `ready_for_review` come tutte
+   * le altre. Da quando `MIN_THEMES` è imposto in generazione non dovrebbe più
+   * accadere — questa resta la rete sotto, non la prima difesa.
+   */
+  reportThemesCount: number | null;
   recordings: OutcomeRecording[];
   jobs: OutcomeJob[];
   audit: OutcomeAuditRow[];
@@ -97,14 +105,15 @@ const SUCCESS_STATUSES = ['ready_for_review', 'approved', 'shared'];
  * tutte le altre — e per quattro giorni la seduta 181 è sembrata riuscita.
  */
 export function classifySessionOutcome(
-  snapshot: Pick<SessionOutcomeSnapshot, 'status' | 'coverage'>
+  snapshot: Pick<SessionOutcomeSnapshot, 'status' | 'coverage' | 'reportId' | 'reportThemesCount'>
 ): OutcomeVerdict {
   if (snapshot.status === 'consent_rejected') return 'rifiutata';
   if (FAILED_STATUSES.includes(snapshot.status)) return 'fallita';
-  if (
-    SUCCESS_STATUSES.includes(snapshot.status) &&
-    snapshot.coverage.some((participant) => !participant.complete)
-  ) {
+  if (!SUCCESS_STATUSES.includes(snapshot.status)) return 'ok';
+  if (snapshot.coverage.some((participant) => !participant.complete)) {
+    return 'parziale';
+  }
+  if (snapshot.reportId !== null && snapshot.reportThemesCount === 0) {
     return 'parziale';
   }
   return 'ok';
@@ -199,6 +208,12 @@ export function buildOutcomeReport(snapshot: SessionOutcomeSnapshot): string {
     `  riepilogo ............... ${snapshot.reportId ? `#${snapshot.reportId}` : 'nessuno'}`
   );
   lines.push(`  segmenti trascritti ..... ${snapshot.transcriptSegments}`);
+  if (snapshot.reportId !== null) {
+    const flag = snapshot.reportThemesCount === 0 ? ' <<< ZERO TEMI' : '';
+    lines.push(
+      `  temi nel riepilogo ...... ${snapshot.reportThemesCount ?? '—'}${flag}`
+    );
+  }
   lines.push('');
 
   lines.push('COPERTURA AUDIO');

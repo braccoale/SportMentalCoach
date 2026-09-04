@@ -214,6 +214,14 @@ test('rifiuta più di tre momenti chiave o punti di preparazione', () => {
   assert.ok(codes.includes('TOO_MANY_KEY_MOMENTS'));
 });
 
+test('rifiuta un report con meno di due temi', () => {
+  const invalid = report({
+    sessionOverview: { ...report().sessionOverview, themes: [] },
+  });
+  const codes = validateSessionCompassReport(invalid, context).map((issue) => issue.code);
+  assert.ok(codes.includes('TOO_FEW_THEMES'));
+});
+
 test('rifiuta una scadenza che non è una data di calendario', () => {
   const invalid = report();
   invalid.commitments[0].dueDate = 'venerdì';
