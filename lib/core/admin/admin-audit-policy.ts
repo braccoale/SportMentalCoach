@@ -149,6 +149,11 @@ export const ADMIN_AUDIT_ACTION_LABEL: Record<AdminAuditAction, string> = {
   data_exported: 'Dati esportati',
   data_deleted: 'Dati cancellati',
   configuration_changed: 'Configurazione modificata',
+  package_created: 'Pacchetto creato',
+  package_features_updated: 'Feature del pacchetto aggiornate',
+  organization_package_assigned: 'Pacchetto assegnato a organizzazione',
+  organization_package_revoked: 'Pacchetto revocato a organizzazione',
+  organization_member_added: 'Membro aggiunto a organizzazione',
 };
 
 export const ADMIN_AUDIT_OUTCOME_LABEL: Record<AdminAuditOutcome, string> = {

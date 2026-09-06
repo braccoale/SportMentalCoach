@@ -517,6 +517,127 @@ export const userFeatureEntitlements = pgTable(
   ]
 );
 
+// ---------------------------------------------------------------------------
+// Pacchetti: un pacchetto acquistato da un'organizzazione porta con sé un
+// insieme di feature. Vedi
+// docs/superpowers/specs/2026-09-06-pacchetti-feature-entitlement-design.md.
+// ---------------------------------------------------------------------------
+
+export const PACKAGE_STATUSES = ['active', 'archived'] as const;
+export type PackageStatus = (typeof PACKAGE_STATUSES)[number];
+
+export const packages = pgTable(
+  'packages',
+  {
+    id: serial('id').primaryKey(),
+    key: varchar('key', { length: 60 }).notNull(),
+    name: varchar('name', { length: 120 }).notNull(),
+    status: varchar('status', { length: 20 }).notNull().default('active'),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    updatedDate: timestamp('updateddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedBy: integer('updatedby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    unique('packages_key_unique').on(table.key),
+    check(
+      'packages_status_check',
+      sql`${table.status} in ('active', 'archived')`
+    ),
+  ]
+);
+
+export const packageFeatures = pgTable(
+  'package_features',
+  {
+    id: serial('id').primaryKey(),
+    packageId: integer('package_id')
+      .notNull()
+      .references(() => packages.id, { onDelete: 'cascade' }),
+    featureCode: varchar('feature_code', { length: 80 }).notNull(),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    unique('package_features_package_feature_unique').on(
+      table.packageId,
+      table.featureCode
+    ),
+  ]
+);
+
+export const ORGANIZATION_PACKAGE_STATUSES = [
+  'active',
+  'expired',
+  'suspended',
+] as const;
+export type OrganizationPackageStatus =
+  (typeof ORGANIZATION_PACKAGE_STATUSES)[number];
+
+export const organizationPackages = pgTable(
+  'organization_packages',
+  {
+    id: serial('id').primaryKey(),
+    organizationId: integer('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    packageId: integer('package_id')
+      .notNull()
+      .references(() => packages.id),
+    status: varchar('status', { length: 20 }).notNull().default('active'),
+    startsAt: timestamp('starts_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    updatedDate: timestamp('updateddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedBy: integer('updatedby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    uniqueIndex('organization_packages_one_active_idx')
+      .on(table.organizationId)
+      .where(sql`${table.status} = 'active'`),
+    index('organization_packages_org_status_idx').on(
+      table.organizationId,
+      table.status
+    ),
+    check(
+      'organization_packages_status_check',
+      sql`${table.status} in ('active', 'expired', 'suspended')`
+    ),
+    check(
+      'organization_packages_window_check',
+      sql`${table.expiresAt} is null or ${table.startsAt} is null or ${table.expiresAt} > ${table.startsAt}`
+    ),
+  ]
+);
+
+export type Package = typeof packages.$inferSelect;
+export type NewPackage = typeof packages.$inferInsert;
+export type PackageFeature = typeof packageFeatures.$inferSelect;
+export type NewPackageFeature = typeof packageFeatures.$inferInsert;
+export type OrganizationPackage = typeof organizationPackages.$inferSelect;
+export type NewOrganizationPackage = typeof organizationPackages.$inferInsert;
+
 export const AI_SESSION_NOTE_STATUSES = [
   'waiting_for_consent',
   'active',
@@ -2784,6 +2905,11 @@ export const ADMIN_AUDIT_ACTIONS = [
   'data_exported',
   'data_deleted',
   'configuration_changed',
+  'package_created',
+  'package_features_updated',
+  'organization_package_assigned',
+  'organization_package_revoked',
+  'organization_member_added',
 ] as const;
 export type AdminAuditAction = (typeof ADMIN_AUDIT_ACTIONS)[number];
 
@@ -2794,6 +2920,8 @@ export const ADMIN_AUDIT_SUBJECTS = [
   'feature',
   'configuration',
   'system',
+  'package',
+  'organization',
 ] as const;
 export type AdminAuditSubject = (typeof ADMIN_AUDIT_SUBJECTS)[number];
 
