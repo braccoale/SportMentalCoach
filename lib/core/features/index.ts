@@ -1,20 +1,26 @@
 import 'server-only';
-import { and, asc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
+  organizationPackages,
+  packageFeatures,
   profiles,
   sessionAiAuditEvents,
+  teamMembers,
   userFeatureEntitlements,
   userRoles,
   users,
   type FeatureEntitlementSource,
   type FeatureEntitlementStatus,
+  type OrganizationPackageStatus,
 } from '@/lib/db/schema';
 import {
   evaluateFeatureEntitlement,
   type FeatureAccessResult,
   type FeatureCode,
+  type FeatureEntitlementSnapshot,
 } from './policy';
+import { buildOrganizationFeatureSnapshot } from './organization-grant';
 import { stopAiNotesRecordingsForRequester } from '@/lib/core/ai-session-notes/recording';
 import type { LiveKitSessionControl } from '@/lib/core/ai-session-notes/livekit-session-control';
 
@@ -26,6 +32,51 @@ export {
   type FeatureCode,
   type FeatureEntitlementSnapshot,
 } from './policy';
+
+async function loadOrganizationFeatureGrant(
+  userId: number,
+  featureCode: FeatureCode
+): Promise<FeatureEntitlementSnapshot | null> {
+  const [row] = await db
+    .select({
+      status: organizationPackages.status,
+      startsAt: organizationPackages.startsAt,
+      expiresAt: organizationPackages.expiresAt,
+      featureCode: packageFeatures.featureCode,
+    })
+    .from(teamMembers)
+    .innerJoin(
+      organizationPackages,
+      eq(organizationPackages.organizationId, teamMembers.teamId)
+    )
+    .innerJoin(
+      packageFeatures,
+      and(
+        eq(packageFeatures.packageId, organizationPackages.packageId),
+        eq(packageFeatures.featureCode, featureCode)
+      )
+    )
+    .where(
+      and(
+        eq(teamMembers.userId, userId),
+        inArray(organizationPackages.status, ['active', 'suspended'])
+      )
+    )
+    .orderBy(asc(organizationPackages.organizationId))
+    .limit(1);
+
+  if (!row) return null;
+
+  return buildOrganizationFeatureSnapshot({
+    organizationPackage: {
+      status: row.status as OrganizationPackageStatus,
+      startsAt: row.startsAt,
+      expiresAt: row.expiresAt,
+    },
+    packageFeatureCodes: [row.featureCode],
+    featureCode,
+  });
+}
 
 export async function getFeatureAccess(
   userId: number,
@@ -51,7 +102,7 @@ export async function getFeatureAccess(
     )
     .limit(1);
 
-  return evaluateFeatureEntitlement(
+  const directResult = evaluateFeatureEntitlement(
     entitlement
       ? {
           ...entitlement,
@@ -61,6 +112,21 @@ export async function getFeatureAccess(
       : null,
     now
   );
+  if (directResult.allowed) return directResult;
+
+  const organizationGrant = await loadOrganizationFeatureGrant(
+    userId,
+    featureCode
+  );
+  if (organizationGrant) {
+    const organizationResult = evaluateFeatureEntitlement(
+      organizationGrant,
+      now
+    );
+    if (organizationResult.allowed) return organizationResult;
+  }
+
+  return directResult;
 }
 
 export async function hasFeatureEntitlement(
@@ -70,7 +136,7 @@ export async function hasFeatureEntitlement(
   return (await getFeatureAccess(userId, featureCode)).allowed;
 }
 
-async function assertAdmin(actorUserId: number): Promise<void> {
+export async function assertAdmin(actorUserId: number): Promise<void> {
   const [admin] = await db
     .select({ id: userRoles.id })
     .from(userRoles)
