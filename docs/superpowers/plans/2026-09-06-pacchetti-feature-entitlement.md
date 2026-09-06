@@ -837,7 +837,7 @@ EOF
 
 **Interfaces:**
 - Consumes: `assertAdmin` da `./index` (Task 4); `FEATURE_CODES`, `type FeatureCode` da `./policy`.
-- Produces: `listPackages`, `createPackage`, `setPackageFeatures`, `assignPackageToOrganization`, `setOrganizationPackageStatus`, `listOrganizationsForPackage` — consumate da Task 7 (pannello admin).
+- Produces: `listPackages`, `createPackage`, `setPackageFeatures`, `assignPackageToOrganization`, `revokeOrganizationPackage`, `listOrganizationsForPackage` — consumate da Task 7 (pannello admin).
 
 - [ ] **Step 1: Creare `lib/core/features/packages.ts`**
 
@@ -981,17 +981,20 @@ export async function assignPackageToOrganization(params: {
   });
 }
 
-/** Sospende o riattiva il pacchetto corrente di un'organizzazione. */
-export async function setOrganizationPackageStatus(params: {
+/**
+ * Revoca il pacchetto corrente di un'organizzazione (`active` o `suspended`
+ * → `expired`). `false` se l'organizzazione non aveva un pacchetto corrente
+ * da revocare.
+ */
+export async function revokeOrganizationPackage(params: {
   actorUserId: number;
   organizationId: number;
-  status: Extract<OrganizationPackageStatus, 'active' | 'suspended' | 'expired'>;
 }): Promise<boolean> {
   await assertAdmin(params.actorUserId);
   const [updated] = await db
     .update(organizationPackages)
     .set({
-      status: params.status,
+      status: 'expired',
       updatedDate: new Date(),
       updatedBy: params.actorUserId,
     })
@@ -1207,7 +1210,7 @@ EOF
 - Modify: `components/admin/admin-nav.tsx`
 
 **Interfaces:**
-- Consumes: `listPackages`, `createPackage`, `setPackageFeatures`, `assignPackageToOrganization`, `setOrganizationPackageStatus`, `listOrganizationsForPackage` (Task 5); `searchOrganizations`, `listOrganizationMembers`, `addOrganizationMember`, `findUserByEmail` (Task 6); `FEATURE_CODES` (esistente); `ActionForm`, `ActionState`, `requireRole`, `recordAdminAudit` (esistenti).
+- Consumes: `listPackages`, `createPackage`, `setPackageFeatures`, `assignPackageToOrganization`, `revokeOrganizationPackage`, `listOrganizationsForPackage` (Task 5); `searchOrganizations`, `listOrganizationMembers`, `addOrganizationMember`, `findUserByEmail` (Task 6); `FEATURE_CODES` (esistente); `ActionForm`, `ActionState`, `requireRole`, `recordAdminAudit` (esistenti).
 
 - [ ] **Step 1: Creare le azioni server**
 
@@ -1221,7 +1224,7 @@ import { requireRole } from '@/lib/core/auth';
 import {
   assignPackageToOrganization,
   createPackage,
-  setOrganizationPackageStatus,
+  revokeOrganizationPackage,
   setPackageFeatures,
 } from '@/lib/core/features/packages';
 import { FEATURE_CODES, type FeatureCode } from '@/lib/core/features';
@@ -1384,10 +1387,9 @@ export async function revokeOrganizationPackageAction(
     return { error: 'Organizzazione non valida.' };
   }
 
-  const updated = await setOrganizationPackageStatus({
+  const updated = await revokeOrganizationPackage({
     actorUserId: admin.id,
     organizationId,
-    status: 'expired',
   });
   await recordAdminAudit({
     actor: { id: admin.id, email: admin.email },
