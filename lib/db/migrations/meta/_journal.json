@@ -428,6 +428,13 @@
       "when": 1788350400000,
       "tag": "0060_admin-audit-log",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1788724968142,
+      "tag": "0061_pacchetti-organizzazioni",
+      "breakpoints": true
     }
   ]
 }
