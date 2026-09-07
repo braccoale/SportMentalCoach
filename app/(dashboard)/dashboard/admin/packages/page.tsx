@@ -1,7 +1,10 @@
 import { requireRole } from '@/lib/core/auth';
-import { FEATURE_CODES } from '@/lib/core/features';
-import { listOrganizationsForPackage, listPackages } from '@/lib/core/features/packages';
+import { getFeatureMatrix } from '@/lib/core/features/catalog';
+import {
+  getCurrentOrganizationPackage,
+} from '@/lib/core/features/packages';
 import { listOrganizationMembers, searchOrganizations } from '@/lib/core/organizations';
+import { matrixCellFieldName } from '@/lib/core/features/matrix-form';
 import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
 import {
@@ -9,14 +12,10 @@ import {
   assignPackageToOrganizationAction,
   createPackageAction,
   revokeOrganizationPackageAction,
-  updatePackageFeaturesAction,
+  updateFeatureMatrixAction,
 } from './actions';
 
 export const dynamic = 'force-dynamic';
-
-const FEATURE_LABEL: Record<string, string> = {
-  AI_SESSION_NOTES: 'Appunti AI',
-};
 
 export default async function AdminPackagesPage({
   searchParams,
@@ -26,22 +25,16 @@ export default async function AdminPackagesPage({
   const admin = await requireRole('admin');
   const { orgQuery = '' } = await searchParams;
 
-  const [packageList, organizationResults] = await Promise.all([
-    listPackages(admin.id),
+  const [matrix, organizationResults] = await Promise.all([
+    getFeatureMatrix(admin.id),
     searchOrganizations(admin.id, orgQuery),
   ]);
 
-  const packagesWithOrganizations = await Promise.all(
-    packageList.map(async (pkg) => ({
-      ...pkg,
-      organizations: await listOrganizationsForPackage(admin.id, pkg.id),
-    }))
-  );
-
-  const organizationsWithMembers = await Promise.all(
+  const organizationsWithDetail = await Promise.all(
     organizationResults.map(async (org) => ({
       ...org,
       members: await listOrganizationMembers(admin.id, org.id),
+      currentPackage: await getCurrentOrganizationPackage(admin.id, org.id),
     }))
   );
 
@@ -77,59 +70,79 @@ export default async function AdminPackagesPage({
         </ActionForm>
       </div>
 
-      <div className="space-y-6">
-        {packagesWithOrganizations.map((pkg) => (
-          <div key={pkg.id} className="rounded-xl border border-gray-200 p-4">
-            <h2 className="text-lg font-semibold text-gray-900">
-              {pkg.name} <span className="text-sm font-normal text-gray-400">({pkg.key})</span>
-            </h2>
+      <div className="rounded-xl border border-gray-200 p-4">
+        <h2 className="text-lg font-semibold text-gray-900">Matrice funzionalità × pacchetti</h2>
+        <p className="mt-1 text-sm text-gray-500">
+          Per le funzionalità numeriche, campo vuoto = illimitato.
+        </p>
 
-            <ActionForm action={updatePackageFeaturesAction} className="mt-3 flex flex-wrap items-center gap-4">
-              <input type="hidden" name="packageId" value={pkg.id} />
-              {Object.values(FEATURE_CODES).map((code) => (
-                <label key={code} className="flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    name={`feature_${code}`}
-                    defaultChecked={pkg.featureCodes.includes(code)}
-                    className="size-4 rounded border-gray-300"
-                  />
-                  {FEATURE_LABEL[code] ?? code}
-                </label>
-              ))}
-              <Button type="submit" variant="outline">Salva feature</Button>
-            </ActionForm>
-
-            <h3 className="mt-4 text-sm font-semibold text-gray-700">Organizzazioni</h3>
-            <ul className="mt-2 space-y-1 text-sm text-gray-600">
-              {pkg.organizations.length === 0 ? (
-                <li className="text-gray-400">Nessuna organizzazione ha ancora questo pacchetto.</li>
-              ) : (
-                pkg.organizations.map((org) => (
-                  <li key={org.organizationId} className="flex items-center justify-between gap-3">
-                    <span>
-                      {org.organizationName} — {org.status}
-                      {org.expiresAt ? ` (scade ${org.expiresAt.toLocaleDateString('it-IT', { timeZone: 'Europe/Rome' })})` : ''}
-                    </span>
-                    {org.status !== 'expired' && (
-                      <ActionForm
-                        action={revokeOrganizationPackageAction}
-                        confirmTitle="Revocare il pacchetto?"
-                        confirmMessage={`${org.organizationName} perderà l'accesso alle feature di questo pacchetto per tutti i suoi membri.`}
-                        confirmActionLabel="Revoca"
+        {matrix.packages.length === 0 ? (
+          <p className="mt-3 text-sm text-gray-400">
+            Nessun pacchetto ancora — crealo qui sopra prima di configurare la matrice.
+          </p>
+        ) : (
+          <ActionForm action={updateFeatureMatrixAction} className="mt-4">
+            <div className="overflow-x-auto">
+              <table className="min-w-full border-collapse text-sm">
+                <thead>
+                  <tr>
+                    <th className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-gray-700">
+                      Funzionalità
+                    </th>
+                    {matrix.packages.map((pkg) => (
+                      <th
+                        key={pkg.id}
+                        className="border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700"
                       >
-                        <input type="hidden" name="organizationId" value={org.organizationId} />
-                        <Button type="submit" variant="outline" className="h-8 px-3 text-xs">
-                          Revoca
-                        </Button>
-                      </ActionForm>
-                    )}
-                  </li>
-                ))
-              )}
-            </ul>
-          </div>
-        ))}
+                        {pkg.name}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {matrix.features.map((feature) => (
+                    <tr key={feature.code} className="border-b border-gray-100">
+                      <td className="px-3 py-2">
+                        <div className="font-medium text-gray-900">{feature.label}</div>
+                        {feature.description && (
+                          <div className="text-xs text-gray-500">{feature.description}</div>
+                        )}
+                      </td>
+                      {matrix.packages.map((pkg) => {
+                        const fieldName = matrixCellFieldName(pkg.id, feature.code);
+                        const currentValue = pkg.cells[feature.code];
+                        const isIncluded = feature.code in pkg.cells;
+                        return (
+                          <td key={pkg.id} className="px-3 py-2 text-center">
+                            {feature.type === 'boolean' ? (
+                              <input
+                                type="checkbox"
+                                name={fieldName}
+                                defaultChecked={isIncluded}
+                                className="size-4 rounded border-gray-300"
+                              />
+                            ) : (
+                              <input
+                                type="number"
+                                name={fieldName}
+                                min={0}
+                                step={1}
+                                placeholder="illimitato"
+                                defaultValue={currentValue ?? undefined}
+                                className="w-24 rounded-lg border border-gray-300 px-2 py-1 text-center text-sm"
+                              />
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Button type="submit" className="mt-4">Salva</Button>
+          </ActionForm>
+        )}
       </div>
 
       <div className="rounded-xl border border-gray-200 p-4">
@@ -145,7 +158,7 @@ export default async function AdminPackagesPage({
         </form>
 
         <ul className="mt-4 space-y-4">
-          {organizationsWithMembers.map((org) => (
+          {organizationsWithDetail.map((org) => (
             <li key={org.id} className="rounded-lg border border-gray-100 p-3">
               <p className="font-medium text-gray-900">
                 {org.name} <span className="text-xs font-normal text-gray-400">({org.memberCount} membri)</span>
@@ -153,6 +166,30 @@ export default async function AdminPackagesPage({
               <p className="mt-1 text-xs text-gray-500">
                 {org.members.map((m) => m.displayName).join(', ') || 'nessun membro'}
               </p>
+
+              {org.currentPackage ? (
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                  <span>
+                    Pacchetto attuale: <strong>{org.currentPackage.packageName}</strong> — {org.currentPackage.status}
+                    {org.currentPackage.expiresAt
+                      ? ` (scade ${org.currentPackage.expiresAt.toLocaleDateString('it-IT', { timeZone: 'Europe/Rome' })})`
+                      : ''}
+                  </span>
+                  <ActionForm
+                    action={revokeOrganizationPackageAction}
+                    confirmTitle="Revocare il pacchetto?"
+                    confirmMessage={`${org.name} perderà l'accesso alle feature di questo pacchetto per tutti i suoi membri.`}
+                    confirmActionLabel="Revoca"
+                  >
+                    <input type="hidden" name="organizationId" value={org.id} />
+                    <Button type="submit" variant="outline" className="h-8 px-3 text-xs">
+                      Revoca
+                    </Button>
+                  </ActionForm>
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-gray-400">Nessun pacchetto attivo.</p>
+              )}
 
               <ActionForm
                 action={assignPackageToOrganizationAction}
@@ -163,7 +200,7 @@ export default async function AdminPackagesPage({
               >
                 <input type="hidden" name="organizationId" value={org.id} />
                 <select name="packageId" required className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm">
-                  {packageList.map((pkg) => (
+                  {matrix.packages.map((pkg) => (
                     <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
                   ))}
                 </select>

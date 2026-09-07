@@ -6,9 +6,9 @@ import {
   assignPackageToOrganization,
   createPackage,
   revokeOrganizationPackage,
-  setPackageFeatures,
 } from '@/lib/core/features/packages';
-import { FEATURE_CODES, type FeatureCode } from '@/lib/core/features';
+import { getFeatureMatrix, setFeatureMatrix } from '@/lib/core/features/catalog';
+import { parseFeatureMatrixSubmission } from '@/lib/core/features/matrix-form';
 import {
   addOrganizationMember,
   findUserByEmail,
@@ -16,8 +16,6 @@ import {
 import { recordAdminAudit } from '@/lib/core/admin/audit-log';
 import { romeDayStartShifted, romeDayValueToInstant } from '@/lib/core/admin/period';
 import type { ActionState } from '@/lib/auth/middleware';
-
-const KNOWN_FEATURE_CODES = Object.values(FEATURE_CODES) as FeatureCode[];
 
 /**
  * Un messaggio leggibile per l'admin, mai il testo grezzo di Postgres.
@@ -74,43 +72,47 @@ export async function createPackageAction(
   return { success: 'Pacchetto creato.' };
 }
 
-export async function updatePackageFeaturesAction(
+export async function updateFeatureMatrixAction(
   _previous: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const admin = await requireRole('admin');
-  const packageId = Number(formData.get('packageId'));
-  if (!Number.isInteger(packageId) || packageId <= 0) {
-    return { error: 'Pacchetto non valido.' };
+  const matrix = await getFeatureMatrix(admin.id);
+
+  const parsed = parseFeatureMatrixSubmission({
+    packages: matrix.packages,
+    features: matrix.features,
+    getField: (name) => {
+      const value = formData.get(name);
+      return value === null ? null : String(value);
+    },
+  });
+  if ('error' in parsed) {
+    return { error: parsed.error };
   }
-  const featureCodes = KNOWN_FEATURE_CODES.filter(
-    (code) => formData.get(`feature_${code}`) === 'on'
-  );
 
   try {
-    await setPackageFeatures({ actorUserId: admin.id, packageId, featureCodes });
+    await setFeatureMatrix({ actorUserId: admin.id, entries: parsed.entries });
     await recordAdminAudit({
       actor: { id: admin.id, email: admin.email },
       action: 'package_features_updated',
       subjectType: 'package',
-      subjectId: packageId,
       outcome: 'ok',
-      detail: { conteggio: featureCodes.length },
+      detail: { celle: parsed.entries.length },
     });
   } catch (error) {
     await recordAdminAudit({
       actor: { id: admin.id, email: admin.email },
       action: 'package_features_updated',
       subjectType: 'package',
-      subjectId: packageId,
       outcome: 'fallita',
       detail: {},
     });
-    return { error: friendlyError(error, 'Impossibile aggiornare le feature.') };
+    return { error: friendlyError(error, 'Impossibile salvare la matrice.') };
   }
 
   revalidatePath('/dashboard/admin/packages');
-  return { success: 'Feature aggiornate.' };
+  return { success: 'Matrice salvata.' };
 }
 
 export async function assignPackageToOrganizationAction(
