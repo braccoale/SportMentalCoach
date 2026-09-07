@@ -555,6 +555,44 @@ export const packages = pgTable(
   ]
 );
 
+// Il catalogo delle feature che il codice controlla davvero. Una riga
+// nasce solo quando uno sviluppatore collega una funzionalità reale a un
+// punto del codice (vedi docs/superpowers/specs/2026-09-07-matrice-funzionalita-piani-design.md)
+// — l'admin, dalla matrice, decide solo quali pacchetti la includono.
+export const FEATURE_TYPES = ['boolean', 'numeric'] as const;
+export type FeatureType = (typeof FEATURE_TYPES)[number];
+
+export const features = pgTable(
+  'features',
+  {
+    id: serial('id').primaryKey(),
+    code: varchar('code', { length: 80 }).notNull(),
+    label: varchar('label', { length: 120 }).notNull(),
+    description: text('description'),
+    type: varchar('type', { length: 20 }).notNull().default('boolean'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    updatedDate: timestamp('updateddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedBy: integer('updatedby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    unique('features_code_unique').on(table.code),
+    check(
+      'features_type_check',
+      sql`${table.type} in ('boolean', 'numeric')`
+    ),
+  ]
+);
+
 export const packageFeatures = pgTable(
   'package_features',
   {
@@ -562,7 +600,13 @@ export const packageFeatures = pgTable(
     packageId: integer('package_id')
       .notNull()
       .references(() => packages.id, { onDelete: 'cascade' }),
-    featureCode: varchar('feature_code', { length: 80 }).notNull(),
+    featureCode: varchar('feature_code', { length: 80 })
+      .notNull()
+      .references(() => features.code, { onDelete: 'cascade' }),
+    // Assente (null) per una feature `boolean` — la riga stessa è
+    // l'inclusione. Per una `numeric`, il limite; `null` = illimitato,
+    // stessa convenzione di `userFeatureEntitlements.usageLimit`.
+    value: integer('value'),
     createdDate: timestamp('createddate', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -633,6 +677,8 @@ export const organizationPackages = pgTable(
 
 export type Package = typeof packages.$inferSelect;
 export type NewPackage = typeof packages.$inferInsert;
+export type Feature = typeof features.$inferSelect;
+export type NewFeature = typeof features.$inferInsert;
 export type PackageFeature = typeof packageFeatures.$inferSelect;
 export type NewPackageFeature = typeof packageFeatures.$inferInsert;
 export type OrganizationPackage = typeof organizationPackages.$inferSelect;
