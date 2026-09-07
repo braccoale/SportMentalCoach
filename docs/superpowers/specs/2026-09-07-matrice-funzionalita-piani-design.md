@@ -1,7 +1,7 @@
 # Matrice funzionalità × piani
 
 **Data:** 2026-09-07
-**Stato:** disegno approvato, da implementare
+**Stato:** implementato
 **Dipendenze:** costruisce sopra `docs/superpowers/specs/2026-09-06-pacchetti-feature-entitlement-design.md`
 (PR #71, non ancora mergiata quando questo spec è stato scritto). Non tocca
 `organization_packages` né la logica di scadenza/stato: quella parte resta
