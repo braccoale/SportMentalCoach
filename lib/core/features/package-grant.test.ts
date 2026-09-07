@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildOrganizationFeatureSnapshot } from './organization-grant';
+import { buildPackageFeatureSnapshot } from './package-grant';
 import { evaluateFeatureEntitlement } from './policy';
 
-test('no organization package means no grant', () => {
-  const snapshot = buildOrganizationFeatureSnapshot({
-    organizationPackage: null,
+test('no user package means no grant', () => {
+  const snapshot = buildPackageFeatureSnapshot({
+    userPackage: null,
     packageFeatureCodes: ['AI_SESSION_NOTES'],
     featureCode: 'AI_SESSION_NOTES',
   });
@@ -13,8 +13,8 @@ test('no organization package means no grant', () => {
 });
 
 test('a package that does not include the feature grants nothing', () => {
-  const snapshot = buildOrganizationFeatureSnapshot({
-    organizationPackage: { status: 'active', startsAt: null, expiresAt: null },
+  const snapshot = buildPackageFeatureSnapshot({
+    userPackage: { status: 'active', startsAt: null, expiresAt: null },
     packageFeatureCodes: ['SOME_OTHER_FEATURE'],
     featureCode: 'AI_SESSION_NOTES',
   });
@@ -22,8 +22,8 @@ test('a package that does not include the feature grants nothing', () => {
 });
 
 test('an active package including the feature grants an enabled entitlement', () => {
-  const snapshot = buildOrganizationFeatureSnapshot({
-    organizationPackage: { status: 'active', startsAt: null, expiresAt: null },
+  const snapshot = buildPackageFeatureSnapshot({
+    userPackage: { status: 'active', startsAt: null, expiresAt: null },
     packageFeatureCodes: ['AI_SESSION_NOTES'],
     featureCode: 'AI_SESSION_NOTES',
   });
@@ -39,8 +39,8 @@ test('an active package including the feature grants an enabled entitlement', ()
 });
 
 test('a suspended package denies access with the suspended reason', () => {
-  const snapshot = buildOrganizationFeatureSnapshot({
-    organizationPackage: {
+  const snapshot = buildPackageFeatureSnapshot({
+    userPackage: {
       status: 'suspended',
       startsAt: null,
       expiresAt: null,
@@ -55,8 +55,8 @@ test('a suspended package denies access with the suspended reason', () => {
 
 test('an active package past its expiry date still denies access', () => {
   const now = new Date('2026-09-06T00:00:00.000Z');
-  const snapshot = buildOrganizationFeatureSnapshot({
-    organizationPackage: {
+  const snapshot = buildPackageFeatureSnapshot({
+    userPackage: {
       status: 'active',
       startsAt: null,
       expiresAt: new Date('2026-09-01T00:00:00.000Z'),
