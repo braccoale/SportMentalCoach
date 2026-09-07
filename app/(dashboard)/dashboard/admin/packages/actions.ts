@@ -204,19 +204,36 @@ export async function addOrganizationMemberAction(
     return { error: `Nessun utente con email ${email}.` };
   }
 
-  await addOrganizationMember({
-    actorUserId: admin.id,
-    organizationId,
-    userId: user.id,
-  });
-  await recordAdminAudit({
-    actor: { id: admin.id, email: admin.email },
-    action: 'organization_member_added',
-    subjectType: 'organization',
-    subjectId: organizationId,
-    outcome: 'ok',
-    detail: { utente: user.id },
-  });
+  try {
+    await addOrganizationMember({
+      actorUserId: admin.id,
+      organizationId,
+      userId: user.id,
+    });
+    await recordAdminAudit({
+      actor: { id: admin.id, email: admin.email },
+      action: 'organization_member_added',
+      subjectType: 'organization',
+      subjectId: organizationId,
+      outcome: 'ok',
+      detail: { utente: user.id },
+    });
+  } catch (error) {
+    await recordAdminAudit({
+      actor: { id: admin.id, email: admin.email },
+      action: 'organization_member_added',
+      subjectType: 'organization',
+      subjectId: organizationId,
+      outcome: 'fallita',
+      detail: { utente: user.id },
+    });
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Impossibile aggiungere il membro all'organizzazione.",
+    };
+  }
 
   revalidatePath('/dashboard/admin/packages');
   return { success: `${email} aggiunto all'organizzazione.` };
