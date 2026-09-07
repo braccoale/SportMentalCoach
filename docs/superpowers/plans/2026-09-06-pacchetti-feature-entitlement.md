@@ -1667,17 +1667,46 @@ e aggiungere una voce all'array `items`, subito dopo quella per `/dashboard/admi
 Run: `npx tsc --noEmit`
 Expected: nessun errore.
 
-- [ ] **Step 5: Avviare il server di sviluppo e verificare la pagina in un browser**
+- [ ] **Step 5: Verificare la pagina senza una sessione admin vera**
 
-Run: `npm run dev`
+**Non esiste un account admin di prova** (`lib/auth/demo-login.ts` ha solo
+`coachdemo@`/`atletademo@`) e il database è quello di produzione. `npm run dev`
++ una richiesta a `/dashboard/admin/packages` prende un 307 dal middleware
+prima ancora di compilare il modulo della pagina — non è una verifica.
 
-Aprire `/dashboard/admin/packages` autenticati come admin. Verificare a mano:
-- creare un pacchetto ("Starter", chiave `starter`);
-- selezionare la checkbox "Appunti AI" e salvare — ricaricando la pagina la checkbox resta selezionata;
-- cercare un'organizzazione per nome (ogni utente ne ha già una, creata al signup: `"<email>'s Team"`), assegnarle il pacchetto;
-- verificare in `/dashboard/admin/audit` che compaiano le righe `package_created`, `package_features_updated`, `organization_package_assigned`.
+Fare invece, in quest'ordine:
 
-Dichiarare esplicitamente il livello di verifica raggiunto (typecheck, o anche browser) quando si riporta questo task come completo — non dare per verificato ciò che non è stato guardato a schermo.
+1. **`npx next build`** — compila davvero la rotta e valida i confini
+   server/client (le `'use server'` actions, i tipi di `searchParams`). Se fallisce
+   qui, il problema è reale anche se `tsc --noEmit` era pulito.
+   Run: `npx next build`
+   Expected: build completata senza errori sulla rotta
+   `/dashboard/admin/packages` (va bene se altre rotte preesistenti hanno
+   warning non correlati).
+
+2. **Render + screenshot con dati finti.** Creare uno script temporaneo
+   dentro il progetto (non fuori — altrimenti gli alias `@/` non risolvono),
+   es. `tmp/render-packages-page.tsx`, che:
+   - importa il componente della sezione principale (o ricostruisce
+     staticamente il markup con `renderToStaticMarkup` usando dati finti che
+     imitano la forma di `PackageWithFeatures[]`/`OrganizationSearchResult[]`
+     con membri, così com'è già stato fatto per un'altra pagina admin);
+   - scrive un file HTML che carica Tailwind da CDN;
+   - lo fotografa con `playwright` (già in devDependencies) per un controllo
+     visivo minimo (pacchetto creato, checkbox feature, elenco organizzazioni
+     con pulsante "Assegna").
+   Cancellare lo script temporaneo e lo screenshot al termine — sono solo
+   per la verifica, non fanno parte della consegna.
+
+3. Se il passo 2 risulta troppo costoso da allestire per questo componente
+   (dipende da più funzioni server con `Promise.all`, non un singolo
+   componente puro), è accettabile fermarsi al build (passo 1) — ma va
+   dichiarato esplicitamente, non sottinteso.
+
+**Dichiarare sempre, nel report, il livello di verifica raggiunto** — es.
+"typecheck e build puliti; screenshot con dati finti fatto/non fatto; una
+sessione admin vera non è stata aperta". Non affermare che la pagina
+"funziona" se non è stata guardata a schermo in nessuna forma.
 
 - [ ] **Step 6: Commit**
 
