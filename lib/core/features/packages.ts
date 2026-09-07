@@ -1,30 +1,26 @@
 import 'server-only';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
   organizationPackages,
-  organizations,
-  packageFeatures,
   packages,
   type OrganizationPackageStatus,
   type Package,
   type PackageStatus,
 } from '@/lib/db/schema';
 import { assertAdmin } from './index';
-import type { FeatureCode } from './policy';
 
-export type PackageWithFeatures = {
+export type PackageSummary = {
   id: number;
   key: string;
   name: string;
   status: PackageStatus;
-  featureCodes: FeatureCode[];
 };
 
-/** Tutti i pacchetti, con le feature che ciascuno include. */
+/** L'elenco dei pacchetti — per il selettore di assegnazione a un'organizzazione. */
 export async function listPackages(
   actorUserId: number
-): Promise<PackageWithFeatures[]> {
+): Promise<PackageSummary[]> {
   await assertAdmin(actorUserId);
   const rows = await db
     .select({
@@ -32,28 +28,10 @@ export async function listPackages(
       key: packages.key,
       name: packages.name,
       status: packages.status,
-      featureCode: packageFeatures.featureCode,
     })
     .from(packages)
-    .leftJoin(packageFeatures, eq(packageFeatures.packageId, packages.id))
     .orderBy(packages.id);
-
-  const byId = new Map<number, PackageWithFeatures>();
-  for (const row of rows) {
-    let entry = byId.get(row.id);
-    if (!entry) {
-      entry = {
-        id: row.id,
-        key: row.key,
-        name: row.name,
-        status: row.status as PackageStatus,
-        featureCodes: [],
-      };
-      byId.set(row.id, entry);
-    }
-    if (row.featureCode) entry.featureCodes.push(row.featureCode as FeatureCode);
-  }
-  return [...byId.values()];
+  return rows.map((row) => ({ ...row, status: row.status as PackageStatus }));
 }
 
 export async function createPackage(params: {
@@ -72,29 +50,6 @@ export async function createPackage(params: {
     })
     .returning();
   return created;
-}
-
-/** Sostituisce l'intero insieme di feature di un pacchetto. */
-export async function setPackageFeatures(params: {
-  actorUserId: number;
-  packageId: number;
-  featureCodes: FeatureCode[];
-}): Promise<void> {
-  await assertAdmin(params.actorUserId);
-  await db.transaction(async (tx) => {
-    await tx
-      .delete(packageFeatures)
-      .where(eq(packageFeatures.packageId, params.packageId));
-    if (params.featureCodes.length > 0) {
-      await tx.insert(packageFeatures).values(
-        params.featureCodes.map((featureCode) => ({
-          packageId: params.packageId,
-          featureCode,
-          createdBy: params.actorUserId,
-        }))
-      );
-    }
-  });
 }
 
 /**
@@ -164,37 +119,40 @@ export async function revokeOrganizationPackage(params: {
   return Boolean(updated);
 }
 
-export type OrganizationPackageRow = {
-  organizationId: number;
-  organizationName: string;
+
+export type CurrentOrganizationPackage = {
+  packageId: number;
+  packageName: string;
   status: OrganizationPackageStatus;
-  startsAt: Date | null;
   expiresAt: Date | null;
 };
 
-/** Le organizzazioni che hanno (o hanno avuto) questo pacchetto. */
-export async function listOrganizationsForPackage(
+/**
+ * Il pacchetto corrente (attivo o sospeso) di un'organizzazione, se c'è.
+ * Sostituisce, nella pagina, la vista che prima viveva nelle schede
+ * per-pacchetto — qui vive accanto a dove si assegna e si revoca.
+ */
+export async function getCurrentOrganizationPackage(
   actorUserId: number,
-  packageId: number
-): Promise<OrganizationPackageRow[]> {
+  organizationId: number
+): Promise<CurrentOrganizationPackage | null> {
   await assertAdmin(actorUserId);
-  const rows = await db
+  const [row] = await db
     .select({
-      organizationId: organizationPackages.organizationId,
-      organizationName: organizations.name,
+      packageId: organizationPackages.packageId,
+      packageName: packages.name,
       status: organizationPackages.status,
-      startsAt: organizationPackages.startsAt,
       expiresAt: organizationPackages.expiresAt,
     })
     .from(organizationPackages)
-    .innerJoin(
-      organizations,
-      eq(organizations.id, organizationPackages.organizationId)
+    .innerJoin(packages, eq(packages.id, organizationPackages.packageId))
+    .where(
+      and(
+        eq(organizationPackages.organizationId, organizationId),
+        inArray(organizationPackages.status, ['active', 'suspended'])
+      )
     )
-    .where(eq(organizationPackages.packageId, packageId))
-    .orderBy(desc(organizationPackages.updatedDate));
-  return rows.map((row) => ({
-    ...row,
-    status: row.status as OrganizationPackageStatus,
-  }));
+    .limit(1);
+  if (!row) return null;
+  return { ...row, status: row.status as OrganizationPackageStatus };
 }
