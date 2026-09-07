@@ -1,7 +1,7 @@
 # Pacchetti per utente, non per organizzazione
 
 **Data:** 2026-09-07
-**Stato:** disegno approvato, da implementare
+**Stato:** implementato
 **Dipendenze:** sostituisce la parte di assegnazione di
 `docs/superpowers/specs/2026-09-06-pacchetti-feature-entitlement-design.md`
 (PR #71, non ancora mergiata). Non tocca lo schema/il codice del catalogo
