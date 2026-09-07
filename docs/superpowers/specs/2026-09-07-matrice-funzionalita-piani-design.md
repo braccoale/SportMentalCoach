@@ -134,3 +134,33 @@ esattamente com'è, sotto la matrice.
   assegnate), ma l'ordine delle istruzioni nella migrazione conta comunque.
 - **La matrice oggi ha una riga sola.** È corretto e atteso — il catalogo
   cresce quando cresce il prodotto, non prima.
+- **`0` in una cella numerica include la funzionalità, non la esclude.**
+  Una funzionalità numerica non ha modo di essere esclusa da un pacchetto
+  in questa matrice: vuoto vuol dire illimitata, qualunque numero —
+  compreso `0` — vuol dire inclusa con quel limite. Oggi è innocuo perché
+  nessuna funzionalità numerica esiste davvero (nessun codice legge
+  `value`), ma il giorno in cui ne nascerà una, chi scrive quella lettura
+  dovrà decidere cosa fare di `value: 0` — non è la stessa cosa di "non
+  inclusa", ed `evaluateFeatureEntitlement`/`loadOrganizationFeatureGrants`
+  oggi concedono in base alla sola presenza della riga, mai al valore.
+- **La vista "quali organizzazioni hanno questo pacchetto" non c'è più.**
+  PR #71 la mostrava per pacchetto, senza cercare nulla. La matrice la
+  sostituisce con "quale pacchetto ha questa organizzazione", visibile solo
+  cercando l'organizzazione per nome — e dato che ogni utente ha già una
+  sua organizzazione personale ("nome@email's Team"), la lista di default
+  è dominata da account personali, non da club veri. Decisione presa
+  consapevolmente (2026-09-07, Alessandro): con poche trattative B2B reali,
+  accettabile per ora senza costruire una vista dedicata. La cronologia
+  delle assegnazioni scadute, che PR #71 mostrava per pacchetto, resta
+  comunque leggibile in `/dashboard/admin/audit` (eventi
+  `organization_package_assigned`/`organization_package_revoked`), solo non
+  più come vista di stato.
+- **`setFeatureMatrix` sostituisce tutta la tabella, non solo le righe
+  toccate.** Due amministratori con la matrice aperta insieme: l'ultimo che
+  salva vince per intero, senza controllo di versione. Un pacchetto creato
+  fra il caricamento della pagina e un salvataggio viene comunque incluso
+  nel giro (l'azione rilegge i pacchetti dal database prima di interpretare
+  il form), ma le sue celle numeriche — mai renderizzate, quindi mai
+  compilate — arrivano vuote e leggono come "illimitata". Con un solo
+  amministratore e nessun account di prova concorrente, il rischio è basso;
+  non si costruisce un controllo di versione per questo ora.

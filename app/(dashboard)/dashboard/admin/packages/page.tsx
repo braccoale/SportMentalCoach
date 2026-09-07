@@ -5,6 +5,7 @@ import {
 } from '@/lib/core/features/packages';
 import { listOrganizationMembers, searchOrganizations } from '@/lib/core/organizations';
 import { matrixCellFieldName } from '@/lib/core/features/matrix-form';
+import { romeDayStartShifted } from '@/lib/core/admin/period';
 import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
 import {
@@ -81,17 +82,24 @@ export default async function AdminPackagesPage({
             Nessun pacchetto ancora — crealo qui sopra prima di configurare la matrice.
           </p>
         ) : (
-          <ActionForm action={updateFeatureMatrixAction} className="mt-4">
+          <ActionForm
+            action={updateFeatureMatrixAction}
+            className="mt-4"
+            confirmTitle="Salvare la matrice?"
+            confirmMessage="Sostituisce l'intera configurazione: ogni casella non spuntata o lasciata vuota toglie quella funzionalità dal pacchetto per tutte le organizzazioni che lo hanno."
+            confirmActionLabel="Salva"
+          >
             <div className="overflow-x-auto">
               <table className="min-w-full border-collapse text-sm">
                 <thead>
                   <tr>
-                    <th className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-gray-700">
+                    <th scope="col" className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-gray-700">
                       Funzionalità
                     </th>
                     {matrix.packages.map((pkg) => (
                       <th
                         key={pkg.id}
+                        scope="col"
                         className="border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700"
                       >
                         {pkg.name}
@@ -102,16 +110,17 @@ export default async function AdminPackagesPage({
                 <tbody>
                   {matrix.features.map((feature) => (
                     <tr key={feature.code} className="border-b border-gray-100">
-                      <td className="px-3 py-2">
+                      <th scope="row" className="px-3 py-2 text-left font-normal">
                         <div className="font-medium text-gray-900">{feature.label}</div>
                         {feature.description && (
                           <div className="text-xs text-gray-500">{feature.description}</div>
                         )}
-                      </td>
+                      </th>
                       {matrix.packages.map((pkg) => {
                         const fieldName = matrixCellFieldName(pkg.id, feature.code);
                         const currentValue = pkg.cells[feature.code];
                         const isIncluded = feature.code in pkg.cells;
+                        const cellLabel = `${feature.label} — ${pkg.name}`;
                         return (
                           <td key={pkg.id} className="px-3 py-2 text-center">
                             {feature.type === 'boolean' ? (
@@ -119,6 +128,7 @@ export default async function AdminPackagesPage({
                                 type="checkbox"
                                 name={fieldName}
                                 defaultChecked={isIncluded}
+                                aria-label={cellLabel}
                                 className="size-4 rounded border-gray-300"
                               />
                             ) : (
@@ -129,6 +139,7 @@ export default async function AdminPackagesPage({
                                 step={1}
                                 placeholder="illimitato"
                                 defaultValue={currentValue ?? undefined}
+                                aria-label={cellLabel}
                                 className="w-24 rounded-lg border border-gray-300 px-2 py-1 text-center text-sm"
                               />
                             )}
@@ -172,7 +183,11 @@ export default async function AdminPackagesPage({
                   <span>
                     Pacchetto attuale: <strong>{org.currentPackage.packageName}</strong> — {org.currentPackage.status}
                     {org.currentPackage.expiresAt
-                      ? ` (scade ${org.currentPackage.expiresAt.toLocaleDateString('it-IT', { timeZone: 'Europe/Rome' })})`
+                      ? // La scadenza salvata è l'inizio del giorno *dopo* l'ultimo
+                        // giorno valido (assignPackageToOrganizationAction) — un
+                        // giorno indietro per mostrare il giorno che l'admin ha
+                        // davvero scelto.
+                        ` (scade ${romeDayStartShifted(org.currentPackage.expiresAt, -1).toLocaleDateString('it-IT', { timeZone: 'Europe/Rome' })})`
                       : ''}
                   </span>
                   <ActionForm

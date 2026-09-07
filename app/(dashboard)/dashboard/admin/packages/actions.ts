@@ -77,7 +77,13 @@ export async function updateFeatureMatrixAction(
   formData: FormData
 ): Promise<ActionState> {
   const admin = await requireRole('admin');
-  const matrix = await getFeatureMatrix(admin.id);
+
+  let matrix: Awaited<ReturnType<typeof getFeatureMatrix>>;
+  try {
+    matrix = await getFeatureMatrix(admin.id);
+  } catch (error) {
+    return { error: friendlyError(error, 'Impossibile leggere la matrice.') };
+  }
 
   const parsed = parseFeatureMatrixSubmission({
     packages: matrix.packages,

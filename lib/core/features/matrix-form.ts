@@ -48,7 +48,12 @@ export function parseFeatureMatrixSubmission(params: {
       const raw = params.getField(matrixCellFieldName(pkg.id, feature.code));
 
       if (feature.type === 'boolean') {
-        if (raw === 'on') {
+        // Non `raw === 'on'`: quel valore è una convenzione del browser
+        // per una checkbox senza `value` esplicito, non un contratto. Un
+        // giorno una checkbox con `value` diverso spuntata leggerebbe come
+        // non spuntata. L'assenza del campo (checkbox non spuntata, il
+        // browser non la invia affatto) è l'unico vero "no".
+        if (raw !== null) {
           entries.push({ packageId: pkg.id, featureCode: feature.code, value: null });
         }
         continue;

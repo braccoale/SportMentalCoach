@@ -4,10 +4,16 @@ import { db } from '@/lib/db/drizzle';
 import { features, packageFeatures, type FeatureType } from '@/lib/db/schema';
 import { assertAdmin } from './index';
 import { listPackages, type PackageSummary } from './packages';
-import type { FeatureCode } from './policy';
 
+// `code` è `string`, non il `FeatureCode` di policy.ts: stessa scelta di
+// `FeatureMatrixEntry` più sotto, per la stessa ragione — il vincolo di
+// riferimento a database (Task 1) è la garanzia reale, non il tipo. Un
+// `as FeatureCode` qui prenderebbe in prestito l'autorità del tipo
+// diramato senza la sua garanzia: una feature aggiunta da migrazione ma
+// non ancora presente in `FEATURE_CODES` sarebbe comunque tipizzata come
+// "nota".
 export type FeatureRow = {
-  code: FeatureCode;
+  code: string;
   label: string;
   description: string | null;
   type: FeatureType;
@@ -27,7 +33,6 @@ export async function listFeatures(actorUserId: number): Promise<FeatureRow[]> {
     .orderBy(asc(features.sortOrder), asc(features.id));
   return rows.map((row) => ({
     ...row,
-    code: row.code as FeatureCode,
     type: row.type as FeatureType,
   }));
 }
