@@ -1,12 +1,13 @@
 import 'server-only';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
-  organizationPackages,
   packages,
-  type OrganizationPackageStatus,
+  userPackages,
+  users,
   type Package,
   type PackageStatus,
+  type UserPackageStatus,
 } from '@/lib/db/schema';
 import { assertAdmin } from './index';
 
@@ -53,14 +54,14 @@ export async function createPackage(params: {
 }
 
 /**
- * Assegna un pacchetto a un'organizzazione. Chiude la riga corrente
+ * Assegna un pacchetto a un utente. Chiude la riga corrente
  * (`active`/`suspended`) prima di aprirne una nuova, così l'indice unico
  * parziale su `status = 'active'` non viene mai violato e la storia dei
  * pacchetti precedenti resta leggibile.
  */
-export async function assignPackageToOrganization(params: {
+export async function assignPackageToUser(params: {
   actorUserId: number;
-  organizationId: number;
+  userId: number;
   packageId: number;
   startsAt?: Date | null;
   expiresAt?: Date | null;
@@ -68,7 +69,7 @@ export async function assignPackageToOrganization(params: {
   await assertAdmin(params.actorUserId);
   await db.transaction(async (tx) => {
     await tx
-      .update(organizationPackages)
+      .update(userPackages)
       .set({
         status: 'expired',
         updatedDate: new Date(),
@@ -76,12 +77,12 @@ export async function assignPackageToOrganization(params: {
       })
       .where(
         and(
-          eq(organizationPackages.organizationId, params.organizationId),
-          inArray(organizationPackages.status, ['active', 'suspended'])
+          eq(userPackages.userId, params.userId),
+          inArray(userPackages.status, ['active', 'suspended'])
         )
       );
-    await tx.insert(organizationPackages).values({
-      organizationId: params.organizationId,
+    await tx.insert(userPackages).values({
+      userId: params.userId,
       packageId: params.packageId,
       status: 'active',
       startsAt: params.startsAt ?? null,
@@ -93,17 +94,17 @@ export async function assignPackageToOrganization(params: {
 }
 
 /**
- * Revoca il pacchetto corrente di un'organizzazione (`active` o `suspended`
- * → `expired`). `false` se l'organizzazione non aveva un pacchetto corrente
- * da revocare.
+ * Revoca il pacchetto corrente di un utente (`active` o `suspended` →
+ * `expired`). `false` se l'utente non aveva un pacchetto corrente da
+ * revocare.
  */
-export async function revokeOrganizationPackage(params: {
+export async function revokeUserPackage(params: {
   actorUserId: number;
-  organizationId: number;
+  userId: number;
 }): Promise<boolean> {
   await assertAdmin(params.actorUserId);
   const [updated] = await db
-    .update(organizationPackages)
+    .update(userPackages)
     .set({
       status: 'expired',
       updatedDate: new Date(),
@@ -111,48 +112,110 @@ export async function revokeOrganizationPackage(params: {
     })
     .where(
       and(
-        eq(organizationPackages.organizationId, params.organizationId),
-        inArray(organizationPackages.status, ['active', 'suspended'])
+        eq(userPackages.userId, params.userId),
+        inArray(userPackages.status, ['active', 'suspended'])
       )
     )
-    .returning({ id: organizationPackages.id });
+    .returning({ id: userPackages.id });
   return Boolean(updated);
 }
 
 
-export type CurrentOrganizationPackage = {
+export type CurrentUserPackage = {
   packageId: number;
   packageName: string;
-  status: OrganizationPackageStatus;
+  status: UserPackageStatus;
   expiresAt: Date | null;
 };
 
-/**
- * Il pacchetto corrente (attivo o sospeso) di un'organizzazione, se c'è.
- * Sostituisce, nella pagina, la vista che prima viveva nelle schede
- * per-pacchetto — qui vive accanto a dove si assegna e si revoca.
- */
-export async function getCurrentOrganizationPackage(
+/** Il pacchetto corrente (attivo o sospeso) di un utente, se c'è. */
+export async function getCurrentUserPackage(
   actorUserId: number,
-  organizationId: number
-): Promise<CurrentOrganizationPackage | null> {
+  userId: number
+): Promise<CurrentUserPackage | null> {
   await assertAdmin(actorUserId);
   const [row] = await db
     .select({
-      packageId: organizationPackages.packageId,
+      packageId: userPackages.packageId,
       packageName: packages.name,
-      status: organizationPackages.status,
-      expiresAt: organizationPackages.expiresAt,
+      status: userPackages.status,
+      expiresAt: userPackages.expiresAt,
     })
-    .from(organizationPackages)
-    .innerJoin(packages, eq(packages.id, organizationPackages.packageId))
+    .from(userPackages)
+    .innerJoin(packages, eq(packages.id, userPackages.packageId))
     .where(
       and(
-        eq(organizationPackages.organizationId, organizationId),
-        inArray(organizationPackages.status, ['active', 'suspended'])
+        eq(userPackages.userId, userId),
+        inArray(userPackages.status, ['active', 'suspended'])
       )
     )
     .limit(1);
   if (!row) return null;
-  return { ...row, status: row.status as OrganizationPackageStatus };
+  return { ...row, status: row.status as UserPackageStatus };
+}
+
+export type UserPackageRow = {
+  userId: number;
+  email: string;
+  displayName: string;
+  status: UserPackageStatus;
+  expiresAt: Date | null;
+};
+
+/** Gli utenti che hanno (attivo o sospeso) questo pacchetto oggi. */
+export async function listUsersForPackage(
+  actorUserId: number,
+  packageId: number
+): Promise<UserPackageRow[]> {
+  await assertAdmin(actorUserId);
+  const rows = await db
+    .select({
+      userId: users.id,
+      email: users.email,
+      name: users.name,
+      lastName: users.lastName,
+      status: userPackages.status,
+      expiresAt: userPackages.expiresAt,
+    })
+    .from(userPackages)
+    .innerJoin(users, eq(users.id, userPackages.userId))
+    .where(
+      and(
+        eq(userPackages.packageId, packageId),
+        inArray(userPackages.status, ['active', 'suspended'])
+      )
+    )
+    .orderBy(asc(users.email));
+  return rows.map((row) => ({
+    userId: row.userId,
+    email: row.email,
+    displayName: [row.name, row.lastName].filter(Boolean).join(' ') || row.email,
+    status: row.status as UserPackageStatus,
+    expiresAt: row.expiresAt,
+  }));
+}
+
+/**
+ * `null` se nessun utente ha questa email — l'azione chiamante decide il
+ * messaggio. Spostata qui da `lib/core/organizations/` (rimosso): serve a
+ * cercare l'utente a cui assegnare un pacchetto, non ha più senso in un
+ * modulo dedicato alle organizzazioni.
+ */
+export async function findUserByEmail(
+  actorUserId: number,
+  email: string
+): Promise<{ id: number; email: string } | null> {
+  await assertAdmin(actorUserId);
+  const [found] = await db
+    .select({ id: users.id, email: users.email })
+    .from(users)
+    .where(
+      and(
+        eq(users.email, email.trim().toLowerCase()),
+        isNull(users.deletedAt),
+        eq(users.isDemo, false)
+      )
+    )
+    .limit(1);
+  return found ?? null;
 }
