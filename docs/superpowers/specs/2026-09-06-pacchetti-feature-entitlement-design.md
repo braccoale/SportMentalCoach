@@ -1,7 +1,7 @@
 # Pacchetti: dal listino statico a feature abilitabili per organizzazione
 
 **Data:** 2026-09-06
-**Stato:** disegno approvato, da implementare
+**Stato:** implementato
 **Dipendenze:** nessuna migrazione in sospeso su cui appoggiarsi. Riusa
 `user_feature_entitlements`, `lib/core/features/policy.ts` e
 `organizations`/`team_members` così come sono oggi.
