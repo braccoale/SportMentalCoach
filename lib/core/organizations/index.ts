@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, eq, ilike, sql } from 'drizzle-orm';
+import { and, eq, ilike, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { organizations, teamMembers, users, type NewTeamMember } from '@/lib/db/schema';
 import { assertAdmin } from '@/lib/core/features';
@@ -72,7 +72,13 @@ export async function findUserByEmail(
   const [found] = await db
     .select({ id: users.id, email: users.email })
     .from(users)
-    .where(eq(users.email, email.trim().toLowerCase()))
+    .where(
+      and(
+        eq(users.email, email.trim().toLowerCase()),
+        isNull(users.deletedAt),
+        eq(users.isDemo, false)
+      )
+    )
     .limit(1);
   return found ?? null;
 }

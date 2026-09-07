@@ -14,9 +14,29 @@ import {
   findUserByEmail,
 } from '@/lib/core/organizations';
 import { recordAdminAudit } from '@/lib/core/admin/audit-log';
+import { romeDayStartShifted, romeDayValueToInstant } from '@/lib/core/admin/period';
 import type { ActionState } from '@/lib/auth/middleware';
 
 const KNOWN_FEATURE_CODES = Object.values(FEATURE_CODES) as FeatureCode[];
+
+/**
+ * Un messaggio leggibile per l'admin, mai il testo grezzo di Postgres.
+ * `FORBIDDEN` viene da `assertAdmin` (difesa in profondità: la route ha
+ * già passato `requireRole('admin')`, ma la funzione di lib/core non si
+ * fida).
+ */
+function friendlyError(error: unknown, fallback: string): string {
+  if (error instanceof Error) {
+    if (error.message === 'FORBIDDEN') return 'Non autorizzato.';
+    if (error.message.includes('packages_key_unique')) {
+      return 'Chiave già in uso da un altro pacchetto.';
+    }
+    if (error.message.includes('organization_packages_window_check')) {
+      return "La scadenza deve essere successiva all'inizio.";
+    }
+  }
+  return fallback;
+}
 
 export async function createPackageAction(
   _previous: ActionState,
@@ -47,12 +67,7 @@ export async function createPackageAction(
       outcome: 'fallita',
       detail: { chiave: key },
     });
-    return {
-      error:
-        error instanceof Error
-          ? error.message
-          : 'Impossibile creare il pacchetto.',
-    };
+    return { error: friendlyError(error, 'Impossibile creare il pacchetto.') };
   }
 
   revalidatePath('/dashboard/admin/packages');
@@ -91,12 +106,7 @@ export async function updatePackageFeaturesAction(
       outcome: 'fallita',
       detail: {},
     });
-    return {
-      error:
-        error instanceof Error
-          ? error.message
-          : 'Impossibile aggiornare le feature.',
-    };
+    return { error: friendlyError(error, 'Impossibile aggiornare le feature.') };
   }
 
   revalidatePath('/dashboard/admin/packages');
@@ -118,15 +128,30 @@ export async function assignPackageToOrganizationAction(
   ) {
     return { error: 'Organizzazione o pacchetto non validi.' };
   }
+
   const expiresAtRaw = String(formData.get('expiresAt') ?? '').trim();
-  const expiresAt = expiresAtRaw ? new Date(expiresAtRaw) : null;
+  let expiresAt: Date | null = null;
+  if (expiresAtRaw) {
+    const chosenDay = romeDayValueToInstant(expiresAtRaw);
+    if (!chosenDay) {
+      return { error: 'Data di scadenza non valida.' };
+    }
+    // La scadenza copre l'intera giornata scelta, a Roma: l'istante
+    // memorizzato è l'inizio del giorno *dopo*.
+    expiresAt = romeDayStartShifted(chosenDay, 1);
+  }
+
+  const startsAt = new Date();
+  if (expiresAt && expiresAt <= startsAt) {
+    return { error: 'La data di scadenza deve essere nel futuro.' };
+  }
 
   try {
     await assignPackageToOrganization({
       actorUserId: admin.id,
       organizationId,
       packageId,
-      startsAt: new Date(),
+      startsAt,
       expiresAt,
     });
     await recordAdminAudit({
@@ -146,12 +171,7 @@ export async function assignPackageToOrganizationAction(
       outcome: 'fallita',
       detail: { pacchetto: packageId },
     });
-    return {
-      error:
-        error instanceof Error
-          ? error.message
-          : 'Impossibile assegnare il pacchetto.',
-    };
+    return { error: friendlyError(error, 'Impossibile assegnare il pacchetto.') };
   }
 
   revalidatePath('/dashboard/admin/packages');
@@ -168,10 +188,24 @@ export async function revokeOrganizationPackageAction(
     return { error: 'Organizzazione non valida.' };
   }
 
-  const updated = await revokeOrganizationPackage({
-    actorUserId: admin.id,
-    organizationId,
-  });
+  let updated: boolean;
+  try {
+    updated = await revokeOrganizationPackage({
+      actorUserId: admin.id,
+      organizationId,
+    });
+  } catch (error) {
+    await recordAdminAudit({
+      actor: { id: admin.id, email: admin.email },
+      action: 'organization_package_revoked',
+      subjectType: 'organization',
+      subjectId: organizationId,
+      outcome: 'fallita',
+      detail: {},
+    });
+    return { error: friendlyError(error, 'Impossibile revocare il pacchetto.') };
+  }
+
   await recordAdminAudit({
     actor: { id: admin.id, email: admin.email },
     action: 'organization_package_revoked',
@@ -228,10 +262,7 @@ export async function addOrganizationMemberAction(
       detail: { utente: user.id },
     });
     return {
-      error:
-        error instanceof Error
-          ? error.message
-          : "Impossibile aggiungere il membro all'organizzazione.",
+      error: friendlyError(error, "Impossibile aggiungere il membro all'organizzazione."),
     };
   }
 

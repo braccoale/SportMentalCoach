@@ -21,6 +21,7 @@ import {
   type FeatureEntitlementSnapshot,
 } from './policy';
 import { buildOrganizationFeatureSnapshot } from './organization-grant';
+import { composeFeatureAccess } from './compose-access';
 import { stopAiNotesRecordingsForRequester } from '@/lib/core/ai-session-notes/recording';
 import type { LiveKitSessionControl } from '@/lib/core/ai-session-notes/livekit-session-control';
 
@@ -33,11 +34,11 @@ export {
   type FeatureEntitlementSnapshot,
 } from './policy';
 
-async function loadOrganizationFeatureGrant(
+async function loadOrganizationFeatureGrants(
   userId: number,
   featureCode: FeatureCode
-): Promise<FeatureEntitlementSnapshot | null> {
-  const [row] = await db
+): Promise<FeatureEntitlementSnapshot[]> {
+  const rows = await db
     .select({
       status: organizationPackages.status,
       startsAt: organizationPackages.startsAt,
@@ -62,20 +63,22 @@ async function loadOrganizationFeatureGrant(
         inArray(organizationPackages.status, ['active', 'suspended'])
       )
     )
-    .orderBy(asc(organizationPackages.organizationId))
-    .limit(1);
+    .orderBy(asc(organizationPackages.organizationId));
 
-  if (!row) return null;
-
-  return buildOrganizationFeatureSnapshot({
-    organizationPackage: {
-      status: row.status as OrganizationPackageStatus,
-      startsAt: row.startsAt,
-      expiresAt: row.expiresAt,
-    },
-    packageFeatureCodes: [row.featureCode],
-    featureCode,
-  });
+  const grants: FeatureEntitlementSnapshot[] = [];
+  for (const row of rows) {
+    const snapshot = buildOrganizationFeatureSnapshot({
+      organizationPackage: {
+        status: row.status as OrganizationPackageStatus,
+        startsAt: row.startsAt,
+        expiresAt: row.expiresAt,
+      },
+      packageFeatureCodes: [row.featureCode],
+      featureCode,
+    });
+    if (snapshot) grants.push(snapshot);
+  }
+  return grants;
 }
 
 export async function getFeatureAccess(
@@ -112,21 +115,22 @@ export async function getFeatureAccess(
       : null,
     now
   );
-  if (directResult.allowed) return directResult;
 
-  const organizationGrant = await loadOrganizationFeatureGrant(
+  // Un diniego esplicito (revocata o sospesa) non lascia spazio al
+  // pacchetto dell'organizzazione: risparmia anche la query.
+  if (
+    directResult.allowed ||
+    directResult.reason === 'disabled' ||
+    directResult.reason === 'suspended'
+  ) {
+    return directResult;
+  }
+
+  const organizationGrants = await loadOrganizationFeatureGrants(
     userId,
     featureCode
   );
-  if (organizationGrant) {
-    const organizationResult = evaluateFeatureEntitlement(
-      organizationGrant,
-      now
-    );
-    if (organizationResult.allowed) return organizationResult;
-  }
-
-  return directResult;
+  return composeFeatureAccess(directResult, organizationGrants, now);
 }
 
 export async function hasFeatureEntitlement(

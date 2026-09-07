@@ -107,10 +107,15 @@ export default async function AdminPackagesPage({
                   <li key={org.organizationId} className="flex items-center justify-between gap-3">
                     <span>
                       {org.organizationName} — {org.status}
-                      {org.expiresAt ? ` (scade ${org.expiresAt.toLocaleDateString('it-IT')})` : ''}
+                      {org.expiresAt ? ` (scade ${org.expiresAt.toLocaleDateString('it-IT', { timeZone: 'Europe/Rome' })})` : ''}
                     </span>
                     {org.status !== 'expired' && (
-                      <ActionForm action={revokeOrganizationPackageAction}>
+                      <ActionForm
+                        action={revokeOrganizationPackageAction}
+                        confirmTitle="Revocare il pacchetto?"
+                        confirmMessage={`${org.organizationName} perderà l'accesso alle feature di questo pacchetto per tutti i suoi membri.`}
+                        confirmActionLabel="Revoca"
+                      >
                         <input type="hidden" name="organizationId" value={org.organizationId} />
                         <Button type="submit" variant="outline" className="h-8 px-3 text-xs">
                           Revoca
@@ -147,7 +152,13 @@ export default async function AdminPackagesPage({
                 {org.members.map((m) => m.displayName).join(', ') || 'nessun membro'}
               </p>
 
-              <ActionForm action={assignPackageToOrganizationAction} className="mt-2 flex flex-wrap items-center gap-2">
+              <ActionForm
+                action={assignPackageToOrganizationAction}
+                className="mt-2 flex flex-wrap items-center gap-2"
+                confirmTitle="Assegnare il pacchetto?"
+                confirmMessage={`Se ${org.name} ha già un pacchetto attivo, verrà sostituito.`}
+                confirmActionLabel="Assegna"
+              >
                 <input type="hidden" name="organizationId" value={org.id} />
                 <select name="packageId" required className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm">
                   {packageList.map((pkg) => (
