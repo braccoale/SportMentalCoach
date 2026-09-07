@@ -182,7 +182,9 @@ export async function listUsersForPackage(
     .where(
       and(
         eq(userPackages.packageId, packageId),
-        inArray(userPackages.status, ['active', 'suspended'])
+        inArray(userPackages.status, ['active', 'suspended']),
+        isNull(users.deletedAt),
+        eq(users.isDemo, false)
       )
     )
     .orderBy(asc(users.email));

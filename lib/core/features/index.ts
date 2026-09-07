@@ -57,7 +57,8 @@ async function loadUserPackageGrants(
         eq(userPackages.userId, userId),
         inArray(userPackages.status, ['active', 'suspended'])
       )
-    );
+    )
+    .orderBy(asc(userPackages.id));
 
   const grants: FeatureEntitlementSnapshot[] = [];
   for (const row of rows) {
