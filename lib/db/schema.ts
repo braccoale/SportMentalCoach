@@ -622,21 +622,21 @@ export const packageFeatures = pgTable(
   ]
 );
 
-export const ORGANIZATION_PACKAGE_STATUSES = [
+export const USER_PACKAGE_STATUSES = [
   'active',
   'expired',
   'suspended',
 ] as const;
-export type OrganizationPackageStatus =
-  (typeof ORGANIZATION_PACKAGE_STATUSES)[number];
+export type UserPackageStatus =
+  (typeof USER_PACKAGE_STATUSES)[number];
 
-export const organizationPackages = pgTable(
-  'organization_packages',
+export const userPackages = pgTable(
+  'user_packages',
   {
     id: serial('id').primaryKey(),
-    organizationId: integer('organization_id')
+    userId: integer('user_id')
       .notNull()
-      .references(() => organizations.id, { onDelete: 'cascade' }),
+      .references(() => users.id, { onDelete: 'cascade' }),
     packageId: integer('package_id')
       .notNull()
       .references(() => packages.id),
@@ -657,19 +657,19 @@ export const organizationPackages = pgTable(
     }),
   },
   (table) => [
-    uniqueIndex('organization_packages_one_active_idx')
-      .on(table.organizationId)
+    uniqueIndex('user_packages_one_active_idx')
+      .on(table.userId)
       .where(sql`${table.status} = 'active'`),
-    index('organization_packages_org_status_idx').on(
-      table.organizationId,
+    index('user_packages_user_status_idx').on(
+      table.userId,
       table.status
     ),
     check(
-      'organization_packages_status_check',
+      'user_packages_status_check',
       sql`${table.status} in ('active', 'expired', 'suspended')`
     ),
     check(
-      'organization_packages_window_check',
+      'user_packages_window_check',
       sql`${table.expiresAt} is null or ${table.startsAt} is null or ${table.expiresAt} > ${table.startsAt}`
     ),
   ]
@@ -681,8 +681,8 @@ export type Feature = typeof features.$inferSelect;
 export type NewFeature = typeof features.$inferInsert;
 export type PackageFeature = typeof packageFeatures.$inferSelect;
 export type NewPackageFeature = typeof packageFeatures.$inferInsert;
-export type OrganizationPackage = typeof organizationPackages.$inferSelect;
-export type NewOrganizationPackage = typeof organizationPackages.$inferInsert;
+export type UserPackage = typeof userPackages.$inferSelect;
+export type NewUserPackage = typeof userPackages.$inferInsert;
 
 export const AI_SESSION_NOTE_STATUSES = [
   'waiting_for_consent',
@@ -2953,9 +2953,8 @@ export const ADMIN_AUDIT_ACTIONS = [
   'configuration_changed',
   'package_created',
   'package_features_updated',
-  'organization_package_assigned',
-  'organization_package_revoked',
-  'organization_member_added',
+  'user_package_assigned',
+  'user_package_revoked',
 ] as const;
 export type AdminAuditAction = (typeof ADMIN_AUDIT_ACTIONS)[number];
 
@@ -2967,7 +2966,6 @@ export const ADMIN_AUDIT_SUBJECTS = [
   'configuration',
   'system',
   'package',
-  'organization',
 ] as const;
 export type AdminAuditSubject = (typeof ADMIN_AUDIT_SUBJECTS)[number];
 
