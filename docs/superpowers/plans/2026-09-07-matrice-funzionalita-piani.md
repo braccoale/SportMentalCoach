@@ -586,7 +586,7 @@ EOF
 
 **Interfaces:**
 - Produces: `PackageSummary` (sostituisce `PackageWithFeatures`), `getCurrentOrganizationPackage` (nuova) — consumate da Task 5 (`catalog.ts`) e Task 6 (pannello).
-- Rimuove: `PackageWithFeatures`, `setPackageFeatures` (l'editor per-pacchetto sparisce, sostituito dalla matrice).
+- Rimuove: `PackageWithFeatures`, `setPackageFeatures` (l'editor per-pacchetto sparisce, sostituito dalla matrice); `OrganizationPackageRow`, `listOrganizationsForPackage` (la vista "organizzazioni di questo pacchetto" sparisce, sostituita da "il pacchetto di questa organizzazione" — `getCurrentOrganizationPackage`).
 
 - [ ] **Step 1: Sostituire `PackageWithFeatures`/`listPackages` con `PackageSummary`**
 
@@ -697,11 +697,24 @@ export async function setPackageFeatures(params: {
 
 (Attenzione alla riga vuota finale: lasciare esattamente una riga vuota fra `assignPackageToOrganization` (il commento JSDoc che lo precede) e la funzione precedente, come nel resto del file.)
 
-- [ ] **Step 3: Aggiungere `getCurrentOrganizationPackage`**
+- [ ] **Step 3: Sostituire `listOrganizationsForPackage` con `getCurrentOrganizationPackage`**
 
-Trovare la fine del file (dopo `listOrganizationsForPackage`):
+La pagina nuova (Task 6) non mostra più, per pacchetto, l'elenco delle
+organizzazioni che lo hanno — mostra, per organizzazione, il pacchetto
+corrente. `listOrganizationsForPackage` non ha più nessun chiamante dopo
+questo piano: si rimuove, non si lascia accanto alla sua sostituta.
+
+Trovare ed eliminare interamente:
 
 ```ts
+export type OrganizationPackageRow = {
+  organizationId: number;
+  organizationName: string;
+  status: OrganizationPackageStatus;
+  startsAt: Date | null;
+  expiresAt: Date | null;
+};
+
 /** Le organizzazioni che hanno (o hanno avuto) questo pacchetto. */
 export async function listOrganizationsForPackage(
   actorUserId: number,
@@ -730,7 +743,7 @@ export async function listOrganizationsForPackage(
 }
 ```
 
-e aggiungere subito dopo:
+e sostituirlo con:
 
 ```ts
 
@@ -774,14 +787,19 @@ export async function getCurrentOrganizationPackage(
 
 - [ ] **Step 4: Verificare che compili**
 
-Dopo Step 1 e Step 2, due import in cima al file potrebbero risultare
-inutilizzati — verificare e rimuovere quelli che lo sono:
+Dopo Step 1, Step 2 e Step 3, alcuni import in cima al file potrebbero
+risultare inutilizzati — verificare e rimuovere quelli che lo sono:
 - `import type { FeatureCode } from './policy';` — usato solo da
   `PackageWithFeatures`/`setPackageFeatures`, entrambe rimosse.
 - `packageFeatures` nell'import da `@/lib/db/schema` — usato solo dal
   vecchio `listPackages` (che ora non fa più il join) e da
   `setPackageFeatures` (rimossa). Nessun'altra funzione del file tocca
   `packageFeatures` — la matrice, in `catalog.ts`, se ne occupa ora.
+- `organizations` nell'import da `@/lib/db/schema` — usato solo dal join
+  dentro `listOrganizationsForPackage` (rimossa in Step 3);
+  `getCurrentOrganizationPackage` unisce `packages`, non `organizations`.
+- `desc` nell'import da `drizzle-orm` — usato solo dall'`orderBy` di
+  `listOrganizationsForPackage` (rimossa in Step 3).
 
 Se `tsc`/il linter non segnala nulla, va bene comunque controllare a
 occhio: un import rimasto e mai usato non fa fallire la build, ma è rumore.
@@ -797,8 +815,10 @@ git commit -m "$(cat <<'EOF'
 refactor(features): PackageSummary sostituisce PackageWithFeatures
 
 setPackageFeatures rimossa (la matrice in catalog.ts la sostituisce);
-aggiunta getCurrentOrganizationPackage per la vista nella sezione di
-assegnazione.
+listOrganizationsForPackage rimossa (la sezione di assegnazione ora
+mostra il pacchetto corrente per organizzazione, non più le
+organizzazioni per pacchetto) e sostituita da
+getCurrentOrganizationPackage.
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 EOF
