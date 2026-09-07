@@ -442,6 +442,20 @@
       "when": 1788784865321,
       "tag": "0062_matrice-funzionalita-piani",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1788803469851,
+      "tag": "0063_drop-organization-packages",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1788803492567,
+      "tag": "0064_create-user-packages",
+      "breakpoints": true
     }
   ]
 }

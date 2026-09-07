@@ -3007,11 +3007,11 @@ export const adminAuditEvents = pgTable(
     index('admin_audit_events_action_idx').on(table.action, table.createdDate),
     check(
       'admin_audit_events_action_check',
-      sql`${table.action} in ('coach_approved', 'coach_rejected', 'coach_verification_changed', 'user_role_changed', 'ai_notes_entitlement_granted', 'ai_notes_entitlement_revoked', 'ai_notes_session_reopened', 'ai_notes_worker_run', 'ai_notes_guidelines_saved', 'ai_notes_callback_probed', 'sensitive_content_accessed', 'data_exported', 'data_deleted', 'configuration_changed', 'package_created', 'package_features_updated', 'organization_package_assigned', 'organization_package_revoked', 'organization_member_added')`
+      sql`${table.action} in ('coach_approved', 'coach_rejected', 'coach_verification_changed', 'user_role_changed', 'ai_notes_entitlement_granted', 'ai_notes_entitlement_revoked', 'ai_notes_session_reopened', 'ai_notes_worker_run', 'ai_notes_guidelines_saved', 'ai_notes_callback_probed', 'sensitive_content_accessed', 'data_exported', 'data_deleted', 'configuration_changed', 'package_created', 'package_features_updated', 'user_package_assigned', 'user_package_revoked')`
     ),
     check(
       'admin_audit_events_subject_type_check',
-      sql`${table.subjectType} in ('provider_profile', 'user', 'ai_session', 'feature', 'configuration', 'system', 'package', 'organization')`
+      sql`${table.subjectType} in ('provider_profile', 'user', 'ai_session', 'feature', 'configuration', 'system', 'package')`
     ),
     check(
       'admin_audit_events_outcome_check',

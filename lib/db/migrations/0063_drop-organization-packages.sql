@@ -1,0 +1,6 @@
+ALTER TABLE "organization_packages" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
+DROP TABLE "organization_packages" CASCADE;--> statement-breakpoint
+ALTER TABLE "admin_audit_events" DROP CONSTRAINT "admin_audit_events_action_check";--> statement-breakpoint
+ALTER TABLE "admin_audit_events" DROP CONSTRAINT "admin_audit_events_subject_type_check";--> statement-breakpoint
+ALTER TABLE "admin_audit_events" ADD CONSTRAINT "admin_audit_events_action_check" CHECK ("admin_audit_events"."action" in ('coach_approved', 'coach_rejected', 'coach_verification_changed', 'user_role_changed', 'ai_notes_entitlement_granted', 'ai_notes_entitlement_revoked', 'ai_notes_session_reopened', 'ai_notes_worker_run', 'ai_notes_guidelines_saved', 'ai_notes_callback_probed', 'sensitive_content_accessed', 'data_exported', 'data_deleted', 'configuration_changed', 'package_created', 'package_features_updated', 'user_package_assigned', 'user_package_revoked'));--> statement-breakpoint
+ALTER TABLE "admin_audit_events" ADD CONSTRAINT "admin_audit_events_subject_type_check" CHECK ("admin_audit_events"."subject_type" in ('provider_profile', 'user', 'ai_session', 'feature', 'configuration', 'system', 'package'));
