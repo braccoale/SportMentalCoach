@@ -21,7 +21,7 @@ import {
   type FeatureEntitlementSnapshot,
 } from './policy';
 import { buildOrganizationFeatureSnapshot } from './organization-grant';
-import { composeFeatureAccess } from './compose-access';
+import { composeFeatureAccess, directResultIsFinal } from './compose-access';
 import { stopAiNotesRecordingsForRequester } from '@/lib/core/ai-session-notes/recording';
 import type { LiveKitSessionControl } from '@/lib/core/ai-session-notes/livekit-session-control';
 
@@ -116,13 +116,9 @@ export async function getFeatureAccess(
     now
   );
 
-  // Un diniego esplicito (revocata o sospesa) non lascia spazio al
-  // pacchetto dell'organizzazione: risparmia anche la query.
-  if (
-    directResult.allowed ||
-    directResult.reason === 'disabled' ||
-    directResult.reason === 'suspended'
-  ) {
+  // Risparmia la query quando la risposta è già definitiva — la regola su
+  // cosa la rende definitiva vive in `directResultIsFinal`, non qui.
+  if (directResultIsFinal(directResult)) {
     return directResult;
   }
 

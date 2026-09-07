@@ -63,12 +63,14 @@ export default async function AdminPackagesPage({
             name="key"
             placeholder="chiave (es. starter)"
             required
+            maxLength={60}
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
           />
           <input
             name="name"
             placeholder="nome"
             required
+            maxLength={120}
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
           />
           <Button type="submit">Crea</Button>
