@@ -7,7 +7,11 @@ import {
   createPackage,
   revokeOrganizationPackage,
 } from '@/lib/core/features/packages';
-import { getFeatureMatrix, setFeatureMatrix } from '@/lib/core/features/catalog';
+import {
+  getFeatureMatrix,
+  setFeatureMatrix,
+  type FeatureMatrix,
+} from '@/lib/core/features/catalog';
 import { parseFeatureMatrixSubmission } from '@/lib/core/features/matrix-form';
 import {
   addOrganizationMember,
@@ -78,7 +82,7 @@ export async function updateFeatureMatrixAction(
 ): Promise<ActionState> {
   const admin = await requireRole('admin');
 
-  let matrix: Awaited<ReturnType<typeof getFeatureMatrix>>;
+  let matrix: FeatureMatrix;
   try {
     matrix = await getFeatureMatrix(admin.id);
   } catch (error) {

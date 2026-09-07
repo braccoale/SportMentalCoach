@@ -86,7 +86,7 @@ export default async function AdminPackagesPage({
             action={updateFeatureMatrixAction}
             className="mt-4"
             confirmTitle="Salvare la matrice?"
-            confirmMessage="Sostituisce l'intera configurazione: ogni casella non spuntata o lasciata vuota toglie quella funzionalità dal pacchetto per tutte le organizzazioni che lo hanno."
+            confirmMessage="Sostituisce l'intera configurazione: una casella non spuntata toglie quella funzionalità dal pacchetto per tutte le organizzazioni che lo hanno. Una cella numerica lasciata vuota vuol dire illimitata, non esclusa."
             confirmActionLabel="Salva"
           >
             <div className="overflow-x-auto">
