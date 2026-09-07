@@ -1,18 +1,18 @@
 import { requireRole } from '@/lib/core/auth';
 import { getFeatureMatrix } from '@/lib/core/features/catalog';
 import {
-  getCurrentOrganizationPackage,
+  findUserByEmail,
+  getCurrentUserPackage,
+  listUsersForPackage,
 } from '@/lib/core/features/packages';
-import { listOrganizationMembers, searchOrganizations } from '@/lib/core/organizations';
 import { matrixCellFieldName } from '@/lib/core/features/matrix-form';
 import { romeDayStartShifted } from '@/lib/core/admin/period';
 import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
 import {
-  addOrganizationMemberAction,
-  assignPackageToOrganizationAction,
+  assignPackageToUserAction,
   createPackageAction,
-  revokeOrganizationPackageAction,
+  revokeUserPackageAction,
   updateFeatureMatrixAction,
 } from './actions';
 
@@ -21,21 +21,24 @@ export const dynamic = 'force-dynamic';
 export default async function AdminPackagesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ orgQuery?: string }>;
+  searchParams: Promise<{ userEmail?: string }>;
 }) {
   const admin = await requireRole('admin');
-  const { orgQuery = '' } = await searchParams;
+  const { userEmail = '' } = await searchParams;
 
-  const [matrix, organizationResults] = await Promise.all([
-    getFeatureMatrix(admin.id),
-    searchOrganizations(admin.id, orgQuery),
-  ]);
+  const matrix = await getFeatureMatrix(admin.id);
 
-  const organizationsWithDetail = await Promise.all(
-    organizationResults.map(async (org) => ({
-      ...org,
-      members: await listOrganizationMembers(admin.id, org.id),
-      currentPackage: await getCurrentOrganizationPackage(admin.id, org.id),
+  const foundUser = userEmail.trim()
+    ? await findUserByEmail(admin.id, userEmail.trim())
+    : null;
+  const foundUserPackage = foundUser
+    ? await getCurrentUserPackage(admin.id, foundUser.id)
+    : null;
+
+  const packagesWithUsers = await Promise.all(
+    matrix.packages.map(async (pkg) => ({
+      ...pkg,
+      users: await listUsersForPackage(admin.id, pkg.id),
     }))
   );
 
@@ -45,8 +48,7 @@ export default async function AdminPackagesPage({
         <h1 className="text-2xl font-semibold text-gray-900">Pacchetti</h1>
         <p className="mt-1 max-w-2xl text-sm text-gray-600">
           Ogni pacchetto porta con sé un insieme di feature. Assegnarlo a
-          un&apos;organizzazione abilita quelle feature per tutti i suoi
-          membri.
+          un utente abilita quelle feature per il suo account.
         </p>
       </div>
 
@@ -86,7 +88,7 @@ export default async function AdminPackagesPage({
             action={updateFeatureMatrixAction}
             className="mt-4"
             confirmTitle="Salvare la matrice?"
-            confirmMessage="Sostituisce l'intera configurazione: una casella non spuntata toglie quella funzionalità dal pacchetto per tutte le organizzazioni che lo hanno. Una cella numerica lasciata vuota vuol dire illimitata, non esclusa."
+            confirmMessage="Sostituisce l'intera configurazione: una casella non spuntata toglie quella funzionalità dal pacchetto per tutti gli utenti che lo hanno. Una cella numerica lasciata vuota vuol dire illimitata, non esclusa."
             confirmActionLabel="Salva"
           >
             <div className="overflow-x-auto">
@@ -157,88 +159,101 @@ export default async function AdminPackagesPage({
       </div>
 
       <div className="rounded-xl border border-gray-200 p-4">
-        <h2 className="text-lg font-semibold text-gray-900">Assegna a un&apos;organizzazione</h2>
+        <h2 className="text-lg font-semibold text-gray-900">Assegna a un utente</h2>
         <form className="mt-3 flex flex-wrap gap-3" method="get">
           <input
-            name="orgQuery"
-            defaultValue={orgQuery}
-            placeholder="cerca organizzazione per nome"
+            name="userEmail"
+            type="email"
+            defaultValue={userEmail}
+            placeholder="email dell'utente"
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
           />
           <Button type="submit" variant="outline">Cerca</Button>
         </form>
 
-        <ul className="mt-4 space-y-4">
-          {organizationsWithDetail.map((org) => (
-            <li key={org.id} className="rounded-lg border border-gray-100 p-3">
-              <p className="font-medium text-gray-900">
-                {org.name} <span className="text-xs font-normal text-gray-400">({org.memberCount} membri)</span>
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                {org.members.map((m) => m.displayName).join(', ') || 'nessun membro'}
-              </p>
+        {userEmail.trim() && !foundUser && (
+          <p className="mt-3 text-sm text-gray-400">Nessun utente con questa email.</p>
+        )}
 
-              {org.currentPackage ? (
-                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
-                  <span>
-                    Pacchetto attuale: <strong>{org.currentPackage.packageName}</strong> — {org.currentPackage.status}
-                    {org.currentPackage.expiresAt
-                      ? // La scadenza salvata è l'inizio del giorno *dopo* l'ultimo
-                        // giorno valido (assignPackageToOrganizationAction) — un
-                        // giorno indietro per mostrare il giorno che l'admin ha
-                        // davvero scelto.
-                        ` (scade ${romeDayStartShifted(org.currentPackage.expiresAt, -1).toLocaleDateString('it-IT', { timeZone: 'Europe/Rome' })})`
-                      : ''}
-                  </span>
-                  <ActionForm
-                    action={revokeOrganizationPackageAction}
-                    confirmTitle="Revocare il pacchetto?"
-                    confirmMessage={`${org.name} perderà l'accesso alle feature di questo pacchetto per tutti i suoi membri.`}
-                    confirmActionLabel="Revoca"
-                  >
-                    <input type="hidden" name="organizationId" value={org.id} />
-                    <Button type="submit" variant="outline" className="h-8 px-3 text-xs">
-                      Revoca
-                    </Button>
-                  </ActionForm>
-                </div>
-              ) : (
-                <p className="mt-2 text-xs text-gray-400">Nessun pacchetto attivo.</p>
-              )}
+        {foundUser && (
+          <div className="mt-4 rounded-lg border border-gray-100 p-3">
+            <p className="font-medium text-gray-900">{foundUser.email}</p>
 
-              <ActionForm
-                action={assignPackageToOrganizationAction}
-                className="mt-2 flex flex-wrap items-center gap-2"
-                confirmTitle="Assegnare il pacchetto?"
-                confirmMessage={`Se ${org.name} ha già un pacchetto attivo, verrà sostituito.`}
-                confirmActionLabel="Assegna"
-              >
-                <input type="hidden" name="organizationId" value={org.id} />
-                <select name="packageId" required className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm">
-                  {matrix.packages.map((pkg) => (
-                    <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
-                  ))}
-                </select>
-                <input type="date" name="expiresAt" className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm" />
-                <Button type="submit" className="h-8 px-3 text-xs">Assegna</Button>
-              </ActionForm>
+            {foundUserPackage ? (
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                <span>
+                  Pacchetto attuale: <strong>{foundUserPackage.packageName}</strong> — {foundUserPackage.status}
+                  {foundUserPackage.expiresAt
+                    ? // La scadenza salvata è l'inizio del giorno *dopo* l'ultimo
+                      // giorno valido (assignPackageToUserAction) — un giorno
+                      // indietro per mostrare il giorno che l'admin ha davvero
+                      // scelto.
+                      ` (scade ${romeDayStartShifted(foundUserPackage.expiresAt, -1).toLocaleDateString('it-IT', { timeZone: 'Europe/Rome' })})`
+                    : ''}
+                </span>
+                <ActionForm
+                  action={revokeUserPackageAction}
+                  confirmTitle="Revocare il pacchetto?"
+                  confirmMessage={`${foundUser.email} perderà l'accesso alle feature di questo pacchetto.`}
+                  confirmActionLabel="Revoca"
+                >
+                  <input type="hidden" name="userId" value={foundUser.id} />
+                  <Button type="submit" variant="outline" className="h-8 px-3 text-xs">
+                    Revoca
+                  </Button>
+                </ActionForm>
+              </div>
+            ) : (
+              <p className="mt-2 text-xs text-gray-400">Nessun pacchetto attivo.</p>
+            )}
 
-              <ActionForm action={addOrganizationMemberAction} className="mt-2 flex flex-wrap items-center gap-2">
-                <input type="hidden" name="organizationId" value={org.id} />
-                <input
-                  name="email"
-                  type="email"
-                  placeholder="email del coach da aggiungere"
-                  required
-                  className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
-                />
-                <Button type="submit" variant="outline" className="h-8 px-3 text-xs">
-                  Aggiungi membro
-                </Button>
-              </ActionForm>
-            </li>
-          ))}
-        </ul>
+            <ActionForm
+              action={assignPackageToUserAction}
+              className="mt-2 flex flex-wrap items-center gap-2"
+              confirmTitle="Assegnare il pacchetto?"
+              confirmMessage={`Se ${foundUser.email} ha già un pacchetto attivo, verrà sostituito.`}
+              confirmActionLabel="Assegna"
+            >
+              <input type="hidden" name="userId" value={foundUser.id} />
+              <select name="packageId" required className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm">
+                {matrix.packages.map((pkg) => (
+                  <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
+                ))}
+              </select>
+              <input type="date" name="expiresAt" className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm" />
+              <Button type="submit" className="h-8 px-3 text-xs">Assegna</Button>
+            </ActionForm>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-gray-200 p-4">
+        <h2 className="text-lg font-semibold text-gray-900">Chi ha ogni pacchetto</h2>
+        {packagesWithUsers.length === 0 ? (
+          <p className="mt-3 text-sm text-gray-400">Nessun pacchetto ancora.</p>
+        ) : (
+          <div className="mt-3 space-y-4">
+            {packagesWithUsers.map((pkg) => (
+              <div key={pkg.id}>
+                <h3 className="text-sm font-semibold text-gray-700">{pkg.name}</h3>
+                <ul className="mt-1 space-y-1 text-sm text-gray-600">
+                  {pkg.users.length === 0 ? (
+                    <li className="text-gray-400">Nessun utente ha questo pacchetto.</li>
+                  ) : (
+                    pkg.users.map((u) => (
+                      <li key={u.userId}>
+                        {u.displayName} <span className="text-xs text-gray-400">({u.email})</span> — {u.status}
+                        {u.expiresAt
+                          ? ` (scade ${romeDayStartShifted(u.expiresAt, -1).toLocaleDateString('it-IT', { timeZone: 'Europe/Rome' })})`
+                          : ''}
+                      </li>
+                    ))
+                  )}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

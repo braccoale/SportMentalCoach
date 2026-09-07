@@ -3,9 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/core/auth';
 import {
-  assignPackageToOrganization,
+  assignPackageToUser,
   createPackage,
-  revokeOrganizationPackage,
+  revokeUserPackage,
 } from '@/lib/core/features/packages';
 import {
   getFeatureMatrix,
@@ -13,10 +13,6 @@ import {
   type FeatureMatrix,
 } from '@/lib/core/features/catalog';
 import { parseFeatureMatrixSubmission } from '@/lib/core/features/matrix-form';
-import {
-  addOrganizationMember,
-  findUserByEmail,
-} from '@/lib/core/organizations';
 import { recordAdminAudit } from '@/lib/core/admin/audit-log';
 import { romeDayStartShifted, romeDayValueToInstant } from '@/lib/core/admin/period';
 import type { ActionState } from '@/lib/auth/middleware';
@@ -33,7 +29,7 @@ function friendlyError(error: unknown, fallback: string): string {
     if (error.message.includes('packages_key_unique')) {
       return 'Chiave già in uso da un altro pacchetto.';
     }
-    if (error.message.includes('organization_packages_window_check')) {
+    if (error.message.includes('user_packages_window_check')) {
       return "La scadenza deve essere successiva all'inizio.";
     }
   }
@@ -125,20 +121,20 @@ export async function updateFeatureMatrixAction(
   return { success: 'Matrice salvata.' };
 }
 
-export async function assignPackageToOrganizationAction(
+export async function assignPackageToUserAction(
   _previous: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const admin = await requireRole('admin');
-  const organizationId = Number(formData.get('organizationId'));
+  const userId = Number(formData.get('userId'));
   const packageId = Number(formData.get('packageId'));
   if (
-    !Number.isInteger(organizationId) ||
-    organizationId <= 0 ||
+    !Number.isInteger(userId) ||
+    userId <= 0 ||
     !Number.isInteger(packageId) ||
     packageId <= 0
   ) {
-    return { error: 'Organizzazione o pacchetto non validi.' };
+    return { error: 'Utente o pacchetto non validi.' };
   }
 
   const expiresAtRaw = String(formData.get('expiresAt') ?? '').trim();
@@ -159,27 +155,27 @@ export async function assignPackageToOrganizationAction(
   }
 
   try {
-    await assignPackageToOrganization({
+    await assignPackageToUser({
       actorUserId: admin.id,
-      organizationId,
+      userId,
       packageId,
       startsAt,
       expiresAt,
     });
     await recordAdminAudit({
       actor: { id: admin.id, email: admin.email },
-      action: 'organization_package_assigned',
-      subjectType: 'organization',
-      subjectId: organizationId,
+      action: 'user_package_assigned',
+      subjectType: 'user',
+      subjectId: userId,
       outcome: 'ok',
       detail: { pacchetto: packageId },
     });
   } catch (error) {
     await recordAdminAudit({
       actor: { id: admin.id, email: admin.email },
-      action: 'organization_package_assigned',
-      subjectType: 'organization',
-      subjectId: organizationId,
+      action: 'user_package_assigned',
+      subjectType: 'user',
+      subjectId: userId,
       outcome: 'fallita',
       detail: { pacchetto: packageId },
     });
@@ -190,28 +186,28 @@ export async function assignPackageToOrganizationAction(
   return { success: 'Pacchetto assegnato.' };
 }
 
-export async function revokeOrganizationPackageAction(
+export async function revokeUserPackageAction(
   _previous: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const admin = await requireRole('admin');
-  const organizationId = Number(formData.get('organizationId'));
-  if (!Number.isInteger(organizationId) || organizationId <= 0) {
-    return { error: 'Organizzazione non valida.' };
+  const userId = Number(formData.get('userId'));
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return { error: 'Utente non valido.' };
   }
 
   let updated: boolean;
   try {
-    updated = await revokeOrganizationPackage({
+    updated = await revokeUserPackage({
       actorUserId: admin.id,
-      organizationId,
+      userId,
     });
   } catch (error) {
     await recordAdminAudit({
       actor: { id: admin.id, email: admin.email },
-      action: 'organization_package_revoked',
-      subjectType: 'organization',
-      subjectId: organizationId,
+      action: 'user_package_revoked',
+      subjectType: 'user',
+      subjectId: userId,
       outcome: 'fallita',
       detail: {},
     });
@@ -220,64 +216,16 @@ export async function revokeOrganizationPackageAction(
 
   await recordAdminAudit({
     actor: { id: admin.id, email: admin.email },
-    action: 'organization_package_revoked',
-    subjectType: 'organization',
-    subjectId: organizationId,
+    action: 'user_package_revoked',
+    subjectType: 'user',
+    subjectId: userId,
     outcome: updated ? 'ok' : 'fallita',
     detail: {},
   });
 
   if (!updated) {
-    return { error: 'Nessun pacchetto attivo da revocare per questa organizzazione.' };
+    return { error: 'Nessun pacchetto attivo da revocare per questo utente.' };
   }
   revalidatePath('/dashboard/admin/packages');
   return { success: 'Pacchetto revocato.' };
-}
-
-export async function addOrganizationMemberAction(
-  _previous: ActionState,
-  formData: FormData
-): Promise<ActionState> {
-  const admin = await requireRole('admin');
-  const organizationId = Number(formData.get('organizationId'));
-  const email = String(formData.get('email') ?? '').trim();
-  if (!Number.isInteger(organizationId) || organizationId <= 0 || !email) {
-    return { error: 'Organizzazione o email non validi.' };
-  }
-
-  const user = await findUserByEmail(admin.id, email);
-  if (!user) {
-    return { error: `Nessun utente con email ${email}.` };
-  }
-
-  try {
-    await addOrganizationMember({
-      actorUserId: admin.id,
-      organizationId,
-      userId: user.id,
-    });
-    await recordAdminAudit({
-      actor: { id: admin.id, email: admin.email },
-      action: 'organization_member_added',
-      subjectType: 'organization',
-      subjectId: organizationId,
-      outcome: 'ok',
-      detail: { utente: user.id },
-    });
-  } catch (error) {
-    await recordAdminAudit({
-      actor: { id: admin.id, email: admin.email },
-      action: 'organization_member_added',
-      subjectType: 'organization',
-      subjectId: organizationId,
-      outcome: 'fallita',
-      detail: { utente: user.id },
-    });
-    return {
-      error: friendlyError(error, "Impossibile aggiungere il membro all'organizzazione."),
-    };
-  }
-
-  revalidatePath('/dashboard/admin/packages');
-  return { success: `${email} aggiunto all'organizzazione.` };
 }
