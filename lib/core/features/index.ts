@@ -2,17 +2,16 @@ import 'server-only';
 import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
-  organizationPackages,
   packageFeatures,
   profiles,
   sessionAiAuditEvents,
-  teamMembers,
   userFeatureEntitlements,
+  userPackages,
   userRoles,
   users,
   type FeatureEntitlementSource,
   type FeatureEntitlementStatus,
-  type OrganizationPackageStatus,
+  type UserPackageStatus,
 } from '@/lib/db/schema';
 import {
   evaluateFeatureEntitlement,
@@ -20,7 +19,7 @@ import {
   type FeatureCode,
   type FeatureEntitlementSnapshot,
 } from './policy';
-import { buildOrganizationFeatureSnapshot } from './organization-grant';
+import { buildPackageFeatureSnapshot } from './package-grant';
 import { composeFeatureAccess, directResultIsFinal } from './compose-access';
 import { stopAiNotesRecordingsForRequester } from '@/lib/core/ai-session-notes/recording';
 import type { LiveKitSessionControl } from '@/lib/core/ai-session-notes/livekit-session-control';
@@ -34,42 +33,37 @@ export {
   type FeatureEntitlementSnapshot,
 } from './policy';
 
-async function loadOrganizationFeatureGrants(
+async function loadUserPackageGrants(
   userId: number,
   featureCode: FeatureCode
 ): Promise<FeatureEntitlementSnapshot[]> {
   const rows = await db
     .select({
-      status: organizationPackages.status,
-      startsAt: organizationPackages.startsAt,
-      expiresAt: organizationPackages.expiresAt,
+      status: userPackages.status,
+      startsAt: userPackages.startsAt,
+      expiresAt: userPackages.expiresAt,
       featureCode: packageFeatures.featureCode,
     })
-    .from(teamMembers)
-    .innerJoin(
-      organizationPackages,
-      eq(organizationPackages.organizationId, teamMembers.teamId)
-    )
+    .from(userPackages)
     .innerJoin(
       packageFeatures,
       and(
-        eq(packageFeatures.packageId, organizationPackages.packageId),
+        eq(packageFeatures.packageId, userPackages.packageId),
         eq(packageFeatures.featureCode, featureCode)
       )
     )
     .where(
       and(
-        eq(teamMembers.userId, userId),
-        inArray(organizationPackages.status, ['active', 'suspended'])
+        eq(userPackages.userId, userId),
+        inArray(userPackages.status, ['active', 'suspended'])
       )
-    )
-    .orderBy(asc(organizationPackages.organizationId));
+    );
 
   const grants: FeatureEntitlementSnapshot[] = [];
   for (const row of rows) {
-    const snapshot = buildOrganizationFeatureSnapshot({
-      organizationPackage: {
-        status: row.status as OrganizationPackageStatus,
+    const snapshot = buildPackageFeatureSnapshot({
+      userPackage: {
+        status: row.status as UserPackageStatus,
         startsAt: row.startsAt,
         expiresAt: row.expiresAt,
       },
@@ -122,11 +116,11 @@ export async function getFeatureAccess(
     return directResult;
   }
 
-  const organizationGrants = await loadOrganizationFeatureGrants(
+  const userPackageGrants = await loadUserPackageGrants(
     userId,
     featureCode
   );
-  return composeFeatureAccess(directResult, organizationGrants, now);
+  return composeFeatureAccess(directResult, userPackageGrants, now);
 }
 
 export async function hasFeatureEntitlement(
