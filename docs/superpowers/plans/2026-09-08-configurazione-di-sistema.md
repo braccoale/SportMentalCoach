@@ -4,7 +4,7 @@
 
 **Goal:** Costruire una tabella di configurazione a chiave/valore, un pannello admin per modificarla, e migrare 4 costanti di business reali (non ipotetiche) a leggerla, senza toccare percorsi di codice fragili o condivisi client/server.
 
-**Architecture:** Una tabella `system_config` (chiave testuale, valore JSON tipizzato) letta tramite un piccolo modulo `lib/core/config/` con fallback e cache in-process di 60 secondi — ogni chiamante passa il valore hardcoded di oggi come fallback, così una riga mancante o un problema del DB non rompe nulla. Un pannello admin modifica solo i valori esistenti; una nuova chiave la aggiunge uno sviluppatore con una migrazione.
+**Architecture:** Una tabella `system_config` (chiave testuale, valore JSON tipizzato) letta tramite un piccolo modulo `lib/core/system-config/` con fallback e cache in-process di 60 secondi — ogni chiamante passa il valore hardcoded di oggi come fallback, così una riga mancante o un problema del DB non rompe nulla. Un pannello admin modifica solo i valori esistenti; una nuova chiave la aggiunge uno sviluppatore con una migrazione.
 
 **Tech Stack:** Next.js 15 / React 19, Drizzle ORM, PostgreSQL su Supabase, `node:test` via `tsx --test`.
 
@@ -149,7 +149,7 @@ In cima al blocco `CREATE TABLE "system_config"`, aggiungere:
 -- Costanti di business configurabili dall'admin senza deploy (vedi
 -- docs/superpowers/specs/2026-09-08-configurazione-di-sistema-design.md).
 -- Nessun client la legge direttamente: solo il server, tramite
--- lib/core/config/ per la lettura e requireRole('admin') per la scrittura.
+-- lib/core/system-config/ per la lettura e requireRole('admin') per la scrittura.
 ```
 
 In fondo al file, dopo l'ultimo statement generato, aggiungere prima il
@@ -201,14 +201,22 @@ EOF
 
 ---
 
-### Task 3: `lib/core/config/` — lettura con cache, scrittura con controllo admin
+### Task 3: `lib/core/system-config/` — lettura con cache, scrittura con controllo admin
+
+> **Nota sul nome della cartella:** `lib/core/config/` esiste già su questo
+> branch per un modulo non correlato (la configurazione "verticale" del
+> marketplace: `getVerticalConfig`, `findTaxonomyItem`, `t`, usato da ~19
+> file). Non riusarlo: questo lavoro vive in `lib/core/system-config/`, una
+> cartella nuova. Se durante l'implementazione risultasse già occupata anche
+> questa, fermarsi e segnalarlo invece di unire due moduli non correlati
+> nello stesso file.
 
 **Files:**
-- Create: `lib/core/config/cache.ts`
-- Create: `lib/core/config/cache.test.ts`
-- Create: `lib/core/config/index.ts`
-- Create: `lib/core/config/value-parsing.ts`
-- Create: `lib/core/config/value-parsing.test.ts`
+- Create: `lib/core/system-config/cache.ts`
+- Create: `lib/core/system-config/cache.test.ts`
+- Create: `lib/core/system-config/index.ts`
+- Create: `lib/core/system-config/value-parsing.ts`
+- Create: `lib/core/system-config/value-parsing.test.ts`
 - Modify: `package.json` (script `test`)
 
 **Interfaces:**
@@ -217,7 +225,7 @@ EOF
 
 - [ ] **Step 1: Scrivere la logica di cache, pura e testabile**
 
-`lib/core/config/cache.ts`:
+`lib/core/system-config/cache.ts`:
 
 ```ts
 export type ConfigCacheEntry<T> = {
@@ -246,7 +254,7 @@ export function makeCacheEntry<T>(
 
 - [ ] **Step 2: Test della cache**
 
-`lib/core/config/cache.test.ts`:
+`lib/core/system-config/cache.test.ts`:
 
 ```ts
 import assert from 'node:assert/strict';
@@ -280,7 +288,7 @@ test('a custom TTL is honoured', () => {
 
 - [ ] **Step 3: Eseguire i test e verificare che passino**
 
-Run: `npx tsx --test lib/core/config/cache.test.ts`
+Run: `npx tsx --test lib/core/system-config/cache.test.ts`
 Expected: PASS (4/4).
 
 - [ ] **Step 4: Scrivere il parsing del valore scritto dall'admin, puro e testabile**
@@ -289,7 +297,7 @@ Il pannello admin (Task 8) invia sempre una stringa grezza da un form; questa
 funzione decide se e come diventa un valore JSON coerente con `value_type`.
 Estratta a parte per essere testabile senza toccare il database.
 
-`lib/core/config/value-parsing.ts`:
+`lib/core/system-config/value-parsing.ts`:
 
 ```ts
 import type { SystemConfigValueType } from '@/lib/db/schema';
@@ -322,7 +330,7 @@ export function parseSystemConfigValue(
 
 - [ ] **Step 5: Test del parsing**
 
-`lib/core/config/value-parsing.test.ts`:
+`lib/core/system-config/value-parsing.test.ts`:
 
 ```ts
 import assert from 'node:assert/strict';
@@ -362,12 +370,12 @@ test('a string field keeps the raw value as-is', () => {
 
 - [ ] **Step 6: Eseguire i test e verificare che passino**
 
-Run: `npx tsx --test lib/core/config/value-parsing.test.ts`
+Run: `npx tsx --test lib/core/system-config/value-parsing.test.ts`
 Expected: PASS (6/6).
 
 - [ ] **Step 7: Scrivere il modulo di lettura/scrittura**
 
-`lib/core/config/index.ts`:
+`lib/core/system-config/index.ts`:
 
 ```ts
 import 'server-only';
@@ -524,20 +532,20 @@ In `package.json`, nello script `"test"`, trovare una voce esistente di
 subito dopo, separati dallo stesso spazio usato dalle altre voci:
 
 ```
-lib/core/config/cache.test.ts lib/core/config/value-parsing.test.ts
+lib/core/system-config/cache.test.ts lib/core/system-config/value-parsing.test.ts
 ```
 
 - [ ] **Step 10: Eseguire l'intera suite dei test nuovi**
 
-Run: `npx tsx --test lib/core/config/cache.test.ts lib/core/config/value-parsing.test.ts`
+Run: `npx tsx --test lib/core/system-config/cache.test.ts lib/core/system-config/value-parsing.test.ts`
 Expected: PASS (10/10 totali).
 
 - [ ] **Step 11: Commit**
 
 ```bash
-git add lib/core/config package.json
+git add lib/core/system-config package.json
 git commit -m "$(cat <<'EOF'
-feat(config): lib/core/config con cache, parsing e controllo admin
+feat(config): lib/core/system-config con cache, parsing e controllo admin
 
 getSystemConfigNumber/String/Boolean: cache in-process di 60s, fallback
 al valore di oggi se la riga manca o il database ha un problema —
@@ -558,7 +566,7 @@ EOF
 - Modify: `lib/core/contact/index.ts`
 
 **Interfaces:**
-- Consumes: `getSystemConfigNumber` da `@/lib/core/config` (Task 3).
+- Consumes: `getSystemConfigNumber` da `@/lib/core/system-config` (Task 3).
 
 - [ ] **Step 1: Rimuovere la costante e aggiungere l'import**
 
@@ -591,7 +599,7 @@ import { db } from '@/lib/db/drizzle';
 import { contactMessages } from '@/lib/db/schema';
 import { LEGAL_CONTENT_HASH } from '@/lib/core/legal/content-hash.generated';
 import { sendContactMessageEmail } from '@/lib/core/email';
-import { getSystemConfigNumber } from '@/lib/core/config';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 ```
 
 - [ ] **Step 2: Aggiornare il punto d'uso**
@@ -647,7 +655,7 @@ EOF
 - Modify: `app/(marketplace)/terms/page.tsx`
 
 **Interfaces:**
-- Consumes: `getSystemConfigNumber` da `@/lib/core/config` (Task 3).
+- Consumes: `getSystemConfigNumber` da `@/lib/core/system-config` (Task 3).
 
 > **Solo il testo mostrato cambia.** L'enforcement vero della ritenzione
 > resta sulla env var `AI_NOTES_AUDIO_RETENTION_DAYS`, non toccata da questo
@@ -707,7 +715,7 @@ import {
   LEGAL_CONTACT_EMAIL,
 } from '@/lib/core/legal/processors';
 import { MIN_SIGNUP_AGE } from '@/lib/core/guardians/age';
-import { getSystemConfigNumber } from '@/lib/core/config';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 
 export const metadata = { title: 'Privacy Policy — KaiPai' };
 
@@ -789,7 +797,7 @@ import {
 } from '@/lib/core/legal/processors';
 import { REQUEST_RESPONSE_WINDOW_HOURS } from '@/lib/core/sessions';
 import { MIN_SIGNUP_AGE, AGE_OF_MAJORITY } from '@/lib/core/guardians/age';
-import { getSystemConfigNumber } from '@/lib/core/config';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 
 export const metadata = { title: 'Termini e Condizioni — KaiPai' };
 
@@ -858,7 +866,7 @@ EOF
 - Modify: `app/(marketplace)/terms/page.tsx`
 
 **Interfaces:**
-- Consumes: `getSystemConfigNumber` da `@/lib/core/config` (Task 3).
+- Consumes: `getSystemConfigNumber` da `@/lib/core/system-config` (Task 3).
 
 > **Solo il numero mostrato si sposta.** Nessun controllo che impedisca o
 > segnali una cancellazione tardiva esiste oggi nel codice, e questo task non
@@ -892,7 +900,7 @@ import {
 } from '@/lib/core/legal/processors';
 import { REQUEST_RESPONSE_WINDOW_HOURS } from '@/lib/core/sessions';
 import { MIN_SIGNUP_AGE, AGE_OF_MAJORITY } from '@/lib/core/guardians/age';
-import { getSystemConfigNumber } from '@/lib/core/config';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 
 export const metadata = { title: 'Termini e Condizioni — KaiPai' };
 
@@ -917,7 +925,7 @@ import {
 } from '@/lib/core/legal/processors';
 import { REQUEST_RESPONSE_WINDOW_HOURS } from '@/lib/core/sessions';
 import { MIN_SIGNUP_AGE, AGE_OF_MAJORITY } from '@/lib/core/guardians/age';
-import { getSystemConfigNumber } from '@/lib/core/config';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 
 export const metadata = { title: 'Termini e Condizioni — KaiPai' };
 
@@ -976,7 +984,7 @@ EOF
 - Modify: `app/(dashboard)/dashboard/admin/ai-notes/page.tsx`
 
 **Interfaces:**
-- Consumes: `getSystemConfigNumber` da `@/lib/core/config` (Task 3).
+- Consumes: `getSystemConfigNumber` da `@/lib/core/system-config` (Task 3).
 
 - [ ] **Step 1: Aggiornare `actions.ts`**
 
@@ -1008,7 +1016,7 @@ import {
   setFeatureEntitlement,
 } from '@/lib/core/features';
 import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
-import { getSystemConfigNumber } from '@/lib/core/config';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 ```
 
 Trovare:
@@ -1071,7 +1079,7 @@ import { getAiPipelineHealth } from '@/lib/core/ai-session-notes/queue-health';
 import { getPipelineHealth } from '@/lib/core/ai-session-notes/pipeline-health';
 import { HouseGuidelinesEditor } from '@/components/admin/house-guidelines-editor';
 import { loadActiveHouseGuidelines } from '@/lib/core/ai-session-notes/house-guidelines';
-import { getSystemConfigNumber } from '@/lib/core/config';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 ```
 
 Trovare:
@@ -1162,7 +1170,7 @@ EOF
 - Create: `app/(dashboard)/dashboard/admin/system-config/page.tsx`
 
 **Interfaces:**
-- Consumes: `listSystemConfig`, `setSystemConfigValue`, `SystemConfigRow` da `@/lib/core/config` (Task 3).
+- Consumes: `listSystemConfig`, `setSystemConfigValue`, `SystemConfigRow` da `@/lib/core/system-config` (Task 3).
 
 - [ ] **Step 1: Creare `actions.ts`**
 
@@ -1171,7 +1179,7 @@ EOF
 
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/core/auth';
-import { setSystemConfigValue } from '@/lib/core/config';
+import { setSystemConfigValue } from '@/lib/core/system-config';
 import { recordAdminAudit } from '@/lib/core/admin/audit-log';
 import type { ActionState } from '@/lib/auth/middleware';
 import type { SystemConfigValueType } from '@/lib/db/schema';
@@ -1227,7 +1235,7 @@ export async function updateSystemConfigAction(
 
 ```tsx
 import { requireRole } from '@/lib/core/auth';
-import { listSystemConfig } from '@/lib/core/config';
+import { listSystemConfig } from '@/lib/core/system-config';
 import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
 import { updateSystemConfigAction } from './actions';
@@ -1396,7 +1404,7 @@ Expected: nessun risultato (le tre costanti sono state rimosse nei Task
 
 Confrontare `docs/superpowers/specs/2026-09-08-configurazione-di-sistema-design.md`
 con quanto implementato: tabella `system_config` con i due `CHECK` ✓, modulo
-`lib/core/config/` con cache e fallback ✓, 4 valori pilota migrati ✓
+`lib/core/system-config/` con cache e fallback ✓, 4 valori pilota migrati ✓
 (limite contatti, testo ritenzione audio, testo preavviso cancellazione,
 trial AI Notes), pannello admin con azione `configuration_changed` ✓,
 nessun "aggiungi variabile" dal pannello ✓, durata sessione esclusa per
