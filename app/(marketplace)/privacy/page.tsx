@@ -1,6 +1,5 @@
 import { LegalPage } from '../legal-layout';
 import {
-  AI_AUDIO_RETENTION_DAYS,
   SUB_PROCESSORS,
   LEGAL_LAST_UPDATED,
   INACTIVITY_MONTHS,
@@ -8,10 +7,15 @@ import {
   LEGAL_CONTACT_EMAIL,
 } from '@/lib/core/legal/processors';
 import { MIN_SIGNUP_AGE } from '@/lib/core/guardians/age';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 
 export const metadata = { title: 'Privacy Policy — KaiPai' };
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  const aiAudioRetentionDays = await getSystemConfigNumber(
+    'AI_NOTES_AUDIO_RETENTION_DAYS',
+    7
+  );
   return (
     <LegalPage title="Privacy Policy" updated={LEGAL_LAST_UPDATED}>
       <h2>1. Titolare del trattamento</h2>
@@ -274,7 +278,7 @@ export default function PrivacyPage() {
       <ul>
         <li>
           la <strong>registrazione audio grezza</strong>, in un archivio privato,
-          per <strong>{AI_AUDIO_RETENTION_DAYS} giorni</strong>, dopodiché viene
+          per <strong>{aiAudioRetentionDays} giorni</strong>, dopodiché viene
           cancellata automaticamente. Serve solo a produrre la trascrizione;
         </li>
         <li>
@@ -473,7 +477,7 @@ export default function PrivacyPage() {
         </li>
         <li>
           <strong>Registrazione audio degli Appunti AI</strong>:{' '}
-          {AI_AUDIO_RETENTION_DAYS} giorni dalla sessione, poi cancellata
+          {aiAudioRetentionDays} giorni dalla sessione, poi cancellata
           automaticamente. È il termine più breve di tutti perché l’audio serve
           soltanto a produrre la trascrizione: una volta ottenuta, non ha più
           ragione di esistere.
