@@ -306,6 +306,8 @@ modifica allo schema di audit serve per questo lavoro.
 
 ## Secondo giro (2026-09-08): 11 candidati aggiuntivi, dopo aver riverificato tutti i 16 rimasti
 
+**Stato:** implementato
+
 Dei 16 candidati non ancora migrati dalla ricognizione originale, verificati
 uno per uno leggendo il codice reale prima di scrivere qualunque task —
 metà risultano avere lo stesso tipo di problema già incontrato nel primo
