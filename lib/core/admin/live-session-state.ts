@@ -27,10 +27,11 @@ export const LIVE_SESSION_SILENCE_MS = 2 * 60_000;
 
 export function isSessionLive(
   lastHeartbeatAt: Date | null,
-  now: Date = new Date()
+  now: Date = new Date(),
+  silenceMs: number = LIVE_SESSION_SILENCE_MS
 ): boolean {
   if (!lastHeartbeatAt) return false;
   const silence = now.getTime() - lastHeartbeatAt.getTime();
   // Un battito dal futuro è un orologio sballato, non una sessione viva.
-  return silence >= 0 && silence <= LIVE_SESSION_SILENCE_MS;
+  return silence >= 0 && silence <= silenceMs;
 }

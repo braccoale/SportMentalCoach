@@ -29,6 +29,7 @@ import {
   getBookableDays,
 } from '@/lib/core/availability';
 import { busyIntervalsAt } from '@/lib/core/availability/validation';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 import { getProviderProfileByUser } from '@/lib/core/profiles';
 import {
   FEATURE_CODES,
@@ -159,7 +160,12 @@ export default async function CoachDashboardPage() {
   }
   // Same Rome-derived day/time options the athlete sees, so the coach can't
   // pick a slot their own availability would reject on submit.
+  const stepMinutes = await getSystemConfigNumber(
+    'AVAILABILITY_BOOKING_START_STEP_MINUTES',
+    10
+  );
   const bookableDays = getBookableDays(coachAvailability, {
+    stepMinutes,
     // Le sessioni si scartano in base a quando *finiscono*: una già iniziata
     // occupa ancora il calendario, ed è esattamente il controllo che il server
     // rifà al momento dell'inserimento.
@@ -211,6 +217,7 @@ export default async function CoachDashboardPage() {
       getBookableDays(coachAvailability, {
         busyIntervals: editableBusy,
         excludeBookingId: interval.bookingId,
+        stepMinutes,
       }),
     ])
   );

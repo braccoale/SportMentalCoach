@@ -25,6 +25,7 @@ import {
 } from './validation';
 import { DEFAULT_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
 import { effectiveBookingDurationMin } from '@/lib/core/bookings/conflict-query';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 
 export type { AvailabilityInput } from './validation';
 
@@ -398,7 +399,8 @@ export async function replaceCoachAvailability(
   const providerId = await resolveProviderId(userId);
   if (!providerId) return { ok: false, error: 'Profilo coach non trovato.' };
 
-  const validated = validateAvailabilitySchedule(input);
+  const maxSlots = await getSystemConfigNumber('AVAILABILITY_MAX_SLOTS', 50);
+  const validated = validateAvailabilitySchedule(input, maxSlots);
   if (!validated.ok) return { ok: false, error: validated.error };
 
   await db.transaction(async (tx) => {
@@ -429,6 +431,8 @@ export async function addAvailabilitySlot(
   const providerId = await resolveProviderId(userId);
   if (!providerId) return { ok: false, error: 'Profilo coach non trovato.' };
 
+  const maxSlots = await getSystemConfigNumber('AVAILABILITY_MAX_SLOTS', 50);
+
   return db.transaction(async (tx) => {
     // Availability writes for the same coach are serialized so simultaneous
     // requests cannot both pass the overlap check and then insert.
@@ -442,7 +446,7 @@ export async function addAvailabilitySlot(
       })
       .from(coachAvailability)
       .where(eq(coachAvailability.providerId, providerId));
-    const validated = validateAvailabilitySchedule([...current, input]);
+    const validated = validateAvailabilitySchedule([...current, input], maxSlots);
     if (!validated.ok) return { ok: false, error: validated.error };
 
     await tx.insert(coachAvailability).values({
@@ -463,6 +467,8 @@ export async function updateAvailabilitySlot(
 ): Promise<Result> {
   const providerId = await resolveProviderId(userId);
   if (!providerId) return { ok: false, error: 'Profilo coach non trovato.' };
+
+  const maxSlots = await getSystemConfigNumber('AVAILABILITY_MAX_SLOTS', 50);
 
   return db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${providerId})`);
@@ -507,7 +513,7 @@ export async function updateAvailabilitySlot(
           ne(coachAvailability.id, slotId)
         )
       );
-    const validated = validateAvailabilitySchedule([...otherSlots, input]);
+    const validated = validateAvailabilitySchedule([...otherSlots, input], maxSlots);
     if (!validated.ok) return { ok: false, error: validated.error };
 
     await tx

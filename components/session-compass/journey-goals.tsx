@@ -17,6 +17,7 @@ import {
   type JourneyGoalSession,
   type JourneyGoalStatus,
 } from '@/lib/core/ai-session-notes/journey-goals';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 
 /**
  * «Temi e obiettivi nel tempo»: come evolvono i filoni di lavoro, seduta dopo
@@ -162,15 +163,17 @@ function GoalRow({
   index,
   athleteUserId,
   setStatusAction,
+  staleAfterSessions,
 }: {
   row: JourneyGoalRow;
   index: number;
   athleteUserId: number;
   setStatusAction: (formData: FormData) => Promise<void>;
+  staleAfterSessions: number;
 }) {
   const tint = TRACK_TINTS[index % TRACK_TINTS.length];
   const Icon = GOAL_ICONS[index % GOAL_ICONS.length];
-  const summary = summarizeGoalTrack(row);
+  const summary = summarizeGoalTrack(row, staleAfterSessions);
 
   return (
     <li className="flex items-start gap-3 py-3.5">
@@ -268,7 +271,7 @@ function GoalRow({
  * ricordandosi otto sedute a memoria, ed è il motivo per cui in produzione
  * questa griglia era vuota per tutti.
  */
-export function JourneyGoalsPanel({
+export async function JourneyGoalsPanel({
   rows,
   athleteUserId,
   sessions,
@@ -289,6 +292,10 @@ export function JourneyGoalsPanel({
   now?: Date;
 }) {
   const axis = sessions;
+  const staleAfterSessions = await getSystemConfigNumber(
+    'AI_NOTES_GOAL_STALE_AFTER_SESSIONS',
+    2
+  );
 
   return (
     <section className="flex h-full flex-col rounded-2xl border border-gray-200/70 bg-white p-5">
@@ -316,6 +323,7 @@ export function JourneyGoalsPanel({
               index={index}
               athleteUserId={athleteUserId}
               setStatusAction={setStatusAction}
+              staleAfterSessions={staleAfterSessions}
             />
           ))}
         </ul>

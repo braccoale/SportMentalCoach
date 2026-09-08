@@ -3,6 +3,7 @@ import { getBookingChatContext } from '@/lib/core/messages';
 import { isSessionJoinable } from '@/lib/core/sessions';
 import { sendPushToUser } from '@/lib/core/push';
 import { resolveDisplayName } from '@/lib/core/format';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 
 /**
  * Fa squillare il telefono dell'altro partecipante quando si entra in stanza.
@@ -20,13 +21,6 @@ import { resolveDisplayName } from '@/lib/core/format';
 
 export type RingOutcome = 'sent' | 'not_participant' | 'not_joinable';
 
-/**
- * Ogni quanto una stessa persona può essere fatta squillare per la stessa
- * sessione. Entrare e uscire dalla stanza rimonta il componente che chiama
- * questa funzione, e senza un freno la seconda persona riceverebbe una raffica
- * di notifiche per una sola chiamata.
- */
-export const RING_THROTTLE_MS = 60_000;
 
 /**
  * Vive in memoria e si azzera a ogni istanza fredda, come il freno gemello
@@ -65,8 +59,14 @@ export async function ringCounterpart(
 
   const key = `${bookingId}:${targetUserId}`;
   const previous = lastRingAt.get(key);
-  if (previous !== undefined && now - previous < RING_THROTTLE_MS) {
-    return 'sent';
+  if (previous !== undefined) {
+    const throttleSeconds = await getSystemConfigNumber(
+      'VIDEO_RING_THROTTLE_SECONDS',
+      60
+    );
+    if (now - previous < throttleSeconds * 1000) {
+      return 'sent';
+    }
   }
   lastRingAt.set(key, now);
 

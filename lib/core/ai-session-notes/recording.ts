@@ -3,6 +3,7 @@ import {
   assessRecordingCoverage,
   type SessionCoverage,
 } from './recording-coverage';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 import { randomUUID } from 'node:crypto';
 import {
   and,
@@ -994,6 +995,10 @@ export async function getRecordingStatus(
     .where(eq(sessionAiNotes.id, sessionId))
     .limit(1);
 
+  const liveGapSeconds = await getSystemConfigNumber(
+    'AI_NOTES_LIVE_GAP_SECONDS',
+    90
+  );
   const live = assessLiveCoverage({
     sessionStatus: session?.status ?? '',
     sessionStartedAt: session?.startedAt ?? null,
@@ -1003,6 +1008,7 @@ export async function getRecordingStatus(
       endedAt: row.endedAt,
     })),
     now: new Date(),
+    liveGapSeconds,
   });
 
   return {
@@ -1091,8 +1097,13 @@ export async function getSessionRecordingCoverage(
     0
   );
 
+  const partialCoverageThreshold = await getSystemConfigNumber(
+    'AI_NOTES_PARTIAL_COVERAGE_THRESHOLD',
+    0.9
+  );
   return assessRecordingCoverage({
     sessionSeconds: span > 0 ? span : longest,
+    partialCoverageThreshold,
     recorded: rows
       .filter(
         (row) =>

@@ -35,6 +35,7 @@ import { VideoCallButton } from '@/components/video-call-button';
 import { getAppBaseUrl } from '@/lib/core/app-url';
 import { BackToTop } from '@/components/back-to-top';
 import { getSessionRecordingCoverage } from '@/lib/core/ai-session-notes/recording';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 import {
   getBookableDays,
   getCoachAvailabilityByProviderId,
@@ -149,8 +150,13 @@ export default async function AppointmentDetailPage({
     runAiNotesQueueAfterResponse();
   }
 
+  const stepMinutes = await getSystemConfigNumber(
+    'AVAILABILITY_BOOKING_START_STEP_MINUTES',
+    10
+  );
   const bookableDays = getBookableDays(availability, {
     busyIntervals: busyByProvider.get(booking.providerId) ?? [],
+    stepMinutes,
   });
 
   const query = await searchParams;

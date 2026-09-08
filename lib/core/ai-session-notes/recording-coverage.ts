@@ -51,8 +51,11 @@ export function assessRecordingCoverage(input: {
   sessionSeconds: number;
   /** Solo i segmenti riusciti: quelli falliti non hanno registrato nulla. */
   recorded: { role: 'coach' | 'athlete'; seconds: number }[];
+  partialCoverageThreshold?: number;
 }): SessionCoverage {
   const sessionSeconds = Math.max(0, Math.round(input.sessionSeconds));
+  const partialCoverageThreshold =
+    input.partialCoverageThreshold ?? PARTIAL_COVERAGE_THRESHOLD;
 
   const byRole = new Map<ParticipantCoverage['role'], number>();
   for (const segment of input.recorded) {
@@ -73,7 +76,7 @@ export function assessRecordingCoverage(input: {
         role,
         recordedSeconds,
         ratio,
-        complete: ratio >= PARTIAL_COVERAGE_THRESHOLD,
+        complete: ratio >= partialCoverageThreshold,
       };
     }
   );

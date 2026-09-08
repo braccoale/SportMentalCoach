@@ -15,6 +15,7 @@ import {
   canJoinVideoNow,
   isSessionUpcoming,
 } from '@/lib/core/sessions';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 
 /**
  * Le sessioni che l'app deve mostrare: poche, imminenti, con dentro solo ciò
@@ -43,7 +44,11 @@ export async function GET(request: Request) {
   // Quanto passato si porta dietro l'app. Non è lo storico completo — quello
   // sta sul web con i riepiloghi — ma «le ultime settimane», che è ciò che
   // serve per ricordarsi quando si è parlato l'ultima volta.
-  const horizon = new Date(Date.now() - 120 * 24 * 60 * 60 * 1000);
+  const historyDays = await getSystemConfigNumber(
+    'MOBILE_SESSION_HISTORY_DAYS',
+    120
+  );
+  const horizon = new Date(Date.now() - historyDays * 24 * 60 * 60 * 1000);
 
   const rows = await db
     .select({
