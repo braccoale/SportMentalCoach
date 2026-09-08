@@ -143,10 +143,3 @@ export const POST_CLOSURE_RETENTION_MONTHS = 36;
  * court sets aside.
  */
 export const TERMS_CHANGE_NOTICE_DAYS = 15;
-
-/**
- * Hours of notice expected to cancel a session without it counting as a
- * no-show. No penalty attaches today (nothing is charged), but the coach has
- * still set the time aside, and the norm needs to exist before billing does.
- */
-export const CANCELLATION_NOTICE_HOURS = 24;

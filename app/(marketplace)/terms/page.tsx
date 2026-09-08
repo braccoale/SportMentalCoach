@@ -3,7 +3,6 @@ import {
   LEGAL_LAST_UPDATED,
   INACTIVITY_MONTHS,
   TERMS_CHANGE_NOTICE_DAYS,
-  CANCELLATION_NOTICE_HOURS,
   LEGAL_CONTACT_EMAIL,
 } from '@/lib/core/legal/processors';
 import { REQUEST_RESPONSE_WINDOW_HOURS } from '@/lib/core/sessions';
@@ -16,10 +15,10 @@ export const metadata = { title: 'Termini e Condizioni — KaiPai' };
 const A = 'text-red-600 underline hover:text-red-700';
 
 export default async function TermsPage() {
-  const aiAudioRetentionDays = await getSystemConfigNumber(
-    'AI_NOTES_AUDIO_RETENTION_DAYS',
-    7
-  );
+  const [aiAudioRetentionDays, cancellationNoticeHours] = await Promise.all([
+    getSystemConfigNumber('AI_NOTES_AUDIO_RETENTION_DAYS', 7),
+    getSystemConfigNumber('CANCELLATION_NOTICE_HOURS', 24),
+  ]);
   return (
     <LegalPage title="Termini e Condizioni" updated={LEGAL_LAST_UPDATED}>
       <p>
@@ -214,7 +213,7 @@ export default async function TermsPage() {
       <p>
         Entrambe le parti possono annullare una Sessione fino al suo
         svolgimento. È buona norma farlo con almeno{' '}
-        <strong>{CANCELLATION_NOTICE_HOURS} ore</strong> di preavviso: il tempo
+        <strong>{cancellationNoticeHours} ore</strong> di preavviso: il tempo
         è comunque riservato dall’altra parte. Alla data di questi Termini
         nessuna penale è dovuta per un annullamento tardivo; se in futuro
         verranno introdotti corrispettivi, le regole di cancellazione saranno
