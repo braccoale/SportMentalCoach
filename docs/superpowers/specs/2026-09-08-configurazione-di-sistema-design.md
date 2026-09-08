@@ -101,7 +101,17 @@ Meccanismo generico + 4 valori pilota, scelti per essere i casi con più valore
 reale (non i più semplici da spostare):
 
 1. **Durata sessione predefinita** (`SESSION_DEFAULT_DURATION_MINUTES`, oggi 40) —
-   unifica i 4 duplicati in un solo valore.
+   unifica 3 dei 4 duplicati: `lib/core/services/validation.ts`,
+   `lib/core/bookings/duration.ts`, `lib/core/services/defaults.ts` (tutti
+   consumati lato server, o passabili come prop da un Server Component).
+   `lib/core/sessions.ts`'s `FALLBACK_SESSION_DURATION_MIN` **resta invariata**:
+   è dentro un modulo esplicitamente puro e condiviso client/server, usato
+   per calcoli reattivi lato browser (es. "posso ancora entrare in
+   chiamata?") — renderlo DB-backed richiederebbe un ridisegno (il valore
+   dovrebbe arrivare come prop e propagarsi in ogni componente che oggi lo
+   calcola da solo), sproporzionato per un fallback su dati vecchi/malformati
+   raramente colpito. Decisione presa dopo aver letto il codice reale, non
+   assunta in fase di spec.
 2. **Ritenzione audio AI Notes** (`AI_NOTES_AUDIO_RETENTION_DAYS`, oggi 7) —
    diventa l'unica fonte, sostituendo sia il testo hardcoded della privacy
    policy sia la env var che oggi applica davvero la ritenzione.
