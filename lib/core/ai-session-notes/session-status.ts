@@ -70,7 +70,7 @@ export async function advanceAiNotesSessionStatus(params: {
     const now = new Date();
     await tx
       .update(sessionAiNotes)
-      .set(transitionAuditPatch(params.nextStatus, actorUserId, now))
+      .set(transitionAuditPatch(params.nextStatus, actorUserId, now, session.status))
       .where(eq(sessionAiNotes.id, params.sessionId));
     await tx.insert(sessionAiAuditEvents).values({
       sessionAiNotesId: params.sessionId,
