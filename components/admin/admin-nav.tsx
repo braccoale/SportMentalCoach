@@ -86,7 +86,7 @@ export function AdminNav({
     },
     {
       href: '/dashboard/admin/system-config',
-      label: 'Costanti di sistema',
+      label: 'Parametri di sistema',
       icon: Settings,
     },
   ];

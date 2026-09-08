@@ -14,7 +14,7 @@ export default async function SystemConfigAdminPage() {
     <section className="space-y-6 p-4 lg:p-0">
       <div>
         <h1 className="text-2xl font-semibold text-gray-900">
-          Costanti di sistema
+          Parametri di sistema
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-gray-600">
           Costanti di business modificabili senza un deploy. Una nuova
