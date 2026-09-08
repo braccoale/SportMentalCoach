@@ -27,6 +27,7 @@ import {
   GUARDIAN_CONSENT_VERSION,
 } from './consent-document';
 import { hashGuardianToken, issueGuardianToken } from './tokens';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 
 export * from './age';
 export * from './birth-date';
@@ -35,7 +36,6 @@ export * from './policy';
 export * from './revocation';
 export * from './tokens';
 
-const INVITATION_TTL_MS = 72 * 60 * 60 * 1000;
 const INVITATION_COOLDOWN_MS = 60 * 1000;
 
 function deliveryState(result: SendResult): {
@@ -238,7 +238,13 @@ export async function inviteGuardian(params: {
   const rawToken = issueGuardianToken();
   const tokenHash = hashGuardianToken(rawToken);
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + INVITATION_TTL_MS);
+  const invitationTtlHours = await getSystemConfigNumber(
+    'GUARDIAN_INVITATION_TTL_HOURS',
+    72
+  );
+  const expiresAt = new Date(
+    now.getTime() + invitationTtlHours * 60 * 60 * 1000
+  );
 
   const invitation = await db.transaction(async (tx) => {
     const [guardian] = await tx
