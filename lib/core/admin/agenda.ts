@@ -4,6 +4,7 @@ import { db } from '@/lib/db/drizzle';
 import { formatRomeDateValue } from '@/lib/core/format';
 import { ageFromBirthDate, requiresGuardian } from '@/lib/core/guardians';
 import { buildDaySessions, type AdminTodaySession } from './today-sessions';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 import type { AdminBookingRow } from './booking-rows';
 import { romeDayStart, romeDayStartShifted, romeDayValueToInstant } from './period';
 import {
@@ -144,7 +145,11 @@ export async function getAdminDaySessions(
     };
   });
 
-  return buildDaySessions(bookingRows, day, now);
+  const silenceMinutes = await getSystemConfigNumber(
+    'LIVE_SESSION_SILENCE_MINUTES',
+    2
+  );
+  return buildDaySessions(bookingRows, day, now, silenceMinutes * 60_000);
 }
 
 /**

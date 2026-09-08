@@ -27,6 +27,7 @@ import { effectiveBookingDurationMin } from '@/lib/core/bookings/conflict-query'
 import { ageFromBirthDate, requiresGuardian } from '@/lib/core/guardians';
 import { buildCoachRosters, type CoachRoster } from './coach-roster';
 import { buildTodaySessions, type AdminTodaySession } from './today-sessions';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 import type { AdminBookingRow } from './booking-rows';
 import {
   computeCoachOnboarding,
@@ -349,9 +350,13 @@ export async function getAdminBookingsOverview(now: Date = new Date()): Promise<
   todaySessions: AdminTodaySession[];
 }> {
   const rows = await getAdminBookingRows();
+  const silenceMinutes = await getSystemConfigNumber(
+    'LIVE_SESSION_SILENCE_MINUTES',
+    2
+  );
   return {
     rosters: buildCoachRosters(rows, now),
-    todaySessions: buildTodaySessions(rows, now),
+    todaySessions: buildTodaySessions(rows, now, silenceMinutes * 60_000),
   };
 }
 

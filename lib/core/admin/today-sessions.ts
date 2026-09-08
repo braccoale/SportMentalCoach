@@ -52,9 +52,10 @@ export type AdminTodaySession = {
  */
 export function buildTodaySessions(
   rows: readonly AdminBookingRow[],
-  now: Date = new Date()
+  now: Date = new Date(),
+  liveSilenceMs?: number
 ): AdminTodaySession[] {
-  return buildDaySessions(rows, formatRomeDateValue(now), now);
+  return buildDaySessions(rows, formatRomeDateValue(now), now, liveSilenceMs);
 }
 
 /**
@@ -76,7 +77,8 @@ export function buildTodaySessions(
 export function buildDaySessions(
   rows: readonly AdminBookingRow[],
   day: string,
-  now: Date = new Date()
+  now: Date = new Date(),
+  liveSilenceMs?: number
 ): AdminTodaySession[] {
   return rows
     .filter(
@@ -96,6 +98,6 @@ export function buildDaySessions(
       athleteName: athleteDisplayName(row),
       serviceTitle: row.serviceTitle,
       status: row.status,
-      isLive: isSessionLive(row.sessionEndedAt, now),
+      isLive: isSessionLive(row.sessionEndedAt, now, liveSilenceMs),
     }));
 }
