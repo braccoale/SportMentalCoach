@@ -2850,3 +2850,46 @@ export const adminAuditEvents = pgTable(
 
 export type AdminAuditEvent = typeof adminAuditEvents.$inferSelect;
 export type NewAdminAuditEvent = typeof adminAuditEvents.$inferInsert;
+
+export const SYSTEM_CONFIG_VALUE_TYPES = ['number', 'string', 'boolean'] as const;
+export type SystemConfigValueType = (typeof SYSTEM_CONFIG_VALUE_TYPES)[number];
+
+export const systemConfig = pgTable(
+  'system_config',
+  {
+    key: varchar('key', { length: 100 }).primaryKey(),
+    value: jsonb('value').notNull(),
+    valueType: varchar('value_type', { length: 20 }).notNull(),
+    category: varchar('category', { length: 60 }).notNull(),
+    label: varchar('label', { length: 200 }).notNull(),
+    description: text('description'),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    updatedDate: timestamp('updateddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedBy: integer('updatedby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    check(
+      'system_config_value_type_check',
+      sql`${table.valueType} in ('number', 'string', 'boolean')`
+    ),
+    // jsonb_typeof() di Postgres restituisce esattamente 'number'/'string'/
+    // 'boolean' — impedisce a livello di database una riga con valueType
+    // 'number' ma un valore JSON booleano o stringa.
+    check(
+      'system_config_value_matches_type_check',
+      sql`jsonb_typeof(${table.value}) = ${table.valueType}`
+    ),
+  ]
+);
+
+export type SystemConfig = typeof systemConfig.$inferSelect;
+export type NewSystemConfig = typeof systemConfig.$inferInsert;

@@ -12,6 +12,7 @@ import { getAiPipelineHealth } from '@/lib/core/ai-session-notes/queue-health';
 import { getPipelineHealth } from '@/lib/core/ai-session-notes/pipeline-health';
 import { HouseGuidelinesEditor } from '@/components/admin/house-guidelines-editor';
 import { loadActiveHouseGuidelines } from '@/lib/core/ai-session-notes/house-guidelines';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 
 export const dynamic = 'force-dynamic';
 // Il worker gira dentro questa rotta quando l'admin lo lancia a mano: serve
@@ -37,11 +38,12 @@ function statusLabel(status: string | null) {
 
 export default async function AiNotesAdminPage() {
   const admin = await requireRole('admin');
-  const [users, health, guidelines, pipeline] = await Promise.all([
+  const [users, health, guidelines, pipeline, trialDays] = await Promise.all([
     getFeatureAdminUsers(admin.id, FEATURE_CODES.AI_SESSION_NOTES),
     getAiPipelineHealth(),
     loadActiveHouseGuidelines(),
     getPipelineHealth(),
+    getSystemConfigNumber('AI_NOTES_ADMIN_TRIAL_DAYS', 30),
   ]);
 
   return (
@@ -143,7 +145,7 @@ export default async function AiNotesAdminPage() {
                         variant="outline"
                         className="rounded-full"
                       >
-                        Trial 30 gg
+                        Trial {trialDays} gg
                       </Button>
                     </ActionForm>
                     <ActionForm

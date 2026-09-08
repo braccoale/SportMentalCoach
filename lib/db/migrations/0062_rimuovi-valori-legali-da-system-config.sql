@@ -1,0 +1,11 @@
+-- AI_NOTES_AUDIO_RETENTION_DAYS e CANCELLATION_NOTICE_HOURS erano state
+-- seminate in 0061 come parte del pilota, ma la revisione finale ha trovato
+-- che entrambe sono interpolate in lib/core/legal/processors.ts, un file
+-- incluso di proposito nell'hash dei contenuti legali (scripts/generate-legal-hash.mjs):
+-- renderle modificabili da questo pannello senza deploy rompeva silenziosamente
+-- la garanzia che un cambio ai Termini/Privacy forzi la ri-accettazione.
+-- Il codice è già stato riportato a costanti fisse (commit c533bb2); questa
+-- migrazione rimuove le due righe ormai orfane, mai modificate da nessun
+-- admin (updateddate = createddate su entrambe, verificato prima di scrivere
+-- questa migrazione).
+DELETE FROM "public"."system_config" WHERE "key" IN ('AI_NOTES_AUDIO_RETENTION_DAYS', 'CANCELLATION_NOTICE_HOURS');

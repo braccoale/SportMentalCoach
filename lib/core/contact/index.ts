@@ -4,6 +4,7 @@ import { db } from '@/lib/db/drizzle';
 import { contactMessages } from '@/lib/db/schema';
 import { LEGAL_CONTENT_HASH } from '@/lib/core/legal/content-hash.generated';
 import { sendContactMessageEmail } from '@/lib/core/email';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 
 export const CONTACT_LIMITS = {
   name: { min: 2, max: 120 },
@@ -11,9 +12,6 @@ export const CONTACT_LIMITS = {
   message: { min: 10, max: 4000 },
   email: { max: 255 },
 } as const;
-
-/** Quanti messaggi accettiamo dallo stesso indirizzo in un'ora. */
-const MAX_PER_EMAIL_PER_HOUR = 3;
 
 export type ContactInput = {
   name: string;
@@ -105,7 +103,11 @@ export async function submitContactMessage(
       )
     );
 
-  if (count >= MAX_PER_EMAIL_PER_HOUR) {
+  const maxPerEmailPerHour = await getSystemConfigNumber(
+    'CONTACT_MAX_MESSAGES_PER_EMAIL_PER_HOUR',
+    3
+  );
+  if (count >= maxPerEmailPerHour) {
     return {
       ok: false,
       error:
