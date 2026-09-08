@@ -231,7 +231,10 @@ export type GoalTrackSummary = {
  * cosa il coach vede in cima alla scheda, e va verificata senza aprire un
  * browser.
  */
-export function summarizeGoalTrack(row: JourneyGoalRow): GoalTrackSummary {
+export function summarizeGoalTrack(
+  row: JourneyGoalRow,
+  staleAfterSessions: number = GOAL_STALE_AFTER_SESSIONS
+): GoalTrackSummary {
   const totalCount = row.track.length;
   const touchedCount = row.track.filter((dot) => dot.touched).length;
 
@@ -252,6 +255,6 @@ export function summarizeGoalTrack(row: JourneyGoalRow): GoalTrackSummary {
     stale:
       totalCount > 0 &&
       (sessionsSinceLastTouch === null ||
-        sessionsSinceLastTouch >= GOAL_STALE_AFTER_SESSIONS),
+        sessionsSinceLastTouch >= staleAfterSessions),
   };
 }
