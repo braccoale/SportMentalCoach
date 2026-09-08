@@ -9,6 +9,7 @@ import {
 } from '@/lib/db/schema';
 import { notify } from './index';
 import { scopeForBooking } from './idempotency';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 
 /**
  * Appointment reminders, driven by a scheduler rather than by a user action.
@@ -69,11 +70,21 @@ export async function sendDueReminders(
   window: ReminderWindow,
   now: Date = new Date()
 ): Promise<ReminderRunResult> {
-  const { event, leadMinutes } = WINDOWS[window];
+  const { event } = WINDOWS[window];
+  const leadMinutes = await getSystemConfigNumber(
+    window === '24h'
+      ? 'NOTIFICATION_REMINDER_24H_LEAD_MINUTES'
+      : 'NOTIFICATION_REMINDER_1H_LEAD_MINUTES',
+    WINDOWS[window].leadMinutes
+  );
+  const toleranceMinutes = await getSystemConfigNumber(
+    'NOTIFICATION_REMINDER_WINDOW_TOLERANCE_MINUTES',
+    WINDOW_TOLERANCE_MINUTES
+  );
 
   const target = new Date(now.getTime() + leadMinutes * 60_000);
-  const from = new Date(target.getTime() - WINDOW_TOLERANCE_MINUTES * 60_000);
-  const to = new Date(target.getTime() + WINDOW_TOLERANCE_MINUTES * 60_000);
+  const from = new Date(target.getTime() - toleranceMinutes * 60_000);
+  const to = new Date(target.getTime() + toleranceMinutes * 60_000);
 
   const rows = await db
     .select({
