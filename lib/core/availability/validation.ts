@@ -45,15 +45,16 @@ function isValidMinute(value: number): boolean {
  * Adjacent ranges are allowed; overlapping ranges on the same day are not.
  */
 export function validateAvailabilitySchedule(
-  input: unknown
+  input: unknown,
+  maxSlots: number = MAX_AVAILABILITY_SLOTS
 ): Result<{ slots: AvailabilityInput[] }> {
   if (!Array.isArray(input)) {
     return { ok: false, error: 'Disponibilità non valida.' };
   }
-  if (input.length > MAX_AVAILABILITY_SLOTS) {
+  if (input.length > maxSlots) {
     return {
       ok: false,
-      error: `Puoi configurare al massimo ${MAX_AVAILABILITY_SLOTS} fasce.`,
+      error: `Puoi configurare al massimo ${maxSlots} fasce.`,
     };
   }
 
