@@ -112,9 +112,21 @@ reale (non i più semplici da spostare):
    calcola da solo), sproporzionato per un fallback su dati vecchi/malformati
    raramente colpito. Decisione presa dopo aver letto il codice reale, non
    assunta in fase di spec.
-2. **Ritenzione audio AI Notes** (`AI_NOTES_AUDIO_RETENTION_DAYS`, oggi 7) —
-   diventa l'unica fonte, sostituendo sia il testo hardcoded della privacy
-   policy sia la env var che oggi applica davvero la ritenzione.
+2. **Ritenzione audio AI Notes, solo il testo della privacy policy**
+   (`AI_NOTES_AUDIO_RETENTION_DAYS`, oggi 7) — **ridimensionato dopo aver
+   letto il codice**: `getAudioRecordingConfig()` (che applica davvero la
+   ritenzione) è sincrona ed è chiamata in 7+ punti della pipeline AI Notes,
+   incluso un factory sincrono (`createProductionAiSessionNotesDependencies`)
+   — renderla asincrona per un solo campo tocca la pipeline che il progetto
+   documenta come la più fragile, dove ogni fallimento finora è nato da un
+   cambiamento a un punto di giuntura come questo. Questo giro sposta a DB
+   **solo** il numero mostrato nella privacy policy
+   (`lib/core/legal/processors.ts:148`); l'enforcement vero resta sulla env
+   var `AI_NOTES_AUDIO_RETENTION_DAYS` come oggi. Il rischio di
+   disallineamento fra le due fonti **non è risolto**, solo ridotto (il
+   numero mostrato può almeno essere corretto senza un deploy) — l'unione
+   vera resta un lavoro a sé, con la sua analisi, quando si torna su quella
+   pipeline con calma.
 3. **Preavviso di cancellazione** (`CANCELLATION_NOTICE_HOURS`, oggi 24) —
    solo il numero si sposta a DB; il controllo che oggi non esiste nel codice
    resta un lavoro separato, fuori scope.
@@ -198,14 +210,12 @@ a che ogni punto non viene aggiornato) — dettaglio lasciato al piano di
 implementazione, task per task.
 
 Caso specifico — **ritenzione audio**: `lib/core/ai-session-notes/recording-config.ts`
-oggi legge `AI_NOTES_AUDIO_RETENTION_DAYS` da `process.env` con un fallback
-validato (1-30 giorni). Questo giro lo ripunta sulla tabella
-(`getSystemConfigNumber('AI_NOTES_AUDIO_RETENTION_DAYS', 7)`), mantenendo lo
-stesso bound di validazione; il testo della privacy policy
-(`lib/core/legal/processors.ts:148`) legge la stessa chiave invece di una
-propria costante. La env var smette di essere letta dal codice (resta,
-se presente, semplicemente ignorata — nessun obbligo di rimuoverla da Vercel
-in questo giro).
+**non viene toccato** in questo giro (vedi sopra, ridimensionato dopo la
+lettura del codice). Solo `lib/core/legal/processors.ts:148`
+(`AI_AUDIO_RETENTION_DAYS`, oggi una costante propria usata per il testo
+della privacy policy) passa a leggere `getSystemConfigNumber('AI_NOTES_AUDIO_RETENTION_DAYS', 7)`.
+La env var che applica davvero la ritenzione resta esattamente come oggi,
+non viene letta da questo modulo, non viene toccata.
 
 ## Pannello admin
 
@@ -255,6 +265,8 @@ modifica allo schema di audit serve per questo lavoro.
   (fino a 60 secondi di ritardo) — accettabile per valori di questo tipo
   (durate, giorni di ritenzione), da dire esplicitamente perché non è ovvio
   dal pannello.
-- **Il ripuntamento della ritenzione audio** tocca un percorso già
-  delicato (cancellazione dati, conformità GDPR) — il fallback validato
-  (1-30 giorni) va preservato esattamente, non solo il valore di default.
+- **La ritenzione audio resta disallineabile.** Il numero mostrato nella
+  privacy policy ora viene da `system_config`; quello davvero applicato
+  resta sulla env var. Le due fonti possono ancora divergere — questo giro
+  riduce il rischio (il testo si corregge senza deploy) ma non lo elimina.
+  L'unione vera è rimandata di proposito (vedi sopra).
