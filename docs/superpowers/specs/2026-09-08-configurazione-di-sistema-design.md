@@ -100,18 +100,26 @@ altro dominio — un buon riferimento per la lettura via `lib/core`.
 Meccanismo generico + 4 valori pilota, scelti per essere i casi con più valore
 reale (non i più semplici da spostare):
 
-1. **Durata sessione predefinita** (`SESSION_DEFAULT_DURATION_MINUTES`, oggi 40) —
-   unifica 3 dei 4 duplicati: `lib/core/services/validation.ts`,
-   `lib/core/bookings/duration.ts`, `lib/core/services/defaults.ts` (tutti
-   consumati lato server, o passabili come prop da un Server Component).
-   `lib/core/sessions.ts`'s `FALLBACK_SESSION_DURATION_MIN` **resta invariata**:
-   è dentro un modulo esplicitamente puro e condiviso client/server, usato
-   per calcoli reattivi lato browser (es. "posso ancora entrare in
-   chiamata?") — renderlo DB-backed richiederebbe un ridisegno (il valore
-   dovrebbe arrivare come prop e propagarsi in ogni componente che oggi lo
-   calcola da solo), sproporzionato per un fallback su dati vecchi/malformati
-   raramente colpito. Decisione presa dopo aver letto il codice reale, non
-   assunta in fase di spec.
+1. ~~Durata sessione predefinita~~ — **escluso per intero dopo aver letto il
+   codice**. Non solo `lib/core/sessions.ts`'s `FALLBACK_SESSION_DURATION_MIN`
+   (modulo puro condiviso client/server, calcoli reattivi lato browser): anche
+   `lib/core/services/validation.ts`'s `DEFAULT_SERVICE_DURATION_MIN` è
+   intrecciata in `lib/core/bookings/conflict-query.ts`'s
+   `effectiveBookingDurationMin`, un frammento SQL costruito una volta al
+   caricamento del modulo e riusato in **17+ punti** (`bookings/index.ts`,
+   `availability/index.ts`, `messages/index.ts`, `admin/index.ts`,
+   `email/booking-context.ts`); e `lib/core/bookings/duration.ts`'s
+   `DEFAULT_SESSION_DURATION_MIN` è anch'essa usata dentro `useState` di
+   componenti client interattivi (`new-appointment-button.tsx`,
+   `booking-request.tsx`). Nessuno dei 4 duplicati ha un sottoinsieme pulito
+   e a basso rischio per un pilota — l'intera unificazione è rimandata a un
+   giro futuro con un vero ridisegno.
+
+   **Sostituita da: limite email del form contatti**
+   (`CONTACT_MAX_MESSAGES_PER_EMAIL_PER_HOUR`, oggi 3) —
+   `lib/core/contact/index.ts:16` `MAX_PER_EMAIL_PER_HOUR`, una costante
+   privata usata in un solo punto, dentro una funzione già server-only e
+   già asincrona. Nessuna complicazione nascosta trovata.
 2. **Ritenzione audio AI Notes, solo il testo della privacy policy**
    (`AI_NOTES_AUDIO_RETENTION_DAYS`, oggi 7) — **ridimensionato dopo aver
    letto il codice**: `getAudioRecordingConfig()` (che applica davvero la
@@ -132,6 +140,14 @@ reale (non i più semplici da spostare):
    resta un lavoro separato, fuori scope.
 4. **Trial AI Notes concesso da un admin** (`AI_NOTES_ADMIN_TRIAL_DAYS`, oggi 30) —
    unifica il valore usato dalla server action e il testo del bottone.
+
+Al posto della durata sessione, esclusa per intero (vedi sopra):
+
+1bis. **Limite messaggi form contatti**
+   (`CONTACT_MAX_MESSAGES_PER_EMAIL_PER_HOUR`, oggi 3) —
+   `lib/core/contact/index.ts`'s `MAX_PER_EMAIL_PER_HOUR`, privata e usata in
+   un solo punto, dentro `submitContactMessage` (già `async`, il file ha
+   `import 'server-only'` in cima).
 
 Tutti gli altri candidati elencati sopra restano per un giro successivo.
 
@@ -169,7 +185,7 @@ stringa, senza bisogno di validarlo solo in TypeScript.
 
 Niente colonna "Pubblico" (a differenza di iPricer): non c'è oggi un caso
 d'uso di esporre questi valori fuori dal pannello admin. `key` è la chiave
-primaria (stringa leggibile, es. `SESSION_DEFAULT_DURATION_MINUTES`), non un
+primaria (stringa leggibile, es. `CANCELLATION_NOTICE_HOURS`), non un
 id numerico — coerente con l'idea di "variabile con un nome", e rende le
 migrazioni di seed leggibili senza dover prima leggere un id generato.
 
