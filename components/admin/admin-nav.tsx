@@ -7,6 +7,7 @@ import {
   BrainCircuit,
   CalendarClock,
   LayoutDashboard,
+  Settings,
   ShieldCheck,
   Sliders,
   UserRound,
@@ -82,6 +83,11 @@ export function AdminNav({
       href: '/dashboard/admin/ai-notes',
       label: 'Configurazione',
       icon: Sliders,
+    },
+    {
+      href: '/dashboard/admin/system-config',
+      label: 'Costanti di sistema',
+      icon: Settings,
     },
   ];
 
