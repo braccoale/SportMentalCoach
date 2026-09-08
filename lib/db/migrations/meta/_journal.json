@@ -435,6 +435,13 @@
       "when": 1788851760031,
       "tag": "0061_configurazione-di-sistema",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1788857232679,
+      "tag": "0062_rimuovi-valori-legali-da-system-config",
+      "breakpoints": true
     }
   ]
 }
