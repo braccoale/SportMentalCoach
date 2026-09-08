@@ -8,6 +8,7 @@ import {
   setFeatureEntitlement,
 } from '@/lib/core/features';
 import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 import {
   processAiNotesBatch,
   recoverStaleAiProcessingJobs,
@@ -123,8 +124,12 @@ export async function updateAiNotesEntitlementAction(
         featureCode: FEATURE_CODES.AI_SESSION_NOTES,
       }, dependencies.liveKit);
     } else if (operation === 'trial') {
+      const trialDays = await getSystemConfigNumber(
+        'AI_NOTES_ADMIN_TRIAL_DAYS',
+        30
+      );
       const expiresAt = new Date();
-      expiresAt.setUTCDate(expiresAt.getUTCDate() + 30);
+      expiresAt.setUTCDate(expiresAt.getUTCDate() + trialDays);
       await setFeatureEntitlement({
         actorUserId: admin.id,
         targetUserId,
