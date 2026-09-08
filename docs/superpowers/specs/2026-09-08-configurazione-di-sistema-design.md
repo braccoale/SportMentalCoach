@@ -1,7 +1,7 @@
 # Configurazione di sistema (chiave/valore)
 
 **Data:** 2026-09-08
-**Stato:** disegno approvato, da implementare
+**Stato:** implementato
 **Dipendenze:** nessuna sui pacchetti (PR #71, branch/worktree separato). Ispirato a un
 meccanismo analogo già esistente in un altro prodotto dell'utente (iPricer).
 
