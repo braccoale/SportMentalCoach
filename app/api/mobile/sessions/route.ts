@@ -1,6 +1,6 @@
 import { aliasedTable, and, desc, eq, gte, inArray, or, sql } from 'drizzle-orm';
 import { getApiUser } from '@/lib/auth/api-user';
-import { hasRole } from '@/lib/core/auth/roles';
+import { hasRole } from '@/lib/core/auth/role-checks';
 import { db } from '@/lib/db/drizzle';
 import {
   bookings,
