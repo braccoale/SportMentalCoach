@@ -303,3 +303,87 @@ modifica allo schema di audit serve per questo lavoro.
   resta sulla env var. Le due fonti possono ancora divergere — questo giro
   riduce il rischio (il testo si corregge senza deploy) ma non lo elimina.
   L'unione vera è rimandata di proposito (vedi sopra).
+
+## Secondo giro (2026-09-08): 11 candidati aggiuntivi, dopo aver riverificato tutti i 16 rimasti
+
+Dei 16 candidati non ancora migrati dalla ricognizione originale, verificati
+uno per uno leggendo il codice reale prima di scrivere qualunque task —
+metà risultano avere lo stesso tipo di problema già incontrato nel primo
+giro, l'altra metà sono puliti.
+
+**Esclusi, con motivo verificato nel codice:**
+
+- **I 5 di `lib/core/sessions.ts`** (`REQUEST_RESPONSE_WINDOW_HOURS`,
+  `REQUEST_EXPIRY_GRACE_MINUTES`, `VIDEO_JOIN_LEAD_MINUTES`,
+  `UPCOMING_GRACE_MINUTES`, `HEARTBEAT_STALE_MINUTES`) — usati dentro
+  `canJoinVideoNow`/`isSessionUpcoming`, chiamate da componenti client
+  (`components/calendar/booking-calendar.tsx`,
+  `components/video-call-button.tsx`) per decisioni in tempo reale. Stesso
+  problema della durata sessione già esclusa nel primo giro.
+- **`INACTIVITY_MONTHS`, `POST_CLOSURE_RETENTION_MONTHS`,
+  `TERMS_CHANGE_NOTICE_DAYS`** (`lib/core/legal/processors.ts`) — stesso
+  file già causa del revert su ritenzione audio/preavviso cancellazione:
+  incluso nell'hash dei contenuti legali, editabile da pannello romperebbe
+  la garanzia di ri-accettazione dei Termini.
+- **`MIN_SIGNUP_AGE`, `AGE_OF_MAJORITY`** (`lib/core/guardians/age.ts`) —
+  ancorate a norme di legge italiane, non decisioni di prodotto.
+- **`COMPASS_REGENERATE_MAX_ATTEMPTS`** — usata dentro un loop di retry in
+  `components/session-compass-panel.tsx` (client).
+- **`ANALYTICS_CONSENT_MAX_AGE_SECONDS`** — di fatto codice morto: il
+  componente che gestisce davvero il cookie (`components/google-analytics.tsx`,
+  client, `'use client'`) ha una propria costante locale duplicata
+  (`ANALYTICS_COOKIE_MAX_AGE_SECONDS`, stesso valore) e non legge questa.
+- **Formula di ranking "Consigliati"** (`lib/core/listings/index.ts`) —
+  6-7 pesi numerici insieme, non un singolo valore. Rimandata: l'utente ha
+  scelto di procedere solo con i candidati a valore singolo in questo giro.
+
+**Entrano in questo giro, tutti verificati server-only, nessun chiamante
+client della costante specifica:**
+
+1. `AVAILABILITY_MAX_SLOTS` (oggi `MAX_AVAILABILITY_SLOTS`, 50) —
+   `lib/core/availability/validation.ts:25`
+2. `AVAILABILITY_BOOKING_START_STEP_MINUTES` (oggi
+   `BOOKING_START_STEP_MINUTES`, 10) — `lib/core/availability/validation.ts:27`
+3. `LIVE_SESSION_SILENCE_MINUTES` (oggi `LIVE_SESSION_SILENCE_MS = 2 * 60_000`,
+   quindi 2 minuti — convertito in minuti per essere leggibile nel pannello,
+   il codice moltiplica per 60\_000) — `lib/core/admin/live-session-state.ts:26`
+4. `AI_NOTES_LIVE_GAP_SECONDS` (oggi `LIVE_GAP_SECONDS`, 90) —
+   `lib/core/ai-session-notes/live-coverage.ts:30`. Il valore è calcolato
+   server-side; i componenti client (`ai-session-notes-control.tsx`,
+   `mobile/.../RecordingGapNotice.tsx`) ricevono solo il risultato, mai la
+   soglia grezza.
+5. `VIDEO_RING_THROTTLE_SECONDS` (oggi `RING_THROTTLE_MS = 60_000`, quindi
+   60 secondi — convertito in secondi, il codice moltiplica per 1000) —
+   `lib/core/video/ring.ts:29`
+6. `AI_NOTES_GOAL_STALE_AFTER_SESSIONS` (oggi `GOAL_STALE_AFTER_SESSIONS`, 2) —
+   `lib/core/ai-session-notes/journey-goals.ts:204`
+7. `AI_NOTES_PARTIAL_COVERAGE_THRESHOLD` (oggi `PARTIAL_COVERAGE_THRESHOLD`,
+   0.9 — un rapporto fra 0 e 1, non un conteggio) —
+   `lib/core/ai-session-notes/recording-coverage.ts:25`. **Nota**: il
+   pannello admin oggi ha `min={1}` su ogni campo numerico (aggiunto nel
+   primo giro pensando solo a conteggi/limiti ≥ 1) — va tolto, perché
+   bloccherebbe visivamente un valore come 0.9 pur senza impedirne il
+   salvataggio reale (il form non usa la validazione nativa del browser).
+   Il controllo vero resta lato server in `parseSystemConfigValue`
+   (rifiuta solo valori ≤ 0, corretto per un rapporto).
+8. `GUARDIAN_INVITATION_TTL_HOURS` (oggi `INVITATION_TTL_MS`, 72h —
+   convertito in ore, il codice moltiplica per 3\_600\_000) —
+   `lib/core/guardians/index.ts:38`
+9. `NOTIFICATION_REMINDER_WINDOW_TOLERANCE_MINUTES` (oggi
+   `WINDOW_TOLERANCE_MINUTES`, 35) — `lib/core/notifications/reminders.ts:42`.
+   **Nota operativa**: deve restare ≥ dell'intervallo del cron dei
+   promemoria, altrimenti una prenotazione può cadere fra due esecuzioni e
+   non ricevere il promemoria — da scrivere nella descrizione mostrata nel
+   pannello, non solo nel codice.
+10. `NOTIFICATION_REMINDER_24H_LEAD_MINUTES` (oggi `24 * 60` dentro la
+    mappa `WINDOWS`, quindi 1440) e
+    `NOTIFICATION_REMINDER_1H_LEAD_MINUTES` (oggi `60`) —
+    `lib/core/notifications/reminders.ts:32-33`
+11. `MOBILE_SESSION_HISTORY_DAYS` (oggi `120 * 24 * 60 * 60 * 1000` ms,
+    quindi 120 giorni — convertito in giorni, il codice moltiplica per
+    86\_400\_000) — `app/api/mobile/sessions/route.ts:46`
+
+12 chiavi totali (11 candidati, il decimo ne vale due). Stesso meccanismo
+già esistente (`getSystemConfigNumber`, fallback obbligatorio, cache 60s) —
+nessuna modifica allo schema `system_config` o al pannello admin oltre alla
+rimozione del `min={1}` indiscriminato.
