@@ -1,5 +1,5 @@
 import { cache } from 'react';
-import { desc, and, eq, isNull } from 'drizzle-orm';
+import { asc, desc, and, eq, isNull } from 'drizzle-orm';
 import { db } from './drizzle';
 import { activityLogs, profiles, teamMembers, teams, users } from './schema';
 import { unstable_rethrow } from 'next/navigation';
@@ -110,6 +110,9 @@ export async function updateTeamSubscription(
 }
 
 export async function getUserWithTeam(userId: number) {
+  // Un utente può ora appartenere a più organizzazioni (Task 6, pacchetti):
+  // l'ordine per id preferisce la prima appartenenza, quella creata alla
+  // registrazione, così questa funzione resta deterministica.
   const result = await db
     .select({
       user: users,
@@ -118,6 +121,7 @@ export async function getUserWithTeam(userId: number) {
     .from(users)
     .leftJoin(teamMembers, eq(users.id, teamMembers.userId))
     .where(eq(users.id, userId))
+    .orderBy(asc(teamMembers.id))
     .limit(1);
 
   return result[0];
@@ -150,8 +154,11 @@ export async function getTeamForUser() {
     return null;
   }
 
+  // Stessa nota di `getUserWithTeam`: più appartenenze sono ora possibili,
+  // l'ordine per id preferisce quella della registrazione.
   const result = await db.query.teamMembers.findFirst({
     where: eq(teamMembers.userId, user.id),
+    orderBy: (fields, { asc }) => [asc(fields.id)],
     with: {
       team: {
         with: {

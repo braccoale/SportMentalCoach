@@ -517,6 +517,173 @@ export const userFeatureEntitlements = pgTable(
   ]
 );
 
+// ---------------------------------------------------------------------------
+// Pacchetti: un pacchetto acquistato da un'organizzazione porta con sé un
+// insieme di feature. Vedi
+// docs/superpowers/specs/2026-09-06-pacchetti-feature-entitlement-design.md.
+// ---------------------------------------------------------------------------
+
+export const PACKAGE_STATUSES = ['active', 'archived'] as const;
+export type PackageStatus = (typeof PACKAGE_STATUSES)[number];
+
+export const packages = pgTable(
+  'packages',
+  {
+    id: serial('id').primaryKey(),
+    key: varchar('key', { length: 60 }).notNull(),
+    name: varchar('name', { length: 120 }).notNull(),
+    status: varchar('status', { length: 20 }).notNull().default('active'),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    updatedDate: timestamp('updateddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedBy: integer('updatedby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    unique('packages_key_unique').on(table.key),
+    check(
+      'packages_status_check',
+      sql`${table.status} in ('active', 'archived')`
+    ),
+  ]
+);
+
+// Il catalogo delle feature che il codice controlla davvero. Una riga
+// nasce solo quando uno sviluppatore collega una funzionalità reale a un
+// punto del codice (vedi docs/superpowers/specs/2026-09-07-matrice-funzionalita-piani-design.md)
+// — l'admin, dalla matrice, decide solo quali pacchetti la includono.
+export const FEATURE_TYPES = ['boolean', 'numeric'] as const;
+export type FeatureType = (typeof FEATURE_TYPES)[number];
+
+export const features = pgTable(
+  'features',
+  {
+    id: serial('id').primaryKey(),
+    code: varchar('code', { length: 80 }).notNull(),
+    label: varchar('label', { length: 120 }).notNull(),
+    description: text('description'),
+    type: varchar('type', { length: 20 }).notNull().default('boolean'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    updatedDate: timestamp('updateddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedBy: integer('updatedby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    unique('features_code_unique').on(table.code),
+    check(
+      'features_type_check',
+      sql`${table.type} in ('boolean', 'numeric')`
+    ),
+  ]
+);
+
+export const packageFeatures = pgTable(
+  'package_features',
+  {
+    id: serial('id').primaryKey(),
+    packageId: integer('package_id')
+      .notNull()
+      .references(() => packages.id, { onDelete: 'cascade' }),
+    featureCode: varchar('feature_code', { length: 80 })
+      .notNull()
+      .references(() => features.code, { onDelete: 'cascade' }),
+    // Assente (null) per una feature `boolean` — la riga stessa è
+    // l'inclusione. Per una `numeric`, il limite; `null` = illimitato,
+    // stessa convenzione di `userFeatureEntitlements.usageLimit`.
+    value: integer('value'),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    unique('package_features_package_feature_unique').on(
+      table.packageId,
+      table.featureCode
+    ),
+  ]
+);
+
+export const USER_PACKAGE_STATUSES = [
+  'active',
+  'expired',
+  'suspended',
+] as const;
+export type UserPackageStatus =
+  (typeof USER_PACKAGE_STATUSES)[number];
+
+export const userPackages = pgTable(
+  'user_packages',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    packageId: integer('package_id')
+      .notNull()
+      .references(() => packages.id),
+    status: varchar('status', { length: 20 }).notNull().default('active'),
+    startsAt: timestamp('starts_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    updatedDate: timestamp('updateddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedBy: integer('updatedby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    uniqueIndex('user_packages_one_active_idx')
+      .on(table.userId)
+      .where(sql`${table.status} = 'active'`),
+    index('user_packages_user_status_idx').on(
+      table.userId,
+      table.status
+    ),
+    check(
+      'user_packages_status_check',
+      sql`${table.status} in ('active', 'expired', 'suspended')`
+    ),
+    check(
+      'user_packages_window_check',
+      sql`${table.expiresAt} is null or ${table.startsAt} is null or ${table.expiresAt} > ${table.startsAt}`
+    ),
+  ]
+);
+
+export type Package = typeof packages.$inferSelect;
+export type NewPackage = typeof packages.$inferInsert;
+export type Feature = typeof features.$inferSelect;
+export type NewFeature = typeof features.$inferInsert;
+export type PackageFeature = typeof packageFeatures.$inferSelect;
+export type NewPackageFeature = typeof packageFeatures.$inferInsert;
+export type UserPackage = typeof userPackages.$inferSelect;
+export type NewUserPackage = typeof userPackages.$inferInsert;
+
 export const AI_SESSION_NOTE_STATUSES = [
   'waiting_for_consent',
   'active',
@@ -2784,6 +2951,10 @@ export const ADMIN_AUDIT_ACTIONS = [
   'data_exported',
   'data_deleted',
   'configuration_changed',
+  'package_created',
+  'package_features_updated',
+  'user_package_assigned',
+  'user_package_revoked',
 ] as const;
 export type AdminAuditAction = (typeof ADMIN_AUDIT_ACTIONS)[number];
 
@@ -2794,6 +2965,7 @@ export const ADMIN_AUDIT_SUBJECTS = [
   'feature',
   'configuration',
   'system',
+  'package',
 ] as const;
 export type AdminAuditSubject = (typeof ADMIN_AUDIT_SUBJECTS)[number];
 
@@ -2835,11 +3007,11 @@ export const adminAuditEvents = pgTable(
     index('admin_audit_events_action_idx').on(table.action, table.createdDate),
     check(
       'admin_audit_events_action_check',
-      sql`${table.action} in ('coach_approved', 'coach_rejected', 'coach_verification_changed', 'user_role_changed', 'ai_notes_entitlement_granted', 'ai_notes_entitlement_revoked', 'ai_notes_session_reopened', 'ai_notes_worker_run', 'ai_notes_guidelines_saved', 'ai_notes_callback_probed', 'sensitive_content_accessed', 'data_exported', 'data_deleted', 'configuration_changed')`
+      sql`${table.action} in ('coach_approved', 'coach_rejected', 'coach_verification_changed', 'user_role_changed', 'ai_notes_entitlement_granted', 'ai_notes_entitlement_revoked', 'ai_notes_session_reopened', 'ai_notes_worker_run', 'ai_notes_guidelines_saved', 'ai_notes_callback_probed', 'sensitive_content_accessed', 'data_exported', 'data_deleted', 'configuration_changed', 'package_created', 'package_features_updated', 'user_package_assigned', 'user_package_revoked')`
     ),
     check(
       'admin_audit_events_subject_type_check',
-      sql`${table.subjectType} in ('provider_profile', 'user', 'ai_session', 'feature', 'configuration', 'system')`
+      sql`${table.subjectType} in ('provider_profile', 'user', 'ai_session', 'feature', 'configuration', 'system', 'package')`
     ),
     check(
       'admin_audit_events_outcome_check',

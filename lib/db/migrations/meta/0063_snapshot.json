@@ -1,6 +1,6 @@
 {
-  "id": "41e30275-fa66-4ec2-860f-ffb9005e0ae0",
-  "prevId": "edc83c80-6932-4662-bd1b-4af95b45a9c2",
+  "id": "ff25d08d-4fcc-4f77-9741-31fef91a5e92",
+  "prevId": "41e30275-fa66-4ec2-860f-ffb9005e0ae0",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -276,11 +276,11 @@
       "checkConstraints": {
         "admin_audit_events_action_check": {
           "name": "admin_audit_events_action_check",
-          "value": "\"admin_audit_events\".\"action\" in ('coach_approved', 'coach_rejected', 'coach_verification_changed', 'user_role_changed', 'ai_notes_entitlement_granted', 'ai_notes_entitlement_revoked', 'ai_notes_session_reopened', 'ai_notes_worker_run', 'ai_notes_guidelines_saved', 'ai_notes_callback_probed', 'sensitive_content_accessed', 'data_exported', 'data_deleted', 'configuration_changed', 'package_created', 'package_features_updated', 'organization_package_assigned', 'organization_package_revoked', 'organization_member_added')"
+          "value": "\"admin_audit_events\".\"action\" in ('coach_approved', 'coach_rejected', 'coach_verification_changed', 'user_role_changed', 'ai_notes_entitlement_granted', 'ai_notes_entitlement_revoked', 'ai_notes_session_reopened', 'ai_notes_worker_run', 'ai_notes_guidelines_saved', 'ai_notes_callback_probed', 'sensitive_content_accessed', 'data_exported', 'data_deleted', 'configuration_changed', 'package_created', 'package_features_updated', 'user_package_assigned', 'user_package_revoked')"
         },
         "admin_audit_events_subject_type_check": {
           "name": "admin_audit_events_subject_type_check",
-          "value": "\"admin_audit_events\".\"subject_type\" in ('provider_profile', 'user', 'ai_session', 'feature', 'configuration', 'system', 'package', 'organization')"
+          "value": "\"admin_audit_events\".\"subject_type\" in ('provider_profile', 'user', 'ai_session', 'feature', 'configuration', 'system', 'package')"
         },
         "admin_audit_events_outcome_check": {
           "name": "admin_audit_events_outcome_check",
@@ -3378,182 +3378,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.organization_packages": {
-      "name": "organization_packages",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "organization_id": {
-          "name": "organization_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "package_id": {
-          "name": "package_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "varchar(20)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'active'"
-        },
-        "starts_at": {
-          "name": "starts_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "createddate": {
-          "name": "createddate",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "createdby": {
-          "name": "createdby",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updateddate": {
-          "name": "updateddate",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updatedby": {
-          "name": "updatedby",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "organization_packages_one_active_idx": {
-          "name": "organization_packages_one_active_idx",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"organization_packages\".\"status\" = 'active'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "organization_packages_org_status_idx": {
-          "name": "organization_packages_org_status_idx",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "organization_packages_organization_id_teams_id_fk": {
-          "name": "organization_packages_organization_id_teams_id_fk",
-          "tableFrom": "organization_packages",
-          "tableTo": "teams",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "organization_packages_package_id_packages_id_fk": {
-          "name": "organization_packages_package_id_packages_id_fk",
-          "tableFrom": "organization_packages",
-          "tableTo": "packages",
-          "columnsFrom": [
-            "package_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "organization_packages_createdby_users_id_fk": {
-          "name": "organization_packages_createdby_users_id_fk",
-          "tableFrom": "organization_packages",
-          "tableTo": "users",
-          "columnsFrom": [
-            "createdby"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "organization_packages_updatedby_users_id_fk": {
-          "name": "organization_packages_updatedby_users_id_fk",
-          "tableFrom": "organization_packages",
-          "tableTo": "users",
-          "columnsFrom": [
-            "updatedby"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "organization_packages_status_check": {
-          "name": "organization_packages_status_check",
-          "value": "\"organization_packages\".\"status\" in ('active', 'expired', 'suspended')"
-        },
-        "organization_packages_window_check": {
-          "name": "organization_packages_window_check",
-          "value": "\"organization_packages\".\"expires_at\" is null or \"organization_packages\".\"starts_at\" is null or \"organization_packages\".\"expires_at\" > \"organization_packages\".\"starts_at\""
-        }
-      },
       "isRLSEnabled": false
     },
     "public.teams": {

@@ -1,20 +1,26 @@
 import 'server-only';
-import { and, asc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
+  packageFeatures,
   profiles,
   sessionAiAuditEvents,
   userFeatureEntitlements,
+  userPackages,
   userRoles,
   users,
   type FeatureEntitlementSource,
   type FeatureEntitlementStatus,
+  type UserPackageStatus,
 } from '@/lib/db/schema';
 import {
   evaluateFeatureEntitlement,
   type FeatureAccessResult,
   type FeatureCode,
+  type FeatureEntitlementSnapshot,
 } from './policy';
+import { buildPackageFeatureSnapshot } from './package-grant';
+import { composeFeatureAccess, directResultIsFinal } from './compose-access';
 import { stopAiNotesRecordingsForRequester } from '@/lib/core/ai-session-notes/recording';
 import type { LiveKitSessionControl } from '@/lib/core/ai-session-notes/livekit-session-control';
 
@@ -26,6 +32,49 @@ export {
   type FeatureCode,
   type FeatureEntitlementSnapshot,
 } from './policy';
+
+async function loadUserPackageGrants(
+  userId: number,
+  featureCode: FeatureCode
+): Promise<FeatureEntitlementSnapshot[]> {
+  const rows = await db
+    .select({
+      status: userPackages.status,
+      startsAt: userPackages.startsAt,
+      expiresAt: userPackages.expiresAt,
+      featureCode: packageFeatures.featureCode,
+    })
+    .from(userPackages)
+    .innerJoin(
+      packageFeatures,
+      and(
+        eq(packageFeatures.packageId, userPackages.packageId),
+        eq(packageFeatures.featureCode, featureCode)
+      )
+    )
+    .where(
+      and(
+        eq(userPackages.userId, userId),
+        inArray(userPackages.status, ['active', 'suspended'])
+      )
+    )
+    .orderBy(asc(userPackages.id));
+
+  const grants: FeatureEntitlementSnapshot[] = [];
+  for (const row of rows) {
+    const snapshot = buildPackageFeatureSnapshot({
+      userPackage: {
+        status: row.status as UserPackageStatus,
+        startsAt: row.startsAt,
+        expiresAt: row.expiresAt,
+      },
+      packageFeatureCodes: [row.featureCode],
+      featureCode,
+    });
+    if (snapshot) grants.push(snapshot);
+  }
+  return grants;
+}
 
 export async function getFeatureAccess(
   userId: number,
@@ -51,7 +100,7 @@ export async function getFeatureAccess(
     )
     .limit(1);
 
-  return evaluateFeatureEntitlement(
+  const directResult = evaluateFeatureEntitlement(
     entitlement
       ? {
           ...entitlement,
@@ -61,6 +110,18 @@ export async function getFeatureAccess(
       : null,
     now
   );
+
+  // Risparmia la query quando la risposta è già definitiva — la regola su
+  // cosa la rende definitiva vive in `directResultIsFinal`, non qui.
+  if (directResultIsFinal(directResult)) {
+    return directResult;
+  }
+
+  const userPackageGrants = await loadUserPackageGrants(
+    userId,
+    featureCode
+  );
+  return composeFeatureAccess(directResult, userPackageGrants, now);
 }
 
 export async function hasFeatureEntitlement(
@@ -70,7 +131,7 @@ export async function hasFeatureEntitlement(
   return (await getFeatureAccess(userId, featureCode)).allowed;
 }
 
-async function assertAdmin(actorUserId: number): Promise<void> {
+export async function assertAdmin(actorUserId: number): Promise<void> {
   const [admin] = await db
     .select({ id: userRoles.id })
     .from(userRoles)
