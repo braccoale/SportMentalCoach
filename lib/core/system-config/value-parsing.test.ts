@@ -17,6 +17,16 @@ test('an empty string is rejected for a number field', () => {
   assert.equal(result.ok, false);
 });
 
+test('zero is rejected for a number field', () => {
+  const result = parseSystemConfigValue('number', '0');
+  assert.equal(result.ok, false);
+});
+
+test('a negative number is rejected for a number field', () => {
+  const result = parseSystemConfigValue('number', '-5');
+  assert.equal(result.ok, false);
+});
+
 test('a checked checkbox parses to true', () => {
   const result = parseSystemConfigValue('boolean', 'on');
   assert.deepEqual(result, { ok: true, value: true });

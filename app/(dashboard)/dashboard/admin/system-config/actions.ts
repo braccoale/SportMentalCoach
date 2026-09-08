@@ -26,7 +26,6 @@ export async function updateSystemConfigAction(
   const result = await setSystemConfigValue({
     actorUserId: admin.id,
     key,
-    valueType,
     rawValue,
   });
 
@@ -36,7 +35,7 @@ export async function updateSystemConfigAction(
       action: 'configuration_changed',
       subjectType: 'configuration',
       outcome: 'fallita',
-      detail: { chiave: key },
+      detail: { chiave: key, valore: rawValue },
     });
     return { error: result.error };
   }
@@ -46,7 +45,7 @@ export async function updateSystemConfigAction(
     action: 'configuration_changed',
     subjectType: 'configuration',
     outcome: 'ok',
-    detail: { chiave: key },
+    detail: { chiave: key, valore: rawValue },
   });
 
   revalidatePath('/dashboard/admin/system-config');

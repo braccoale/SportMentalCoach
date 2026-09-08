@@ -137,9 +137,27 @@ export const INACTIVITY_MONTHS = 24;
 export const POST_CLOSURE_RETENTION_MONTHS = 36;
 
 /**
+ * Giorni di conservazione della registrazione audio grezza di una sessione,
+ * quando gli Appunti AI sono attivi.
+ *
+ * Deve restare allineato ad `AI_NOTES_AUDIO_RETENTION_DAYS`: qui è il numero
+ * dichiarato all'utente, là quello che il software applica. Se divergono,
+ * l'informativa mente — ed è il tipo di divergenza che nessuno nota finché
+ * qualcuno non chiede conto proprio di quel dato.
+ */
+export const AI_AUDIO_RETENTION_DAYS = 7;
+
+/**
  * Notice given before a change to the Terms takes effect. "Continued use means
  * acceptance" is only fair if the user had a real chance to read the change
  * and leave — a clause with no notice period at all is the kind a consumer
  * court sets aside.
  */
 export const TERMS_CHANGE_NOTICE_DAYS = 15;
+
+/**
+ * Hours of notice expected to cancel a session without it counting as a
+ * no-show. No penalty attaches today (nothing is charged), but the coach has
+ * still set the time aside, and the norm needs to exist before billing does.
+ */
+export const CANCELLATION_NOTICE_HOURS = 24;

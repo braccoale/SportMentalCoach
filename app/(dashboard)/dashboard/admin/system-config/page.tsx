@@ -14,7 +14,7 @@ export default async function SystemConfigAdminPage() {
     <section className="space-y-6 p-4 lg:p-0">
       <div>
         <h1 className="text-2xl font-semibold text-gray-900">
-          Configurazione di sistema
+          Costanti di sistema
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-gray-600">
           Costanti di business modificabili senza un deploy. Una nuova
@@ -74,6 +74,7 @@ export default async function SystemConfigAdminPage() {
                         <input
                           type="number"
                           name="rawValue"
+                          min={1}
                           defaultValue={typeof row.value === 'number' ? row.value : ''}
                           aria-label={row.label}
                           className="w-28 rounded-lg border border-gray-300 px-2 py-1 text-sm"

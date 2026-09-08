@@ -196,7 +196,7 @@ logica di business passa dall'helper qui sotto, lato server).
 
 ## Come lo legge il codice
 
-`lib/core/config/index.ts` (nuovo modulo):
+`lib/core/system-config/index.ts` (nuovo modulo):
 
 ```ts
 export async function getSystemConfigNumber(key: string, fallback: number): Promise<number>
@@ -232,6 +232,23 @@ lettura del codice). Solo `lib/core/legal/processors.ts:148`
 della privacy policy) passa a leggere `getSystemConfigNumber('AI_NOTES_AUDIO_RETENTION_DAYS', 7)`.
 La env var che applica davvero la ritenzione resta esattamente come oggi,
 non viene letta da questo modulo, non viene toccata.
+
+## Correzione dopo la revisione finale: due valori tornano costanti fisse
+
+La revisione finale sull'intero branch ha trovato che `AI_NOTES_AUDIO_RETENTION_DAYS`
+e `CANCELLATION_NOTICE_HOURS` sono entrambi interpolati in
+`lib/core/legal/processors.ts`, un file incluso di proposito nell'hash dei
+contenuti legali (`scripts/generate-legal-hash.mjs`): cambiare uno di quei
+numeri deve cambiare l'hash, e un hash diverso forza la ri-accettazione dei
+Termini per gli utenti. Renderli modificabili da un pannello admin senza
+deploy rompeva silenziosamente questa garanzia — un admin poteva cambiare
+cosa dicono i Termini senza che nessuno fosse ri-invitato ad accettarli.
+
+Decisione del titolare del prodotto: **tornano costanti fisse**, esattamente
+come prima dei Task 5 e 6 di questo piano. Il meccanismo `system_config` in
+sé, e gli altri due valori pilota (limite email contatti, trial AI Notes —
+nessuno dei due è tracciato dall'hash legale), non sono toccati da questa
+correzione. Il pilota di questo lavoro resta quindi a 2 valori reali, non 4.
 
 ## Pannello admin
 

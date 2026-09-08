@@ -112,25 +112,33 @@ export type SetSystemConfigResult =
 export async function setSystemConfigValue(params: {
   actorUserId: number;
   key: string;
-  valueType: SystemConfigValueType;
   rawValue: string;
 }): Promise<SetSystemConfigResult> {
   await assertAdmin(params.actorUserId);
 
-  const parsed = parseSystemConfigValue(params.valueType, params.rawValue);
+  // Il valueType arriva dal database, non dal chiamante: un campo nascosto
+  // del form può essere manomesso, la colonna value_type no.
+  const [existing] = await db
+    .select({ valueType: systemConfig.valueType })
+    .from(systemConfig)
+    .where(eq(systemConfig.key, params.key))
+    .limit(1);
+  if (!existing) return { ok: false, error: 'Chiave non trovata.' };
+
+  const parsed = parseSystemConfigValue(
+    existing.valueType as SystemConfigValueType,
+    params.rawValue
+  );
   if (!parsed.ok) return parsed;
 
-  const [updated] = await db
+  await db
     .update(systemConfig)
     .set({
       value: parsed.value,
       updatedDate: new Date(),
       updatedBy: params.actorUserId,
     })
-    .where(eq(systemConfig.key, params.key))
-    .returning({ key: systemConfig.key });
-
-  if (!updated) return { ok: false, error: 'Chiave non trovata.' };
+    .where(eq(systemConfig.key, params.key));
 
   // Invalida subito per questo processo. Su serverless, un'altra istanza
   // vede il valore nuovo solo alla scadenza della sua cache (fino a 60s) —

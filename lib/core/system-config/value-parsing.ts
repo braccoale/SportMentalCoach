@@ -17,6 +17,12 @@ export function parseSystemConfigValue(
     if (trimmed === '' || !Number.isFinite(parsed)) {
       return { ok: false, error: 'Il valore deve essere un numero.' };
     }
+    // Ogni valore numerico reale oggi è un conteggio/limite/durata: zero o
+    // negativo non ha senso ed è pericoloso (es. il limite del form contatti
+    // a 0 rifiuta ogni messaggio per chiunque, in silenzio).
+    if (parsed <= 0) {
+      return { ok: false, error: 'Il valore deve essere maggiore di zero.' };
+    }
     return { ok: true, value: parsed };
   }
 
