@@ -1097,8 +1097,13 @@ export async function getSessionRecordingCoverage(
     0
   );
 
+  const partialCoverageThreshold = await getSystemConfigNumber(
+    'AI_NOTES_PARTIAL_COVERAGE_THRESHOLD',
+    0.9
+  );
   return assessRecordingCoverage({
     sessionSeconds: span > 0 ? span : longest,
+    partialCoverageThreshold,
     recorded: rows
       .filter(
         (row) =>
