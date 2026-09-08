@@ -429,7 +429,7 @@ async function updateStatus(
   const now = new Date();
   await executor
     .update(sessionAiNotes)
-    .set(transitionAuditPatch(params.nextStatus, params.actorUserId, now))
+    .set(transitionAuditPatch(params.nextStatus, params.actorUserId, now, params.session.status))
     .where(eq(sessionAiNotes.id, params.session.id));
   await audit(executor, {
     sessionId: params.session.id,

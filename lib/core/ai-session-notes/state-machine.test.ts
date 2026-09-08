@@ -80,6 +80,24 @@ test('transition patch records updated timestamp and actor', () => {
 });
 
 /*
+ * La sessione 119: tre riaperture manuali di un report_failed hanno
+ * riscritto endedAt tre volte con l'ora di ciascuna riapertura, portando la
+ * "durata sessione" mostrata al coach da 54 minuti reali a 2h23m. La
+ * chiamata era già finita da un pezzo — endedAt non va toccato.
+ */
+test('riaprire un report_failed non riscrive endedAt: la chiamata è già finita', () => {
+  const now = new Date('2026-09-08T17:50:00.000Z');
+  const reopened = transitionAuditPatch('processing', 67, now, 'report_failed');
+  assert.equal(reopened.endedAt, undefined);
+  assert.equal(reopened.processingStartedAt, now);
+
+  // La prima volta che una chiamata finisce, endedAt va scritto: qui current
+  // è 'active', non una riapertura.
+  const justEnded = transitionAuditPatch('processing', 67, now, 'active');
+  assert.equal(justEnded.endedAt, now);
+});
+
+/*
  * La seduta del 16 agosto: registrazione dell'atleta persa, trascrizione del
  * coach completa, e la sessione chiusa in `report_failed` con 592 segmenti
  * intatti a fianco. Senza una riapertura quel materiale resta illeggibile per

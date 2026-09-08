@@ -121,13 +121,22 @@ const RESET_ERROR_ON: readonly AiSessionNoteStatus[] = [
 export function transitionAuditPatch(
   next: AiSessionNoteStatus,
   actorUserId: number,
-  now = new Date()
+  now = new Date(),
+  /**
+   * Lo stato da cui si arriva. Serve a distinguere «la chiamata è appena
+   * finita» (active -> processing, endedAt è adesso) da «si riprende un
+   * riepilogo mai arrivato» (report_failed -> processing, la chiamata è
+   * finita da un pezzo): senza questa distinzione, ogni riapertura manuale
+   * riscriveva endedAt con l'ora della riapertura, cancellando la vera
+   * durata della sessione.
+   */
+  current?: AiSessionNoteStatus
 ) {
   return {
     status: next,
     startedAt: next === 'active' ? now : undefined,
     endedAt:
-      next === 'processing' ||
+      (next === 'processing' && current !== 'report_failed') ||
       next === 'cancelled' ||
       next === 'consent_rejected'
         ? now
