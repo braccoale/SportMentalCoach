@@ -1,9 +1,6 @@
 import 'server-only';
-import { cache } from 'react';
-import { eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
-import { db } from '@/lib/db/drizzle';
-import { userRoles, type User } from '@/lib/db/schema';
+import { type User } from '@/lib/db/schema';
 import { getUser } from '@/lib/db/queries';
 import {
   ROLE_PRIORITY,
@@ -11,31 +8,16 @@ import {
   ROLE_DASHBOARDS,
   dashboardPathForRoles,
 } from './role-routes';
+import { getUserRoles, hasRole } from './role-checks';
 
 export {
   ROLE_PRIORITY,
   PRIMARY_DASHBOARD_ROLES,
   ROLE_DASHBOARDS,
   dashboardPathForRoles,
+  getUserRoles,
+  hasRole,
 };
-
-/**
- * Returns the role keys held by a user (from `user_roles`). Cached per request
- * so `requireRole` + `hasRole` in the same render share one query.
- */
-export const getUserRoles = cache(async (userId: number): Promise<string[]> => {
-  const rows = await db
-    .select({ roleKey: userRoles.roleKey })
-    .from(userRoles)
-    .where(eq(userRoles.userId, userId));
-  return rows.map((r) => r.roleKey);
-});
-
-/** True when the user holds the given role key. */
-export async function hasRole(userId: number, roleKey: string): Promise<boolean> {
-  const roles = await getUserRoles(userId);
-  return roles.includes(roleKey);
-}
 
 /**
  * Server-side guard for pages, route handlers and actions. Redirects to

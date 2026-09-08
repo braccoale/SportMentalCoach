@@ -16,7 +16,7 @@ import type {
   TrackedCommitment,
   TrackedCommitmentStatus,
 } from './session-commitments';
-import { hasRole } from '@/lib/core/auth/roles';
+import { hasRole } from '@/lib/core/auth/role-checks';
 import { FEATURE_CODES, hasFeatureEntitlement } from '@/lib/core/features';
 import { JOURNEY_REPORT_STATUSES, isJourneyCompassReport } from './mental-journey';
 import type {
