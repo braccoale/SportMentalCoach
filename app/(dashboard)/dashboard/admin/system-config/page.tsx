@@ -74,6 +74,7 @@ export default async function SystemConfigAdminPage() {
                         <input
                           type="number"
                           name="rawValue"
+                          step="any"
                           defaultValue={typeof row.value === 'number' ? row.value : ''}
                           aria-label={row.label}
                           className="w-28 rounded-lg border border-gray-300 px-2 py-1 text-sm"
