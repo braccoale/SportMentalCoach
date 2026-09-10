@@ -262,11 +262,39 @@ export type SessionPrepLastSession = {
  * ha gia` fatti la regola pura, cosi` le due meta` dicono la stessa cosa.
  * Si chiede solo quando qualcuno apre il foglio.
  */
+/** Una prova registrata dall'atleta, come la legge il coach. */
+export type PrepAttempt = {
+  id: number;
+  outcomeLabel: string;
+  /** Il giorno dichiarato dall'atleta, «AAAA-MM-GG». */
+  occurredOn: string;
+  note: string | null;
+  /** Corretta dopo la scrittura. Il testo precedente non esiste da nessuna parte. */
+  edited: boolean;
+};
+
+/** Che cosa e' successo a un'azione fra le due sedute. */
+export type PrepActionUpdate = {
+  commitmentId: number;
+  title: string;
+  /** In pausa: non e' ne' conclusa ne' abbandonata, ed e' cosi' che va letta. */
+  paused: { at: string; reason: string | null } | null;
+  attempts: PrepAttempt[];
+};
+
 export function fetchSessionPrep(bookingId: number) {
   return request<{
     points: SessionPrepPoint[];
     goals: SessionPrepGoal[];
     lastSession: SessionPrepLastSession | null;
+    /**
+     * Quello che l'atleta ha fatto dopo l'ultima seduta.
+     *
+     * L'unica parte del foglio che il coach non ha gia' letto: il resto lo ha
+     * scritto o validato lui. `null` quando non e' arrivato niente — e in quel
+     * caso il foglio lo dice, invece di disegnare un titolo sopra il vuoto.
+     */
+    sinceLastSession: { actions: PrepActionUpdate[] } | null;
     /**
      * Perche' non c'e' niente. Il sistema non inventa mai un riepilogo: se il
      * materiale non c'e' lo dice, e dice quale dei due casi e'.
@@ -517,7 +545,195 @@ export function createGuestInvite(bookingId: number) {
   );
 }
 
+
+// ---------------------------------------------------------------------------
+// «Oggi»: il ciclo dell'atleta fra due sedute.
+// ---------------------------------------------------------------------------
+
+/** Una prova gia' registrata su un'azione. */
+export type TodayAttempt = {
+  id: number;
+  outcome: 'provata' | 'non_ancora' | 'non_adatta';
+  outcomeLabel: string;
+  occurredOn: string;
+  note: string | null;
+  edited: boolean;
+  /** Il gettone per correggerla senza sovrascrivere il lavoro di nessuno. */
+  version: number;
+};
+
+export type TodayAction = {
+  commitmentId: number;
+  pathId: number;
+  title: string;
+  coachName: string;
+  dueDate: string | null;
+  pausedAt: string | null;
+  pausedReason: string | null;
+  attemptCount: number;
+  lastAttemptOn: string | null;
+  attempts: TodayAttempt[];
+};
+
+/**
+ * Lo stato di «Oggi», deciso dal server.
+ *
+ * Sette situazioni, e l'app non ne sceglie nessuna: riceve quale mostrare, con
+ * quale titolo e quale spiegazione. Ricalcolarle qui vorrebbe dire un secondo
+ * insieme di condizioni da tenere allineato — la cosa che in questo prodotto e'
+ * gia' costata due volte, sugli orari e sullo stato delle richieste.
+ */
+export type TodayPayload = {
+  state:
+    | 'can_join'
+    | 'session_soon'
+    | 'action'
+    | 'awaiting_request'
+    | 'no_action'
+    | 'no_active_path'
+    | 'brand_new';
+  title: string;
+  body: string;
+  action: TodayAction | null;
+  otherActions: TodayAction[];
+  openActionCount: number;
+  nextBooking: {
+    bookingId: number;
+    pathId: number | null;
+    scheduledFor: string | null;
+    durationMin: number | null;
+    coachName: string;
+  } | null;
+  /** Se la stanza e' aperta adesso. Lo decide il server, con la regola del web. */
+  canJoinNow: boolean;
+  request: {
+    bookingId: number;
+    coachName: string;
+    requestedAt: string;
+    scheduledFor: string | null;
+  } | null;
+  activePaths: { pathId: number; coachName: string }[];
+  closedPath: { pathId: number; coachName: string; closedByRole: 'coach' | 'athlete' } | null;
+};
+
+export function fetchToday() {
+  return request<TodayPayload>('/api/mobile/today');
+}
+
+/**
+ * Genera l'identificativo di una richiesta di scrittura.
+ *
+ * Serve **prima** di inviare, non dopo: e' quello che rende un ritentativo
+ * innocuo. Su rete mobile una richiesta che non torna entro quindici secondi
+ * diventa un errore, e chi riprova non deve creare una seconda prova.
+ *
+ * `crypto.randomUUID` non esiste su tutte le versioni di React Native, quindi
+ * si costruisce a mano nella forma che il server accetta (UUID v4).
+ */
+export function newRequestId(): string {
+  const hex = (length: number) =>
+    Array.from({ length }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+  const variant = '89ab'[Math.floor(Math.random() * 4)];
+  return `${hex(8)}-${hex(4)}-4${hex(3)}-${variant}${hex(3)}-${hex(12)}`;
+}
+
+export type RecordedAttempt = TodayAttempt & {
+  /** Vero quando la riga esisteva gia': era un ritentativo, non una prova nuova. */
+  duplicate: boolean;
+};
+
+/**
+ * Registra una prova.
+ *
+ * **Non chiude l'azione.** La routine resta aperta e si puo' riprovare: e' il
+ * motivo per cui questa funzione esiste al posto di un «segna come fatto».
+ */
+export function recordAttempt(params: {
+  commitmentId: number;
+  outcome: 'provata' | 'non_ancora' | 'non_adatta';
+  occurredOn: string;
+  note?: string;
+  clientRequestId: string;
+}) {
+  return request<RecordedAttempt>(
+    `/api/mobile/commitments/${params.commitmentId}/attempts`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        outcome: params.outcome,
+        occurredOn: params.occurredOn,
+        note: params.note,
+        clientRequestId: params.clientRequestId,
+      }),
+    }
+  );
+}
+
+/**
+ * Corregge una prova.
+ *
+ * `version` e' quella che si era letta: se nel frattempo ha scritto un altro
+ * dispositivo, il server risponde `409` e non sovrascrive niente.
+ */
+export function editAttempt(params: {
+  attemptId: number;
+  version: number;
+  outcome: 'provata' | 'non_ancora' | 'non_adatta';
+  occurredOn: string;
+  note?: string;
+}) {
+  return request<TodayAttempt>(`/api/mobile/attempts/${params.attemptId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      version: params.version,
+      outcome: params.outcome,
+      occurredOn: params.occurredOn,
+      note: params.note,
+    }),
+  });
+}
+
+/** Mette in pausa un'azione, o la riprende. Il motivo e' facoltativo. */
+export function setCommitmentPause(params: {
+  commitmentId: number;
+  paused: boolean;
+  reason?: string;
+}) {
+  return request<{ commitmentId: number; pausedAt: string | null }>(
+    `/api/mobile/commitments/${params.commitmentId}/pause`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ paused: params.paused, reason: params.reason }),
+    }
+  );
+}
+
+/**
+ * Chiude il percorso con questo coach: non riceverai più nuove prove o azioni
+ * su questo percorso finché non lo riapri (o non lo riapre chi lo ha chiuso).
+ * Non tocca lo storico, non tocca le sessioni già prenotate.
+ */
+export function closeAthletePath(pathId: number) {
+  return request<{ pathId: number; status: 'active' | 'closed' }>(
+    `/api/mobile/paths/${pathId}/close`,
+    { method: 'POST' }
+  );
+}
+
+/**
+ * Riapre un percorso che avevi chiuso tu. Lo stesso gesto, dal lato del
+ * coach che lo aveva chiuso, non è raggiungibile da qui: solo chi ha chiuso
+ * può riaprire.
+ */
+export function reopenAthletePath(pathId: number) {
+  return request<{ pathId: number; status: 'active' | 'closed' }>(
+    `/api/mobile/paths/${pathId}/reopen`,
+    { method: 'POST' }
+  );
+}
+
 /** Motivi di rifiuto che vale la pena raccontare invece di dire «errore». */
+
 export const ROOM_ERROR_TEXT: Record<string, string> = {
   too_early: 'La stanza apre pochi minuti prima dell’orario della sessione.',
   past: 'Questa sessione è terminata.',

@@ -1,7 +1,13 @@
 import 'server-only';
-import { and, asc, desc, eq, gte, lte, or } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, isNull, lte, or } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
-import { sessionAiReports, sessionTranscriptSegments } from '@/lib/db/schema';
+import {
+  sessionAiCommitments,
+  sessionAiReports,
+  sessionTranscriptSegments,
+} from '@/lib/db/schema';
+import { findPath } from '@/lib/core/paths/path-store';
+import { listAttemptsByCommitmentIds } from './commitment-attempts-store';
 import { listCoachBookmarks } from './coach-bookmarks-store';
 import { listJourneyGoals } from './journey-goals-store';
 import {
@@ -12,6 +18,7 @@ import {
 import { mentalJourneyDependencies } from './mental-journey-store';
 import {
   buildSessionBrief,
+  type BriefActionUpdate,
   type BriefTranscriptSegment,
   type SessionBrief,
 } from './session-brief';
@@ -63,13 +70,17 @@ export async function getSessionBrief(params: {
 
   const latest = journey.timeline[0] ?? null;
 
-  const [goals, bookmarks, coachNote] = await Promise.all([
+  const [goals, bookmarks, coachNote, actionUpdates] = await Promise.all([
     listJourneyGoals({
       coachUserId: params.coachUserId,
       athleteUserId: params.athleteUserId,
     }),
     latest ? listCoachBookmarks(latest.sessionId, params.coachUserId) : [],
     latest ? loadCoachNote(latest.sessionId) : null,
+    loadActionUpdates({
+      coachUserId: params.coachUserId,
+      athleteUserId: params.athleteUserId,
+    }),
   ]);
 
   // Le battute che coprono quei segnalibri, e nient'altro. Una seduta lunga ha
@@ -94,6 +105,7 @@ export async function getSessionBrief(params: {
       : null,
     bookmarks,
     transcriptSegments: segments,
+    actionUpdates,
     // Distingue i due vuoti: un percorso senza sedute con riepilogo non è un
     // percorso che non ha lasciato niente in sospeso, e al coach vanno dette
     // due frasi diverse.
@@ -160,6 +172,68 @@ async function loadSegmentsAround(
         ]
       : [];
   });
+}
+
+/**
+ * Che cosa è successo alle azioni dell'atleta dopo l'ultima seduta.
+ *
+ * È il blocco «Dall'ultimo incontro», e chiude il ciclo: senza, il coach entra
+ * in seduta sapendo cosa avevano concordato ma non cosa è successo dopo — cioè
+ * proprio l'informazione per cui l'atleta si è preso la briga di scrivere.
+ *
+ * **Le parole sono le sue, riportate.** Nessun modello le tocca, niente viene
+ * riassunto. Una prova corretta si presenta come «Modificato» e mostra il testo
+ * corrente: la versione precedente non esiste da nessuna parte, ed è una
+ * decisione, non una mancanza.
+ *
+ * Restituisce vuoto quando il percorso non è ancora aperto, o quando l'atleta
+ * ha revocato la condivisione: in quel caso il coach vede il blocco vuoto con
+ * la sua spiegazione, non le righe di prima.
+ */
+async function loadActionUpdates(params: {
+  coachUserId: number;
+  athleteUserId: number;
+}): Promise<BriefActionUpdate[]> {
+  const path = await findPath(params);
+  if (!path || path.contributionsRevokedAt) return [];
+
+  const commitments = await db
+    .select({
+      id: sessionAiCommitments.id,
+      title: sessionAiCommitments.title,
+      pausedAt: sessionAiCommitments.pausedAt,
+      pausedReason: sessionAiCommitments.pausedReason,
+    })
+    .from(sessionAiCommitments)
+    .where(
+      and(
+        eq(sessionAiCommitments.coachUserId, params.coachUserId),
+        eq(sessionAiCommitments.athleteUserId, params.athleteUserId),
+        eq(sessionAiCommitments.owner, 'athlete'),
+        isNull(sessionAiCommitments.archivedAt)
+      )
+    );
+
+  if (commitments.length === 0) return [];
+
+  const attempts = await listAttemptsByCommitmentIds(
+    commitments.map((commitment) => commitment.id)
+  );
+
+  return commitments.map((commitment) => ({
+    commitmentId: commitment.id,
+    title: commitment.title,
+    paused: commitment.pausedAt
+      ? { at: commitment.pausedAt, reason: commitment.pausedReason }
+      : null,
+    attempts: (attempts.get(commitment.id) ?? []).map((attempt) => ({
+      id: attempt.id,
+      outcomeLabel: attempt.outcomeLabel,
+      occurredOn: attempt.occurredOn,
+      note: attempt.note,
+      edited: attempt.edited,
+    })),
+  }));
 }
 
 /**

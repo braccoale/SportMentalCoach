@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BackHandler, StyleSheet, View } from 'react-native';
+import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -7,9 +7,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { registerGlobals } from '@livekit/react-native';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { SessionsScreen } from './src/screens/SessionsScreen';
+import { TodayScreen } from './src/screens/TodayScreen';
 import { CallScreen } from './src/screens/CallScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { ThemeProvider, useTheme } from './src/theme';
+import { API_BASE_URL, IS_TEST_ENV } from './src/lib/config';
 import {
   onNotificationTap,
   registerForPushNotifications,
@@ -56,6 +58,24 @@ export default function App() {
   const pushToken = useRef<string | null>(null);
 
   /*
+   * Quale delle due schermate di base si vede.
+   *
+   * **Non e' una rotta.** Tenerla fuori da `route` e' quello che salva la
+   * chiamata: `CallScreen` vive come sovrapposizione, e una chiamata ridotta
+   * deve poter restare viva mentre sotto si passa da «Oggi» all'elenco. Se il
+   * cambio di scheda passasse dallo stesso stato della chiamata, cambiare
+   * scheda la smonterebbe — cioe' riaggancerebbe la stanza LiveKit a meta'
+   * seduta.
+   *
+   * Ed e' anche il motivo per cui qui non entra una libreria di navigazione:
+   * per due schede non serve, e ognuna porterebbe con se' il proprio ciclo di
+   * vita da conciliare con quello della chiamata.
+   */
+  const [baseTab, setBaseTab] = useState<'today' | 'sessions'>('sessions');
+  /** `null` finche' il server non lo dice: la barra non si mostra a indovinare. */
+  const [isCoach, setIsCoach] = useState<boolean | null>(null);
+
+  /*
    * Il carattere delle icone va caricato, non dato per scontato.
    *
    * `@expo/vector-icons` disegna le icone con un font, e finché quel font non
@@ -85,6 +105,8 @@ export default function App() {
 
   const signedIn = useCallback(() => {
     setRoute({ name: 'sessions' });
+    setBaseTab('sessions');
+    setIsCoach(null);
     // Il permesso si chiede a persona riconosciuta, non all'ignoto che apre
     // l'app per la prima volta.
     void registerForPushNotifications().then((token) => {
@@ -95,7 +117,23 @@ export default function App() {
   const signedOut = useCallback(() => {
     void unregisterPushNotifications(pushToken.current);
     pushToken.current = null;
+    setIsCoach(null);
+    setBaseTab('sessions');
     setRoute({ name: 'login' });
+  }, []);
+
+  /*
+   * Il ruolo arriva una volta sola, e l'atleta apre su «Oggi».
+   *
+   * E' la schermata per cui l'app esiste fra due sedute; il coach invece apre
+   * l'app per la seduta, e per lui la barra non compare affatto.
+   */
+  const learnRole = useCallback((coach: boolean) => {
+    setIsCoach((current) => {
+      if (current === coach) return current;
+      if (!coach) setBaseTab('today');
+      return coach;
+    });
   }, []);
 
   /*
@@ -168,6 +206,16 @@ export default function App() {
   return (
     <ThemeProvider>
       <SafeAreaProvider>
+        {/*
+          L'indicatore d'ambiente, sempre in cima, sopra ogni schermata.
+
+          Non e' un dettaglio estetico: e' l'unica cosa che impedisce a chi sta
+          collaudando di scambiare un dato di prova per uno vero, o viceversa.
+          Compare solo quando `EXPO_PUBLIC_ENV=test` — l'app di produzione non
+          lo mostra mai, e non lo mostrera' mai per errore, perche' il valore
+          di default di `ENV` e` `'production'`.
+        */}
+        {IS_TEST_ENV ? <TestEnvironmentBanner /> : null}
         <Chrome
           route={route}
           onSignedIn={signedIn}
@@ -176,6 +224,10 @@ export default function App() {
           onOpenSettings={() => setRoute({ name: 'settings' })}
           onBack={() => setRoute({ name: 'sessions' })}
           onMinimize={setMinimized}
+          baseTab={baseTab}
+          onBaseTab={setBaseTab}
+          isCoach={isCoach}
+          onRole={learnRole}
         />
       </SafeAreaProvider>
     </ThemeProvider>
@@ -194,6 +246,10 @@ function Chrome({
   onOpenSettings,
   onBack,
   onMinimize,
+  baseTab,
+  onBaseTab,
+  isCoach,
+  onRole,
 }: {
   route: Route;
   onSignedIn: () => void;
@@ -202,8 +258,12 @@ function Chrome({
   onOpenSettings: () => void;
   onBack: () => void;
   onMinimize: (minimized: boolean) => void;
+  baseTab: 'today' | 'sessions';
+  onBaseTab: (tab: 'today' | 'sessions') => void;
+  isCoach: boolean | null;
+  onRole: (isCoach: boolean) => void;
 }) {
-  const { resolved } = useTheme();
+  const { resolved, theme } = useTheme();
 
   return (
     <>
@@ -225,7 +285,97 @@ function Chrome({
       {(route.name === 'sessions' ||
         route.name === 'settings' ||
         (route.name === 'call' && route.minimized)) && (
-        <SessionsScreen onOpenCall={onOpenCall} onOpenSettings={onOpenSettings} />
+        <>
+          {/*
+            Le due schermate di base restano **entrambe montate**, e si nasconde
+            quella che non serve.
+
+            Smontarle a ogni cambio di scheda vorrebbe dire ricaricare da capo:
+            elenco vuoto, rotella, e — se la richiesta non tornasse — niente. E'
+            lo stesso motivo per cui le impostazioni si sovrappongono all'elenco
+            invece di sostituirlo. `display: none` toglie dallo schermo senza
+            toccare lo stato di chi c'e' dentro.
+
+            L'elenco e' montato sempre, anche per l'atleta che apre su «Oggi»:
+            e' lui a chiedere al server il ruolo, ed e' da quella risposta che
+            dipende la barra.
+          */}
+          {isCoach === false ? (
+            <View
+              style={[
+                StyleSheet.absoluteFill,
+                baseTab === 'today' ? null : styles.hidden,
+              ]}
+              pointerEvents={baseTab === 'today' ? 'auto' : 'none'}
+            >
+              <TodayScreen
+                onOpenSettings={onOpenSettings}
+                onOpenCall={onOpenCall}
+              />
+            </View>
+          ) : null}
+
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              isCoach === false && baseTab === 'today' ? styles.hidden : null,
+            ]}
+            pointerEvents={
+              isCoach === false && baseTab === 'today' ? 'none' : 'auto'
+            }
+          >
+            <SessionsScreen
+              onOpenCall={onOpenCall}
+              onOpenSettings={onOpenSettings}
+              onRole={onRole}
+            />
+          </View>
+
+          {/*
+            La barra compare **solo all'atleta**, e solo quando il server ha
+            detto il ruolo: mostrarla mentre si indovina significherebbe farla
+            comparire e sparire sotto il dito. Il coach apre l'app per la
+            seduta, e «Oggi» non e' una schermata sua.
+
+            Non compare nemmeno sopra una chiamata ridotta: li' la barra della
+            chiamata ha la precedenza, ed e' l'unica cosa che deve stare in
+            fondo allo schermo.
+          */}
+          {isCoach === false && route.name !== 'call' ? (
+            <View
+              style={[
+                styles.tabs,
+                { backgroundColor: theme.ink2, borderTopColor: theme.line },
+              ]}
+            >
+              {(
+                [
+                  ['today', 'Oggi'],
+                  ['sessions', 'Sessioni'],
+                ] as const
+              ).map(([key, label]) => (
+                <Pressable
+                  key={key}
+                  accessibilityRole="tab"
+                  accessibilityLabel={label}
+                  accessibilityState={{ selected: baseTab === key }}
+                  onPress={() => onBaseTab(key)}
+                  style={styles.tab}
+                >
+                  <Text
+                    style={{
+                      color: baseTab === key ? theme.hi : theme.low,
+                      fontSize: 13,
+                      fontWeight: baseTab === key ? '700' : '500',
+                    }}
+                  >
+                    {label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+        </>
       )}
       {route.name === 'settings' && (
         // Riempie lo schermo per intero: due fratelli con `flex: 1` se lo
@@ -259,3 +409,70 @@ function Chrome({
     </>
   );
 }
+
+/**
+ * L'indicatore d'ambiente.
+ *
+ * Mostra l'host a cui l'app sta parlando, non solo la scritta «test»: due
+ * ambienti di prova diversi (il backend isolato di oggi, quello di domani)
+ * si distinguono a colpo d'occhio, invece di doversi fidare di un'etichetta
+ * uguale per entrambi.
+ */
+function TestEnvironmentBanner() {
+  const host = API_BASE_URL.replace(/^https?:\/\//, '');
+  return (
+    <View style={testBannerStyles.bar} pointerEvents="none">
+      <Text style={testBannerStyles.text} numberOfLines={1}>
+        AMBIENTE DI TEST · {host}
+      </Text>
+    </View>
+  );
+}
+
+const testBannerStyles = StyleSheet.create({
+  bar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    // Sopra tutto il resto, comprese le schermate di chiamata: se un giorno
+    // qualcuno testasse LiveKit con questa build, deve continuare a vederlo.
+    zIndex: 1000,
+    backgroundColor: '#7a1fa2',
+    paddingTop: 44,
+    paddingBottom: 6,
+    alignItems: 'center',
+  },
+  text: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+});
+
+const styles = StyleSheet.create({
+  tabs: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    // Sopra la tacca dei telefoni senza tasto: la barra non e' cliccabile
+    // fin sul bordo, e le due voci restano lontane dal gesto di sistema.
+    paddingBottom: 22,
+    paddingTop: 10,
+  },
+  /*
+   * Nascosta, non smontata: lo stato della schermata sotto resta dov'era, e
+   * tornarci non fa ripartire nessuna richiesta.
+   */
+  hidden: { display: 'none' },
+  tab: {
+    flex: 1,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

@@ -42,7 +42,9 @@ import {
 import {
   addJourneyGoalAction,
   setJourneyGoalStatusAction,
+  setPathStatusAction,
 } from './actions';
+import { findPath } from '@/lib/core/paths/path-store';
 import { AthleteHeader } from '@/components/session-compass/athlete-header';
 import {
   JourneyTimelineSection,
@@ -131,6 +133,7 @@ export default async function CoachAthletePage({
   const awaitingReview = history.filter(
     (booking) => booking.aiReportStatus === 'ready_for_review'
   ).length;
+  const path = await findPath({ coachUserId: user.id, athleteUserId: targetId });
   const [journey, storedGoals] = await Promise.all([
     hasAiSessionNotes
       ? loadJourney(targetId, user.id, null)
@@ -220,6 +223,67 @@ export default async function CoachAthletePage({
           }
         />
       </div>
+
+      {/* Chiusura e riapertura del percorso coach-atleta (`coach_athlete_paths`
+          — se arrivano nuove azioni/prove da questo atleta), raggiungibili da
+          qui invece che solo dalla rotta HTTP che le rende possibili.
+          «Stato della collaborazione», non «Il percorso»: quel titolo è già
+          quello della striscia del percorso mentale poco sotto, e sono due
+          cose diverse — non si può usare la stessa parola per entrambe nella
+          stessa pagina. Un'etichetta e una riga di spiegazione per gesto, mai
+          un'azione muta. */}
+      {path ? (
+        <div className="mt-4 rounded-2xl border border-gray-200/70 bg-white p-4">
+          <h2 className="text-sm font-bold text-gray-900">
+            Stato della collaborazione
+          </h2>
+          {path.status === 'active' ? (
+            <>
+              <p className="mt-1 text-sm text-gray-500">
+                Attivo. Chiuderlo non cancella le sessioni prenotate né lo
+                storico: smette solo di ricevere nuove azioni e prove
+                dall&apos;atleta, finché non lo riapri tu (o lo riapre lui, se
+                sarà lui a chiuderlo).
+              </p>
+              <form action={setPathStatusAction} className="mt-3">
+                <input type="hidden" name="athleteUserId" value={athlete.userId} />
+                <input type="hidden" name="pathAction" value="close" />
+                <button
+                  type="submit"
+                  className="rounded-full border border-red-200 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+                >
+                  Chiudi il percorso
+                </button>
+              </form>
+            </>
+          ) : path.closedByRole === 'coach' ? (
+            <>
+              <p className="mt-1 text-sm text-gray-500">
+                Chiuso da te
+                {path.closedAt ? ` il ${formatDate(path.closedAt)}` : ''}. Lo
+                storico resta visibile a entrambi. Riaprirlo permette di
+                nuovo nuove azioni e prove.
+              </p>
+              <form action={setPathStatusAction} className="mt-3">
+                <input type="hidden" name="athleteUserId" value={athlete.userId} />
+                <input type="hidden" name="pathAction" value="reopen" />
+                <button
+                  type="submit"
+                  className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+                >
+                  Riapri il percorso
+                </button>
+              </form>
+            </>
+          ) : (
+            <p className="mt-1 text-sm text-gray-500">
+              Chiuso dall&apos;atleta
+              {path.closedAt ? ` il ${formatDate(path.closedAt)}` : ''}. Solo
+              lui può riaprirlo.
+            </p>
+          )}
+        </div>
+      ) : null}
 
       {/* Il percorso — la prima risposta della pagina: dove siamo arrivati.
           Sta in cima perché è la domanda con cui un coach apre la scheda di

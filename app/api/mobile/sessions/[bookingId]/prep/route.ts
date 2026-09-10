@@ -82,6 +82,7 @@ export async function GET(
         points: [],
         goals: [],
         lastSession: null,
+        sinceLastSession: null,
         emptyReason: 'no_sessions',
       });
     }
@@ -110,6 +111,30 @@ export async function GET(
             bookmarks: brief.lastSession.bookmarks,
           }
         : null,
+      /*
+       * Che cosa e' arrivato dall'atleta fra le due sedute: le prove che ha
+       * registrato e le azioni che ha messo in pausa.
+       *
+       * E' l'unica parte del foglio che il coach non ha gia' letto — tutto il
+       * resto lo ha scritto o validato lui — ed e' la ragione per cui l'atleta
+       * si e' preso la briga di scrivere. Le sue parole passano cosi' come
+       * sono: nessun modello le tocca, niente viene riassunto.
+       */
+      sinceLastSession: brief.sinceLastSession
+        ? {
+            actions: brief.sinceLastSession.actions.map((action) => ({
+              commitmentId: action.commitmentId,
+              title: action.title,
+              paused: action.paused
+                ? {
+                    at: action.paused.at.toISOString(),
+                    reason: action.paused.reason,
+                  }
+                : null,
+              attempts: action.attempts,
+            })),
+          }
+        : null,
       emptyReason: brief.emptyReason,
     });
   } catch (error) {
@@ -123,6 +148,7 @@ export async function GET(
         points: [],
         goals: [],
         lastSession: null,
+        sinceLastSession: null,
         emptyReason: 'no_sessions',
       });
     }

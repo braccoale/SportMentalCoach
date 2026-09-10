@@ -1,4 +1,4 @@
-import { Sparkles, Target, Bookmark, PenLine } from 'lucide-react';
+import { Sparkles, Target, Bookmark, PenLine, Footprints, PauseCircle } from 'lucide-react';
 import {
   COLLAPSED_EXCERPT_TURNS,
   type BriefTurn,
@@ -54,6 +54,80 @@ export function SessionBriefSection({
         <EmptyBrief reason={brief?.emptyReason ?? 'no_sessions'} />
       ) : (
         <div className="mt-5 space-y-6">
+          {/*
+            «Dall'ultimo incontro» sta **per primo**, sopra gli obiettivi.
+
+            È l'unica parte del foglio che il coach non ha già letto: gli
+            obiettivi li ha scritti lui, la sintesi l'ha approvata lui, i
+            segnalibri li ha messi lui. Questo è arrivato dall'altra parte, fra
+            una seduta e l'altra, ed è la ragione per cui l'atleta si è preso la
+            briga di scrivere.
+          */}
+          {brief.sinceLastSession ? (
+            <Block
+              icon={<Footprints className="h-4 w-4" />}
+              title="Dall’ultimo incontro"
+            >
+              <ul className="space-y-4">
+                {brief.sinceLastSession.actions.map((action) => (
+                  <li key={action.commitmentId}>
+                    <p className="text-[15px] font-medium leading-6 text-gray-900">
+                      {action.title}
+                    </p>
+
+                    {/*
+                      La pausa non è «abbandonata» e non è «completata»: è messa
+                      da parte, e il coach deve poterla leggere come tale. Con
+                      il motivo solo se l'atleta ha voluto darlo.
+                    */}
+                    {action.paused ? (
+                      <p className="mt-1 flex items-start gap-2 text-sm leading-6 text-amber-700">
+                        <PauseCircle className="mt-1 h-3.5 w-3.5 shrink-0" />
+                        <span>
+                          In pausa dal {formatDay(action.paused.at)}
+                          {action.paused.reason ? ` · «${action.paused.reason}»` : ''}
+                        </span>
+                      </p>
+                    ) : null}
+
+                    {action.attempts.length > 0 ? (
+                      <ul className="mt-2 space-y-1.5">
+                        {action.attempts.map((attempt) => (
+                          <li
+                            key={attempt.id}
+                            className="text-sm leading-6 text-gray-700"
+                          >
+                            <span className="mr-2 font-semibold text-gray-500">
+                              {formatCalendarDay(attempt.occurredOn)}
+                            </span>
+                            <span className="font-medium text-gray-900">
+                              {attempt.outcomeLabel}
+                            </span>
+                            {/*
+                              «Modificato» è tutto ciò che il coach vede di una
+                              correzione: il testo precedente non esiste da
+                              nessuna parte, e non è una dimenticanza.
+                            */}
+                            {attempt.edited ? (
+                              <span className="ml-2 text-xs text-gray-500">
+                                Modificato
+                              </span>
+                            ) : null}
+                            {attempt.note ? (
+                              <span className="block text-gray-700">
+                                «{attempt.note}»
+                              </span>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </Block>
+          ) : null}
+
           {brief.goals.length > 0 ? (
             <Block icon={<Target className="h-4 w-4" />} title="Dove siete">
               <ul className="space-y-2">
@@ -278,4 +352,18 @@ function formatDay(date: Date): string {
     day: 'numeric',
     month: 'long',
   }).format(date);
+}
+
+/**
+ * «2026-09-13» → «13 settembre».
+ *
+ * La data della prova è un giorno di calendario dichiarato dall'atleta, non un
+ * istante: costruirci sopra un `Date` e formattarlo lo sposterebbe di un giorno
+ * per metà dell'anno, perché una data senza ora vive a mezzanotte UTC e in
+ * Italia quella mezzanotte è già il giorno prima. Si formatta a mezzogiorno,
+ * dove nessun fuso può spostarla.
+ */
+function formatCalendarDay(value: string): string {
+  const parsed = new Date(`${value}T12:00:00`);
+  return Number.isNaN(parsed.getTime()) ? value : formatDay(parsed);
 }

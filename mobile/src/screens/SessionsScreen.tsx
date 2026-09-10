@@ -46,9 +46,19 @@ const FILTERS: { key: Filter; label: string }[] = [
 export function SessionsScreen({
   onOpenCall,
   onOpenSettings,
+  onRole,
 }: {
   onOpenCall: (session: UpcomingSession) => void;
   onOpenSettings: () => void;
+  /**
+   * Il ruolo, appena il server lo dice.
+   *
+   * Serve a `App` per decidere se mostrare la barra con «Oggi»: quella scheda
+   * e' dell'atleta, e un coach non deve vedersela comparire. Passa di qui
+   * invece di una seconda richiesta perche' questa schermata il ruolo lo
+   * chiede gia'.
+   */
+  onRole?: (isCoach: boolean) => void;
 }) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -103,6 +113,7 @@ export function SessionsScreen({
       setPast(data.past ?? []);
       if (typeof data.viewerIsCoach === 'boolean') {
         setServerIsCoach(data.viewerIsCoach);
+        onRole?.(data.viewerIsCoach);
       }
       setError(null);
     } catch {
@@ -110,7 +121,7 @@ export function SessionsScreen({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onRole]);
 
   useEffect(() => {
     void load();

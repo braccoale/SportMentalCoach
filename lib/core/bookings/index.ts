@@ -37,6 +37,7 @@ import { getVerticalConfig, t } from '@/lib/core/config';
 import { resolveDisplayName } from '@/lib/core/format';
 import { notify } from '@/lib/core/notifications';
 import { stopBookingAiNotesRecordings } from '@/lib/core/ai-session-notes/recording';
+import { ensurePathForAcceptedBooking } from '@/lib/core/paths/path-store';
 import type { LiveKitSessionControl } from '@/lib/core/ai-session-notes/livekit-session-control';
 import {
   REQUEST_EXPIRY_GRACE_MINUTES,
@@ -957,6 +958,14 @@ export async function createCoachBookingRequest(params: {
   });
   if (!creation.ok) return creation;
 
+  // L'appuntamento creato dal coach nasce già `accepted`: è un sì esplicito, e
+  // apre il percorso esattamente come l'accettazione di una richiesta.
+  await activatePathQuietly({
+    coachUserId: params.coachUserId,
+    athleteUserId: params.clientUserId,
+    bookingId: creation.bookingId,
+  });
+
   // Una chiamata avviata adesso non è un appuntamento da segnare in agenda:
   // l'atleta deve poter entrare con un tocco, quindi riceve un evento suo che
   // punta direttamente alla stanza.
@@ -1184,6 +1193,35 @@ export async function getCoachBookings(
  * Coach decision on a pending request. Verifies ownership and that the booking
  * is still `requested` before transitioning to `accepted` / `declined`.
  */
+/**
+ * Apre il percorso, senza poter far fallire l'accettazione.
+ *
+ * Chi ha premuto il pulsante voleva accettare una richiesta: se l'apertura del
+ * percorso andasse storta — una corsa fra due accettazioni, un vincolo — il
+ * coach non deve vedersi rifiutare l'operazione che ha chiesto. L'errore resta
+ * nei log del server e il percorso si apre alla prossima accettazione, perche'
+ * `ensurePathForAcceptedBooking` e' idempotente.
+ */
+async function activatePathQuietly(params: {
+  coachUserId: number;
+  athleteUserId: number;
+  bookingId: number;
+}): Promise<void> {
+  try {
+    await ensurePathForAcceptedBooking({
+      coachUserId: params.coachUserId,
+      athleteUserId: params.athleteUserId,
+      bookingId: params.bookingId,
+      actorUserId: params.coachUserId,
+    });
+  } catch (error) {
+    console.error('[bookings] apertura percorso fallita', {
+      bookingId: params.bookingId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 export async function decideBooking(params: {
   bookingId: number;
   coachUserId: number;
@@ -1224,6 +1262,23 @@ export async function decideBooking(params: {
     .where(eq(bookings.id, params.bookingId));
 
   if (params.decision === 'accepted') {
+    /*
+     * Accettare è l'evento che apre il percorso.
+     *
+     * È il primo istante in cui il coach ha detto sì *a questa persona*: prima
+     * c'era una domanda senza risposta. Da qui in avanti l'atleta può mandargli
+     * quello che scrive di sé — e questa è la porta, l'unica.
+     *
+     * Non riapre mai un percorso che qualcuno ha chiuso: in quel caso
+     * `ensurePathForAcceptedBooking` restituisce una proposta, e la sessione si
+     * svolge lo stesso perché la chiamata non dipende dal percorso.
+     */
+    await activatePathQuietly({
+      coachUserId: params.coachUserId,
+      athleteUserId: booking.clientId,
+      bookingId: booking.id,
+    });
+
     await notify('booking_accepted', booking.clientId, {
       bookingId: booking.id,
       actorUserId: params.coachUserId,

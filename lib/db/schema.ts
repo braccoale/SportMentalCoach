@@ -1674,6 +1674,29 @@ export const sessionAiCommitments = pgTable(
     manuallyEdited: boolean('manually_edited').notNull().default(false),
     /** Impegno non più presente in una versione approvata successiva. */
     archivedAt: timestamp('archived_at', { withTimezone: true }),
+    /**
+     * L'atleta ha messo in pausa questa azione.
+     *
+     * **Perché una colonna e non uno stato.** «In pausa» sarebbe stato il
+     * quinto valore naturale di `status`, e sarebbe stato un errore: sette
+     * punti del prodotto partizionano oggi quei quattro valori in «aperto» e
+     * «chiuso» — `components/athlete-next-steps.tsx`, i due pannelli del
+     * Session Compass, quattro punti di `mental-journey.ts`, le etichette dei
+     * due PDF. Un quinto valore non appartiene a nessuna delle due metà: un
+     * impegno in pausa **sparirebbe** dagli elenchi senza che nessun errore lo
+     * dica.
+     *
+     * Con una colonna ortogonale, chi non la legge continua a vedere
+     * esattamente quello che vedeva: l'impegno resta `pending` o
+     * `in_progress`. La pausa non è né una conclusione né un abbandono, e non
+     * tocca lo stato dell'obiettivo del percorso.
+     */
+    pausedAt: timestamp('paused_at', { withTimezone: true }),
+    /** Perché, se l'atleta ha voluto dirlo. Facoltativo per scelta. */
+    pausedReason: text('paused_reason'),
+    pausedBy: integer('paused_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
     createdDate: timestamp('createddate', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -1717,8 +1740,293 @@ export const sessionAiCommitments = pgTable(
       'session_ai_commitments_timestamp_check',
       sql`${table.sourceTimestampMs} >= 0`
     ),
+    check(
+      'session_ai_commitments_paused_check',
+      sql`(${table.pausedAt} is not null) or (${table.pausedReason} is null and ${table.pausedBy} is null)`
+    ),
+    check(
+      'session_ai_commitments_paused_reason_len',
+      sql`${table.pausedReason} is null or length(btrim(${table.pausedReason})) between 1 and 500`
+    ),
   ]
 );
+
+export const PATH_STATUSES = ['active', 'closed'] as const;
+export type PathStatus = (typeof PATH_STATUSES)[number];
+
+export const PATH_ACTOR_ROLES = ['coach', 'athlete'] as const;
+export type PathActorRole = (typeof PATH_ACTOR_ROLES)[number];
+
+/**
+ * Il percorso fra un coach e un atleta, dichiarato invece che dedotto.
+ *
+ * **Perché esiste.** Finora «questo coach segue questo atleta» si ricavava a
+ * ogni lettura: `coachHasRelationship` risponde vero se esiste **una qualunque**
+ * prenotazione fra i due, in **qualunque** stato, da **sempre** — una richiesta
+ * rifiutata basta — e `getAthleteRelationshipCoaches` ci aggiunge i preferiti,
+ * cioè un coach che non ha mai risposto a nessuno. Va bene per ordinare un
+ * elenco; non va bene per decidere a chi l'atleta può mandare quello che
+ * scrive.
+ *
+ * Qui la relazione ha un inizio con un nome e una fine con una data. Si attiva
+ * su un evento solo — una prenotazione che arriva ad `accepted`, cioè il primo
+ * momento in cui il coach ha detto sì a questa persona — e si chiude per gesto
+ * esplicito di una delle due parti.
+ *
+ * **Non sostituisce** `coachHasRelationship` nei moduli storici: cambiare
+ * l'autorizzazione della Mental Journey dentro un rilascio che riguarda altro
+ * significherebbe muovere due cose insieme. La differenza è voluta e va sotto
+ * test: un coach può leggere il percorso mentale di un atleta con cui il
+ * percorso è chiuso, ma non riceverne contributi nuovi.
+ */
+export const coachAthletePaths = pgTable(
+  'coach_athlete_paths',
+  {
+    id: serial('id').primaryKey(),
+    coachUserId: integer('coach_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    athleteUserId: integer('athlete_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    status: varchar('status', { length: 16 }).notNull().default('active'),
+    activatedAt: timestamp('activated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    /** La prenotazione accettata che ha autorizzato l'attivazione. */
+    activationBookingId: integer('activation_booking_id').references(
+      () => bookings.id,
+      { onDelete: 'set null' }
+    ),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    /**
+     * Chi ha chiuso. Decide chi può riaprire: accettare una prenotazione nuova
+     * **non** riapre un percorso chiuso, lo propone soltanto. Una riapertura
+     * involontaria rimetterebbe in circolo contributi che qualcuno aveva
+     * deliberatamente fermato.
+     */
+    closedByRole: varchar('closed_by_role', { length: 8 }),
+    closedBy: integer('closed_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    /**
+     * L'atleta ha revocato la condivisione dei propri contributi.
+     *
+     * È un gesto diverso dalla chiusura: il percorso resta attivo, niente viene
+     * cancellato, e il coach smette di vedere ciò che l'atleta ha scritto.
+     */
+    contributionsRevokedAt: timestamp('contributions_revoked_at', {
+      withTimezone: true,
+    }),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedDate: timestamp('updateddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedBy: integer('updatedby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    unique('coach_athlete_paths_pair_unique').on(
+      table.coachUserId,
+      table.athleteUserId
+    ),
+    index('coach_athlete_paths_athlete_idx').on(
+      table.athleteUserId,
+      table.status
+    ),
+    index('coach_athlete_paths_coach_idx').on(table.coachUserId, table.status),
+    check(
+      'coach_athlete_paths_status_check',
+      sql`${table.status} in ('active', 'closed')`
+    ),
+    check(
+      'coach_athlete_paths_closed_complete',
+      sql`(${table.status} = 'closed') = (${table.closedAt} is not null)`
+    ),
+    check(
+      'coach_athlete_paths_closed_role_check',
+      sql`${table.closedByRole} is null or ${table.closedByRole} in ('coach', 'athlete')`
+    ),
+    check(
+      'coach_athlete_paths_distinct_people',
+      sql`${table.coachUserId} <> ${table.athleteUserId}`
+    ),
+  ]
+);
+
+export type CoachAthletePath = typeof coachAthletePaths.$inferSelect;
+export type NewCoachAthletePath = typeof coachAthletePaths.$inferInsert;
+
+export const PATH_EVENTS = ['activated', 'closed', 'reopened'] as const;
+export type PathEvent = (typeof PATH_EVENTS)[number];
+
+/**
+ * Le transizioni di un percorso: quando si è aperto, chi l'ha chiuso, quante
+ * volte è stato riaperto.
+ *
+ * Tre eventi, non un registro generico: la domanda a cui deve rispondere è
+ * finita, e una tabella che accettasse qualunque tipo di evento smetterebbe di
+ * poterla rispondere con una query sola. Nessun testo di contributo entra qui —
+ * identificativi, ruoli e istanti, come già impone `pipeline-log.ts`.
+ */
+export const coachAthletePathEvents = pgTable(
+  'coach_athlete_path_events',
+  {
+    id: serial('id').primaryKey(),
+    pathId: integer('path_id')
+      .notNull()
+      .references(() => coachAthletePaths.id, { onDelete: 'cascade' }),
+    event: varchar('event', { length: 16 }).notNull(),
+    actorRole: varchar('actor_role', { length: 8 }).notNull(),
+    actorId: integer('actor_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    bookingId: integer('booking_id').references(() => bookings.id, {
+      onDelete: 'set null',
+    }),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index('coach_athlete_path_events_path_idx').on(
+      table.pathId,
+      table.createdDate
+    ),
+    check(
+      'coach_athlete_path_events_event_check',
+      sql`${table.event} in ('activated', 'closed', 'reopened')`
+    ),
+    check(
+      'coach_athlete_path_events_actor_check',
+      sql`${table.actorRole} in ('coach', 'athlete', 'system')`
+    ),
+  ]
+);
+
+export type CoachAthletePathEvent = typeof coachAthletePathEvents.$inferSelect;
+
+export const ATTEMPT_OUTCOMES = ['provata', 'non_ancora', 'non_adatta'] as const;
+export type AttemptOutcome = (typeof ATTEMPT_OUTCOMES)[number];
+
+/**
+ * Le prove di un'azione concordata: quante volte l'atleta ci ha provato, quando
+ * e com'è andata.
+ *
+ * **Perché una tabella e non una colonna.** Una routine mentale si prova più
+ * volte, ed è nella differenza fra le occasioni che sta quello di cui si parlerà
+ * in seduta: provata mercoledì in allenamento, non adatta sabato in partita. Un
+ * unico campo «ultimo esito» sull'impegno avrebbe sovrascritto la prima prova
+ * con la seconda, e sabato non ci sarebbe stato più niente da riprendere.
+ *
+ * **L'autore è sempre l'atleta.** Il coach non scrive mai qui: le sue decisioni
+ * restano su `session_ai_commitments`, dove `manually_edited` le dichiara già.
+ * È così che l'osservazione di chi si allena resta distinguibile dalla
+ * valutazione di chi lo segue.
+ *
+ * **Nessuna prova chiude niente.** Lo stato operativo dell'azione e lo stato
+ * dell'obiettivo del percorso non vengono toccati da una riga di questa
+ * tabella. La conclusione dell'azione resta un atto del coach.
+ */
+export const commitmentAttempts = pgTable(
+  'commitment_attempts',
+  {
+    id: serial('id').primaryKey(),
+    commitmentId: integer('commitment_id')
+      .notNull()
+      .references(() => sessionAiCommitments.id, { onDelete: 'cascade' }),
+    /** Denormalizzato: serve alla RLS e ai test di isolamento fra coach. */
+    athleteUserId: integer('athlete_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /**
+     * Il percorso su cui la prova è nata. Un contributo appartiene alla
+     * relazione in cui è stato scritto e non segue l'atleta se cambia coach.
+     */
+    pathId: integer('path_id')
+      .notNull()
+      .references(() => coachAthletePaths.id, { onDelete: 'restrict' }),
+    outcome: varchar('outcome', { length: 16 }).notNull(),
+    /** Facoltativa su tutti e tre gli esiti, non solo quando è andata male. */
+    note: text('note'),
+    /** Quando ci ha provato, dichiarato da lui. Non l'istante del salvataggio. */
+    occurredOn: date('occurred_on').notNull(),
+    /**
+     * Idempotenza dei ritentativi.
+     *
+     * Il telefono genera questo valore **prima** di inviare. Su rete mobile un
+     * invio che non torna entro quindici secondi diventa un errore
+     * (`lib/api.ts`), e chi riprova non deve creare una seconda prova: il
+     * vincolo di unicità fa ricadere il ritentativo sulla riga già scritta.
+     * Vale anche per il doppio tocco sul pulsante.
+     */
+    clientRequestId: uuid('client_request_id').notNull(),
+    /**
+     * Gettone di concorrenza ottimistica.
+     *
+     * Una correzione arriva con la versione che il client aveva letto: se nel
+     * frattempo qualcuno ha scritto, l'aggiornamento non trova la riga e la
+     * risposta è un conflitto, non una sovrascrittura silenziosa.
+     */
+    version: integer('version').notNull().default(1),
+    /**
+     * Quando è stata corretta, se lo è stata.
+     *
+     * Il testo precedente **non** viene conservato: il coach legge il contenuto
+     * corrente con l'indicazione «Modificato». Tenere le versioni per non
+     * mostrarle sarebbe un archivio senza uno scopo dichiarato.
+     */
+    editedAt: timestamp('edited_at', { withTimezone: true }),
+    /** Tolta dalla vista di entrambi. Non è una cancellazione: il testo resta. */
+    hiddenAt: timestamp('hidden_at', { withTimezone: true }),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: integer('createdby')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    updatedDate: timestamp('updateddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedBy: integer('updatedby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    unique('commitment_attempts_idempotency_unique').on(
+      table.commitmentId,
+      table.clientRequestId
+    ),
+    index('commitment_attempts_commitment_idx').on(
+      table.commitmentId,
+      table.occurredOn
+    ),
+    index('commitment_attempts_athlete_idx').on(
+      table.athleteUserId,
+      table.createdDate
+    ),
+    index('commitment_attempts_path_idx').on(table.pathId, table.createdDate),
+    check(
+      'commitment_attempts_outcome_check',
+      sql`${table.outcome} in ('provata', 'non_ancora', 'non_adatta')`
+    ),
+    check(
+      'commitment_attempts_note_len',
+      sql`${table.note} is null or length(btrim(${table.note})) between 1 and 1000`
+    ),
+    check('commitment_attempts_version_check', sql`${table.version} >= 1`),
+    check(
+      'commitment_attempts_edited_check',
+      sql`(${table.version} > 1) = (${table.editedAt} is not null)`
+    ),
+  ]
+);
+
+export type CommitmentAttempt = typeof commitmentAttempts.$inferSelect;
+export type NewCommitmentAttempt = typeof commitmentAttempts.$inferInsert;
 
 export const AI_AUDIT_EVENT_TYPES = [
   'feature_requested',
@@ -1759,6 +2067,16 @@ export const AI_AUDIT_EVENT_TYPES = [
   'commitment_archived',
   'commitment_updated_by_coach',
   'commitment_updated_by_athlete',
+  /**
+   * Le prove e la pausa, registrate come tutto il resto: identificativi,
+   * autore, istante ed esito. **Mai il testo della nota**, né quello nuovo né
+   * quello sostituito — è la stessa regola di `pipeline-log.ts`, e qui conta
+   * doppio perché la nota è scritta da chi si allena, spesso minorenne.
+   */
+  'commitment_attempt_recorded',
+  'commitment_attempt_edited',
+  'commitment_paused_by_athlete',
+  'commitment_resumed_by_athlete',
 ] as const;
 export type AiAuditEventType = (typeof AI_AUDIT_EVENT_TYPES)[number];
 
@@ -1798,9 +2116,19 @@ export const sessionAiAuditEvents = pgTable(
       table.sessionAiNotesId,
       table.createdDate
     ),
+    /*
+     * L'elenco lo scrive `AI_AUDIT_EVENT_TYPES`, non una copia a mano.
+     *
+     * Prima era una stringa letterale lunga quaranta valori accanto alla
+     * costante che diceva la stessa cosa: aggiungere un evento in un posto e
+     * non nell'altro produce un vincolo che rifiuta una scrittura legittima,
+     * e lo si scopre solo quando quella scrittura serve.
+     */
     check(
       'session_ai_audit_events_type_check',
-      sql`${table.eventType} in ('feature_requested', 'consent_accepted', 'consent_rejected', 'consent_revoked', 'session_activated', 'session_cancelled', 'entitlement_denied', 'entitlement_granted', 'entitlement_trial_started', 'entitlement_revoked', 'status_transitioned', 'recording_start_requested', 'recording_started', 'recording_stop_requested', 'recording_recorded', 'recording_failed', 'recording_deletion_requested', 'recording_deleted', 'recording_deletion_failed', 'recording_reconciled', 'unverified_participant_blocked', 'participant_recording_grouped', 'processing_job_queued', 'processing_job_claimed', 'processing_job_completed', 'processing_job_failed', 'processing_job_cancelled', 'processing_job_recovered', 'compass_report_generated', 'compass_report_regenerated', 'compass_report_approved', 'compass_report_failed', 'compass_note_updated', 'compass_commitment_updated', 'commitment_synced', 'commitment_archived', 'commitment_updated_by_coach', 'commitment_updated_by_athlete')`
+      sql.raw(
+        `event_type in (${AI_AUDIT_EVENT_TYPES.map((type) => `'${type}'`).join(', ')})`
+      )
     ),
   ]
 );

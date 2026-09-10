@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  MAX_BRIEF_ACTION_UPDATES,
   MAX_BRIEF_BOOKMARKS,
   MAX_BRIEF_GOALS,
   MAX_EXCERPT_CHARS,
@@ -13,6 +14,7 @@ import {
   selectBriefGoals,
   trimToLength,
 } from './session-brief';
+import type { BriefActionUpdate, BriefAttempt } from './session-brief';
 import type { StoredJourneyGoal } from './journey-goals';
 
 function goal(overrides: Partial<StoredJourneyGoal> = {}): StoredJourneyGoal {
@@ -308,4 +310,150 @@ test('i punti da riprendere passano intatti: la regola resta di chi la scrive', 
   const brief = buildSessionBrief({ ...EMPTY, pointsToRevisit: points });
   assert.deepEqual(brief.pointsToRevisit, points);
   assert.equal(brief.hasContent, true);
+});
+
+// ---------------------------------------------------------------------------
+// «Dall'ultimo incontro»: le prove e la pausa arrivate fra le due sedute.
+// ---------------------------------------------------------------------------
+
+function update(
+  overrides: Partial<BriefActionUpdate> = {}
+): BriefActionUpdate {
+  return {
+    commitmentId: 1,
+    title: 'Prima della battuta, tre respiri',
+    paused: null,
+    attempts: [],
+    ...overrides,
+  };
+}
+
+function attempt(overrides: Partial<BriefAttempt> = {}): BriefAttempt {
+  return {
+    id: 1,
+    outcomeLabel: 'Provata',
+    occurredOn: '2026-09-09',
+    note: null,
+    edited: false,
+    ...overrides,
+  };
+}
+
+test('le due prove della stessa azione arrivano al coach come una sequenza', () => {
+  // È il caso della settimana di Giulia: mercoledì in allenamento, sabato in
+  // partita. Il coach deve vederle entrambe, non l'ultima che sovrascrive.
+  const brief = buildSessionBrief({
+    ...EMPTY,
+    actionUpdates: [
+      update({
+        attempts: [
+          attempt({ id: 1, outcomeLabel: 'Provata', occurredOn: '2026-09-09' }),
+          attempt({
+            id: 2,
+            outcomeLabel: 'Non era adatta al momento',
+            occurredOn: '2026-09-13',
+            note: 'ero già arrabbiata',
+          }),
+        ],
+      }),
+    ],
+  });
+  assert.equal(brief.sinceLastSession?.actions.length, 1);
+  assert.deepEqual(
+    brief.sinceLastSession?.actions[0].attempts.map((a) => a.outcomeLabel),
+    ['Provata', 'Non era adatta al momento']
+  );
+  assert.equal(brief.hasContent, true);
+});
+
+test('la pausa arriva al coach con la data e il motivo', () => {
+  const brief = buildSessionBrief({
+    ...EMPTY,
+    actionUpdates: [
+      update({
+        paused: { at: new Date('2026-09-11T09:00:00Z'), reason: 'ho la gara domenica' },
+      }),
+    ],
+  });
+  const action = brief.sinceLastSession?.actions[0];
+  assert.equal(action?.paused?.reason, 'ho la gara domenica');
+  assert.equal(action?.paused?.at.toISOString(), '2026-09-11T09:00:00.000Z');
+});
+
+test("un'azione ferma e senza pausa non riempie il blocco", () => {
+  const brief = buildSessionBrief({
+    ...EMPTY,
+    actionUpdates: [update({ commitmentId: 1 }), update({ commitmentId: 2 })],
+  });
+  assert.equal(brief.sinceLastSession, null);
+  assert.equal(brief.hasContent, false);
+});
+
+test('senza niente da dire il blocco non si disegna sopra il vuoto', () => {
+  assert.equal(buildSessionBrief({ ...EMPTY }).sinceLastSession, null);
+  assert.equal(buildSessionBrief({ ...EMPTY, actionUpdates: [] }).sinceLastSession, null);
+});
+
+test("l'azione con la novità più recente viene per prima", () => {
+  const brief = buildSessionBrief({
+    ...EMPTY,
+    actionUpdates: [
+      update({ commitmentId: 1, attempts: [attempt({ occurredOn: '2026-09-08' })] }),
+      update({ commitmentId: 2, attempts: [attempt({ occurredOn: '2026-09-13' })] }),
+      update({
+        commitmentId: 3,
+        paused: { at: new Date('2026-09-11T09:00:00Z'), reason: null },
+      }),
+    ],
+  });
+  assert.deepEqual(
+    brief.sinceLastSession?.actions.map((a) => a.commitmentId),
+    [2, 3, 1]
+  );
+});
+
+test('il blocco si ferma a quattro azioni: oltre non è più una sintesi', () => {
+  const brief = buildSessionBrief({
+    ...EMPTY,
+    actionUpdates: Array.from({ length: 7 }, (_, index) =>
+      update({
+        commitmentId: index + 1,
+        attempts: [attempt({ occurredOn: `2026-09-0${(index % 9) + 1}` })],
+      })
+    ),
+  });
+  assert.equal(brief.sinceLastSession?.actions.length, MAX_BRIEF_ACTION_UPDATES);
+});
+
+test('una prova corretta si presenta come tale, senza mostrare il testo vecchio', () => {
+  const brief = buildSessionBrief({
+    ...EMPTY,
+    actionUpdates: [
+      update({ attempts: [attempt({ edited: true, note: 'testo corrente' })] }),
+    ],
+  });
+  const [first] = brief.sinceLastSession?.actions[0].attempts ?? [];
+  assert.equal(first.edited, true);
+  assert.equal(first.note, 'testo corrente');
+  // Nessun campo porta una versione precedente: non esiste un archivio da cui
+  // prenderla, ed è una decisione, non una dimenticanza.
+  assert.deepEqual(Object.keys(first).sort(), [
+    'edited',
+    'id',
+    'note',
+    'occurredOn',
+    'outcomeLabel',
+  ]);
+});
+
+test('il blocco da solo basta a rendere il foglio non vuoto', () => {
+  // Un coach può non avere obiettivi, né segnalibri, né una sintesi
+  // precedente, e avere comunque due prove da leggere: il foglio deve aprirsi.
+  const brief = buildSessionBrief({
+    ...EMPTY,
+    sessionCount: 1,
+    actionUpdates: [update({ attempts: [attempt()] })],
+  });
+  assert.equal(brief.hasContent, true);
+  assert.equal(brief.emptyReason, null);
 });

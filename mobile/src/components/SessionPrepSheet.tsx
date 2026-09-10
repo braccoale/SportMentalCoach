@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import {
   fetchSessionPrep,
+  type PrepActionUpdate,
   type SessionPrepGoal,
   type SessionPrepLastSession,
   type SessionPrepPoint,
@@ -53,6 +54,7 @@ export function SessionPrepSheet({
     points: SessionPrepPoint[];
     goals: SessionPrepGoal[];
     lastSession: SessionPrepLastSession | null;
+    sinceLastSession: { actions: PrepActionUpdate[] } | null;
     emptyReason: 'no_sessions' | 'nothing_to_carry' | null;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +70,7 @@ export function SessionPrepSheet({
           points: data.points ?? [],
           goals: data.goals ?? [],
           lastSession: data.lastSession ?? null,
+          sinceLastSession: data.sinceLastSession ?? null,
           emptyReason: data.emptyReason ?? null,
         });
       })
@@ -78,7 +81,8 @@ export function SessionPrepSheet({
     brief !== null &&
     brief.points.length === 0 &&
     brief.goals.length === 0 &&
-    brief.lastSession === null;
+    brief.lastSession === null &&
+    brief.sinceLastSession === null;
 
   useEffect(() => {
     if (!visible) return;
@@ -168,6 +172,56 @@ export function SessionPrepSheet({
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
             >
+              {/*
+                «Dall'ultimo incontro» sta per primo.
+
+                E' l'unica parte del foglio che il coach non ha gia' letto: gli
+                obiettivi li ha concordati lui, la sintesi l'ha approvata lui, i
+                segnalibri li ha messi lui. Questo e' arrivato dall'altra parte,
+                fra una seduta e l'altra.
+              */}
+              {brief.sinceLastSession ? (
+                <View style={styles.block}>
+                  <Text style={styles.blockTitle}>Dall'ultimo incontro</Text>
+                  {brief.sinceLastSession.actions.map((update) => (
+                    <View key={update.commitmentId} style={styles.update}>
+                      <Text style={styles.updateTitle} numberOfLines={3}>
+                        {update.title}
+                      </Text>
+                      {/* La pausa non e' una conclusione: si legge come «messa
+                          da parte», con il motivo solo se l'atleta l'ha dato. */}
+                      {update.paused ? (
+                        <Text style={styles.updatePaused}>
+                          In pausa dal {dayTitle(update.paused.at)}
+                          {update.paused.reason
+                            ? ` · «${update.paused.reason}»`
+                            : ''}
+                        </Text>
+                      ) : null}
+                      {update.attempts.map((attempt) => (
+                        <View key={attempt.id} style={styles.attempt}>
+                          <Text style={styles.attemptHead}>
+                            <Text style={styles.attemptDay}>
+                              {calendarDayLabel(attempt.occurredOn)}
+                            </Text>
+                            {'  '}
+                            {attempt.outcomeLabel}
+                            {/* «Modificato» e' tutto cio' che si vede di una
+                                correzione: il testo precedente non esiste. */}
+                            {attempt.edited ? (
+                              <Text style={styles.attemptEdited}> · Modificato</Text>
+                            ) : null}
+                          </Text>
+                          {attempt.note ? (
+                            <Text style={styles.attemptNote}>«{attempt.note}»</Text>
+                          ) : null}
+                        </View>
+                      ))}
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+
               {/* Dove state andando. Prima di tutto: e' la cornice che rende
                   leggibile tutto il resto. */}
               {brief.goals.length > 0 ? (
@@ -418,6 +472,45 @@ const createStyles = (theme: Palette) =>
       lineHeight: 19,
       flexShrink: 1,
     },
+    update: {
+      backgroundColor: theme.surface,
+      borderRadius: 16,
+      padding: 14,
+      marginTop: 8,
+      gap: 6,
+    },
+    updateTitle: {
+      color: theme.hi,
+      fontSize: 15,
+      lineHeight: 21,
+      fontWeight: '600',
+    },
+    updatePaused: {
+      color: theme.mid,
+      fontSize: 13,
+      lineHeight: 19,
+    },
+    attempt: {
+      gap: 2,
+    },
+    attemptHead: {
+      color: theme.hi,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    attemptDay: {
+      color: theme.mid,
+      fontWeight: '600',
+    },
+    attemptEdited: {
+      color: theme.low,
+      fontSize: 12,
+    },
+    attemptNote: {
+      color: theme.mid,
+      fontSize: 14,
+      lineHeight: 20,
+    },
     point: {
       backgroundColor: theme.surface,
       borderRadius: 16,
@@ -463,3 +556,17 @@ const createStyles = (theme: Palette) =>
     primaryText: { color: '#fff', fontSize: 15, fontWeight: '700' },
     pressed: { opacity: 0.85 },
   });
+
+/**
+ * «2026-09-13» → «13 set».
+ *
+ * La data di una prova e' un giorno di calendario dichiarato dall'atleta, non
+ * un istante: costruirci sopra una `Date` senza ora la farebbe vivere a
+ * mezzanotte UTC, che in Italia per meta' dell'anno e' gia' il giorno prima.
+ * Si fissa mezzogiorno, dove nessun fuso puo' spostarla.
+ */
+function calendarDayLabel(value: string): string {
+  const parsed = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+}

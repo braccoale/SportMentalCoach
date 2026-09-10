@@ -144,8 +144,22 @@ export function createSessionCommitmentStore(): SessionCommitmentStore {
   };
 }
 
+/**
+ * Chiudere un'azione — per qualunque strada, quella nuova o quella che
+ * esisteva prima di questo incremento — cancella sempre una pausa in corso.
+ *
+ * **Perché serve.** `recordAthleteCommitmentOutcome` (il vecchio «Fatto» /
+ * «Non riuscito» del web) e `updateCommitmentByCoach` scrivono qui senza sapere
+ * che esistono `paused_at/reason/by`: sono arrivate dopo. Senza questa
+ * pulizia, un'azione chiusa da una delle due strade preesistenti poteva
+ * restare segnata «in pausa» nel blocco «Dall'ultimo incontro» del coach e
+ * nella scheda «Oggi» — un'azione conclusa non è mai anche in pausa, sono due
+ * concetti che non devono poter convivere sulla stessa riga.
+ */
 function columnsFor(changes: TrackedCommitmentChanges) {
+  const closing = changes.status === 'completed' || changes.status === 'skipped';
   return {
+    ...(closing ? { pausedAt: null, pausedReason: null, pausedBy: null } : {}),
     ...(changes.sourceReportId === undefined ? {} : { sourceReportId: changes.sourceReportId }),
     ...(changes.sourceReportVersion === undefined
       ? {}

@@ -183,10 +183,59 @@ export function excerptAt(
  */
 export type BriefEmptyReason = 'no_sessions' | 'nothing_to_carry';
 
+/**
+ * Una prova dell'atleta, come la legge il coach.
+ *
+ * Sono le sue parole, riportate: nessun modello le tocca, nessuno le riassume.
+ * `edited` dice che il testo è stato corretto dopo la scrittura — il coach vede
+ * il contenuto corrente, e sapere che è cambiato è tutto ciò che gli serve.
+ */
+export type BriefAttempt = {
+  id: number;
+  /** «Provata», «Non ancora», «Non era adatta al momento». */
+  outcomeLabel: string;
+  /** Il giorno dichiarato dall'atleta, «AAAA-MM-GG». */
+  occurredOn: string;
+  note: string | null;
+  edited: boolean;
+};
+
+/** Che cosa è successo a un'azione fra le due sedute. */
+export type BriefActionUpdate = {
+  commitmentId: number;
+  title: string;
+  /**
+   * In pausa, con la data e il motivo se l'atleta l'ha voluto dire.
+   *
+   * Non è «abbandonata» e non è «completata»: è messa da parte, e il coach lo
+   * legge come tale. Vederlo qui è metà del senso della pausa — l'altra metà è
+   * che l'atleta possa farlo senza dover dichiarare una conclusione.
+   */
+  paused: { at: Date; reason: string | null } | null;
+  attempts: BriefAttempt[];
+};
+
+/**
+ * «Dall'ultimo incontro»: quello che l'atleta ha fatto nel frattempo.
+ *
+ * È il blocco che chiude il ciclo. Senza, il coach entra in seduta sapendo
+ * cosa avevano concordato ma non cosa è successo dopo, ed è precisamente
+ * l'informazione per cui l'atleta si è preso la briga di scrivere.
+ */
+export type BriefSinceLastSession = {
+  actions: BriefActionUpdate[];
+};
+
 export type SessionBrief = {
   goals: BriefGoal[];
   lastSession: BriefLastSession | null;
   pointsToRevisit: readonly PointToRevisit[];
+  /**
+   * Le prove e le pause arrivate dopo l'ultima seduta. `null` quando non è
+   * arrivato niente: il blocco non si disegna sopra il vuoto, e la schermata
+   * dice «Dall'ultima seduta non è arrivato niente» invece di un titolo solo.
+   */
+  sinceLastSession: BriefSinceLastSession | null;
   /** Falso quando non c'è proprio niente da mostrare: il vuoto va spiegato. */
   hasContent: boolean;
   /** Valorizzato solo quando `hasContent` è falso. */
@@ -299,7 +348,58 @@ export type SessionBriefInput = {
    * di zero che c'è ma non ha lasciato niente in sospeso.
    */
   sessionCount: number;
+  /**
+   * Le azioni dell'atleta con quello che è successo loro dopo l'ultima seduta.
+   *
+   * Chi chiama passa **tutte** le azioni aperte del percorso; qui si tengono
+   * solo quelle che hanno qualcosa da dire — almeno una prova, o una pausa.
+   * Un'azione ferma senza pausa non è una notizia, ed elencarla riempirebbe il
+   * blocco di righe che non aggiungono niente.
+   */
+  actionUpdates?: readonly BriefActionUpdate[];
 };
+
+/**
+ * Quante azioni entrano nel blocco «Dall'ultimo incontro».
+ *
+ * Oltre, il foglio smette di essere una sintesi da leggere in piedi nei due
+ * minuti prima della seduta, che è l'unico momento in cui viene aperto.
+ */
+export const MAX_BRIEF_ACTION_UPDATES = 4;
+
+/**
+ * Le azioni che hanno qualcosa da raccontare, in ordine di novità.
+ *
+ * Prima quelle con la prova più recente: è la cosa successa per ultima, ed è
+ * quella su cui la seduta comincerà.
+ */
+export function selectActionUpdates(
+  updates: readonly BriefActionUpdate[],
+  max: number = MAX_BRIEF_ACTION_UPDATES
+): BriefActionUpdate[] {
+  return updates
+    .filter((update) => update.attempts.length > 0 || update.paused !== null)
+    .slice()
+    .sort((left, right) => {
+      const l = latestSignal(left);
+      const r = latestSignal(right);
+      if (l !== r) return l < r ? 1 : -1;
+      return left.commitmentId - right.commitmentId;
+    })
+    .slice(0, max);
+}
+
+/** L'ultima cosa successa a un'azione: una prova, o la pausa. */
+function latestSignal(update: BriefActionUpdate): string {
+  const lastAttempt = update.attempts.reduce<string>(
+    (latest, attempt) => (attempt.occurredOn > latest ? attempt.occurredOn : latest),
+    ''
+  );
+  const paused = update.paused
+    ? update.paused.at.toISOString().slice(0, 10)
+    : '';
+  return lastAttempt > paused ? lastAttempt : paused;
+}
 
 export function buildSessionBrief(input: SessionBriefInput): SessionBrief {
   const goals = selectBriefGoals(input.goals);
@@ -332,15 +432,20 @@ export function buildSessionBrief(input: SessionBriefInput): SessionBrief {
       lastSession.coachNote !== null ||
       lastSession.bookmarks.length > 0);
 
+  const actionUpdates = selectActionUpdates(input.actionUpdates ?? []);
+
   const hasContent =
     goals.length > 0 ||
     lastSessionSaysSomething ||
-    input.pointsToRevisit.length > 0;
+    input.pointsToRevisit.length > 0 ||
+    actionUpdates.length > 0;
 
   return {
     goals,
     lastSession: lastSessionSaysSomething ? lastSession : null,
     pointsToRevisit: input.pointsToRevisit,
+    sinceLastSession:
+      actionUpdates.length > 0 ? { actions: actionUpdates } : null,
     hasContent,
     emptyReason: hasContent
       ? null

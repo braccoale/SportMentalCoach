@@ -67,3 +67,10 @@ Image/
 mobile/modules/call-foreground/android/.gradle/
 mobile/modules/call-foreground/android/build/
 /tmp-*.ts
+
+# Collaudo autenticato dell'incremento 1: ambiente locale, mai da versionare.
+/scripts/test-db/local-supabase/supabase/.temp/
+/scripts/test-db/local-supabase/.branches/
+/scripts/test-db/local-livekit/livekit-server.exe
+/scripts/test-db/local-livekit/LICENSE
+/identities.local.json

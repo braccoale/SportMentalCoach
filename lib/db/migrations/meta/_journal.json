@@ -470,6 +470,13 @@
       "when": 1788857232679,
       "tag": "0066_rimuovi-valori-legali-da-system-config",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1788982550290,
+      "tag": "0067_percorso-atleta-prove",
+      "breakpoints": true
     }
   ]
 }

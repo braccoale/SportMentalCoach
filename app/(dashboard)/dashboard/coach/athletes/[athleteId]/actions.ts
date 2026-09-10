@@ -12,6 +12,7 @@ import {
   toggleGoalSession,
   updateJourneyGoalStatus,
 } from '@/lib/core/ai-session-notes/journey-goals-store';
+import { closePath, findPath, reopenPath } from '@/lib/core/paths/path-store';
 
 /**
  * Le azioni sugli obiettivi del percorso.
@@ -138,5 +139,36 @@ export async function archiveJourneyGoalAction(
   if (!Number.isInteger(goalId) || goalId <= 0) return;
 
   await archiveJourneyGoal({ coachUserId, athleteUserId, goalId });
+  revalidatePath(athletePath(athleteUserId));
+}
+
+/**
+ * Chiude o riapre il percorso con questo atleta.
+ *
+ * Nessuna regola nuova: `closePath`/`reopenPath` sono le stesse funzioni che
+ * servono le rotte mobili (`/api/mobile/paths/:id/close|reopen`), con la
+ * stessa autorizzazione (`path-policy.ts`). Qui cambia solo la superficie —
+ * questa pagina, invece di una richiesta HTTP con Bearer — non chi decide.
+ *
+ * Un rifiuto del dominio (percorso già chiuso, sessione futura in calendario)
+ * non è un errore di programma: la pagina si ricarica comunque, e chi la
+ * legge vede lo stato vero invece di un pulsante che ha smesso di corrispondere
+ * a ciò che è successo.
+ */
+export async function setPathStatusAction(formData: FormData): Promise<void> {
+  const athleteUserId = Number(formData.get('athleteUserId'));
+  const action = formData.get('pathAction');
+  if (action !== 'close' && action !== 'reopen') return;
+
+  const coachUserId = await requireOwnAthlete(athleteUserId);
+  const path = await findPath({ coachUserId, athleteUserId });
+  if (!path) return;
+
+  if (action === 'close') {
+    await closePath({ pathId: path.id, actorUserId: coachUserId, now: new Date() });
+  } else {
+    await reopenPath({ pathId: path.id, actorUserId: coachUserId, now: new Date() });
+  }
+
   revalidatePath(athletePath(athleteUserId));
 }
