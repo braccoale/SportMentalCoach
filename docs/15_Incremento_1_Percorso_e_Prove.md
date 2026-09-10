@@ -1196,3 +1196,87 @@ collaudo: **nessuno scenario è stato osservato su un dispositivo fisico**, solo
 sull'emulatore Android (§17.5) — né Android fisico né iOS. Il rischio sulla sopravvivenza
 della chiamata al cambio di scheda, invariato da consegne precedenti, è ora osservato e
 positivo in ambiente di test; resta da confermare che lo stesso valga fuori da un emulatore.
+
+---
+
+## 18. Consegna per il test di sabato con Francesco (2026-09-10)
+
+### 18.1 Attivazione del percorso e prima azione: già raggiungibili da interfaccia, non modificato
+
+Verificato leggendo il codice reale, nessuna modifica fatta perché già corretto:
+
+- **Attivazione**: automatica quando il coach accetta una richiesta di prenotazione
+  dall'interfaccia esistente (`decideBooking` → `ensurePathForAcceptedBooking`). Nessun
+  pulsante dedicato perché non ne serve uno: è conseguenza di un gesto che il coach fa già.
+- **Prima azione**: nasce quando il coach approva il report AI di una seduta reale
+  (`approveSessionCompass`), dalla schermata di Compass della seduta. I suggerimenti del
+  report diventano azioni operative in `session_ai_commitments` in modo idempotente.
+
+Nessun comando manuale sul database è necessario in nessuno dei due passaggi. Il prerequisito
+implicito per sabato: una prenotazione accettata fra Francesco e un coach, con una seduta
+reale, registrata, trascritta e con un report approvato — la pipeline "AI Session Notes"
+intera, non solo il pezzo di questo incremento.
+
+### 18.2 Migrazione di produzione: numerata di nuovo, contenuto invariato
+
+`main` remoto conteneva un secondo giro di configurazione di sistema, già unito e già
+distribuito, che aveva occupato i numeri di migrazione 0067 e 0068. La migrazione di questo
+incremento è stata rinumerata **0069** per l'unione delle due storie — stesso contenuto SQL,
+verificato byte per byte con `diff` contro l'originale già eseguito, prima di scrivere questo
+paragrafo. Applicata al database di produzione (autorizzazione esplicita ricevuta), verificata
+in lettura subito dopo: le tre tabelle nuove esistono. Nessun reset, seed o test automatico
+eseguito contro la produzione.
+
+### 18.3 Rilascio online
+
+`main` aggiornato e pushato (commit `e436554`); build e test puri (1154/1154) rieseguiti sul
+codice unito prima del push. Il deploy Vercel di produzione è partito da solo al push, come
+sempre in questo progetto. Verificato dopo il deploy, in sola lettura, senza credenziali:
+`/api/mobile/today` risponde **401** (non più 404: la rotta esiste), `/api/mobile/paths/1/close`
+risponde **405** (esiste, rifiuta GET), `/dashboard/coach/athletes/1` risponde **307** (esiste,
+richiede login). Non è stato eseguito nessuno scenario applicativo reale contro la produzione
+oltre queste verifiche di sola raggiungibilità.
+
+### 18.4 APK Android
+
+| | |
+|---|---|
+| Profilo | `preview` (APK, non AAB) |
+| Versione | 0.2.0, version code 1 |
+| Firma | Keystore remoto già esistente su EAS (`Build Credentials 3id0Wd-pyb`), riusato — nessuna nuova chiave generata |
+| Endpoint | `https://www.kaipaicoaching.com` e progetto Supabase di produzione — funziona da rete mobile, non richiede il PC acceso |
+| Download | https://expo.dev/artifacts/eas/FyjpjvceT4NZJwlJt8Rdbx5KiXIpgS769YdeEXE1tjA.apk |
+| Log build | https://expo.dev/accounts/bracco.ale/projects/kaipai-mobile/builds/bfa59454-aaa8-4cee-bf51-92822d5a1957 |
+
+Installazione: scaricare l'APK sul telefono e installarlo (Android chiederà di consentire
+l'installazione da questa sorgente la prima volta).
+
+### 18.5 Checklist per il telefono di Francesco — nessuna dichiarata superata
+
+Da eseguire per davvero, sul dispositivo fisico. Fino ad allora ogni riga è **non verificata**,
+non "presunta superata" per analogia con l'emulatore (§16, §17): l'emulatore non prova nulla
+su un telefono reale, in particolare per la chiamata.
+
+- [ ] Login come atleta (identità reale, non sintetica)
+- [ ] Login come coach (identità reale)
+- [ ] La prima azione compare in «Oggi» dopo l'approvazione del report
+- [ ] Registrare due prove distinte sulla stessa azione
+- [ ] Correggere una prova, verificare l'indicatore «Modificato»
+- [ ] Mettere in pausa l'azione, verificare che sparisca dalla vista principale
+- [ ] Riprenderla, verificare che le prove precedenti restino
+- [ ] Chiudere il percorso dall'app (atleta) o dal web (coach)
+- [ ] Riaprirlo da chi lo ha chiuso
+- [ ] Il coach legge le prove e la correzione nella preparazione della seduta
+- [ ] Chiamata: cambio scheda durante la sessione, la chiamata non si interrompe
+- [ ] Chiamata: app in background e ritorno, la chiamata non si interrompe
+
+### 18.6 Locale, online, dispositivo fisico — cosa vale dove
+
+| Ambiente | Cosa è stato verificato | Cosa NON lo è |
+|---|---|---|
+| **Locale** (Supabase/LiveKit locali, emulatore) | Tutto §16-§17: ciclo atleta completo, gestione percorso, chiamata a due con tutti gli scenari richiesti | Dispositivo fisico, rete mobile reale, produzione |
+| **Online** (produzione, dopo questo deploy) | Migrazione applicata; le rotte nuove sono raggiungibili (401/405/307, sola lettura) | Nessuno scenario applicativo reale eseguito: nessun login, nessuna prova, nessuna chiamata |
+| **Dispositivo fisico** (APK di sabato) | Niente ancora | Tutta la checklist di §18.5 |
+
+Non ripetuto in questo giro perché già superato senza modifiche pertinenti: §7 (91 controlli
+di dominio/rotte/RLS), §9 (build isolata), §16-§17 (collaudo locale completo).
