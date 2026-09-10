@@ -6,6 +6,7 @@ import {
   LIVE_SESSION_SILENCE_MS,
   isSessionLive,
 } from './live-session-state';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 
 /**
  * Quali coach sono in chiamata **adesso**.
@@ -21,7 +22,11 @@ export { LIVE_SESSION_SILENCE_MS, isSessionLive };
 export async function getLiveCoachProviderIds(
   now: Date = new Date()
 ): Promise<Set<number>> {
-  const threshold = new Date(now.getTime() - LIVE_SESSION_SILENCE_MS);
+  const silenceMinutes = await getSystemConfigNumber(
+    'LIVE_SESSION_SILENCE_MINUTES',
+    2
+  );
+  const threshold = new Date(now.getTime() - silenceMinutes * 60_000);
 
   const rows = await db
     .select({ providerId: bookings.providerId })

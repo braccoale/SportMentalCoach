@@ -1,5 +1,5 @@
 import 'server-only';
-import { hasRole } from '@/lib/core/auth/roles';
+import { hasRole } from '@/lib/core/auth/role-checks';
 import { FEATURE_CODES, hasFeatureEntitlement } from '@/lib/core/features';
 import {
   effectiveSessionCompassPromptVersion,

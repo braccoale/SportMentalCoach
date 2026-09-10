@@ -59,7 +59,9 @@ export function assessLiveCoverage(input: {
   sessionStartedAt: Date | null;
   recordings: readonly LiveRecordingRow[];
   now: Date;
+  liveGapSeconds?: number;
 }): LiveCoverageWarning {
+  const liveGapSeconds = input.liveGapSeconds ?? LIVE_GAP_SECONDS;
   // Solo a seduta viva: a registrazione chiusa il discorso lo fa la copertura
   // finale, che ha in mano i numeri definitivi.
   if (input.sessionStatus !== 'active' || !input.sessionStartedAt) {
@@ -84,7 +86,7 @@ export function assessLiveCoverage(input: {
       );
     const since = lastEnd ?? input.sessionStartedAt.getTime();
     const sinceSeconds = Math.floor((input.now.getTime() - since) / 1000);
-    if (sinceSeconds >= LIVE_GAP_SECONDS) {
+    if (sinceSeconds >= liveGapSeconds) {
       gaps.push({ role, sinceSeconds });
     }
   }

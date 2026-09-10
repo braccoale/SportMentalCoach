@@ -1,6 +1,6 @@
 {
-  "id": "fbe306ff-50c3-4f0e-ab57-f3a13eadb897",
-  "prevId": "8ff76353-a5fc-4c4a-bd1d-d1aba6a17c90",
+  "id": "9d112b3c-c71a-4099-923e-f43ea4746e1f",
+  "prevId": "766883a0-e2ab-493d-9a9a-05ee627ff036",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -77,28 +77,28 @@
         "activity_logs_team_id_teams_id_fk": {
           "name": "activity_logs_team_id_teams_id_fk",
           "tableFrom": "activity_logs",
+          "tableTo": "teams",
           "columnsFrom": [
             "team_id"
           ],
-          "tableTo": "teams",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "activity_logs_user_id_users_id_fk": {
           "name": "activity_logs_user_id_users_id_fk",
           "tableFrom": "activity_logs",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -181,9 +181,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "admin_audit_events_subject_idx": {
           "name": "admin_audit_events_subject_idx",
@@ -208,9 +208,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "admin_audit_events_actor_idx": {
           "name": "admin_audit_events_actor_idx",
@@ -229,9 +229,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "admin_audit_events_action_idx": {
           "name": "admin_audit_events_action_idx",
@@ -250,24 +250,24 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "admin_audit_events_actor_user_id_users_id_fk": {
           "name": "admin_audit_events_actor_user_id_users_id_fk",
           "tableFrom": "admin_audit_events",
+          "tableTo": "users",
           "columnsFrom": [
             "actor_user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -400,9 +400,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "agreement_acceptances_subject_key_idx": {
           "name": "agreement_acceptances_subject_key_idx",
@@ -421,37 +421,37 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "agreement_acceptances_user_id_users_id_fk": {
           "name": "agreement_acceptances_user_id_users_id_fk",
           "tableFrom": "agreement_acceptances",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "agreement_acceptances_subject_user_id_users_id_fk": {
           "name": "agreement_acceptances_subject_user_id_users_id_fk",
           "tableFrom": "agreement_acceptances",
+          "tableTo": "users",
           "columnsFrom": [
             "subject_user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -508,34 +508,34 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "ai_prompt_guidelines_createdby_users_id_fk": {
           "name": "ai_prompt_guidelines_createdby_users_id_fk",
           "tableFrom": "ai_prompt_guidelines",
+          "tableTo": "users",
           "columnsFrom": [
             "createdby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "ai_prompt_guidelines_version_unique": {
           "name": "ai_prompt_guidelines_version_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "version"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -690,9 +690,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "athlete_guardians_management_token_hash_unique": {
           "name": "athlete_guardians_management_token_hash_unique",
@@ -705,34 +705,34 @@
             }
           ],
           "isUnique": true,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "athlete_guardians_athlete_user_id_users_id_fk": {
           "name": "athlete_guardians_athlete_user_id_users_id_fk",
           "tableFrom": "athlete_guardians",
+          "tableTo": "users",
           "columnsFrom": [
             "athlete_user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "athlete_guardians_athlete_user_id_unique": {
           "name": "athlete_guardians_athlete_user_id_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "athlete_user_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -803,61 +803,61 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "athlete_journey_goal_sessions_goal_id_athlete_journey_goals_id_fk": {
           "name": "athlete_journey_goal_sessions_goal_id_athlete_journey_goals_id_fk",
           "tableFrom": "athlete_journey_goal_sessions",
+          "tableTo": "athlete_journey_goals",
           "columnsFrom": [
             "goal_id"
           ],
-          "tableTo": "athlete_journey_goals",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "athlete_journey_goal_sessions_session_ai_notes_id_session_ai_notes_id_fk": {
           "name": "athlete_journey_goal_sessions_session_ai_notes_id_session_ai_notes_id_fk",
           "tableFrom": "athlete_journey_goal_sessions",
+          "tableTo": "session_ai_notes",
           "columnsFrom": [
             "session_ai_notes_id"
           ],
-          "tableTo": "session_ai_notes",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "athlete_journey_goal_sessions_createdby_users_id_fk": {
           "name": "athlete_journey_goal_sessions_createdby_users_id_fk",
           "tableFrom": "athlete_journey_goal_sessions",
+          "tableTo": "users",
           "columnsFrom": [
             "createdby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "athlete_journey_goal_sessions_unique": {
           "name": "athlete_journey_goal_sessions_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "goal_id",
             "session_ai_notes_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -970,63 +970,63 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "athlete_journey_goals_athlete_user_id_users_id_fk": {
           "name": "athlete_journey_goals_athlete_user_id_users_id_fk",
           "tableFrom": "athlete_journey_goals",
+          "tableTo": "users",
           "columnsFrom": [
             "athlete_user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "athlete_journey_goals_coach_user_id_users_id_fk": {
           "name": "athlete_journey_goals_coach_user_id_users_id_fk",
           "tableFrom": "athlete_journey_goals",
+          "tableTo": "users",
           "columnsFrom": [
             "coach_user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "athlete_journey_goals_createdby_users_id_fk": {
           "name": "athlete_journey_goals_createdby_users_id_fk",
           "tableFrom": "athlete_journey_goals",
+          "tableTo": "users",
           "columnsFrom": [
             "createdby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "athlete_journey_goals_updatedby_users_id_fk": {
           "name": "athlete_journey_goals_updatedby_users_id_fk",
           "tableFrom": "athlete_journey_goals",
+          "tableTo": "users",
           "columnsFrom": [
             "updatedby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1164,9 +1164,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "bookings_client_id_status_idx": {
           "name": "bookings_client_id_status_idx",
@@ -1185,50 +1185,50 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "bookings_client_id_users_id_fk": {
           "name": "bookings_client_id_users_id_fk",
           "tableFrom": "bookings",
+          "tableTo": "users",
           "columnsFrom": [
             "client_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "bookings_provider_id_provider_profiles_id_fk": {
           "name": "bookings_provider_id_provider_profiles_id_fk",
           "tableFrom": "bookings",
+          "tableTo": "provider_profiles",
           "columnsFrom": [
             "provider_id"
           ],
-          "tableTo": "provider_profiles",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "bookings_service_id_services_id_fk": {
           "name": "bookings_service_id_services_id_fk",
           "tableFrom": "bookings",
+          "tableTo": "services",
           "columnsFrom": [
             "service_id"
           ],
-          "tableTo": "services",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1321,42 +1321,399 @@
         "client_profiles_user_id_users_id_fk": {
           "name": "client_profiles_user_id_users_id_fk",
           "tableFrom": "client_profiles",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "client_profiles_org_id_teams_id_fk": {
           "name": "client_profiles_org_id_teams_id_fk",
           "tableFrom": "client_profiles",
+          "tableTo": "teams",
           "columnsFrom": [
             "org_id"
           ],
-          "tableTo": "teams",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "client_profiles_user_id_unique": {
           "name": "client_profiles_user_id_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "user_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.coach_athlete_path_events": {
+      "name": "coach_athlete_path_events",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "path_id": {
+          "name": "path_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "event": {
+          "name": "event",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_role": {
+          "name": "actor_role",
+          "type": "varchar(8)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "booking_id": {
+          "name": "booking_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createddate": {
+          "name": "createddate",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "coach_athlete_path_events_path_idx": {
+          "name": "coach_athlete_path_events_path_idx",
+          "columns": [
+            {
+              "expression": "path_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "createddate",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "coach_athlete_path_events_path_id_coach_athlete_paths_id_fk": {
+          "name": "coach_athlete_path_events_path_id_coach_athlete_paths_id_fk",
+          "tableFrom": "coach_athlete_path_events",
+          "tableTo": "coach_athlete_paths",
+          "columnsFrom": [
+            "path_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "coach_athlete_path_events_actor_id_users_id_fk": {
+          "name": "coach_athlete_path_events_actor_id_users_id_fk",
+          "tableFrom": "coach_athlete_path_events",
+          "tableTo": "users",
+          "columnsFrom": [
+            "actor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "coach_athlete_path_events_booking_id_bookings_id_fk": {
+          "name": "coach_athlete_path_events_booking_id_bookings_id_fk",
+          "tableFrom": "coach_athlete_path_events",
+          "tableTo": "bookings",
+          "columnsFrom": [
+            "booking_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "coach_athlete_path_events_event_check": {
+          "name": "coach_athlete_path_events_event_check",
+          "value": "\"coach_athlete_path_events\".\"event\" in ('activated', 'closed', 'reopened')"
+        },
+        "coach_athlete_path_events_actor_check": {
+          "name": "coach_athlete_path_events_actor_check",
+          "value": "\"coach_athlete_path_events\".\"actor_role\" in ('coach', 'athlete', 'system')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.coach_athlete_paths": {
+      "name": "coach_athlete_paths",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "coach_user_id": {
+          "name": "coach_user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "athlete_user_id": {
+          "name": "athlete_user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "activated_at": {
+          "name": "activated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "activation_booking_id": {
+          "name": "activation_booking_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closed_by_role": {
+          "name": "closed_by_role",
+          "type": "varchar(8)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closed_by": {
+          "name": "closed_by",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contributions_revoked_at": {
+          "name": "contributions_revoked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createddate": {
+          "name": "createddate",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updateddate": {
+          "name": "updateddate",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedby": {
+          "name": "updatedby",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "coach_athlete_paths_athlete_idx": {
+          "name": "coach_athlete_paths_athlete_idx",
+          "columns": [
+            {
+              "expression": "athlete_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "coach_athlete_paths_coach_idx": {
+          "name": "coach_athlete_paths_coach_idx",
+          "columns": [
+            {
+              "expression": "coach_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "coach_athlete_paths_coach_user_id_users_id_fk": {
+          "name": "coach_athlete_paths_coach_user_id_users_id_fk",
+          "tableFrom": "coach_athlete_paths",
+          "tableTo": "users",
+          "columnsFrom": [
+            "coach_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "coach_athlete_paths_athlete_user_id_users_id_fk": {
+          "name": "coach_athlete_paths_athlete_user_id_users_id_fk",
+          "tableFrom": "coach_athlete_paths",
+          "tableTo": "users",
+          "columnsFrom": [
+            "athlete_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "coach_athlete_paths_activation_booking_id_bookings_id_fk": {
+          "name": "coach_athlete_paths_activation_booking_id_bookings_id_fk",
+          "tableFrom": "coach_athlete_paths",
+          "tableTo": "bookings",
+          "columnsFrom": [
+            "activation_booking_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "coach_athlete_paths_closed_by_users_id_fk": {
+          "name": "coach_athlete_paths_closed_by_users_id_fk",
+          "tableFrom": "coach_athlete_paths",
+          "tableTo": "users",
+          "columnsFrom": [
+            "closed_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "coach_athlete_paths_updatedby_users_id_fk": {
+          "name": "coach_athlete_paths_updatedby_users_id_fk",
+          "tableFrom": "coach_athlete_paths",
+          "tableTo": "users",
+          "columnsFrom": [
+            "updatedby"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "coach_athlete_paths_pair_unique": {
+          "name": "coach_athlete_paths_pair_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "coach_user_id",
+            "athlete_user_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "coach_athlete_paths_status_check": {
+          "name": "coach_athlete_paths_status_check",
+          "value": "\"coach_athlete_paths\".\"status\" in ('active', 'closed')"
+        },
+        "coach_athlete_paths_closed_complete": {
+          "name": "coach_athlete_paths_closed_complete",
+          "value": "(\"coach_athlete_paths\".\"status\" = 'closed') = (\"coach_athlete_paths\".\"closed_at\" is not null)"
+        },
+        "coach_athlete_paths_closed_role_check": {
+          "name": "coach_athlete_paths_closed_role_check",
+          "value": "\"coach_athlete_paths\".\"closed_by_role\" is null or \"coach_athlete_paths\".\"closed_by_role\" in ('coach', 'athlete')"
+        },
+        "coach_athlete_paths_distinct_people": {
+          "name": "coach_athlete_paths_distinct_people",
+          "value": "\"coach_athlete_paths\".\"coach_user_id\" <> \"coach_athlete_paths\".\"athlete_user_id\""
+        }
+      },
       "isRLSEnabled": false
     },
     "public.coach_availability": {
@@ -1425,31 +1782,293 @@
         "coach_availability_provider_id_provider_profiles_id_fk": {
           "name": "coach_availability_provider_id_provider_profiles_id_fk",
           "tableFrom": "coach_availability",
+          "tableTo": "provider_profiles",
           "columnsFrom": [
             "provider_id"
           ],
-          "tableTo": "provider_profiles",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "coach_availability_provider_weekday_start_unique": {
           "name": "coach_availability_provider_weekday_start_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "provider_id",
             "weekday",
             "start_minute"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.commitment_attempts": {
+      "name": "commitment_attempts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "commitment_id": {
+          "name": "commitment_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "athlete_user_id": {
+          "name": "athlete_user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "path_id": {
+          "name": "path_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "outcome": {
+          "name": "outcome",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "occurred_on": {
+          "name": "occurred_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "client_request_id": {
+          "name": "client_request_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "edited_at": {
+          "name": "edited_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hidden_at": {
+          "name": "hidden_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createddate": {
+          "name": "createddate",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "createdby": {
+          "name": "createdby",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updateddate": {
+          "name": "updateddate",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedby": {
+          "name": "updatedby",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "commitment_attempts_commitment_idx": {
+          "name": "commitment_attempts_commitment_idx",
+          "columns": [
+            {
+              "expression": "commitment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "occurred_on",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "commitment_attempts_athlete_idx": {
+          "name": "commitment_attempts_athlete_idx",
+          "columns": [
+            {
+              "expression": "athlete_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "createddate",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "commitment_attempts_path_idx": {
+          "name": "commitment_attempts_path_idx",
+          "columns": [
+            {
+              "expression": "path_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "createddate",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "commitment_attempts_commitment_id_session_ai_commitments_id_fk": {
+          "name": "commitment_attempts_commitment_id_session_ai_commitments_id_fk",
+          "tableFrom": "commitment_attempts",
+          "tableTo": "session_ai_commitments",
+          "columnsFrom": [
+            "commitment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "commitment_attempts_athlete_user_id_users_id_fk": {
+          "name": "commitment_attempts_athlete_user_id_users_id_fk",
+          "tableFrom": "commitment_attempts",
+          "tableTo": "users",
+          "columnsFrom": [
+            "athlete_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "commitment_attempts_path_id_coach_athlete_paths_id_fk": {
+          "name": "commitment_attempts_path_id_coach_athlete_paths_id_fk",
+          "tableFrom": "commitment_attempts",
+          "tableTo": "coach_athlete_paths",
+          "columnsFrom": [
+            "path_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "commitment_attempts_createdby_users_id_fk": {
+          "name": "commitment_attempts_createdby_users_id_fk",
+          "tableFrom": "commitment_attempts",
+          "tableTo": "users",
+          "columnsFrom": [
+            "createdby"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "commitment_attempts_updatedby_users_id_fk": {
+          "name": "commitment_attempts_updatedby_users_id_fk",
+          "tableFrom": "commitment_attempts",
+          "tableTo": "users",
+          "columnsFrom": [
+            "updatedby"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "commitment_attempts_idempotency_unique": {
+          "name": "commitment_attempts_idempotency_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "commitment_id",
+            "client_request_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "commitment_attempts_outcome_check": {
+          "name": "commitment_attempts_outcome_check",
+          "value": "\"commitment_attempts\".\"outcome\" in ('provata', 'non_ancora', 'non_adatta')"
+        },
+        "commitment_attempts_note_len": {
+          "name": "commitment_attempts_note_len",
+          "value": "\"commitment_attempts\".\"note\" is null or length(btrim(\"commitment_attempts\".\"note\")) between 1 and 1000"
+        },
+        "commitment_attempts_version_check": {
+          "name": "commitment_attempts_version_check",
+          "value": "\"commitment_attempts\".\"version\" >= 1"
+        },
+        "commitment_attempts_edited_check": {
+          "name": "commitment_attempts_edited_check",
+          "value": "(\"commitment_attempts\".\"version\" > 1) = (\"commitment_attempts\".\"edited_at\" is not null)"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.contact_messages": {
@@ -1532,9 +2151,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -1625,34 +2244,34 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "device_push_tokens_user_id_users_id_fk": {
           "name": "device_push_tokens_user_id_users_id_fk",
           "tableFrom": "device_push_tokens",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "device_push_tokens_token_unique": {
           "name": "device_push_tokens_token_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "token"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -1792,10 +2411,10 @@
             }
           ],
           "isUnique": true,
-          "with": {},
-          "method": "btree",
           "where": "\"email_templates\".\"is_active\"",
-          "concurrently": false
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         },
         "email_templates_key_idx": {
           "name": "email_templates_key_idx",
@@ -1808,36 +2427,36 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "email_templates_created_by_users_id_fk": {
           "name": "email_templates_created_by_users_id_fk",
           "tableFrom": "email_templates",
+          "tableTo": "users",
           "columnsFrom": [
             "created_by"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "email_templates_key_locale_version_unique": {
           "name": "email_templates_key_locale_version_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "key",
             "locale",
             "version"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -1898,39 +2517,39 @@
         "favorites_user_id_users_id_fk": {
           "name": "favorites_user_id_users_id_fk",
           "tableFrom": "favorites",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "favorites_provider_id_provider_profiles_id_fk": {
           "name": "favorites_provider_id_provider_profiles_id_fk",
           "tableFrom": "favorites",
+          "tableTo": "provider_profiles",
           "columnsFrom": [
             "provider_id"
           ],
-          "tableTo": "provider_profiles",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "favorites_user_provider_unique": {
           "name": "favorites_user_provider_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "user_id",
             "provider_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -2011,38 +2630,38 @@
         "features_createdby_users_id_fk": {
           "name": "features_createdby_users_id_fk",
           "tableFrom": "features",
+          "tableTo": "users",
           "columnsFrom": [
             "createdby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "features_updatedby_users_id_fk": {
           "name": "features_updatedby_users_id_fk",
           "tableFrom": "features",
+          "tableTo": "users",
           "columnsFrom": [
             "updatedby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "features_code_unique": {
           "name": "features_code_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "code"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -2158,9 +2777,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "guardian_authorization_events_acceptance_idx": {
           "name": "guardian_authorization_events_acceptance_idx",
@@ -2173,76 +2792,76 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "guardian_authorization_events_athlete_user_id_users_id_fk": {
           "name": "guardian_authorization_events_athlete_user_id_users_id_fk",
           "tableFrom": "guardian_authorization_events",
+          "tableTo": "users",
           "columnsFrom": [
             "athlete_user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "guardian_authorization_events_athlete_guardian_id_athlete_guardians_id_fk": {
           "name": "guardian_authorization_events_athlete_guardian_id_athlete_guardians_id_fk",
           "tableFrom": "guardian_authorization_events",
+          "tableTo": "athlete_guardians",
           "columnsFrom": [
             "athlete_guardian_id"
           ],
-          "tableTo": "athlete_guardians",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "guardian_authorization_events_acceptance_id_agreement_acceptances_id_fk": {
           "name": "guardian_authorization_events_acceptance_id_agreement_acceptances_id_fk",
           "tableFrom": "guardian_authorization_events",
+          "tableTo": "agreement_acceptances",
           "columnsFrom": [
             "acceptance_id"
           ],
-          "tableTo": "agreement_acceptances",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "guardian_authorization_events_invitation_id_guardian_invitations_id_fk": {
           "name": "guardian_authorization_events_invitation_id_guardian_invitations_id_fk",
           "tableFrom": "guardian_authorization_events",
+          "tableTo": "guardian_invitations",
           "columnsFrom": [
             "invitation_id"
           ],
-          "tableTo": "guardian_invitations",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "guardian_authorization_events_actor_user_id_users_id_fk": {
           "name": "guardian_authorization_events_actor_user_id_users_id_fk",
           "tableFrom": "guardian_authorization_events",
+          "tableTo": "users",
           "columnsFrom": [
             "actor_user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2382,9 +3001,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "guardian_invitations_guardian_status_idx": {
           "name": "guardian_invitations_guardian_status_idx",
@@ -2409,47 +3028,47 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "guardian_invitations_athlete_guardian_id_athlete_guardians_id_fk": {
           "name": "guardian_invitations_athlete_guardian_id_athlete_guardians_id_fk",
           "tableFrom": "guardian_invitations",
+          "tableTo": "athlete_guardians",
           "columnsFrom": [
             "athlete_guardian_id"
           ],
-          "tableTo": "athlete_guardians",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "guardian_invitations_athlete_user_id_users_id_fk": {
           "name": "guardian_invitations_athlete_user_id_users_id_fk",
           "tableFrom": "guardian_invitations",
+          "tableTo": "users",
           "columnsFrom": [
             "athlete_user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "guardian_invitations_token_hash_unique": {
           "name": "guardian_invitations_token_hash_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "token_hash"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -2541,28 +3160,28 @@
         "invitations_team_id_teams_id_fk": {
           "name": "invitations_team_id_teams_id_fk",
           "tableFrom": "invitations",
+          "tableTo": "teams",
           "columnsFrom": [
             "team_id"
           ],
-          "tableTo": "teams",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "invitations_invited_by_users_id_fk": {
           "name": "invitations_invited_by_users_id_fk",
           "tableFrom": "invitations",
+          "tableTo": "users",
           "columnsFrom": [
             "invited_by"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2669,37 +3288,37 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "livekit_webhook_receipts_createdby_users_id_fk": {
           "name": "livekit_webhook_receipts_createdby_users_id_fk",
           "tableFrom": "livekit_webhook_receipts",
+          "tableTo": "users",
           "columnsFrom": [
             "createdby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "livekit_webhook_receipts_updatedby_users_id_fk": {
           "name": "livekit_webhook_receipts_updatedby_users_id_fk",
           "tableFrom": "livekit_webhook_receipts",
+          "tableTo": "users",
           "columnsFrom": [
             "updatedby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2784,48 +3403,48 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "message_reactions_message_id_messages_id_fk": {
           "name": "message_reactions_message_id_messages_id_fk",
           "tableFrom": "message_reactions",
+          "tableTo": "messages",
           "columnsFrom": [
             "message_id"
           ],
-          "tableTo": "messages",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "message_reactions_user_id_users_id_fk": {
           "name": "message_reactions_user_id_users_id_fk",
           "tableFrom": "message_reactions",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "message_reactions_message_user_unique": {
           "name": "message_reactions_message_user_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "message_id",
             "user_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -2929,37 +3548,37 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "messages_booking_id_bookings_id_fk": {
           "name": "messages_booking_id_bookings_id_fk",
           "tableFrom": "messages",
+          "tableTo": "bookings",
           "columnsFrom": [
             "booking_id"
           ],
-          "tableTo": "bookings",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "messages_sender_id_users_id_fk": {
           "name": "messages_sender_id_users_id_fk",
           "tableFrom": "messages",
+          "tableTo": "users",
           "columnsFrom": [
             "sender_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3080,9 +3699,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "notification_email_deliveries_status_idx": {
           "name": "notification_email_deliveries_status_idx",
@@ -3101,47 +3720,47 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "notification_email_deliveries_notification_id_notifications_id_fk": {
           "name": "notification_email_deliveries_notification_id_notifications_id_fk",
           "tableFrom": "notification_email_deliveries",
+          "tableTo": "notifications",
           "columnsFrom": [
             "notification_id"
           ],
-          "tableTo": "notifications",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "notification_email_deliveries_recipient_user_id_users_id_fk": {
           "name": "notification_email_deliveries_recipient_user_id_users_id_fk",
           "tableFrom": "notification_email_deliveries",
+          "tableTo": "users",
           "columnsFrom": [
             "recipient_user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "notification_email_deliveries_idempotency_key_unique": {
           "name": "notification_email_deliveries_idempotency_key_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "idempotency_key"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -3216,26 +3835,26 @@
         "notification_preferences_user_id_users_id_fk": {
           "name": "notification_preferences_user_id_users_id_fk",
           "tableFrom": "notification_preferences",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "notification_preferences_user_type_unique": {
           "name": "notification_preferences_user_type_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "user_id",
             "type"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -3333,9 +3952,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "notifications_user_id_read_at_idx": {
           "name": "notifications_user_id_read_at_idx",
@@ -3354,24 +3973,24 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "notifications_user_id_users_id_fk": {
           "name": "notifications_user_id_users_id_fk",
           "tableFrom": "notifications",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3459,17 +4078,17 @@
       "uniqueConstraints": {
         "teams_stripe_customer_id_unique": {
           "name": "teams_stripe_customer_id_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "stripe_customer_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         },
         "teams_stripe_subscription_id_unique": {
           "name": "teams_stripe_subscription_id_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "stripe_subscription_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -3523,52 +4142,52 @@
         "package_features_package_id_packages_id_fk": {
           "name": "package_features_package_id_packages_id_fk",
           "tableFrom": "package_features",
+          "tableTo": "packages",
           "columnsFrom": [
             "package_id"
           ],
-          "tableTo": "packages",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "package_features_feature_code_features_code_fk": {
           "name": "package_features_feature_code_features_code_fk",
           "tableFrom": "package_features",
+          "tableTo": "features",
           "columnsFrom": [
             "feature_code"
           ],
-          "tableTo": "features",
           "columnsTo": [
             "code"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "package_features_createdby_users_id_fk": {
           "name": "package_features_createdby_users_id_fk",
           "tableFrom": "package_features",
+          "tableTo": "users",
           "columnsFrom": [
             "createdby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "package_features_package_feature_unique": {
           "name": "package_features_package_feature_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "package_id",
             "feature_code"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -3636,38 +4255,38 @@
         "packages_createdby_users_id_fk": {
           "name": "packages_createdby_users_id_fk",
           "tableFrom": "packages",
+          "tableTo": "users",
           "columnsFrom": [
             "createdby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "packages_updatedby_users_id_fk": {
           "name": "packages_updatedby_users_id_fk",
           "tableFrom": "packages",
+          "tableTo": "users",
           "columnsFrom": [
             "updatedby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "packages_key_unique": {
           "name": "packages_key_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "key"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -3752,25 +4371,25 @@
         "profiles_user_id_users_id_fk": {
           "name": "profiles_user_id_users_id_fk",
           "tableFrom": "profiles",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "profiles_user_id_unique": {
           "name": "profiles_user_id_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "user_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -3956,45 +4575,45 @@
         "provider_profiles_user_id_users_id_fk": {
           "name": "provider_profiles_user_id_users_id_fk",
           "tableFrom": "provider_profiles",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "provider_profiles_reviewed_by_users_id_fk": {
           "name": "provider_profiles_reviewed_by_users_id_fk",
           "tableFrom": "provider_profiles",
+          "tableTo": "users",
           "columnsFrom": [
             "reviewed_by"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "provider_profiles_user_id_unique": {
           "name": "provider_profiles_user_id_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "user_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         },
         "provider_profiles_slug_unique": {
           "name": "provider_profiles_slug_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "slug"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -4074,34 +4693,34 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "push_subscriptions_user_id_users_id_fk": {
           "name": "push_subscriptions_user_id_users_id_fk",
           "tableFrom": "push_subscriptions",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "push_subscriptions_endpoint_unique": {
           "name": "push_subscriptions_endpoint_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "endpoint"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -4183,41 +4802,41 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "referral_codes_user_id_users_id_fk": {
           "name": "referral_codes_user_id_users_id_fk",
           "tableFrom": "referral_codes",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "referral_codes_user_id_unique": {
           "name": "referral_codes_user_id_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "user_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         },
         "referral_codes_code_unique": {
           "name": "referral_codes_code_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "code"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -4284,60 +4903,60 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "referrals_code_id_referral_codes_id_fk": {
           "name": "referrals_code_id_referral_codes_id_fk",
           "tableFrom": "referrals",
+          "tableTo": "referral_codes",
           "columnsFrom": [
             "code_id"
           ],
-          "tableTo": "referral_codes",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "referrals_inviter_user_id_users_id_fk": {
           "name": "referrals_inviter_user_id_users_id_fk",
           "tableFrom": "referrals",
+          "tableTo": "users",
           "columnsFrom": [
             "inviter_user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "referrals_referred_user_id_users_id_fk": {
           "name": "referrals_referred_user_id_users_id_fk",
           "tableFrom": "referrals",
+          "tableTo": "users",
           "columnsFrom": [
             "referred_user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "referrals_referred_user_id_unique": {
           "name": "referrals_referred_user_id_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "referred_user_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -4441,60 +5060,60 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "reviews_provider_id_provider_profiles_id_fk": {
           "name": "reviews_provider_id_provider_profiles_id_fk",
           "tableFrom": "reviews",
+          "tableTo": "provider_profiles",
           "columnsFrom": [
             "provider_id"
           ],
-          "tableTo": "provider_profiles",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "reviews_booking_id_bookings_id_fk": {
           "name": "reviews_booking_id_bookings_id_fk",
           "tableFrom": "reviews",
+          "tableTo": "bookings",
           "columnsFrom": [
             "booking_id"
           ],
-          "tableTo": "bookings",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "reviews_author_id_users_id_fk": {
           "name": "reviews_author_id_users_id_fk",
           "tableFrom": "reviews",
+          "tableTo": "users",
           "columnsFrom": [
             "author_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "reviews_booking_id_unique": {
           "name": "reviews_booking_id_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "booking_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -4644,15 +5263,15 @@
         "services_provider_id_provider_profiles_id_fk": {
           "name": "services_provider_id_provider_profiles_id_fk",
           "tableFrom": "services",
+          "tableTo": "provider_profiles",
           "columnsFrom": [
             "provider_id"
           ],
-          "tableTo": "provider_profiles",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -4753,63 +5372,63 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "session_ai_audit_events_session_ai_notes_id_session_ai_notes_id_fk": {
           "name": "session_ai_audit_events_session_ai_notes_id_session_ai_notes_id_fk",
           "tableFrom": "session_ai_audit_events",
+          "tableTo": "session_ai_notes",
           "columnsFrom": [
             "session_ai_notes_id"
           ],
-          "tableTo": "session_ai_notes",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_ai_audit_events_actor_user_id_users_id_fk": {
           "name": "session_ai_audit_events_actor_user_id_users_id_fk",
           "tableFrom": "session_ai_audit_events",
+          "tableTo": "users",
           "columnsFrom": [
             "actor_user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "session_ai_audit_events_createdby_users_id_fk": {
           "name": "session_ai_audit_events_createdby_users_id_fk",
           "tableFrom": "session_ai_audit_events",
+          "tableTo": "users",
           "columnsFrom": [
             "createdby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "session_ai_audit_events_updatedby_users_id_fk": {
           "name": "session_ai_audit_events_updatedby_users_id_fk",
           "tableFrom": "session_ai_audit_events",
+          "tableTo": "users",
           "columnsFrom": [
             "updatedby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -4818,7 +5437,7 @@
       "checkConstraints": {
         "session_ai_audit_events_type_check": {
           "name": "session_ai_audit_events_type_check",
-          "value": "\"session_ai_audit_events\".\"event_type\" in ('feature_requested', 'consent_accepted', 'consent_rejected', 'consent_revoked', 'session_activated', 'session_cancelled', 'entitlement_denied', 'entitlement_granted', 'entitlement_trial_started', 'entitlement_revoked', 'status_transitioned', 'recording_start_requested', 'recording_started', 'recording_stop_requested', 'recording_recorded', 'recording_failed', 'recording_deletion_requested', 'recording_deleted', 'recording_deletion_failed', 'recording_reconciled', 'unverified_participant_blocked', 'participant_recording_grouped', 'processing_job_queued', 'processing_job_claimed', 'processing_job_completed', 'processing_job_failed', 'processing_job_cancelled', 'processing_job_recovered', 'compass_report_generated', 'compass_report_regenerated', 'compass_report_approved', 'compass_report_failed', 'compass_note_updated', 'compass_commitment_updated', 'commitment_synced', 'commitment_archived', 'commitment_updated_by_coach', 'commitment_updated_by_athlete')"
+          "value": "event_type in ('feature_requested', 'consent_accepted', 'consent_rejected', 'consent_revoked', 'session_activated', 'session_cancelled', 'entitlement_denied', 'entitlement_granted', 'entitlement_trial_started', 'entitlement_revoked', 'status_transitioned', 'recording_start_requested', 'recording_started', 'recording_stop_requested', 'recording_recorded', 'recording_failed', 'recording_deletion_requested', 'recording_deleted', 'recording_deletion_failed', 'recording_reconciled', 'unverified_participant_blocked', 'participant_recording_grouped', 'processing_job_queued', 'processing_job_claimed', 'processing_job_completed', 'processing_job_failed', 'processing_job_cancelled', 'processing_job_recovered', 'compass_report_generated', 'compass_report_regenerated', 'compass_report_approved', 'compass_report_failed', 'compass_note_updated', 'compass_commitment_updated', 'commitment_synced', 'commitment_archived', 'commitment_updated_by_coach', 'commitment_updated_by_athlete', 'commitment_attempt_recorded', 'commitment_attempt_edited', 'commitment_paused_by_athlete', 'commitment_resumed_by_athlete')"
         }
       },
       "isRLSEnabled": false
@@ -4937,6 +5556,24 @@
           "primaryKey": false,
           "notNull": false
         },
+        "paused_at": {
+          "name": "paused_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "paused_reason": {
+          "name": "paused_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "paused_by": {
+          "name": "paused_by",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "createddate": {
           "name": "createddate",
           "type": "timestamp with time zone",
@@ -4988,9 +5625,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "session_ai_commitments_session_idx": {
           "name": "session_ai_commitments_session_idx",
@@ -5009,113 +5646,126 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "session_ai_commitments_session_ai_notes_id_session_ai_notes_id_fk": {
           "name": "session_ai_commitments_session_ai_notes_id_session_ai_notes_id_fk",
           "tableFrom": "session_ai_commitments",
+          "tableTo": "session_ai_notes",
           "columnsFrom": [
             "session_ai_notes_id"
           ],
-          "tableTo": "session_ai_notes",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_ai_commitments_source_report_id_session_ai_reports_id_fk": {
           "name": "session_ai_commitments_source_report_id_session_ai_reports_id_fk",
           "tableFrom": "session_ai_commitments",
+          "tableTo": "session_ai_reports",
           "columnsFrom": [
             "source_report_id"
           ],
-          "tableTo": "session_ai_reports",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_ai_commitments_athlete_user_id_users_id_fk": {
           "name": "session_ai_commitments_athlete_user_id_users_id_fk",
           "tableFrom": "session_ai_commitments",
+          "tableTo": "users",
           "columnsFrom": [
             "athlete_user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_ai_commitments_coach_user_id_users_id_fk": {
           "name": "session_ai_commitments_coach_user_id_users_id_fk",
           "tableFrom": "session_ai_commitments",
+          "tableTo": "users",
           "columnsFrom": [
             "coach_user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_ai_commitments_source_transcript_segment_id_session_transcript_segments_id_fk": {
           "name": "session_ai_commitments_source_transcript_segment_id_session_transcript_segments_id_fk",
           "tableFrom": "session_ai_commitments",
+          "tableTo": "session_transcript_segments",
           "columnsFrom": [
             "source_transcript_segment_id"
           ],
-          "tableTo": "session_transcript_segments",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "session_ai_commitments_paused_by_users_id_fk": {
+          "name": "session_ai_commitments_paused_by_users_id_fk",
+          "tableFrom": "session_ai_commitments",
+          "tableTo": "users",
+          "columnsFrom": [
+            "paused_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "session_ai_commitments_createdby_users_id_fk": {
           "name": "session_ai_commitments_createdby_users_id_fk",
           "tableFrom": "session_ai_commitments",
+          "tableTo": "users",
           "columnsFrom": [
             "createdby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "session_ai_commitments_updatedby_users_id_fk": {
           "name": "session_ai_commitments_updatedby_users_id_fk",
           "tableFrom": "session_ai_commitments",
+          "tableTo": "users",
           "columnsFrom": [
             "updatedby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "session_ai_commitments_session_key_unique": {
           "name": "session_ai_commitments_session_key_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "session_ai_notes_id",
             "commitment_key"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -5135,6 +5785,14 @@
         "session_ai_commitments_timestamp_check": {
           "name": "session_ai_commitments_timestamp_check",
           "value": "\"session_ai_commitments\".\"source_timestamp_ms\" >= 0"
+        },
+        "session_ai_commitments_paused_check": {
+          "name": "session_ai_commitments_paused_check",
+          "value": "(\"session_ai_commitments\".\"paused_at\" is not null) or (\"session_ai_commitments\".\"paused_reason\" is null and \"session_ai_commitments\".\"paused_by\" is null)"
+        },
+        "session_ai_commitments_paused_reason_len": {
+          "name": "session_ai_commitments_paused_reason_len",
+          "value": "\"session_ai_commitments\".\"paused_reason\" is null or length(btrim(\"session_ai_commitments\".\"paused_reason\")) between 1 and 500"
         }
       },
       "isRLSEnabled": false
@@ -5257,74 +5915,74 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "session_ai_consents_session_ai_notes_id_session_ai_notes_id_fk": {
           "name": "session_ai_consents_session_ai_notes_id_session_ai_notes_id_fk",
           "tableFrom": "session_ai_consents",
+          "tableTo": "session_ai_notes",
           "columnsFrom": [
             "session_ai_notes_id"
           ],
-          "tableTo": "session_ai_notes",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_ai_consents_user_id_users_id_fk": {
           "name": "session_ai_consents_user_id_users_id_fk",
           "tableFrom": "session_ai_consents",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_ai_consents_createdby_users_id_fk": {
           "name": "session_ai_consents_createdby_users_id_fk",
           "tableFrom": "session_ai_consents",
+          "tableTo": "users",
           "columnsFrom": [
             "createdby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "session_ai_consents_updatedby_users_id_fk": {
           "name": "session_ai_consents_updatedby_users_id_fk",
           "tableFrom": "session_ai_consents",
+          "tableTo": "users",
           "columnsFrom": [
             "updatedby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "session_ai_consents_session_user_unique": {
           "name": "session_ai_consents_session_user_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "session_ai_notes_id",
             "user_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -5471,10 +6129,10 @@
             }
           ],
           "isUnique": true,
-          "with": {},
-          "method": "btree",
           "where": "\"session_ai_notes\".\"status\" in ('waiting_for_consent', 'active', 'processing', 'ready_for_review', 'approved')",
-          "concurrently": false
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         },
         "session_ai_notes_booking_created_idx": {
           "name": "session_ai_notes_booking_created_idx",
@@ -5493,63 +6151,63 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "session_ai_notes_booking_id_bookings_id_fk": {
           "name": "session_ai_notes_booking_id_bookings_id_fk",
           "tableFrom": "session_ai_notes",
+          "tableTo": "bookings",
           "columnsFrom": [
             "booking_id"
           ],
-          "tableTo": "bookings",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_ai_notes_requested_by_users_id_fk": {
           "name": "session_ai_notes_requested_by_users_id_fk",
           "tableFrom": "session_ai_notes",
+          "tableTo": "users",
           "columnsFrom": [
             "requested_by"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_ai_notes_createdby_users_id_fk": {
           "name": "session_ai_notes_createdby_users_id_fk",
           "tableFrom": "session_ai_notes",
+          "tableTo": "users",
           "columnsFrom": [
             "createdby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "session_ai_notes_updatedby_users_id_fk": {
           "name": "session_ai_notes_updatedby_users_id_fk",
           "tableFrom": "session_ai_notes",
+          "tableTo": "users",
           "columnsFrom": [
             "updatedby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -5746,9 +6404,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "session_ai_processing_jobs_session_status_idx": {
           "name": "session_ai_processing_jobs_session_status_idx",
@@ -5767,9 +6425,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "session_ai_processing_jobs_participant_type_idx": {
           "name": "session_ai_processing_jobs_participant_type_idx",
@@ -5788,73 +6446,73 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "session_ai_processing_jobs_session_ai_notes_id_session_ai_notes_id_fk": {
           "name": "session_ai_processing_jobs_session_ai_notes_id_session_ai_notes_id_fk",
           "tableFrom": "session_ai_processing_jobs",
+          "tableTo": "session_ai_notes",
           "columnsFrom": [
             "session_ai_notes_id"
           ],
-          "tableTo": "session_ai_notes",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_ai_processing_jobs_participant_recording_id_session_participant_recordings_id_fk": {
           "name": "session_ai_processing_jobs_participant_recording_id_session_participant_recordings_id_fk",
           "tableFrom": "session_ai_processing_jobs",
+          "tableTo": "session_participant_recordings",
           "columnsFrom": [
             "participant_recording_id"
           ],
-          "tableTo": "session_participant_recordings",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_ai_processing_jobs_createdby_users_id_fk": {
           "name": "session_ai_processing_jobs_createdby_users_id_fk",
           "tableFrom": "session_ai_processing_jobs",
+          "tableTo": "users",
           "columnsFrom": [
             "createdby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "session_ai_processing_jobs_updatedby_users_id_fk": {
           "name": "session_ai_processing_jobs_updatedby_users_id_fk",
           "tableFrom": "session_ai_processing_jobs",
+          "tableTo": "users",
           "columnsFrom": [
             "updatedby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "session_ai_processing_jobs_idempotency_key_unique": {
           "name": "session_ai_processing_jobs_idempotency_key_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "idempotency_key"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -6029,10 +6687,10 @@
             }
           ],
           "isUnique": true,
-          "with": {},
-          "method": "btree",
           "where": "\"session_ai_reports\".\"status\" in ('pending', 'generating', 'ready_for_review', 'failed')",
-          "concurrently": false
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         },
         "session_ai_reports_session_kind_version_idx": {
           "name": "session_ai_reports_session_kind_version_idx",
@@ -6057,75 +6715,75 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "session_ai_reports_session_ai_notes_id_session_ai_notes_id_fk": {
           "name": "session_ai_reports_session_ai_notes_id_session_ai_notes_id_fk",
           "tableFrom": "session_ai_reports",
+          "tableTo": "session_ai_notes",
           "columnsFrom": [
             "session_ai_notes_id"
           ],
-          "tableTo": "session_ai_notes",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_ai_reports_approved_by_users_id_fk": {
           "name": "session_ai_reports_approved_by_users_id_fk",
           "tableFrom": "session_ai_reports",
+          "tableTo": "users",
           "columnsFrom": [
             "approved_by"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "session_ai_reports_createdby_users_id_fk": {
           "name": "session_ai_reports_createdby_users_id_fk",
           "tableFrom": "session_ai_reports",
+          "tableTo": "users",
           "columnsFrom": [
             "createdby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "session_ai_reports_updatedby_users_id_fk": {
           "name": "session_ai_reports_updatedby_users_id_fk",
           "tableFrom": "session_ai_reports",
+          "tableTo": "users",
           "columnsFrom": [
             "updatedby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "session_ai_reports_session_kind_version_unique": {
           "name": "session_ai_reports_session_kind_version_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "session_ai_notes_id",
             "report_kind",
             "report_version"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -6381,9 +7039,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "session_audio_recordings_retention_status_idx": {
           "name": "session_audio_recordings_retention_status_idx",
@@ -6402,124 +7060,124 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "session_audio_recordings_participant_recording_id_session_participant_recordings_id_fk": {
           "name": "session_audio_recordings_participant_recording_id_session_participant_recordings_id_fk",
           "tableFrom": "session_audio_recordings",
+          "tableTo": "session_participant_recordings",
           "columnsFrom": [
             "participant_recording_id"
           ],
-          "tableTo": "session_participant_recordings",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_audio_recordings_session_ai_notes_id_session_ai_notes_id_fk": {
           "name": "session_audio_recordings_session_ai_notes_id_session_ai_notes_id_fk",
           "tableFrom": "session_audio_recordings",
+          "tableTo": "session_ai_notes",
           "columnsFrom": [
             "session_ai_notes_id"
           ],
-          "tableTo": "session_ai_notes",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_audio_recordings_booking_id_bookings_id_fk": {
           "name": "session_audio_recordings_booking_id_bookings_id_fk",
           "tableFrom": "session_audio_recordings",
+          "tableTo": "bookings",
           "columnsFrom": [
             "booking_id"
           ],
-          "tableTo": "bookings",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_audio_recordings_participant_user_id_users_id_fk": {
           "name": "session_audio_recordings_participant_user_id_users_id_fk",
           "tableFrom": "session_audio_recordings",
+          "tableTo": "users",
           "columnsFrom": [
             "participant_user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         },
         "session_audio_recordings_createdby_users_id_fk": {
           "name": "session_audio_recordings_createdby_users_id_fk",
           "tableFrom": "session_audio_recordings",
+          "tableTo": "users",
           "columnsFrom": [
             "createdby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "session_audio_recordings_updatedby_users_id_fk": {
           "name": "session_audio_recordings_updatedby_users_id_fk",
           "tableFrom": "session_audio_recordings",
+          "tableTo": "users",
           "columnsFrom": [
             "updatedby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "session_audio_recordings_livekit_egress_id_unique": {
           "name": "session_audio_recordings_livekit_egress_id_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "livekit_egress_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         },
         "session_audio_recordings_session_track_segment_unique": {
           "name": "session_audio_recordings_session_track_segment_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "session_ai_notes_id",
             "livekit_track_sid",
             "segment_order"
-          ],
-          "nullsNotDistinct": false
+          ]
         },
         "session_audio_recordings_storage_object_unique": {
           "name": "session_audio_recordings_storage_object_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "storage_bucket",
             "storage_object_key"
-          ],
-          "nullsNotDistinct": false
+          ]
         },
         "session_audio_recordings_participant_segment_order_unique": {
           "name": "session_audio_recordings_participant_segment_order_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "participant_recording_id",
             "segment_order"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -6632,50 +7290,50 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "session_coach_bookmarks_session_ai_notes_id_session_ai_notes_id_fk": {
           "name": "session_coach_bookmarks_session_ai_notes_id_session_ai_notes_id_fk",
           "tableFrom": "session_coach_bookmarks",
+          "tableTo": "session_ai_notes",
           "columnsFrom": [
             "session_ai_notes_id"
           ],
-          "tableTo": "session_ai_notes",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_coach_bookmarks_createdby_users_id_fk": {
           "name": "session_coach_bookmarks_createdby_users_id_fk",
           "tableFrom": "session_coach_bookmarks",
+          "tableTo": "users",
           "columnsFrom": [
             "createdby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "session_coach_bookmarks_updatedby_users_id_fk": {
           "name": "session_coach_bookmarks_updatedby_users_id_fk",
           "tableFrom": "session_coach_bookmarks",
+          "tableTo": "users",
           "columnsFrom": [
             "updatedby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -6805,60 +7463,60 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "session_coach_voice_notes_session_ai_notes_id_session_ai_notes_id_fk": {
           "name": "session_coach_voice_notes_session_ai_notes_id_session_ai_notes_id_fk",
           "tableFrom": "session_coach_voice_notes",
+          "tableTo": "session_ai_notes",
           "columnsFrom": [
             "session_ai_notes_id"
           ],
-          "tableTo": "session_ai_notes",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_coach_voice_notes_createdby_users_id_fk": {
           "name": "session_coach_voice_notes_createdby_users_id_fk",
           "tableFrom": "session_coach_voice_notes",
+          "tableTo": "users",
           "columnsFrom": [
             "createdby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "session_coach_voice_notes_updatedby_users_id_fk": {
           "name": "session_coach_voice_notes_updatedby_users_id_fk",
           "tableFrom": "session_coach_voice_notes",
+          "tableTo": "users",
           "columnsFrom": [
             "updatedby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "session_coach_voice_notes_callback_token_unique": {
           "name": "session_coach_voice_notes_callback_token_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "callback_token"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -6983,74 +7641,74 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "session_participant_recordings_session_ai_notes_id_session_ai_notes_id_fk": {
           "name": "session_participant_recordings_session_ai_notes_id_session_ai_notes_id_fk",
           "tableFrom": "session_participant_recordings",
+          "tableTo": "session_ai_notes",
           "columnsFrom": [
             "session_ai_notes_id"
           ],
-          "tableTo": "session_ai_notes",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_participant_recordings_participant_user_id_users_id_fk": {
           "name": "session_participant_recordings_participant_user_id_users_id_fk",
           "tableFrom": "session_participant_recordings",
+          "tableTo": "users",
           "columnsFrom": [
             "participant_user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         },
         "session_participant_recordings_createdby_users_id_fk": {
           "name": "session_participant_recordings_createdby_users_id_fk",
           "tableFrom": "session_participant_recordings",
+          "tableTo": "users",
           "columnsFrom": [
             "createdby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "session_participant_recordings_updatedby_users_id_fk": {
           "name": "session_participant_recordings_updatedby_users_id_fk",
           "tableFrom": "session_participant_recordings",
+          "tableTo": "users",
           "columnsFrom": [
             "updatedby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "session_participant_recordings_session_user_unique": {
           "name": "session_participant_recordings_session_user_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "session_ai_notes_id",
             "participant_user_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -7224,9 +7882,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "session_transcript_segments_participant_physical_idx": {
           "name": "session_transcript_segments_participant_physical_idx",
@@ -7251,109 +7909,109 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "session_transcript_segments_session_ai_notes_id_session_ai_notes_id_fk": {
           "name": "session_transcript_segments_session_ai_notes_id_session_ai_notes_id_fk",
           "tableFrom": "session_transcript_segments",
+          "tableTo": "session_ai_notes",
           "columnsFrom": [
             "session_ai_notes_id"
           ],
-          "tableTo": "session_ai_notes",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_transcript_segments_participant_recording_id_session_participant_recordings_id_fk": {
           "name": "session_transcript_segments_participant_recording_id_session_participant_recordings_id_fk",
           "tableFrom": "session_transcript_segments",
+          "tableTo": "session_participant_recordings",
           "columnsFrom": [
             "participant_recording_id"
           ],
-          "tableTo": "session_participant_recordings",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "session_transcript_segments_physical_recording_id_session_audio_recordings_id_fk": {
           "name": "session_transcript_segments_physical_recording_id_session_audio_recordings_id_fk",
           "tableFrom": "session_transcript_segments",
+          "tableTo": "session_audio_recordings",
           "columnsFrom": [
             "physical_recording_id"
           ],
-          "tableTo": "session_audio_recordings",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "session_transcript_segments_participant_user_id_users_id_fk": {
           "name": "session_transcript_segments_participant_user_id_users_id_fk",
           "tableFrom": "session_transcript_segments",
+          "tableTo": "users",
           "columnsFrom": [
             "participant_user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "session_transcript_segments_createdby_users_id_fk": {
           "name": "session_transcript_segments_createdby_users_id_fk",
           "tableFrom": "session_transcript_segments",
+          "tableTo": "users",
           "columnsFrom": [
             "createdby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "session_transcript_segments_updatedby_users_id_fk": {
           "name": "session_transcript_segments_updatedby_users_id_fk",
           "tableFrom": "session_transcript_segments",
+          "tableTo": "users",
           "columnsFrom": [
             "updatedby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "session_transcript_segments_participant_sequence_unique": {
           "name": "session_transcript_segments_participant_sequence_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "participant_recording_id",
             "sequence_number"
-          ],
-          "nullsNotDistinct": false
+          ]
         },
         "session_transcript_segments_provider_segment_unique": {
           "name": "session_transcript_segments_provider_segment_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "session_ai_notes_id",
             "provider",
             "provider_segment_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -7513,9 +8171,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "session_transcript_timeline_participant_idx": {
           "name": "session_transcript_timeline_participant_idx",
@@ -7534,107 +8192,107 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "session_transcript_timeline_segments_session_ai_notes_id_session_ai_notes_id_fk": {
           "name": "session_transcript_timeline_segments_session_ai_notes_id_session_ai_notes_id_fk",
           "tableFrom": "session_transcript_timeline_segments",
+          "tableTo": "session_ai_notes",
           "columnsFrom": [
             "session_ai_notes_id"
           ],
-          "tableTo": "session_ai_notes",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_transcript_timeline_segments_participant_recording_id_session_participant_recordings_id_fk": {
           "name": "session_transcript_timeline_segments_participant_recording_id_session_participant_recordings_id_fk",
           "tableFrom": "session_transcript_timeline_segments",
+          "tableTo": "session_participant_recordings",
           "columnsFrom": [
             "participant_recording_id"
           ],
-          "tableTo": "session_participant_recordings",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_transcript_timeline_segments_participant_user_id_users_id_fk": {
           "name": "session_transcript_timeline_segments_participant_user_id_users_id_fk",
           "tableFrom": "session_transcript_timeline_segments",
+          "tableTo": "users",
           "columnsFrom": [
             "participant_user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "session_transcript_timeline_segments_source_transcript_segment_id_session_transcript_segments_id_fk": {
           "name": "session_transcript_timeline_segments_source_transcript_segment_id_session_transcript_segments_id_fk",
           "tableFrom": "session_transcript_timeline_segments",
+          "tableTo": "session_transcript_segments",
           "columnsFrom": [
             "source_transcript_segment_id"
           ],
-          "tableTo": "session_transcript_segments",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_transcript_timeline_segments_createdby_users_id_fk": {
           "name": "session_transcript_timeline_segments_createdby_users_id_fk",
           "tableFrom": "session_transcript_timeline_segments",
+          "tableTo": "users",
           "columnsFrom": [
             "createdby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "session_transcript_timeline_segments_updatedby_users_id_fk": {
           "name": "session_transcript_timeline_segments_updatedby_users_id_fk",
           "tableFrom": "session_transcript_timeline_segments",
+          "tableTo": "users",
           "columnsFrom": [
             "updatedby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "session_transcript_timeline_session_sequence_unique": {
           "name": "session_transcript_timeline_session_sequence_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "session_ai_notes_id",
             "global_sequence"
-          ],
-          "nullsNotDistinct": false
+          ]
         },
         "session_transcript_timeline_source_unique": {
           "name": "session_transcript_timeline_source_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "source_transcript_segment_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -7768,73 +8426,73 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "session_transcription_requests_physical_recording_id_session_audio_recordings_id_fk": {
           "name": "session_transcription_requests_physical_recording_id_session_audio_recordings_id_fk",
           "tableFrom": "session_transcription_requests",
+          "tableTo": "session_audio_recordings",
           "columnsFrom": [
             "physical_recording_id"
           ],
-          "tableTo": "session_audio_recordings",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_transcription_requests_processing_job_id_session_ai_processing_jobs_id_fk": {
           "name": "session_transcription_requests_processing_job_id_session_ai_processing_jobs_id_fk",
           "tableFrom": "session_transcription_requests",
+          "tableTo": "session_ai_processing_jobs",
           "columnsFrom": [
             "processing_job_id"
           ],
-          "tableTo": "session_ai_processing_jobs",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_transcription_requests_createdby_users_id_fk": {
           "name": "session_transcription_requests_createdby_users_id_fk",
           "tableFrom": "session_transcription_requests",
+          "tableTo": "users",
           "columnsFrom": [
             "createdby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "session_transcription_requests_updatedby_users_id_fk": {
           "name": "session_transcription_requests_updatedby_users_id_fk",
           "tableFrom": "session_transcription_requests",
+          "tableTo": "users",
           "columnsFrom": [
             "updatedby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "session_transcription_requests_callback_token_unique": {
           "name": "session_transcription_requests_callback_token_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "callback_token"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -8052,28 +8710,28 @@
         "system_config_createdby_users_id_fk": {
           "name": "system_config_createdby_users_id_fk",
           "tableFrom": "system_config",
+          "tableTo": "users",
           "columnsFrom": [
             "createdby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "system_config_updatedby_users_id_fk": {
           "name": "system_config_updatedby_users_id_fk",
           "tableFrom": "system_config",
+          "tableTo": "users",
           "columnsFrom": [
             "updatedby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -8158,28 +8816,28 @@
         "team_members_user_id_users_id_fk": {
           "name": "team_members_user_id_users_id_fk",
           "tableFrom": "team_members",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "team_members_team_id_teams_id_fk": {
           "name": "team_members_team_id_teams_id_fk",
           "tableFrom": "team_members",
+          "tableTo": "teams",
           "columnsFrom": [
             "team_id"
           ],
-          "tableTo": "teams",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -8300,61 +8958,61 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "user_feature_entitlements_user_id_users_id_fk": {
           "name": "user_feature_entitlements_user_id_users_id_fk",
           "tableFrom": "user_feature_entitlements",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "user_feature_entitlements_createdby_users_id_fk": {
           "name": "user_feature_entitlements_createdby_users_id_fk",
           "tableFrom": "user_feature_entitlements",
+          "tableTo": "users",
           "columnsFrom": [
             "createdby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "user_feature_entitlements_updatedby_users_id_fk": {
           "name": "user_feature_entitlements_updatedby_users_id_fk",
           "tableFrom": "user_feature_entitlements",
+          "tableTo": "users",
           "columnsFrom": [
             "updatedby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "user_feature_entitlements_user_feature_unique": {
           "name": "user_feature_entitlements_user_feature_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "user_id",
             "feature_code"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -8446,25 +9104,25 @@
         "user_onboarding_user_id_users_id_fk": {
           "name": "user_onboarding_user_id_users_id_fk",
           "tableFrom": "user_onboarding",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "user_onboarding_user_id_unique": {
           "name": "user_onboarding_user_id_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "user_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -8551,10 +9209,10 @@
             }
           ],
           "isUnique": true,
-          "with": {},
-          "method": "btree",
           "where": "\"user_packages\".\"status\" = 'active'",
-          "concurrently": false
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         },
         "user_packages_user_status_idx": {
           "name": "user_packages_user_status_idx",
@@ -8573,63 +9231,63 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "user_packages_user_id_users_id_fk": {
           "name": "user_packages_user_id_users_id_fk",
           "tableFrom": "user_packages",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "user_packages_package_id_packages_id_fk": {
           "name": "user_packages_package_id_packages_id_fk",
           "tableFrom": "user_packages",
+          "tableTo": "packages",
           "columnsFrom": [
             "package_id"
           ],
-          "tableTo": "packages",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "user_packages_createdby_users_id_fk": {
           "name": "user_packages_createdby_users_id_fk",
           "tableFrom": "user_packages",
+          "tableTo": "users",
           "columnsFrom": [
             "createdby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "user_packages_updatedby_users_id_fk": {
           "name": "user_packages_updatedby_users_id_fk",
           "tableFrom": "user_packages",
+          "tableTo": "users",
           "columnsFrom": [
             "updatedby"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -8701,39 +9359,39 @@
         "user_roles_user_id_users_id_fk": {
           "name": "user_roles_user_id_users_id_fk",
           "tableFrom": "user_roles",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "user_roles_role_key_roles_key_fk": {
           "name": "user_roles_role_key_roles_key_fk",
           "tableFrom": "user_roles",
+          "tableTo": "roles",
           "columnsFrom": [
             "role_key"
           ],
-          "tableTo": "roles",
           "columnsTo": [
             "key"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "user_roles_user_id_role_key_unique": {
           "name": "user_roles_user_id_role_key_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "user_id",
             "role_key"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -8846,17 +9504,17 @@
       "uniqueConstraints": {
         "users_auth_id_unique": {
           "name": "users_auth_id_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "auth_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         },
         "users_email_unique": {
           "name": "users_email_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "email"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -8997,9 +9655,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "video_session_events_event_occurred_idx": {
           "name": "video_session_events_event_occurred_idx",
@@ -9018,34 +9676,34 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "video_session_events_booking_id_bookings_id_fk": {
           "name": "video_session_events_booking_id_bookings_id_fk",
           "tableFrom": "video_session_events",
+          "tableTo": "bookings",
           "columnsFrom": [
             "booking_id"
           ],
-          "tableTo": "bookings",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "video_session_events_webhook_id_unique": {
           "name": "video_session_events_webhook_id_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "webhook_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       },
       "policies": {},
@@ -9055,10 +9713,11 @@
   },
   "enums": {},
   "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
   "views": {
     "public.landing_stats": {
-      "name": "landing_stats",
-      "schema": "public",
       "columns": {
         "coaches": {
           "name": "coaches",
@@ -9085,13 +9744,12 @@
           "notNull": true
         }
       },
-      "materialized": false,
-      "isExisting": true
+      "name": "landing_stats",
+      "schema": "public",
+      "isExisting": true,
+      "materialized": false
     }
   },
-  "sequences": {},
-  "roles": {},
-  "policies": {},
   "_meta": {
     "columns": {},
     "schemas": {},

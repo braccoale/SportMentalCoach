@@ -31,7 +31,6 @@ export default async function SystemConfigAdminPage() {
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
               <tr>
-                <th className="px-4 py-3">Chiave</th>
                 <th className="px-4 py-3">Etichetta</th>
                 <th className="px-4 py-3">Categoria</th>
                 <th className="px-4 py-3">Valore</th>
@@ -41,10 +40,7 @@ export default async function SystemConfigAdminPage() {
             <tbody className="divide-y divide-gray-100">
               {rows.map((row) => (
                 <tr key={row.key}>
-                  <td className="px-4 py-3 font-mono text-xs text-gray-500">
-                    {row.key}
-                  </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3" title={row.key}>
                     <p className="font-medium text-gray-900">{row.label}</p>
                     {row.description && (
                       <p className="text-xs text-gray-500">{row.description}</p>
@@ -74,7 +70,7 @@ export default async function SystemConfigAdminPage() {
                         <input
                           type="number"
                           name="rawValue"
-                          min={1}
+                          step="any"
                           defaultValue={typeof row.value === 'number' ? row.value : ''}
                           aria-label={row.label}
                           className="w-28 rounded-lg border border-gray-300 px-2 py-1 text-sm"

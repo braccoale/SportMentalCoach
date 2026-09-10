@@ -1,4 +1,5 @@
 import 'server-only';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
@@ -143,8 +144,13 @@ async function loadSnapshot(
     .limit(1);
 
   const seconds = sessionSeconds(row.startedAt, row.endedAt);
+  const partialCoverageThreshold = await getSystemConfigNumber(
+    'AI_NOTES_PARTIAL_COVERAGE_THRESHOLD',
+    0.9
+  );
   const coverage = assessRecordingCoverage({
     sessionSeconds: seconds,
+    partialCoverageThreshold,
     recorded: recordings
       .filter(
         (recording) =>

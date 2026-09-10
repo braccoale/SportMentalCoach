@@ -9,6 +9,7 @@ import {
   getCoachBusyIntervalsByProviderIds,
   parseRomeLocalDateTime,
 } from '@/lib/core/availability';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 import {
   busyIntervalsAt,
   dropPastStarts,
@@ -91,9 +92,14 @@ export async function GET(request: Request) {
   ]);
 
   const now = new Date();
+  const stepMinutes = await getSystemConfigNumber(
+    'AVAILABILITY_BOOKING_START_STEP_MINUTES',
+    10
+  );
   const days = dropPastStarts(
     getBookableDays(availability, {
       busyIntervals: busyIntervalsAt(busyByProvider.get(provider.id) ?? [], now),
+      stepMinutes,
     }),
     now
   );

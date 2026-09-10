@@ -474,8 +474,22 @@
     {
       "idx": 67,
       "version": "7",
+      "when": 1788868941932,
+      "tag": "0067_configurazione-di-sistema-secondo-giro",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1788871734030,
+      "tag": "0068_avviso-testo-email-promemoria-non-segue-il-numero",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
       "when": 1788982550290,
-      "tag": "0067_percorso-atleta-prove",
+      "tag": "0069_percorso-atleta-prove",
       "breakpoints": true
     }
   ]

@@ -52,6 +52,7 @@ import {
   getCoachBusyIntervalsByProviderIds,
   type BookableDay,
 } from '@/lib/core/availability';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 import {
   canBookSessions,
   ageFromBirthDate,
@@ -663,6 +664,10 @@ export async function getAthleteRelationshipCoaches(
   // Un solo istante per tutti i coach della lista: due letture dell'orologio
   // potrebbero cadere a cavallo di un minuto e rendere la lista incoerente.
   const now = new Date();
+  const stepMinutes = await getSystemConfigNumber(
+    'AVAILABILITY_BOOKING_START_STEP_MINUTES',
+    10
+  );
 
   return coaches
     .filter((c) => c.slug)
@@ -674,6 +679,7 @@ export async function getAthleteRelationshipCoaches(
       availabilityHint: describeAvailability(availByProvider.get(c.id) ?? []),
       bookableDays: getBookableDays(availByProvider.get(c.id) ?? [], {
         busyIntervals: busyByProvider.get(c.id) ?? [],
+        stepMinutes,
       }),
       /*
        * Le opzioni per spostare un appuntamento già fissato, una per
@@ -690,6 +696,7 @@ export async function getAthleteRelationshipCoaches(
             getBookableDays(availByProvider.get(c.id) ?? [], {
               busyIntervals: busyByProvider.get(c.id) ?? [],
               excludeBookingId: interval.bookingId,
+              stepMinutes,
             }),
           ])
       ),

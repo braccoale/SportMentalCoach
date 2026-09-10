@@ -25,6 +25,7 @@ import {
   getBookableDays,
   getCoachBusyIntervalsByProviderIds,
 } from '@/lib/core/availability';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 import { getReviewSummary, getCoachReviews } from '@/lib/core/reviews';
 import { getCompletedSessionCount } from '@/lib/core/bookings';
 import {
@@ -195,8 +196,13 @@ export default async function CoachDetailPage({
   // Compact availability hint shown beside the date field in the form.
   const availabilityHint = describeAvailability(availability.slice(0, 3));
   // Concrete day+time options for the constrained booking picker.
+  const stepMinutes = await getSystemConfigNumber(
+    'AVAILABILITY_BOOKING_START_STEP_MINUTES',
+    10
+  );
   const bookableDays = getBookableDays(availability, {
     busyIntervals: busyByProvider.get(coach.providerId) ?? [],
+    stepMinutes,
   });
   const memberSince = new Intl.DateTimeFormat('it-IT', {
     month: 'long',
