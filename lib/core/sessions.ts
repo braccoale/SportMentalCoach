@@ -74,14 +74,19 @@ export function isRequestExpired(
 
 /**
  * Se restano abbastanza minuti prima dell'inizio previsto perché la
- * cancellazione sia ancora ammessa. Regola simmetrica: si applica allo stesso
+ * cancellazione sia "in tempo". Regola simmetrica: si applica allo stesso
  * modo sia che a cancellare sia l'atleta sia che sia il coach.
  *
+ * Non blocca nulla — la cancellazione resta sempre permessa. Distingue solo
+ * una cancellazione fatta in tempo da una fatta a ridosso della sessione, che
+ * `cancelBooking` marca come tale (`lateCancellation`): non è mai avvenuta una
+ * sessione reale, ma è quanto servirà alla futura integrazione con i
+ * pacchetti di sessioni per contarla comunque come consumata.
+ *
  * Una sessione senza orario fisso (una chiamata avviata subito, o una
- * richiesta ancora priva di data) non ha un "prima" da rispettare: resta
- * sempre cancellabile su questo fronte. `minNoticeMinutes` arriva dai
- * parametri di sistema — a 0 la regola non blocca nulla, cioè il
- * comportamento di prima che esistesse.
+ * richiesta ancora priva di data) non ha un "prima" da rispettare: è sempre
+ * "in tempo". `minNoticeMinutes` arriva dai parametri di sistema — a 0 è
+ * sempre in tempo, cioè nessuna sessione viene mai marcata.
  */
 export function isWithinCancellationNotice(
   scheduledFor: Date | null,

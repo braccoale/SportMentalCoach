@@ -382,6 +382,11 @@ export const bookings = pgTable(
     // Actual video-call span, tracked by a client heartbeat while connected.
     sessionStartedAt: timestamp('session_started_at'),
     sessionEndedAt: timestamp('session_ended_at'),
+    // True when this booking was cancelled inside the minimum-notice window
+    // (BOOKING_CANCELLATION_MIN_NOTICE_MINUTES in system_config). Status stays
+    // 'cancelled' — no session actually took place — but this is the marker a
+    // future package/credit system will read to still count it as consumed.
+    lateCancellation: boolean('late_cancellation').notNull().default(false),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
     ...audit,

@@ -41,6 +41,8 @@ export type UpcomingAppointmentData = {
   } | null;
   primaryNeed: string;
   requestedAtLabel: string;
+  /** Se cancellare *ora* farebbe contare questa sessione come consumata (preavviso minimo non rispettato). */
+  cancellationWouldBeLate?: boolean;
 };
 
 /**
@@ -250,6 +252,7 @@ export function UpcomingAppointmentCard({
           onOpenChange={setCancellationOpen}
           action={cancelAction}
           bookingId={cancelBookingId}
+          cancellationWouldBeLate={data.cancellationWouldBeLate}
         />
       ) : null}
     </>

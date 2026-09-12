@@ -14,6 +14,7 @@ import {
   FALLBACK_SESSION_DURATION_MIN,
   canJoinVideoNow,
   isSessionUpcoming,
+  isWithinCancellationNotice,
 } from '@/lib/core/sessions';
 import { getSystemConfigNumber } from '@/lib/core/system-config';
 
@@ -49,6 +50,10 @@ export async function GET(request: Request) {
     120
   );
   const horizon = new Date(Date.now() - historyDays * 24 * 60 * 60 * 1000);
+  const cancellationMinNoticeMinutes = await getSystemConfigNumber(
+    'BOOKING_CANCELLATION_MIN_NOTICE_MINUTES',
+    0
+  );
 
   const rows = await db
     .select({
@@ -182,6 +187,15 @@ export async function GET(request: Request) {
       canJoinNow: canJoinVideoNow(
         row.scheduledFor,
         Number(row.durationMin)
+      ),
+      /*
+       * Stessa regola del web (`wouldBeLateCancellation`, in
+       * lib/core/bookings): se cancellata ora, sotto il preavviso minimo
+       * configurato, conterebbe comunque come sessione consumata.
+       */
+      cancellationWouldBeLate: !isWithinCancellationNotice(
+        row.scheduledFor,
+        cancellationMinNoticeMinutes
       ),
       viewerIsCoach,
       /*

@@ -990,6 +990,7 @@ function buildUpcomingAppointmentData(
     date: booking.scheduledFor ? formatBigDateParts(booking.scheduledFor) : null,
     primaryNeed: derivePrimaryNeed(booking) ?? 'Da chiarire insieme nel primo confronto.',
     requestedAtLabel: formatDate(booking.requestedAt),
+    cancellationWouldBeLate: booking.cancellationWouldBeLate,
   };
 }
 
@@ -1084,7 +1085,9 @@ function buildArchiveCardData(
             : 'orario non registrato',
         }
       : null,
-    note: isCompleted ? null : archiveReason(booking.status),
+    note: isCompleted
+      ? null
+      : archiveReason(booking.status, booking.lateCancellation),
     requestedAtLabel: formatDate(booking.requestedAt),
     aiIndicator: buildAiSessionArchiveIndicator(
       booking.aiNotesStatus,
@@ -1101,14 +1104,18 @@ function buildArchiveCardData(
   };
 }
 
-function archiveReason(status: string): string {
+function archiveReason(status: string, lateCancellation?: boolean): string {
   switch (status) {
     case 'expired':
       return 'Nessuna risposta entro i termini.';
     case 'declined':
       return 'Richiesta rifiutata.';
     case 'cancelled':
-      return 'Sessione annullata.';
+      // Sotto il preavviso minimo: non è mai avvenuta, ma conta comunque come
+      // sessione consumata (vedi lib/core/bookings, `wouldBeLateCancellation`).
+      return lateCancellation
+        ? 'Sessione annullata sotto il preavviso minimo: conteggiata come effettuata.'
+        : 'Sessione annullata.';
     case 'accepted':
       return 'La sessione è trascorsa e deve ancora essere completata.';
     default:

@@ -67,7 +67,7 @@ export async function POST(
       dependencies.liveKit
     );
     return result.ok
-      ? Response.json({ ok: true })
+      ? Response.json({ ok: true, lateCancellation: result.lateCancellation })
       : Response.json({ error: result.error }, { status: 400 });
   }
 

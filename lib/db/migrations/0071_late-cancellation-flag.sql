@@ -1,0 +1,11 @@
+-- La cancellazione resta sempre permessa (nessun blocco per orario), ma una
+-- cancellazione fatta dentro il preavviso minimo configurato
+-- (BOOKING_CANCELLATION_MIN_NOTICE_MINUTES) deve poter essere distinta da una
+-- fatta in tempo: in futuro la parte pagamenti dovrà contarla comunque come
+-- sessione consumata di un pacchetto (es. 10 sessioni acquistate, una
+-- cancellata a 5 minuti dall'inizio con preavviso minimo 30 -> ne restano 9,
+-- non 10). Lo stato resta 'cancelled' — non è mai avvenuta una sessione reale,
+-- quindi non deve toccare 'completed' e tutto ciò che ne dipende (statistiche
+-- coach, percorso mentale, appunti AI, recensioni). Additiva: solo ALTER ADD
+-- COLUMN con default, nessun dato esistente cambia significato.
+ALTER TABLE "bookings" ADD COLUMN "late_cancellation" boolean DEFAULT false NOT NULL;

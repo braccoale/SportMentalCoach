@@ -104,10 +104,13 @@ export async function cancelBookingAction(
 
   revalidateBookings();
   revalidatePath(`/dashboard/appointments/${bookingId}`);
+  const base = sendCancellationMessage
+    ? 'Appuntamento annullato e messaggio inviato.'
+    : 'Appuntamento annullato.';
   return {
-    success: sendCancellationMessage
-      ? 'Appuntamento annullato e messaggio inviato.'
-      : 'Appuntamento annullato.',
+    success: result.lateCancellation
+      ? `${base} Era sotto il preavviso minimo: conta comunque come sessione effettuata.`
+      : base,
   };
 }
 

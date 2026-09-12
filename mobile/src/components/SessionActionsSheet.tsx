@@ -170,12 +170,19 @@ export function SessionActionsSheet({
              * Annullare avvisa l'altra persona e libera lo slot: è
              * irreversibile, quindi si chiede una seconda volta. La conferma
              * non è un doppio clic sullo stesso pulsante — dice cosa succede.
+             *
+             * Sotto il preavviso minimo l'annullamento resta permesso, ma va
+             * detto prima di confermare: il server (stessa regola del web) ha
+             * già segnato `cancellationWouldBeLate`, non lo si ricalcola qui.
              */
             <>
               <Text style={styles.title}>Annullare la sessione?</Text>
               <Text style={styles.subtitle}>
                 {session.otherName} riceverà un avviso e l’orario tornerà
                 libero. Non si può annullare l’annullamento.
+                {session.cancellationWouldBeLate
+                  ? ' Sei sotto il preavviso minimo: la sessione verrà comunque conteggiata come effettuata.'
+                  : ''}
               </Text>
               <Pressable
                 onPress={() => void run(() => cancelBooking(session.bookingId))}

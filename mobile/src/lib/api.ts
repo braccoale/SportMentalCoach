@@ -101,6 +101,12 @@ export type UpcomingSession = {
   otherName: string;
   /** Chi si ha davanti: serve a riprenotare con lui senza ricercarlo. */
   otherUserId?: number | null;
+  /**
+   * Il server ha già deciso: cancellare *ora* farebbe contare questa
+   * sessione come consumata (preavviso minimo non rispettato). Stessa
+   * regola del web — mai ricalcolata qui con l'orologio del telefono.
+   */
+  cancellationWouldBeLate?: boolean;
 };
 
 export function fetchSessions() {
@@ -501,10 +507,13 @@ export function decideBooking(bookingId: number, accept: boolean) {
 
 /** Le azioni su una prenotazione: annulla, sposta, collegamento per l'atleta. */
 export function cancelBooking(bookingId: number) {
-  return request<{ ok: true }>(`/api/mobile/bookings/${bookingId}`, {
-    method: 'POST',
-    body: JSON.stringify({ action: 'cancel' }),
-  });
+  return request<{ ok: true; lateCancellation?: boolean }>(
+    `/api/mobile/bookings/${bookingId}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ action: 'cancel' }),
+    }
+  );
 }
 
 export function rescheduleBooking(

@@ -9,11 +9,18 @@ export function CancelBookingDialog({
   onOpenChange,
   action,
   bookingId,
+  cancellationWouldBeLate,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
   bookingId: number;
+  /**
+   * Il server ha già deciso: cancellare *ora* farebbe contare questa sessione
+   * come consumata (preavviso minimo non rispettato). Non è un blocco — solo
+   * un avviso prima che l'utente confermi, così la scelta è consapevole.
+   */
+  cancellationWouldBeLate?: boolean;
 }) {
   const [state, formAction] = useActionState<ActionState, FormData>(action, {});
   const [pending, startTransition] = useTransition();
@@ -26,7 +33,11 @@ export function CancelBookingDialog({
     <ConfirmationDialog
       open={open}
       title="Annullare la sessione?"
-      message="Confermi di voler annullare questo appuntamento? L’operazione non può essere annullata."
+      message={
+        cancellationWouldBeLate
+          ? 'Confermi di voler annullare questo appuntamento? Sei sotto il preavviso minimo: la sessione verrà comunque conteggiata come effettuata. L’operazione non può essere annullata.'
+          : 'Confermi di voler annullare questo appuntamento? L’operazione non può essere annullata.'
+      }
       actionLabel="Annulla sessione"
       collectCancellationMessage
       busy={pending}

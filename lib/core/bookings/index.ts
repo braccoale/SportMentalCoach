@@ -104,6 +104,25 @@ async function hasOpenBookingConflict(
   return Boolean(conflict);
 }
 
+/**
+ * Se cancellare *ora* una sessione con questo orario la farebbe contare come
+ * cancellazione tardiva — sotto il preavviso minimo configurato
+ * (`BOOKING_CANCELLATION_MIN_NOTICE_MINUTES`, uguale per atleta e coach).
+ *
+ * Usata sia da `cancelBooking` per decidere cosa scrivere sulla riga, sia da
+ * chi mostra l'avviso prima che l'utente confermi: la risposta è sempre
+ * questa, mai ricalcolata lato client con la propria idea di "adesso".
+ */
+export async function wouldBeLateCancellation(
+  scheduledFor: Date | null
+): Promise<boolean> {
+  const minNoticeMinutes = await getSystemConfigNumber(
+    'BOOKING_CANCELLATION_MIN_NOTICE_MINUTES',
+    0
+  );
+  return !isWithinCancellationNotice(scheduledFor, minNoticeMinutes);
+}
+
 /** Localized label for a booking status (from the vertical copy). */
 export function bookingStatusLabel(status: string): string {
   return t(`booking.status.${status}`, getVerticalConfig());
@@ -440,6 +459,10 @@ export type AthleteBooking = {
   aiReportStatus: string | null;
   hasRecordedAudio: boolean;
   hasTranscript: boolean;
+  /** Se una sessione già cancellata lo fu dentro il preavviso minimo. */
+  lateCancellation: boolean;
+  /** Se cancellarla *ora* la marcherebbe come tardiva (solo per le aperte). */
+  cancellationWouldBeLate: boolean;
 };
 
 export type ParticipantBooking = {
@@ -995,7 +1018,11 @@ export async function getAthleteBookings(
   userId: number
 ): Promise<AthleteBooking[]> {
   await expireStaleRequests();
-  return db
+  const minNoticeMinutes = await getSystemConfigNumber(
+    'BOOKING_CANCELLATION_MIN_NOTICE_MINUTES',
+    0
+  );
+  const rows = await db
     .select({
       id: bookings.id,
       status: bookings.status,
@@ -1005,6 +1032,7 @@ export async function getAthleteBookings(
       decidedAt: bookings.decidedAt,
       sessionStartedAt: bookings.sessionStartedAt,
       sessionEndedAt: bookings.sessionEndedAt,
+      lateCancellation: bookings.lateCancellation,
       coachName: profiles.displayName,
       coachAvatarUrl: profiles.avatarUrl,
       coachSlug: providerProfiles.slug,
@@ -1063,6 +1091,14 @@ export async function getAthleteBookings(
     .leftJoin(services, eq(bookings.serviceId, services.id))
     .where(eq(bookings.clientId, userId))
     .orderBy(desc(bookings.requestedAt));
+
+  return rows.map((b) => ({
+    ...b,
+    cancellationWouldBeLate: !isWithinCancellationNotice(
+      b.scheduledFor,
+      minNoticeMinutes
+    ),
+  }));
 }
 
 export type CoachBooking = {
@@ -1098,6 +1134,10 @@ export type CoachBooking = {
   aiReportStatus: string | null;
   hasRecordedAudio: boolean;
   hasTranscript: boolean;
+  /** Se una sessione già cancellata lo fu dentro il preavviso minimo. */
+  lateCancellation: boolean;
+  /** Se cancellarla *ora* la marcherebbe come tardiva (solo per le aperte). */
+  cancellationWouldBeLate: boolean;
 };
 
 /** Incoming bookings for a coach (resolved from their user id). */
@@ -1105,6 +1145,10 @@ export async function getCoachBookings(
   userId: number
 ): Promise<CoachBooking[]> {
   await expireStaleRequests();
+  const minNoticeMinutes = await getSystemConfigNumber(
+    'BOOKING_CANCELLATION_MIN_NOTICE_MINUTES',
+    0
+  );
   const [provider] = await db
     .select({ id: providerProfiles.id })
     .from(providerProfiles)
@@ -1124,6 +1168,7 @@ export async function getCoachBookings(
       decidedAt: bookings.decidedAt,
       sessionStartedAt: bookings.sessionStartedAt,
       sessionEndedAt: bookings.sessionEndedAt,
+      lateCancellation: bookings.lateCancellation,
       clientName: sql<string | null>`nullif(trim(concat(${users.name}, ' ', coalesce(${users.lastName}, ''))), '')`,
       clientEmail: users.email,
       clientAvatarUrl: profiles.avatarUrl,
@@ -1193,7 +1238,15 @@ export async function getCoachBookings(
   // needs to know they are working with a 15-17 year old, not their birthday.
   return rows.map(({ athleteBirthDate, ...b }) => {
     const age = ageFromBirthDate(athleteBirthDate);
-    return { ...b, athleteIsMinor: requiresGuardian(age), athleteAge: age };
+    return {
+      ...b,
+      athleteIsMinor: requiresGuardian(age),
+      athleteAge: age,
+      cancellationWouldBeLate: !isWithinCancellationNotice(
+        b.scheduledFor,
+        minNoticeMinutes
+      ),
+    };
   });
 }
 
@@ -1390,13 +1443,16 @@ export async function completeBooking(params: {
 /**
  * Either participant (the athlete client or the coach) cancels a booking that
  * is still `requested` or `accepted`. Participation + transition enforced.
+ *
+ * Cancelling is never refused for being "too late" — see `wouldBeLateCancellation`
+ * for what happens instead.
  */
 export async function cancelBooking(params: {
   bookingId: number;
   userId: number;
   sendCancellationMessage?: boolean;
   cancellationNote?: string | null;
-}, liveKit: LiveKitSessionControl): Promise<Result> {
+}, liveKit: LiveKitSessionControl): Promise<Result<{ lateCancellation: boolean }>> {
   const cancellationMessage = params.sendCancellationMessage
     ? buildCancellationMessage(params.cancellationNote)
     : null;
@@ -1439,19 +1495,10 @@ export async function cancelBooking(params: {
     };
   }
 
-  // Preavviso minimo, uguale per atleta e coach: sotto una parametrizzazione a
-  // 0 (il default) non blocca nulla, cioè il comportamento di prima che questa
-  // regola esistesse.
-  const minNoticeMinutes = await getSystemConfigNumber(
-    'BOOKING_CANCELLATION_MIN_NOTICE_MINUTES',
-    0
-  );
-  if (!isWithinCancellationNotice(row.scheduledFor, minNoticeMinutes)) {
-    return {
-      ok: false,
-      error: `La sessione inizia tra meno di ${minNoticeMinutes} minuti: non può più essere annullata.`,
-    };
-  }
+  // Cancellare resta sempre permesso. Sotto il preavviso minimo configurato
+  // (0 di default: nessuna sessione viene mai marcata) la cancellazione viene
+  // comunque registrata, ma marcata "tardiva" — vedi `wouldBeLateCancellation`.
+  const isLate = await wouldBeLateCancellation(row.scheduledFor);
 
   const now = new Date();
   let cancelled = false;
@@ -1461,7 +1508,12 @@ export async function cancelBooking(params: {
       // possono annullare due volte né duplicare il messaggio automatico.
       const [updated] = await tx
         .update(bookings)
-        .set({ status: 'cancelled', updatedAt: now, updatedBy: params.userId })
+        .set({
+          status: 'cancelled',
+          lateCancellation: isLate,
+          updatedAt: now,
+          updatedBy: params.userId,
+        })
         .where(
           and(
             eq(bookings.id, params.bookingId),
@@ -1521,7 +1573,7 @@ export async function cancelBooking(params: {
     });
   }
 
-  return { ok: true };
+  return { ok: true, lateCancellation: isLate };
 }
 
 /**

@@ -87,6 +87,7 @@ function buildAthleteUpcomingData(b: AthleteBooking): UpcomingAppointmentData {
       b.serviceTitle ??
       'Obiettivo da mettere a fuoco insieme al coach.',
     requestedAtLabel: formatDate(b.requestedAt),
+    cancellationWouldBeLate: b.cancellationWouldBeLate,
   };
 }
 
@@ -165,7 +166,7 @@ function buildAthleteArchiveData(b: AthleteBooking): CompletedSessionData {
             : 'orario non registrato',
         }
       : null,
-    note: isCompleted ? null : archiveReason(b.status),
+    note: isCompleted ? null : archiveReason(b.status, b.lateCancellation),
     requestedAtLabel: formatDate(b.requestedAt),
     aiIndicator: buildAiSessionArchiveIndicator(
       b.aiNotesStatus,
@@ -181,14 +182,18 @@ function buildAthleteArchiveData(b: AthleteBooking): CompletedSessionData {
   };
 }
 
-function archiveReason(status: string): string {
+function archiveReason(status: string, lateCancellation?: boolean): string {
   switch (status) {
     case 'expired':
       return 'Scaduta senza risposta del coach.';
     case 'declined':
       return 'Richiesta rifiutata dal coach.';
     case 'cancelled':
-      return 'Sessione annullata.';
+      // Sotto il preavviso minimo: non è mai avvenuta, ma conta comunque come
+      // sessione consumata (vedi lib/core/bookings, `wouldBeLateCancellation`).
+      return lateCancellation
+        ? 'Sessione annullata sotto il preavviso minimo: conteggiata come effettuata.'
+        : 'Sessione annullata.';
     case 'accepted':
       return 'In attesa che il coach registri l’esito della sessione.';
     default:
