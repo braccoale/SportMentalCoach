@@ -43,6 +43,7 @@ import {
   REQUEST_EXPIRY_GRACE_MINUTES,
   REQUEST_RESPONSE_WINDOW_HOURS,
   isSessionJoinable,
+  isWithinCancellationNotice,
 } from '@/lib/core/sessions';
 import {
   getCoachAvailabilityByProviderId,
@@ -1435,6 +1436,20 @@ export async function cancelBooking(params: {
     return {
       ok: false,
       error: 'La sessione è già trascorsa e non può essere annullata.',
+    };
+  }
+
+  // Preavviso minimo, uguale per atleta e coach: sotto una parametrizzazione a
+  // 0 (il default) non blocca nulla, cioè il comportamento di prima che questa
+  // regola esistesse.
+  const minNoticeMinutes = await getSystemConfigNumber(
+    'BOOKING_CANCELLATION_MIN_NOTICE_MINUTES',
+    0
+  );
+  if (!isWithinCancellationNotice(row.scheduledFor, minNoticeMinutes)) {
+    return {
+      ok: false,
+      error: `La sessione inizia tra meno di ${minNoticeMinutes} minuti: non può più essere annullata.`,
     };
   }
 

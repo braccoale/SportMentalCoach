@@ -9,6 +9,7 @@ import {
   isRequestExpired,
   isSessionJoinable,
   isSessionUpcoming,
+  isWithinCancellationNotice,
   nextVideoJoinAvailabilityChange,
   sessionEndsAt,
 } from './sessions';
@@ -70,6 +71,31 @@ test('senza orario proposto vale solo la finestra di risposta', () => {
       new Date(requestedAt.getTime() + hours(REQUEST_RESPONSE_WINDOW_HOURS + 1))
     ),
     true
+  );
+});
+
+test('preavviso di cancellazione: a 0 non blocca mai', () => {
+  const now = new Date('2026-08-10T15:00:00Z');
+  assert.equal(
+    isWithinCancellationNotice(new Date('2026-08-10T15:01:00Z'), 0, now),
+    true
+  );
+});
+
+test('preavviso di cancellazione: senza orario fisso è sempre ammessa', () => {
+  const now = new Date('2026-08-10T15:00:00Z');
+  assert.equal(isWithinCancellationNotice(null, 1440, now), true);
+});
+
+test('preavviso di cancellazione: rifiutata sotto la soglia, ammessa sopra', () => {
+  const now = new Date('2026-08-10T15:00:00Z');
+  const scheduledFor = new Date('2026-08-11T15:00:00Z'); // 24h esatte dopo
+  // Esattamente sul bordo (24h di preavviso richieste, 24h disponibili): ammessa.
+  assert.equal(isWithinCancellationNotice(scheduledFor, 1440, now), true);
+  // Un minuto sotto la soglia: rifiutata.
+  assert.equal(
+    isWithinCancellationNotice(scheduledFor, 1441, now),
+    false
   );
 });
 

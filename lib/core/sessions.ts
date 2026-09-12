@@ -73,6 +73,27 @@ export function isRequestExpired(
 }
 
 /**
+ * Se restano abbastanza minuti prima dell'inizio previsto perché la
+ * cancellazione sia ancora ammessa. Regola simmetrica: si applica allo stesso
+ * modo sia che a cancellare sia l'atleta sia che sia il coach.
+ *
+ * Una sessione senza orario fisso (una chiamata avviata subito, o una
+ * richiesta ancora priva di data) non ha un "prima" da rispettare: resta
+ * sempre cancellabile su questo fronte. `minNoticeMinutes` arriva dai
+ * parametri di sistema — a 0 la regola non blocca nulla, cioè il
+ * comportamento di prima che esistesse.
+ */
+export function isWithinCancellationNotice(
+  scheduledFor: Date | null,
+  minNoticeMinutes: number,
+  now: Date = new Date()
+): boolean {
+  if (!scheduledFor) return true;
+  if (minNoticeMinutes <= 0) return true;
+  return scheduledFor.getTime() - now.getTime() >= minNoticeMinutes * 60_000;
+}
+
+/**
  * Whether a video call for a session may be started/joined now. A session with
  * no fixed time is always joinable; a scheduled session stays joinable until
  * its start plus its own duration, after which it is in the past.
