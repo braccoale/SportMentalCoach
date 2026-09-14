@@ -102,6 +102,30 @@ export async function getCoachAvailabilityByProviderId(
     .orderBy(asc(coachAvailability.weekday), asc(coachAvailability.startMinute));
 }
 
+/**
+ * Weekly availability for several coaches in one query, grouped by provider.
+ * Powers the marketplace listing card's own intro-session calendar — without
+ * this, showing that widget on every card would mean one availability query
+ * per coach in the list instead of one for all of them.
+ */
+export async function getCoachAvailabilityByProviderIds(
+  providerIds: number[]
+): Promise<Map<number, AvailabilitySlot[]>> {
+  if (providerIds.length === 0) return new Map();
+  const rows = await db
+    .select({ ...slotColumns, providerId: coachAvailability.providerId })
+    .from(coachAvailability)
+    .where(inArray(coachAvailability.providerId, providerIds))
+    .orderBy(asc(coachAvailability.weekday), asc(coachAvailability.startMinute));
+  const byProvider = new Map<number, AvailabilitySlot[]>();
+  for (const { providerId, ...slot } of rows) {
+    const list = byProvider.get(providerId) ?? [];
+    list.push(slot);
+    byProvider.set(providerId, list);
+  }
+  return byProvider;
+}
+
 type RomeDay = {
   year: string;
   /** "01"–"12". */

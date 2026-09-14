@@ -1,24 +1,65 @@
 import Link from 'next/link';
-import { Globe, Users, Clock, ArrowRight, BadgeCheck } from 'lucide-react';
+import { Globe, Users, Clock, CalendarCheck, ArrowRight, BadgeCheck } from 'lucide-react';
 import { getVerticalConfig, findTaxonomyItem } from '@/lib/core/config';
 import type { TaxonomyItem } from '@/lib/core/config/types';
 import { formatPrice, formatTotalHours } from '@/lib/core/format';
 import type { DiscoveryCoach } from '@/lib/core/listings';
+import type { BookableDay } from '@/lib/core/availability';
 import { CertifiedBadge } from '@/components/coach-visuals';
 import { RatingStars } from '@/components/rating-stars';
 import { FavoriteButton } from '@/components/favorite-button';
+import { CoachChatButton } from '@/components/coach-chat-button';
+import { ShareCoachButton } from '@/components/share-coach-button';
+import { IntroSessionButton } from '@/components/intro-session-button';
 import { GaugeRing, gaugeProgress } from '@/components/coach-experience-stats';
 import { SHOW_COACH_HOURLY_RATE } from '@/lib/core/flags';
+
+function StatCell({
+  icon: Icon,
+  value,
+  label,
+  progress,
+  colorClass,
+}: {
+  icon: typeof Users;
+  value: string | number;
+  label: string;
+  progress: number;
+  colorClass: string;
+}) {
+  return (
+    <div className="flex flex-1 flex-col items-center gap-1 px-2 py-2.5 text-center">
+      <div className="relative flex h-9 w-9 items-center justify-center">
+        <GaugeRing progress={progress} className={colorClass} size={36} />
+        <Icon className={`absolute h-3.5 w-3.5 ${colorClass.replace('stroke-', 'text-')}`} />
+      </div>
+      <span className="text-sm font-bold text-gray-900">{value}</span>
+      <span className="text-[10px] font-medium uppercase tracking-wide text-gray-400">
+        {label}
+      </span>
+    </div>
+  );
+}
 
 export function CoachCard({
   coach,
   loggedIn,
+  isAthlete,
   sportsList,
+  bookableDays,
+  introAlreadyUsed,
 }: {
   coach: DiscoveryCoach;
   loggedIn: boolean;
+  /** Se l'atleta ha già letto le condizioni: guida il bottone conoscitiva
+   * (stesso identico componente della scheda coach) e le icone chat/condividi. */
+  isAthlete: boolean;
   /** DB taxonomy rows for label resolution; falls back to the static config. */
   sportsList?: TaxonomyItem[];
+  /** Calendario del coach, calcolato una volta per tutta la pagina — vedi
+   * app/(marketplace)/coaches/page.tsx. */
+  bookableDays: BookableDay[];
+  introAlreadyUsed: boolean;
 }) {
   const config = getVerticalConfig();
   const sportSource = sportsList ?? config.taxonomies.categories;
@@ -26,14 +67,22 @@ export function CoachCard({
     .slice(0, 3)
     .map((k) => findTaxonomyItem(sportSource, k)?.label ?? k);
   const name = coach.displayName ?? 'Coach';
+  const firstName = name.split(' ')[0];
+  const primaryService = coach.services?.[0];
 
   return (
-    <div className="relative flex overflow-hidden rounded-3xl border border-gray-200/80 bg-white shadow-md ring-1 ring-black/[0.03] transition hover:-translate-y-0.5 hover:border-red-200 hover:shadow-xl">
-      <div className="absolute right-4 top-4 z-10">
+    <div className="relative flex overflow-hidden rounded-3xl border border-gray-200/80 bg-white shadow-md ring-1 ring-black/[0.03] transition hover:border-red-200 hover:shadow-xl">
+      {/* Icone azione: fuori dal <Link> di sotto, sono bottoni veri (chat apre
+          un form, condividi e conoscitiva aprono un dialog) — annidarli in un
+          <a> sarebbe HTML non valido e il click aprirebbe anche la scheda. */}
+      <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
+        <CoachChatButton slug={coach.slug} loggedIn={loggedIn} isAthlete={isAthlete} />
+        <ShareCoachButton name={name} profilePath={`/coaches/${coach.slug}`} />
         <FavoriteButton
           providerId={coach.providerId}
           initial={coach.isFavorite}
           loggedIn={loggedIn}
+          returnTo={`/coaches/${coach.slug}`}
         />
       </div>
 
@@ -56,12 +105,9 @@ export function CoachCard({
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-white/70 via-transparent to-transparent" />
       </div>
 
-      <Link
-        href={`/coaches/${coach.slug}`}
-        className="flex flex-1 flex-col justify-between gap-3 p-4"
-      >
-        <div>
-          <div className="min-w-0 pr-10">
+      <div className="flex flex-1 flex-col justify-between gap-3 p-4">
+        <Link href={`/coaches/${coach.slug}`} className="block">
+          <div className="min-w-0 pr-28">
             <div className="flex items-center gap-2">
               <h3 className="truncate text-xl font-bold tracking-tight text-gray-950">
                 {name}
@@ -91,7 +137,7 @@ export function CoachCard({
           {/* Reserved one-line slot so cards with/without a headline stay the
               same height. */}
           <p className="mt-2 line-clamp-1 min-h-5 text-sm text-gray-600">
-            {coach.headline || ' '}
+            {coach.headline || ' '}
           </p>
 
           {/* Reserved slot for the certified pill — kept even when absent so
@@ -119,61 +165,75 @@ export function CoachCard({
               </>
             )}
           </div>
-        </div>
+        </Link>
+
+        {coach.athletesCount > 0 && (
+          <div className="flex divide-x divide-gray-100 rounded-xl border border-gray-100 bg-gray-50/60">
+            <StatCell
+              icon={Users}
+              value={coach.athletesCount}
+              label={coach.athletesCount === 1 ? 'Atleta' : 'Atleti'}
+              progress={gaugeProgress(coach.athletesCount, 20)}
+              colorClass="stroke-blue-500"
+            />
+            <StatCell
+              icon={CalendarCheck}
+              value={coach.completedSessions}
+              label="Sessioni"
+              progress={gaugeProgress(coach.completedSessions, 50)}
+              colorClass="stroke-cyan-500"
+            />
+            <StatCell
+              icon={Clock}
+              value={formatTotalHours(coach.totalMinutes)}
+              label="Erogate"
+              progress={gaugeProgress(coach.totalMinutes, 600)}
+              colorClass="stroke-sky-500"
+            />
+          </div>
+        )}
 
         <div className="flex flex-col gap-3 border-t border-gray-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-4">
-            {coach.athletesCount > 0 && (
-              <>
-                <div className="flex items-center gap-2">
-                  <div className="relative flex h-8 w-8 shrink-0 items-center justify-center">
-                    <GaugeRing
-                      progress={gaugeProgress(coach.athletesCount, 20)}
-                      className="stroke-blue-500"
-                      size={32}
-                    />
-                    <Users className="absolute h-3.5 w-3.5 text-blue-500" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">
-                    {coach.athletesCount}{' '}
-                    {coach.athletesCount === 1 ? 'atleta' : 'atleti'}
-                  </span>
-                </div>
-                {coach.totalMinutes > 0 && (
-                  <div className="flex items-center gap-2">
-                    <div className="relative flex h-8 w-8 shrink-0 items-center justify-center">
-                      <GaugeRing
-                        progress={gaugeProgress(coach.totalMinutes, 600)}
-                        className="stroke-sky-500"
-                        size={32}
-                      />
-                      <Clock className="absolute h-3.5 w-3.5 text-sky-500" />
-                    </div>
-                    <span className="text-sm font-medium text-gray-700">
-                      {formatTotalHours(coach.totalMinutes)}
-                    </span>
-                  </div>
-                )}
-              </>
-            )}
-            {SHOW_COACH_HOURLY_RATE && coach.hourlyRate != null && (
+          <div className="text-sm">
+            {primaryService?.durationMin != null && primaryService?.price != null ? (
               <span className="text-gray-700">
-                <span className="text-gray-400">da </span>
                 <span className="font-semibold text-gray-900">
-                  {formatPrice(coach.hourlyRate, coach.currency)}
+                  {formatPrice(primaryService.price, primaryService.currency)}
                 </span>
-                <span className="text-gray-400"> / h</span>
+                <span className="text-gray-400"> / {primaryService.durationMin} min</span>
               </span>
+            ) : (
+              SHOW_COACH_HOURLY_RATE &&
+              coach.hourlyRate != null && (
+                <span className="text-gray-700">
+                  <span className="text-gray-400">da </span>
+                  <span className="font-semibold text-gray-900">
+                    {formatPrice(coach.hourlyRate, coach.currency)}
+                  </span>
+                  <span className="text-gray-400"> / h</span>
+                </span>
+              )
             )}
           </div>
 
-          <div className="flex sm:justify-end">
-            <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700">
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            <IntroSessionButton
+              slug={coach.slug}
+              coachFirstName={firstName}
+              loggedIn={loggedIn}
+              isAthlete={isAthlete}
+              bookableDays={bookableDays}
+              alreadyUsed={introAlreadyUsed}
+            />
+            <Link
+              href={`/coaches/${coach.slug}`}
+              className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+            >
               Prenota un incontro <ArrowRight className="h-4 w-4" />
-            </span>
+            </Link>
           </div>
         </div>
-      </Link>
+      </div>
     </div>
   );
 }

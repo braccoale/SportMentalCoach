@@ -50,3 +50,30 @@ export async function hasUsedIntroSession(
     .limit(1);
   return Boolean(row);
 }
+
+/**
+ * Same rule as `hasUsedIntroSession`, batched over every coach shown on the
+ * marketplace listing: one query instead of one per card.
+ */
+export async function usedIntroSessionProviderIds(
+  athleteUserId: number,
+  providerIds: number[]
+): Promise<Set<number>> {
+  if (providerIds.length === 0) return new Set();
+  const rows = await db
+    .select({ providerId: bookings.providerId })
+    .from(bookings)
+    .innerJoin(services, eq(services.id, bookings.serviceId))
+    .where(
+      and(
+        inArray(bookings.providerId, providerIds),
+        eq(bookings.clientId, athleteUserId),
+        eq(services.isIntro, true),
+        or(
+          inArray(bookings.status, ['requested', 'accepted', 'completed']),
+          and(eq(bookings.status, 'cancelled'), eq(bookings.lateCancellation, true))
+        )
+      )
+    );
+  return new Set(rows.map((r) => r.providerId));
+}

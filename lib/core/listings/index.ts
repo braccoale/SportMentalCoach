@@ -6,6 +6,7 @@ import {
   eq,
   exists,
   gt,
+  inArray,
   isNotNull,
   lte,
   or,
@@ -177,7 +178,7 @@ export async function getCoachBySlug(
 
   const stats = (await getCoachExperienceStats([coach.providerId])).get(
     coach.providerId
-  ) ?? { athletesCount: 0, totalMinutes: 0 };
+  ) ?? { athletesCount: 0, totalMinutes: 0, completedSessions: 0 };
 
   const svc = await db
     .select({
@@ -240,9 +241,18 @@ export type DiscoveryCoach = {
   matchReasons: string[];
   recommended: boolean;
   isFavorite: boolean;
-  /** Distinct athletes coached and total coaching minutes, from completed sessions. */
+  /** Distinct athletes coached, total coaching minutes and session count, from completed sessions. */
   athletesCount: number;
   totalMinutes: number;
+  completedSessions: number;
+  /** Active, non-intro services (ordered by id — the coach's own creation order). */
+  services: {
+    id: number;
+    title: string | null;
+    durationMin: number | null;
+    price: number | null;
+    currency: string;
+  }[];
 };
 
 /**
@@ -300,10 +310,37 @@ export async function getCoachDiscovery(
     .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
     .where(and(...conditions));
 
-  const [ratings, experience] = await Promise.all([
+  const [ratings, experience, serviceRows] = await Promise.all([
     getRatingSummaries(rows.map((r) => r.providerId)),
     getCoachExperienceStats(rows.map((r) => r.providerId)),
+    db
+      .select({
+        providerId: services.providerId,
+        id: services.id,
+        title: services.title,
+        durationMin: services.durationMin,
+        price: services.price,
+        currency: services.currency,
+      })
+      .from(services)
+      .where(
+        and(
+          inArray(
+            services.providerId,
+            rows.map((r) => r.providerId)
+          ),
+          eq(services.isActive, true),
+          eq(services.isIntro, false)
+        )
+      )
+      .orderBy(services.id),
   ]);
+  const servicesByProvider = new Map<number, typeof serviceRows>();
+  for (const s of serviceRows) {
+    const list = servicesByProvider.get(s.providerId) ?? [];
+    list.push(s);
+    servicesByProvider.set(s.providerId, list);
+  }
   const config = getVerticalConfig();
   const labelFor = (
     items: { key: string; label: string }[],
@@ -315,6 +352,7 @@ export async function getCoachDiscovery(
     const stats = experience.get(r.providerId) ?? {
       athletesCount: 0,
       totalMinutes: 0,
+      completedSessions: 0,
     };
     const hasVideo = !!r.videoUrl;
 
@@ -366,6 +404,8 @@ export async function getCoachDiscovery(
       isFavorite: opts.favoriteIds?.has(r.providerId) ?? false,
       athletesCount: stats.athletesCount,
       totalMinutes: stats.totalMinutes,
+      completedSessions: stats.completedSessions,
+      services: servicesByProvider.get(r.providerId) ?? [],
       _score: score,
     };
   });

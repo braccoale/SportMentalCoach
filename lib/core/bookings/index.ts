@@ -211,6 +211,7 @@ export async function expireStaleRequests(): Promise<void> {
 export type CoachExperienceStats = {
   athletesCount: number;
   totalMinutes: number;
+  completedSessions: number;
 };
 
 /**
@@ -242,6 +243,7 @@ export async function getCoachExperienceStats(
           0
         )
       ), 0)::int`,
+      completedSessions: sql<number>`count(*)::int`,
     })
     .from(bookings)
     .innerJoin(users, eq(users.id, bookings.clientId))
@@ -258,7 +260,11 @@ export async function getCoachExperienceStats(
   return new Map(
     rows.map((r) => [
       r.providerId,
-      { athletesCount: r.athletesCount, totalMinutes: r.totalMinutes },
+      {
+        athletesCount: r.athletesCount,
+        totalMinutes: r.totalMinutes,
+        completedSessions: r.completedSessions,
+      },
     ])
   );
 }
