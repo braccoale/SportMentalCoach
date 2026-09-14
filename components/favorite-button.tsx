@@ -9,21 +9,27 @@ export function FavoriteButton({
   providerId,
   initial,
   loggedIn,
+  returnTo = '/coaches',
+  className,
 }: {
   providerId: number;
   initial: boolean;
   loggedIn: boolean;
+  returnTo?: string;
+  className?: string;
 }) {
   const [fav, setFav] = useState(initial);
   const [, startTransition] = useTransition();
 
-  const base =
-    'flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow-sm ring-1 ring-gray-200 backdrop-blur hover:bg-white';
+  const base = cn(
+    'flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow-sm ring-1 ring-gray-200 backdrop-blur hover:bg-white',
+    className
+  );
 
   if (!loggedIn) {
     return (
       <a
-        href="/sign-in?redirect=/coaches"
+        href={`/sign-in?redirect=${encodeURIComponent(returnTo)}`}
         aria-label="Accedi per salvare"
         title="Accedi per aggiungere ai preferiti"
         className={base}
