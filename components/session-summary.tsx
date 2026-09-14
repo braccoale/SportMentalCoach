@@ -4,10 +4,10 @@ import {
   formatMinutes,
   formatTime,
 } from '@/lib/core/format';
-import { GaugeRing, gaugeProgress } from '@/components/coach-experience-stats';
+import { StatMedal } from '@/components/coach-experience-stats';
 
 /**
- * Compact recap of a completed session: a blue duration gauge plus the real
+ * Compact recap of a completed session: a blue duration medal plus the real
  * start/end times when the video call was tracked. Falls back to the booked
  * service's planned length when no real span was recorded (e.g. a session
  * marked complete without a video call). Renders nothing when neither is known.
@@ -29,14 +29,7 @@ export function SessionSummary({
 
   return (
     <div className={`flex items-center gap-3 ${className ?? ''}`}>
-      <div className="relative flex h-11 w-11 shrink-0 items-center justify-center">
-        <GaugeRing
-          progress={gaugeProgress(minutes, 60)}
-          className="stroke-blue-500"
-          size={44}
-        />
-        <Clock className="absolute h-4 w-4 text-blue-500" />
-      </div>
+      <StatMedal icon={Clock} size={44} iconSize={16} fromColor="#3b82f6" toColor="#1d4ed8" />
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
           Durata sessione

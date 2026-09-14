@@ -1,60 +1,67 @@
+import type { LucideIcon } from 'lucide-react';
 import { Users, CalendarCheck, Clock } from 'lucide-react';
 import { formatTotalHours } from '@/lib/core/format';
 
 /**
- * Circular "gauge" fill for a raw count with no natural upper bound. Uses a
- * diminishing-returns curve (value / (value + cap)) rather than a hard cap —
- * the ring keeps growing toward full as the coach's track record grows, but
- * never actually maxes out (there's always more experience to gain).
+ * Cerchio pieno con icona e valore al centro — una "medaglia", non un
+ * indicatore di avanzamento. Sostituisce il precedente GaugeRing (un anello
+ * ad arco parziale, riempito con una curva a rendimenti decrescenti per
+ * aggirare la mancanza di un tetto reale): questi numeri sono contatori di
+ * carriera che crescono e basta, non una quota su un totale — un arco che
+ * "si avvicina al pieno" prometteva un limite che non esiste. Nessuna logica
+ * di progresso da mantenere: il cerchio è sempre pieno.
  */
-export function gaugeProgress(value: number, cap: number): number {
-  return value <= 0 ? 0 : value / (value + cap);
-}
-
-export function GaugeRing({
-  progress,
-  className,
+export function StatMedal({
+  icon: Icon,
+  value,
+  unit,
   size = 96,
+  iconSize = 16,
+  valueClassName = 'text-xl font-bold',
+  fromColor,
+  toColor,
+  className,
 }: {
-  progress: number;
-  className: string;
-  /** Pixel size of the ring (it's a square SVG). */
+  icon: LucideIcon;
+  value?: React.ReactNode;
+  unit?: string;
+  /** Pixel diameter of the medal. */
   size?: number;
+  iconSize?: number;
+  valueClassName?: string;
+  fromColor: string;
+  toColor: string;
+  className?: string;
 }) {
-  const r = 40;
-  const c = 2 * Math.PI * r;
-  const offset = c * (1 - progress);
   return (
-    <svg
-      viewBox="0 0 100 100"
-      style={{ height: size, width: size, maxWidth: '100%' }}
-      className="-rotate-90"
+    <div
+      className={`relative flex shrink-0 flex-col items-center justify-center rounded-full text-white shadow-md ${className ?? ''}`}
+      style={{
+        height: size,
+        width: size,
+        maxWidth: '100%',
+        background: `linear-gradient(155deg, ${fromColor}, ${toColor})`,
+      }}
     >
-      <circle
-        cx="50"
-        cy="50"
-        r={r}
-        strokeWidth="8"
-        className="fill-none stroke-gray-100"
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-[3px] rounded-full border border-white/25"
       />
-      <circle
-        cx="50"
-        cy="50"
-        r={r}
-        strokeWidth="8"
-        strokeDasharray={c}
-        strokeDashoffset={offset}
-        strokeLinecap="round"
-        className={`fill-none transition-[stroke-dashoffset] duration-700 ${className}`}
-      />
-    </svg>
+      <Icon style={{ width: iconSize, height: iconSize }} />
+      {value != null && (
+        <span className={`${valueClassName} mt-0.5 leading-none`}>{value}</span>
+      )}
+      {unit && (
+        <span className="text-[10px] font-medium text-white/80">{unit}</span>
+      )}
+    </div>
   );
 }
 
 /**
- * Trust/experience showcase for the coach profile: three glass-morphism gauge
- * rings for athletes coached, completed sessions and coaching hours. Hidden for
- * coaches with no completed sessions yet — there's nothing to show off.
+ * Trust/experience showcase for the coach profile: three medals for athletes
+ * coached, completed sessions and coaching hours. Hidden for coaches with no
+ * completed sessions yet — there's nothing to show off.
  */
 export function CoachExperienceStats({
   athletesCount,
@@ -79,54 +86,39 @@ export function CoachExperienceStats({
       />
       <div className="relative grid grid-cols-3 gap-2 sm:gap-6">
         <div className="flex flex-col items-center text-center">
-          <div className="relative flex h-24 w-24 max-w-full items-center justify-center">
-            <GaugeRing
-              progress={gaugeProgress(athletesCount, 20)}
-              className="stroke-blue-500"
-            />
-            <div className="absolute flex flex-col items-center">
-              <Users className="h-4 w-4 text-blue-500" />
-              <span className="mt-0.5 text-xl font-bold text-gray-900">
-                {athletesCount}
-              </span>
-            </div>
-          </div>
+          <StatMedal
+            icon={Users}
+            value={athletesCount}
+            size={96}
+            fromColor="#3b82f6"
+            toColor="#1d4ed8"
+          />
           <p className="mt-2 text-xs font-medium uppercase tracking-wide text-gray-500">
             {athletesCount === 1 ? 'Atleta seguito' : 'Atleti seguiti'}
           </p>
         </div>
 
         <div className="flex flex-col items-center text-center">
-          <div className="relative flex h-24 w-24 max-w-full items-center justify-center">
-            <GaugeRing
-              progress={gaugeProgress(completedSessions, 50)}
-              className="stroke-cyan-500"
-            />
-            <div className="absolute flex flex-col items-center">
-              <CalendarCheck className="h-4 w-4 text-cyan-500" />
-              <span className="mt-0.5 text-xl font-bold text-gray-900">
-                {completedSessions}
-              </span>
-            </div>
-          </div>
+          <StatMedal
+            icon={CalendarCheck}
+            value={completedSessions}
+            size={96}
+            fromColor="#22d3ee"
+            toColor="#0e7490"
+          />
           <p className="mt-2 text-xs font-medium uppercase tracking-wide text-gray-500">
             {completedSessions === 1 ? 'Sessione completata' : 'Sessioni completate'}
           </p>
         </div>
 
         <div className="flex flex-col items-center text-center">
-          <div className="relative flex h-24 w-24 max-w-full items-center justify-center">
-            <GaugeRing
-              progress={gaugeProgress(totalMinutes, 600)}
-              className="stroke-sky-500"
-            />
-            <div className="absolute flex flex-col items-center">
-              <Clock className="h-4 w-4 text-sky-500" />
-              <span className="mt-0.5 text-xl font-bold text-gray-900">
-                {formatTotalHours(totalMinutes)}
-              </span>
-            </div>
-          </div>
+          <StatMedal
+            icon={Clock}
+            value={formatTotalHours(totalMinutes)}
+            size={96}
+            fromColor="#38bdf8"
+            toColor="#0369a1"
+          />
           <p className="mt-2 text-xs font-medium uppercase tracking-wide text-gray-500">
             Ore di coaching erogate
           </p>

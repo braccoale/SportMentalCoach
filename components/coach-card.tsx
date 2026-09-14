@@ -11,29 +11,33 @@ import { FavoriteButton } from '@/components/favorite-button';
 import { CoachChatButton } from '@/components/coach-chat-button';
 import { ShareCoachButton } from '@/components/share-coach-button';
 import { IntroSessionButton } from '@/components/intro-session-button';
-import { GaugeRing, gaugeProgress } from '@/components/coach-experience-stats';
+import { StatMedal } from '@/components/coach-experience-stats';
 import { SHOW_COACH_HOURLY_RATE } from '@/lib/core/flags';
 
 function StatCell({
-  icon: Icon,
+  icon,
   value,
   label,
-  progress,
-  colorClass,
+  fromColor,
+  toColor,
 }: {
   icon: typeof Users;
   value: string | number;
   label: string;
-  progress: number;
-  colorClass: string;
+  fromColor: string;
+  toColor: string;
 }) {
   return (
-    <div className="flex flex-1 flex-col items-center gap-0.5 px-2 py-2 text-center">
-      <div className="relative flex h-9 w-9 items-center justify-center">
-        <GaugeRing progress={progress} className={colorClass} size={36} />
-        <Icon className={`absolute h-3.5 w-3.5 ${colorClass.replace('stroke-', 'text-')}`} />
-      </div>
-      <span className="text-sm font-bold text-gray-900">{value}</span>
+    <div className="flex flex-1 flex-col items-center gap-1 px-2 py-2 text-center">
+      <StatMedal
+        icon={icon}
+        value={value}
+        size={40}
+        iconSize={11}
+        valueClassName="text-[11px] font-bold"
+        fromColor={fromColor}
+        toColor={toColor}
+      />
       <span className="text-[10px] font-medium uppercase tracking-wide text-gray-400">
         {label}
       </span>
@@ -172,22 +176,22 @@ export function CoachCard({
               icon={Users}
               value={coach.athletesCount}
               label={coach.athletesCount === 1 ? 'Atleta' : 'Atleti'}
-              progress={gaugeProgress(coach.athletesCount, 20)}
-              colorClass="stroke-blue-500"
+              fromColor="#3b82f6"
+              toColor="#1d4ed8"
             />
             <StatCell
               icon={CalendarCheck}
               value={coach.completedSessions}
               label="Sessioni"
-              progress={gaugeProgress(coach.completedSessions, 50)}
-              colorClass="stroke-cyan-500"
+              fromColor="#22d3ee"
+              toColor="#0e7490"
             />
             <StatCell
               icon={Clock}
               value={formatTotalHours(coach.totalMinutes)}
               label="Erogate"
-              progress={gaugeProgress(coach.totalMinutes, 600)}
-              colorClass="stroke-sky-500"
+              fromColor="#38bdf8"
+              toColor="#0369a1"
             />
           </div>
         )}

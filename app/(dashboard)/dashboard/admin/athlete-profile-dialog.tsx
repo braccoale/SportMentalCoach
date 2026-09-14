@@ -17,10 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { CoachAvatar } from '@/components/coach-visuals';
-import {
-  GaugeRing,
-  gaugeProgress,
-} from '@/components/coach-experience-stats';
+import { StatMedal } from '@/components/coach-experience-stats';
 import { Button } from '@/components/ui/button';
 
 export type AthleteProfileDialogData = {
@@ -91,60 +88,44 @@ function AthleteActivityStats({
 
         <div className="mt-4 grid grid-cols-1 gap-3 min-[480px]:grid-cols-3">
           <div className="flex flex-col items-center rounded-2xl border border-white/80 bg-white/70 p-3 text-center shadow-sm">
-            <div className="relative flex h-[88px] w-[88px] items-center justify-center">
-              <GaugeRing
-                progress={gaugeProgress(completedSessions, 10)}
-                className="stroke-green-500"
-                size={88}
-              />
-              <div className="absolute flex flex-col items-center">
-                <CalendarCheck2 className="h-4 w-4 text-green-600" />
-                <span className="mt-0.5 text-xl font-bold text-gray-950">
-                  {numberFormat.format(completedSessions)}
-                </span>
-              </div>
-            </div>
+            <StatMedal
+              icon={CalendarCheck2}
+              value={numberFormat.format(completedSessions)}
+              size={88}
+              iconSize={16}
+              fromColor="#22c55e"
+              toColor="#15803d"
+            />
             <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
               Sessioni completate
             </p>
           </div>
 
           <div className="flex flex-col items-center rounded-2xl border border-white/80 bg-white/70 p-3 text-center shadow-sm">
-            <div className="relative flex h-[88px] w-[88px] items-center justify-center">
-              <GaugeRing
-                progress={gaugeProgress(scheduledSessions, 10)}
-                className="stroke-amber-500"
-                size={88}
-              />
-              <div className="absolute flex flex-col items-center">
-                <CalendarClock className="h-4 w-4 text-amber-600" />
-                <span className="mt-0.5 text-xl font-bold text-gray-950">
-                  {numberFormat.format(scheduledSessions)}
-                </span>
-              </div>
-            </div>
+            <StatMedal
+              icon={CalendarClock}
+              value={numberFormat.format(scheduledSessions)}
+              size={88}
+              iconSize={16}
+              fromColor="#f59e0b"
+              toColor="#b45309"
+            />
             <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
               Sessioni pianificate
             </p>
           </div>
 
           <div className="flex flex-col items-center rounded-2xl border border-white/80 bg-white/70 p-3 text-center shadow-sm">
-            <div className="relative flex h-[88px] w-[88px] items-center justify-center">
-              <GaugeRing
-                progress={gaugeProgress(totalMinutes, 600)}
-                className="stroke-sky-500"
-                size={88}
-              />
-              <div className="absolute flex flex-col items-center">
-                <Clock3 className="h-4 w-4 text-sky-600" />
-                <span className="mt-0.5 text-lg font-bold text-gray-950">
-                  {numberFormat.format(totalMinutes)}
-                </span>
-                <span className="text-[10px] font-medium text-gray-500">
-                  min
-                </span>
-              </div>
-            </div>
+            <StatMedal
+              icon={Clock3}
+              value={numberFormat.format(totalMinutes)}
+              unit="min"
+              size={88}
+              iconSize={16}
+              valueClassName="text-lg font-bold"
+              fromColor="#38bdf8"
+              toColor="#0369a1"
+            />
             <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
               Minuti totali
             </p>
