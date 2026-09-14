@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -83,6 +83,26 @@ export function NewAppointmentSheet({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /*
+   * «Con chi» aveva nove nomi impilati su due colonne prima di arrivare a
+   * «Che sessione»: con lo sheet a schermo l'ultima riga finiva esattamente
+   * al bordo, senza scrollbar visibile su molti telefoni Android. A
+   * Francesco (coach) e` successo due volte — pensava che il modulo si
+   * fermasse li', mentre data e ora erano solo un dito piu' sotto.
+   *
+   * Invece di indovinare "quanto e` alto lo schermo", si misura: altezza
+   * visibile del ScrollView, altezza reale del contenuto, e se la
+   * differenza supera qualche pixel compare una fascia tappabile in fondo
+   * che dice esplicitamente cosa manca. Sparisce da sola una volta
+   * raggiunto il fondo — non e` un badge fisso, e` una bussola.
+   */
+  const scrollRef = useRef<ScrollView>(null);
+  const [scrollViewHeight, setScrollViewHeight] = useState(0);
+  const [contentHeight, setContentHeight] = useState(0);
+  const [scrollY, setScrollY] = useState(0);
+  const canScrollMore =
+    contentHeight > scrollViewHeight + 4 && scrollY + scrollViewHeight < contentHeight - 24;
+
   const chosenService = options?.services.find((s) => s.id === service);
 
   /*
@@ -155,6 +175,8 @@ export function NewAppointmentSheet({
     setDuration(null);
     setDay(null);
     setError(null);
+    setScrollY(0);
+    setContentHeight(0);
     onClose();
   }
 
@@ -237,7 +259,15 @@ export function NewAppointmentSheet({
           ) : !options ? (
             <ActivityIndicator color={theme.red} style={styles.loader} />
           ) : (
-            <ScrollView style={styles.body}>
+            <ScrollView
+              ref={scrollRef}
+              style={styles.body}
+              contentContainerStyle={styles.bodyContent}
+              scrollEventThrottle={16}
+              onLayout={(e) => setScrollViewHeight(e.nativeEvent.layout.height)}
+              onContentSizeChange={(_w, h) => setContentHeight(h)}
+              onScroll={(e) => setScrollY(e.nativeEvent.contentOffset.y)}
+            >
               <Text style={styles.step}>Con chi</Text>
               <View style={styles.chips}>
                 {options.athletes.map((a) => (
@@ -383,6 +413,23 @@ export function NewAppointmentSheet({
             </ScrollView>
           )}
 
+          {canScrollMore && (
+            <Pressable
+              onPress={() =>
+                scrollRef.current?.scrollTo({
+                  y: scrollY + scrollViewHeight * 0.6,
+                  animated: true,
+                })
+              }
+              accessibilityRole="button"
+              accessibilityLabel="Scorri per vedere gli altri campi"
+              style={styles.moreHint}
+            >
+              <Text style={styles.moreHintText}>Altri campi qui sotto</Text>
+              <Text style={styles.moreHintChevron}>⌄</Text>
+            </Pressable>
+          )}
+
           {error && <Text style={styles.error}>{error}</Text>}
         </Pressable>
       </Pressable>
@@ -428,6 +475,7 @@ const createStyles = (theme: Palette) =>
       paddingHorizontal: 20,
       paddingTop: 10,
       paddingBottom: 30,
+      position: 'relative',
     },
     grabber: {
       alignSelf: 'center',
@@ -440,6 +488,27 @@ const createStyles = (theme: Palette) =>
     title: { color: theme.hi, fontSize: 20, fontWeight: '700', marginBottom: 6 },
     subtitle: { color: theme.mid, fontSize: 14, lineHeight: 20, paddingVertical: 8 },
     body: { marginTop: 6 },
+    // Spazio in fondo perche' l'ultima riga non finisca dietro la fascia
+    // "altri campi qui sotto" quando e' visibile.
+    bodyContent: { paddingBottom: 44 },
+    // Fascia tappabile ancorata al bordo inferiore dello sheet: appare solo
+    // quando il contenuto scrollabile continua oltre lo schermo, sparisce da
+    // sola una volta raggiunto il fondo (vedi canScrollMore).
+    moreHint: {
+      position: 'absolute',
+      left: 20,
+      right: 20,
+      bottom: 30,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      paddingVertical: 8,
+      borderRadius: 999,
+      backgroundColor: theme.red,
+    },
+    moreHintText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+    moreHintChevron: { color: '#fff', fontSize: 16, fontWeight: '700', marginTop: -2 },
     step: {
       color: theme.mid,
       fontSize: 12,
