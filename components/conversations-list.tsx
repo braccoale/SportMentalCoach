@@ -19,7 +19,7 @@ export function ConversationsList({
         <MessageSquare className="mx-auto h-8 w-8 text-gray-300" />
         <p className="mt-3 text-gray-600">Nessuna conversazione.</p>
         <p className="mt-1 text-sm text-gray-400">
-          La chat si apre appena invii o ricevi una richiesta di sessione.
+          Apri la scheda di un coach e premi Chat per iniziare a scrivergli.
         </p>
       </div>
     );
@@ -28,9 +28,9 @@ export function ConversationsList({
   return (
     <ul className="flex flex-col gap-2">
       {conversations.map((c) => (
-        <li key={c.bookingId}>
+        <li key={c.href ?? c.bookingId}>
           <Link
-            href={`/dashboard/chat/${c.bookingId}`}
+            href={c.href ?? `/dashboard/chat/${c.bookingId}`}
             className={`flex items-center gap-4 rounded-xl border bg-white p-4 transition-colors hover:border-red-300 ${
               c.unread > 0 ? 'border-red-200' : 'border-gray-200'
             }`}

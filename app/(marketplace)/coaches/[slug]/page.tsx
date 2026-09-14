@@ -42,6 +42,9 @@ import { CoachAvatar, CertifiedBadge } from '@/components/coach-visuals';
 import { CoachExperienceStats } from '@/components/coach-experience-stats';
 import { FavoriteButton } from '@/components/favorite-button';
 import { ShareCoachButton } from '@/components/share-coach-button';
+import { CoachChatButton } from '@/components/coach-chat-button';
+import { IntroSessionButton } from '@/components/intro-session-button';
+import { hasUsedIntroSession } from '@/lib/core/services/intro-booking';
 import { RatingStars } from '@/components/rating-stars';
 import { VideoEmbed } from '@/components/video-embed';
 import {
@@ -208,6 +211,12 @@ export default async function CoachDetailPage({
     stepMinutes,
     daysAhead,
   });
+  // Decide server-side, non al submit: mostrare il bottone e poi rifiutare
+  // la richiesta sembrerebbe un difetto, non una regola ("un solo uso").
+  const introAlreadyUsed =
+    user && isAthlete
+      ? await hasUsedIntroSession(coach.providerId, user.id)
+      : false;
   const memberSince = new Intl.DateTimeFormat('it-IT', {
     month: 'long',
     year: 'numeric',
@@ -263,7 +272,7 @@ export default async function CoachDetailPage({
         <CoachAvatar
           name={name}
           src={coach.avatarUrl}
-          className="size-36 sm:row-span-2 sm:size-44 lg:size-52"
+          className="size-36 sm:size-44 lg:size-52"
         />
         <div className="col-span-2 row-start-2 min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -362,13 +371,16 @@ export default async function CoachDetailPage({
           </Button>
         </div>
         <div className="col-start-2 row-start-1 flex flex-col items-end gap-2 sm:col-start-3">
-          <ShareCoachButton name={name} profilePath={`/coaches/${encodeURIComponent(slug)}`} />
-          <FavoriteButton
-            providerId={coach.providerId}
-            initial={favoriteIds.has(coach.providerId)}
-            loggedIn={Boolean(user)}
-            returnTo={`/coaches/${encodeURIComponent(slug)}`}
-          />
+          <div className="flex items-center gap-2">
+            <CoachChatButton slug={slug} loggedIn={Boolean(user)} isAthlete={isAthlete} />
+            <ShareCoachButton name={name} profilePath={`/coaches/${encodeURIComponent(slug)}`} />
+            <FavoriteButton
+              providerId={coach.providerId}
+              initial={favoriteIds.has(coach.providerId)}
+              loggedIn={Boolean(user)}
+              returnTo={`/coaches/${encodeURIComponent(slug)}`}
+            />
+          </div>
         </div>
       </header>
 
@@ -398,6 +410,18 @@ export default async function CoachDetailPage({
                     </p>
                   )}
                 </CardHeader>
+              )}
+              {!justRequested && (
+                <div className="px-6">
+                  <IntroSessionButton
+                    slug={slug}
+                    coachFirstName={firstName}
+                    loggedIn={Boolean(user)}
+                    isAthlete={isAthlete}
+                    bookableDays={bookableDays}
+                    alreadyUsed={introAlreadyUsed}
+                  />
+                </div>
               )}
               <CardContent className="flex flex-col gap-4">
                 {justRequested ? (

@@ -1,4 +1,6 @@
 import 'server-only';
+import { INTRO_SESSION, isIntroDurationValid } from '@/lib/core/services/introduction';
+import { ensureIntroService, hasUsedIntroSession } from '@/lib/core/services/intro-booking';
 import {
   and,
   asc,
@@ -316,6 +318,15 @@ export async function createBookingRequest(params: {
    * risponde.
    */
   startingNow?: boolean;
+  /**
+   * La richiesta viene dal riquadro "Sessione conoscitiva (free)", non dal
+   * form normale: il client non sceglie né conosce un servizio, perché il
+   * servizio-intro del coach può non esistere ancora. `serviceId` e
+   * `durationMin` passati dal chiamante vengono ignorati e sostituiti da
+   * quelli risolti qui — così il client non può forzare un servizio a
+   * pagamento a passare per il percorso gratuito.
+   */
+  introductory?: boolean;
 }): Promise<Result<{ bookingId: number }>> {
   const [provider] = await db
     .select({ id: providerProfiles.id, userId: providerProfiles.userId })
@@ -334,6 +345,20 @@ export async function createBookingRequest(params: {
 
   if (provider.userId === params.clientUserId) {
     return { ok: false, error: 'Non puoi prenotare una sessione con te stesso.' };
+  }
+
+  if (params.introductory) {
+    if (await hasUsedIntroSession(provider.id, params.clientUserId)) {
+      return {
+        ok: false,
+        error: 'Hai già usato la tua sessione conoscitiva gratuita con questo coach.',
+      };
+    }
+    params = {
+      ...params,
+      serviceId: await ensureIntroService(provider.id, params.clientUserId),
+      durationMin: INTRO_SESSION.durationMin,
+    };
   }
 
   // An athlete aged 15-17 cannot enter into a session until their guardian has
@@ -378,6 +403,7 @@ export async function createBookingRequest(params: {
       id: services.id,
       title: services.title,
       durationMin: services.durationMin,
+      isIntro: services.isIntro,
     })
     .from(services)
     .where(
@@ -395,6 +421,22 @@ export async function createBookingRequest(params: {
       ok: false,
       error: 'Il servizio selezionato non è disponibile o non ha una durata.',
     };
+  }
+
+  if (!isIntroDurationValid(svc.isIntro, params.durationMin)) {
+    return { ok: false, error: 'La sessione conoscitiva gratuita dura 20 minuti.' };
+  }
+  if (svc.isIntro && (await hasUsedIntroSession(provider.id, params.clientUserId))) {
+    return {
+      ok: false,
+      error: 'Hai già usato la tua sessione conoscitiva gratuita con questo coach.',
+    };
+  }
+  if (params.scheduledFor && !params.startingNow) {
+    const slots = await getCoachAvailabilityByProviderId(provider.id);
+    if (!isWithinAvailability(slots, params.scheduledFor, params.durationMin)) {
+      return { ok: false, error: 'La sessione deve rientrare interamente nella disponibilità del coach.' };
+    }
   }
 
   const creation = await db.transaction(async (tx) => {
@@ -952,6 +994,7 @@ export async function createCoachBookingRequest(params: {
       id: services.id,
       title: services.title,
       durationMin: services.durationMin,
+      isIntro: services.isIntro,
     })
     .from(services)
     .where(
@@ -969,6 +1012,22 @@ export async function createCoachBookingRequest(params: {
       ok: false,
       error: 'Il servizio selezionato non è disponibile o non ha una durata.',
     };
+  }
+
+  if (!isIntroDurationValid(svc.isIntro, params.durationMin)) {
+    return { ok: false, error: 'La sessione conoscitiva gratuita dura 20 minuti.' };
+  }
+  if (svc.isIntro && (await hasUsedIntroSession(provider.id, params.clientUserId))) {
+    return {
+      ok: false,
+      error: 'Hai già usato la tua sessione conoscitiva gratuita con questo coach.',
+    };
+  }
+  if (params.scheduledFor && !params.startingNow) {
+    const slots = await getCoachAvailabilityByProviderId(provider.id);
+    if (!isWithinAvailability(slots, params.scheduledFor, params.durationMin)) {
+      return { ok: false, error: 'La sessione deve rientrare interamente nella disponibilità del coach.' };
+    }
   }
 
   const creation = await db.transaction(async (tx) => {
@@ -1624,6 +1683,7 @@ export async function rescheduleBooking(params: {
       clientId: bookings.clientId,
       coachUserId: providerProfiles.userId,
       durationMin: effectiveBookingDurationMin,
+      isIntro: services.isIntro,
     })
     .from(bookings)
     .innerJoin(providerProfiles, eq(bookings.providerId, providerProfiles.id))
@@ -1651,6 +1711,9 @@ export async function rescheduleBooking(params: {
   }
   const durationMin =
     params.durationMin ?? row.durationMin ?? DEFAULT_SERVICE_DURATION_MIN;
+  if (!isIntroDurationValid(row.isIntro, durationMin)) {
+    return { ok: false, error: 'La sessione conoscitiva gratuita dura 20 minuti.' };
+  }
   const slots = await getCoachAvailabilityByProviderId(row.providerId);
   if (!isWithinAvailability(slots, params.scheduledFor, durationMin)) {
     return {

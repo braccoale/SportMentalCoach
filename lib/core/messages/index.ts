@@ -63,7 +63,8 @@ export type ChatMessage = {
 const MAX_BODY = 4000;
 
 export type Conversation = {
-  bookingId: number;
+  bookingId: number | null;
+  href?: string;
   /** Counterpart display name (athlete for a coach, coach for an athlete). */
   otherName: string | null;
   otherAvatarUrl: string | null;

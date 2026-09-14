@@ -500,6 +500,7 @@ function toView(n: Notification): NotificationView {
 // --- Default marketplace content layer (swappable per vertical) -------------
 
 export type NotifyContext = {
+  directConversationId?: number;
   serviceTitle?: string | null;
   senderName?: string | null;
   bookingId?: number;
@@ -617,7 +618,9 @@ export function buildNotificationContent(
         body: ctx.senderName
           ? `${ctx.senderName} ti ha scritto. Tocca qui per leggere e rispondere nella chat privata.`
           : 'Hai ricevuto un messaggio. Tocca qui per leggerlo e rispondere nella chat privata.',
-        data: { link: bookingLink ?? '/dashboard', bookingId: ctx.bookingId },
+        data: ctx.directConversationId
+          ? { link: `/dashboard/messages/direct/${ctx.directConversationId}`, directConversationId: ctx.directConversationId }
+          : { link: bookingLink ?? '/dashboard', bookingId: ctx.bookingId },
       };
     case 'athlete_registered':
       return {

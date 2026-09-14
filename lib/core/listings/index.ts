@@ -192,7 +192,7 @@ export async function getCoachBySlug(
     .where(
       and(
         eq(services.providerId, coach.providerId),
-        eq(services.isActive, true),
+        eq(services.isActive, true), eq(services.isIntro, false),
         gt(services.durationMin, 0),
         lte(services.durationMin, MAX_SERVICE_DURATION_MIN)
       )

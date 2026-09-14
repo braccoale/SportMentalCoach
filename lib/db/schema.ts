@@ -348,10 +348,14 @@ export const services = pgTable('services', {
   price: integer('price'),
   currency: varchar('currency', { length: 8 }).notNull().default('EUR'),
   isActive: boolean('is_active').notNull().default(true),
+  isIntro: boolean('is_intro').notNull().default(false),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
   ...audit,
-});
+}, (table) => [
+  uniqueIndex('services_provider_intro_unique').on(table.providerId).where(sql`${table.isIntro} = true`),
+  check('services_intro_terms_check', sql`not ${table.isIntro} or (${table.durationMin} = 20 and ${table.price} is not null and ${table.price} = 0)`),
+]);
 
 // A booking request and its lifecycle. No payment fields in Phase 1.
 export const bookings = pgTable(
@@ -2194,6 +2198,32 @@ export const messages = pgTable(
     ),
   ]
 );
+
+// Direct conversations do not create appointments or consume coaching time.
+export const directConversations = pgTable('direct_conversations', {
+  id: serial('id').primaryKey(),
+  athleteId: integer('athlete_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  providerId: integer('provider_id').notNull().references(() => providerProfiles.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  ...audit,
+}, (table) => [
+  unique('direct_conversations_athlete_provider_unique').on(table.athleteId, table.providerId),
+  index('direct_conversations_provider_idx').on(table.providerId),
+]);
+
+export const directMessages = pgTable('direct_messages', {
+  id: serial('id').primaryKey(),
+  conversationId: integer('conversation_id').notNull().references(() => directConversations.id, { onDelete: 'cascade' }),
+  senderId: integer('sender_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  body: text('body').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  ...audit,
+}, (table) => [
+  index('direct_messages_conversation_created_idx').on(table.conversationId, table.createdAt, table.id),
+  check('direct_messages_body_check', sql`char_length(trim(${table.body})) between 1 and 4000`),
+]);
 
 // One WhatsApp-style reaction per user and message. Re-selecting the same
 // emoji removes it; choosing another emoji replaces the previous reaction.

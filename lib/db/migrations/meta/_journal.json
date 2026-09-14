@@ -519,6 +519,13 @@
       "when": 1789317697072,
       "tag": "0073_aggiungi-finestra-prenotazione-giorni",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1789393714116,
+      "tag": "0074_coach-direct-chat-intro20",
+      "breakpoints": true
     }
   ]
 }

@@ -31,7 +31,7 @@ export async function getCoachServices(userId: number): Promise<Service[]> {
   return db
     .select()
     .from(services)
-    .where(eq(services.providerId, providerId))
+    .where(and(eq(services.providerId, providerId), eq(services.isIntro, false)))
     .orderBy(asc(services.id));
 }
 
@@ -85,7 +85,7 @@ export async function updateCoachService(
       updatedAt: new Date(),
       updatedBy: userId,
     })
-    .where(and(eq(services.id, serviceId), eq(services.providerId, providerId)))
+    .where(and(eq(services.id, serviceId), eq(services.providerId, providerId), eq(services.isIntro, false)))
     .returning({ id: services.id });
 
   if (!updated) return { ok: false, error: 'Servizio non trovato.' };
@@ -101,7 +101,7 @@ export async function deleteCoachService(
 
   const [deleted] = await db
     .delete(services)
-    .where(and(eq(services.id, serviceId), eq(services.providerId, providerId)))
+    .where(and(eq(services.id, serviceId), eq(services.providerId, providerId), eq(services.isIntro, false)))
     .returning({ id: services.id });
 
   if (!deleted) return { ok: false, error: 'Servizio non trovato.' };

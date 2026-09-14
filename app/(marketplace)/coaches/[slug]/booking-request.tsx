@@ -66,24 +66,35 @@ export function BookingRequest({
   coachFirstName,
   services,
   bookableDays,
+  introductory = false,
 }: {
   slug: string;
   coachFirstName: string;
   services: ServiceOption[];
   bookableDays: BookableDay[];
+  /**
+   * Dal riquadro "Sessione conoscitiva (free)": niente servizio da scegliere
+   * (il coach può non averne ancora uno-intro, lo risolve il server) e
+   * durata fissa a 20 minuti, non un valore fra cui scegliere.
+   */
+  introductory?: boolean;
 }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     requestBooking,
     { error: '' }
   );
 
+  const introDurationMin = 20;
   const [day, setDay] = useState(bookableDays[0]?.value ?? '');
   const [serviceId, setServiceId] = useState('');
   const [time, setTime] = useState(
-    firstFreeTime(bookableDays[0], DEFAULT_SESSION_DURATION_MIN)
+    firstFreeTime(
+      bookableDays[0],
+      introductory ? introDurationMin : DEFAULT_SESSION_DURATION_MIN
+    )
   );
   const [durationMin, setDurationMin] = useState<number>(
-    DEFAULT_SESSION_DURATION_MIN
+    introductory ? introDurationMin : DEFAULT_SESSION_DURATION_MIN
   );
   /**
    * La durata voluta, distinta da quella in vigore: scegliere un orario
@@ -91,7 +102,7 @@ export function BookingRequest({
    * tornare appena un orario torna a contenerla.
    */
   const [preferredDurationMin, setPreferredDurationMin] = useState<number>(
-    DEFAULT_SESSION_DURATION_MIN
+    introductory ? introDurationMin : DEFAULT_SESSION_DURATION_MIN
   );
 
   const selectedDay = useMemo(
@@ -142,7 +153,7 @@ export function BookingRequest({
     setDurationMin(slot.fitsDurationMin ?? preferredDurationMin);
   }
 
-  if (services.length === 0) {
+  if (!introductory && services.length === 0) {
     return (
       <p className="rounded-md bg-amber-50 px-3 py-3 text-sm text-amber-800">
         Questo coach non ha ancora configurato un servizio con una durata.
@@ -151,7 +162,7 @@ export function BookingRequest({
     );
   }
 
-  const configFields = (
+  const configFields = introductory ? null : (
     <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-gray-50/60 p-4 sm:flex-row sm:gap-6">
       <div className="flex flex-1 flex-col">
         <label
@@ -226,8 +237,10 @@ export function BookingRequest({
     >
       <input type="hidden" name="slug" value={slug} />
       <input type="hidden" name="scheduledFor" value={scheduledFor} />
+      {introductory && <input type="hidden" name="introductory" value="true" />}
 
-      {configSlot ? createPortal(configFields, configSlot) : configFields}
+      {configFields &&
+        (configSlot ? createPortal(configFields, configSlot) : configFields)}
 
       {bookableDays.length > 0 ? (
         <div className="flex flex-col gap-3">
