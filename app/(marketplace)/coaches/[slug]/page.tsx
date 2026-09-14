@@ -26,6 +26,7 @@ import {
 import { getSystemConfigNumber } from '@/lib/core/system-config';
 import { getReviewSummary, getCoachReviews } from '@/lib/core/reviews';
 import { getCompletedSessionCount } from '@/lib/core/bookings';
+import { getFavoriteProviderIds } from '@/lib/core/favorites';
 import {
   formatPrice,
   formatMinutesOfDay,
@@ -39,6 +40,8 @@ import { hasRole } from '@/lib/core/auth';
 import { SHOW_COACH_HOURLY_RATE } from '@/lib/core/flags';
 import { CoachAvatar, CertifiedBadge } from '@/components/coach-visuals';
 import { CoachExperienceStats } from '@/components/coach-experience-stats';
+import { FavoriteButton } from '@/components/favorite-button';
+import { ShareCoachButton } from '@/components/share-coach-button';
 import { RatingStars } from '@/components/rating-stars';
 import { VideoEmbed } from '@/components/video-embed';
 import {
@@ -160,6 +163,7 @@ export default async function CoachDetailPage({
     reviewSummary,
     reviews,
     completedSessions,
+    favoriteIds,
   ] =
     await Promise.all([
       getApprovedCoachAvailabilityBySlug(slug),
@@ -167,6 +171,7 @@ export default async function CoachDetailPage({
       getReviewSummary(coach.providerId),
       getCoachReviews(coach.providerId, 12),
       getCompletedSessionCount(coach.providerId),
+      user ? getFavoriteProviderIds(user.id) : Promise.resolve(new Set<number>()),
     ]);
   const isAthlete = user ? await hasRole(user.id, 'athlete') : false;
 
@@ -254,13 +259,13 @@ export default async function CoachDetailPage({
       </Link>
 
       {/* HERO — identity + proof + primary action */}
-      <header className="mt-4 flex flex-col gap-7 sm:flex-row sm:items-start">
+      <header className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-5 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:gap-x-6">
         <CoachAvatar
           name={name}
           src={coach.avatarUrl}
-          className="size-36 sm:size-44 lg:size-52"
+          className="size-36 sm:row-span-2 sm:size-44 lg:size-52"
         />
-        <div className="flex-1">
+        <div className="col-span-2 row-start-2 min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <h1 className="text-3xl font-bold text-gray-900">{name}</h1>
             <CertifiedBadge certified={coach.certified} title={certTitle} />
@@ -312,6 +317,41 @@ export default async function CoachDetailPage({
             )}
           </div>
 
+          {/* Services beside the coach identity */}
+          <section aria-label="Servizi" className="mt-4">
+            {coach.services.length === 0 ? (
+              <p className="mt-2 text-gray-500">Nessun servizio disponibile.</p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {coach.services.map((service) => (
+                  <Card key={service.id} className="gap-2 rounded-2xl p-4">
+                    <CardHeader className="gap-1 p-0">
+                      <CardTitle className="text-base">
+                        {service.title ?? 'Servizio'}
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        {service.durationMin ? `${service.durationMin} min` : ''}
+                        {service.durationMin && service.price != null
+                          ? ' · '
+                          : ''}
+                        {service.price != null
+                          ? formatPrice(service.price, service.currency)
+                          : ''}
+                      </p>
+                    </CardHeader>
+                    {service.description && (
+                      <CardContent className="p-0">
+                        <p className="text-sm text-gray-600">
+                          {service.description}
+                        </p>
+                      </CardContent>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            )}
+          </section>
+
           {/* mobile CTA → scrolls to booking */}
           <Button
             asChild
@@ -320,6 +360,15 @@ export default async function CoachDetailPage({
           >
             <a href="#prenota">{t('booking.cta', config)}</a>
           </Button>
+        </div>
+        <div className="col-start-2 row-start-1 flex flex-col items-end gap-2 sm:col-start-3">
+          <ShareCoachButton name={name} profilePath={`/coaches/${encodeURIComponent(slug)}`} />
+          <FavoriteButton
+            providerId={coach.providerId}
+            initial={favoriteIds.has(coach.providerId)}
+            loggedIn={Boolean(user)}
+            returnTo={`/coaches/${encodeURIComponent(slug)}`}
+          />
         </div>
       </header>
 
@@ -448,6 +497,22 @@ export default async function CoachDetailPage({
 
         {/* CONTENT */}
         <div className="order-2 flex flex-col lg:order-1 lg:col-span-2">
+          {/* Su cosa lavorare e per quanto tempo — qui, non sopra il
+              calendario nel box di prenotazione a destra: erano due <select>
+              che prendevano spazio verticale sopra la parte che l'atleta deve
+              vedere per intero, la scelta del giorno e dell'ora. I campi
+              restano dentro lo stesso <form>, tramite l'attributo `form` sui
+              <select> renderizzati qui — vedi booking-request.tsx. */}
+          {user && isAthlete && !justRequested && coach.services.length > 0 && (
+            <section>
+              <h2 className="flex items-center gap-2 text-xl font-semibold text-gray-900">
+                <CalendarClock className="h-5 w-5 text-red-600" /> Configura la
+                tua sessione
+              </h2>
+              <div id="booking-config-slot" className="mt-3" />
+            </section>
+          )}
+
           {/* Intro video */}
           {coach.videoUrl && (
             <section>
@@ -560,42 +625,6 @@ export default async function CoachDetailPage({
               </div>
             </section>
           )}
-
-          {/* Services */}
-          <section className="mt-10">
-            <h2 className="text-xl font-semibold text-gray-900">Servizi</h2>
-            {coach.services.length === 0 ? (
-              <p className="mt-2 text-gray-500">Nessun servizio disponibile.</p>
-            ) : (
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                {coach.services.map((service) => (
-                  <Card key={service.id}>
-                    <CardHeader>
-                      <CardTitle className="text-base">
-                        {service.title ?? 'Servizio'}
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        {service.durationMin ? `${service.durationMin} min` : ''}
-                        {service.durationMin && service.price != null
-                          ? ' · '
-                          : ''}
-                        {service.price != null
-                          ? formatPrice(service.price, service.currency)
-                          : ''}
-                      </p>
-                    </CardHeader>
-                    {service.description && (
-                      <CardContent>
-                        <p className="text-sm text-gray-600">
-                          {service.description}
-                        </p>
-                      </CardContent>
-                    )}
-                  </Card>
-                ))}
-              </div>
-            )}
-          </section>
 
           {/* Availability */}
           {availability.length > 0 && (

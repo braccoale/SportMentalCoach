@@ -1,6 +1,7 @@
 'use client';
 
-import { useActionState, useMemo, useRef, useState } from 'react';
+import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { requestBooking } from './actions';
@@ -23,6 +24,10 @@ type ServiceOption = {
 
 const fieldCls =
   'mt-1.5 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm';
+
+const FORM_ID = 'booking-request-form';
+/** Matches the empty slot `page.tsx` renders at the top of the left column. */
+const CONFIG_SLOT_ID = 'booking-config-slot';
 
 function firstFreeTime(
   day: BookableDay | undefined,
@@ -99,6 +104,21 @@ export function BookingRequest({
     stripRef.current?.scrollBy({ left: direction * 168, behavior: 'smooth' });
   }
 
+  /**
+   * "Su cosa vuoi lavorare?" e "Quanto vuoi che duri?" si vedono nella
+   * colonna a sinistra, vicino al resto della scheda del coach, non sopra il
+   * calendario: qui c'era poco spazio e i due <select> lo occupavano prima
+   * che l'atleta arrivasse a vedere gli orari. Restano dentro `<form>`
+   * tramite l'attributo `form` sui controlli, non tramite la posizione nel
+   * DOM — il portale li disegna altrove, ma FormData(form) li include lo
+   * stesso. Il target esiste solo lato client, quindi prima del mount si
+   * ripiega sul rendering qui in loco (mai un campo che sparisce).
+   */
+  const [configSlot, setConfigSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setConfigSlot(document.getElementById(CONFIG_SLOT_ID));
+  }, []);
+
   // Combined datetime-local value the server parses (Rome wall-clock).
   const scheduledFor = day && time ? `${day}T${time}` : '';
 
@@ -131,12 +151,9 @@ export function BookingRequest({
     );
   }
 
-  return (
-    <form action={formAction} className="flex w-full flex-col gap-4">
-      <input type="hidden" name="slug" value={slug} />
-      <input type="hidden" name="scheduledFor" value={scheduledFor} />
-
-      <div className="flex flex-col">
+  const configFields = (
+    <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-gray-50/60 p-4 sm:flex-row sm:gap-6">
+      <div className="flex flex-1 flex-col">
         <label
           htmlFor="serviceId"
           className="text-sm font-medium text-gray-900"
@@ -146,6 +163,7 @@ export function BookingRequest({
         <select
           id="serviceId"
           name="serviceId"
+          form={FORM_ID}
           value={serviceId}
           onChange={(e) => setServiceId(e.target.value)}
           className={fieldCls}
@@ -163,13 +181,14 @@ export function BookingRequest({
         </select>
       </div>
 
-      <div className="flex flex-col">
+      <div className="flex flex-1 flex-col">
         <label htmlFor="durationMin" className="text-sm font-medium text-gray-900">
           Quanto vuoi che duri?
         </label>
         <select
           id="durationMin"
           name="durationMin"
+          form={FORM_ID}
           value={durationMin}
           onChange={(e) => {
             const next = Number(e.target.value);
@@ -196,6 +215,19 @@ export function BookingRequest({
           ))}
         </select>
       </div>
+    </div>
+  );
+
+  return (
+    <form
+      id={FORM_ID}
+      action={formAction}
+      className="flex w-full flex-col gap-4"
+    >
+      <input type="hidden" name="slug" value={slug} />
+      <input type="hidden" name="scheduledFor" value={scheduledFor} />
+
+      {configSlot ? createPortal(configFields, configSlot) : configFields}
 
       {bookableDays.length > 0 ? (
         <div className="flex flex-col gap-3">
