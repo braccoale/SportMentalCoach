@@ -107,6 +107,12 @@ export type UpcomingSession = {
    * regola del web — mai ricalcolata qui con l'orologio del telefono.
    */
   cancellationWouldBeLate?: boolean;
+  /**
+   * Lo stesso link «aggiungi al calendario» del web — costruito lì, non
+   * qui: `null` quando la sessione non ha più una CTA valida (chiusa, senza
+   * orario, o non ancora nella finestra prenotabile).
+   */
+  googleCalendarUrl?: string | null;
 };
 
 export function fetchSessions() {
@@ -132,6 +138,19 @@ export function fetchSessions() {
  */
 export function sendSessionHeartbeat(bookingId: number) {
   return request<{ ok: boolean }>(`/api/video/${bookingId}/heartbeat`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Fa squillare il telefono dell'altro partecipante all'ingresso in stanza.
+ *
+ * Sul web parte da `StartCallSignal` appena si apre la pagina della
+ * chiamata; da qui non partiva mai, quindi un coach in anticipo dal
+ * telefono non avvisava l'atleta finche' non entrava lui stesso.
+ */
+export function ringCounterpart(bookingId: number) {
+  return request<{ outcome: string }>(`/api/video/${bookingId}/ring`, {
     method: 'POST',
   });
 }
@@ -482,6 +501,21 @@ export type AppointmentOptions = {
 export function newAppointmentOptions(durationMin?: number) {
   const query = durationMin ? `?durationMin=${durationMin}` : '';
   return request<AppointmentOptions>(`/api/mobile/new-appointment${query}`);
+}
+
+/**
+ * I giorni e gli orari in cui si può spostare **questa** prenotazione.
+ *
+ * Prima di questa funzione «Modifica giorno e ora» proponeva un elenco fisso
+ * di ore piene scritto nel componente — lo stesso difetto già corretto per la
+ * creazione di un nuovo appuntamento, tornato qui perché nessuno l'aveva
+ * ancora toccato. Stessa regola, stesso server: la disponibilità vera del
+ * coach, gli orari già occupati, esclusa la prenotazione stessa.
+ */
+export function rescheduleOptions(bookingId: number) {
+  return request<{ bookableDays: BookableDay[] }>(
+    `/api/mobile/bookings/${bookingId}/reschedule-options`
+  );
 }
 
 export function createAppointment(input: {

@@ -92,14 +92,15 @@ export async function GET(request: Request) {
   ]);
 
   const now = new Date();
-  const stepMinutes = await getSystemConfigNumber(
-    'AVAILABILITY_BOOKING_START_STEP_MINUTES',
-    10
-  );
+  const [stepMinutes, daysAhead] = await Promise.all([
+    getSystemConfigNumber('AVAILABILITY_BOOKING_START_STEP_MINUTES', 10),
+    getSystemConfigNumber('AVAILABILITY_BOOKING_DAYS_AHEAD', 90),
+  ]);
   const days = dropPastStarts(
     getBookableDays(availability, {
       busyIntervals: busyIntervalsAt(busyByProvider.get(provider.id) ?? [], now),
       stepMinutes,
+      daysAhead,
     }),
     now
   );

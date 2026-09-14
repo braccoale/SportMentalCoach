@@ -150,13 +150,14 @@ export default async function AppointmentDetailPage({
     runAiNotesQueueAfterResponse();
   }
 
-  const stepMinutes = await getSystemConfigNumber(
-    'AVAILABILITY_BOOKING_START_STEP_MINUTES',
-    10
-  );
+  const [stepMinutes, daysAhead] = await Promise.all([
+    getSystemConfigNumber('AVAILABILITY_BOOKING_START_STEP_MINUTES', 10),
+    getSystemConfigNumber('AVAILABILITY_BOOKING_DAYS_AHEAD', 90),
+  ]);
   const bookableDays = getBookableDays(availability, {
     busyIntervals: busyByProvider.get(booking.providerId) ?? [],
     stepMinutes,
+    daysAhead,
   });
 
   const query = await searchParams;

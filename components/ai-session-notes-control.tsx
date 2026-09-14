@@ -298,20 +298,19 @@ export function AiSessionNotesControl({
           * persone vere. Un consenso raccolto su un'informazione falsa non e'
           * un consenso informato — ne' per il GDPR, ne' per l'obbligo di
           * trasparenza dell'AI Act.
+          *
+          * Le stesse tre informazioni stavano prima in tre paragrafi separati:
+          * card alta quanto uno schermo di telefono, sopra la videochiamata.
+          * Un consenso informato non ha bisogno di tre blocchi di testo per
+          * restare informato — ne bastano le stesse frasi, in uno solo.
           */}
         <p className="mt-2 text-sm leading-relaxed text-gray-600">
-          La conversazione viene <strong>registrata e trascritta</strong>, e un
-          sistema di intelligenza artificiale prepara una bozza di riepilogo
-          della sessione.
-        </p>
-        <p className="mt-2 text-sm leading-relaxed text-gray-600">
-          La bozza è <strong>letta e approvata dal coach</strong> prima di essere
-          condivisa: nessuna decisione viene presa in automatico. L’audio viene
-          cancellato una volta ottenuta la trascrizione.
-        </p>
-        <p className="mt-2 text-sm leading-relaxed text-gray-600">
-          Si attiva soltanto se <strong>tutti i partecipanti accettano</strong>, e
-          puoi revocare il consenso in qualsiasi momento.
+          La conversazione viene <strong>registrata e trascritta</strong>, e
+          un’IA prepara una bozza che il coach <strong>legge e approva</strong>{' '}
+          prima di condividerla — nessuna decisione automatica, e l’audio
+          viene cancellato dopo la trascrizione. Si attiva solo se{' '}
+          <strong>tutti i partecipanti accettano</strong>, e puoi revocare il
+          consenso in qualsiasi momento.
         </p>
 
         {ownConsent?.status === 'pending' ? (

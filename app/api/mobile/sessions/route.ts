@@ -17,6 +17,8 @@ import {
   isWithinCancellationNotice,
 } from '@/lib/core/sessions';
 import { getSystemConfigNumber } from '@/lib/core/system-config';
+import { buildBookingGoogleCalendarUrl } from '@/lib/core/booking-calendar';
+import { getAppBaseUrl } from '@/lib/core/app-url';
 
 /**
  * Le sessioni che l'app deve mostrare: poche, imminenti, con dentro solo ciò
@@ -143,9 +145,30 @@ export async function GET(request: Request) {
     .orderBy(desc(bookings.scheduledFor))
     .limit(60);
 
+  const appBaseUrl = getAppBaseUrl();
   const all = rows.map((row) => {
     const viewerIsCoach = row.coachUserId === user.id;
     return {
+      /*
+       * Lo stesso link «aggiungi al calendario» del web, non un secondo
+       * calcolo del titolo e della descrizione dell'evento: `lib/core` decide
+       * una volta sola, qui si passa solo dentro. Null quando non c'è
+       * un'ora fissata (`scheduledFor` nullo) o quando la sessione non è più
+       * aperta — la stessa idea di `buildBookingCalendarEvent`, che nega la
+       * CTA per uno stato chiuso.
+       */
+      googleCalendarUrl: buildBookingGoogleCalendarUrl({
+        id: row.bookingId,
+        status: row.status,
+        scheduledFor: row.scheduledFor,
+        durationMin: Number(row.durationMin),
+        coachName: row.coachName,
+        athleteName: row.clientName ?? row.clientEmail,
+        viewerRole: viewerIsCoach ? 'coach' : 'athlete',
+        appBaseUrl,
+        canView: true,
+        isOnline: true,
+      }),
       bookingId: row.bookingId,
       scheduledFor: row.scheduledFor?.toISOString() ?? null,
       durationMin: Number(row.durationMin),

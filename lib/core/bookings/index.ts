@@ -342,6 +342,18 @@ export async function createBookingRequest(params: {
   const guardian = await canBookSessions(params.clientUserId);
   if (!guardian.ok) return guardian;
 
+  if (params.scheduledFor && !params.startingNow) {
+    // `isWithinAvailability` guarda solo giorno-della-settimana e orario, mai
+    // la data: senza questo controllo, una richiesta scritta a mano (non
+    // dall'interfaccia, che non offre mai una data passata) con lo stesso
+    // giorno/orario settimanale del coach creerebbe una sessione nel passato.
+    // Stessa tolleranza di due minuti dello spostamento, per non rifiutare
+    // una richiesta partita un istante prima del giro dell'orologio.
+    if (params.scheduledFor.getTime() < Date.now() - 2 * 60_000) {
+      return { ok: false, error: 'Scegli una data e un orario futuri.' };
+    }
+  }
+
   if (params.scheduledFor) {
     const slots = await getCoachAvailabilityByProviderId(provider.id);
     if (!isWithinAvailability(slots, params.scheduledFor)) {
@@ -688,10 +700,10 @@ export async function getAthleteRelationshipCoaches(
   // Un solo istante per tutti i coach della lista: due letture dell'orologio
   // potrebbero cadere a cavallo di un minuto e rendere la lista incoerente.
   const now = new Date();
-  const stepMinutes = await getSystemConfigNumber(
-    'AVAILABILITY_BOOKING_START_STEP_MINUTES',
-    10
-  );
+  const [stepMinutes, daysAhead] = await Promise.all([
+    getSystemConfigNumber('AVAILABILITY_BOOKING_START_STEP_MINUTES', 10),
+    getSystemConfigNumber('AVAILABILITY_BOOKING_DAYS_AHEAD', 90),
+  ]);
 
   return coaches
     .filter((c) => c.slug)
@@ -704,6 +716,7 @@ export async function getAthleteRelationshipCoaches(
       bookableDays: getBookableDays(availByProvider.get(c.id) ?? [], {
         busyIntervals: busyByProvider.get(c.id) ?? [],
         stepMinutes,
+        daysAhead,
       }),
       /*
        * Le opzioni per spostare un appuntamento già fissato, una per
@@ -721,6 +734,7 @@ export async function getAthleteRelationshipCoaches(
               busyIntervals: busyByProvider.get(c.id) ?? [],
               excludeBookingId: interval.bookingId,
               stepMinutes,
+              daysAhead,
             }),
           ])
       ),
@@ -912,6 +926,11 @@ export async function createCoachBookingRequest(params: {
   }
 
   if (params.scheduledFor && !params.startingNow) {
+    // Stesso motivo del percorso atleta: `isWithinAvailability` non guarda la
+    // data, solo giorno-della-settimana e orario.
+    if (params.scheduledFor.getTime() < Date.now() - 2 * 60_000) {
+      return { ok: false, error: 'Scegli una data e un orario futuri.' };
+    }
     const slots = await getCoachAvailabilityByProviderId(provider.id);
     if (!isWithinAvailability(slots, params.scheduledFor)) {
       return {

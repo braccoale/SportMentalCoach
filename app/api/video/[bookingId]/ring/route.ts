@@ -1,4 +1,4 @@
-import { getUser } from '@/lib/db/queries';
+import { getApiUser } from '@/lib/auth/api-user';
 import { ringCounterpart } from '@/lib/core/video/ring';
 
 /**
@@ -8,14 +8,18 @@ import { ringCounterpart } from '@/lib/core/video/ring';
  * dal browser: servono le chiavi VAPID e l'elenco dei dispositivi iscritti.
  * Il controllo di partecipazione e la finestra della sessione stanno dentro
  * `ringCounterpart`, non qui.
+ *
+ * Riconosce sia il cookie del browser sia il token dell'app, come
+ * `heartbeat`: prima la chiamava solo `StartCallSignal` sul web, e un coach
+ * che entrava in anticipo dal telefono non faceva squillare nessuno.
  */
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ bookingId: string }> }
 ) {
   const { bookingId } = await params;
   const id = Number(bookingId);
-  const user = await getUser();
+  const user = await getApiUser(request);
   if (!user || !Number.isInteger(id)) {
     return new Response(null, { status: 401 });
   }

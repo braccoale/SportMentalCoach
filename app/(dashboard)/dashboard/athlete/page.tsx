@@ -79,6 +79,7 @@ function buildAthleteUpcomingData(b: AthleteBooking): UpcomingAppointmentData {
     id: b.id,
     athleteName: b.coachName ?? 'Coach',
     athleteAvatarUrl: b.coachAvatarUrl,
+    profileHref: b.coachSlug ? `/coaches/${b.coachSlug}` : undefined,
     eyebrow: 'Il tuo coach',
     statusLabel: bookingStatusLabel(b.status),
     date: b.scheduledFor ? formatBigDateParts(b.scheduledFor) : null,

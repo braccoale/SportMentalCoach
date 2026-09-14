@@ -86,8 +86,13 @@ export function buildBookingCalendarEvent(
   const athleteName = cleanName(booking.athleteName);
   const counterpart =
     booking.viewerRole === 'athlete' ? coachName : athleteName;
+  /*
+   * Il nome prima, «Sessione KaiPai» dopo: chi scorre il calendario cerca la
+   * persona, non l'app — e con più appuntamenti nello stesso giorno un titolo
+   * che comincia sempre uguale li rende indistinguibili a colpo d'occhio.
+   */
   const title = counterpart
-    ? `Sessione KaiPai con ${counterpart}`
+    ? `${counterpart} – Sessione KaiPai`
     : 'Sessione KaiPai';
   const detailUrl = absoluteAppUrl(
     booking.appBaseUrl,

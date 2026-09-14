@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { ReactNode } from 'react';
+import Link from 'next/link';
 import {
   Video,
   UserRound,
@@ -28,6 +29,8 @@ export type UpcomingAppointmentData = {
   /** Counterpart shown on the card: the athlete (coach view) or the coach (athlete view). */
   athleteName: string;
   athleteAvatarUrl: string | null;
+  /** Profile of the person displayed on the card, when available. */
+  profileHref?: string;
   /** Sport dell'atleta, usato per l'icona accanto al nome. */
   sportKey?: string | null;
   eyebrow: string;
@@ -104,7 +107,16 @@ export function UpcomingAppointmentCard({
             {data.eyebrow}
           </p>
           <p className="mt-0.5 truncate text-base font-semibold text-white">
-            {data.athleteName}
+            {data.profileHref ? (
+              <Link
+                href={data.profileHref}
+                className="rounded-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              >
+                {data.athleteName}
+              </Link>
+            ) : (
+              data.athleteName
+            )}
           </p>
           <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-emerald-400 ring-1 ring-inset ring-emerald-400/30 backdrop-blur">
             <CircleCheck className="h-3.5 w-3.5" />
@@ -185,9 +197,18 @@ export function UpcomingAppointmentCard({
                 <UserRound className="h-3.5 w-3.5" />
               )}
             </span>
-            <span className="line-clamp-1 font-medium text-gray-900">
-              {data.athleteName}
-            </span>
+            {data.profileHref ? (
+              <Link
+                href={data.profileHref}
+                className="line-clamp-1 rounded-sm font-medium text-gray-900 underline-offset-4 hover:text-blue-700 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+              >
+                {data.athleteName}
+              </Link>
+            ) : (
+              <span className="line-clamp-1 font-medium text-gray-900">
+                {data.athleteName}
+              </span>
+            )}
           </div>
         </div>
 

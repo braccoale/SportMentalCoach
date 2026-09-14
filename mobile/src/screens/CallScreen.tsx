@@ -35,6 +35,7 @@ import {
   ROOM_ERROR_TEXT,
   createGuestInvite,
   fetchRoomCredentials,
+  ringCounterpart,
   sendSessionHeartbeat,
   type RoomCredentials,
   type UpcomingSession,
@@ -97,6 +98,14 @@ export function CallScreen({
       try {
         const data = await fetchRoomCredentials(session.bookingId);
         if (!cancelled) setCredentials(data);
+        /*
+         * Come `StartCallSignal` sul web: entrare in stanza fa squillare
+         * l'altro partecipante. Da qui non partiva mai — un coach in
+         * anticipo dal telefono non avvisava l'atleta finche' non entrava
+         * lui stesso. Best-effort: un push mancato non deve impedire di
+         * entrare in chiamata.
+         */
+        void ringCounterpart(session.bookingId).catch(() => {});
       } catch (err) {
         if (cancelled) return;
         const code = err instanceof ApiError ? err.code : '';
@@ -498,6 +507,20 @@ function RoomStage({
   const published = tracks.filter((track) => track.publication);
   const remote = published.filter((track) => !track.participant.isLocal);
   const local = published.find((track) => track.participant.isLocal);
+  /*
+   * Il riquadro di se stessi si vede nero finche` non gira la fotocamera.
+   *
+   * `VideoTrack` (della libreria) legge `mediaStream` una volta sola al
+   * montaggio e lo aggiorna solo all'evento `Restarted` — quello che parte
+   * girando la fotocamera. Se il flusso locale non e' ancora pronto nell'
+   * istante in cui questo riquadro compare, resta agganciato per sempre a
+   * uno `streamURL` vuoto: il video remoto non ne soffre perche' segue un
+   * percorso diverso, osservato attivamente per lo streaming adattivo.
+   * Una `key` legata al flusso vero forza il rimontaggio non appena e'
+   * pronto, invece di aspettare un gesto dell'utente per accorgersene.
+   */
+  const selfMediaStreamKey =
+    local?.publication?.track?.mediaStream?.id ?? 'pending';
   // Qualcuno c'e', ma non si vede: e' un'informazione diversa da «sei solo».
   const someoneElseHere = participants.some((participant) => !participant.isLocal);
   // Se chi hai davanti e` muto va detto: senza, si parla a qualcuno che non
@@ -633,7 +656,11 @@ function RoomStage({
       >
         {local ? (
           <View style={styles.miniVideo}>
-            <VideoTrack trackRef={local} style={styles.video} />
+            <VideoTrack
+              key={selfMediaStreamKey}
+              trackRef={local}
+              style={styles.video}
+            />
           </View>
         ) : (
           <View style={[styles.miniVideo, styles.centered]}>
@@ -821,7 +848,11 @@ function RoomStage({
             accessibilityLabel="Gira la fotocamera"
             style={[styles.selfTile, { bottom: insets.bottom + 108 }]}
           >
-            <VideoTrack trackRef={local} style={styles.video} />
+            <VideoTrack
+              key={selfMediaStreamKey}
+              trackRef={local}
+              style={styles.video}
+            />
             <View style={styles.selfFlip}>
               <Icon name="flip" size={16} color="#fff" />
             </View>

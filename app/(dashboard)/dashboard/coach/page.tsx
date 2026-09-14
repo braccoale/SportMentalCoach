@@ -160,12 +160,13 @@ export default async function CoachDashboardPage() {
   }
   // Same Rome-derived day/time options the athlete sees, so the coach can't
   // pick a slot their own availability would reject on submit.
-  const stepMinutes = await getSystemConfigNumber(
-    'AVAILABILITY_BOOKING_START_STEP_MINUTES',
-    10
-  );
+  const [stepMinutes, daysAhead] = await Promise.all([
+    getSystemConfigNumber('AVAILABILITY_BOOKING_START_STEP_MINUTES', 10),
+    getSystemConfigNumber('AVAILABILITY_BOOKING_DAYS_AHEAD', 90),
+  ]);
   const bookableDays = getBookableDays(coachAvailability, {
     stepMinutes,
+    daysAhead,
     // Le sessioni si scartano in base a quando *finiscono*: una già iniziata
     // occupa ancora il calendario, ed è esattamente il controllo che il server
     // rifà al momento dell'inserimento.
@@ -218,6 +219,7 @@ export default async function CoachDashboardPage() {
         busyIntervals: editableBusy,
         excludeBookingId: interval.bookingId,
         stepMinutes,
+        daysAhead,
       }),
     ])
   );

@@ -101,11 +101,33 @@ async function currentToken(): Promise<string | null> {
      * spedire. Prima l'eccezione risaliva silenziosa e il risultato era un
      * telefono che non squillava mai senza che nessuno sapesse perche'.
      */
-    lastTokenError =
-      error instanceof Error ? error.message.slice(0, 160) : 'Errore sconosciuto.';
+    lastTokenError = describeTokenError(error);
     console.warn('[notifications] token non ottenuto', error);
     return null;
   }
+}
+
+/**
+ * Un'eccezione Java non è una frase per chi legge le impostazioni.
+ *
+ * `getExpoPushTokenAsync` rilancia il messaggio nativo cosi' com'e' —
+ * `SERVICE_NOT_AVAILABLE`, `AUTHENTICATION_FAILED`, uno stack trace intero.
+ * Prima arrivava intatto fino allo schermo, e chi lo leggeva non sapeva se
+ * fosse un guasto suo o un errore di programmazione da segnalare. La versione
+ * grezza resta comunque nel log, per chi deve davvero capire cos'e' successo.
+ */
+function describeTokenError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error);
+  if (raw.includes('SERVICE_NOT_AVAILABLE') || raw.includes('IOException')) {
+    return 'Il servizio Google per le notifiche non risponde su questo telefono. Riprova piu’ tardi, o verifica che Google Play Services sia aggiornato.';
+  }
+  if (raw.includes('MISMATCH_SENDER_ID') || raw.includes('AUTHENTICATION_FAILED')) {
+    return 'Le credenziali di notifica di questa versione dell’app non sono valide.';
+  }
+  if (/network/i.test(raw)) {
+    return 'Nessuna connessione al momento: riprova quando sei online.';
+  }
+  return 'Non disponibili su questo dispositivo: il servizio di notifica non risponde.';
 }
 
 export type NotificationState = {

@@ -4,13 +4,11 @@ import { notFound } from 'next/navigation';
 import {
   BadgeCheck,
   Globe,
-  Award,
   Briefcase,
   Users,
   Video,
   Star,
   CalendarClock,
-  CalendarCheck,
   CalendarDays,
   CheckCircle2,
   ShieldCheck,
@@ -196,13 +194,14 @@ export default async function CoachDetailPage({
   // Compact availability hint shown beside the date field in the form.
   const availabilityHint = describeAvailability(availability.slice(0, 3));
   // Concrete day+time options for the constrained booking picker.
-  const stepMinutes = await getSystemConfigNumber(
-    'AVAILABILITY_BOOKING_START_STEP_MINUTES',
-    10
-  );
+  const [stepMinutes, daysAhead] = await Promise.all([
+    getSystemConfigNumber('AVAILABILITY_BOOKING_START_STEP_MINUTES', 10),
+    getSystemConfigNumber('AVAILABILITY_BOOKING_DAYS_AHEAD', 90),
+  ]);
   const bookableDays = getBookableDays(availability, {
     busyIntervals: busyByProvider.get(coach.providerId) ?? [],
     stepMinutes,
+    daysAhead,
   });
   const memberSince = new Intl.DateTimeFormat('it-IT', {
     month: 'long',
@@ -299,12 +298,6 @@ export default async function CoachDetailPage({
                 <ShieldCheck className="h-4 w-4" /> Identità verificata
               </span>
             )}
-            {completedSessions > 0 && (
-              <span className="inline-flex items-center gap-1.5">
-                <CalendarCheck className="h-4 w-4 text-gray-400" />
-                {completedSessions} sessioni completate
-              </span>
-            )}
             {coach.yearsExperience != null && (
               <span className="inline-flex items-center gap-1.5">
                 <Briefcase className="h-4 w-4 text-gray-400" />
@@ -332,6 +325,7 @@ export default async function CoachDetailPage({
 
       <CoachExperienceStats
         athletesCount={coach.athletesCount}
+        completedSessions={completedSessions}
         totalMinutes={coach.totalMinutes}
       />
 
@@ -505,69 +499,6 @@ export default async function CoachDetailPage({
               )}
             </section>
           )}
-
-          {/* Credentials & verification — strongest, verified signals first */}
-          <section className="mt-10">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Credenziali e verifica
-            </h2>
-            <ul className="mt-3 flex flex-col gap-2 text-sm text-gray-700">
-              {coach.identityVerified && (
-                <li className="flex items-center gap-2 font-medium text-emerald-700">
-                  <ShieldCheck className="h-4 w-4" /> Identità verificata dal
-                  team {t('brand.name', config)}
-                </li>
-              )}
-              {coach.certified && (
-                <li className="flex items-center gap-2">
-                  <Award className="h-4 w-4 text-red-600" /> {certTitle}
-                </li>
-              )}
-              {completedSessions > 0 && (
-                <li className="flex items-center gap-2">
-                  <CalendarCheck className="h-4 w-4 text-gray-400" />
-                  {completedSessions} sessioni completate su{' '}
-                  {t('brand.name', config)}
-                </li>
-              )}
-              <li className="flex items-center gap-2 text-gray-500">
-                <CalendarDays className="h-4 w-4 text-gray-400" /> Su{' '}
-                {t('brand.name', config)} da {memberSince}
-              </li>
-            </ul>
-
-            {coach.certifications && coach.certifications.length > 0 && (
-              <div className="mt-4">
-                <p className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  Certificazioni
-                  {coach.certificationsVerified && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                      <BadgeCheck className="h-3.5 w-3.5" /> verificate
-                    </span>
-                  )}
-                </p>
-                <ul className="mt-2 flex flex-col gap-1.5 text-sm text-gray-700">
-                  {coach.certifications.map((c) => (
-                    <li key={c} className="flex items-center gap-2">
-                      <BadgeCheck
-                        className={
-                          coach.certificationsVerified
-                            ? 'h-4 w-4 text-emerald-500'
-                            : 'h-4 w-4 text-gray-300'
-                        }
-                      />
-                      {c}
-                    </li>
-                  ))}
-                </ul>
-                {!coach.certificationsVerified && (
-                  <p className="mt-1 text-xs text-gray-400">
-                    Certificazioni dichiarate dal coach, in attesa di verifica.
-                  </p>
-                )}
-              </div>
-            )}
-          </section>
 
           {/* Experience */}
           {((coach.categories && coach.categories.length > 0) ||

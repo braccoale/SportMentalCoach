@@ -512,6 +512,13 @@
       "when": 1789207585817,
       "tag": "0072_correggi-descrizione-preavviso-cancellazione",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1789317697072,
+      "tag": "0073_aggiungi-finestra-prenotazione-giorni",
+      "breakpoints": true
     }
   ]
 }

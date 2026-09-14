@@ -116,7 +116,7 @@ test('booking mapper calculates the end, uses the counterpart and excludes priva
   );
 
   assert.ok(event);
-  assert.equal(event.input.title, 'Sessione KaiPai con Giulia Coach');
+  assert.equal(event.input.title, 'Giulia Coach – Sessione KaiPai');
   assert.equal(event.endAt.toISOString(), '2026-07-28T16:30:00.000Z');
   assert.match(event.input.description ?? '', /Coach: Giulia Coach/);
   assert.match(event.input.description ?? '', /Atleta: Marco Atleta/);

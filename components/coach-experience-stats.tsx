@@ -1,4 +1,4 @@
-import { Users, Clock } from 'lucide-react';
+import { Users, CalendarCheck, Clock } from 'lucide-react';
 import { formatTotalHours } from '@/lib/core/format';
 
 /**
@@ -27,7 +27,7 @@ export function GaugeRing({
   return (
     <svg
       viewBox="0 0 100 100"
-      style={{ height: size, width: size }}
+      style={{ height: size, width: size, maxWidth: '100%' }}
       className="-rotate-90"
     >
       <circle
@@ -52,21 +52,23 @@ export function GaugeRing({
 }
 
 /**
- * Trust/experience showcase for the coach profile: two glass-morphism gauge
- * rings for athletes coached and total coaching hours delivered. Hidden for
+ * Trust/experience showcase for the coach profile: three glass-morphism gauge
+ * rings for athletes coached, completed sessions and coaching hours. Hidden for
  * coaches with no completed sessions yet — there's nothing to show off.
  */
 export function CoachExperienceStats({
   athletesCount,
+  completedSessions,
   totalMinutes,
 }: {
   athletesCount: number;
+  completedSessions: number;
   totalMinutes: number;
 }) {
-  if (athletesCount === 0) return null;
+  if (athletesCount === 0 && completedSessions === 0) return null;
 
   return (
-    <div className="relative mt-6 overflow-hidden rounded-3xl border border-white/60 bg-white/70 p-6 shadow-xl ring-1 ring-black/5 backdrop-blur-xl">
+    <div className="relative mt-6 overflow-hidden rounded-3xl border border-white/60 bg-white/70 p-3 shadow-xl ring-1 ring-black/5 backdrop-blur-xl sm:p-6">
       <div
         aria-hidden
         className="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-blue-200/40 blur-3xl"
@@ -75,9 +77,9 @@ export function CoachExperienceStats({
         aria-hidden
         className="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-sky-300/30 blur-3xl"
       />
-      <div className="relative grid grid-cols-2 gap-6">
+      <div className="relative grid grid-cols-3 gap-2 sm:gap-6">
         <div className="flex flex-col items-center text-center">
-          <div className="relative flex h-24 w-24 items-center justify-center">
+          <div className="relative flex h-24 w-24 max-w-full items-center justify-center">
             <GaugeRing
               progress={gaugeProgress(athletesCount, 20)}
               className="stroke-blue-500"
@@ -95,7 +97,25 @@ export function CoachExperienceStats({
         </div>
 
         <div className="flex flex-col items-center text-center">
-          <div className="relative flex h-24 w-24 items-center justify-center">
+          <div className="relative flex h-24 w-24 max-w-full items-center justify-center">
+            <GaugeRing
+              progress={gaugeProgress(completedSessions, 50)}
+              className="stroke-cyan-500"
+            />
+            <div className="absolute flex flex-col items-center">
+              <CalendarCheck className="h-4 w-4 text-cyan-500" />
+              <span className="mt-0.5 text-xl font-bold text-gray-900">
+                {completedSessions}
+              </span>
+            </div>
+          </div>
+          <p className="mt-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+            {completedSessions === 1 ? 'Sessione completata' : 'Sessioni completate'}
+          </p>
+        </div>
+
+        <div className="flex flex-col items-center text-center">
+          <div className="relative flex h-24 w-24 max-w-full items-center justify-center">
             <GaugeRing
               progress={gaugeProgress(totalMinutes, 600)}
               className="stroke-sky-500"

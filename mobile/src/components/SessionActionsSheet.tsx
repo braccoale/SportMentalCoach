@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -13,9 +14,11 @@ import {
   athleteCallLink,
   cancelBooking,
   rescheduleBooking,
+  rescheduleOptions,
+  type BookableDay,
   type UpcomingSession,
 } from '../lib/api';
-import { dayKey, dayTitle, romeInstant, timeLabel } from '../lib/day-grouping';
+import { dayTitle, timeLabel } from '../lib/day-grouping';
 import { Icon, type IconName } from '../components/Icon';
 import { useTheme, type Palette } from '../theme';
 
@@ -30,8 +33,6 @@ import { useTheme, type Palette } from '../theme';
  * stesse funzioni del web, che verificano ruolo, stato della prenotazione e
  * conflitti di calendario: l'app mostra le voci e racconta l'esito.
  */
-const RESCHEDULE_DAYS = 14;
-const SLOT_HOURS = [8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21];
 
 export function SessionActionsSheet({
   session,
@@ -52,7 +53,19 @@ export function SessionActionsSheet({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<'menu' | 'reschedule' | 'confirmCancel'>('menu');
-  const [day, setDay] = useState<Date | null>(null);
+  /** Giorno scelto, come lo chiama il server: «AAAA-MM-GG» in ora italiana. */
+  const [day, setDay] = useState<string | null>(null);
+  /*
+   * Gli orari li decide il coach, non questo file.
+   *
+   * Qui c'era un elenco fisso di ore piene (8, 9, 10…): lo stesso difetto già
+   * corretto per la creazione di un nuovo appuntamento, tornato qui perché
+   * nessuno l'aveva ancora toccato. `null` = non ancora richiesti.
+   */
+  const [rescheduleDays, setRescheduleDays] = useState<BookableDay[] | null>(
+    null
+  );
+  const [loadingOptions, setLoadingOptions] = useState(false);
 
   const isOpen =
     session.status === 'requested' || session.status === 'accepted';
@@ -76,8 +89,36 @@ export function SessionActionsSheet({
     setMode('menu');
     setError(null);
     setDay(null);
+    setRescheduleDays(null);
     onClose();
   }
+
+  /*
+   * Richiesti al momento di aprire «Modifica giorno e ora», non prima: sono
+   * gli stessi calcoli — disponibilità, occupati, la sessione stessa esclusa
+   * — della dashboard e della creazione di un nuovo appuntamento.
+   */
+  useEffect(() => {
+    if (mode !== 'reschedule') return;
+    let cancelled = false;
+    setLoadingOptions(true);
+    setError(null);
+    void rescheduleOptions(session.bookingId)
+      .then(({ bookableDays }) => {
+        if (!cancelled) setRescheduleDays(bookableDays);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setError('Non riesco a caricare gli orari disponibili.');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingOptions(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, session.bookingId]);
 
   async function run(action: () => Promise<unknown>) {
     setBusy(true);
@@ -97,11 +138,7 @@ export function SessionActionsSheet({
     }
   }
 
-  const days = Array.from({ length: RESCHEDULE_DAYS }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() + i);
-    return d;
-  });
+  const selectedRescheduleDay = rescheduleDays?.find((d) => d.value === day);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
@@ -132,6 +169,20 @@ export function SessionActionsSheet({
                   icon="editCalendar"
                   label="Modifica giorno e ora"
                   onPress={() => setMode('reschedule')}
+                />
+              )}
+              {session.googleCalendarUrl && (
+                /*
+                 * Stesso link del web: nessun titolo o orario ricalcolato qui,
+                 * solo l'apertura di un URL già pronto. Compare/scompare da
+                 * solo con lo stato della sessione, perché è il server a
+                 * restituirlo o no — non c'è una seconda condizione da tenere
+                 * allineata con `canAct`.
+                 */
+                <Item
+                  icon="add"
+                  label="Aggiungi a Google Calendar"
+                  onPress={() => void Linking.openURL(session.googleCalendarUrl!)}
                 />
               )}
               {canShareLink && (
@@ -209,54 +260,86 @@ export function SessionActionsSheet({
                 Scegli il giorno, poi l’ora. Se l’orario non è libero te lo dico.
               </Text>
 
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.chips}>
-                  {days.map((d) => {
-                    const selected = day?.toDateString() === d.toDateString();
-                    return (
-                      <Pressable
-                        key={d.toISOString()}
-                        onPress={() => setDay(d)}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected }}
-                        style={[styles.chip, selected && styles.chipOn]}
-                      >
-                        <Text style={[styles.chipText, selected && styles.chipTextOn]}>
-                          {dayTitle(d.toISOString())}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </ScrollView>
+              {loadingOptions ? (
+                <ActivityIndicator color={theme.red} style={styles.loader} />
+              ) : (
+                <>
+                  {rescheduleDays && rescheduleDays.length === 0 ? (
+                    <Text style={styles.subtitle}>
+                      Non ci sono orari disponibili in questo periodo.
+                    </Text>
+                  ) : (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      <View style={styles.chips}>
+                        {rescheduleDays?.map((d) => (
+                          <Pressable
+                            key={d.value}
+                            onPress={() => setDay(d.value)}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: day === d.value }}
+                            style={[
+                              styles.chip,
+                              day === d.value && styles.chipOn,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.chipText,
+                                day === d.value && styles.chipTextOn,
+                              ]}
+                            >
+                              {d.label}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </ScrollView>
+                  )}
 
-              {day && (
-                <View style={styles.slots}>
-                  {SLOT_HOURS.map((hour) => (
-                    <Pressable
-                      key={hour}
-                      disabled={busy}
-                      onPress={() => {
-                        // Ora italiana, come ovunque nell'app.
-                        const when = romeInstant(dayKey(day.toISOString()), hour);
-                        void run(() =>
-                          rescheduleBooking(
-                            session.bookingId,
-                            when.toISOString(),
-                            session.durationMin
-                          )
-                        );
-                      }}
-                      accessibilityRole="button"
-                      style={({ pressed }) => [
-                        styles.slot,
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      <Text style={styles.slotText}>{hour}:00</Text>
-                    </Pressable>
-                  ))}
-                </View>
+                  {selectedRescheduleDay && (
+                    <View style={styles.slots}>
+                      {selectedRescheduleDay.slots.map((slot) => (
+                        <Pressable
+                          key={slot.time}
+                          disabled={busy || !slot.selectable}
+                          onPress={() =>
+                            void run(() =>
+                              rescheduleBooking(
+                                session.bookingId,
+                                `${day}T${slot.time}`,
+                                slot.fitsDurationMin ?? session.durationMin
+                              )
+                            )
+                          }
+                          accessibilityRole="button"
+                          accessibilityState={{ disabled: !slot.selectable }}
+                          accessibilityLabel={`Sposta alle ${slot.time}${slot.suffix}`}
+                          style={({ pressed }) => [
+                            styles.slot,
+                            slot.tone === 'occupied' && styles.slotOff,
+                            slot.tone === 'tight' && styles.slotTight,
+                            pressed && styles.pressed,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.slotText,
+                              slot.tone === 'occupied' && styles.slotTextOff,
+                            ]}
+                          >
+                            {slot.time}
+                            {slot.suffix}
+                          </Text>
+                        </Pressable>
+                      ))}
+                      {selectedRescheduleDay.slots.length === 0 && (
+                        <Text style={styles.subtitle}>
+                          Per questo giorno non restano orari liberi.
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                </>
               )}
 
               <Pressable onPress={() => setMode('menu')} hitSlop={10}>
@@ -353,6 +436,8 @@ const createStyles = (theme: Palette) =>
     slots: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
     slot: {
       minWidth: 72,
+      // «10:30 · Solo 30 min» non sta in una casella pensata per «11:00».
+      paddingHorizontal: 12,
       minHeight: 44,
       alignItems: 'center',
       justifyContent: 'center',
@@ -360,6 +445,16 @@ const createStyles = (theme: Palette) =>
       backgroundColor: theme.surface,
     },
     slotText: { color: theme.hi, fontSize: 15 },
+    // Dentro un appuntamento: non c'e` niente da fare, e si vede.
+    slotOff: {
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: theme.line,
+    },
+    slotTextOff: { color: theme.low },
+    // Stretto: ci si sta, accorciando. E` una scelta, non un divieto.
+    slotTight: { borderWidth: 1, borderColor: '#e08b2a55' },
+    loader: { marginVertical: 12 },
     danger: {
       backgroundColor: theme.red,
       borderRadius: 999,
