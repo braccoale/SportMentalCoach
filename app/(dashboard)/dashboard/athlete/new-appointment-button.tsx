@@ -232,7 +232,7 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                 >
                   {coaches.map((c) => (
                     <option key={c.slug} value={c.slug}>
-                      {c.name}
+                      {c.isFavorite ? `♥ ${c.name}` : c.name}
                     </option>
                   ))}
                 </select>

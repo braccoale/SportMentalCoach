@@ -624,6 +624,8 @@ export type RelationshipCoach = {
    * stessa regola già applicata alle prenotazioni.
    */
   canCallNow: boolean;
+  /** Whether the athlete has this coach among their favourites. */
+  isFavorite: boolean;
 };
 
 /**
@@ -792,7 +794,7 @@ export async function getAthleteRelationshipCoaches(
         b._recency - a._recency ||
         a.name.localeCompare(b.name)
     )
-    .map(({ _recency, _favorite, ...c }) => c);
+    .map(({ _recency, _favorite, ...c }) => ({ ...c, isFavorite: _favorite }));
 }
 
 export type RelationshipAthlete = {

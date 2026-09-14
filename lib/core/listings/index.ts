@@ -372,9 +372,11 @@ export async function getCoachDiscovery(
 
   const sort = filters.sort ?? 'activity';
   scored.sort((a, b) => {
-    // Favourites float to the top for the subjective ranking options.
-    // The activity order is the exception: it stays objective for every visitor.
-    if (sort !== 'activity' && a.isFavorite !== b.isFavorite) {
+    // Favourites float to the top under every sort, "activity" (the
+    // default view) included: a coach an athlete already saved is the one
+    // they came back to find, not one to bury under whoever ranks higher
+    // this week.
+    if (a.isFavorite !== b.isFavorite) {
       return a.isFavorite ? -1 : 1;
     }
     switch (sort) {
