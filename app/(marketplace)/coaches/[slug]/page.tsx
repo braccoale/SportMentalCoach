@@ -169,6 +169,7 @@ export default async function CoachDetailPage({
       user ? getFavoriteProviderIds(user.id) : Promise.resolve(new Set<number>()),
     ]);
   const isAthlete = user ? await hasRole(user.id, 'athlete') : false;
+  const isDemo = user?.isDemo ?? false;
 
   const config = getVerticalConfig();
   const { levels } = config.taxonomies;
@@ -362,6 +363,7 @@ export default async function CoachDetailPage({
                   isAthlete={isAthlete}
                   bookableDays={bookableDays}
                   alreadyUsed={introAlreadyUsed}
+                  isDemo={isDemo}
                 />
               </div>
             )}
@@ -574,6 +576,7 @@ export default async function CoachDetailPage({
                       durationMin: s.durationMin,
                     }))}
                     bookableDays={bookableDays}
+                    isDemo={isDemo}
                   />
                 ) : (
                   <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-800">

@@ -6,8 +6,9 @@ import { CalendarCheck, CheckCircle2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BookingRequest } from '@/app/(marketplace)/coaches/[slug]/booking-request';
 import type { BookableDay } from '@/lib/core/availability';
+import { DEMO_READONLY_MESSAGE } from '@/lib/auth/demo-readonly';
 
-export function IntroSessionButton({ slug, coachFirstName, loggedIn, isAthlete, bookableDays, alreadyUsed }: {
+export function IntroSessionButton({ slug, coachFirstName, loggedIn, isAthlete, bookableDays, alreadyUsed, isDemo = false }: {
   slug: string; coachFirstName: string; loggedIn: boolean; isAthlete: boolean; bookableDays: BookableDay[];
   /**
    * Un atleta ha una sola sessione conoscitiva gratuita per coach — altrimenti
@@ -17,7 +18,27 @@ export function IntroSessionButton({ slug, coachFirstName, loggedIn, isAthlete, 
    * sembrerebbe un difetto, non una regola.
    */
   alreadyUsed: boolean;
+  /** Account demo: il server rifiuta comunque la scrittura, ma il bottone
+   * disabilitato lo dice subito invece di far scoprire il blocco al submit. */
+  isDemo?: boolean;
 }) {
+  if (isDemo) {
+    return (
+      <span
+        className="inline-block w-full sm:w-auto"
+        title={DEMO_READONLY_MESSAGE}
+      >
+        <Button
+          type="button"
+          variant="outline"
+          disabled
+          className="w-full rounded-full sm:w-auto"
+        >
+          <CalendarCheck />Sessione conoscitiva (gratis)
+        </Button>
+      </span>
+    );
+  }
   if (alreadyUsed) {
     // Il title sull'elemento in sé non basta: alcuni browser sopprimono
     // hover/tooltip su un <button disabled>. Lo <span> attorno non è
@@ -45,7 +66,7 @@ export function IntroSessionButton({ slug, coachFirstName, loggedIn, isAthlete, 
       * per l'attenzione invece di guidarla. Niente bottoni rossi sulla
       * piattaforma, per scelta esplicita — bordo e scritta verdi invece.
       */}
-    <Dialog.Trigger asChild><Button type="button" variant="outline" className="w-full rounded-full border-green-600 text-green-600 hover:bg-green-50 hover:text-green-700 sm:w-auto"><CalendarCheck />Sessione conoscitiva (free)</Button></Dialog.Trigger>
+    <Dialog.Trigger asChild><Button type="button" variant="outline" className="w-full rounded-full border-green-600 text-green-600 hover:bg-green-50 hover:text-green-700 sm:w-auto"><CalendarCheck />Sessione conoscitiva (gratis)</Button></Dialog.Trigger>
     <Dialog.Portal>
       <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" />
       <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-3xl bg-white p-6 shadow-xl focus:outline-none">

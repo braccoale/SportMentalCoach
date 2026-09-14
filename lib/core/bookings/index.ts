@@ -325,7 +325,7 @@ export async function createBookingRequest(params: {
    */
   startingNow?: boolean;
   /**
-   * La richiesta viene dal riquadro "Sessione conoscitiva (free)", non dal
+   * La richiesta viene dal riquadro "Sessione conoscitiva (gratis)", non dal
    * form normale: il client non sceglie né conosce un servizio, perché il
    * servizio-intro del coach può non esistere ancora. `serviceId` e
    * `durationMin` passati dal chiamante vengono ignorati e sostituiti da

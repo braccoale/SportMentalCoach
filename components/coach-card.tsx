@@ -13,6 +13,7 @@ import { ShareCoachButton } from '@/components/share-coach-button';
 import { IntroSessionButton } from '@/components/intro-session-button';
 import { StatMedal } from '@/components/coach-experience-stats';
 import { SHOW_COACH_HOURLY_RATE } from '@/lib/core/flags';
+import { DEMO_READONLY_MESSAGE } from '@/lib/auth/demo-readonly';
 
 function StatCell({
   icon,
@@ -52,6 +53,7 @@ export function CoachCard({
   sportsList,
   bookableDays,
   introAlreadyUsed,
+  isDemo = false,
 }: {
   coach: DiscoveryCoach;
   loggedIn: boolean;
@@ -64,6 +66,9 @@ export function CoachCard({
    * app/(marketplace)/coaches/page.tsx. */
   bookableDays: BookableDay[];
   introAlreadyUsed: boolean;
+  /** Account demo: prenotazione e sessione conoscitiva restano visibili ma
+   * disabilitate, invece di far scoprire il blocco server-side al submit. */
+  isDemo?: boolean;
 }) {
   const config = getVerticalConfig();
   const sportSource = sportsList ?? config.taxonomies.categories;
@@ -237,13 +242,23 @@ export function CoachCard({
               isAthlete={isAthlete}
               bookableDays={bookableDays}
               alreadyUsed={introAlreadyUsed}
+              isDemo={isDemo}
             />
-            <Link
-              href={`/coaches/${coach.slug}`}
-              className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700"
-            >
-              Prenota un incontro <ArrowRight className="h-4 w-4" />
-            </Link>
+            {isDemo ? (
+              <span
+                className="inline-flex cursor-not-allowed items-center gap-2 whitespace-nowrap rounded-full bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-500"
+                title={DEMO_READONLY_MESSAGE}
+              >
+                Prenota un incontro <ArrowRight className="h-4 w-4" />
+              </span>
+            ) : (
+              <Link
+                href={`/coaches/${coach.slug}`}
+                className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+              >
+                Prenota un incontro <ArrowRight className="h-4 w-4" />
+              </Link>
+            )}
           </div>
         </div>
       </div>

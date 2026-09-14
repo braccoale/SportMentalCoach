@@ -14,6 +14,7 @@ import {
   DEFAULT_SESSION_DURATION_MIN,
   largestFittingDuration,
 } from '@/lib/core/bookings/duration';
+import { DEMO_READONLY_MESSAGE } from '@/lib/auth/demo-readonly';
 
 type ServiceOption = {
   id: number;
@@ -64,17 +65,22 @@ export function BookingRequest({
   services,
   bookableDays,
   introductory = false,
+  isDemo = false,
 }: {
   slug: string;
   coachFirstName: string;
   services: ServiceOption[];
   bookableDays: BookableDay[];
   /**
-   * Dal riquadro "Sessione conoscitiva (free)": niente servizio da scegliere
+   * Dal riquadro "Sessione conoscitiva (gratis)": niente servizio da scegliere
    * (il coach può non averne ancora uno-intro, lo risolve il server) e
    * durata fissa a 20 minuti, non un valore fra cui scegliere.
    */
   introductory?: boolean;
+  /** Account demo: il server rifiuta comunque la scrittura (readonly), il
+   * submit disabilitato lo dice subito invece di far scoprire il blocco
+   * dopo l'invio del form. */
+  isDemo?: boolean;
 }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     requestBooking,
@@ -308,12 +314,17 @@ export function BookingRequest({
       </div>
 
       {state?.error && <p className="text-sm text-red-500">{state.error}</p>}
+      {isDemo && (
+        <p className="text-sm text-gray-500">{DEMO_READONLY_MESSAGE}</p>
+      )}
 
       <Button
         type="submit"
         size="lg"
         className="w-full rounded-full text-base"
-        disabled={pending || (bookableDays.length > 0 && !scheduledFor)}
+        disabled={
+          isDemo || pending || (bookableDays.length > 0 && !scheduledFor)
+        }
       >
         {pending ? (
           <>

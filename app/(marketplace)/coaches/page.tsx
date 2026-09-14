@@ -190,7 +190,8 @@ export default async function CoachesPage({
       : [];
 
   const isAthlete = user ? await hasRole(user.id, 'athlete') : false;
-  // Il widget "Sessione conoscitiva (free)" nella card usa lo stesso
+  const isDemo = user?.isDemo ?? false;
+  // Il widget "Sessione conoscitiva (gratis)" nella card usa lo stesso
   // calendario cliccabile della scheda coach — una query per campo, per
   // tutti i coach mostrati, non una per card.
   const cardProviderIds = [
@@ -521,6 +522,7 @@ export default async function CoachesPage({
             selectedNeeds={selectedNeeds}
             bookableDaysByProvider={bookableDaysByProvider}
             introUsedIds={introUsedIds}
+            isDemo={isDemo}
           />
         ) : (
           <div className="mt-5 flex flex-col gap-4">
@@ -533,6 +535,7 @@ export default async function CoachesPage({
                 sportsList={categories}
                 bookableDays={bookableDaysByProvider.get(coach.providerId) ?? []}
                 introAlreadyUsed={introUsedIds.has(coach.providerId)}
+                isDemo={isDemo}
               />
             ))}
           </div>
@@ -636,6 +639,7 @@ function NoResults({
   selectedNeeds,
   bookableDaysByProvider,
   introUsedIds,
+  isDemo,
 }: {
   anyFilter: boolean;
   fallback: Awaited<ReturnType<typeof getCoachDiscovery>>;
@@ -645,6 +649,7 @@ function NoResults({
   selectedNeeds: AthleteNeed[];
   bookableDaysByProvider: Map<number, BookableDay[]>;
   introUsedIds: Set<number>;
+  isDemo: boolean;
 }) {
   if (!anyFilter) {
     return (
@@ -688,6 +693,7 @@ function NoResults({
                 sportsList={categories}
                 bookableDays={bookableDaysByProvider.get(coach.providerId) ?? []}
                 introAlreadyUsed={introUsedIds.has(coach.providerId)}
+                isDemo={isDemo}
               />
             ))}
           </div>
