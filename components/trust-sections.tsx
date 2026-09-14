@@ -2,6 +2,8 @@ import { ShieldCheck, Lock, HeartHandshake } from 'lucide-react';
 import { getVerticalConfig, t } from '@/lib/core/config';
 import { JsonLd } from '@/components/json-ld';
 import { faqJsonLd } from '@/lib/core/seo';
+import { formatNoticeWindow } from '@/lib/core/format';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
 
 /**
  * Platform-level trust content shown on coach profiles. Generic and reusable —
@@ -99,7 +101,18 @@ export function MarketplaceFaq() {
   );
 }
 
-export function CancellationPolicy() {
+/**
+ * Il preavviso qui deve essere lo stesso letto da `cancelBooking` — non un
+ * secondo numero scritto a mano che il giorno in cui un admin lo cambia dal
+ * pannello smette di essere vero. Sotto la soglia la cancellazione resta
+ * comunque permessa: viene solo marcata come tardiva (vedi
+ * `isWithinCancellationNotice`).
+ */
+export async function CancellationPolicy() {
+  const minNoticeMinutes = await getSystemConfigNumber(
+    'BOOKING_CANCELLATION_MIN_NOTICE_MINUTES',
+    0
+  );
   return (
     <section className="mt-10">
       <h2 className="text-xl font-semibold text-gray-900">
@@ -107,9 +120,20 @@ export function CancellationPolicy() {
       </h2>
       <p className="mt-2 text-sm text-gray-600">
         Puoi annullare una richiesta non ancora accettata in qualsiasi momento,
-        senza costi. Per le sessioni accettate, annulla con anticipo dalla tua
-        dashboard. In Fase 1 nessun importo viene addebitato finché la sessione
-        non è confermata.
+        senza costi.{' '}
+        {minNoticeMinutes > 0 ? (
+          <>
+            Per le sessioni già accettate puoi cancellare liberamente fino a{' '}
+            {formatNoticeWindow(minNoticeMinutes)} prima dell&apos;inizio;
+            sotto questa soglia la cancellazione resta possibile, ma la
+            sessione viene comunque conteggiata come effettuata.
+          </>
+        ) : (
+          <>
+            Per le sessioni già accettate puoi cancellare in qualsiasi
+            momento dalla tua dashboard.
+          </>
+        )}
       </p>
     </section>
   );

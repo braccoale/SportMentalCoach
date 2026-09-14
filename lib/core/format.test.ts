@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { describeSessionDuration } from './format';
+import { describeSessionDuration, formatNoticeWindow } from './format';
 
 const start = new Date('2026-08-21T11:30:00.000Z');
 const end = new Date('2026-08-21T12:22:00.000Z');
@@ -60,4 +60,13 @@ test('senza nessuna delle due non mostra niente', () => {
     }),
     null
   );
+});
+
+test('formatNoticeWindow scrive minuti, ore, o entrambi in una frase', () => {
+  assert.equal(formatNoticeWindow(30), '30 minuti');
+  assert.equal(formatNoticeWindow(1), '1 minuto');
+  assert.equal(formatNoticeWindow(60), '1 ora');
+  assert.equal(formatNoticeWindow(120), '2 ore');
+  assert.equal(formatNoticeWindow(90), '1 ora e 30 minuti');
+  assert.equal(formatNoticeWindow(0), '0 minuti');
 });

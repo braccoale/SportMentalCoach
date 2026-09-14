@@ -178,6 +178,21 @@ export function formatSessionDuration(
   return totalMin == null ? null : formatMinutes(totalMin);
 }
 
+/**
+ * Formats a notice-window minute count as prose, e.g. "30 minuti", "1 ora",
+ * "24 ore", "1 ora e 30 minuti". Distinct from `formatMinutes` (which reads
+ * as a stopwatch, "1h 05m") because this text sits in a sentence read by an
+ * athlete or a coach, not next to a timer.
+ */
+export function formatNoticeWindow(totalMin: number): string {
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  const hours = h > 0 ? `${h} ${h === 1 ? 'ora' : 'ore'}` : '';
+  const minutes = m > 0 ? `${m} ${m === 1 ? 'minuto' : 'minuti'}` : '';
+  if (hours && minutes) return `${hours} e ${minutes}`;
+  return hours || minutes || '0 minuti';
+}
+
 /** Formats a total minute count as e.g. "45 min" or "128h" (rounded, no minutes past the first hour — this is a cumulative total, not a single span). */
 export function formatTotalHours(totalMinutes: number): string {
   if (totalMinutes < 60) return `${Math.round(totalMinutes)} min`;
