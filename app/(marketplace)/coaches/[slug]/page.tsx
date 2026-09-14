@@ -333,11 +333,14 @@ export default async function CoachDetailPage({
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
                 {coach.services.map((service) => (
-                  <div key={service.id} className="flex flex-col gap-1">
-                    <p className="text-base font-semibold text-gray-900">
+                  <div
+                    key={service.id}
+                    className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5"
+                  >
+                    <span className="text-base font-semibold text-gray-900">
                       {service.title ?? 'Servizio'}
-                    </p>
-                    <p className="text-lg font-bold text-blue-900">
+                    </span>
+                    <span className="text-lg font-bold text-blue-900">
                       {service.durationMin ? `${service.durationMin} min` : ''}
                       {service.durationMin && service.price != null
                         ? ' · '
@@ -345,11 +348,11 @@ export default async function CoachDetailPage({
                       {service.price != null
                         ? formatPrice(service.price, service.currency)
                         : ''}
-                    </p>
+                    </span>
                     {service.description && (
-                      <p className="text-sm text-gray-600">
+                      <span className="text-sm text-gray-600">
                         {service.description}
-                      </p>
+                      </span>
                     )}
                   </div>
                 ))}
@@ -406,18 +409,6 @@ export default async function CoachDetailPage({
                     </p>
                   )}
                 </CardHeader>
-              )}
-              {!justRequested && (
-                <div className="px-6">
-                  <IntroSessionButton
-                    slug={slug}
-                    coachFirstName={firstName}
-                    loggedIn={Boolean(user)}
-                    isAthlete={isAthlete}
-                    bookableDays={bookableDays}
-                    alreadyUsed={introAlreadyUsed}
-                  />
-                </div>
               )}
               <CardContent className="flex flex-col gap-4">
                 {justRequested ? (
@@ -517,22 +508,6 @@ export default async function CoachDetailPage({
 
         {/* CONTENT */}
         <div className="order-2 flex flex-col lg:order-1 lg:col-span-2">
-          {/* Su cosa lavorare e per quanto tempo — qui, non sopra il
-              calendario nel box di prenotazione a destra: erano due <select>
-              che prendevano spazio verticale sopra la parte che l'atleta deve
-              vedere per intero, la scelta del giorno e dell'ora. I campi
-              restano dentro lo stesso <form>, tramite l'attributo `form` sui
-              <select> renderizzati qui — vedi booking-request.tsx. */}
-          {user && isAthlete && !justRequested && coach.services.length > 0 && (
-            <section>
-              <h2 className="flex items-center gap-2 text-xl font-semibold text-gray-900">
-                <CalendarClock className="h-5 w-5 text-red-600" /> Configura la
-                tua sessione
-              </h2>
-              <div id="booking-config-slot" className="mt-3" />
-            </section>
-          )}
-
           {/* Intro video */}
           {coach.videoUrl && (
             <section>
@@ -643,6 +618,36 @@ export default async function CoachDetailPage({
                   </span>
                 ))}
               </div>
+            </section>
+          )}
+
+          {/* Prenota: la sessione conoscitiva gratuita e, se l'atleta è
+              loggato, i campi servizio/durata dello stesso <form> del box di
+              prenotazione a destra — vedi booking-request.tsx (l'attributo
+              `form` sui <select> renderizzati nello slot qui sotto li tiene
+              collegati a quel <form> indipendentemente da dove vivono nel
+              DOM). Sotto Specializzazioni, non sopra il calendario: erano due
+              <select> che occupavano spazio prima che l'atleta arrivasse a
+              vedere gli orari. */}
+          {!justRequested && (
+            <section className="mt-10">
+              <IntroSessionButton
+                slug={slug}
+                coachFirstName={firstName}
+                loggedIn={Boolean(user)}
+                isAthlete={isAthlete}
+                bookableDays={bookableDays}
+                alreadyUsed={introAlreadyUsed}
+              />
+              {user && isAthlete && coach.services.length > 0 && (
+                <div className="mt-6">
+                  <h2 className="flex items-center gap-2 text-xl font-semibold text-gray-900">
+                    <CalendarClock className="h-5 w-5 text-red-600" /> Configura
+                    la tua sessione
+                  </h2>
+                  <div id="booking-config-slot" className="mt-3" />
+                </div>
+              )}
             </section>
           )}
 
