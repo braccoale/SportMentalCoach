@@ -29,6 +29,39 @@ import { getSystemConfigNumber } from '@/lib/core/system-config';
 
 export type { AvailabilityInput } from './validation';
 
+/*
+ * `Intl.DateTimeFormat` istanziato una volta e riusato, non ricreato ad ogni
+ * chiamata: costruirlo è costoso (risoluzione locale ICU), e `getBookableDays`
+ * lo invocava una volta per ciascun giorno nella finestra di prenotazione
+ * (fino a `daysAhead`, di norma 90-180) per ciascun coach mostrato — su
+ * `/coaches` con AVAILABILITY_BOOKING_DAYS_AHEAD=180 in produzione erano
+ * oltre 1600 istanze per richiesta, e il costo si sommava a diversi secondi
+ * di rendering, misurato in produzione. Un'istanza è senza stato e sicura da
+ * condividere fra chiamate concorrenti (specifica ECMA-402).
+ */
+const ROME_YMD_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'Europe/Rome',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+const ROME_DAY_LABEL_FORMATTER = new Intl.DateTimeFormat('it-IT', {
+  timeZone: 'Europe/Rome',
+  weekday: 'long',
+  day: 'numeric',
+  month: 'short',
+});
+const ROME_OFFSET_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'Europe/Rome',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+});
+
 export type AvailabilitySlot = Pick<
   CoachAvailability,
   'id' | 'weekday' | 'startMinute' | 'endMinute'
@@ -147,12 +180,7 @@ type RomeDay = {
  * DST, so doing the arithmetic on the Y-M-D triple is exact.
  */
 function romeDayAt(from: Date, offset: number): RomeDay {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Europe/Rome',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(from);
+  const parts = ROME_YMD_FORMATTER.formatToParts(from);
   const base = Object.fromEntries(parts.map((p) => [p.type, p.value]));
   const at = new Date(
     Date.UTC(
@@ -194,16 +222,7 @@ export function parseRomeLocalDateTime(value: string): Date | null {
 
 /** Minutes Europe/Rome is ahead of UTC at the given instant (60 in winter, 120 in summer). */
 function romeOffsetMinutes(at: Date): number {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Europe/Rome',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(at);
+  const parts = ROME_OFFSET_FORMATTER.formatToParts(at);
   const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
   const asUtc = Date.UTC(
     Number(map.year),
@@ -354,12 +373,7 @@ export function getBookableDays(
     }
     if (times.length === 0) continue;
 
-    const label = new Intl.DateTimeFormat('it-IT', {
-      timeZone: 'Europe/Rome',
-      weekday: 'long',
-      day: 'numeric',
-      month: 'short',
-    }).format(d.at);
+    const label = ROME_DAY_LABEL_FORMATTER.format(d.at);
     const value = `${d.year}-${d.month}-${d.day}`;
     const uniqueTimes = [...new Set(times)];
     const maxDurationMin: Record<string, number> = {};

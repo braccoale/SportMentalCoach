@@ -1,6 +1,27 @@
 import type { Result } from '@/lib/core/result';
 import { largestFittingDuration } from '@/lib/core/bookings/duration';
 
+// Riusati, non ricostruiti ad ogni chiamata: `new Intl.DateTimeFormat(...)`
+// dentro un loop caldo (una volta per slot orario candidato, per giorno, per
+// coach in un elenco) è un collo di bottiglia misurato in produzione — vedi
+// lo stesso commento in lib/core/availability/index.ts.
+const ROME_DATE_MINUTE_FORMATTER = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Europe/Rome',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+const ROME_WEEKDAY_MINUTE_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'Europe/Rome',
+  weekday: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
 export type AvailabilityInput = {
   weekday: number;
   startMinute: number;
@@ -366,15 +387,7 @@ export function romeDateAndMinute(date: Date): {
   date: string;
   minuteOfDay: number;
 } {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Europe/Rome',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(date);
+  const parts = ROME_DATE_MINUTE_FORMATTER.formatToParts(date);
   const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return {
     date: `${map.year}-${map.month}-${map.day}`,
@@ -387,13 +400,7 @@ export function romeWeekdayAndMinute(date: Date): {
   weekday: number;
   minuteOfDay: number;
 } {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Europe/Rome',
-    weekday: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(date);
+  const parts = ROME_WEEKDAY_MINUTE_FORMATTER.formatToParts(date);
   const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return {
     weekday: WEEKDAY_INDEX[map.weekday] ?? 0,

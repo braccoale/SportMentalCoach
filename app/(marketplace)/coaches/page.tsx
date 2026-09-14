@@ -97,7 +97,6 @@ export default async function CoachesPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const __t0 = Date.now();
   const sp = await searchParams;
   const config = getVerticalConfig();
   const { levels } = config.taxonomies;
@@ -105,7 +104,6 @@ export default async function CoachesPage({
     getActiveSports(),
     getActiveSpecialties(),
   ]);
-  console.log('[TIMING] taxonomies', Date.now() - __t0, 'ms');
 
   const selectedNeedIds = parseSelectedNeedIds(sp.need);
   const selectedNeeds = athleteNeeds.filter((need) =>
@@ -129,7 +127,6 @@ export default async function CoachesPage({
   // Bounds in whole euros, dal prezzo minimo/massimo dei servizi attivi (non
   // intro) dei coach approvati — null se nessuno ha ancora un servizio.
   const priceRange = await getCoachPriceRangeCents();
-  console.log('[TIMING] priceRange', Date.now() - __t0, 'ms');
   const priceRangeMinEur = priceRange ? Math.floor(priceRange.minCents / 100) : null;
   const priceRangeMaxEur = priceRange ? Math.ceil(priceRange.maxCents / 100) : null;
   const priceMinEur = priceMinParam ? Number(priceMinParam) : undefined;
@@ -154,15 +151,12 @@ export default async function CoachesPage({
   const onlyFav = favorite === '1';
 
   const user = await getUser();
-  console.log('[TIMING] getUser', Date.now() - __t0, 'ms');
   const loggedIn = !!user;
   const favoriteIds = user
     ? await getFavoriteProviderIds(user.id)
     : new Set<number>();
-  console.log('[TIMING] favoriteIds', Date.now() - __t0, 'ms');
 
   let coaches = await getCoachDiscovery(filters, { favoriteIds });
-  console.log('[TIMING] getCoachDiscovery', Date.now() - __t0, 'ms');
   if (onlyFav && loggedIn) coaches = coaches.filter((c) => c.isFavorite);
   if (selectedNeeds.length > 0) {
     coaches = filterAndRankCoachesForNeeds(coaches, selectedNeeds);
@@ -196,7 +190,6 @@ export default async function CoachesPage({
       : [];
 
   const isAthlete = user ? await hasRole(user.id, 'athlete') : false;
-  console.log('[TIMING] hasRole', Date.now() - __t0, 'ms');
   const isDemo = user?.isDemo ?? false;
   // Il widget "Sessione conoscitiva (gratis)" nella card usa lo stesso
   // calendario cliccabile della scheda coach — una query per campo, per
@@ -214,7 +207,6 @@ export default async function CoachesPage({
         ? usedIntroSessionProviderIds(user.id, cardProviderIds)
         : Promise.resolve(new Set<number>()),
     ]);
-  console.log('[TIMING] availability+busy+config+intro', Date.now() - __t0, 'ms');
   const bookableDaysByProvider = new Map<number, BookableDay[]>(
     cardProviderIds.map((id) => [
       id,
@@ -256,7 +248,6 @@ export default async function CoachesPage({
   // l'elenco e' completo. Su una vista filtrata direbbe «questi sono i coach
   // di KaiPai» mentre il canonical rimanda a una pagina che ne mostra altri.
   const isCanonicalListing = !anyAdvancedFilter && !hasActiveNeed;
-  console.log('[TIMING] before render', Date.now() - __t0, 'ms');
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
