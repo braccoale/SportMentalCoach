@@ -27,14 +27,25 @@ export function IntroSessionButton({ slug, coachFirstName, loggedIn, isAthlete, 
         className="inline-block w-full sm:w-auto"
         title={`Hai già usato la tua sessione conoscitiva gratuita con ${coachFirstName}.`}
       >
-        <Button type="button" disabled className="w-full rounded-full sm:w-auto">
+        <Button
+          type="button"
+          variant="outline"
+          disabled
+          className="w-full rounded-full sm:w-auto"
+        >
           <CheckCircle2 />Sessione conoscitiva già usata
         </Button>
       </span>
     );
   }
   return <Dialog.Root>
-    <Dialog.Trigger asChild><Button type="button" className="w-full rounded-full sm:w-auto"><CalendarCheck />Sessione conoscitiva (free)</Button></Dialog.Trigger>
+    {/*
+      * Outline, non piena: accanto a "Prenota un incontro" (l'azione vera,
+      * verde piena) due bottoni ugualmente pieni si equivalgono e competono
+      * per l'attenzione invece di guidarla. Niente bottoni rossi sulla
+      * piattaforma, per scelta esplicita — bordo e scritta verdi invece.
+      */}
+    <Dialog.Trigger asChild><Button type="button" variant="outline" className="w-full rounded-full border-green-600 text-green-600 hover:bg-green-50 hover:text-green-700 sm:w-auto"><CalendarCheck />Sessione conoscitiva (free)</Button></Dialog.Trigger>
     <Dialog.Portal>
       <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" />
       <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-3xl bg-white p-6 shadow-xl focus:outline-none">

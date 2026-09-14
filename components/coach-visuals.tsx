@@ -50,13 +50,13 @@ export function CertifiedBadge({
       className={cn('inline-flex items-center gap-1', className)}
     >
       <BadgeCheck
-        className={cn('h-5 w-5 shrink-0', certified ? 'text-red-600' : 'text-gray-300')}
+        className={cn('h-5 w-5 shrink-0', certified ? 'text-green-600' : 'text-gray-300')}
       />
       {withLabel && (
         <span
           className={cn(
             'text-xs font-medium',
-            certified ? 'text-red-600' : 'text-gray-400'
+            certified ? 'text-green-600' : 'text-gray-400'
           )}
         >
           {title}

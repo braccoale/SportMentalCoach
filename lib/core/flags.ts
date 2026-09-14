@@ -16,6 +16,10 @@ export const SHOW_COACH_HOURLY_RATE = false;
 // OFF for production polish: the marketplace only exposes finished features.
 export const SHOW_UPCOMING_FEATURES = false;
 
+// UI flag: show the "Parti da cio che vuoi migliorare" athlete-needs section
+// on /coaches. Off for now on request — markup and data kept intact.
+export const SHOW_ATHLETE_NEEDS_SECTION = false;
+
 // Video (LiveKit) is optional. It is "configured" only when all three env vars
 // are present. Read lazily at call time so the app never requires LiveKit env
 // at startup when video is unused.

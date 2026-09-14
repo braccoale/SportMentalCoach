@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Globe, Users, Clock, CalendarCheck, ArrowRight, BadgeCheck } from 'lucide-react';
+import { Globe, Users, Clock, CalendarCheck, ArrowRight, BadgeCheck, Briefcase } from 'lucide-react';
 import { getVerticalConfig, findTaxonomyItem } from '@/lib/core/config';
 import type { TaxonomyItem } from '@/lib/core/config/types';
 import { formatPrice, formatTotalHours } from '@/lib/core/format';
@@ -125,7 +125,7 @@ export function CoachCard({
                 }
               />
             </div>
-            <div className="mt-1">
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
               {coach.rating.count > 0 ? (
                 <span className="flex items-center gap-1.5 text-sm text-gray-700">
                   <RatingStars value={coach.rating.average ?? 0} />
@@ -134,6 +134,27 @@ export function CoachCard({
                 </span>
               ) : (
                 <span className="text-sm text-gray-400">Nuovo coach</span>
+              )}
+              {/* Prezzo qui, non più in basso a sinistra: è un criterio di
+                  scelta che si confronta subito, non dopo statistiche e
+                  bottoni. Blu come le medaglie sotto, non rosso — sulla
+                  piattaforma il rosso segnala un problema, non un prezzo. */}
+              {primaryService?.durationMin != null && primaryService?.price != null ? (
+                <span className="text-base font-bold text-blue-700">
+                  {formatPrice(primaryService.price, primaryService.currency)}
+                  <span className="text-sm font-medium text-blue-400">
+                    {' '}
+                    / {primaryService.durationMin} min
+                  </span>
+                </span>
+              ) : (
+                SHOW_COACH_HOURLY_RATE &&
+                coach.hourlyRate != null && (
+                  <span className="text-base font-bold text-blue-700">
+                    {formatPrice(coach.hourlyRate, coach.currency)}
+                    <span className="text-sm font-medium text-blue-400"> / h</span>
+                  </span>
+                )
               )}
             </div>
           </div>
@@ -147,7 +168,7 @@ export function CoachCard({
               {coach.headline || ' '}
             </p>
             {coach.certified && (
-              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-600">
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-semibold text-green-600">
                 <BadgeCheck className="h-3.5 w-3.5" />
                 Certificato KaiPai
               </span>
@@ -196,29 +217,18 @@ export function CoachCard({
           </div>
         )}
 
-        <div className="flex flex-col gap-2 border-t border-gray-100 pt-2.5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-sm">
-            {primaryService?.durationMin != null && primaryService?.price != null ? (
-              <span className="text-gray-700">
-                <span className="font-semibold text-gray-900">
-                  {formatPrice(primaryService.price, primaryService.currency)}
-                </span>
-                <span className="text-gray-400"> / {primaryService.durationMin} min</span>
-              </span>
-            ) : (
-              SHOW_COACH_HOURLY_RATE &&
-              coach.hourlyRate != null && (
-                <span className="text-gray-700">
-                  <span className="text-gray-400">da </span>
-                  <span className="font-semibold text-gray-900">
-                    {formatPrice(coach.hourlyRate, coach.currency)}
-                  </span>
-                  <span className="text-gray-400"> / h</span>
-                </span>
-              )
-            )}
-          </div>
-
+        <div className="flex flex-col gap-2 border-t border-gray-100 pt-2.5 sm:flex-row sm:items-center sm:justify-end">
+          {coach.yearsExperience != null && (
+            <span className="inline-flex items-center gap-1.5 text-xs text-gray-500 sm:mr-auto">
+              <Briefcase className="h-3.5 w-3.5 text-gray-400" />
+              {coach.yearsExperience}{' '}
+              {coach.yearsExperience === 1 ? 'anno' : 'anni'} di esperienza
+            </span>
+          )}
+          {/* sm:mr-auto sopra, non justify-between sul contenitore: con
+              yearsExperience assente (coach nuovo) justify-between con un
+              solo figlio lo appoggia a sinistra invece che a destra — i
+              bottoni devono restare a destra sempre, indipendentemente. */}
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             <IntroSessionButton
               slug={coach.slug}

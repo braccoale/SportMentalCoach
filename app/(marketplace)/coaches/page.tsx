@@ -16,7 +16,10 @@ import {
 } from '@/lib/core/listings';
 import { getUser } from '@/lib/db/queries';
 import { getFavoriteProviderIds } from '@/lib/core/favorites';
-import { SHOW_UPCOMING_FEATURES } from '@/lib/core/flags';
+import {
+  SHOW_UPCOMING_FEATURES,
+  SHOW_ATHLETE_NEEDS_SECTION,
+} from '@/lib/core/flags';
 import { getActiveSports, getActiveSpecialties } from '@/lib/core/taxonomies';
 import { hasRole } from '@/lib/core/auth';
 import {
@@ -274,42 +277,44 @@ export default async function CoachesPage({
         </div>
       )}
 
-      <section className="mt-8 rounded-[28px] border border-gray-200 bg-gradient-to-br from-white via-red-50/40 to-white p-5 shadow-sm sm:p-7">
-        <div className="max-w-3xl">
-          <h2 className="text-2xl font-semibold tracking-tight text-gray-950 sm:text-3xl">
-            Parti da cio che vuoi migliorare.
-          </h2>
-          <p className="mt-3 text-sm leading-6 text-gray-600 sm:text-base">
-            Parti dal tuo obiettivo mentale: ti aiutiamo a trovare il coach piu
-            adatto al tuo momento sportivo.
-          </p>
-        </div>
+      {SHOW_ATHLETE_NEEDS_SECTION && (
+        <section className="mt-8 rounded-[28px] border border-gray-200 bg-gradient-to-br from-white via-red-50/40 to-white p-5 shadow-sm sm:p-7">
+          <div className="max-w-3xl">
+            <h2 className="text-2xl font-semibold tracking-tight text-gray-950 sm:text-3xl">
+              Parti da cio che vuoi migliorare.
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-gray-600 sm:text-base">
+              Parti dal tuo obiettivo mentale: ti aiutiamo a trovare il coach piu
+              adatto al tuo momento sportivo.
+            </p>
+          </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {athleteNeeds.map((need) => (
-            <NeedCard
-              key={need.id}
-              need={need}
-              href={buildMarketplaceHref(sp, {
-                need: toggleNeedSelection(selectedNeedIds, need.id),
-              })}
-              selected={selectedNeedIds.includes(need.id)}
-            />
-          ))}
-        </div>
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {athleteNeeds.map((need) => (
+              <NeedCard
+                key={need.id}
+                need={need}
+                href={buildMarketplaceHref(sp, {
+                  need: toggleNeedSelection(selectedNeedIds, need.id),
+                })}
+                selected={selectedNeedIds.includes(need.id)}
+              />
+            ))}
+          </div>
 
-        <div className="mt-5 flex flex-col gap-3 border-t border-gray-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-gray-600">
-            Puoi combinare piu bisogni insieme, poi affinare la ricerca solo se
-            serve.
-          </p>
-          {selectedNeeds.length > 0 ? (
-            <Button asChild variant="outline" className="rounded-full">
-              <Link href={clearNeedHref}>Voglio esplorare tutti i coach</Link>
-            </Button>
-          ) : null}
-        </div>
-      </section>
+          <div className="mt-5 flex flex-col gap-3 border-t border-gray-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-gray-600">
+              Puoi combinare piu bisogni insieme, poi affinare la ricerca solo se
+              serve.
+            </p>
+            {selectedNeeds.length > 0 ? (
+              <Button asChild variant="outline" className="rounded-full">
+                <Link href={clearNeedHref}>Voglio esplorare tutti i coach</Link>
+              </Button>
+            ) : null}
+          </div>
+        </section>
+      )}
 
       <details
         className="group mt-6 rounded-2xl border border-gray-200 bg-white"
@@ -407,7 +412,7 @@ export default async function CoachesPage({
                 defaultChecked={filters.certifiedOnly}
                 className="accent-red-600"
               />
-              Solo coach certificati
+              KaiPai Certified
             </label>
             {loggedIn ? (
               <label className="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700">

@@ -9,6 +9,8 @@ import {
   inArray,
   isNotNull,
   lte,
+  max,
+  min,
   or,
   type SQL,
 } from 'drizzle-orm';
@@ -220,6 +222,10 @@ export type DiscoveryFilters = {
   language?: string;
   certifiedOnly?: boolean;
   sort?: DiscoverySort;
+  /** In cents, inclusive — matched against each coach's primary service price
+   * (the same one shown on their card), not the unused hourly rate. */
+  priceMinCents?: number;
+  priceMaxCents?: number;
 };
 
 export type DiscoveryCoach = {
@@ -410,8 +416,26 @@ export async function getCoachDiscovery(
     };
   });
 
+  // Prezzo a lezione: filtra sul prezzo del servizio principale, lo stesso
+  // mostrato sulla card — non sulla tariffa oraria, inutilizzata dietro
+  // SHOW_COACH_HOURLY_RATE. Un coach senza un servizio prezzato non può
+  // essere confermato dentro la fascia, quindi resta fuori quando il filtro
+  // è attivo.
+  const priced =
+    filters.priceMinCents == null && filters.priceMaxCents == null
+      ? scored
+      : scored.filter((c) => {
+          const price = c.services[0]?.price;
+          if (price == null) return false;
+          if (filters.priceMinCents != null && price < filters.priceMinCents)
+            return false;
+          if (filters.priceMaxCents != null && price > filters.priceMaxCents)
+            return false;
+          return true;
+        });
+
   const sort = filters.sort ?? 'activity';
-  scored.sort((a, b) => {
+  priced.sort((a, b) => {
     // Favourites float to the top under every sort, "activity" (the
     // default view) included: a coach an athlete already saved is the one
     // they came back to find, not one to bury under whoever ranks higher
@@ -446,10 +470,10 @@ export async function getCoachDiscovery(
 
   // Highlight the top matches when ranked by relevance.
   if (sort === 'recommended') {
-    scored.slice(0, 3).forEach((c) => {
+    priced.slice(0, 3).forEach((c) => {
       if (c._score > 0) c.recommended = true;
     });
   }
 
-  return scored.map(({ _score, ...c }) => c);
+  return priced.map(({ _score, ...c }) => c);
 }
