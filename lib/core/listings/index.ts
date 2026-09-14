@@ -213,6 +213,7 @@ export type DiscoverySort =
   | 'recommended'
   | 'rating'
   | 'price'
+  | 'price_desc'
   | 'experience';
 
 export type DiscoveryFilters = {
@@ -490,6 +491,10 @@ export async function getCoachDiscovery(
         return (
           (a.hourlyRate ?? Number.MAX_SAFE_INTEGER) -
           (b.hourlyRate ?? Number.MAX_SAFE_INTEGER)
+        );
+      case 'price_desc':
+        return (
+          (b.hourlyRate ?? -1) - (a.hourlyRate ?? -1)
         );
       case 'experience':
         return (b.yearsExperience ?? -1) - (a.yearsExperience ?? -1);

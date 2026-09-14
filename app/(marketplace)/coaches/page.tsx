@@ -72,6 +72,7 @@ const SORTS: { value: DiscoverySort; label: string }[] = [
   { value: 'recommended', label: 'Consigliati' },
   { value: 'rating', label: 'Valutazione' },
   { value: 'price', label: 'Prezzo crescente' },
+  { value: 'price_desc', label: 'Prezzo decrescente' },
   { value: 'experience', label: 'Esperienza' },
 ];
 
