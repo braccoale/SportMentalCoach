@@ -1,7 +1,8 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { updateProfileAction } from './profile-actions';
 import { yearsSince } from '@/lib/core/format';
@@ -39,6 +40,11 @@ export function ProfileEditor({
     updateProfileAction,
     { error: '' }
   );
+
+  useEffect(() => {
+    if (state?.success) toast.success(state.success);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire per result
+  }, [state]);
 
   return (
     <form

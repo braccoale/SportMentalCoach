@@ -5,6 +5,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages, getTranslations } from 'next-intl/server';
 import { getSessionUser } from '@/lib/db/queries';
 import { SWRConfig } from 'swr';
+import { Toaster } from 'sonner';
 import { GoogleAnalytics } from '@/components/google-analytics';
 import { getClientMessages } from '@/lib/i18n/client-messages';
 import { JsonLd } from '@/components/json-ld';
@@ -71,6 +72,7 @@ export default async function RootLayout({
             <GoogleAnalytics measurementId={googleAnalyticsId} />
           )}
         </NextIntlClientProvider>
+        <Toaster theme="system" position="top-center" richColors closeButton />
       </body>
     </html>
   );

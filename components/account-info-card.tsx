@@ -1,8 +1,9 @@
 'use client';
 
-import { Suspense, useActionState } from 'react';
+import { Suspense, useActionState, useEffect } from 'react';
 import useSWR from 'swr';
 import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -105,6 +106,11 @@ export function AccountInfoCard() {
     updateAccount,
     {}
   );
+
+  useEffect(() => {
+    if (state.success) toast.success(state.success);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire per result
+  }, [state]);
 
   return (
     <Card className="h-full gap-4 py-4">

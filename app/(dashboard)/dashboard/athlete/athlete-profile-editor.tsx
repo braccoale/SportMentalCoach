@@ -1,5 +1,6 @@
 'use client';
 
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,7 +37,11 @@ export function AthleteProfileEditor({ profile }: { profile: AthleteProfileField
         <CardTitle>Profilo sportivo</CardTitle>
       </CardHeader>
       <CardContent>
-        <ActionForm action={updateAthleteProfileAction} className="space-y-4">
+        <ActionForm
+          action={updateAthleteProfileAction}
+          className="space-y-4"
+          onSuccess={(state) => toast.success(state.success ?? 'Profilo aggiornato.')}
+        >
           <div className="space-y-1.5">
             <Label htmlFor="category">Sport / disciplina</Label>
             {/* Una scelta e non un testo libero. Il campo diceva
