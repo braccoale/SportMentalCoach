@@ -8,7 +8,6 @@ import {
   Users,
   Video,
   Star,
-  CalendarClock,
   CalendarDays,
   CheckCircle2,
   ShieldCheck,
@@ -19,7 +18,6 @@ import { getVerticalConfig, findTaxonomyItem, t } from '@/lib/core/config';
 import { getCoachBySlug } from '@/lib/core/listings';
 import {
   getApprovedCoachAvailabilityBySlug,
-  describeAvailability,
   getBookableDays,
   getCoachBusyIntervalsByProviderIds,
 } from '@/lib/core/availability';
@@ -27,13 +25,7 @@ import { getSystemConfigNumber } from '@/lib/core/system-config';
 import { getReviewSummary, getCoachReviews } from '@/lib/core/reviews';
 import { getCompletedSessionCount } from '@/lib/core/bookings';
 import { getFavoriteProviderIds } from '@/lib/core/favorites';
-import {
-  formatPrice,
-  formatMinutesOfDay,
-  formatDateTime,
-  formatDate,
-  WEEKDAY_LABELS,
-} from '@/lib/core/format';
+import { formatPrice, formatDateTime, formatDate } from '@/lib/core/format';
 import { getUser } from '@/lib/db/queries';
 import { getAllSports, getAllSpecialties } from '@/lib/core/taxonomies';
 import { hasRole } from '@/lib/core/auth';
@@ -199,8 +191,6 @@ export default async function CoachDetailPage({
       : null;
   const name = coach.displayName ?? 'Coach';
   const firstName = name.split(' ')[0];
-  // Compact availability hint shown beside the date field in the form.
-  const availabilityHint = describeAvailability(availability.slice(0, 3));
   // Concrete day+time options for the constrained booking picker.
   const [stepMinutes, daysAhead] = await Promise.all([
     getSystemConfigNumber('AVAILABILITY_BOOKING_START_STEP_MINUTES', 10),
@@ -326,39 +316,56 @@ export default async function CoachDetailPage({
             )}
           </div>
 
-          {/* Services beside the coach identity */}
-          <section aria-label="Servizi" className="mt-4">
-            {coach.services.length === 0 ? (
-              <p className="mt-2 text-gray-500">Nessun servizio disponibile.</p>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {coach.services.map((service) => (
-                  <div
-                    key={service.id}
-                    className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5"
-                  >
-                    <span className="text-base font-semibold text-gray-900">
-                      {service.title ?? 'Servizio'}
-                    </span>
-                    <span className="text-lg font-bold text-blue-900">
-                      {service.durationMin ? `${service.durationMin} min` : ''}
-                      {service.durationMin && service.price != null
-                        ? ' · '
-                        : ''}
-                      {service.price != null
-                        ? formatPrice(service.price, service.currency)
-                        : ''}
-                    </span>
-                    {service.description && (
-                      <span className="text-sm text-gray-600">
-                        {service.description}
+          {/* Services beside the coach identity, sessione conoscitiva a
+              destra, allineata al centro della riga. flex-wrap (non
+              overflow-x-auto): con testo lungo o schermo stretto va a capo,
+              non genera una scrollbar orizzontale dentro la card. */}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+            <section aria-label="Servizi" className="min-w-0 flex-1">
+              {coach.services.length === 0 ? (
+                <p className="text-gray-500">Nessun servizio disponibile.</p>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {coach.services.map((service) => (
+                    <div
+                      key={service.id}
+                      className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5"
+                    >
+                      <span className="text-base font-semibold text-gray-900">
+                        {service.title ?? 'Servizio'}
                       </span>
-                    )}
-                  </div>
-                ))}
+                      <span className="text-lg font-bold text-blue-900">
+                        {service.durationMin ? `${service.durationMin} min` : ''}
+                        {service.durationMin && service.price != null
+                          ? ' · '
+                          : ''}
+                        {service.price != null
+                          ? formatPrice(service.price, service.currency)
+                          : ''}
+                      </span>
+                      {service.description && (
+                        <span className="text-sm text-gray-600">
+                          {service.description}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+            {!justRequested && (
+              <div className="shrink-0">
+                <IntroSessionButton
+                  slug={slug}
+                  coachFirstName={firstName}
+                  loggedIn={Boolean(user)}
+                  isAthlete={isAthlete}
+                  bookableDays={bookableDays}
+                  alreadyUsed={introAlreadyUsed}
+                />
               </div>
             )}
-          </section>
+          </div>
 
           {/* mobile CTA → scrolls to booking */}
           <Button
@@ -389,126 +396,8 @@ export default async function CoachDetailPage({
         totalMinutes={coach.totalMinutes}
       />
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-3">
-        {/* BOOKING — first on mobile, sticky right on desktop */}
-        <aside id="prenota" className="order-1 lg:order-2 lg:col-span-1">
-          <div className="lg:sticky lg:top-6">
-            <Card>
-              {!justRequested && (
-                <CardHeader>
-                  <CardTitle className="text-lg">
-                    Inizia il tuo percorso con {firstName}
-                  </CardTitle>
-                  {SHOW_COACH_HOURLY_RATE && coach.hourlyRate != null && (
-                    <p className="text-sm text-muted-foreground">
-                      a partire da{' '}
-                      <span className="font-semibold text-gray-900">
-                        {formatPrice(coach.hourlyRate, coach.currency)}
-                      </span>{' '}
-                      / h
-                    </p>
-                  )}
-                </CardHeader>
-              )}
-              <CardContent className="flex flex-col gap-4">
-                {justRequested ? (
-                  /* ✔ Confirmation state — the moment of trust */
-                  <div className="flex flex-col items-center gap-3 py-4 text-center">
-                    <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50">
-                      <CheckCircle2 className="h-8 w-8 text-emerald-600" />
-                    </span>
-                    <p className="text-lg font-semibold text-gray-900">
-                      Richiesta inviata a {firstName}!
-                    </p>
-                    <p className="text-sm leading-relaxed text-gray-600">
-                      Riceve subito una notifica e di solito risponde entro 24
-                      ore. Ti avvisiamo appena accetta.
-                    </p>
-                    <Button asChild variant="outline" className="mt-1 rounded-full">
-                      <Link href="/dashboard/athlete">
-                        Segui la richiesta in “Le tue sessioni”
-                      </Link>
-                    </Button>
-                  </div>
-                ) : !user ? (
-                  <div className="flex flex-col gap-2.5">
-                    <p className="text-sm leading-relaxed text-gray-600">
-                      Ti serve solo un account gratuito — poi torni qui e
-                      completi la richiesta.
-                    </p>
-                    <Button asChild size="lg" className="rounded-full">
-                      <Link href={`/sign-in?redirect=/coaches/${slug}`}>
-                        Inizia — è gratis
-                      </Link>
-                    </Button>
-                  </div>
-                ) : isAthlete ? (
-                  <BookingRequest
-                    slug={slug}
-                    coachFirstName={firstName}
-                    services={coach.services.map((s) => ({
-                      id: s.id,
-                      title: s.title,
-                      durationMin: s.durationMin,
-                    }))}
-                    bookableDays={bookableDays}
-                  />
-                ) : (
-                  <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-800">
-                    Solo gli atleti possono richiedere una sessione.
-                  </p>
-                )}
-
-                {!justRequested && (
-                  <>
-                    {/* Cosa succede adesso? — 4 rassicurazioni in 4 righe */}
-                    <div className="border-t border-gray-100 pt-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                        Cosa succede adesso?
-                      </p>
-                      <ol className="mt-2 flex flex-col gap-1.5 text-xs text-gray-600">
-                        {[
-                          'Invii la richiesta',
-                          `${firstName} la valuta`,
-                          'Ricevi la conferma',
-                          'Vi allenate online',
-                        ].map((step, i) => (
-                          <li key={step} className="flex items-center gap-2">
-                            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-red-50 text-[10px] font-semibold text-red-600">
-                              {i + 1}
-                            </span>
-                            {step}
-                          </li>
-                        ))}
-                      </ol>
-                    </div>
-
-                    <ul className="flex flex-col gap-1.5 border-t border-gray-100 pt-3 text-xs text-gray-500">
-                      {coach.identityVerified && (
-                        <li className="flex items-center gap-1.5 text-emerald-700">
-                          <ShieldCheck className="h-3.5 w-3.5" /> Identità
-                          verificata da KaiPai
-                        </li>
-                      )}
-                      <li className="flex items-center gap-1.5">
-                        <BadgeCheck className="h-3.5 w-3.5 text-gray-400" />
-                        Nessun pagamento richiesto ora
-                      </li>
-                      <li className="flex items-center gap-1.5">
-                        <BadgeCheck className="h-3.5 w-3.5 text-gray-400" />
-                        Puoi annullare quando vuoi
-                      </li>
-                    </ul>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </aside>
-
-        {/* CONTENT */}
-        <div className="order-2 flex flex-col lg:order-1 lg:col-span-2">
-          {/* Intro video */}
+      <div className="mt-8 flex flex-col">
+        {/* Intro video */}
           {coach.videoUrl && (
             <section>
               <h2 className="flex items-center gap-2 text-xl font-semibold text-gray-900">
@@ -621,56 +510,123 @@ export default async function CoachDetailPage({
             </section>
           )}
 
-          {/* Prenota: la sessione conoscitiva gratuita e, se l'atleta è
-              loggato, i campi servizio/durata dello stesso <form> del box di
-              prenotazione a destra — vedi booking-request.tsx (l'attributo
-              `form` sui <select> renderizzati nello slot qui sotto li tiene
-              collegati a quel <form> indipendentemente da dove vivono nel
-              DOM). Sotto Specializzazioni, non sopra il calendario: erano due
-              <select> che occupavano spazio prima che l'atleta arrivasse a
-              vedere gli orari. */}
-          {!justRequested && (
-            <section className="mt-10">
-              <IntroSessionButton
-                slug={slug}
-                coachFirstName={firstName}
-                loggedIn={Boolean(user)}
-                isAthlete={isAthlete}
-                bookableDays={bookableDays}
-                alreadyUsed={introAlreadyUsed}
-              />
-              {user && isAthlete && coach.services.length > 0 && (
-                <div className="mt-6">
-                  <h2 className="flex items-center gap-2 text-xl font-semibold text-gray-900">
-                    <CalendarClock className="h-5 w-5 text-red-600" /> Configura
-                    la tua sessione
-                  </h2>
-                  <div id="booking-config-slot" className="mt-3" />
-                </div>
+          {/* Booking card: calendario, obiettivo, invio. Niente più campo
+              servizio/durata da scegliere — la durata di riferimento è
+              quella del servizio principale del coach (vedi
+              booking-request.tsx). */}
+          <section id="prenota" className="mt-10">
+            <Card>
+              {!justRequested && (
+                <CardHeader>
+                  <CardTitle className="text-lg">
+                    Inizia il tuo percorso con {firstName}
+                  </CardTitle>
+                  {SHOW_COACH_HOURLY_RATE && coach.hourlyRate != null && (
+                    <p className="text-sm text-muted-foreground">
+                      a partire da{' '}
+                      <span className="font-semibold text-gray-900">
+                        {formatPrice(coach.hourlyRate, coach.currency)}
+                      </span>{' '}
+                      / h
+                    </p>
+                  )}
+                </CardHeader>
               )}
-            </section>
-          )}
+              <CardContent className="flex flex-col gap-4">
+                {justRequested ? (
+                  /* ✔ Confirmation state — the moment of trust */
+                  <div className="flex flex-col items-center gap-3 py-4 text-center">
+                    <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50">
+                      <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+                    </span>
+                    <p className="text-lg font-semibold text-gray-900">
+                      Richiesta inviata a {firstName}!
+                    </p>
+                    <p className="text-sm leading-relaxed text-gray-600">
+                      Riceve subito una notifica e di solito risponde entro 24
+                      ore. Ti avvisiamo appena accetta.
+                    </p>
+                    <Button asChild variant="outline" className="mt-1 rounded-full">
+                      <Link href="/dashboard/athlete">
+                        Segui la richiesta in “Le tue sessioni”
+                      </Link>
+                    </Button>
+                  </div>
+                ) : !user ? (
+                  <div className="flex flex-col gap-2.5">
+                    <p className="text-sm leading-relaxed text-gray-600">
+                      Ti serve solo un account gratuito — poi torni qui e
+                      completi la richiesta.
+                    </p>
+                    <Button asChild size="lg" className="rounded-full">
+                      <Link href={`/sign-in?redirect=/coaches/${slug}`}>
+                        Inizia — è gratis
+                      </Link>
+                    </Button>
+                  </div>
+                ) : isAthlete ? (
+                  <BookingRequest
+                    slug={slug}
+                    coachFirstName={firstName}
+                    services={coach.services.map((s) => ({
+                      id: s.id,
+                      title: s.title,
+                      durationMin: s.durationMin,
+                    }))}
+                    bookableDays={bookableDays}
+                  />
+                ) : (
+                  <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-800">
+                    Solo gli atleti possono richiedere una sessione.
+                  </p>
+                )}
 
-          {/* Availability */}
-          {availability.length > 0 && (
-            <section className="mt-10">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Disponibilità
-              </h2>
-              <ul className="mt-3 flex flex-wrap gap-2">
-                {availability.map((slot) => (
-                  <li
-                    key={slot.id}
-                    className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700"
-                  >
-                    {WEEKDAY_LABELS[slot.weekday]}{' '}
-                    {formatMinutesOfDay(slot.startMinute)}–
-                    {formatMinutesOfDay(slot.endMinute)}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+                {!justRequested && (
+                  <>
+                    {/* Cosa succede adesso? — 4 rassicurazioni in 4 righe */}
+                    <div className="border-t border-gray-100 pt-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                        Cosa succede adesso?
+                      </p>
+                      <ol className="mt-2 flex flex-col gap-1.5 text-xs text-gray-600">
+                        {[
+                          'Invii la richiesta',
+                          `${firstName} la valuta`,
+                          'Ricevi la conferma',
+                          'Vi allenate online',
+                        ].map((step, i) => (
+                          <li key={step} className="flex items-center gap-2">
+                            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-red-50 text-[10px] font-semibold text-red-600">
+                              {i + 1}
+                            </span>
+                            {step}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+
+                    <ul className="flex flex-col gap-1.5 border-t border-gray-100 pt-3 text-xs text-gray-500">
+                      {coach.identityVerified && (
+                        <li className="flex items-center gap-1.5 text-emerald-700">
+                          <ShieldCheck className="h-3.5 w-3.5" /> Identità
+                          verificata da KaiPai
+                        </li>
+                      )}
+                      <li className="flex items-center gap-1.5">
+                        <BadgeCheck className="h-3.5 w-3.5 text-gray-400" />
+                        Nessun pagamento richiesto ora
+                      </li>
+                      <li className="flex items-center gap-1.5">
+                        <BadgeCheck className="h-3.5 w-3.5 text-gray-400" />
+                        Puoi annullare quando vuoi
+                      </li>
+                    </ul>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </section>
+
 
           {/* Reviews */}
           <section id="recensioni" className="mt-10 scroll-mt-24">
@@ -752,7 +708,6 @@ export default async function CoachDetailPage({
           <TrustAndSafeguarding />
           <MarketplaceFaq />
           <CancellationPolicy />
-        </div>
       </div>
     </main>
   );
