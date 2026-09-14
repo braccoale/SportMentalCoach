@@ -262,6 +262,36 @@ export type DiscoveryCoach = {
 };
 
 /**
+ * Prezzo minimo e massimo (in cent) fra i servizi attivi, non-intro dei
+ * coach approvati — i bordi dello slider "Prezzo a lezione". Su tutti i
+ * servizi, non solo il principale di ciascun coach: per i bordi dello
+ * slider l'approssimazione è innocua (al più lo slider parte un filo più
+ * largo del necessario), mentre isolare "il primo servizio per coach"
+ * richiederebbe una window function in più solo per questo. `null` quando
+ * nessun coach ha ancora un servizio prezzato — lo slider resta nascosto.
+ */
+export async function getCoachPriceRangeCents(): Promise<{
+  minCents: number;
+  maxCents: number;
+} | null> {
+  const [row] = await db
+    .select({ minPrice: min(services.price), maxPrice: max(services.price) })
+    .from(services)
+    .innerJoin(providerProfiles, eq(providerProfiles.id, services.providerId))
+    .innerJoin(users, eq(users.id, providerProfiles.userId))
+    .where(
+      and(
+        eq(providerProfiles.status, 'approved'),
+        eq(users.isDemo, false),
+        eq(services.isActive, true),
+        eq(services.isIntro, false)
+      )
+    );
+  if (row?.minPrice == null || row?.maxPrice == null) return null;
+  return { minCents: row.minPrice, maxCents: row.maxPrice };
+}
+
+/**
  * The recommendation-style listing. Filters narrow to relevant approved
  * coaches; a transparent quality score ranks them; per-card match reasons
  * explain *why*. No AI — a deterministic heuristic.

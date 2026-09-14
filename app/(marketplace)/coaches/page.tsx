@@ -10,10 +10,12 @@ import { Button } from '@/components/ui/button';
 import { getVerticalConfig } from '@/lib/core/config';
 import {
   getCoachDiscovery,
+  getCoachPriceRangeCents,
   type DiscoveryCoach,
   type DiscoveryFilters,
   type DiscoverySort,
 } from '@/lib/core/listings';
+import { PriceRangeFilter } from '@/components/price-range-filter';
 import { getUser } from '@/lib/db/queries';
 import { getFavoriteProviderIds } from '@/lib/core/favorites';
 import {
@@ -82,6 +84,8 @@ type SearchParams = {
   sort?: string | string[];
   fav?: string | string[];
   need?: string | string[];
+  priceMin?: string | string[];
+  priceMax?: string | string[];
 };
 
 const fieldCls =
@@ -112,10 +116,25 @@ export default async function CoachesPage({
   const certified = getSingleParam(sp.certified);
   const favorite = getSingleParam(sp.fav);
   const sortParam = getSingleParam(sp.sort);
+  const priceMinParam = getSingleParam(sp.priceMin);
+  const priceMaxParam = getSingleParam(sp.priceMax);
 
   const sort: DiscoverySort = SORTS.some((s) => s.value === sortParam)
     ? (sortParam as DiscoverySort)
     : 'activity';
+
+  // Bounds in whole euros, dal prezzo minimo/massimo dei servizi attivi (non
+  // intro) dei coach approvati — null se nessuno ha ancora un servizio.
+  const priceRange = await getCoachPriceRangeCents();
+  const priceRangeMinEur = priceRange ? Math.floor(priceRange.minCents / 100) : null;
+  const priceRangeMaxEur = priceRange ? Math.ceil(priceRange.maxCents / 100) : null;
+  const priceMinEur = priceMinParam ? Number(priceMinParam) : undefined;
+  const priceMaxEur = priceMaxParam ? Number(priceMaxParam) : undefined;
+  const priceFilterActive =
+    priceRange != null &&
+    ((priceMinEur != null && !Number.isNaN(priceMinEur) && priceMinEur > priceRangeMinEur!) ||
+      (priceMaxEur != null && !Number.isNaN(priceMaxEur) && priceMaxEur < priceRangeMaxEur!));
+
   const filters: DiscoveryFilters = {
     sport: sport || undefined,
     specialty: specialty || undefined,
@@ -123,6 +142,10 @@ export default async function CoachesPage({
     language: language || undefined,
     certifiedOnly: certified === '1',
     sort,
+    priceMinCents:
+      priceMinEur != null && !Number.isNaN(priceMinEur) ? priceMinEur * 100 : undefined,
+    priceMaxCents:
+      priceMaxEur != null && !Number.isNaN(priceMaxEur) ? priceMaxEur * 100 : undefined,
   };
   const onlyFav = favorite === '1';
 
@@ -144,7 +167,8 @@ export default async function CoachesPage({
     !!filters.level ||
     !!filters.language ||
     filters.certifiedOnly ||
-    onlyFav;
+    onlyFav ||
+    priceFilterActive;
   const hasActiveNeed = selectedNeeds.length > 0;
   const activeAdvancedFilterCount = [
     filters.sport,
@@ -153,6 +177,7 @@ export default async function CoachesPage({
     filters.language,
     filters.certifiedOnly ? 'certified' : undefined,
     onlyFav ? 'fav' : undefined,
+    priceFilterActive ? 'price' : undefined,
   ].filter(Boolean).length;
 
   const fallback =
@@ -213,6 +238,8 @@ export default async function CoachesPage({
     certified: undefined,
     sort: undefined,
     fav: undefined,
+    priceMin: undefined,
+    priceMax: undefined,
   });
 
   // L'`ItemList` descrive l'elenco completo, quindi viene emessa solo quando
@@ -318,7 +345,7 @@ export default async function CoachesPage({
 
       <details
         className="group mt-6 rounded-2xl border border-gray-200 bg-white"
-        open={anyAdvancedFilter}
+        open
       >
         <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
           <div>
@@ -404,6 +431,18 @@ export default async function CoachesPage({
                 ))}
               </select>
             </div>
+            {priceRange && priceRangeMinEur != null && priceRangeMaxEur != null ? (
+              <PriceRangeFilter
+                min={priceRangeMinEur}
+                max={priceRangeMaxEur}
+                initialMin={
+                  priceMinEur != null && !Number.isNaN(priceMinEur) ? priceMinEur : undefined
+                }
+                initialMax={
+                  priceMaxEur != null && !Number.isNaN(priceMaxEur) ? priceMaxEur : undefined
+                }
+              />
+            ) : null}
             <label className="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700">
               <input
                 type="checkbox"
@@ -752,6 +791,8 @@ function buildMarketplaceHref(
       'sort',
       'fav',
       'need',
+      'priceMin',
+      'priceMax',
     ] as const
   ).forEach((key) => {
     const value = next[key];
