@@ -295,7 +295,7 @@ export function BookingRequest({
 
       <div className="flex flex-col">
         <label htmlFor="note" className="text-sm font-medium text-gray-900">
-          Raccontagli il tuo obiettivo
+          Raccontami i tuoi obiettivi
         </label>
         <textarea
           id="note"

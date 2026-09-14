@@ -28,7 +28,7 @@ function StatCell({
   colorClass: string;
 }) {
   return (
-    <div className="flex flex-1 flex-col items-center gap-1 px-2 py-2.5 text-center">
+    <div className="flex flex-1 flex-col items-center gap-0.5 px-2 py-2 text-center">
       <div className="relative flex h-9 w-9 items-center justify-center">
         <GaugeRing progress={progress} className={colorClass} size={36} />
         <Icon className={`absolute h-3.5 w-3.5 ${colorClass.replace('stroke-', 'text-')}`} />
@@ -105,7 +105,7 @@ export function CoachCard({
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-white/70 via-transparent to-transparent" />
       </div>
 
-      <div className="flex flex-1 flex-col justify-between gap-3 p-4">
+      <div className="flex flex-1 flex-col justify-between gap-2.5 p-4">
         <Link href={`/coaches/${coach.slug}`} className="block">
           <div className="min-w-0 pr-28">
             <div className="flex items-center gap-2">
@@ -135,23 +135,22 @@ export function CoachCard({
           </div>
 
           {/* Reserved one-line slot so cards with/without a headline stay the
-              same height. */}
-          <p className="mt-2 line-clamp-1 min-h-5 text-sm text-gray-600">
-            {coach.headline || ' '}
-          </p>
-
-          {/* Reserved slot for the certified pill — kept even when absent so
-              certified and non-certified cards line up to the same height. */}
-          <div className="mt-2 min-h-[1.75rem]">
+              same height. La pillola "Certificato" (quando c'è) va sulla
+              stessa riga della frase, non in uno slot vuoto a parte sotto —
+              era lei a lasciare la fascia bianca lamentata. */}
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <p className="line-clamp-1 min-h-5 text-sm text-gray-600">
+              {coach.headline || ' '}
+            </p>
             {coach.certified && (
-              <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-600">
                 <BadgeCheck className="h-3.5 w-3.5" />
                 Certificato KaiPai
               </span>
             )}
           </div>
 
-          <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-gray-100 pt-2.5 text-sm text-gray-600">
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-gray-100 pt-2 text-sm text-gray-600">
             {sportLabels.length > 0 && <span>{sportLabels.join(' · ')}</span>}
             {coach.languages && coach.languages.length > 0 && (
               <>
@@ -193,7 +192,7 @@ export function CoachCard({
           </div>
         )}
 
-        <div className="flex flex-col gap-3 border-t border-gray-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 border-t border-gray-100 pt-2.5 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm">
             {primaryService?.durationMin != null && primaryService?.price != null ? (
               <span className="text-gray-700">
