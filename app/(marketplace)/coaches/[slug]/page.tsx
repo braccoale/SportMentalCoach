@@ -333,29 +333,25 @@ export default async function CoachDetailPage({
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
                 {coach.services.map((service) => (
-                  <Card key={service.id} className="gap-2 rounded-2xl p-4">
-                    <CardHeader className="gap-1 p-0">
-                      <CardTitle className="text-base">
-                        {service.title ?? 'Servizio'}
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        {service.durationMin ? `${service.durationMin} min` : ''}
-                        {service.durationMin && service.price != null
-                          ? ' · '
-                          : ''}
-                        {service.price != null
-                          ? formatPrice(service.price, service.currency)
-                          : ''}
-                      </p>
-                    </CardHeader>
+                  <div key={service.id} className="flex flex-col gap-1">
+                    <p className="text-base font-semibold text-gray-900">
+                      {service.title ?? 'Servizio'}
+                    </p>
+                    <p className="text-lg font-bold text-blue-900">
+                      {service.durationMin ? `${service.durationMin} min` : ''}
+                      {service.durationMin && service.price != null
+                        ? ' · '
+                        : ''}
+                      {service.price != null
+                        ? formatPrice(service.price, service.currency)
+                        : ''}
+                    </p>
                     {service.description && (
-                      <CardContent className="p-0">
-                        <p className="text-sm text-gray-600">
-                          {service.description}
-                        </p>
-                      </CardContent>
+                      <p className="text-sm text-gray-600">
+                        {service.description}
+                      </p>
                     )}
-                  </Card>
+                  </div>
                 ))}
               </div>
             )}
