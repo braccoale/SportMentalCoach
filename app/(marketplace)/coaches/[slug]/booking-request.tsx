@@ -1,7 +1,7 @@
 'use client';
 
-import { useActionState, useMemo, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { useActionState, useMemo, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { requestBooking } from './actions';
 import type { ActionState } from '@/lib/auth/middleware';
@@ -10,7 +10,6 @@ import {
   isStartBusyForDuration,
   slotPresentation,
 } from '@/lib/core/availability/validation';
-import { SLOT_TONE_CLASS, SLOT_TONE_STYLE } from '@/components/slot-tone';
 import {
   DEFAULT_SESSION_DURATION_MIN,
   SESSION_DURATION_OPTIONS,
@@ -34,6 +33,21 @@ function firstFreeTime(
       (time) => !isStartBusyForDuration(day.maxDurationMin, time, durationMin)
     ) ?? ''
   );
+}
+
+/** "16 set" — read from the "YYYY-MM-DD" value at Rome noon, never device time. */
+function dayChip(value: string): { weekday: string; number: string } {
+  const at = new Date(`${value}T12:00:00Z`);
+  return {
+    weekday: new Intl.DateTimeFormat('it-IT', {
+      timeZone: 'Europe/Rome',
+      weekday: 'short',
+    }).format(at),
+    number: new Intl.DateTimeFormat('it-IT', {
+      timeZone: 'Europe/Rome',
+      day: 'numeric',
+    }).format(at),
+  };
 }
 
 /**
@@ -79,6 +93,11 @@ export function BookingRequest({
     () => bookableDays.find((d) => d.value === day),
     [bookableDays, day]
   );
+
+  const stripRef = useRef<HTMLDivElement>(null);
+  function scrollStrip(direction: -1 | 1) {
+    stripRef.current?.scrollBy({ left: direction * 168, behavior: 'smooth' });
+  }
 
   // Combined datetime-local value the server parses (Rome wall-clock).
   const scheduledFor = day && time ? `${day}T${time}` : '';
@@ -183,42 +202,68 @@ export function BookingRequest({
           <span className="text-sm font-medium text-gray-900">
             Quando vorresti iniziare?
           </span>
-          <div className="grid grid-cols-2 gap-2">
-            <label className="flex flex-col">
-              <span className="text-xs text-gray-500">Giorno</span>
-              <select
-                value={day}
-                onChange={(e) => {
-                  const nextDay = e.target.value;
-                  setDay(nextDay);
-                  const first = firstFreeTime(
-                    bookableDays.find((d) => d.value === nextDay),
-                    durationMin
+
+          <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-2.5">
+            {/* Date strip: one card per bookable day, scrolls horizontally */}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => scrollStrip(-1)}
+                aria-label="Giorni precedenti"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-gray-400 transition hover:bg-white hover:text-gray-700"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <div
+                ref={stripRef}
+                className="flex flex-1 gap-1.5 overflow-x-auto scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+              >
+                {bookableDays.map((d) => {
+                  const chip = dayChip(d.value);
+                  const selected = d.value === day;
+                  return (
+                    <button
+                      key={d.value}
+                      type="button"
+                      onClick={() => {
+                        setDay(d.value);
+                        setTime(firstFreeTime(d, durationMin));
+                      }}
+                      aria-pressed={selected}
+                      className={`flex w-12 shrink-0 flex-col items-center gap-0.5 rounded-lg py-2 text-xs font-medium transition ${
+                        selected
+                          ? 'bg-red-600 text-white shadow-sm shadow-red-600/20'
+                          : 'bg-white text-gray-600 hover:bg-red-50 hover:text-red-700'
+                      }`}
+                    >
+                      <span className="uppercase opacity-80">
+                        {chip.weekday}
+                      </span>
+                      <span className="text-base font-semibold leading-none">
+                        {chip.number}
+                      </span>
+                    </button>
                   );
-                  setTime(first);
-                }}
-                className={fieldCls}
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={() => scrollStrip(1)}
+                aria-label="Giorni successivi"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-gray-400 transition hover:bg-white hover:text-gray-700"
               >
-                {bookableDays.map((d) => (
-                  <option key={d.value} value={d.value}>
-                    {d.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col">
-              <span className="text-xs text-gray-500">Ora</span>
-              <select
-                value={time}
-                onChange={(e) => chooseTime(e.target.value)}
-                required
-                className={fieldCls}
-              >
-                {!time && (
-                  <option value="" disabled>
-                    Nessun orario libero
-                  </option>
-                )}
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Times for the selected day */}
+            <div className="mt-2.5 border-t border-gray-200 pt-2.5">
+              {selectedDay && (
+                <p className="mb-2 text-xs font-medium text-gray-500">
+                  {selectedDay.label}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-1.5">
                 {selectedDay?.times.map((t) => {
                   const slot = slotPresentation(
                     selectedDay.maxDurationMin,
@@ -226,22 +271,43 @@ export function BookingRequest({
                     durationMin,
                     true
                   );
+                  const selected = t === time;
                   return (
-                    <option
+                    <button
                       key={t}
-                      value={t}
+                      type="button"
                       disabled={!slot.selectable}
-                      className={SLOT_TONE_CLASS[slot.tone]}
-                      style={SLOT_TONE_STYLE[slot.tone]}
+                      onClick={() => chooseTime(t)}
+                      aria-pressed={selected}
+                      title={slot.suffix ? slot.suffix.replace(' · ', '') : undefined}
+                      className={`rounded-lg border px-2.5 py-1.5 text-sm font-medium transition ${
+                        selected
+                          ? 'border-red-600 bg-red-600 text-white'
+                          : slot.tone === 'occupied'
+                            ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-300 line-through'
+                            : slot.tone === 'tight'
+                              ? 'border-amber-300 bg-amber-50 text-amber-700 hover:border-amber-400'
+                              : 'border-gray-200 bg-white text-gray-900 hover:border-red-400 hover:bg-red-50'
+                      }`}
                     >
                       {t}
-                      {slot.suffix}
-                    </option>
+                      {slot.tone === 'tight' && (
+                        <span className="ml-1 text-[10px] font-normal opacity-80">
+                          {slot.suffix}
+                        </span>
+                      )}
+                    </button>
                   );
                 })}
-              </select>
-            </label>
+                {!selectedDay?.times.length && (
+                  <p className="text-sm text-gray-400">
+                    Nessun orario libero questo giorno.
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
+
           <p className="text-xs text-gray-500">
             Vedi solo i giorni e gli orari in cui {coachFirstName} riceve.
             Confermerete insieme.
