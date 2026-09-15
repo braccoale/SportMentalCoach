@@ -42,6 +42,8 @@ export type AdminTodaySession = {
   status: string;
   /** Qualcuno è collegato in questo istante, non «doveva esserci». */
   isLive: boolean;
+  /** La trascrizione AI è mai stata avviata (non se è andata a buon fine, solo se è partita). */
+  aiTranscriptionActivated: boolean;
 };
 
 /**
@@ -99,5 +101,6 @@ export function buildDaySessions(
       serviceTitle: row.serviceTitle,
       status: row.status,
       isLive: isSessionLive(row.sessionEndedAt, now, liveSilenceMs),
+      aiTranscriptionActivated: row.aiTranscriptionActivated ?? false,
     }));
 }

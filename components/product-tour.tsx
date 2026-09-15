@@ -252,6 +252,15 @@ export function ProductTour({
 
   if (dismissed || !step || !isRect(targetState)) return null;
   const rect = targetState;
+  // Sfondo scurito ("spotlight") per far risaltare il bersaglio — tranne
+  // durante la videochiamata: lì scurire tutto lo schermo scurirebbe anche
+  // il volto della persona in call, proprio nel momento meno adatto a
+  // distrarre. Il principio guida resta "non invasivo": si usa un unico
+  // `box-shadow` enorme sull'anello stesso invece di un secondo elemento a
+  // schermo intero — nessun rischio di intercettare click, perché un
+  // box-shadow non genera mai hit-test, e resta coerente col resto
+  // dell'anello che già ha `pointerEvents: 'none'`.
+  const dimBackdrop = tourKey !== 'coach_video_call' && tourKey !== 'athlete_video_call';
 
   return (
     <Popover.Root
@@ -280,6 +289,9 @@ export function ProductTour({
             // popover stesso è z-[100], quindi l'anello deve arrivare almeno
             // fin lì per non restarci sotto.
             zIndex: 130,
+            boxShadow: dimBackdrop
+              ? '0 0 0 9999px rgba(17, 24, 39, 0.45)'
+              : undefined,
           }}
           className="rounded-lg ring-2 ring-indigo-500 ring-offset-2"
         />

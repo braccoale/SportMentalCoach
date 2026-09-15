@@ -51,6 +51,7 @@ type RawDayRow = {
   duration_min: number | null;
   coach_name: string;
   service_title: string | null;
+  ai_transcription_activated: boolean;
 };
 
 function toDate(value: Date | string | null): Date | null {
@@ -96,7 +97,11 @@ export async function getAdminDaySessions(
         nullif(trim(concat(coalesce(coach_user.name, ''), ' ', coalesce(coach_user.last_name, ''))), ''),
         coach_user.email
       ) AS coach_name,
-      s.title AS service_title
+      s.title AS service_title,
+      EXISTS (
+        SELECT 1 FROM session_ai_notes san
+        WHERE san.booking_id = b.id AND san.started_at IS NOT NULL
+      ) AS ai_transcription_activated
     FROM bookings b
     JOIN users atleta ON atleta.id = b.client_id
     JOIN provider_profiles pp ON pp.id = b.provider_id
@@ -142,6 +147,7 @@ export async function getAdminDaySessions(
       // dell'atleta — mostrerebbe una persona al posto di un'altra.
       coachName: row.coach_name,
       serviceTitle: row.service_title,
+      aiTranscriptionActivated: row.ai_transcription_activated,
     };
   });
 

@@ -18,4 +18,11 @@ export type AdminBookingRow = CoachAthleteBooking & {
   /** Già risolto lato server: nome del profilo, nome e cognome, o email. */
   coachName: string;
   serviceTitle: string | null;
+  /**
+   * La trascrizione AI è mai stata avviata per questa prenotazione (`session_ai_notes.started_at`
+   * non nullo su almeno una riga) — non se è andata a buon fine, solo se è partita.
+   * Opzionale: valorizzato solo dalle viste che lo interrogano (l'agenda giornaliera), assente
+   * altrove (es. l'elenco atleti per coach), dove non serve.
+   */
+  aiTranscriptionActivated?: boolean;
 };

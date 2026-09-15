@@ -243,23 +243,15 @@ export function AiSessionNotesControl({
     return (
       <CollapsibleOverlay label="Appunti AI" tone="neutral">
         <div aria-busy={loading} className="flex items-center gap-2">
-          <Sparkles className="size-4 shrink-0 text-violet-300" aria-hidden="true" />
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-medium">
-                {terminal ? 'Appunti AI non attivi' : 'Appunti AI'}
-              </span>
-              <BetaBadge />
-            </div>
-            {error && <p className="mt-1 text-xs text-red-300">{error}</p>}
-          </div>
+          {error && <p className="text-xs text-red-300">{error}</p>}
           {canStart && (
             <Button
               type="button"
               size="sm"
-              className="ml-2 shrink-0 rounded-full bg-violet-600 hover:bg-violet-700"
+              className="shrink-0 rounded-full bg-emerald-600 hover:bg-emerald-700"
               disabled={loading}
               onClick={start}
+              data-tour="coach-start-transcription"
             >
               <Sparkles className="size-3.5" />
               {loading
@@ -509,7 +501,6 @@ export function AiSessionNotesControl({
         {session.viewerRole === 'coach' && canRestartRecording && (
           <button
             type="button"
-            data-tour="coach-start-transcription"
             className="mt-2 mr-3 text-xs font-medium text-white underline"
             disabled={loading}
             onClick={() =>

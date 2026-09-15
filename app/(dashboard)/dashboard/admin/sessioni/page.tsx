@@ -189,6 +189,7 @@ export default async function AdminSessionsPage({
                     <th scope="col" className="px-4 py-3">Servizio</th>
                     <th scope="col" className="px-4 py-3">Durata</th>
                     <th scope="col" className="px-4 py-3">Stato</th>
+                    <th scope="col" className="px-4 py-3">AI</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -221,6 +222,15 @@ export default async function AdminSessionsPage({
                           </span>
                           {session.isLive ? <LiveSessionDot /> : null}
                         </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {session.aiTranscriptionActivated ? (
+                          <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
+                            Attivata
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
                       </td>
                     </tr>
                   ))}

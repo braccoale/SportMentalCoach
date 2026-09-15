@@ -70,7 +70,32 @@ const DEFAULT_TIMEOUT_MS = 45_000;
  * Se un giorno il limite della funzione sale — o la generazione viene spezzata
  * in due chiamate — questo torna a `medium` senza altre modifiche.
  */
-const COMPASS_REASONING_EFFORT = 'low' as const;
+type CompassReasoningEffort = 'minimal' | 'low' | 'medium' | 'high';
+
+/**
+ * Lo sforzo di ragionamento, di norma `low` (vedi sopra), con una via
+ * d'uscita per il recupero manuale via `npm run ai-notes:process`.
+ *
+ * Quel processo gira su una macchina vera, senza il tetto di 60 s di Vercel:
+ * e' esattamente il caso descritto sopra in cui tornare a `medium` non
+ * costa un timeout. `AI_NOTES_COMPASS_REASONING_EFFORT=medium` lo fa senza
+ * toccare il default che serve il cron di produzione. Letta una sola volta
+ * al caricamento del modulo, cosi' la revisione qui sotto la segue sempre:
+ * un giro girato con lo sforzo alzato non puo' essere confuso con uno a
+ * `low` — sono ricette diverse, e la guardia di idempotenza deve vederle
+ * come tali.
+ */
+function readCompassReasoningEffortFromEnvironment(
+  environment: Readonly<Record<string, string | undefined>> = process.env
+): CompassReasoningEffort {
+  const raw = environment.AI_NOTES_COMPASS_REASONING_EFFORT?.trim();
+  if (raw === 'minimal' || raw === 'low' || raw === 'medium' || raw === 'high') {
+    return raw;
+  }
+  return 'low';
+}
+
+const COMPASS_REASONING_EFFORT = readCompassReasoningEffortFromEnvironment();
 const COMPASS_MAX_OUTPUT_TOKENS = 16_000;
 
 export const SESSION_COMPASS_PROMPT_REVISION =
