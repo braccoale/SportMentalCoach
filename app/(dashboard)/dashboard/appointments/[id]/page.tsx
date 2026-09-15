@@ -64,6 +64,8 @@ import { SessionBriefSection } from '@/components/session-brief-section';
 import { canShowAiSessionReport } from '@/lib/core/ai-session-notes/report-visibility';
 import { DEFAULT_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
 import { canJoinVideoNow, isSessionJoinable } from '@/lib/core/sessions';
+import { hasSeenTour } from '@/lib/core/tours/state';
+import { ProductTour } from '@/components/product-tour';
 import { getUser } from '@/lib/db/queries';
 import { cancelBookingAction as cancelAthleteBookingAction } from '../../athlete/actions';
 import { cancelBookingAction as cancelCoachBookingAction } from '../../coach/actions';
@@ -242,6 +244,20 @@ export default async function AppointmentDetailPage({
       aiNotesEnabled,
       hasAiNotesSession: !!aiNotesSession,
     }) && !!aiNotesSession;
+  /**
+   * Il tour della validazione del report AI.
+   *
+   * `showAiReport` e' gia' coach-only (vedi `canShowAiSessionReport`), quindi
+   * basta aggiungere la condizione che rende davvero i due bottoni che il
+   * tour indica: `ready_for_review` e' lo stato in cui la bozza esiste ed e'
+   * in attesa del coach — prima (ancora in lavorazione) o dopo (gia'
+   * approvata o condivisa) quei bottoni non sono la cosa su cui sta agendo.
+   */
+  const showAiReportReviewTour =
+    showAiReport && aiNotesSession?.status === 'ready_for_review';
+  const aiReportReviewTourSeen = showAiReportReviewTour
+    ? await hasSeenTour(user.id, 'coach_ai_report_review')
+    : false;
   /**
    * Gli obiettivi su cui si può spuntare questa seduta.
    *
@@ -455,6 +471,12 @@ export default async function AppointmentDetailPage({
 
       {showAiReport && aiNotesSession ? (
         <>
+          {showAiReportReviewTour && (
+            <ProductTour
+              tourKey="coach_ai_report_review"
+              alreadySeen={aiReportReviewTourSeen}
+            />
+          )}
           {/* Un contrassegno di una riga, non piu' un riquadro: il dettaglio
               sta nel fumetto. Ma resta sopra il riepilogo — sapere che una
               voce manca cambia come si legge tutto cio' che segue. */}

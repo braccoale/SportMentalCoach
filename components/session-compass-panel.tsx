@@ -500,6 +500,7 @@ export function SessionCompassPanel({
             <Button
               type="button"
               variant="outline"
+              data-tour="regenerate-report"
               disabled={busy || loading}
               onClick={() =>
                 run(
@@ -520,6 +521,7 @@ export function SessionCompassPanel({
             {report && !report.isApproved && report.document ? (
               <Button
                 type="button"
+                data-tour="approve-report"
                 disabled={busy}
                 onClick={() =>
                   run(() => requestJson(`${endpoint}/approve`, 'POST'), () =>
