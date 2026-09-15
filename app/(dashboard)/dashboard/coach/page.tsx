@@ -87,6 +87,8 @@ import { isPendingAiNotesStatus } from '@/lib/core/ai-session-notes/worker-nudge
 import { runAiNotesQueueAfterResponse } from '@/lib/core/ai-session-notes/queue-runner';
 import { getPipelineHealth } from '@/lib/core/ai-session-notes/pipeline-health';
 import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger';
+import { hasSeenTour } from '@/lib/core/tours/state';
+import { ProductTour } from '@/components/product-tour';
 
 /**
  * Il riepilogo impiega dai dieci ai venti secondi, e qui dentro gira la coda.
@@ -242,6 +244,11 @@ export default async function CoachDashboardPage() {
     : null;
   const isApproved = provider?.status === 'approved';
   const isPending = provider?.status === 'pending';
+  // Niente tour finché il profilo non è approvato: il bottone "Nuovo
+  // appuntamento" (primo bersaglio del tour) non è ancora in pagina.
+  const tourSeen = isApproved
+    ? await hasSeenTour(user.id, 'coach_dashboard_intro')
+    : true;
 
   const pending = allBookings.filter((b) => b.status === 'requested');
   const accepted = allBookings.filter((b) => b.status === 'accepted');
@@ -340,6 +347,9 @@ export default async function CoachDashboardPage() {
 
   return (
     <section className="flex flex-col gap-8 p-6">
+      {isApproved && (
+        <ProductTour tourKey="coach_dashboard_intro" alreadySeen={tourSeen} />
+      )}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="max-w-3xl">
           <h1 className="text-3xl font-bold tracking-tight text-gray-950">

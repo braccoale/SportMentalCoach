@@ -217,6 +217,7 @@ export function CoachNewAppointmentButton({
     <>
       <Button
         type="button"
+        data-tour="coach-new-appointment"
         onClick={openDialog}
         className="rounded-full bg-green-600 text-white hover:bg-green-700"
       >
