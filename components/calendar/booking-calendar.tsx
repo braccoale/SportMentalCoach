@@ -158,25 +158,25 @@ function pillCls(status: string): string {
       return 'bg-amber-500 text-white';
     case 'expired':
     case 'declined':
-      return 'bg-red-500/15 text-red-300 ring-1 ring-red-500/40 line-through';
+      return 'bg-red-50 text-red-700 ring-1 ring-red-200 line-through';
     default: // cancelled
-      return 'bg-white/5 text-kp-low line-through';
+      return 'bg-gray-100 text-gray-400 line-through';
   }
 }
 
 function badgeCls(status: string): string {
   switch (status) {
     case 'accepted':
-      return 'bg-blue-500/15 text-blue-300 ring-1 ring-blue-500/40';
+      return 'bg-blue-50 text-blue-700 ring-1 ring-blue-200';
     case 'completed':
-      return 'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/40';
+      return 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200';
     case 'requested':
-      return 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/40';
+      return 'bg-amber-50 text-amber-700 ring-1 ring-amber-200';
     case 'expired':
     case 'declined':
-      return 'bg-red-500/15 text-red-300 ring-1 ring-red-500/40';
+      return 'bg-red-50 text-red-700 ring-1 ring-red-200';
     default: // cancelled
-      return 'bg-white/5 text-kp-low ring-1 ring-white/10';
+      return 'bg-gray-100 text-gray-400 ring-1 ring-gray-200';
   }
 }
 
@@ -267,11 +267,11 @@ function MonthView({
 
   return (
     <div>
-      <div className="grid grid-cols-7 border-b border-kp-line text-center">
+      <div className="grid grid-cols-7 border-b border-gray-200 text-center">
         {WEEKDAYS_SHORT.map((w) => (
           <div
             key={w}
-            className="py-2 text-[11px] font-semibold uppercase tracking-wide text-kp-low sm:text-xs"
+            className="py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400 sm:text-xs"
           >
             {w}
           </div>
@@ -280,7 +280,7 @@ function MonthView({
       {visibleWeeks.map((week, wi) => (
         <div
           key={wi}
-          className="grid grid-cols-7 border-b border-kp-line last:border-b-0"
+          className="grid grid-cols-7 border-b border-gray-200 last:border-b-0"
         >
           {week.map((day) => {
             const inMonth = day.getMonth() === cursor.getMonth();
@@ -291,8 +291,8 @@ function MonthView({
               <div
                 key={day.toISOString()}
                 className={cn(
-                  'min-h-16 border-r border-kp-line p-1 last:border-r-0 sm:min-h-24 sm:p-1.5',
-                  !inMonth && 'bg-white/[0.02]'
+                  'min-h-16 border-r border-gray-200 p-1 last:border-r-0 sm:min-h-24 sm:p-1.5',
+                  !inMonth && 'bg-gray-100/60'
                 )}
               >
                 <span
@@ -301,8 +301,8 @@ function MonthView({
                     isToday
                       ? 'bg-kp-red font-semibold text-white'
                       : inMonth
-                        ? 'text-kp-hi'
-                        : 'text-kp-low'
+                        ? 'text-gray-900'
+                        : 'text-gray-400'
                   )}
                 >
                   {day.getDate()}
@@ -330,7 +330,7 @@ function MonthView({
                         <EventPill key={e.id} e={e} role={role} onSelect={onSelect} />
                       ))}
                       {dayEvents.length > maxVisible && (
-                        <span className="px-1.5 text-[11px] text-kp-low">
+                        <span className="px-1.5 text-[11px] text-gray-400">
                           +{dayEvents.length - maxVisible} altri
                         </span>
                       )}
@@ -372,21 +372,21 @@ function WeekView({
           <div
             key={day.toISOString()}
             className={cn(
-              'border-b border-kp-line p-2 sm:min-h-48 sm:border-b-0 sm:border-r sm:last:border-r-0',
+              'border-b border-gray-200 p-2 sm:min-h-48 sm:border-b-0 sm:border-r sm:last:border-r-0',
               dayEvents.length === 0 && 'hidden sm:block'
             )}
           >
             <p
               className={cn(
                 'flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide',
-                isToday ? 'text-kp-red2' : 'text-kp-low'
+                isToday ? 'text-kp-red2' : 'text-gray-400'
               )}
             >
               {WEEKDAYS_SHORT[i]}
               <span
                 className={cn(
                   'flex h-6 w-6 items-center justify-center rounded-full text-xs',
-                  isToday ? 'bg-kp-red text-white' : 'text-kp-hi'
+                  isToday ? 'bg-kp-red text-white' : 'text-gray-900'
                 )}
               >
                 {day.getDate()}
@@ -394,7 +394,7 @@ function WeekView({
             </p>
             <div className="mt-2 flex flex-col gap-1">
               {dayEvents.length === 0 ? (
-                <p className="hidden text-xs text-kp-low/60 sm:block">—</p>
+                <p className="hidden text-xs text-gray-400/60 sm:block">—</p>
               ) : (
                 dayEvents.map((e) => (
                   <EventPill key={e.id} e={e} role={role} onSelect={onSelect} />
@@ -448,14 +448,14 @@ function AgendaView({
   return (
     <div className="flex flex-col gap-4 p-3 sm:p-4">
       {groups.length === 0 && unscheduled.length === 0 && (
-        <p className="py-8 text-center text-sm text-kp-mid">
+        <p className="py-8 text-center text-sm text-gray-500">
           Nessuna sessione in {fmtMonth(cursor)}.
         </p>
       )}
 
       {groups.map(({ day, events }) => (
         <div key={day.toISOString()}>
-          <p className="text-xs font-semibold uppercase tracking-wide text-kp-low">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
             {fmtDayLong(day)}
           </p>
           <ul className="mt-1.5 flex flex-col gap-1.5">
@@ -464,7 +464,7 @@ function AgendaView({
                 <button
                   type="button"
                   onClick={() => onSelect(e)}
-                  className="flex w-full items-center gap-3 rounded-lg border border-kp-line bg-kp-surface px-3 py-2.5 text-left transition-colors hover:border-white/20"
+                  className="flex w-full items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-left transition-colors hover:border-gray-300"
                 >
                   <span
                     className={cn(
@@ -472,7 +472,7 @@ function AgendaView({
                       statusDotCls(e.status)
                     )}
                   />
-                  <span className="w-12 shrink-0 text-sm font-medium text-kp-hi">
+                  <span className="w-12 shrink-0 text-sm font-medium text-gray-900">
                     {fmtTime(e.when!)}
                   </span>
                   <span className="min-w-0 flex-1">
@@ -480,14 +480,14 @@ function AgendaView({
                       className={cn(
                         'block truncate text-sm font-medium',
                         ['cancelled', 'declined', 'expired'].includes(e.status)
-                          ? 'text-kp-low line-through'
-                          : 'text-kp-hi'
+                          ? 'text-gray-400 line-through'
+                          : 'text-gray-900'
                       )}
                     >
                       {e.title}
                     </span>
                     {e.serviceTitle && (
-                      <span className="block truncate text-xs text-kp-mid">
+                      <span className="block truncate text-xs text-gray-500">
                         {e.serviceTitle}
                       </span>
                     )}
@@ -509,7 +509,7 @@ function AgendaView({
 
       {unscheduled.length > 0 && (
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-kp-low">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
             Senza data pianificata
           </p>
           <ul className="mt-1.5 flex flex-col gap-1.5">
@@ -518,14 +518,14 @@ function AgendaView({
                 <button
                   type="button"
                   onClick={() => onSelect(e)}
-                  className="flex w-full items-center gap-3 rounded-lg border border-dashed border-kp-line bg-transparent px-3 py-2.5 text-left transition-colors hover:border-white/20"
+                  className="flex w-full items-center gap-3 rounded-lg border border-dashed border-gray-200 bg-transparent px-3 py-2.5 text-left transition-colors hover:border-gray-300"
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-kp-hi">
+                    <span className="block truncate text-sm font-medium text-gray-900">
                       {e.title}
                     </span>
                     {e.serviceTitle && (
-                      <span className="block truncate text-xs text-kp-mid">
+                      <span className="block truncate text-xs text-gray-500">
                         {e.serviceTitle}
                       </span>
                     )}
@@ -586,10 +586,10 @@ function EventDrawer({
       />
 
       {/* Panel: bottom sheet on mobile, right drawer on sm+ */}
-      <div className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-2xl border border-kp-line bg-kp-ink2 p-5 text-kp-hi shadow-2xl sm:inset-x-auto sm:inset-y-0 sm:right-0 sm:max-h-none sm:w-full sm:max-w-md sm:rounded-none sm:border-y-0 sm:border-r-0 sm:p-6">
+      <div className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-2xl border border-gray-200 bg-gray-50 p-5 text-gray-900 shadow-2xl sm:inset-x-auto sm:inset-y-0 sm:right-0 sm:max-h-none sm:w-full sm:max-w-md sm:rounded-none sm:border-y-0 sm:border-r-0 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-kp-low">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
               Sessione
             </p>
             <h2 className="mt-1 font-display text-xl font-semibold">
@@ -600,7 +600,7 @@ function EventDrawer({
             type="button"
             onClick={onClose}
             aria-label="Chiudi dettagli"
-            className="rounded-full p-1.5 text-kp-mid transition-colors hover:bg-white/10 hover:text-kp-hi"
+            className="rounded-full p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
           >
             <X className="h-5 w-5" />
           </button>
@@ -617,13 +617,13 @@ function EventDrawer({
 
         <dl className="mt-5 flex flex-col gap-4 text-sm">
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-kp-low">
+            <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">
               {counterpartLabel}
             </dt>
             <dd className="mt-0.5 font-medium">{event.title}</dd>
           </div>
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-kp-low">
+            <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">
               Servizio
             </dt>
             <dd className="mt-0.5">
@@ -631,7 +631,7 @@ function EventDrawer({
             </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-kp-low">
+            <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">
               Data programmata
             </dt>
             <dd className="mt-0.5">
@@ -640,10 +640,10 @@ function EventDrawer({
           </div>
           {event.note && (
             <div>
-              <dt className="text-xs font-medium uppercase tracking-wide text-kp-low">
+              <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">
                 Note
               </dt>
-              <dd className="mt-0.5 rounded-lg border border-kp-line bg-kp-surface px-3 py-2 text-kp-mid">
+              <dd className="mt-0.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-500">
                 “{event.note}”
               </dd>
             </div>
@@ -651,7 +651,7 @@ function EventDrawer({
         </dl>
 
         {/* Actions */}
-        <div className="mt-6 flex flex-col gap-2 border-t border-kp-line pt-5">
+        <div className="mt-6 flex flex-col gap-2 border-t border-gray-200 pt-5">
           {isAccepted ? (
             canJoin ? (
               <div className="grid grid-cols-2 gap-2">
@@ -671,13 +671,13 @@ function EventDrawer({
                 />
               </div>
             ) : (
-              <p className="text-xs text-kp-low">
+              <p className="text-xs text-gray-400">
                 La sessione è già trascorsa: chat e videochiamata non sono più
                 disponibili.
               </p>
             )
           ) : (
-            <p className="text-xs text-kp-low">
+            <p className="text-xs text-gray-400">
               Chat e videochiamata sono disponibili per le sessioni accettate.
             </p>
           )}
@@ -694,7 +694,7 @@ function EventDrawer({
                 <Button
                   type="submit"
                   variant="outline"
-                  className="w-full rounded-full border-emerald-500/50 bg-transparent text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
+                  className="w-full rounded-full border-emerald-300 bg-transparent text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
                 >
                   Completa
                 </Button>
@@ -710,10 +710,13 @@ function EventDrawer({
                   collectCancellationMessage
                 >
                   <input type="hidden" name="bookingId" value={event.id} />
+                  {/* Niente bottoni rossi sulla piattaforma, per scelta
+                      esplicita: grigio neutro invece del bordo/testo rosso
+                      che aveva prima. */}
                   <Button
                     type="submit"
                     variant="outline"
-                    className="w-full rounded-full border-kp-red/50 bg-transparent text-kp-red2 hover:bg-kp-red/10 hover:text-kp-red2"
+                    className="w-full rounded-full border-gray-300 bg-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                   >
                     Annulla
                   </Button>
@@ -763,9 +766,9 @@ export function BookingCalendar({
   ];
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-kp-line bg-kp-ink2 text-kp-hi">
+    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 text-gray-900">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-kp-line p-3 sm:p-4">
+      <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 p-3 sm:p-4">
         <CalendarDays className="hidden h-5 w-5 text-kp-red sm:block" />
         <h2 className="min-w-32 font-display text-base font-semibold capitalize sm:text-lg">
           {periodLabel}
@@ -776,14 +779,14 @@ export function BookingCalendar({
             type="button"
             onClick={() => shift(-1)}
             aria-label="Periodo precedente"
-            className="rounded-full p-1.5 text-kp-mid transition-colors hover:bg-white/10 hover:text-kp-hi"
+            className="rounded-full p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button
             type="button"
             onClick={() => setCursor(startOfDay(new Date()))}
-            className="rounded-full border border-kp-line px-3 py-1 text-xs font-medium text-kp-mid transition-colors hover:text-kp-hi"
+            className="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-500 transition-colors hover:text-gray-900"
           >
             Oggi
           </button>
@@ -791,14 +794,14 @@ export function BookingCalendar({
             type="button"
             onClick={() => shift(1)}
             aria-label="Periodo successivo"
-            className="rounded-full p-1.5 text-kp-mid transition-colors hover:bg-white/10 hover:text-kp-hi"
+            className="rounded-full p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
 
         {/* View switcher */}
-        <div className="ml-auto flex rounded-full border border-kp-line p-0.5">
+        <div className="ml-auto flex rounded-full border border-gray-200 p-0.5">
           {views.map((v) => (
             <button
               key={v.key}
@@ -808,7 +811,7 @@ export function BookingCalendar({
                 'rounded-full px-3 py-1 text-xs font-medium transition-colors sm:text-sm',
                 view === v.key
                   ? 'bg-kp-red text-white'
-                  : 'text-kp-mid hover:text-kp-hi'
+                  : 'text-gray-500 hover:text-gray-900'
               )}
             >
               {v.label}
@@ -834,8 +837,8 @@ export function BookingCalendar({
 
       {/* Legend — below the calendar, explains the event colors. Each event
           shows the counterpart's name (the athlete for a coach, and vice versa). */}
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-kp-line px-3 py-3 text-xs text-kp-mid sm:px-4">
-        <span className="font-semibold uppercase tracking-wide text-kp-low">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-gray-200 px-3 py-3 text-xs text-gray-500 sm:px-4">
+        <span className="font-semibold uppercase tracking-wide text-gray-400">
           Legenda
         </span>
         <span className="inline-flex items-center gap-1.5">
@@ -853,7 +856,7 @@ export function BookingCalendar({
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-zinc-500" /> Annullata
         </span>
-        <span className="ml-auto hidden text-kp-low sm:inline">
+        <span className="ml-auto hidden text-gray-400 sm:inline">
           {role === 'coach'
             ? 'Ogni evento mostra l’atleta che ha prenotato.'
             : 'Ogni evento mostra il coach della sessione.'}
