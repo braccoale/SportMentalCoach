@@ -37,6 +37,8 @@ function booking(over: Partial<CoachBooking> & { id: number; clientId: number })
     hasTranscript: false,
     lateCancellation: false,
     cancellationWouldBeLate: false,
+    cancelledAt: null,
+    cancelledBy: null,
     ...over,
   };
 }

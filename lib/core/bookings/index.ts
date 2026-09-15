@@ -111,13 +111,20 @@ async function hasOpenBookingConflict(
  * cancellazione tardiva — sotto il preavviso minimo configurato
  * (`BOOKING_CANCELLATION_MIN_NOTICE_MINUTES`, uguale per atleta e coach).
  *
+ * La sessione conoscitiva (gratuita) ne è sempre esente: il preavviso minimo
+ * esiste per proteggere il tempo pagato del coach, e su un incontro gratuito
+ * non ha un motivo d'essere — resta cancellabile anche all'ultimo minuto
+ * senza mai essere marcata "tardiva".
+ *
  * Usata sia da `cancelBooking` per decidere cosa scrivere sulla riga, sia da
  * chi mostra l'avviso prima che l'utente confermi: la risposta è sempre
  * questa, mai ricalcolata lato client con la propria idea di "adesso".
  */
 export async function wouldBeLateCancellation(
-  scheduledFor: Date | null
+  scheduledFor: Date | null,
+  isIntro: boolean
 ): Promise<boolean> {
+  if (isIntro) return false;
   const minNoticeMinutes = await getSystemConfigNumber(
     'BOOKING_CANCELLATION_MIN_NOTICE_MINUTES',
     0
@@ -523,6 +530,10 @@ export type AthleteBooking = {
   lateCancellation: boolean;
   /** Se cancellarla *ora* la marcherebbe come tardiva (solo per le aperte). */
   cancellationWouldBeLate: boolean;
+  /** Quando è stata annullata — solo per `status === 'cancelled'`. */
+  cancelledAt: Date | null;
+  /** Chi l'ha annullata — solo per `status === 'cancelled'`. */
+  cancelledBy: 'athlete' | 'coach' | null;
 };
 
 export type ParticipantBooking = {
@@ -1119,6 +1130,9 @@ export async function getAthleteBookings(
       sessionStartedAt: bookings.sessionStartedAt,
       sessionEndedAt: bookings.sessionEndedAt,
       lateCancellation: bookings.lateCancellation,
+      isIntro: services.isIntro,
+      cancelledAtRaw: bookings.updatedAt,
+      cancelledByRaw: bookings.updatedBy,
       coachName: profiles.displayName,
       coachAvatarUrl: profiles.avatarUrl,
       coachSlug: providerProfiles.slug,
@@ -1178,12 +1192,18 @@ export async function getAthleteBookings(
     .where(eq(bookings.clientId, userId))
     .orderBy(desc(bookings.requestedAt));
 
-  return rows.map((b) => ({
+  return rows.map(({ isIntro, cancelledAtRaw, cancelledByRaw, ...b }) => ({
     ...b,
-    cancellationWouldBeLate: !isWithinCancellationNotice(
-      b.scheduledFor,
-      minNoticeMinutes
-    ),
+    cancellationWouldBeLate: isIntro
+      ? false
+      : !isWithinCancellationNotice(b.scheduledFor, minNoticeMinutes),
+    cancelledAt: b.status === 'cancelled' ? cancelledAtRaw : null,
+    cancelledBy:
+      b.status === 'cancelled'
+        ? cancelledByRaw === userId
+          ? 'athlete'
+          : 'coach'
+        : null,
   }));
 }
 
@@ -1224,6 +1244,10 @@ export type CoachBooking = {
   lateCancellation: boolean;
   /** Se cancellarla *ora* la marcherebbe come tardiva (solo per le aperte). */
   cancellationWouldBeLate: boolean;
+  /** Quando è stata annullata — solo per `status === 'cancelled'`. */
+  cancelledAt: Date | null;
+  /** Chi l'ha annullata — solo per `status === 'cancelled'`. */
+  cancelledBy: 'athlete' | 'coach' | null;
 };
 
 /** Incoming bookings for a coach (resolved from their user id). */
@@ -1255,6 +1279,9 @@ export async function getCoachBookings(
       sessionStartedAt: bookings.sessionStartedAt,
       sessionEndedAt: bookings.sessionEndedAt,
       lateCancellation: bookings.lateCancellation,
+      isIntro: services.isIntro,
+      cancelledAtRaw: bookings.updatedAt,
+      cancelledByRaw: bookings.updatedBy,
       clientName: sql<string | null>`nullif(trim(concat(${users.name}, ' ', coalesce(${users.lastName}, ''))), '')`,
       clientEmail: users.email,
       clientAvatarUrl: profiles.avatarUrl,
@@ -1322,16 +1349,22 @@ export async function getCoachBookings(
 
   // Derive the minor flag here rather than exposing the birth date: the coach
   // needs to know they are working with a 15-17 year old, not their birthday.
-  return rows.map(({ athleteBirthDate, ...b }) => {
+  return rows.map(({ athleteBirthDate, isIntro, cancelledAtRaw, cancelledByRaw, ...b }) => {
     const age = ageFromBirthDate(athleteBirthDate);
     return {
       ...b,
       athleteIsMinor: requiresGuardian(age),
       athleteAge: age,
-      cancellationWouldBeLate: !isWithinCancellationNotice(
-        b.scheduledFor,
-        minNoticeMinutes
-      ),
+      cancellationWouldBeLate: isIntro
+        ? false
+        : !isWithinCancellationNotice(b.scheduledFor, minNoticeMinutes),
+      cancelledAt: b.status === 'cancelled' ? cancelledAtRaw : null,
+      cancelledBy:
+        b.status === 'cancelled'
+          ? cancelledByRaw === b.clientId
+            ? 'athlete'
+            : 'coach'
+          : null,
     };
   });
 }
@@ -1556,6 +1589,7 @@ export async function cancelBooking(params: {
       coachUserId: providerProfiles.userId,
       clientName: sql<string | null>`nullif(trim(concat(${users.name}, ' ', coalesce(${users.lastName}, ''))), '')`,
       coachName: profiles.displayName,
+      isIntro: services.isIntro,
     })
     .from(bookings)
     .innerJoin(providerProfiles, eq(bookings.providerId, providerProfiles.id))
@@ -1584,7 +1618,11 @@ export async function cancelBooking(params: {
   // Cancellare resta sempre permesso. Sotto il preavviso minimo configurato
   // (0 di default: nessuna sessione viene mai marcata) la cancellazione viene
   // comunque registrata, ma marcata "tardiva" — vedi `wouldBeLateCancellation`.
-  const isLate = await wouldBeLateCancellation(row.scheduledFor);
+  // La sessione conoscitiva (gratuita) non ha mai questa restrizione.
+  const isLate = await wouldBeLateCancellation(
+    row.scheduledFor,
+    Boolean(row.isIntro)
+  );
 
   const now = new Date();
   let cancelled = false;

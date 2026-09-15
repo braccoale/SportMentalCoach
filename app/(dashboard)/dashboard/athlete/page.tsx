@@ -95,8 +95,7 @@ function buildAthleteUpcomingData(b: AthleteBooking): UpcomingAppointmentData {
 function archiveTone(status: string): CompletedSessionData['tone'] {
   if (status === 'completed') return 'green';
   if (status === 'accepted') return 'amber';
-  if (status === 'cancelled') return 'gray';
-  return 'red'; // expired, declined
+  return 'red'; // cancelled, expired, declined
 }
 
 function archiveHeaderLabel(status: string): string {
@@ -167,7 +166,9 @@ function buildAthleteArchiveData(b: AthleteBooking): CompletedSessionData {
             : 'orario non registrato',
         }
       : null,
-    note: isCompleted ? null : archiveReason(b.status, b.lateCancellation),
+    note: isCompleted
+      ? null
+      : archiveReason(b.status, b.lateCancellation, b.cancelledAt, b.cancelledBy),
     requestedAtLabel: formatDate(b.requestedAt),
     aiIndicator: buildAiSessionArchiveIndicator(
       b.aiNotesStatus,
@@ -183,18 +184,26 @@ function buildAthleteArchiveData(b: AthleteBooking): CompletedSessionData {
   };
 }
 
-function archiveReason(status: string, lateCancellation?: boolean): string {
+function archiveReason(
+  status: string,
+  lateCancellation?: boolean,
+  cancelledAt?: Date | null,
+  cancelledBy?: 'athlete' | 'coach' | null
+): string {
   switch (status) {
     case 'expired':
       return 'Scaduta senza risposta del coach.';
     case 'declined':
       return 'Richiesta rifiutata dal coach.';
-    case 'cancelled':
+    case 'cancelled': {
       // Sotto il preavviso minimo: non è mai avvenuta, ma conta comunque come
       // sessione consumata (vedi lib/core/bookings, `wouldBeLateCancellation`).
+      const who = cancelledBy === 'athlete' ? 'da te' : 'dal coach';
+      const when = cancelledAt ? ` il ${formatDateTime(cancelledAt)}` : '';
       return lateCancellation
-        ? 'Sessione annullata sotto il preavviso minimo: conteggiata come effettuata.'
-        : 'Sessione annullata.';
+        ? `Sessione annullata ${who}${when}, sotto il preavviso minimo: conteggiata come effettuata.`
+        : `Sessione annullata ${who}${when}.`;
+    }
     case 'accepted':
       return 'In attesa che il coach registri l’esito della sessione.';
     default:

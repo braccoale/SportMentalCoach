@@ -999,8 +999,7 @@ function buildUpcomingAppointmentData(
 function archiveTone(status: string): CompletedSessionData['tone'] {
   if (status === 'completed') return 'green';
   if (status === 'accepted') return 'amber';
-  if (status === 'cancelled') return 'gray';
-  return 'red'; // expired, declined
+  return 'red'; // cancelled, expired, declined
 }
 
 function archiveHeaderLabel(status: string): string {
@@ -1089,7 +1088,12 @@ function buildArchiveCardData(
       : null,
     note: isCompleted
       ? null
-      : archiveReason(booking.status, booking.lateCancellation),
+      : archiveReason(
+          booking.status,
+          booking.lateCancellation,
+          booking.cancelledAt,
+          booking.cancelledBy
+        ),
     requestedAtLabel: formatDate(booking.requestedAt),
     aiIndicator: buildAiSessionArchiveIndicator(
       booking.aiNotesStatus,
@@ -1106,18 +1110,26 @@ function buildArchiveCardData(
   };
 }
 
-function archiveReason(status: string, lateCancellation?: boolean): string {
+function archiveReason(
+  status: string,
+  lateCancellation?: boolean,
+  cancelledAt?: Date | null,
+  cancelledBy?: 'athlete' | 'coach' | null
+): string {
   switch (status) {
     case 'expired':
       return 'Nessuna risposta entro i termini.';
     case 'declined':
       return 'Richiesta rifiutata.';
-    case 'cancelled':
+    case 'cancelled': {
       // Sotto il preavviso minimo: non è mai avvenuta, ma conta comunque come
       // sessione consumata (vedi lib/core/bookings, `wouldBeLateCancellation`).
+      const who = cancelledBy === 'coach' ? 'da te' : "dall'atleta";
+      const when = cancelledAt ? ` il ${formatDateTime(cancelledAt)}` : '';
       return lateCancellation
-        ? 'Sessione annullata sotto il preavviso minimo: conteggiata come effettuata.'
-        : 'Sessione annullata.';
+        ? `Sessione annullata ${who}${when}, sotto il preavviso minimo: conteggiata come effettuata.`
+        : `Sessione annullata ${who}${when}.`;
+    }
     case 'accepted':
       return 'La sessione è trascorsa e deve ancora essere completata.';
     default:
