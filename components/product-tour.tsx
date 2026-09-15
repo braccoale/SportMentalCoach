@@ -35,11 +35,23 @@ function isRect(state: TargetState): state is Rect {
 // del riepilogo AI). Il bersaglio va quindi ri-cercato, non solo controllato
 // una volta al mount. Il limite di tempo evita di osservare il DOM per
 // sempre quando il bersaglio non comparirà mai (es. un tour aperto su una
-// pagina dove quello step non si applica); 5s è abbondante per un fetch
-// client-side o un click dell'utente, senza lasciare un observer vivo a
-// lungo su una pagina che cambia.
-const WATCH_TIMEOUT_MS = 5000;
-const WATCH_MAX_MUTATIONS = 500;
+// pagina dove quello step non si applica).
+//
+// Il bound giusto dipende da *quale* step: il primo step di un tour può
+// essere montato prima che la UI reale esista — i due tour della
+// videochiamata (coach_video_call, athlete_video_call) montano al load della
+// pagina, ma il loro bersaglio (`.lk-control-bar`,
+// `[data-tour="coach-start-transcription"]`) compare solo dopo che l'utente
+// ha superato la pre-join screen (controllo di camera/microfono), che può
+// durare ben più di qualche secondo. 90s è un tetto generoso per quel
+// passaggio, non per "quanto deve aspettare un suggerimento di UI".
+//
+// Uno step successivo, raggiunto con "Avanti" mentre il tour è già visibile,
+// è un caso diverso: l'utente è impegnato in quel momento, e un'attesa lunga
+// e silenziosa si legge come un tour rotto. Lì basta un bound breve, che
+// assorbe un tick di render/layout ma non lascia il popover sparito a lungo.
+const WATCH_TIMEOUT_MS_FIRST_STEP = 90_000;
+const WATCH_TIMEOUT_MS_LATER_STEP = 1_500;
 
 /**
  * Misura l'elemento solo se è realmente visibile. `offsetParent === null` è
@@ -66,7 +78,7 @@ function measure(el: HTMLElement): Rect | null {
  * posizionato esattamente sul rettangolo del bersaglio reale, aggiornato ad
  * ogni scroll/resize — e si ancora il popover a quello.
  */
-function useTargetRect(selector: string | null): TargetState {
+function useTargetRect(selector: string | null, timeoutMs: number): TargetState {
   const [state, setState] = useState<TargetState>('pending');
 
   useLayoutEffect(() => {
@@ -78,7 +90,6 @@ function useTargetRect(selector: string | null): TargetState {
     const sel = selector;
 
     let stopped = false;
-    let mutationCount = 0;
     let mutationObserver: MutationObserver | null = null;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
     let trackingCleanup: (() => void) | null = null;
@@ -147,11 +158,17 @@ function useTargetRect(selector: string | null): TargetState {
       };
     }
 
+    // Nessun tetto sul numero di mutazioni osservate: su una call LiveKit
+    // attiva, class/style cambiano di continuo (indicatori di livello audio,
+    // stato di connessione…), e contarle come "costo" da limitare confondeva
+    // il tour proprio sulla pagina dove aspettare conta di più. Ogni
+    // invocazione qui dentro fa solo una querySelector + confronto — costo
+    // trascurabile anche a ripetizione — e l'observer si disconnette al
+    // termine dell'effetto (unmount o cambio selector), quindi non c'è un
+    // vero rischio di leak da tenere sotto controllo con un contatore.
     mutationObserver = new MutationObserver(() => {
       if (stopped) return;
-      mutationCount += 1;
-      if (check()) return;
-      if (mutationCount >= WATCH_MAX_MUTATIONS) giveUp();
+      check();
     });
     mutationObserver.observe(document.body, {
       childList: true,
@@ -160,14 +177,14 @@ function useTargetRect(selector: string | null): TargetState {
       attributeFilter: ['class', 'style', 'hidden'],
     });
     window.addEventListener('resize', onWindowResize);
-    timeoutId = setTimeout(giveUp, WATCH_TIMEOUT_MS);
+    timeoutId = setTimeout(giveUp, timeoutMs);
 
     return () => {
       stopped = true;
       stopWatching();
       trackingCleanup?.();
     };
-  }, [selector]);
+  }, [selector, timeoutMs]);
 
   return state;
 }
@@ -183,7 +200,14 @@ export function ProductTour({
   const [stepIndex, setStepIndex] = useState(0);
   const [dismissed, setDismissed] = useState(alreadySeen);
   const step = dismissed ? undefined : steps[stepIndex];
-  const targetState = useTargetRect(step?.target ?? null);
+  // Solo il primo step di un tour può legittimamente dover aspettare a lungo
+  // (es. la pre-join screen della videochiamata); uno step raggiunto con
+  // "Avanti" a tour già visibile usa un bound breve — vedi i commenti sulle
+  // due costanti sopra.
+  const targetState = useTargetRect(
+    step?.target ?? null,
+    stepIndex === 0 ? WATCH_TIMEOUT_MS_FIRST_STEP : WATCH_TIMEOUT_MS_LATER_STEP
+  );
 
   // Se il bersaglio dello step corrente risulta definitivamente assente
   // (non "non ancora trovato"), prova il prossimo step; se non ne resta
@@ -256,6 +280,30 @@ export function ProductTour({
           // l'utente sta facendo altro sulla pagina: non gli si ruba il
           // focus di default.
           onOpenAutoFocus={(e) => e.preventDefault()}
+          onPointerDownOutside={(event) => {
+            // Radix considera "outside" qualunque pointerdown non dentro
+            // Popover.Content — incluso il bersaglio reale che il tour sta
+            // evidenziando, dato che non è un discendente del content. Se
+            // l'utente sta letteralmente cliccando l'elemento che il tour
+            // gli sta indicando (es. "Nuovo appuntamento"), non è un click
+            // fuori: si lascia che il click raggiunga il bersaglio e faccia
+            // quello che ha sempre fatto, senza chiudere il tour. Si
+            // ri-interroga il DOM invece di riusare la ref del proxy anchor,
+            // perché il proxy ha `pointer-events: none` e non è mai lui il
+            // target reale dell'evento.
+            const targetSelector = step?.target;
+            const anchorEl = targetSelector
+              ? document.querySelector<HTMLElement>(targetSelector)
+              : null;
+            const clickedNode = event.target;
+            if (
+              anchorEl &&
+              clickedNode instanceof Node &&
+              (clickedNode === anchorEl || anchorEl.contains(clickedNode))
+            ) {
+              event.preventDefault();
+            }
+          }}
           className="z-[100] w-72 rounded-xl border border-gray-200 bg-white p-4 shadow-xl"
         >
           <div className="flex items-start justify-between gap-2">

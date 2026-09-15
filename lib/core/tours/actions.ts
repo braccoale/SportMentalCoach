@@ -13,7 +13,11 @@ export async function markTourSeenAction(
   tourKey: TourKey,
   status: 'skipped' | 'completed'
 ): Promise<void> {
-  if (!(tourKey in TOUR_CATALOG)) return;
+  // `in` risale la catena di prototipo ('toString' in {} === true): un
+  // client potrebbe chiamare questa action con tourKey: 'toString' (o
+  // 'constructor', 'valueOf', 'hasOwnProperty') e farla passare. Object.hasOwn
+  // controlla solo le proprietà proprie del catalogo.
+  if (!Object.hasOwn(TOUR_CATALOG, tourKey)) return;
   const user = await getUser();
   if (!user) return;
   await markTourSeen(user.id, tourKey, status);
