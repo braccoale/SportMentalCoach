@@ -1,7 +1,8 @@
 import 'server-only';
 import { areNotificationsSilenced } from '@/lib/core/flags';
 import { getVerticalConfig, t } from '@/lib/core/config';
-import { getAppBaseUrl } from '@/lib/core/app-url';
+import { CANONICAL_APP_URL, getAppBaseUrl } from '@/lib/core/app-url';
+import { containsLocalhostLink, replaceLocalhostLinks } from './localhost-guard';
 import {
   NOTIFICATION_EVENTS,
   type NotificationEventKey,
@@ -106,6 +107,30 @@ async function sendEmail(input: {
       ok: false,
       skipped: true,
       reason: `unsupported_provider:${sender.provider}`,
+    };
+  }
+
+  /*
+   * Ultima rete, non la prima linea di difesa: `getAppBaseUrl()` è già
+   * pensato per non restituire mai localhost in produzione vera (Vercel
+   * imposta sempre VERCEL_ENV), ma `.env.local` imposta `BASE_URL` in modo
+   * esplicito per lo sviluppo — e quell'esplicito vince sempre, anche
+   * quando uno script locale (una verifica puntuale, un recupero manuale)
+   * arriva comunque a innescare un invio vero contro il database di
+   * produzione. Qui sappiamo per certo che l'invio è reale (chiave Resend
+   * presente, non silenziato): un link a localhost in quel momento non
+   * può mai raggiungere un destinatario vero, quindi si corregge da solo
+   * invece di uscire rotto — un'email col link giusto vale più di una
+   * bloccata sul nascere per un dettaglio recuperabile.
+   */
+  if (containsLocalhostLink(input.html) || containsLocalhostLink(input.text)) {
+    console.warn(
+      `[email] link a localhost corretto con ${CANONICAL_APP_URL} prima dell'invio a ${input.to} — verifica BASE_URL nell'ambiente da cui è partito l'invio.`
+    );
+    input = {
+      ...input,
+      html: replaceLocalhostLinks(input.html),
+      text: replaceLocalhostLinks(input.text),
     };
   }
 
