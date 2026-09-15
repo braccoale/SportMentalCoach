@@ -66,7 +66,7 @@ export function CoachNewAppointmentButton({
   services,
   bookableDays,
   lastServiceByAthlete = {},
-  tourAlreadySeen,
+  tourAlreadySeen = true,
 }: {
   athletes: RelationshipAthlete[];
   services: ServiceOption[];
@@ -75,7 +75,7 @@ export function CoachNewAppointmentButton({
   /** Athlete user id → service id of their most recent booking with this coach. */
   lastServiceByAthlete?: Record<number, number>;
   /** Whether the coach has already seen the `coach_create_appointment` tour. */
-  tourAlreadySeen: boolean;
+  tourAlreadySeen?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
