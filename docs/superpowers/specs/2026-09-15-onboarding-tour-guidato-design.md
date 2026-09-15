@@ -78,6 +78,7 @@ Se `alreadySeen` è `false`, il componente:
 - Non introduce un pannello admin per editare i tour.
 - Non copre il mobile.
 - Non introduce un modo per l'utente di rivedere un tour già visto (rimandato).
+- **Non è agganciato a `next-intl`.** Il testo dei 7 tour (titoli e corpo degli step, in `lib/core/tours/catalog.ts`) è scritto direttamente in italiano nel codice, non passa dal sistema di internazionalizzazione già presente in piattaforma (`next-intl`, `lib/i18n/`) — che oggi serve comunque una sola lingua (`messages/it.json`, nessun `en.json` ancora). **Debito da saldare in un secondo giro**: quando la piattaforma diventerà davvero multilingua, ogni stringa del catalogo dovrà migrare a chiavi `next-intl` (una per titolo/corpo di ogni step) — non è automatico. L'utente ha confermato che la piattaforma va strutturata per essere multilingua in ogni sua parte: qualunque testo nuovo introdotto d'ora in avanti, in questa o altre feature, va valutato con questo in mente, anche se il collegamento vero e proprio a `next-intl` per il catalogo dei tour resta fuori dallo scope di v1.
 
 ## Testing
 
