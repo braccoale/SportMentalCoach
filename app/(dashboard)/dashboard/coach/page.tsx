@@ -249,6 +249,11 @@ export default async function CoachDashboardPage() {
   const tourSeen = isApproved
     ? await hasSeenTour(user.id, 'coach_dashboard_intro')
     : true;
+  // Stesso motivo: il tour del dialog "Nuovo appuntamento" non ha senso
+  // finché il bottone che lo apre non è in pagina.
+  const createAppointmentTourSeen = isApproved
+    ? await hasSeenTour(user.id, 'coach_create_appointment')
+    : true;
 
   const pending = allBookings.filter((b) => b.status === 'requested');
   const accepted = allBookings.filter((b) => b.status === 'accepted');
@@ -375,6 +380,7 @@ export default async function CoachDashboardPage() {
                 }))}
               bookableDays={bookableDays}
               lastServiceByAthlete={lastServiceByAthlete(allBookings)}
+              tourAlreadySeen={createAppointmentTourSeen}
             />
           ) : (
             <div className="flex flex-col items-end gap-1">
