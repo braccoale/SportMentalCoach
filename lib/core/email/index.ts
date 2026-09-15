@@ -24,6 +24,7 @@ import {
 } from './render';
 import { DEFAULT_LOCALE, resolveTemplate } from './templates';
 import { buildWelcomeEmailContent } from './welcome-content';
+import type { OutcomeEmailSummary } from '@/lib/core/ai-session-notes/session-outcome-report';
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 
@@ -532,42 +533,41 @@ export async function sendContactMessageEmail(input: {
   });
 }
 
-/**
- * Il rapporto d'esito di una seduta, alla casella di servizio.
- *
- * Non e' posta di prodotto: nessun link alle preferenze, nessun invito
- * all'azione, nessuna traduzione. E' un log incolonnato dentro `<pre>`,
- * perche' chi lo apre lo legge come leggerebbe un terminale — e spesso lo
- * incolla da qualche parte.
- *
- * Il contenuto arriva gia' costruito da `session-outcome-report.ts`, che e'
- * anche il posto in cui e' scritta la regola su cosa non deve mai entrarci:
- * niente frasi della seduta, niente nome dell'atleta.
- */
+/** Esito leggibile di Appunti AI per la casella di servizio. */
 export async function sendSessionOutcomeEmail(input: {
   to: string;
-  subject: string;
+  summary: OutcomeEmailSummary;
   report: string;
 }): Promise<SendResult> {
   const { privacyUrl, baseUrl } = footerUrls();
+  const actionBase = (baseUrl ?? BRAND.site).replace(/\/$/, '');
+  const nextStepHtml = `<div style="margin:2px 0 20px;padding:14px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;color:#166534;font-size:14px;line-height:1.55"><strong>Cosa fare</strong><br />${escapeHtml(input.summary.nextStep)}</div>`;
   return sendEmail({
     to: input.to,
-    subject: input.subject,
+    subject: input.summary.subject,
     html: wrapEmailHtml({
-      preview: input.subject,
-      eyebrow: 'Appunti AI · esito seduta',
-      title: escapeHtml(input.subject),
-      bodyHtml: `<pre style="margin:0;padding:14px;background:#0f0f14;color:#e6e6ea;border-radius:8px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.55;white-space:pre-wrap;word-break:break-word">${escapeHtml(input.report)}</pre>`,
-      action: null,
+      preview: input.summary.preview,
+      eyebrow: 'Esito Appunti AI',
+      title: input.summary.title,
+      bodyHtml: `<p style="margin:0 0 18px">${escapeHtml(input.summary.intro)}</p>`,
+      card: { rows: input.summary.details },
+      outroHtml: nextStepHtml,
+      action: {
+        label: input.summary.actionLabel,
+        url: `${actionBase}/dashboard/admin/ai/${input.summary.sessionId}`,
+      },
       preferencesUrl: null,
       privacyUrl,
       baseUrl,
     }),
     text: wrapEmailText({
-      eyebrow: 'Appunti AI · esito seduta',
-      title: input.subject,
+      eyebrow: 'Esito Appunti AI',
+      title: input.summary.title,
       bodyText: input.report,
-      action: null,
+      action: {
+        label: input.summary.actionLabel,
+        url: `${actionBase}/dashboard/admin/ai/${input.summary.sessionId}`,
+      },
       preferencesUrl: null,
     }),
   });

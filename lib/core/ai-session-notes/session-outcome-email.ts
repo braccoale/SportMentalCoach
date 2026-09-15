@@ -1,13 +1,13 @@
 import 'server-only';
 import { getSystemConfigNumber } from '@/lib/core/system-config';
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/lib/db/drizzle';
 import {
   bookings,
+  profiles,
   providerProfiles,
-  sessionAiAuditEvents,
   sessionAiNotes,
-  sessionAiProcessingJobs,
   sessionAiReports,
   sessionAudioRecordings,
   sessionTranscriptSegments,
@@ -15,8 +15,8 @@ import {
 } from '@/lib/db/schema';
 import { assessRecordingCoverage } from './recording-coverage';
 import {
+  buildOutcomeEmail,
   buildOutcomeReport,
-  outcomeSubject,
   type SessionOutcomeSnapshot,
 } from './session-outcome-report';
 import { sendSessionOutcomeEmail } from '@/lib/core/email';
@@ -68,6 +68,9 @@ function sessionSeconds(startedAt: Date | null, endedAt: Date | null): number {
 async function loadSnapshot(
   sessionId: number
 ): Promise<SessionOutcomeSnapshot | null> {
+  const coachUser = alias(users, 'outcome_coach_user');
+  const athleteUser = alias(users, 'outcome_athlete_user');
+  const coachProfile = alias(profiles, 'outcome_coach_profile');
   const [row] = await db
     .select({
       sessionId: sessionAiNotes.id,
@@ -79,12 +82,22 @@ async function loadSnapshot(
       processingCompletedAt: sessionAiNotes.processingCompletedAt,
       scheduledFor: bookings.scheduledFor,
       athleteUserId: bookings.clientId,
-      coachName: users.name,
+      coachName: sql<string | null>`coalesce(
+        nullif(trim(${coachProfile.displayName}), ''),
+        nullif(trim(concat(${coachUser.name}, ' ', coalesce(${coachUser.lastName}, ''))), ''),
+        ${coachUser.email}
+      )`,
+      athleteName: sql<string | null>`coalesce(
+        nullif(trim(concat(${athleteUser.name}, ' ', coalesce(${athleteUser.lastName}, ''))), ''),
+        ${athleteUser.email}
+      )`,
     })
     .from(sessionAiNotes)
     .innerJoin(bookings, eq(bookings.id, sessionAiNotes.bookingId))
     .leftJoin(providerProfiles, eq(providerProfiles.id, bookings.providerId))
-    .leftJoin(users, eq(users.id, providerProfiles.userId))
+    .leftJoin(coachUser, eq(coachUser.id, providerProfiles.userId))
+    .leftJoin(coachProfile, eq(coachProfile.userId, providerProfiles.userId))
+    .innerJoin(athleteUser, eq(athleteUser.id, bookings.clientId))
     .where(eq(sessionAiNotes.id, sessionId))
     .limit(1);
   if (!row) return null;
@@ -103,31 +116,6 @@ async function loadSnapshot(
     .from(sessionAudioRecordings)
     .where(eq(sessionAudioRecordings.sessionAiNotesId, sessionId))
     .orderBy(asc(sessionAudioRecordings.id));
-
-  const jobs = await db
-    .select({
-      id: sessionAiProcessingJobs.id,
-      type: sessionAiProcessingJobs.jobType,
-      status: sessionAiProcessingJobs.status,
-      attempts: sessionAiProcessingJobs.attemptCount,
-      errorCode: sessionAiProcessingJobs.errorCode,
-      errorMessage: sessionAiProcessingJobs.errorMessageSanitized,
-    })
-    .from(sessionAiProcessingJobs)
-    .where(eq(sessionAiProcessingJobs.sessionAiNotesId, sessionId))
-    .orderBy(asc(sessionAiProcessingJobs.id));
-
-  const audit = await db
-    .select({
-      at: sessionAiAuditEvents.createdDate,
-      eventType: sessionAiAuditEvents.eventType,
-      previousStatus: sessionAiAuditEvents.previousStatus,
-      newStatus: sessionAiAuditEvents.newStatus,
-      metadata: sql<string>`${sessionAiAuditEvents.eventMetadata}::text`,
-    })
-    .from(sessionAiAuditEvents)
-    .where(eq(sessionAiAuditEvents.sessionAiNotesId, sessionId))
-    .orderBy(asc(sessionAiAuditEvents.id));
 
   const [segments] = await db
     .select({ total: sql<number>`count(*)::int` })
@@ -168,6 +156,7 @@ async function loadSnapshot(
     bookingId: row.bookingId,
     athleteUserId: row.athleteUserId,
     coachName: row.coachName ?? '—',
+    athleteName: row.athleteName ?? '—',
     status: row.status,
     errorCode: row.errorCode,
     scheduledFor: row.scheduledFor,
@@ -179,9 +168,6 @@ async function loadSnapshot(
     transcriptSegments: Number(segments?.total ?? 0),
     reportId: report?.id ?? null,
     reportThemesCount: report?.themesCount ?? null,
-    recordings,
-    jobs,
-    audit,
   };
 }
 
@@ -260,9 +246,10 @@ export async function sendPendingSessionOutcomes(params: {
         continue;
       }
 
+      const summary = buildOutcomeEmail(snapshot);
       const sent = await sendSessionOutcomeEmail({
         to: OUTCOME_RECIPIENT,
-        subject: outcomeSubject(snapshot),
+        summary,
         report: buildOutcomeReport(snapshot),
       });
 

@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  aiSummaryStatus,
+  buildOutcomeEmail,
   buildOutcomeReport,
   classifySessionOutcome,
-  outcomeSubject,
+  transcriptionStatus,
   type SessionOutcomeSnapshot,
 } from './session-outcome-report';
 
@@ -14,7 +16,8 @@ function snapshot(
     sessionId: 72,
     bookingId: 202,
     athleteUserId: 93,
-    coachName: 'Francesco',
+    coachName: 'Francesco Borrelli',
+    athleteName: 'Giulia Martini',
     status: 'ready_for_review',
     errorCode: null,
     scheduledFor: new Date('2026-08-16T15:00:00Z'),
@@ -29,146 +32,97 @@ function snapshot(
     transcriptSegments: 592,
     reportId: 44,
     reportThemesCount: 2,
-    recordings: [],
-    jobs: [],
-    audit: [],
     ...overrides,
   };
 }
 
-test('una seduta riuscita con copertura piena è ok', () => {
-  assert.equal(classifySessionOutcome(snapshot()), 'ok');
+test('la mail dice subito chi ha svolto la sessione con chi', () => {
+  const email = buildOutcomeEmail(snapshot());
+
+  assert.equal(
+    email.subject,
+    '[KaiPai] Francesco Borrelli con Giulia Martini: trascrizione completata'
+  );
+  assert.match(email.intro, /Francesco Borrelli ha svolto una sessione con Giulia Martini/);
+  assert.deepEqual(email.details.slice(0, 2), [
+    { label: 'Coach', value: 'Francesco Borrelli' },
+    { label: 'Atleta', value: 'Giulia Martini' },
+  ]);
 });
 
-/*
- * La seduta 181: riepilogo consegnato regolarmente, 48 minuti di voce del
- * coach mai registrati. Nessuno stato lo segnalava — `ready_for_review` come
- * tutte le altre — ed è rimasta «riuscita» per quattro giorni.
- */
-test('un riepilogo consegnato sopra una voce persa è parziale, non ok', () => {
+test('la mail conferma chiaramente trascrizione e riepilogo AI', () => {
+  const email = buildOutcomeEmail(snapshot());
+
+  assert.equal(transcriptionStatus(snapshot()), 'Completata');
+  assert.equal(aiSummaryStatus(snapshot()), 'Pronto per la revisione del coach');
+  assert.ok(email.details.some((row) => row.label === 'Trascrizione AI' && row.value === 'Completata'));
+  assert.ok(email.details.some((row) => row.label === 'Riepilogo AI' && row.value === 'Pronto per la revisione del coach'));
+  assert.match(email.nextStep, /coach può controllarlo e approvarlo/);
+});
+
+test('il testo alternativo non contiene più log o identificativi tecnici', () => {
+  const report = buildOutcomeReport(snapshot());
+
+  assert.match(report, /Coach: Francesco Borrelli/);
+  assert.match(report, /Atleta: Giulia Martini/);
+  assert.match(report, /Trascrizione AI: Completata/);
+  assert.doesNotMatch(report, /TRACCIA COMPLETA|LAVORAZIONE|REGISTRAZIONI|COPERTURA AUDIO/);
+  assert.doesNotMatch(report, /sessione\s+\.+|prenotazione\s+\.+|segmenti trascritti|#44|athleteUserId/);
+});
+
+test('una registrazione incompleta viene descritta con parole semplici', () => {
   const parziale = snapshot({
     coverage: [
       { role: 'coach', recordedSeconds: 427, ratio: 0.12, complete: false },
       { role: 'athlete', recordedSeconds: 3343, ratio: 1, complete: true },
     ],
   });
+
   assert.equal(classifySessionOutcome(parziale), 'parziale');
-  assert.match(outcomeSubject(parziale), /PARZIALE/);
-  assert.match(buildOutcomeReport(parziale), /INCOMPLETA/);
+  assert.match(buildOutcomeEmail(parziale).subject, /registrazione da controllare/);
+  assert.match(buildOutcomeReport(parziale), /Registrazione: Parziale/);
+  assert.match(buildOutcomeEmail(parziale).nextStep, /potrebbe essere incompleta/);
 });
 
-/*
- * La sessione 114: pipeline tutta verde, riepilogo approvato dal coach sopra
- * un report con zero temi — il tentativo di generazione, ricominciato da capo
- * dopo un primo rifiuto della validazione, questa volta ha omesso tutto ciò
- * che richiedeva un'evidenza invece di trovarne una. `MIN_THEMES` in
- * generazione dovrebbe impedirlo da qui in avanti; questo test copre il caso
- * in cui, per qualunque motivo, un report del genere arrivasse comunque.
- */
-test('un riepilogo consegnato con zero temi è parziale, non ok', () => {
+test('un riepilogo senza temi richiede un controllo', () => {
   const parziale = snapshot({ reportThemesCount: 0 });
+
   assert.equal(classifySessionOutcome(parziale), 'parziale');
-  assert.match(outcomeSubject(parziale), /PARZIALE/);
-  assert.match(buildOutcomeReport(parziale), /ZERO TEMI/);
+  assert.match(buildOutcomeEmail(parziale).subject, /registrazione da controllare/);
 });
 
-test('nessun riepilogo ancora generato non conta come zero temi', () => {
-  const senzaReport = snapshot({ reportId: null, reportThemesCount: null });
-  assert.equal(classifySessionOutcome(senzaReport), 'ok');
-});
-
-test('gli stati terminali di guasto sono falliti, il rifiuto è cosa sua', () => {
-  for (const status of ['report_failed', 'transcription_failed', 'cancelled']) {
-    assert.equal(classifySessionOutcome(snapshot({ status })), 'fallita');
-  }
-  assert.equal(
-    classifySessionOutcome(snapshot({ status: 'consent_rejected' })),
-    'rifiutata'
-  );
-});
-
-test('l’oggetto porta il motivo, così si legge senza aprire', () => {
-  const fallita = snapshot({
-    status: 'report_failed',
-    errorCode: 'REPORT_NOT_GENERATED',
+test('i problemi distinguono la trascrizione dal riepilogo', () => {
+  const trascrizioneFallita = snapshot({
+    status: 'transcription_failed',
+    transcriptSegments: 0,
+    reportId: null,
+    reportThemesCount: null,
   });
-  assert.equal(
-    outcomeSubject(fallita),
-    '[KaiPai] Seduta 72 (prenotazione 202) · FALLITA · REPORT_NOT_GENERATED'
-  );
+  assert.equal(transcriptionStatus(trascrizioneFallita), 'Non riuscita');
+  assert.equal(aiSummaryStatus(trascrizioneFallita), 'Non creato: manca la trascrizione');
+  assert.match(buildOutcomeEmail(trascrizioneFallita).nextStep, /riprovare/);
+
+  const riepilogoFallito = snapshot({
+    status: 'report_failed',
+    reportId: null,
+    reportThemesCount: null,
+  });
+  assert.equal(transcriptionStatus(riepilogoFallito), 'Completata');
+  assert.equal(aiSummaryStatus(riepilogoFallito), 'Non riuscito');
 });
 
-/*
- * La riga che il 16 agosto non c'era. Il messaggio di LiveKit veniva
- * sostituito da un segnaposto, e per ritrovare la causa è servito interrogare
- * a mano l'API degli egress giorni dopo.
- */
-test('il messaggio vero del provider finisce nel rapporto', () => {
-  const report = buildOutcomeReport(
-    snapshot({
-      status: 'report_failed',
-      recordings: [
-        {
-          id: 89,
-          role: 'athlete',
-          segment: 0,
-          status: 'failed',
-          errorCode: 'EGRESS_FAILED',
-          errorMessage: 'S3 upload failed: 413 EntityTooLarge',
-          sizeBytes: null,
-          durationSeconds: null,
-        },
-      ],
-    })
-  );
-  assert.match(report, /EGRESS_FAILED/);
-  assert.match(report, /413 EntityTooLarge/);
-});
+test('se il consenso manca, la mail spiega che Appunti AI non è partito', () => {
+  const rifiutata = snapshot({
+    status: 'consent_rejected',
+    transcriptSegments: 0,
+    reportId: null,
+    reportThemesCount: null,
+    coverage: [],
+  });
 
-test('nel rapporto non entra il nome dell’atleta', () => {
-  const report = buildOutcomeReport(snapshot());
-  // Il coach sì: è un professionista sulla propria seduta.
-  assert.match(report, /Francesco/);
-  // L'atleta resta un identificativo, che basta a ritrovarlo in database.
-  assert.match(report, /atleta \(id\) \.+ 93/);
-});
-
-/*
- * Il tono dell'oggetto, che non e` un dettaglio di stile.
- *
- * Un rifiuto e` un esito previsto: l'atleta ha detto no e il sistema non ha
- * registrato niente. Se anche quella mail grida come grida un guasto, il
- * coach impara che gridano tutte — e smette di aprirle proprio prima della
- * volta in cui una seduta si perde davvero.
- */
-test('il rifiuto non grida nell’oggetto, il guasto sì', () => {
-  const rifiutata = snapshot({ status: 'consent_rejected' });
-  const oggetto = outcomeSubject(rifiutata);
-
-  assert.match(oggetto, /consenso rifiutato/);
-  assert.doesNotMatch(
-    oggetto,
-    /CONSENSO RIFIUTATO/,
-    'le maiuscole restano dove c’è qualcosa da fare'
-  );
-
-  assert.match(
-    outcomeSubject(snapshot({ status: 'report_failed' })),
-    /FALLITA/,
-    'un guasto deve continuare a farsi riconoscere dall’elenco della posta'
-  );
-});
-
-test('su una seduta rifiutata il rapporto dice che non c’è niente di rotto', () => {
-  const rapporto = buildOutcomeReport(snapshot({ status: 'consent_rejected' }));
-
-  // Nel corpo il maiuscolo resta: li` e` la voce di un log, non un tono.
-  assert.match(rapporto, /ESITO: CONSENSO RIFIUTATO/);
-  assert.match(rapporto, /Esito previsto, non un guasto/);
-
-  assert.doesNotMatch(
-    buildOutcomeReport(snapshot({ status: 'report_failed' })),
-    /Esito previsto/,
-    'la nota vale solo per il rifiuto'
-  );
+  const email = buildOutcomeEmail(rifiutata);
+  assert.equal(classifySessionOutcome(rifiutata), 'rifiutata');
+  assert.match(email.subject, /consenso non fornito/);
+  assert.equal(transcriptionStatus(rifiutata), 'Non eseguita: consenso non fornito');
+  assert.match(email.nextStep, /non è stato avviato/);
 });
