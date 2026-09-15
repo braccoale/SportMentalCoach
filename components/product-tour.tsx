@@ -285,9 +285,11 @@ export function ProductTour({
             // Deve restare sopra qualunque overlay su cui questo tour possa
             // trovarsi — il più alto fra i 7 punti di integrazione è il
             // banner "modalità demo" (demo-readonly-boundary, z-[120]),
-            // seguito dai dialog dell'app (fino a z-[110]); il contenuto del
-            // popover stesso è z-[100], quindi l'anello deve arrivare almeno
-            // fin lì per non restarci sotto.
+            // seguito dai dialog dell'app (fino a z-[110]). Il contenuto del
+            // popover sta sopra questo elemento (z-[140], vedi sotto): con lo
+            // sfondo scurito il `box-shadow` di questo anello copre l'intero
+            // viewport a questo stesso z-index, e senza quel margine
+            // scurirebbe anche la card del tooltip.
             zIndex: 130,
             boxShadow: dimBackdrop
               ? '0 0 0 9999px rgba(17, 24, 39, 0.45)'
@@ -354,7 +356,7 @@ export function ProductTour({
               event.preventDefault();
             }
           }}
-          className="z-[100] w-72 rounded-xl border border-gray-200 bg-white p-4 shadow-xl"
+          className="z-[140] w-72 rounded-xl border border-gray-200 bg-white p-4 shadow-xl"
         >
           <div className="flex items-start justify-between gap-2">
             <p className="text-sm font-semibold text-gray-900">
@@ -385,7 +387,7 @@ export function ProductTour({
               <button
                 type="button"
                 onClick={next}
-                className="rounded-full bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-700"
+                className="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700"
               >
                 {stepIndex === steps.length - 1 ? 'Fatto' : 'Avanti'}
               </button>
