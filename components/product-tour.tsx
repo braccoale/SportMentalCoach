@@ -37,21 +37,29 @@ function isRect(state: TargetState): state is Rect {
 // sempre quando il bersaglio non comparirà mai (es. un tour aperto su una
 // pagina dove quello step non si applica).
 //
-// Il bound giusto dipende da *quale* step: il primo step di un tour può
-// essere montato prima che la UI reale esista — i due tour della
+// Il bound giusto dipende da *quale step* (dato dichiarato in catalog.ts
+// tramite `slowTarget`), non dalla sua posizione nel tour. I due tour della
 // videochiamata (coach_video_call, athlete_video_call) montano al load della
 // pagina, ma il loro bersaglio (`.lk-control-bar`,
 // `[data-tour="coach-start-transcription"]`) compare solo dopo che l'utente
 // ha superato la pre-join screen (controllo di camera/microfono), che può
 // durare ben più di qualche secondo. 90s è un tetto generoso per quel
-// passaggio, non per "quanto deve aspettare un suggerimento di UI".
+// passaggio, non per "quanto deve aspettare un suggerimento di UI" — per
+// questo solo quei due step (entrambi, per coincidenza, il primo e unico del
+// loro tour) hanno `slowTarget: true` nel catalogo.
 //
-// Uno step successivo, raggiunto con "Avanti" mentre il tour è già visibile,
-// è un caso diverso: l'utente è impegnato in quel momento, e un'attesa lunga
-// e silenziosa si legge come un tour rotto. Lì basta un bound breve, che
-// assorbe un tick di render/layout ma non lascia il popover sparito a lungo.
-const WATCH_TIMEOUT_MS_FIRST_STEP = 90_000;
-const WATCH_TIMEOUT_MS_LATER_STEP = 1_500;
+// Ogni altro step usa il bound breve, posizione compresa: un primo step
+// raggiunto al mount di un tour il cui bersaglio dipende da uno stato
+// applicativo (es. `coach_ai_report_review` con un riepilogo già approvato,
+// il cui bersaglio non comparirà mai) deve rinunciare in fretta, non
+// aspettare 90s prima di passare allo step successivo o chiudersi. Anche uno
+// step successivo raggiunto con "Avanti" a tour già visibile è un caso
+// diverso da quello lento: l'utente è impegnato in quel momento, e un'attesa
+// lunga e silenziosa si legge come un tour rotto. Lì basta un bound breve,
+// che assorbe un tick di render/layout ma non lascia il popover sparito a
+// lungo.
+const WATCH_TIMEOUT_MS_SLOW = 90_000;
+const WATCH_TIMEOUT_MS_DEFAULT = 1_500;
 
 /**
  * Misura l'elemento solo se è realmente visibile. `offsetParent === null` è
@@ -200,13 +208,13 @@ export function ProductTour({
   const [stepIndex, setStepIndex] = useState(0);
   const [dismissed, setDismissed] = useState(alreadySeen);
   const step = dismissed ? undefined : steps[stepIndex];
-  // Solo il primo step di un tour può legittimamente dover aspettare a lungo
-  // (es. la pre-join screen della videochiamata); uno step raggiunto con
-  // "Avanti" a tour già visibile usa un bound breve — vedi i commenti sulle
-  // due costanti sopra.
+  // Solo lo step che dichiara `slowTarget` in catalog.ts può legittimamente
+  // dover aspettare a lungo (es. la pre-join screen della videochiamata);
+  // ogni altro step, posizione compresa, usa un bound breve — vedi i
+  // commenti sulle due costanti sopra.
   const targetState = useTargetRect(
     step?.target ?? null,
-    stepIndex === 0 ? WATCH_TIMEOUT_MS_FIRST_STEP : WATCH_TIMEOUT_MS_LATER_STEP
+    step?.slowTarget ? WATCH_TIMEOUT_MS_SLOW : WATCH_TIMEOUT_MS_DEFAULT
   );
 
   // Se il bersaglio dello step corrente risulta definitivamente assente
@@ -280,26 +288,50 @@ export function ProductTour({
           // l'utente sta facendo altro sulla pagina: non gli si ruba il
           // focus di default.
           onOpenAutoFocus={(e) => e.preventDefault()}
-          onPointerDownOutside={(event) => {
-            // Radix considera "outside" qualunque pointerdown non dentro
-            // Popover.Content — incluso il bersaglio reale che il tour sta
-            // evidenziando, dato che non è un discendente del content. Se
-            // l'utente sta letteralmente cliccando l'elemento che il tour
-            // gli sta indicando (es. "Nuovo appuntamento"), non è un click
-            // fuori: si lascia che il click raggiunga il bersaglio e faccia
-            // quello che ha sempre fatto, senza chiudere il tour. Si
-            // ri-interroga il DOM invece di riusare la ref del proxy anchor,
-            // perché il proxy ha `pointer-events: none` e non è mai lui il
-            // target reale dell'evento.
+          onInteractOutside={(event) => {
+            // Radix considera "outside" qualunque pointerdown — o focus —
+            // non dentro Popover.Content, incluso il bersaglio reale che il
+            // tour sta evidenziando, dato che non è un discendente del
+            // content. Se l'utente sta letteralmente cliccando l'elemento
+            // che il tour gli sta indicando (es. "Nuovo appuntamento"), non è
+            // un'interazione "fuori": si lascia che il click raggiunga il
+            // bersaglio e faccia quello che ha sempre fatto, senza chiudere
+            // il tour.
+            //
+            // `onPointerDownOutside` da solo non basta: DismissableLayer di
+            // Radix gestisce pointerdown-outside e focus-outside come due
+            // percorsi INDIPENDENTI (vedi @radix-ui/react-dismissable-layer),
+            // ciascuno dei quali chiama `onDismiss` a meno che il proprio
+            // evento non sia stato "defaultPrevented". Un click su un
+            // elemento focusabile come un `<button>` genera ENTRAMBI gli
+            // eventi: il pointerdown e, subito dopo, il focus che si sposta
+            // su di esso. `preventDefault()` sul solo pointerdown lascia
+            // passare il secondo percorso, che chiude comunque il tour.
+            // `onInteractOutside` è invece l'handler combinato che Radix
+            // invoca per ENTRAMBI i casi (vedi il tipo
+            // `PointerDownOutsideEvent | FocusOutsideEvent`), quindi un solo
+            // `preventDefault()` qui sopprime la chiusura su entrambi i
+            // percorsi per lo stesso identico controllo — un'interazione
+            // ovunque altro sulla pagina continua invece a chiudere il tour
+            // normalmente.
+            //
+            // L'evento non è quello nativo ma un `CustomEvent` che Radix
+            // dispatcha internamente: il nodo DOM realmente cliccato/messo a
+            // fuoco sta in `event.detail.originalEvent.target`, non in
+            // `event.target` (che è il target del CustomEvent stesso, cioè
+            // l'elemento su cui Radix lo ha dispatchato). Si ri-interroga il
+            // DOM invece di riusare la ref del proxy anchor, perché il proxy
+            // ha `pointer-events: none` e non è mai lui il target reale
+            // dell'evento.
             const targetSelector = step?.target;
             const anchorEl = targetSelector
               ? document.querySelector<HTMLElement>(targetSelector)
               : null;
-            const clickedNode = event.target;
+            const interactedNode = event.detail.originalEvent.target;
             if (
               anchorEl &&
-              clickedNode instanceof Node &&
-              (clickedNode === anchorEl || anchorEl.contains(clickedNode))
+              interactedNode instanceof Node &&
+              (interactedNode === anchorEl || anchorEl.contains(interactedNode))
             ) {
               event.preventDefault();
             }

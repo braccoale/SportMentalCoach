@@ -3,6 +3,17 @@ export type TourStep = {
   target: string;
   title: string;
   body: string;
+  /**
+   * Questo bersaglio può richiedere più tempo per comparire (es. dietro un
+   * flusso di scelta camera/microfono prima di entrare in una
+   * videochiamata): non basta un breve tentativo prima di rinunciare. Deve
+   * restare `true` solo per i passi il cui bersaglio dipende da un'azione
+   * dell'utente esterna al tour stesso — non va impostato "per sicurezza" su
+   * altri step, perché fa aspettare fino a 90s prima di rinunciare invece
+   * dei ~1.5s normali, anche quando il bersaglio semplicemente non esiste in
+   * quella pagina (es. un riepilogo già approvato).
+   */
+  slowTarget?: boolean;
 };
 
 export type TourKey =
@@ -50,6 +61,7 @@ export const TOUR_CATALOG: Record<
         target: '[data-tour="coach-start-transcription"]',
         title: 'Avvia la trascrizione',
         body: 'Premi qui a inizio sessione per registrare e ottenere il riepilogo automatico da validare dopo la call.',
+        slowTarget: true,
       },
     ],
   },
@@ -100,6 +112,7 @@ export const TOUR_CATALOG: Record<
         target: '.lk-control-bar',
         title: 'Microfono e videocamera',
         body: 'Da qui puoi disattivare temporaneamente audio o video durante la sessione.',
+        slowTarget: true,
       },
     ],
   },
