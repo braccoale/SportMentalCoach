@@ -7,6 +7,8 @@ import {
   hasFeatureEntitlement,
 } from '@/lib/core/features';
 import { formatDateTime } from '@/lib/core/format';
+import { hasSeenTour } from '@/lib/core/tours/state';
+import { ProductTour } from '@/components/product-tour';
 import { VideoRoom } from './video-room';
 import { StartCallSignal } from './start-call-signal';
 
@@ -71,6 +73,15 @@ export default async function VideoPage({
     ));
   const { backHref, otherName } = result;
 
+  const videoTourKey = result.ok
+    ? result.viewerIsCoach
+      ? ('coach_video_call' as const)
+      : ('athlete_video_call' as const)
+    : null;
+  const videoTourSeen = videoTourKey
+    ? await hasSeenTour(user.id, videoTourKey)
+    : false;
+
   return (
     <section className="mx-auto w-full max-w-6xl p-6">
       <Link
@@ -89,6 +100,9 @@ export default async function VideoPage({
       <div className="mt-6">
         {result.ok ? (
           <>
+            {videoTourKey && (
+              <ProductTour tourKey={videoTourKey} alreadySeen={videoTourSeen} />
+            )}
             {/* Either participant opening the room nudges the other's app with
                 an incoming-call popup, so the second to arrive can join
                 (best-effort; only if realtime configured). */}

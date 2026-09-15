@@ -509,6 +509,7 @@ export function AiSessionNotesControl({
         {session.viewerRole === 'coach' && canRestartRecording && (
           <button
             type="button"
+            data-tour="coach-start-transcription"
             className="mt-2 mr-3 text-xs font-medium text-white underline"
             disabled={loading}
             onClick={() =>
