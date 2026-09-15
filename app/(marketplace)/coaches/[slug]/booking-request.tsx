@@ -3,6 +3,7 @@
 import { useActionState, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ProductTour } from '@/components/product-tour';
 import { requestBooking } from './actions';
 import type { ActionState } from '@/lib/auth/middleware';
 import type { BookableDay } from '@/lib/core/availability';
@@ -66,6 +67,7 @@ export function BookingRequest({
   bookableDays,
   introductory = false,
   isDemo = false,
+  tourAlreadySeen = true,
 }: {
   slug: string;
   coachFirstName: string;
@@ -81,6 +83,9 @@ export function BookingRequest({
    * submit disabilitato lo dice subito invece di far scoprire il blocco
    * dopo l'invio del form. */
   isDemo?: boolean;
+  /** Se l'atleta ha già visto il tour `athlete_booking` (o il tour non si
+   * applica: coach loggato sul proprio profilo, atleta non loggato). */
+  tourAlreadySeen?: boolean;
 }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     requestBooking,
@@ -177,121 +182,124 @@ export function BookingRequest({
       )}
 
       {bookableDays.length > 0 ? (
-        <div className="flex flex-col gap-3">
-          <span className="text-sm font-medium text-gray-900">
-            Quando vorresti iniziare?
-          </span>
+        <>
+          <ProductTour tourKey="athlete_booking" alreadySeen={tourAlreadySeen} />
+          <div className="flex flex-col gap-3" data-tour="athlete-booking-calendar">
+            <span className="text-sm font-medium text-gray-900">
+              Quando vorresti iniziare?
+            </span>
 
-          <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-2.5">
-            {/* Date strip: one card per bookable day, scrolls horizontally */}
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => scrollStrip(-1)}
-                aria-label="Giorni precedenti"
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-gray-400 transition hover:bg-white hover:text-gray-700"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <div
-                ref={stripRef}
-                className="flex flex-1 gap-1.5 overflow-x-auto scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-              >
-                {bookableDays.map((d) => {
-                  const chip = dayChip(d.value);
-                  const selected = d.value === day;
-                  return (
-                    <button
-                      key={d.value}
-                      type="button"
-                      onClick={() => {
-                        setDay(d.value);
-                        setTime(firstFreeTime(d, durationMin));
-                      }}
-                      aria-pressed={selected}
-                      className={`flex w-12 shrink-0 flex-col items-center gap-0.5 rounded-lg py-2 text-xs font-medium transition ${
-                        selected
-                          ? 'bg-red-600 text-white shadow-sm shadow-red-600/20'
-                          : 'bg-white text-gray-600 hover:bg-red-50 hover:text-red-700'
-                      }`}
-                    >
-                      <span className="uppercase opacity-80">
-                        {chip.weekday}
-                      </span>
-                      <span className="text-base font-semibold leading-none">
-                        {chip.number}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-              <button
-                type="button"
-                onClick={() => scrollStrip(1)}
-                aria-label="Giorni successivi"
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-gray-400 transition hover:bg-white hover:text-gray-700"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Times for the selected day */}
-            <div className="mt-2.5 border-t border-gray-200 pt-2.5">
-              {selectedDay && (
-                <p className="mb-2 text-xs font-medium text-gray-500">
-                  {selectedDay.label}
-                </p>
-              )}
-              <div className="flex flex-wrap gap-1.5">
-                {selectedDay?.times.map((t) => {
-                  const slot = slotPresentation(
-                    selectedDay.maxDurationMin,
-                    t,
-                    durationMin,
-                    true
-                  );
-                  const selected = t === time;
-                  return (
-                    <button
-                      key={t}
-                      type="button"
-                      disabled={!slot.selectable}
-                      onClick={() => chooseTime(t)}
-                      aria-pressed={selected}
-                      title={slot.suffix ? slot.suffix.replace(' · ', '') : undefined}
-                      className={`rounded-lg border px-2.5 py-1.5 text-sm font-medium transition ${
-                        selected
-                          ? 'border-red-600 bg-red-600 text-white'
-                          : slot.tone === 'occupied'
-                            ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-300 line-through'
-                            : slot.tone === 'tight'
-                              ? 'border-amber-300 bg-amber-50 text-amber-700 hover:border-amber-400'
-                              : 'border-gray-200 bg-white text-gray-900 hover:border-red-400 hover:bg-red-50'
-                      }`}
-                    >
-                      {t}
-                      {slot.tone === 'tight' && (
-                        <span className="ml-1 text-[10px] font-normal opacity-80">
-                          {slot.suffix}
+            <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-2.5">
+              {/* Date strip: one card per bookable day, scrolls horizontally */}
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => scrollStrip(-1)}
+                  aria-label="Giorni precedenti"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-gray-400 transition hover:bg-white hover:text-gray-700"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <div
+                  ref={stripRef}
+                  className="flex flex-1 gap-1.5 overflow-x-auto scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                >
+                  {bookableDays.map((d) => {
+                    const chip = dayChip(d.value);
+                    const selected = d.value === day;
+                    return (
+                      <button
+                        key={d.value}
+                        type="button"
+                        onClick={() => {
+                          setDay(d.value);
+                          setTime(firstFreeTime(d, durationMin));
+                        }}
+                        aria-pressed={selected}
+                        className={`flex w-12 shrink-0 flex-col items-center gap-0.5 rounded-lg py-2 text-xs font-medium transition ${
+                          selected
+                            ? 'bg-red-600 text-white shadow-sm shadow-red-600/20'
+                            : 'bg-white text-gray-600 hover:bg-red-50 hover:text-red-700'
+                        }`}
+                      >
+                        <span className="uppercase opacity-80">
+                          {chip.weekday}
                         </span>
-                      )}
-                    </button>
-                  );
-                })}
-                {!selectedDay?.times.length && (
-                  <p className="text-sm text-gray-400">
-                    Nessun orario libero questo giorno.
+                        <span className="text-base font-semibold leading-none">
+                          {chip.number}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => scrollStrip(1)}
+                  aria-label="Giorni successivi"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-gray-400 transition hover:bg-white hover:text-gray-700"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Times for the selected day */}
+              <div className="mt-2.5 border-t border-gray-200 pt-2.5">
+                {selectedDay && (
+                  <p className="mb-2 text-xs font-medium text-gray-500">
+                    {selectedDay.label}
                   </p>
                 )}
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedDay?.times.map((t) => {
+                    const slot = slotPresentation(
+                      selectedDay.maxDurationMin,
+                      t,
+                      durationMin,
+                      true
+                    );
+                    const selected = t === time;
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        disabled={!slot.selectable}
+                        onClick={() => chooseTime(t)}
+                        aria-pressed={selected}
+                        title={slot.suffix ? slot.suffix.replace(' · ', '') : undefined}
+                        className={`rounded-lg border px-2.5 py-1.5 text-sm font-medium transition ${
+                          selected
+                            ? 'border-red-600 bg-red-600 text-white'
+                            : slot.tone === 'occupied'
+                              ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-300 line-through'
+                              : slot.tone === 'tight'
+                                ? 'border-amber-300 bg-amber-50 text-amber-700 hover:border-amber-400'
+                                : 'border-gray-200 bg-white text-gray-900 hover:border-red-400 hover:bg-red-50'
+                        }`}
+                      >
+                        {t}
+                        {slot.tone === 'tight' && (
+                          <span className="ml-1 text-[10px] font-normal opacity-80">
+                            {slot.suffix}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                  {!selectedDay?.times.length && (
+                    <p className="text-sm text-gray-400">
+                      Nessun orario libero questo giorno.
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
-          <p className="text-xs text-gray-500">
-            Vedi solo i giorni e gli orari in cui {coachFirstName} riceve.
-            Confermerete insieme.
-          </p>
-        </div>
+            <p className="text-xs text-gray-500">
+              Vedi solo i giorni e gli orari in cui {coachFirstName} riceve.
+              Confermerete insieme.
+            </p>
+          </div>
+        </>
       ) : (
         <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-600">
           {coachFirstName} non ha ancora pubblicato la sua disponibilità:

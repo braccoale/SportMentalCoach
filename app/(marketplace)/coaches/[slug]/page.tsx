@@ -37,6 +37,7 @@ import { ShareCoachButton } from '@/components/share-coach-button';
 import { CoachChatButton } from '@/components/coach-chat-button';
 import { IntroSessionButton } from '@/components/intro-session-button';
 import { hasUsedIntroSession } from '@/lib/core/services/intro-booking';
+import { hasSeenTour } from '@/lib/core/tours/state';
 import { RatingStars } from '@/components/rating-stars';
 import { VideoEmbed } from '@/components/video-embed';
 import {
@@ -208,6 +209,13 @@ export default async function CoachDetailPage({
     user && isAthlete
       ? await hasUsedIntroSession(coach.providerId, user.id)
       : false;
+  // Niente tour per un visitatore non loggato o un coach che guarda il
+  // proprio stesso profilo: il calendario di prenotazione (bersaglio del
+  // tour) non è in pagina per loro.
+  const bookingTourSeen =
+    user && isAthlete
+      ? await hasSeenTour(user.id, 'athlete_booking')
+      : true;
   const memberSince = new Intl.DateTimeFormat('it-IT', {
     month: 'long',
     year: 'numeric',
@@ -577,6 +585,7 @@ export default async function CoachDetailPage({
                     }))}
                     bookableDays={bookableDays}
                     isDemo={isDemo}
+                    tourAlreadySeen={bookingTourSeen}
                   />
                 ) : (
                   <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-800">
