@@ -3000,6 +3000,36 @@ export type UserOnboarding = typeof userOnboarding.$inferSelect;
 export type NewUserOnboarding = typeof userOnboarding.$inferInsert;
 
 /**
+ * Traccia quali tour guidati del prodotto un utente ha già visto (o
+ * saltato) — non "come completare il profilo" (vedi `userOnboarding`), ma
+ * "come si usa una schermata specifica", mostrato una volta sola.
+ */
+export const userProductTours = pgTable(
+  'user_product_tours',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    tourKey: varchar('tour_key', { length: 64 }).notNull(),
+    status: varchar('status', { length: 20 }).notNull(),
+    completedAt: timestamp('completed_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    ...audit,
+  },
+  (table) => [
+    unique('user_product_tours_user_tour_unique').on(
+      table.userId,
+      table.tourKey
+    ),
+  ]
+);
+
+export type UserProductTour = typeof userProductTours.$inferSelect;
+export type NewUserProductTour = typeof userProductTours.$inferInsert;
+
+/**
  * Dispositivi con l'app KaiPai installata (migrazione 0053).
  *
  * Tenuta separata da `pushSubscriptions` perché il Web Push del browser e la

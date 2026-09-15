@@ -526,6 +526,13 @@
       "when": 1789393714116,
       "tag": "0074_coach-direct-chat-intro20",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1789465072450,
+      "tag": "0075_tour-guidato-del-prodotto",
+      "breakpoints": true
     }
   ]
 }
