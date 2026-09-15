@@ -61,6 +61,8 @@ import { ShareButton } from '@/components/share-button';
 import { EditAppointmentButton } from '@/components/edit-appointment-button';
 import { VideoCallButton } from '@/components/video-call-button';
 import { DEFAULT_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
+import { hasSeenTour } from '@/lib/core/tours/state';
+import { ProductTour } from '@/components/product-tour';
 
 /** Sort key for the archive: when the session actually happened, newest first. */
 function archiveRecency(b: AthleteBooking): number {
@@ -461,7 +463,7 @@ function AcceptedAppointments({
 }) {
   if (items.length === 0) return null;
   return (
-    <div id="sessioni-confermate" className="scroll-mt-24">
+    <div id="sessioni-confermate" data-tour="my-sessions" className="scroll-mt-24">
       <h2 className="text-lg font-medium text-green-600">
         Prossimi Appuntamenti ({items.length})
       </h2>
@@ -576,6 +578,7 @@ export default async function AthleteDashboardPage() {
     relationshipCoaches,
     guardianStatus,
     nextSteps,
+    dashboardTourSeen,
   ] = await Promise.all([
     getAthleteBookings(user.id),
     getReviewedBookingIds(user.id),
@@ -583,6 +586,7 @@ export default async function AthleteDashboardPage() {
     getAthleteRelationshipCoaches(user.id),
     getGuardianStatus(user.id),
     getAthleteNextSteps(user.id),
+    hasSeenTour(user.id, 'athlete_dashboard_intro'),
   ]);
 
   const waiting = requests.filter((b) => b.status === 'requested');
@@ -624,6 +628,10 @@ export default async function AthleteDashboardPage() {
 
   return (
     <section className="flex flex-col gap-6 p-6">
+      <ProductTour
+        tourKey="athlete_dashboard_intro"
+        alreadySeen={dashboardTourSeen}
+      />
       {/* Parental authorisation, for 15-17 year olds only. Renders nothing for
           adults, so it can sit here unconditionally. */}
       <GuardianBanner status={guardianStatus} action={inviteGuardianAction} />
@@ -707,7 +715,7 @@ export default async function AthleteDashboardPage() {
             Sfoglia i coach approvati e invia la tua prima richiesta.
           </p>
           <Button asChild className="mt-4 rounded-full">
-            <Link href="/coaches">Trova un coach</Link>
+            <Link href="/coaches" data-tour="find-a-coach">Trova un coach</Link>
           </Button>
         </div>
       ) : (
