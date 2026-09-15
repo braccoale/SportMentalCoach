@@ -59,7 +59,13 @@ function isRect(state: TargetState): state is Rect {
 // che assorbe un tick di render/layout ma non lascia il popover sparito a
 // lungo.
 const WATCH_TIMEOUT_MS_SLOW = 90_000;
-const WATCH_TIMEOUT_MS_DEFAULT = 1_500;
+// 5s, non 1.5s: un bersaglio "normale" può comunque essere dietro una fetch
+// lato client (es. il riepilogo AI in coach_ai_report_review) — 1.5s bastava
+// solo a coprire un tick di render, non una richiesta di rete. Nessun tour
+// oggi in catalogo ha un target `slowTarget: false` raggiunto con "Avanti"
+// il cui bersaglio richieda più di 5s: se in futuro ce ne fosse uno, va
+// marcato `slowTarget: true`, non alzato qui il default per tutti.
+const WATCH_TIMEOUT_MS_DEFAULT = 5_000;
 
 /**
  * Misura l'elemento solo se è realmente visibile. `offsetParent === null` è
