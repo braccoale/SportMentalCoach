@@ -289,7 +289,12 @@ export function CompletedSessionCard({
           )}
         </div>
 
-        <p className="min-h-[16px] text-xs text-gray-500">
+        <p
+          className={cn(
+            'min-h-[16px] text-xs',
+            data.status === 'cancelled' ? 'text-red-600' : 'text-gray-500'
+          )}
+        >
           {data.timeline
             ? `Richiesta ${data.timeline.requestedValue} · svolta ${data.timeline.sessionValue}`
             : (data.note ?? '')}
