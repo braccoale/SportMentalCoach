@@ -89,6 +89,7 @@ import { getPipelineHealth } from '@/lib/core/ai-session-notes/pipeline-health';
 import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger';
 import { hasSeenTour } from '@/lib/core/tours/state';
 import { ProductTour } from '@/components/product-tour';
+import { CollapsiblePanel } from '@/components/collapsible-panel';
 
 /**
  * Il riepilogo impiega dai dieci ai venti secondi, e qui dentro gira la coda.
@@ -322,6 +323,10 @@ export default async function CoachDashboardPage() {
         pastAccepted.some((past) => past.id === b.id)
     )
     .sort((a, b) => archiveRecency(b) - archiveRecency(a));
+  const completedArchive = archive.filter((booking) => booking.status === 'completed');
+  const cancelledOrElapsedArchive = archive.filter(
+    (booking) => booking.status !== 'completed'
+  );
 
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -726,40 +731,24 @@ export default async function CoachDashboardPage() {
         }}
       />
 
-      <DashboardSection
+      <ArchiveSection
         id="percorsi-archiviati"
-        title="Percorsi conclusi o archiviati"
-        subtitle="Uno storico piu leggibile delle richieste gia chiuse, completate o annullate."
-        items={archive}
-        emptyTitle="Nessuna richiesta passata."
-        emptySubtitle="Lo storico delle richieste concluse o archiviate comparira qui."
-        renderCard={(booking) => (
-          <CompletedSessionCard
-            key={booking.id}
-            data={buildArchiveCardData(booking, config)}
-            overflowActions={
-              booking.status === 'accepted' ? (
-                booking.sessionStartedAt ? (
-                  <ActionForm action={completeBookingAction} className="w-full">
-                    <input type="hidden" name="bookingId" value={booking.id} />
-                    <button type="submit" className="flex w-full">
-                      <DropdownMenuItem className="w-full flex-1 cursor-pointer">
-                        Completa
-                      </DropdownMenuItem>
-                    </button>
-                  </ActionForm>
-                ) : (
-                  <DropdownMenuItem disabled>
-                    Nessuna videochiamata registrata
-                  </DropdownMenuItem>
-                )
-              ) : undefined
-            }
-            detailContent={
-              <CoachRequestDetails booking={booking} config={config} />
-            }
-          />
-        )}
+        title="Sessioni effettuate"
+        subtitle="Le sessioni completate, dalla più recente."
+        items={completedArchive}
+        emptyTitle="Nessuna sessione effettuata."
+        emptySubtitle="Le sessioni completate compariranno qui."
+        config={config}
+      />
+
+      <ArchiveSection
+        id="sessioni-annullate-trascorse"
+        title="Sessioni annullate o trascorse"
+        subtitle="Sessioni annullate, richieste scadute o rifiutate e sedute passate ancora da completare."
+        items={cancelledOrElapsedArchive}
+        emptyTitle="Nessuna sessione annullata o trascorsa."
+        emptySubtitle="Le altre richieste chiuse o passate compariranno qui."
+        config={config}
       />
 
       {provider && (
@@ -827,6 +816,71 @@ export default async function CoachDashboardPage() {
         </div>
       )}
     </section>
+  );
+}
+
+function ArchiveSection({
+  id,
+  title,
+  subtitle,
+  items,
+  emptyTitle,
+  emptySubtitle,
+  config,
+}: {
+  id: string;
+  title: string;
+  subtitle: string;
+  items: CoachBooking[];
+  emptyTitle: string;
+  emptySubtitle: string;
+  config: ReturnType<typeof getVerticalConfig>;
+}) {
+  return (
+    <div id={id} className="scroll-mt-24">
+      <CollapsiblePanel
+        title={title}
+        count={items.length}
+        defaultOpen={false}
+        persistKey={id}
+      >
+        <p className="text-sm leading-6 text-gray-500">{subtitle}</p>
+        {items.length === 0 ? (
+          <div className="mt-4 rounded-2xl border border-dashed border-gray-300 p-8 text-center">
+            <p className="font-medium text-gray-700">{emptyTitle}</p>
+            <p className="mt-1 text-sm text-gray-500">{emptySubtitle}</p>
+          </div>
+        ) : (
+          <div className="mt-5 grid items-start gap-4 xl:grid-cols-2">
+            {items.map((booking) => (
+              <CompletedSessionCard
+                key={booking.id}
+                data={buildArchiveCardData(booking, config)}
+                overflowActions={
+                  booking.status === 'accepted' ? (
+                    booking.sessionStartedAt ? (
+                      <ActionForm action={completeBookingAction} className="w-full">
+                        <input type="hidden" name="bookingId" value={booking.id} />
+                        <button type="submit" className="flex w-full">
+                          <DropdownMenuItem className="w-full flex-1 cursor-pointer">
+                            Completa
+                          </DropdownMenuItem>
+                        </button>
+                      </ActionForm>
+                    ) : (
+                      <DropdownMenuItem disabled>
+                        Nessuna videochiamata registrata
+                      </DropdownMenuItem>
+                    )
+                  ) : undefined
+                }
+                detailContent={<CoachRequestDetails booking={booking} config={config} />}
+              />
+            ))}
+          </div>
+        )}
+      </CollapsiblePanel>
+    </div>
   );
 }
 
