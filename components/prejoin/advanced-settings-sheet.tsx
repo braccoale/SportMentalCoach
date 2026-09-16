@@ -5,6 +5,10 @@ import { X } from 'lucide-react';
 import { visibleAdvancedSections } from '@/lib/core/video/capabilities';
 import { useCallCapabilities } from '@/lib/core/video/capabilities-client';
 import { PreviewBackgroundControls } from '@/components/livekit-background-controls';
+import {
+  MAX_REMOTE_VOLUME,
+  MIN_REMOTE_VOLUME,
+} from '@/lib/core/video/call-settings';
 import type { PreJoinState } from './use-prejoin-state';
 
 /**
@@ -256,6 +260,29 @@ export function AdvancedSettingsSheet({
               )}
             </section>
           )}
+
+          {/* Nessuna capability da verificare — funziona ovunque, a
+              differenza delle sezioni sopra che dipendono dal browser. */}
+          <section className="rounded-2xl border border-white/10 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-medium">Volume di chi chiama</p>
+              <span className="text-xs tabular-nums text-white/50">
+                {Math.round(state.remoteVolume * 100)}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min={MIN_REMOTE_VOLUME}
+              max={MAX_REMOTE_VOLUME}
+              step={0.05}
+              value={state.remoteVolume}
+              onChange={(event) =>
+                state.setRemoteVolume(Number(event.target.value))
+              }
+              aria-label="Volume di chi chiama"
+              className="mt-3 w-full accent-sky-400"
+            />
+          </section>
 
           {sections.includes('backgrounds') && (
             <section className="rounded-2xl border border-white/10 p-3">

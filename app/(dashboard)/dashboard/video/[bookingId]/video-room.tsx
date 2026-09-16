@@ -32,12 +32,14 @@ import { LocalizeLiveKitControls } from '@/components/livekit-call-labels';
 import { X } from 'lucide-react';
 import {
   ApplyInitialAudioOutput,
+  ApplyRemoteVolume,
   CallDeviceSettings,
   ConnectionQualityNotice,
   KaiPaiPreJoin,
   type KaiPaiCallChoices,
 } from '@/components/livekit-call-controls';
 import {
+  DEFAULT_REMOTE_VOLUME,
   KAIPAI_AUDIO_CAPTURE_DEFAULTS,
   videoPublishSettings,
 } from '@/lib/core/video/call-settings';
@@ -255,6 +257,13 @@ function ConnectedVideoRoom({
       return new Room({
         adaptiveStream: true,
         dynacast: true,
+        // Senza, `RemoteParticipant.setVolume` ricade sul `.volume` nativo
+        // dell'elemento media, limitato a [0, 1]: il volume "di chi chiama"
+        // (vedi ApplyRemoteVolume) non potrebbe mai superare quello di
+        // sistema. Con `webAudioMix` passa da un GainNode, che può
+        // amplificare davvero — vedi il commento su REMOTE_VOLUME_STORAGE_KEY
+        // in call-settings.ts per il perché di questo controllo.
+        webAudioMix: true,
         publishDefaults,
         audioCaptureDefaults: {
           ...KAIPAI_AUDIO_CAPTURE_DEFAULTS,
@@ -420,6 +429,9 @@ function ConnectedVideoRoom({
         <LocalizeLiveKitControls />
         <ApplyInitialAudioOutput
           deviceId={choices.audioOutputDeviceId}
+        />
+        <ApplyRemoteVolume
+          volume={choices.remoteVolume ?? DEFAULT_REMOTE_VOLUME}
         />
         <BackgroundSelectionApplier />
         <WaitingRoomGate

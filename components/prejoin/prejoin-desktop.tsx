@@ -19,6 +19,10 @@ import {
 } from 'lucide-react';
 import { PreviewBackgroundControls } from '@/components/livekit-background-controls';
 import { InAppBrowserNotice } from '@/components/in-app-browser-notice';
+import {
+  MAX_REMOTE_VOLUME,
+  MIN_REMOTE_VOLUME,
+} from '@/lib/core/video/call-settings';
 import type { PreJoinState } from './use-prejoin-state';
 
 function CameraPreview({ track }: { track?: LocalVideoTrack }) {
@@ -107,6 +111,8 @@ export function PreJoinDesktop({
     chooseAudioOutput,
     speakerTestState,
     testSpeaker,
+    remoteVolume,
+    setRemoteVolume,
     networkState,
     networkResult,
     runNetworkDiagnostic,
@@ -299,6 +305,33 @@ export function PreJoinDesktop({
                     Il browser ha bloccato il suono. Controlla il volume.
                   </p>
                 )}
+                {/* Non regola il suono di prova qui sopra — quello verifica
+                    l'altoparlante, non il volume di chi chiama, che qui non
+                    è ancora connesso. Si applica dal momento in cui si entra
+                    in chiamata, ed è modificabile anche durante, dal pannello
+                    impostazioni. */}
+                <div className="mt-3 border-t border-white/10 pt-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs font-medium text-white/75">
+                      Volume di chi chiama
+                    </span>
+                    <span className="text-xs tabular-nums text-white/50">
+                      {Math.round(remoteVolume * 100)}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={MIN_REMOTE_VOLUME}
+                    max={MAX_REMOTE_VOLUME}
+                    step={0.05}
+                    value={remoteVolume}
+                    onChange={(event) =>
+                      setRemoteVolume(Number(event.target.value))
+                    }
+                    aria-label="Volume di chi chiama"
+                    className="mt-2 w-full accent-sky-400"
+                  />
+                </div>
               </div>
             </div>
 

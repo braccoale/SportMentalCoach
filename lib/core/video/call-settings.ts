@@ -34,6 +34,33 @@ export const KAIPAI_AUDIO_CAPTURE_DEFAULTS = {
  */
 export const KAIPAI_AUDIO_PUBLISH_PRESET = { maxBitrate: 32_000 };
 
+/**
+ * Il volume con cui si sente chi è dall'altra parte, non la propria voce
+ * pubblicata: quella non cambia con questo controllo.
+ *
+ * `1` è il volume nativo del browser. Sopra `1` non esisterebbe senza
+ * `webAudioMix` sulla `Room` (vedi video-room.tsx) — senza, `setVolume` di
+ * livekit-client ricade su `elementVolume`, che lo spec dei media element
+ * limita a `[0, 1]`. Con `webAudioMix` passa invece da un `GainNode`, che
+ * *può* amplificare oltre l'ingresso originale: è la differenza fra "il
+ * massimo che il sistema permetteva" e "più forte di quello".
+ *
+ * Il tetto a `2` (200%) non è arbitrario quanto sembra: oltre quel punto un
+ * segnale già registrato a un livello normale inizia a distorcere in modo
+ * udibile — non c'è più voce da amplificare, solo rumore. Il minimo resta
+ * `0.5` apposta: il controllo serve ad alzare un audio troppo basso, non a
+ * silenziare chi chiama — per quello c'è il mute del partecipante.
+ */
+export const REMOTE_VOLUME_STORAGE_KEY = 'kaipai-livekit-remote-volume';
+export const DEFAULT_REMOTE_VOLUME = 1;
+export const MIN_REMOTE_VOLUME = 0.5;
+export const MAX_REMOTE_VOLUME = 2;
+
+export function clampRemoteVolume(value: number): number {
+  if (!Number.isFinite(value)) return DEFAULT_REMOTE_VOLUME;
+  return Math.min(MAX_REMOTE_VOLUME, Math.max(MIN_REMOTE_VOLUME, value));
+}
+
 export type VideoPublishSettings = {
   /** Cosa si chiede alla telecamera di catturare. */
   resolution: VideoPreset;

@@ -30,6 +30,11 @@ import {
 import {
   KAIPAI_AUDIO_CAPTURE_DEFAULTS,
   connectionQualityPresentation,
+  clampRemoteVolume,
+  DEFAULT_REMOTE_VOLUME,
+  MAX_REMOTE_VOLUME,
+  MIN_REMOTE_VOLUME,
+  REMOTE_VOLUME_STORAGE_KEY,
 } from '@/lib/core/video/call-settings';
 import {
   parseBookingRoomName,
@@ -57,6 +62,8 @@ export type KaiPaiCallChoices = LocalUserChoices & {
    * preferenza ignorabile, il lato no.
    */
   videoFacingMode?: 'user' | 'environment';
+  /** Volume di chi chiama, scelto nel pre-join. `undefined` = predefinito. */
+  remoteVolume?: number;
 };
 
 export function KaiPaiPreJoin({
@@ -191,6 +198,45 @@ export function ApplyInitialAudioOutput({
       // The default browser output remains active in that case.
     });
   }, [connectionState, deviceId, room]);
+
+  return null;
+}
+
+/**
+ * `setVolume` esiste sia su `RemoteParticipant` (tutte le sue tracce audio)
+ * sia sul singolo `RemoteTrackPublication` — qui basta il primo, un solo
+ * partecipante remoto per chiamata. Applicarlo *anche* al nuovo arrivato
+ * conta: l'atleta spesso entra dopo che il coach ha già scelto il volume nel
+ * pre-join.
+ */
+function applyRemoteVolumeToRoom(
+  room: ReturnType<typeof useRoomContext>,
+  volume: number
+) {
+  for (const participant of room.remoteParticipants.values()) {
+    participant.setVolume(volume);
+  }
+}
+
+export function ApplyRemoteVolume({ volume }: { volume: number }) {
+  const room = useRoomContext();
+  const connectionState = useConnectionState();
+  const volumeRef = useRef(volume);
+  volumeRef.current = volume;
+
+  useEffect(() => {
+    if (connectionState !== ConnectionState.Connected) return;
+    applyRemoteVolumeToRoom(room, volumeRef.current);
+    const onConnected = () =>
+      applyRemoteVolumeToRoom(room, volumeRef.current);
+    room.on(RoomEvent.ParticipantConnected, onConnected);
+    return () => {
+      room.off(RoomEvent.ParticipantConnected, onConnected);
+    };
+    // `volume` è nella dependency list apposta: un cambio dal pannello
+    // impostazioni in chiamata deve riapplicarsi subito, non solo al
+    // prossimo partecipante che entra.
+  }, [connectionState, room, volume]);
 
   return null;
 }
@@ -385,6 +431,22 @@ export function CallDeviceSettings() {
   const [audioOutputDeviceId, setAudioOutputDeviceId] = useState(
     room.getActiveDevice('audiooutput') ?? 'default'
   );
+  // Letto una sola volta all'apertura del pannello: se il coach lo cambia qui
+  // durante la chiamata (il caso reale — "su Meet si sentiva, qui no"),
+  // niente lo aggiorna da fuori nel frattempo.
+  const [remoteVolume, setRemoteVolumeState] = useState(() =>
+    clampRemoteVolume(
+      Number(window.localStorage.getItem(REMOTE_VOLUME_STORAGE_KEY)) ||
+        DEFAULT_REMOTE_VOLUME
+    )
+  );
+
+  const changeRemoteVolume = (value: number) => {
+    const clamped = clampRemoteVolume(value);
+    setRemoteVolumeState(clamped);
+    window.localStorage.setItem(REMOTE_VOLUME_STORAGE_KEY, String(clamped));
+    applyRemoteVolumeToRoom(room, clamped);
+  };
   const outputSelectionSupported = useMemo(
     () => supportsAudioOutputSelection(),
     []
@@ -497,6 +559,28 @@ export function CallDeviceSettings() {
             </MediaDeviceMenu>
           </div>
         )}
+        <div className="rounded-xl border border-white/10 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="flex items-center gap-2 text-sm">
+              <Volume2 className="h-4 w-4" /> Volume di chi chiama
+            </span>
+            <span className="text-xs tabular-nums text-white/60">
+              {Math.round(remoteVolume * 100)}%
+            </span>
+          </div>
+          <input
+            type="range"
+            min={MIN_REMOTE_VOLUME}
+            max={MAX_REMOTE_VOLUME}
+            step={0.05}
+            value={remoteVolume}
+            onChange={(event) =>
+              changeRemoteVolume(Number(event.target.value))
+            }
+            aria-label="Volume di chi chiama"
+            className="mt-3 w-full accent-sky-400"
+          />
+        </div>
       </div>
 
       <button

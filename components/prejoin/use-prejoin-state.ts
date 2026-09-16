@@ -17,6 +17,9 @@ import {
   KAIPAI_AUDIO_CAPTURE_DEFAULTS,
   mediaDeviceErrorMessage,
   summarizeNetworkDiagnostic,
+  clampRemoteVolume,
+  DEFAULT_REMOTE_VOLUME,
+  REMOTE_VOLUME_STORAGE_KEY,
   type NetworkDiagnosticStatus,
   type NetworkDiagnosticSummary,
 } from '@/lib/core/video/call-settings';
@@ -158,6 +161,9 @@ export type PreJoinState = {
   chooseAudioOutput: (deviceId: string) => void;
   speakerTestState: 'idle' | 'playing' | 'success' | 'error';
   testSpeaker: () => Promise<void>;
+  /** Quanto si sentirà forte chi chiama, non la propria voce pubblicata. */
+  remoteVolume: number;
+  setRemoteVolume: (value: number) => void;
   networkState: 'idle' | 'checking' | 'complete';
   networkResult: NetworkDiagnosticResult | null;
   runNetworkDiagnostic: () => Promise<void>;
@@ -191,6 +197,7 @@ export function usePreJoinState({
     'idle' | 'playing' | 'success' | 'error'
   >('idle');
   const [audioOutputDeviceId, setAudioOutputDeviceId] = useState('default');
+  const [remoteVolume, setRemoteVolumeState] = useState(DEFAULT_REMOTE_VOLUME);
   // Su un telefono si parte sempre dalla frontale, e lo si chiede in modo
   // esplicito: lasciarlo decidere al browser significherebbe subire un
   // `videoDeviceId` rimasto in localStorage da una sessione precedente, che
@@ -307,6 +314,12 @@ export function usePreJoinState({
   useEffect(() => {
     const stored = window.localStorage.getItem(AUDIO_OUTPUT_STORAGE_KEY);
     if (stored) setAudioOutputDeviceId(stored);
+    const storedVolume = window.localStorage.getItem(
+      REMOTE_VOLUME_STORAGE_KEY
+    );
+    if (storedVolume) {
+      setRemoteVolumeState(clampRemoteVolume(Number(storedVolume)));
+    }
   }, []);
 
   const handlePreviewError = useCallback((error: Error) => {
@@ -375,6 +388,15 @@ export function usePreJoinState({
     setSpeakerTestState('idle');
   };
 
+  const setRemoteVolume = (value: number) => {
+    const clamped = clampRemoteVolume(value);
+    setRemoteVolumeState(clamped);
+    window.localStorage.setItem(
+      REMOTE_VOLUME_STORAGE_KEY,
+      String(clamped)
+    );
+  };
+
   const testSpeaker = async () => {
     setSpeakerTestState('playing');
     try {
@@ -390,6 +412,7 @@ export function usePreJoinState({
       ...userChoices,
       username: participantName,
       audioOutputDeviceId,
+      remoteVolume,
       // Senza questo, chi inverte la camera nel pre-join entrerebbe comunque
       // in chiamata con la frontale: la stanza ricrea le tracce per conto suo.
       videoFacingMode: videoFacingMode ?? undefined,
@@ -398,6 +421,7 @@ export function usePreJoinState({
     audioOutputDeviceId,
     onJoin,
     participantName,
+    remoteVolume,
     userChoices,
     videoFacingMode,
   ]);
@@ -427,6 +451,8 @@ export function usePreJoinState({
     chooseAudioOutput,
     speakerTestState,
     testSpeaker,
+    remoteVolume,
+    setRemoteVolume,
     networkState,
     networkResult,
     runNetworkDiagnostic,

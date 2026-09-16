@@ -13,12 +13,14 @@ import { DoorOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   ApplyInitialAudioOutput,
+  ApplyRemoteVolume,
   CallDeviceSettings,
   ConnectionQualityNotice,
   KaiPaiPreJoin,
   type KaiPaiCallChoices,
 } from './livekit-call-controls';
 import {
+  DEFAULT_REMOTE_VOLUME,
   KAIPAI_AUDIO_CAPTURE_DEFAULTS,
   videoPublishSettings,
 } from '@/lib/core/video/call-settings';
@@ -131,6 +133,9 @@ function ConnectedGuestVideoRoom({
       return new Room({
         adaptiveStream: true,
         dynacast: true,
+        // Vedi il commento omologo in video-room.tsx: senza, il volume "di
+        // chi chiama" non potrebbe mai superare quello nativo del sistema.
+        webAudioMix: true,
         publishDefaults,
         audioCaptureDefaults: {
           ...KAIPAI_AUDIO_CAPTURE_DEFAULTS,
@@ -201,6 +206,9 @@ function ConnectedGuestVideoRoom({
         <SetParticipantName name={name} />
         <ApplyInitialAudioOutput
           deviceId={choices.audioOutputDeviceId}
+        />
+        <ApplyRemoteVolume
+          volume={choices.remoteVolume ?? DEFAULT_REMOTE_VOLUME}
         />
         <BackgroundSelectionApplier />
         <WaitingRoomGate

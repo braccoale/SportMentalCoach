@@ -7,6 +7,10 @@ import {
   connectionQualityPresentation,
   mediaDeviceErrorMessage,
   summarizeNetworkDiagnostic,
+  clampRemoteVolume,
+  DEFAULT_REMOTE_VOLUME,
+  MIN_REMOTE_VOLUME,
+  MAX_REMOTE_VOLUME,
 } from './call-settings';
 
 test('conference audio explicitly enables browser audio processing', () => {
@@ -16,6 +20,15 @@ test('conference audio explicitly enables browser audio processing', () => {
     noiseSuppression: true,
     voiceIsolation: true,
   });
+});
+
+test('il volume in arrivo resta nel range, oltre non distorce, sotto non silenzia', () => {
+  assert.equal(clampRemoteVolume(1), 1);
+  assert.equal(clampRemoteVolume(0), MIN_REMOTE_VOLUME);
+  assert.equal(clampRemoteVolume(-3), MIN_REMOTE_VOLUME);
+  assert.equal(clampRemoteVolume(9), MAX_REMOTE_VOLUME);
+  assert.equal(clampRemoteVolume(Number.NaN), DEFAULT_REMOTE_VOLUME);
+  assert.equal(clampRemoteVolume(Number.POSITIVE_INFINITY), DEFAULT_REMOTE_VOLUME);
 });
 
 test('poor connection quality produces an actionable Italian warning', () => {
