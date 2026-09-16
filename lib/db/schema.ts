@@ -2069,6 +2069,7 @@ export const AI_AUDIT_EVENT_TYPES = [
   'compass_report_generated',
   'compass_report_regenerated',
   'compass_report_approved',
+  'compass_report_shared',
   'compass_report_failed',
   'compass_note_updated',
   'compass_commitment_updated',

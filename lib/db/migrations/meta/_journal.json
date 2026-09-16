@@ -533,6 +533,13 @@
       "when": 1789465072450,
       "tag": "0075_tour-guidato-del-prodotto",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1789545365383,
+      "tag": "0076_condivisione-report-audit-event",
+      "breakpoints": true
     }
   ]
 }
