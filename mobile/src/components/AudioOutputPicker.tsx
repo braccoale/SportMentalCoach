@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppState, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { AudioSession } from '@livekit/react-native';
 import { Icon, type IconName } from './Icon';
 import { useTheme, type Palette } from '../theme';
+import { ensureBluetoothAudioPermission } from '../lib/call-audio';
 
 /**
  * Da dove esce l'audio: altoparlante, orecchio, cuffie, Bluetooth.
@@ -43,26 +44,55 @@ export function AudioOutputPicker({
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [outputs, setOutputs] = useState<string[] | null>(null);
-  const [current, setCurrent] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [bluetoothDenied, setBluetoothDenied] = useState(false);
+
+  async function refreshOutputs(requestPermission = false) {
+    setFailed(false);
+    try {
+      if (requestPermission) {
+        const granted = await ensureBluetoothAudioPermission();
+        setBluetoothDenied(!granted);
+      }
+      setOutputs(await AudioSession.getAudioOutputs());
+    } catch {
+      setFailed(true);
+    }
+  }
 
   useEffect(() => {
     if (!visible) return;
-    setFailed(false);
-    void AudioSession.getAudioOutputs()
-      .then(setOutputs)
-      .catch(() => setFailed(true));
+    void refreshOutputs();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void refreshOutputs();
+    });
+    const timer = setInterval(() => void refreshOutputs(), 3_000);
+    return () => {
+      subscription.remove();
+      clearInterval(timer);
+    };
   }, [visible]);
 
   async function choose(deviceId: string) {
     try {
       await AudioSession.selectAudioOutput(deviceId);
-      setCurrent(deviceId);
       onClose();
     } catch {
       // Un'uscita può sparire fra l'elenco e la scelta — cuffie sfilate un
       // istante prima. Si resta aperti e si dice che non è andata, invece di
       // chiudere lasciando credere che l'audio sia cambiato.
+      setFailed(true);
+    }
+  }
+
+  async function showSystemRoutes() {
+    try {
+      // Un override esplicito dell'altoparlante impedisce a iOS di migrare
+      // verso AirPods/Bluetooth anche se la persona li sceglie nel pannello.
+      await AudioSession.selectAudioOutput('default');
+      onClose();
+      setTimeout(() => void AudioSession.showAudioRoutePicker(), 300);
+    } catch {
       setFailed(true);
     }
   }
@@ -92,26 +122,35 @@ export function AudioOutputPicker({
                   key={deviceId}
                   onPress={() => void choose(deviceId)}
                   accessibilityRole="button"
-                  accessibilityState={{ selected: current === deviceId }}
                   accessibilityLabel={info.label}
                   style={({ pressed }) => [styles.item, pressed && styles.pressed]}
                 >
                   <Icon name={info.icon} size={22} color={theme.hi} />
                   <Text style={styles.itemText}>{info.label}</Text>
-                  {current === deviceId && <Text style={styles.check}>✓</Text>}
                 </Pressable>
               );
             })
           )}
 
-          {/*
-            * Su iPhone il sistema non lascia elencare cuffie e Bluetooth: li
-            * mostra solo nel suo pannello. Aprirlo è tutto ciò che si può
-            * fare, e vale più di un elenco monco.
-            */}
+          {Platform.OS === 'android' && outputs && !outputs.includes('bluetooth') && (
+            <Pressable
+              onPress={() => void refreshOutputs(true)}
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.item, pressed && styles.pressed]}
+            >
+              <Icon name="bluetooth" size={22} color={theme.hi} />
+              <Text style={styles.itemText}>
+                {bluetoothDenied
+                  ? 'Consenti dispositivi nelle vicinanze'
+                  : 'Aggiorna dispositivi Bluetooth'}
+              </Text>
+            </Pressable>
+          )}
+
+          {/* Su iPhone AirPods e Bluetooth sono nel selettore audio di sistema. */}
           {Platform.OS === 'ios' && (
             <Pressable
-              onPress={() => void AudioSession.showAudioRoutePicker()}
+              onPress={() => void showSystemRoutes()}
               accessibilityRole="button"
               style={({ pressed }) => [styles.item, pressed && styles.pressed]}
             >
@@ -161,6 +200,5 @@ const createStyles = (theme: Palette) =>
       minHeight: 52,
     },
     itemText: { color: theme.hi, fontSize: 16, flex: 1 },
-    check: { color: theme.green, fontSize: 16, fontWeight: '800' },
     pressed: { opacity: 0.7 },
   });

@@ -1,3 +1,5 @@
+import { PermissionsAndroid, Platform } from 'react-native';
+
 /**
  * Con quanta banda l'app pubblica la voce.
  *
@@ -25,3 +27,11 @@ export const KAIPAI_ROOM_OPTIONS = {
     audioPreset: KAIPAI_AUDIO_PUBLISH_PRESET,
   },
 };
+
+/** Android 12+ richiede Nearby devices anche per un auricolare già associato. */
+export async function ensureBluetoothAudioPermission(): Promise<boolean> {
+  if (Platform.OS !== 'android' || Number(Platform.Version) < 31) return true;
+  const permission = PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT;
+  if (await PermissionsAndroid.check(permission)) return true;
+  return (await PermissionsAndroid.request(permission)) === PermissionsAndroid.RESULTS.GRANTED;
+}

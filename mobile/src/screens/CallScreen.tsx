@@ -41,7 +41,7 @@ import {
   type UpcomingSession,
 } from '../lib/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { KAIPAI_ROOM_OPTIONS } from '../lib/call-audio';
+import { ensureBluetoothAudioPermission, KAIPAI_ROOM_OPTIONS } from '../lib/call-audio';
 import { AiNotesConsentPanel } from '../components/AiNotesConsentPanel';
 import { CallBookmarkButton } from '../components/CallBookmarkButton';
 import { RecordingGapNotice } from '../components/RecordingGapNotice';
@@ -86,14 +86,39 @@ export function CallScreen({
   const [enterWithMic, setEnterWithMic] = useState(true);
   const [enterWithCam, setEnterWithCam] = useState(true);
   const [left, setLeft] = useState(false);
+  const [audioReady, setAudioReady] = useState(false);
+  const [bluetoothDenied, setBluetoothDenied] = useState(false);
   // Prima che le credenziali arrivino non si conosce ancora il nome vero.
   const otherLabel = credentials?.otherName ?? session.otherName;
 
   useEffect(() => {
     let cancelled = false;
-    // La sessione audio va avviata prima di entrare e chiusa all'uscita:
-    // senza, su Android l'audio esce dall'altoparlante sbagliato.
-    void AudioSession.startAudioSession();
+    let audioStarted = false;
+    // Su Android 12+ LiveKit non può instradare l'auricolare associato senza
+    // Nearby devices. Attendiamo sia il permesso sia la sessione audio prima
+    // di far entrare l'utente nella stanza.
+    void (async () => {
+      try {
+        const granted = await ensureBluetoothAudioPermission();
+        if (!cancelled) setBluetoothDenied(!granted);
+      } catch (permissionError) {
+        console.warn('[Call] Impossibile verificare il permesso Bluetooth', permissionError);
+        if (!cancelled) setBluetoothDenied(true);
+      }
+      try {
+        if (cancelled) return;
+        await AudioSession.startAudioSession();
+        audioStarted = true;
+        if (cancelled) {
+          await AudioSession.stopAudioSession();
+        } else {
+          setAudioReady(true);
+        }
+      } catch (audioError) {
+        console.warn('[Call] Impossibile preparare la sessione audio', audioError);
+        if (!cancelled) setAudioReady(true);
+      }
+    })();
     (async () => {
       try {
         const data = await fetchRoomCredentials(session.bookingId);
@@ -114,7 +139,7 @@ export function CallScreen({
     })();
     return () => {
       cancelled = true;
-      void AudioSession.stopAudioSession();
+      if (audioStarted) void AudioSession.stopAudioSession();
     };
   }, [session.bookingId]);
 
@@ -194,6 +219,11 @@ export function CallScreen({
           <Text style={styles.prejoinBody}>
             Scegli come entrare. Potrai cambiare in qualsiasi momento.
           </Text>
+          {bluetoothDenied && Platform.OS === 'android' && (
+            <Text style={styles.prejoinBody}>
+              Per usare gli auricolari Bluetooth, consenti l’accesso ai dispositivi nelle vicinanze.
+            </Text>
+          )}
 
           <Pressable
             onPress={() => setEnterWithMic((value) => !value)}
@@ -226,9 +256,13 @@ export function CallScreen({
               setChoices({ audio: enterWithMic, video: enterWithCam })
             }
             accessibilityRole="button"
+            accessibilityState={{ disabled: !audioReady }}
+            disabled={!audioReady}
             style={({ pressed }) => [styles.enter, pressed && styles.pressed]}
           >
-            <Text style={styles.enterText}>Entra nella stanza</Text>
+            <Text style={styles.enterText}>
+              {audioReady ? 'Entra nella stanza' : 'Preparo l’audio…'}
+            </Text>
           </Pressable>
 
           <Pressable onPress={onLeave} hitSlop={10}>
