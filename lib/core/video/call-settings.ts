@@ -64,45 +64,43 @@ export function clampRemoteVolume(value: number): number {
 let remoteVolumeBeepContext: AudioContext | null = null;
 
 /**
- * Un "ding" mentre si trascina lo slider "Volume di chi chiama", non il
- * suono di prova dell'altoparlante (quello resta fisso apposta — verifica
- * l'hardware, non il guadagno).
+ * Un "ding" fisso mentre si trascina lo slider "Volume di chi chiama", non
+ * il suono di prova dell'altoparlante (quello resta fisso apposta —
+ * verifica l'hardware, non il guadagno).
  *
- * L'intonazione, non solo l'intensità, sale e scende col volume — un beep
- * che cresce solo in ampiezza a valori bassi è quasi impercettibile,
- * mentre l'orecchio nota subito un tono che *sale* o *scende*. Due
- * armoniche (fondamentale + quinta) invece di un seno puro, perché è la
- * differenza fra un "beep" piatto e un "ding" riconoscibile.
+ * Il browser non ha modo di riprodurre il suono di sistema vero di
+ * Windows — non esiste un'API per farlo, ed è comunque un file di cui
+ * non abbiamo licenza. Quello che si può fare è lo stesso *tipo* di
+ * suono: due note ascendenti che si sovrappongono un poco, non un seno
+ * puro — è la struttura che rende riconoscibile un "ding" di sistema
+ * invece di un beep piatto. Sempre le stesse due note, non legate al
+ * valore scelto: doveva essere più chiaro *che* si è mossi, non *quanto*.
  */
-export function playRemoteVolumeFeedbackBeep(volume: number): void {
+export function playRemoteVolumeFeedbackBeep(): void {
   if (typeof window === 'undefined' || typeof AudioContext === 'undefined') {
     return;
   }
   try {
     const ctx = (remoteVolumeBeepContext ??= new AudioContext());
     if (ctx.state === 'suspended') void ctx.resume();
-    const clamped = clampRemoteVolume(volume);
-    const span = (clamped - MIN_REMOTE_VOLUME) / (MAX_REMOTE_VOLUME - MIN_REMOTE_VOLUME);
-    const fundamental = 392 + span * 880; // ~Sol4 a basso volume, fino a ~Sol5-Re6 al massimo.
     const now = ctx.currentTime;
-    const master = ctx.createGain();
-    master.gain.setValueAtTime(0, now);
-    master.gain.linearRampToValueAtTime(0.32, now + 0.012);
-    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
-    master.connect(ctx.destination);
-    for (const [ratio, level] of [
-      [1, 1],
-      [1.5, 0.35],
-    ] as const) {
+    const notes: Array<{ frequency: number; startAt: number; duration: number }> = [
+      { frequency: 1046.5, startAt: 0, duration: 0.16 }, // Do6
+      { frequency: 1318.5, startAt: 0.06, duration: 0.22 }, // Mi6
+    ];
+    for (const note of notes) {
+      const start = now + note.startAt;
       const oscillator = ctx.createOscillator();
-      const partialGain = ctx.createGain();
+      const gain = ctx.createGain();
       oscillator.type = 'sine';
-      oscillator.frequency.value = fundamental * ratio;
-      partialGain.gain.value = level;
-      oscillator.connect(partialGain);
-      partialGain.connect(master);
-      oscillator.start(now);
-      oscillator.stop(now + 0.34);
+      oscillator.frequency.value = note.frequency;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.3, start + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + note.duration);
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.start(start);
+      oscillator.stop(start + note.duration + 0.02);
     }
   } catch {
     // Riscontro sonoro accessorio: se il browser lo rifiuta, lo slider

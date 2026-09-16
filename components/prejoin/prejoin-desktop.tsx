@@ -223,7 +223,7 @@ export function PreJoinDesktop({
     const now = Date.now();
     if (now - lastBeepAtRef.current >= REMOTE_VOLUME_BEEP_THROTTLE_MS) {
       lastBeepAtRef.current = now;
-      playRemoteVolumeFeedbackBeep(value);
+      playRemoteVolumeFeedbackBeep();
     }
   }
 
@@ -268,6 +268,42 @@ export function PreJoinDesktop({
                   enabled={Boolean(
                     userChoices.videoEnabled && videoTrack
                   )}
+                />
+              </div>
+              {/* Rete e riduzione rumore dicono per lo più "va tutto
+                  bene": due icone qui, non un riquadro a parte — il
+                  dettaglio resta a un passaggio del mouse (o un tocco),
+                  non sparisce. */}
+              <div className="mt-3 flex items-center gap-2 border-t border-white/10 pt-3">
+                <StatusIcon
+                  icon={
+                    networkState === 'checking' ? (
+                      <Wifi className="h-4 w-4 animate-pulse" />
+                    ) : networkResult?.grade === 'good' ? (
+                      <Wifi className="h-4 w-4" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4" />
+                    )
+                  }
+                  label={
+                    networkState === 'checking'
+                      ? 'Diagnostica rete in corso…'
+                      : (networkResult?.label ?? 'Diagnostica rete')
+                  }
+                  detail={
+                    networkState === 'checking'
+                      ? 'Verifica WebSocket, WebRTC e percorso TURN. Tocca per ripetere.'
+                      : `${networkResult?.detail ?? ''} Tocca per ripetere.`
+                  }
+                  tone={networkTone(networkState, networkResult)}
+                  busy={networkState === 'checking'}
+                  onClick={() => void runNetworkDiagnostic()}
+                />
+                <StatusIcon
+                  icon={<ShieldCheck className="h-4 w-4" />}
+                  label="Audio protetto"
+                  detail="Riduzione rumore, cancellazione eco e volume automatico attivi."
+                  tone="good"
                 />
               </div>
             </div>
@@ -364,42 +400,6 @@ export function PreJoinDesktop({
                     devices={videoInputs}
                     initialSelection={userChoices.videoDeviceId}
                     onChange={saveVideoInputDeviceId}
-                  />
-                </div>
-                {/* Rete e riduzione rumore dicono per lo più "va tutto
-                    bene": due icone qui, non un riquadro a parte più in
-                    basso — il dettaglio resta a un passaggio del mouse
-                    (o un tocco), non sparisce. */}
-                <div className="mt-3 flex items-center gap-2 border-t border-white/10 pt-3">
-                  <StatusIcon
-                    icon={
-                      networkState === 'checking' ? (
-                        <Wifi className="h-4 w-4 animate-pulse" />
-                      ) : networkResult?.grade === 'good' ? (
-                        <Wifi className="h-4 w-4" />
-                      ) : (
-                        <AlertTriangle className="h-4 w-4" />
-                      )
-                    }
-                    label={
-                      networkState === 'checking'
-                        ? 'Diagnostica rete in corso…'
-                        : (networkResult?.label ?? 'Diagnostica rete')
-                    }
-                    detail={
-                      networkState === 'checking'
-                        ? 'Verifica WebSocket, WebRTC e percorso TURN. Tocca per ripetere.'
-                        : `${networkResult?.detail ?? ''} Tocca per ripetere.`
-                    }
-                    tone={networkTone(networkState, networkResult)}
-                    busy={networkState === 'checking'}
-                    onClick={() => void runNetworkDiagnostic()}
-                  />
-                  <StatusIcon
-                    icon={<ShieldCheck className="h-4 w-4" />}
-                    label="Audio protetto"
-                    detail="Riduzione rumore, cancellazione eco e volume automatico attivi."
-                    tone="good"
                   />
                 </div>
               </div>

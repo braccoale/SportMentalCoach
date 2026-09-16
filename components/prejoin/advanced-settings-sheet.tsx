@@ -41,7 +41,7 @@ export function AdvancedSettingsSheet({
     const now = Date.now();
     if (now - lastBeepAtRef.current >= REMOTE_VOLUME_BEEP_THROTTLE_MS) {
       lastBeepAtRef.current = now;
-      playRemoteVolumeFeedbackBeep(value);
+      playRemoteVolumeFeedbackBeep();
     }
   }
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
