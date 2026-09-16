@@ -201,6 +201,16 @@ export type SessionCompassDependencies = {
    * delle linee guida, che si legge dal database.
    */
   loadPromptVersion: () => Promise<string>;
+  /**
+   * Decide se un report scritto con `stored` è ancora approvabile rispetto
+   * alla ricetta `required` di oggi — non solo se le due stringhe combaciano.
+   *
+   * Opzionale: senza, `approveSessionCompass` torna al confronto per identità
+   * esatta di prima. Iniettata da chi conosce il formato della versione (il
+   * provider), perché questo modulo resta neutro rispetto al provider e non
+   * deve saperne interpretare la sintassi.
+   */
+  isPromptVersionAtLeastCurrent?: (stored: string, required: string) => boolean;
   /** Le linee guida del metodo, o null se non ne sono state scritte. */
   loadHouseGuidelines?: () => Promise<string | null>;
   sourceFingerprint: (segments: readonly CompassSourceSegment[]) => string;
@@ -532,10 +542,16 @@ export async function approveSessionCompass(
 
   const alreadyApproved = stored.status === 'approved';
   const fingerprint = await currentFingerprint(session.sessionId, dependencies);
+  const requiredVersion = await requiredPromptVersion(dependencies);
+  const promptVersionOk =
+    stored.promptVersion != null &&
+    (dependencies.isPromptVersionAtLeastCurrent
+      ? dependencies.isPromptVersionAtLeastCurrent(stored.promptVersion, requiredVersion)
+      : stored.promptVersion === requiredVersion);
   const isCurrent =
     fingerprint !== null &&
     stored.sourceFingerprint === fingerprint &&
-    stored.promptVersion === (await requiredPromptVersion(dependencies));
+    promptVersionOk;
   if (!alreadyApproved && !isCurrent) {
     throw new SessionCompassError(
       'COMPASS_INVALID',

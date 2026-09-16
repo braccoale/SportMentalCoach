@@ -3,6 +3,7 @@ import { hasRole } from '@/lib/core/auth/role-checks';
 import { FEATURE_CODES, hasFeatureEntitlement } from '@/lib/core/features';
 import {
   effectiveSessionCompassPromptVersion,
+  isSessionCompassPromptVersionAtLeastCurrent,
   openAiSessionCompassProviderFromEnvironment,
 } from './openai-session-compass-provider';
 import { createSessionCompassStore } from './session-compass-store';
@@ -43,6 +44,7 @@ export function sessionCompassDependencies(): SessionCompassDependencies {
         ),
         (await loadActiveHouseGuidelines())?.version ?? null
       ),
+    isPromptVersionAtLeastCurrent: isSessionCompassPromptVersionAtLeastCurrent,
     loadHouseGuidelines: async () =>
       (await loadActiveHouseGuidelines())?.body ?? null,
     sourceFingerprint: compassSourceFingerprint,

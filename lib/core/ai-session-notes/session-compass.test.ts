@@ -656,6 +656,41 @@ test('non approva una bozza generata con una versione prompt non più corrente',
   assert.equal(store.reports[0]?.status, 'ready_for_review');
 });
 
+test('approva un report recuperato con uno sforzo più alto, senza esigere identità esatta', async () => {
+  // Caso reale: un report generato manualmente con
+  // AI_NOTES_COMPASS_REASONING_EFFORT=medium (recupero di una sessione che
+  // falliva a `low`) veniva respinto in produzione perché la produzione
+  // richiede sempre `low` — un report migliore trattato come superato.
+  const { store, dependencies } = harness();
+  await ensureSessionCompassDraft({ sessionId: SESSION_ID, actorUserId: COACH_ID }, dependencies);
+  store.reports[0].promptVersion = 'compass-v1:sport-context-v7-medium-16000';
+
+  const escalatedDependencies: SessionCompassDependencies = {
+    ...dependencies,
+    loadPromptVersion: async () => 'compass-v1:sport-context-v7-low-16000',
+    isPromptVersionAtLeastCurrent: (stored, required) => {
+      // Stessa logica del comparatore reale, isolata qui per non far
+      // dipendere questo test dal modulo del provider OpenAI.
+      const pattern = /^(.*sport-context-v7-)(minimal|low|medium|high)(-\d+.*)$/;
+      const order: Record<string, number> = { minimal: 0, low: 1, medium: 2, high: 3 };
+      if (stored === required) return true;
+      const s = stored.match(pattern);
+      const r = required.match(pattern);
+      if (!s || !r) return false;
+      if (s[1] !== r[1] || s[3] !== r[3]) return false;
+      return order[s[2]] >= order[r[2]];
+    },
+  };
+
+  const view = await approveSessionCompass(
+    { sessionId: SESSION_ID, actorUserId: COACH_ID },
+    escalatedDependencies
+  );
+
+  assert.equal(view.isApproved, true);
+  assert.equal(store.reports[0].status, 'approved');
+});
+
 test('un errore del provider non attiva retry automatici', async () => {
   const { dependencies } = harness();
   const failingProvider = new FakeSessionCompassReportProvider({ rejection: new Error('provider down') });

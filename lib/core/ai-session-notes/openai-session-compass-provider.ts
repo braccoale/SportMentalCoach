@@ -101,6 +101,51 @@ const COMPASS_MAX_OUTPUT_TOKENS = 16_000;
 export const SESSION_COMPASS_PROMPT_REVISION =
   `sport-context-v7-${COMPASS_REASONING_EFFORT}-${COMPASS_MAX_OUTPUT_TOKENS}` as const;
 
+const EFFORT_ORDER: Record<CompassReasoningEffort, number> = {
+  minimal: 0,
+  low: 1,
+  medium: 2,
+  high: 3,
+};
+
+const PROMPT_REVISION_PATTERN =
+  /^(.*sport-context-v7-)(minimal|low|medium|high)(-\d+.*)$/;
+
+/**
+ * Un report scritto con uno sforzo di ragionamento più alto di quello
+ * richiesto oggi non è una versione superata — è un recupero manuale
+ * deliberato (`AI_NOTES_COMPASS_REASONING_EFFORT`, vedi sopra), fatto
+ * apposta perché lo sforzo di default non bastava su quella seduta. Bocciare
+ * l'approvazione di un report così, in attesa di una rigenerazione che
+ * userebbe lo stesso sforzo insufficiente che ha già fallito, è un vicolo
+ * cieco: la bozza non diventerebbe mai approvabile.
+ *
+ * Il resto della ricetta — versione del prompt, budget di token, versione
+ * delle linee guida — non è invece ordinato per qualità: una differenza lì
+ * è un cambio di metodo vero, e deve restare un motivo di rigenerazione.
+ * Per questo il confronto isola solo il segmento dello sforzo e lascia tutto
+ * il resto a un confronto esatto; un formato che non corrisponde (es. una
+ * revisione precedente a questo schema) non è mai considerato equivalente.
+ */
+export function isSessionCompassPromptVersionAtLeastCurrent(
+  stored: string,
+  required: string
+): boolean {
+  if (stored === required) return true;
+  const storedMatch = stored.match(PROMPT_REVISION_PATTERN);
+  const requiredMatch = required.match(PROMPT_REVISION_PATTERN);
+  if (!storedMatch || !requiredMatch) return false;
+  const [, storedPrefix, storedEffort, storedSuffix] = storedMatch;
+  const [, requiredPrefix, requiredEffort, requiredSuffix] = requiredMatch;
+  if (storedPrefix !== requiredPrefix || storedSuffix !== requiredSuffix) {
+    return false;
+  }
+  return (
+    EFFORT_ORDER[storedEffort as CompassReasoningEffort] >=
+    EFFORT_ORDER[requiredEffort as CompassReasoningEffort]
+  );
+}
+
 export function effectiveSessionCompassPromptVersion(value: string): string {
   const base = value.trim();
   if (!base) return '';
