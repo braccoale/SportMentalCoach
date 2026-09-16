@@ -61,6 +61,41 @@ export function clampRemoteVolume(value: number): number {
   return Math.min(MAX_REMOTE_VOLUME, Math.max(MIN_REMOTE_VOLUME, value));
 }
 
+let remoteVolumeBeepContext: AudioContext | null = null;
+
+/**
+ * Un tono breve mentre si trascina lo slider "Volume di chi chiama", non il
+ * suono di prova dell'altoparlante (quello resta fisso apposta — verifica
+ * l'hardware, non il guadagno). Cresce con lo slider perché lo scopo è
+ * *far sentire* la differenza mentre la si sceglie, come i controlli di
+ * volume di sistema — non riprodurre fedelmente il livello assoluto
+ * scelto, che resterebbe comunque scomodo da ascoltare al 200%.
+ */
+export function playRemoteVolumeFeedbackBeep(volume: number): void {
+  if (typeof window === 'undefined' || typeof AudioContext === 'undefined') {
+    return;
+  }
+  try {
+    const ctx = (remoteVolumeBeepContext ??= new AudioContext());
+    if (ctx.state === 'suspended') void ctx.resume();
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.type = 'sine';
+    oscillator.frequency.value = 660;
+    const peak = Math.min(0.18, 0.07 * clampRemoteVolume(volume));
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(peak, ctx.currentTime + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.14);
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    oscillator.start();
+    oscillator.stop(ctx.currentTime + 0.15);
+  } catch {
+    // Riscontro sonoro accessorio: se il browser lo rifiuta, lo slider
+    // continua comunque a funzionare.
+  }
+}
+
 export type VideoPublishSettings = {
   /** Cosa si chiede alla telecamera di catturare. */
   resolution: VideoPreset;

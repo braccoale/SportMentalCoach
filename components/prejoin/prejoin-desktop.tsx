@@ -5,6 +5,7 @@ import {
   BarVisualizer,
   MediaDeviceMenu,
 } from '@livekit/components-react';
+import { Popover } from 'radix-ui';
 import type { LocalAudioTrack, LocalVideoTrack } from 'livekit-client';
 import {
   AlertTriangle,
@@ -14,6 +15,7 @@ import {
   ChevronDown,
   Mic,
   MicOff,
+  ShieldCheck,
   Volume2,
   Wifi,
 } from 'lucide-react';
@@ -22,8 +24,81 @@ import { InAppBrowserNotice } from '@/components/in-app-browser-notice';
 import {
   MAX_REMOTE_VOLUME,
   MIN_REMOTE_VOLUME,
+  playRemoteVolumeFeedbackBeep,
 } from '@/lib/core/video/call-settings';
 import type { PreJoinState } from './use-prejoin-state';
+import type { NetworkDiagnosticResult } from './use-prejoin-state';
+
+/** Non un beep per pixel trascinato: solo uno ogni tot, o si trasforma in un ronzio. */
+const REMOTE_VOLUME_BEEP_THROTTLE_MS = 120;
+
+/**
+ * Un'icona con lo stato al posto di un riquadro a piena larghezza. La
+ * diagnostica rete e l'avviso su riduzione rumore/eco occupavano una fascia
+ * intera ciascuno per dire, per lo più, "va tutto bene" — informazione che
+ * conta solo quando qualcosa non va, non un ingombro permanente. Il
+ * dettaglio resta raggiungibile al passaggio del mouse o con la tastiera
+ * (`title`), non sparisce.
+ */
+function StatusIcon({
+  icon,
+  label,
+  detail,
+  tone,
+  onClick,
+  busy,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  detail: string;
+  tone: 'neutral' | 'good' | 'warning' | 'danger';
+  onClick?: () => void;
+  busy?: boolean;
+}) {
+  const toneClasses = {
+    neutral: 'border-white/15 bg-white/10 text-white/70',
+    good: 'border-emerald-400/25 bg-emerald-500/10 text-emerald-300',
+    warning: 'border-amber-400/25 bg-amber-500/10 text-amber-300',
+    danger: 'border-red-400/25 bg-red-500/10 text-red-300',
+  }[tone];
+  const title = `${label} — ${detail}`;
+
+  if (!onClick) {
+    return (
+      <span
+        role="img"
+        aria-label={title}
+        title={title}
+        className={`flex h-10 w-10 items-center justify-center rounded-full border ${toneClasses}`}
+      >
+        {icon}
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={busy}
+      title={title}
+      aria-label={title}
+      className={`flex h-10 w-10 items-center justify-center rounded-full border disabled:opacity-60 ${toneClasses}`}
+    >
+      {icon}
+    </button>
+  );
+}
+
+function networkTone(
+  networkState: 'idle' | 'checking' | 'complete',
+  result: NetworkDiagnosticResult | null
+): 'neutral' | 'good' | 'warning' | 'danger' {
+  if (networkState !== 'complete' || !result) return 'neutral';
+  if (result.grade === 'good') return 'good';
+  if (result.grade === 'warning') return 'warning';
+  return 'danger';
+}
 
 function CameraPreview({ track }: { track?: LocalVideoTrack }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -57,19 +132,39 @@ function CameraPreview({ track }: { track?: LocalVideoTrack }) {
   );
 }
 
+/**
+ * Il nome del dispositivo davvero attivo, non un'etichetta fissa: "Scegli
+ * microfono" ha senso solo finché non se n'è scelto uno, e a quel punto
+ * dovrebbe dire *quale*, non se stessa.
+ */
+function selectedDeviceLabel(
+  devices: MediaDeviceInfo[],
+  deviceId: string,
+  placeholder: string
+): string {
+  const match = devices.find((device) => device.deviceId === deviceId);
+  return match?.label || devices[0]?.label || placeholder;
+}
+
 function DeviceMenuButton({
   kind,
-  label,
+  placeholder,
+  ariaLabel,
   track,
+  devices,
   initialSelection,
   onChange,
 }: {
   kind: 'audioinput' | 'videoinput';
-  label: string;
+  /** Mostrato solo finché il nome del dispositivo attivo non è ancora noto. */
+  placeholder: string;
+  ariaLabel: string;
   track?: LocalAudioTrack | LocalVideoTrack;
+  devices: MediaDeviceInfo[];
   initialSelection: string;
   onChange: (deviceId: string) => void;
 }) {
+  const label = selectedDeviceLabel(devices, initialSelection, placeholder);
   return (
     <MediaDeviceMenu
       kind={kind}
@@ -79,9 +174,11 @@ function DeviceMenuButton({
       disabled={!track}
       onActiveDeviceChange={(_, deviceId) => onChange(deviceId)}
       className="!flex !h-10 !items-center !gap-2 !rounded-xl !border !border-white/15 !bg-white/10 !px-3 !text-sm !text-white hover:!bg-white/15 disabled:!opacity-40"
-      aria-label={label}
+      aria-label={ariaLabel}
     >
-      <span className="max-w-36 truncate">{label}</span>
+      <span className="max-w-36 truncate" title={label}>
+        {label}
+      </span>
       <ChevronDown className="h-4 w-4" aria-hidden="true" />
     </MediaDeviceMenu>
   );
@@ -104,6 +201,8 @@ export function PreJoinDesktop({
     saveVideoInputDeviceId,
     audioTrack,
     videoTrack,
+    audioInputs,
+    videoInputs,
     previewError,
     outputSelectionSupported,
     audioOutputDeviceId,
@@ -118,6 +217,16 @@ export function PreJoinDesktop({
     runNetworkDiagnostic,
     join,
   } = state;
+  const lastBeepAtRef = useRef(0);
+
+  function handleRemoteVolumeChange(value: number) {
+    setRemoteVolume(value);
+    const now = Date.now();
+    if (now - lastBeepAtRef.current >= REMOTE_VOLUME_BEEP_THROTTLE_MS) {
+      lastBeepAtRef.current = now;
+      playRemoteVolumeFeedbackBeep(value);
+    }
+  }
 
   return (
     <div
@@ -163,30 +272,6 @@ export function PreJoinDesktop({
                 />
               </div>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium">Prova microfono</p>
-                  <p className="text-xs text-white/55">
-                    Parla: le barre devono muoversi.
-                  </p>
-                </div>
-                <div className="h-9 w-32">
-                  {audioTrack && userChoices.audioEnabled ? (
-                    <BarVisualizer
-                      track={audioTrack}
-                      barCount={7}
-                      options={{ minHeight: 8 }}
-                      className="h-full"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-end text-xs text-white/40">
-                      Microfono spento
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
           </div>
 
           <div className="flex flex-col rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
@@ -218,8 +303,10 @@ export function PreJoinDesktop({
                 <div className="mt-3">
                   <DeviceMenuButton
                     kind="audioinput"
-                    label="Scegli microfono"
+                    placeholder="Scegli microfono"
+                    ariaLabel="Scegli microfono"
                     track={audioTrack}
+                    devices={audioInputs}
                     initialSelection={userChoices.audioDeviceId}
                     onChange={saveAudioInputDeviceId}
                   />
@@ -253,8 +340,10 @@ export function PreJoinDesktop({
                 <div className="mt-3">
                   <DeviceMenuButton
                     kind="videoinput"
-                    label="Scegli camera"
+                    placeholder="Scegli camera"
+                    ariaLabel="Scegli camera"
                     track={videoTrack}
+                    devices={videoInputs}
                     initialSelection={userChoices.videoDeviceId}
                     onChange={saveVideoInputDeviceId}
                   />
@@ -305,86 +394,132 @@ export function PreJoinDesktop({
                     Il browser ha bloccato il suono. Controlla il volume.
                   </p>
                 )}
-                {/* Non regola il suono di prova qui sopra — quello verifica
-                    l'altoparlante, non il volume di chi chiama, che qui non
-                    è ancora connesso. Si applica dal momento in cui si entra
-                    in chiamata, ed è modificabile anche durante, dal pannello
-                    impostazioni. */}
-                <div className="mt-3 border-t border-white/10 pt-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-xs font-medium text-white/75">
-                      Volume di chi chiama
-                    </span>
-                    <span className="text-xs tabular-nums text-white/50">
-                      {Math.round(remoteVolume * 100)}%
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={MIN_REMOTE_VOLUME}
-                    max={MAX_REMOTE_VOLUME}
-                    step={0.05}
-                    value={remoteVolume}
-                    onChange={(event) =>
-                      setRemoteVolume(Number(event.target.value))
-                    }
-                    aria-label="Volume di chi chiama"
-                    className="mt-2 w-full accent-sky-400"
-                  />
-                </div>
               </div>
             </div>
 
-            <div
-              role="status"
-              aria-live="polite"
-              className={`mt-4 rounded-xl border p-3 text-xs ${
-                networkState === 'checking'
-                  ? 'border-sky-400/20 bg-sky-500/10 text-sky-100'
-                  : networkResult?.grade === 'good'
-                    ? 'border-emerald-400/20 bg-emerald-500/10 text-emerald-100'
-                    : networkResult?.grade === 'warning'
-                      ? 'border-amber-400/20 bg-amber-500/10 text-amber-100'
-                      : 'border-red-400/20 bg-red-500/10 text-red-100'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex gap-2">
-                  {networkState === 'checking' ? (
-                    <Wifi className="mt-0.5 h-4 w-4 animate-pulse" />
-                  ) : networkResult?.grade === 'good' ? (
-                    <CheckCircle2 className="mt-0.5 h-4 w-4" />
-                  ) : (
-                    <AlertTriangle className="mt-0.5 h-4 w-4" />
-                  )}
-                  <div>
-                    <p className="font-semibold">
-                      {networkState === 'checking'
-                        ? 'Diagnostica rete in corso…'
-                        : networkResult?.label ?? 'Diagnostica rete'}
-                    </p>
-                    <p className="mt-1 opacity-75">
-                      {networkState === 'checking'
-                        ? 'Verifica WebSocket, WebRTC e percorso TURN.'
-                        : networkResult?.detail}
-                    </p>
-                  </div>
-                </div>
-                {networkState === 'complete' && (
+            {/* Quattro icone compatte al posto di altrettanti riquadri a
+                piena larghezza: microfono, rete e riduzione rumore dicono
+                per lo più "va tutto bene", ingombrante da ripetere ogni
+                volta a piena vista; il volume in arrivo è interattivo ma non
+                ha bisogno di stare sempre spiegato. Il dettaglio resta a un
+                passaggio del mouse (o un tocco), non sparisce. */}
+            <div className="mt-4 flex items-center justify-center gap-3">
+              <Popover.Root>
+                <Popover.Trigger asChild>
                   <button
                     type="button"
-                    onClick={() => void runNetworkDiagnostic()}
-                    className="shrink-0 rounded-full border border-current/20 px-2.5 py-1 font-semibold hover:bg-white/10"
+                    title="Prova microfono — parla: le barre devono muoversi"
+                    aria-label="Prova microfono"
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-emerald-400/25 bg-emerald-500/10 text-emerald-300"
                   >
-                    Ripeti
+                    <Mic className="h-4 w-4" />
                   </button>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-4 rounded-xl bg-emerald-500/10 p-3 text-xs text-emerald-100">
-              Riduzione rumore, cancellazione eco e volume automatico sono
-              attivi.
+                </Popover.Trigger>
+                <Popover.Portal>
+                  <Popover.Content
+                    side="top"
+                    sideOffset={10}
+                    collisionPadding={12}
+                    className="z-[60] w-56 rounded-xl border border-white/10 bg-neutral-900 p-3 text-white shadow-xl"
+                  >
+                    <p className="text-xs font-medium text-white/75">
+                      Prova microfono
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-white/50">
+                      Parla: le barre devono muoversi.
+                    </p>
+                    <div className="mt-2 h-9">
+                      {audioTrack && userChoices.audioEnabled ? (
+                        <BarVisualizer
+                          track={audioTrack}
+                          barCount={7}
+                          options={{ minHeight: 8 }}
+                          className="h-full"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center text-xs text-white/40">
+                          Microfono spento
+                        </div>
+                      )}
+                    </div>
+                  </Popover.Content>
+                </Popover.Portal>
+              </Popover.Root>
+              <StatusIcon
+                icon={
+                  networkState === 'checking' ? (
+                    <Wifi className="h-4 w-4 animate-pulse" />
+                  ) : networkResult?.grade === 'good' ? (
+                    <Wifi className="h-4 w-4" />
+                  ) : (
+                    <AlertTriangle className="h-4 w-4" />
+                  )
+                }
+                label={
+                  networkState === 'checking'
+                    ? 'Diagnostica rete in corso…'
+                    : (networkResult?.label ?? 'Diagnostica rete')
+                }
+                detail={
+                  networkState === 'checking'
+                    ? 'Verifica WebSocket, WebRTC e percorso TURN. Tocca per ripetere.'
+                    : `${networkResult?.detail ?? ''} Tocca per ripetere.`
+                }
+                tone={networkTone(networkState, networkResult)}
+                busy={networkState === 'checking'}
+                onClick={() => void runNetworkDiagnostic()}
+              />
+              <StatusIcon
+                icon={<ShieldCheck className="h-4 w-4" />}
+                label="Audio protetto"
+                detail="Riduzione rumore, cancellazione eco e volume automatico attivi."
+                tone="good"
+              />
+              <Popover.Root>
+                <Popover.Trigger asChild>
+                  <button
+                    type="button"
+                    title={`Volume di chi chiama — ${Math.round(remoteVolume * 100)}%`}
+                    aria-label={`Volume di chi chiama, ${Math.round(remoteVolume * 100)} per cento`}
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-sky-400/25 bg-sky-500/10 text-sky-300"
+                  >
+                    <Volume2 className="h-4 w-4" />
+                  </button>
+                </Popover.Trigger>
+                <Popover.Portal>
+                  <Popover.Content
+                    side="top"
+                    sideOffset={10}
+                    collisionPadding={12}
+                    className="z-[60] w-64 rounded-xl border border-white/10 bg-neutral-900 p-3 text-white shadow-xl"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-medium text-white/75">
+                        Volume di chi chiama
+                      </span>
+                      <span className="text-xs tabular-nums text-white/50">
+                        {Math.round(remoteVolume * 100)}%
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={MIN_REMOTE_VOLUME}
+                      max={MAX_REMOTE_VOLUME}
+                      step={0.05}
+                      value={remoteVolume}
+                      onChange={(event) =>
+                        handleRemoteVolumeChange(Number(event.target.value))
+                      }
+                      aria-label="Volume di chi chiama"
+                      className="mt-2 w-full accent-sky-400"
+                    />
+                    <p className="mt-2 text-[11px] leading-4 text-white/45">
+                      Non regola il suono di prova dell'altoparlante — si
+                      applica dal momento in cui si entra in chiamata.
+                    </p>
+                  </Popover.Content>
+                </Popover.Portal>
+              </Popover.Root>
             </div>
 
             {previewError && (

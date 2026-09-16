@@ -8,8 +8,11 @@ import { PreviewBackgroundControls } from '@/components/livekit-background-contr
 import {
   MAX_REMOTE_VOLUME,
   MIN_REMOTE_VOLUME,
+  playRemoteVolumeFeedbackBeep,
 } from '@/lib/core/video/call-settings';
 import type { PreJoinState } from './use-prejoin-state';
+
+const REMOTE_VOLUME_BEEP_THROTTLE_MS = 120;
 
 /**
  * Pannello che sale dal basso con tutto ciò che serve raramente: scelta
@@ -31,6 +34,16 @@ export function AdvancedSettingsSheet({
   const sections = visibleAdvancedSections(caps);
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const lastBeepAtRef = useRef(0);
+
+  function handleRemoteVolumeChange(value: number) {
+    state.setRemoteVolume(value);
+    const now = Date.now();
+    if (now - lastBeepAtRef.current >= REMOTE_VOLUME_BEEP_THROTTLE_MS) {
+      lastBeepAtRef.current = now;
+      playRemoteVolumeFeedbackBeep(value);
+    }
+  }
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
   // Swipe verso il basso per chiudere, come promesso dalla maniglia. La presa
@@ -277,7 +290,7 @@ export function AdvancedSettingsSheet({
               step={0.05}
               value={state.remoteVolume}
               onChange={(event) =>
-                state.setRemoteVolume(Number(event.target.value))
+                handleRemoteVolumeChange(Number(event.target.value))
               }
               aria-label="Volume di chi chiama"
               className="mt-3 w-full accent-sky-400"
