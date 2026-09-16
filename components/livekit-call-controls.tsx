@@ -454,7 +454,7 @@ export function CallDeviceSettings() {
     const now = Date.now();
     if (now - lastBeepAtRef.current >= REMOTE_VOLUME_BEEP_THROTTLE_MS) {
       lastBeepAtRef.current = now;
-      playRemoteVolumeFeedbackBeep();
+      playRemoteVolumeFeedbackBeep(clamped);
     }
   };
   const outputSelectionSupported = useMemo(

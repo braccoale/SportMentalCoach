@@ -1,10 +1,7 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import {
-  BarVisualizer,
-  MediaDeviceMenu,
-} from '@livekit/components-react';
+import { useEffect, useRef, useState } from 'react';
+import { MediaDeviceMenu } from '@livekit/components-react';
 import type { LocalAudioTrack, LocalVideoTrack } from 'livekit-client';
 import {
   AlertTriangle,
@@ -131,6 +128,85 @@ function CameraPreview({ track }: { track?: LocalVideoTrack }) {
   );
 }
 
+const MIC_BAR_COUNT = 7;
+
+/**
+ * Barre del livello microfono, lette direttamente da un `AnalyserNode`
+ * nostro invece che dal componente `BarVisualizer` di LiveKit.
+ *
+ * Non per sfiducia nella libreria in astratto: il suo hook interno decide
+ * se analizzare la traccia guardando `track.mediaStream` (non
+ * `mediaStreamTrack`), una proprietà che su una traccia di anteprima non
+ * ancora pubblicata non è garantito sia valorizzata allo stesso modo di
+ * una traccia già nella stanza — ed è esattamente lì che le barre
+ * restavano ferme, segnalato due volte. Qui si legge `mediaStreamTrack`
+ * direttamente, che `getUserMedia` garantisce sempre presente.
+ */
+function MicLevelBars({
+  track,
+  enabled,
+}: {
+  track?: LocalAudioTrack;
+  enabled: boolean;
+}) {
+  const [levels, setLevels] = useState<number[]>(() =>
+    new Array(MIC_BAR_COUNT).fill(0)
+  );
+
+  useEffect(() => {
+    const mediaStreamTrack = track?.mediaStreamTrack;
+    if (!enabled || !mediaStreamTrack || typeof AudioContext === 'undefined') {
+      setLevels(new Array(MIC_BAR_COUNT).fill(0));
+      return;
+    }
+
+    const audioContext = new AudioContext();
+    const source = audioContext.createMediaStreamSource(
+      new MediaStream([mediaStreamTrack])
+    );
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.65;
+    source.connect(analyser);
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    const bucketSize = Math.max(1, Math.floor(data.length / MIC_BAR_COUNT));
+    let frameId: number;
+
+    const tick = () => {
+      analyser.getByteFrequencyData(data);
+      const next: number[] = [];
+      for (let bar = 0; bar < MIC_BAR_COUNT; bar++) {
+        let sum = 0;
+        for (let sample = 0; sample < bucketSize; sample++) {
+          sum += data[bar * bucketSize + sample] ?? 0;
+        }
+        next.push(sum / bucketSize / 255);
+      }
+      setLevels(next);
+      frameId = requestAnimationFrame(tick);
+    };
+    frameId = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      source.disconnect();
+      void audioContext.close();
+    };
+  }, [track, enabled]);
+
+  return (
+    <div className="flex h-full items-end justify-end gap-0.5" aria-hidden="true">
+      {levels.map((level, index) => (
+        <span
+          key={index}
+          className="w-1.5 rounded-full bg-emerald-400 transition-[height] duration-75"
+          style={{ height: `${Math.min(100, Math.max(10, level * 100 + 10))}%` }}
+        />
+      ))}
+    </div>
+  );
+}
+
 /**
  * Il nome del dispositivo davvero attivo, non un'etichetta fissa: "Scegli
  * microfono" ha senso solo finché non se n'è scelto uno, e a quel punto
@@ -223,7 +299,7 @@ export function PreJoinDesktop({
     const now = Date.now();
     if (now - lastBeepAtRef.current >= REMOTE_VOLUME_BEEP_THROTTLE_MS) {
       lastBeepAtRef.current = now;
-      playRemoteVolumeFeedbackBeep();
+      playRemoteVolumeFeedbackBeep(value);
     }
   }
 
@@ -352,11 +428,9 @@ export function PreJoinDesktop({
                   </span>
                   <div className="h-9 w-28 shrink-0">
                     {audioTrack && userChoices.audioEnabled ? (
-                      <BarVisualizer
+                      <MicLevelBars
                         track={audioTrack}
-                        barCount={7}
-                        options={{ minHeight: 8 }}
-                        className="h-full"
+                        enabled={userChoices.audioEnabled}
                       />
                     ) : (
                       <div className="flex h-full items-center justify-end text-xs text-white/40">

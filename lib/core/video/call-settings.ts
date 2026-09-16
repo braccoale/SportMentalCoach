@@ -64,25 +64,33 @@ export function clampRemoteVolume(value: number): number {
 let remoteVolumeBeepContext: AudioContext | null = null;
 
 /**
- * Un "ding" fisso mentre si trascina lo slider "Volume di chi chiama", non
- * il suono di prova dell'altoparlante (quello resta fisso apposta —
- * verifica l'hardware, non il guadagno).
+ * Un "ding" mentre si trascina lo slider "Volume di chi chiama", non il
+ * suono di prova dell'altoparlante (quello resta fisso apposta — verifica
+ * l'hardware, non il guadagno).
  *
  * Il browser non ha modo di riprodurre il suono di sistema vero di
- * Windows — non esiste un'API per farlo, ed è comunque un file di cui
- * non abbiamo licenza. Quello che si può fare è lo stesso *tipo* di
- * suono: due note ascendenti che si sovrappongono un poco, non un seno
- * puro — è la struttura che rende riconoscibile un "ding" di sistema
- * invece di un beep piatto. Sempre le stesse due note, non legate al
- * valore scelto: doveva essere più chiaro *che* si è mossi, non *quanto*.
+ * Windows — non esiste un'API per farlo, ed è comunque un file di cui non
+ * abbiamo licenza. Quello che si può fare è lo stesso *tipo* di suono: due
+ * note ascendenti che si sovrappongono un poco, non un seno puro — è la
+ * struttura che rende riconoscibile un "ding" di sistema invece di un beep
+ * piatto. Sempre le stesse due note (l'intonazione non cambia, altrimenti
+ * suonerebbe stonato); è l'intensità a seguire il volume scelto, come il
+ * "ding" di sistema quando si alza o abbassa il volume — più forte se lo
+ * slider è più alto, non impercettibile ai valori bassi.
  */
-export function playRemoteVolumeFeedbackBeep(): void {
+export function playRemoteVolumeFeedbackBeep(volume: number): void {
   if (typeof window === 'undefined' || typeof AudioContext === 'undefined') {
     return;
   }
   try {
     const ctx = (remoteVolumeBeepContext ??= new AudioContext());
     if (ctx.state === 'suspended') void ctx.resume();
+    const clamped = clampRemoteVolume(volume);
+    const span = (clamped - MIN_REMOTE_VOLUME) / (MAX_REMOTE_VOLUME - MIN_REMOTE_VOLUME);
+    // Mai silenzioso (minimo udibile anche al valore più basso), mai
+    // assordante al massimo — il "ding" deve restare riconoscibile come
+    // tale, non diventare un fischio a piena scala.
+    const peak = 0.12 + span * 0.28;
     const now = ctx.currentTime;
     const notes: Array<{ frequency: number; startAt: number; duration: number }> = [
       { frequency: 1046.5, startAt: 0, duration: 0.16 }, // Do6
@@ -95,7 +103,7 @@ export function playRemoteVolumeFeedbackBeep(): void {
       oscillator.type = 'sine';
       oscillator.frequency.value = note.frequency;
       gain.gain.setValueAtTime(0, start);
-      gain.gain.linearRampToValueAtTime(0.3, start + 0.01);
+      gain.gain.linearRampToValueAtTime(peak, start + 0.01);
       gain.gain.exponentialRampToValueAtTime(0.0001, start + note.duration);
       oscillator.connect(gain);
       gain.connect(ctx.destination);
