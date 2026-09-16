@@ -70,24 +70,40 @@ let activeRemoteVolumeBeep: {
 
 /**
  * Il campione, sintetizzato una volta sola e riusato per ogni riscontro —
- * mai ricreato da zero a ogni trascinamento. Un "tick" breve e pulito, non
- * un accordo: è quello che rende l'esperienza vicina al suono di sistema
- * di cambio volume di Windows, che il browser non può riprodurre
- * direttamente (nessuna API per farlo, ed è comunque un file di cui non
- * abbiamo licenza) ma di cui si può imitare la sagoma — attacco quasi
- * istantaneo, decadimento naturale, niente coda percepibile.
+ * mai ricreato da zero a ogni trascinamento.
+ *
+ * Non il file audio vero di Windows: è di Microsoft, protetto da
+ * copyright, e KaiPai è un prodotto distribuito pubblicamente —
+ * incorporarlo sarebbe un problema di licenza reale, non un dettaglio
+ * tecnico da aggirare (e comunque non esiste un'API browser per
+ * richiamare un suono di sistema del sistema operativo).
+ *
+ * Quello che si può fare è imitarne la *sagoma* acustica: il vero suono
+ * di cambio volume di Windows non è una melodia, è un "tick" secco e
+ * cortissimo — poco più di un click, con una leggera discesa di
+ * intonazione. Un primo tentativo qui era un accordo di due note a
+ * 150ms, che suonava come un campanello, non come un tick di sistema —
+ * per questo la durata scende a 45ms e la forma diventa un impulso che
+ * scende di frequenza, non un tono sostenuto.
  */
 function buildRemoteVolumeBeepBuffer(ctx: AudioContext): AudioBuffer {
-  const duration = 0.15;
+  const duration = 0.045;
   const length = Math.round(duration * ctx.sampleRate);
   const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
   const data = buffer.getChannelData(0);
-  const frequency = 1200;
-  const attack = 0.004;
+  const startFrequency = 1800;
+  const endFrequency = 700;
   for (let i = 0; i < length; i++) {
     const t = i / ctx.sampleRate;
-    const envelope = Math.min(1, t / attack) * Math.exp(-t * 32);
-    data[i] = Math.sin(2 * Math.PI * frequency * t) * envelope;
+    const progress = t / duration;
+    const frequency =
+      startFrequency + (endFrequency - startFrequency) * progress;
+    const envelope = Math.exp(-t * 140);
+    const tone = Math.sin(2 * Math.PI * frequency * t);
+    // Un filo di rumore dà consistenza da "click" fisico invece di un
+    // tono puro, che suonerebbe elettronico anche a questa durata.
+    const noise = (Math.random() * 2 - 1) * 0.12;
+    data[i] = (tone * 0.88 + noise * 0.12) * envelope;
   }
   return buffer;
 }
