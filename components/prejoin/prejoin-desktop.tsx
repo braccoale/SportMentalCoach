@@ -5,7 +5,6 @@ import {
   BarVisualizer,
   MediaDeviceMenu,
 } from '@livekit/components-react';
-import { Popover } from 'radix-ui';
 import type { LocalAudioTrack, LocalVideoTrack } from 'livekit-client';
 import {
   AlertTriangle,
@@ -311,6 +310,25 @@ export function PreJoinDesktop({
                     onChange={saveAudioInputDeviceId}
                   />
                 </div>
+                <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/10 pt-3">
+                  <span className="text-xs text-white/55">
+                    Parla: le barre devono muoversi.
+                  </span>
+                  <div className="h-9 w-28 shrink-0">
+                    {audioTrack && userChoices.audioEnabled ? (
+                      <BarVisualizer
+                        track={audioTrack}
+                        barCount={7}
+                        options={{ minHeight: 8 }}
+                        className="h-full"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-end text-xs text-white/40">
+                        Spento
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="rounded-xl border border-white/10 p-3">
@@ -394,57 +412,44 @@ export function PreJoinDesktop({
                     Il browser ha bloccato il suono. Controlla il volume.
                   </p>
                 )}
+                {/* Non regola il suono di prova qui sopra — quello verifica
+                    l'altoparlante, non il volume di chi chiama, che qui non
+                    è ancora connesso. Si applica dal momento in cui si entra
+                    in chiamata, ed è modificabile anche durante, dal pannello
+                    impostazioni. */}
+                <div className="mt-3 border-t border-white/10 pt-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs font-medium text-white/75">
+                      Volume di chi chiama
+                    </span>
+                    <span className="text-xs tabular-nums text-white/50">
+                      {Math.round(remoteVolume * 100)}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={MIN_REMOTE_VOLUME}
+                    max={MAX_REMOTE_VOLUME}
+                    step={0.05}
+                    value={remoteVolume}
+                    onChange={(event) =>
+                      handleRemoteVolumeChange(Number(event.target.value))
+                    }
+                    aria-label="Volume di chi chiama"
+                    className="mt-2 w-full accent-sky-400"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Quattro icone compatte al posto di altrettanti riquadri a
-                piena larghezza: microfono, rete e riduzione rumore dicono
-                per lo più "va tutto bene", ingombrante da ripetere ogni
-                volta a piena vista; il volume in arrivo è interattivo ma non
-                ha bisogno di stare sempre spiegato. Il dettaglio resta a un
-                passaggio del mouse (o un tocco), non sparisce. */}
+            {/* Due icone compatte al posto di due riquadri a piena
+                larghezza: rete e riduzione rumore dicono per lo più "va
+                tutto bene", ingombrante da ripetere ogni volta a piena
+                vista. Microfono e volume sono invece controlli veri, e
+                restano dove ci si aspetta di trovarli: sotto le rispettive
+                card, non dietro un'icona. Il dettaglio di questi due resta
+                a un passaggio del mouse (o un tocco), non sparisce. */}
             <div className="mt-4 flex items-center justify-center gap-3">
-              <Popover.Root>
-                <Popover.Trigger asChild>
-                  <button
-                    type="button"
-                    title="Prova microfono — parla: le barre devono muoversi"
-                    aria-label="Prova microfono"
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-emerald-400/25 bg-emerald-500/10 text-emerald-300"
-                  >
-                    <Mic className="h-4 w-4" />
-                  </button>
-                </Popover.Trigger>
-                <Popover.Portal>
-                  <Popover.Content
-                    side="top"
-                    sideOffset={10}
-                    collisionPadding={12}
-                    className="z-[60] w-56 rounded-xl border border-white/10 bg-neutral-900 p-3 text-white shadow-xl"
-                  >
-                    <p className="text-xs font-medium text-white/75">
-                      Prova microfono
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-white/50">
-                      Parla: le barre devono muoversi.
-                    </p>
-                    <div className="mt-2 h-9">
-                      {audioTrack && userChoices.audioEnabled ? (
-                        <BarVisualizer
-                          track={audioTrack}
-                          barCount={7}
-                          options={{ minHeight: 8 }}
-                          className="h-full"
-                        />
-                      ) : (
-                        <div className="flex h-full items-center text-xs text-white/40">
-                          Microfono spento
-                        </div>
-                      )}
-                    </div>
-                  </Popover.Content>
-                </Popover.Portal>
-              </Popover.Root>
               <StatusIcon
                 icon={
                   networkState === 'checking' ? (
@@ -475,51 +480,6 @@ export function PreJoinDesktop({
                 detail="Riduzione rumore, cancellazione eco e volume automatico attivi."
                 tone="good"
               />
-              <Popover.Root>
-                <Popover.Trigger asChild>
-                  <button
-                    type="button"
-                    title={`Volume di chi chiama — ${Math.round(remoteVolume * 100)}%`}
-                    aria-label={`Volume di chi chiama, ${Math.round(remoteVolume * 100)} per cento`}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-sky-400/25 bg-sky-500/10 text-sky-300"
-                  >
-                    <Volume2 className="h-4 w-4" />
-                  </button>
-                </Popover.Trigger>
-                <Popover.Portal>
-                  <Popover.Content
-                    side="top"
-                    sideOffset={10}
-                    collisionPadding={12}
-                    className="z-[60] w-64 rounded-xl border border-white/10 bg-neutral-900 p-3 text-white shadow-xl"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-xs font-medium text-white/75">
-                        Volume di chi chiama
-                      </span>
-                      <span className="text-xs tabular-nums text-white/50">
-                        {Math.round(remoteVolume * 100)}%
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min={MIN_REMOTE_VOLUME}
-                      max={MAX_REMOTE_VOLUME}
-                      step={0.05}
-                      value={remoteVolume}
-                      onChange={(event) =>
-                        handleRemoteVolumeChange(Number(event.target.value))
-                      }
-                      aria-label="Volume di chi chiama"
-                      className="mt-2 w-full accent-sky-400"
-                    />
-                    <p className="mt-2 text-[11px] leading-4 text-white/45">
-                      Non regola il suono di prova dell'altoparlante — si
-                      applica dal momento in cui si entra in chiamata.
-                    </p>
-                  </Popover.Content>
-                </Popover.Portal>
-              </Popover.Root>
             </div>
 
             {previewError && (
