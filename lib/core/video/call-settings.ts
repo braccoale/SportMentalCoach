@@ -62,54 +62,87 @@ export function clampRemoteVolume(value: number): number {
 }
 
 let remoteVolumeBeepContext: AudioContext | null = null;
+let remoteVolumeBeepBuffer: AudioBuffer | null = null;
+let activeRemoteVolumeBeep: {
+  source: AudioBufferSourceNode;
+  gain: GainNode;
+} | null = null;
 
 /**
- * Un "ding" mentre si trascina lo slider "Volume di chi chiama", non il
- * suono di prova dell'altoparlante (quello resta fisso apposta — verifica
- * l'hardware, non il guadagno).
+ * Il campione, sintetizzato una volta sola e riusato per ogni riscontro —
+ * mai ricreato da zero a ogni trascinamento. Un "tick" breve e pulito, non
+ * un accordo: è quello che rende l'esperienza vicina al suono di sistema
+ * di cambio volume di Windows, che il browser non può riprodurre
+ * direttamente (nessuna API per farlo, ed è comunque un file di cui non
+ * abbiamo licenza) ma di cui si può imitare la sagoma — attacco quasi
+ * istantaneo, decadimento naturale, niente coda percepibile.
+ */
+function buildRemoteVolumeBeepBuffer(ctx: AudioContext): AudioBuffer {
+  const duration = 0.15;
+  const length = Math.round(duration * ctx.sampleRate);
+  const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  const frequency = 1200;
+  const attack = 0.004;
+  for (let i = 0; i < length; i++) {
+    const t = i / ctx.sampleRate;
+    const envelope = Math.min(1, t / attack) * Math.exp(-t * 32);
+    data[i] = Math.sin(2 * Math.PI * frequency * t) * envelope;
+  }
+  return buffer;
+}
+
+/**
+ * Riscontro sonoro mentre si trascina lo slider "Volume di chi chiama",
+ * non il suono di prova dell'altoparlante (quello resta fisso apposta —
+ * verifica l'hardware, non il guadagno).
  *
- * Il browser non ha modo di riprodurre il suono di sistema vero di
- * Windows — non esiste un'API per farlo, ed è comunque un file di cui non
- * abbiamo licenza. Quello che si può fare è lo stesso *tipo* di suono: due
- * note ascendenti che si sovrappongono un poco, non un seno puro — è la
- * struttura che rende riconoscibile un "ding" di sistema invece di un beep
- * piatto. Sempre le stesse due note (l'intonazione non cambia, altrimenti
- * suonerebbe stonato); è l'intensità a seguire il volume scelto, come il
- * "ding" di sistema quando si alza o abbassa il volume — più forte se lo
- * slider è più alto, non impercettibile ai valori bassi.
+ * Sempre lo stesso campione (vedi `buildRemoteVolumeBeepBuffer`), mai un
+ * suono diverso per ogni livello: cambia solo il guadagno con cui viene
+ * riprodotto, pari al valore stesso dello slider — 0.5 (50%, il minimo)
+ * suona piano, 2 (200%, il massimo) suona forte, esattamente come il
+ * riscontro di sistema quando si alza o abbassa un volume reale. A un
+ * valore pari o sotto zero non suona nulla: è il caso "muto".
+ *
+ * Il trascinamento genera un trigger per ogni variazione, molti al
+ * secondo: lasciarli accumulare produrrebbe decine di campioni accavallati
+ * invece di un riscontro continuo. Non un throttle a tempo (che a scatti
+ * salterebbe variazioni reali) — il campione precedente, se ancora in
+ * corso, viene interrotto con una rampa di pochi millisecondi (evita il
+ * click di uno stop secco) e sostituito subito dal nuovo.
  */
 export function playRemoteVolumeFeedbackBeep(volume: number): void {
   if (typeof window === 'undefined' || typeof AudioContext === 'undefined') {
     return;
   }
+  if (volume <= 0) return;
   try {
     const ctx = (remoteVolumeBeepContext ??= new AudioContext());
     if (ctx.state === 'suspended') void ctx.resume();
-    const clamped = clampRemoteVolume(volume);
-    const span = (clamped - MIN_REMOTE_VOLUME) / (MAX_REMOTE_VOLUME - MIN_REMOTE_VOLUME);
-    // Mai silenzioso (minimo udibile anche al valore più basso), mai
-    // assordante al massimo — il "ding" deve restare riconoscibile come
-    // tale, non diventare un fischio a piena scala.
-    const peak = 0.12 + span * 0.28;
+    const buffer = (remoteVolumeBeepBuffer ??= buildRemoteVolumeBeepBuffer(ctx));
     const now = ctx.currentTime;
-    const notes: Array<{ frequency: number; startAt: number; duration: number }> = [
-      { frequency: 1046.5, startAt: 0, duration: 0.16 }, // Do6
-      { frequency: 1318.5, startAt: 0.06, duration: 0.22 }, // Mi6
-    ];
-    for (const note of notes) {
-      const start = now + note.startAt;
-      const oscillator = ctx.createOscillator();
-      const gain = ctx.createGain();
-      oscillator.type = 'sine';
-      oscillator.frequency.value = note.frequency;
-      gain.gain.setValueAtTime(0, start);
-      gain.gain.linearRampToValueAtTime(peak, start + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + note.duration);
-      oscillator.connect(gain);
-      gain.connect(ctx.destination);
-      oscillator.start(start);
-      oscillator.stop(start + note.duration + 0.02);
+
+    if (activeRemoteVolumeBeep) {
+      const previous = activeRemoteVolumeBeep;
+      activeRemoteVolumeBeep = null;
+      previous.gain.gain.cancelScheduledValues(now);
+      previous.gain.gain.setValueAtTime(previous.gain.gain.value, now);
+      previous.gain.gain.linearRampToValueAtTime(0, now + 0.008);
+      previous.source.stop(now + 0.01);
     }
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const gain = ctx.createGain();
+    gain.gain.value = clampRemoteVolume(volume);
+    source.connect(gain);
+    gain.connect(ctx.destination);
+    const entry = { source, gain };
+    activeRemoteVolumeBeep = entry;
+    source.onended = () => {
+      if (activeRemoteVolumeBeep === entry) activeRemoteVolumeBeep = null;
+    };
+    source.start(now);
   } catch {
     // Riscontro sonoro accessorio: se il browser lo rifiuta, lo slider
     // continua comunque a funzionare.

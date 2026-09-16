@@ -25,9 +25,6 @@ import {
 import type { PreJoinState } from './use-prejoin-state';
 import type { NetworkDiagnosticResult } from './use-prejoin-state';
 
-/** Non un beep per pixel trascinato: solo uno ogni tot, o si trasforma in un ronzio. */
-const REMOTE_VOLUME_BEEP_THROTTLE_MS = 120;
-
 /**
  * Un'icona con lo stato al posto di un riquadro a piena larghezza. La
  * diagnostica rete e l'avviso su riduzione rumore/eco occupavano una fascia
@@ -292,15 +289,9 @@ export function PreJoinDesktop({
     runNetworkDiagnostic,
     join,
   } = state;
-  const lastBeepAtRef = useRef(0);
-
   function handleRemoteVolumeChange(value: number) {
     setRemoteVolume(value);
-    const now = Date.now();
-    if (now - lastBeepAtRef.current >= REMOTE_VOLUME_BEEP_THROTTLE_MS) {
-      lastBeepAtRef.current = now;
-      playRemoteVolumeFeedbackBeep(value);
-    }
+    playRemoteVolumeFeedbackBeep(value);
   }
 
   return (

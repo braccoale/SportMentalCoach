@@ -37,8 +37,6 @@ import {
   REMOTE_VOLUME_STORAGE_KEY,
   playRemoteVolumeFeedbackBeep,
 } from '@/lib/core/video/call-settings';
-
-const REMOTE_VOLUME_BEEP_THROTTLE_MS = 120;
 import {
   parseBookingRoomName,
   type TechnicalEventDetails,
@@ -444,18 +442,12 @@ export function CallDeviceSettings() {
     )
   );
 
-  const lastBeepAtRef = useRef(0);
-
   const changeRemoteVolume = (value: number) => {
     const clamped = clampRemoteVolume(value);
     setRemoteVolumeState(clamped);
     window.localStorage.setItem(REMOTE_VOLUME_STORAGE_KEY, String(clamped));
     applyRemoteVolumeToRoom(room, clamped);
-    const now = Date.now();
-    if (now - lastBeepAtRef.current >= REMOTE_VOLUME_BEEP_THROTTLE_MS) {
-      lastBeepAtRef.current = now;
-      playRemoteVolumeFeedbackBeep(clamped);
-    }
+    playRemoteVolumeFeedbackBeep(clamped);
   };
   const outputSelectionSupported = useMemo(
     () => supportsAudioOutputSelection(),

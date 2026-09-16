@@ -12,8 +12,6 @@ import {
 } from '@/lib/core/video/call-settings';
 import type { PreJoinState } from './use-prejoin-state';
 
-const REMOTE_VOLUME_BEEP_THROTTLE_MS = 120;
-
 /**
  * Pannello che sale dal basso con tutto ciò che serve raramente: scelta
  * dispositivi, prova altoparlante, sfondi, dettaglio rete. Le sezioni presenti
@@ -34,15 +32,9 @@ export function AdvancedSettingsSheet({
   const sections = visibleAdvancedSections(caps);
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const lastBeepAtRef = useRef(0);
-
   function handleRemoteVolumeChange(value: number) {
     state.setRemoteVolume(value);
-    const now = Date.now();
-    if (now - lastBeepAtRef.current >= REMOTE_VOLUME_BEEP_THROTTLE_MS) {
-      lastBeepAtRef.current = now;
-      playRemoteVolumeFeedbackBeep(value);
-    }
+    playRemoteVolumeFeedbackBeep(value);
   }
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
