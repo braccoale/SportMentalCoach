@@ -64,12 +64,15 @@ export function clampRemoteVolume(value: number): number {
 let remoteVolumeBeepContext: AudioContext | null = null;
 
 /**
- * Un tono breve mentre si trascina lo slider "Volume di chi chiama", non il
+ * Un "ding" mentre si trascina lo slider "Volume di chi chiama", non il
  * suono di prova dell'altoparlante (quello resta fisso apposta — verifica
- * l'hardware, non il guadagno). Cresce con lo slider perché lo scopo è
- * *far sentire* la differenza mentre la si sceglie, come i controlli di
- * volume di sistema — non riprodurre fedelmente il livello assoluto
- * scelto, che resterebbe comunque scomodo da ascoltare al 200%.
+ * l'hardware, non il guadagno).
+ *
+ * L'intonazione, non solo l'intensità, sale e scende col volume — un beep
+ * che cresce solo in ampiezza a valori bassi è quasi impercettibile,
+ * mentre l'orecchio nota subito un tono che *sale* o *scende*. Due
+ * armoniche (fondamentale + quinta) invece di un seno puro, perché è la
+ * differenza fra un "beep" piatto e un "ding" riconoscibile.
  */
 export function playRemoteVolumeFeedbackBeep(volume: number): void {
   if (typeof window === 'undefined' || typeof AudioContext === 'undefined') {
@@ -78,18 +81,29 @@ export function playRemoteVolumeFeedbackBeep(volume: number): void {
   try {
     const ctx = (remoteVolumeBeepContext ??= new AudioContext());
     if (ctx.state === 'suspended') void ctx.resume();
-    const oscillator = ctx.createOscillator();
-    const gain = ctx.createGain();
-    oscillator.type = 'sine';
-    oscillator.frequency.value = 660;
-    const peak = Math.min(0.18, 0.07 * clampRemoteVolume(volume));
-    gain.gain.setValueAtTime(0, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(peak, ctx.currentTime + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.14);
-    oscillator.connect(gain);
-    gain.connect(ctx.destination);
-    oscillator.start();
-    oscillator.stop(ctx.currentTime + 0.15);
+    const clamped = clampRemoteVolume(volume);
+    const span = (clamped - MIN_REMOTE_VOLUME) / (MAX_REMOTE_VOLUME - MIN_REMOTE_VOLUME);
+    const fundamental = 392 + span * 880; // ~Sol4 a basso volume, fino a ~Sol5-Re6 al massimo.
+    const now = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0, now);
+    master.gain.linearRampToValueAtTime(0.32, now + 0.012);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
+    master.connect(ctx.destination);
+    for (const [ratio, level] of [
+      [1, 1],
+      [1.5, 0.35],
+    ] as const) {
+      const oscillator = ctx.createOscillator();
+      const partialGain = ctx.createGain();
+      oscillator.type = 'sine';
+      oscillator.frequency.value = fundamental * ratio;
+      partialGain.gain.value = level;
+      oscillator.connect(partialGain);
+      partialGain.connect(master);
+      oscillator.start(now);
+      oscillator.stop(now + 0.34);
+    }
   } catch {
     // Riscontro sonoro accessorio: se il browser lo rifiuta, lo slider
     // continua comunque a funzionare.
