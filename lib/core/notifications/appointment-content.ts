@@ -92,7 +92,7 @@ export function reminder24hContent(ctx: {
   };
 }
 
-export function athleteReportReadyContent(ctx: { bookingId?: number }) {
+export function athleteReportReadyContent(ctx: { bookingId?: number; reportId?: number }) {
   return {
     title: 'Il report della sessione è disponibile',
     body: 'Il coach ha condiviso il report con te. Tocca qui per aprire direttamente il report privato.',
@@ -101,6 +101,7 @@ export function athleteReportReadyContent(ctx: { bookingId?: number }) {
         ? `/dashboard/appointments/${ctx.bookingId}#session-compass`
         : '/dashboard/athlete',
       bookingId: ctx.bookingId,
+      reportId: ctx.reportId,
     },
   };
 }

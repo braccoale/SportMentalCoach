@@ -12,6 +12,7 @@ import { loadClosingNote } from './session-close';
 import { advanceAiNotesSessionStatus } from './session-status';
 import { loadActiveHouseGuidelines } from './house-guidelines';
 import { notifyAiReportReady } from '@/lib/core/notifications/events';
+import { hasAiReportReadyNotification } from '@/lib/core/notifications/report-ready';
 import { promptVersionWithGuidelines } from './house-guidelines-policy';
 import { listSessionVoiceNoteTranscripts } from './voice-notes';
 import { createSessionCommitmentStore } from './session-commitments-store';
@@ -75,6 +76,7 @@ export function sessionCompassDependencies(): SessionCompassDependencies {
       });
     },
     notifyReportReady: notifyAiReportReady,
+    hasReportReadyNotification: hasAiReportReadyNotification,
     now: () => new Date(),
   };
 }

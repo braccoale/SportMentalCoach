@@ -178,12 +178,14 @@ export type SessionCompassDependencies = {
     sessionId: number,
     actorUserId: number
   ) => Promise<void>;
-  /** Avvisa l’atleta una sola volta, quando la prima approvazione rende visibile il report. */
+  /** Avvisa l'atleta quando il coach condivide il report. */
   notifyReportReady?: (input: {
     athleteUserId: number;
     bookingId: number;
+    reportId: number;
     coachName: string;
   }) => Promise<void>;
+  hasReportReadyNotification?: (athleteUserId: number, bookingId: number, reportId: number) => Promise<boolean>;
   store: SessionCompassStore;
   commitments: SessionCommitmentStore;
   /**
@@ -661,9 +663,28 @@ export async function shareSessionCompass(
 
   const fingerprint = await currentFingerprint(session.sessionId, dependencies);
 
-  // Gia’ condiviso: si restituisce lo stato senza riscrivere e senza
-  // avvisare di nuovo.
+  // Un tentativo precedente puo' aver salvato la condivisione ma essersi
+  // interrotto prima della notifica. Il retry ripara quel caso, senza duplicare
+  // gli avvisi gia' registrati.
   if (stored.sharedAt) {
+    if (
+      session.bookingId &&
+      dependencies.hasReportReadyNotification &&
+      !(await dependencies.hasReportReadyNotification(session.athleteUserId, session.bookingId, stored.id))
+    ) {
+      await dependencies.notifyReportReady?.({
+        athleteUserId: session.athleteUserId,
+        bookingId: session.bookingId,
+        reportId: stored.id,
+        coachName: session.coachName,
+      });
+      if (!(await dependencies.hasReportReadyNotification(session.athleteUserId, session.bookingId, stored.id))) {
+        throw new SessionCompassError(
+          'COMPASS_FAILED',
+          'Il report è condiviso, ma l’avviso all’atleta non è partito. Riprova.'
+        );
+      }
+    }
     return viewOf(stored, authorization, fingerprint, dependencies);
   }
 
@@ -691,13 +712,6 @@ export async function shareSessionCompass(
     actorUserId: params.actorUserId,
   });
 
-  await dependencies.store.recordAudit({
-    sessionId: session.sessionId,
-    actorUserId: params.actorUserId,
-    eventType: 'compass_report_shared',
-    metadata: { reportId: stored.id, reportVersion: stored.reportVersion },
-  });
-
   // La notifica vive **qui** e non nell'approvazione: prima annunciava una
   // condivisione che non era avvenuta, e offriva un collegamento a una pagina
   // che per l'atleta non esisteva.
@@ -705,9 +719,26 @@ export async function shareSessionCompass(
     await dependencies.notifyReportReady?.({
       athleteUserId: session.athleteUserId,
       bookingId: session.bookingId,
+      reportId: stored.id,
       coachName: session.coachName,
     });
+    if (
+      dependencies.hasReportReadyNotification &&
+      !(await dependencies.hasReportReadyNotification(session.athleteUserId, session.bookingId, stored.id))
+    ) {
+      throw new SessionCompassError(
+        'COMPASS_FAILED',
+        'Il report è condiviso, ma l’avviso all’atleta non è partito. Riprova.'
+      );
+    }
   }
+
+  await dependencies.store.recordAudit({
+    sessionId: session.sessionId,
+    actorUserId: params.actorUserId,
+    eventType: 'compass_report_shared',
+    metadata: { reportId: stored.id, reportVersion: stored.reportVersion },
+  });
 
   return viewOf(saved, authorization, fingerprint, dependencies);
 }

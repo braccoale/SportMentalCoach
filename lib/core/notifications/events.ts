@@ -43,11 +43,13 @@ export async function notifyAiReportAwaitingReview(input: {
 export async function notifyAiReportReady(input: {
   athleteUserId: number;
   bookingId: number;
+  reportId: number;
   coachName?: string | null;
   sessionDate?: string;
 }): Promise<void> {
   await notify('ai_report_ready', input.athleteUserId, {
     bookingId: input.bookingId,
+    reportId: input.reportId,
     coachName: input.coachName,
     sessionDate: input.sessionDate,
   });

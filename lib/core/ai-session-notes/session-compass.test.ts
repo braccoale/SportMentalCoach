@@ -14,6 +14,7 @@ import {
   ensureSessionCompassDraft,
   getSessionCompass,
   saveCoachNote,
+  shareSessionCompass,
   updateCommitment,
   updateTrackedCommitmentAsCoach,
   type InsertSessionCompassReport,
@@ -147,6 +148,7 @@ class InMemoryCompassStore implements SessionCompassStore {
     if (input.coachNote !== undefined) stored.coachNote = input.coachNote;
     if (input.approvedBy !== undefined) stored.approvedBy = input.approvedBy;
     if (input.approvedAt !== undefined) stored.approvedAt = input.approvedAt;
+    if (input.sharedAt !== undefined) stored.sharedAt = input.sharedAt;
     if (input.errorCode !== undefined) stored.errorCode = input.errorCode;
     return stored;
   }
@@ -574,6 +576,48 @@ test('approvare porta avanti anche la sessione, una volta sola', async () => {
    * Quando la condivisione sara' costruita, la notifica va agganciata li'.
    */
   assert.deepEqual(notifications, []);
+});
+
+test('un report condiviso senza avviso permette di ritentare una sola volta', async () => {
+  const { store, dependencies } = harness();
+  const sent: number[] = [];
+  let notificationExists = false;
+  dependencies.hasReportReadyNotification = async () => notificationExists;
+  dependencies.notifyReportReady = async (input) => {
+    sent.push(input.bookingId);
+    notificationExists = true;
+  };
+  await ensureSessionCompassDraft({ sessionId: SESSION_ID, actorUserId: COACH_ID }, dependencies);
+  await approveSessionCompass({ sessionId: SESSION_ID, actorUserId: COACH_ID }, dependencies);
+  store.reports[0].sharedAt = new Date('2026-08-01T12:10:00.000Z');
+
+  await shareSessionCompass({ sessionId: SESSION_ID, actorUserId: COACH_ID }, dependencies);
+  await shareSessionCompass({ sessionId: SESSION_ID, actorUserId: COACH_ID }, dependencies);
+
+  assert.deepEqual(sent, [77]);
+});
+
+test('la condivisione segnala un avviso mancante e il retry lo recupera', async () => {
+  const { store, dependencies } = harness();
+  let notificationExists = false;
+  dependencies.hasReportReadyNotification = async () => notificationExists;
+  dependencies.notifyReportReady = async () => {};
+  await ensureSessionCompassDraft({ sessionId: SESSION_ID, actorUserId: COACH_ID }, dependencies);
+  await approveSessionCompass({ sessionId: SESSION_ID, actorUserId: COACH_ID }, dependencies);
+
+  await assert.rejects(
+    shareSessionCompass({ sessionId: SESSION_ID, actorUserId: COACH_ID }, dependencies),
+    /l’avviso all’atleta non è partito/
+  );
+  assert.ok(store.reports[0].sharedAt);
+
+  dependencies.notifyReportReady = async () => { notificationExists = true; };
+  const recovered = await shareSessionCompass(
+    { sessionId: SESSION_ID, actorUserId: COACH_ID },
+    dependencies
+  );
+  assert.ok(recovered.sharedAt);
+  assert.equal(notificationExists, true);
 });
 
 test('il coach modifica un impegno operativo senza toccare il report approvato', async () => {

@@ -504,6 +504,8 @@ export type NotifyContext = {
   serviceTitle?: string | null;
   senderName?: string | null;
   bookingId?: number;
+  /** Identifies the exact approved report version when sharing with the athlete. */
+  reportId?: number;
   /** For ambiguous-recipient events (e.g. cancel), which dashboard to link. */
   audience?: 'athlete' | 'coach';
   /** For `booking_declined`: distinguishes an auto-expiry from a manual decline. */

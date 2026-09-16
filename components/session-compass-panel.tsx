@@ -537,20 +537,20 @@ export function SessionCompassPanel({
                 «questa persona puo' leggerlo di se'». Ci sono sedute in cui la
                 prima e' si' e la seconda e' no, e un solo pulsante avrebbe
                 deciso per il coach. */}
-            {report?.isApproved && report.document && !report.sharedAt ? (
+            {report?.isApproved && report.document ? (
               <Button
                 type="button"
                 variant="outline"
                 disabled={busy}
                 onClick={() =>
                   run(() => requestJson(`${endpoint}/share`, 'POST'), () =>
-                    setNotice(
-                      'Condiviso con l’atleta: racconto, sintesi e temi. Citazioni, indicatori e le tue note restano qui.'
-                    )
+                    setNotice(report.sharedAt
+                      ? 'Invio all’atleta verificato. Se l’avviso mancava, è stato creato ora.'
+                      : 'Condiviso con l’atleta: racconto, sintesi e temi. Citazioni, indicatori e le tue note restano qui.')
                   )
                 }
               >
-                <Send className="h-4 w-4" /> Condividi con l’atleta
+                <Send className="h-4 w-4" /> {report.sharedAt ? 'Verifica invio all’atleta' : 'Condividi con l’atleta'}
               </Button>
             ) : null}
             {report?.isApproved && report.document ? (
