@@ -73,17 +73,17 @@ export function UserMenu({
             className="cursor-pointer size-9"
           />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="flex flex-col gap-1">
+        <DropdownMenuContent align="end" className="min-w-48">
           <DropdownMenuItem
+            asChild
             className="cursor-pointer"
             onSelect={closeMenu}
           >
             <Link
               href="/dashboard"
               onClick={closeMenu}
-              className="flex w-full items-center"
             >
-              <Home className="mr-2 h-4 w-4" />
+              <Home className="size-4" />
               <span>{t('dashboard')}</span>
             </Link>
           </DropdownMenuItem>
@@ -94,17 +94,16 @@ export function UserMenu({
               data-demo-settings-disabled="true"
               title="Non disponibile in modalità demo"
             >
-              <Settings className="mr-2 h-4 w-4" />
+              <Settings className="size-4" />
               <span>{t('settings')}</span>
             </DropdownMenuItem>
           ) : (
-            <DropdownMenuItem className="cursor-pointer" onSelect={closeMenu}>
+            <DropdownMenuItem asChild className="cursor-pointer" onSelect={closeMenu}>
               <Link
                 href="/dashboard/settings"
                 onClick={closeMenu}
-                className="flex w-full items-center"
               >
-                <Settings className="mr-2 h-4 w-4" />
+                <Settings className="size-4" />
                 <span>{t('settings')}</span>
               </Link>
             </DropdownMenuItem>
@@ -112,15 +111,15 @@ export function UserMenu({
           {isAdmin && (
             <>
               <DropdownMenuItem
+                asChild
                 className="cursor-pointer"
                 onSelect={closeMenu}
               >
                 <Link
                   href="/dashboard/admin"
                   onClick={closeMenu}
-                  className="flex w-full items-center"
                 >
-                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  <ShieldCheck className="size-4" />
                   <span>{t('admin')}</span>
                 </Link>
               </DropdownMenuItem>
@@ -133,23 +132,16 @@ export function UserMenu({
               setInviteOpen(true);
             }}
           >
-            <UserPlus className="mr-2 h-4 w-4" />
+            <UserPlus className="size-4" />
             <span>{t('inviteFriend')}</span>
           </DropdownMenuItem>
           <form action={handleSignOut} className="w-full">
-            <button
-              type="submit"
-              onClick={closeMenu}
-              className="flex w-full"
-            >
-              <DropdownMenuItem
-                className="w-full flex-1 cursor-pointer"
-                onSelect={closeMenu}
-              >
-                <LogOut className="mr-2 h-4 w-4" />
+            <DropdownMenuItem asChild className="w-full cursor-pointer" onSelect={closeMenu}>
+              <button type="submit" onClick={closeMenu}>
+                <LogOut className="size-4" />
                 <span>{t('signOut')}</span>
-              </DropdownMenuItem>
-            </button>
+              </button>
+            </DropdownMenuItem>
           </form>
         </DropdownMenuContent>
       </DropdownMenu>
