@@ -65,7 +65,7 @@ export const academyCourseModules = pgTable('academy_course_modules', {
   courseId: integer('course_id').notNull().references(() => academyCourses.id, { onDelete: 'cascade' }),
   title: varchar('title', { length: 200 }).notNull(),
   description: text('description'),
-  hours: numeric('hours', { precision: 5, scale: 2 }).notNull().default('0'),
+  hours: real('hours').notNull().default(0),
   sortOrder: integer('sort_order').notNull().default(0),
   createdDate: timestamp('createddate', { withTimezone: true }).notNull().defaultNow(),
   createdBy: integer('createdby').references(() => users.id, { onDelete: 'set null' }),
@@ -117,8 +117,9 @@ export const academyModuleCompletions = pgTable('academy_module_completions', {
 ```
 
 `admin_audit_events` si estende, non si duplica: `ADMIN_AUDIT_ACTIONS` prende
-`academy_course_created`, `academy_course_updated`, `academy_module_saved`,
-`academy_course_assigned`, `academy_course_assignment_revoked`;
+`academy_course_created`, `academy_course_status_changed`,
+`academy_module_saved`, `academy_course_assigned`,
+`academy_course_assignment_revoked`, `academy_module_completed`;
 `ADMIN_AUDIT_SUBJECTS` prende `academy_course`.
 
 ## La logica in `lib/core/academy/`
@@ -204,8 +205,7 @@ Esplicitamente **fuori scope in questa prima implementazione**:
 | test | cosa fissa |
 |---|---|
 | `course-hours.test.ts` | `courseTotalHours` somma correttamente moduli con ore decimali (es. 1.5 + 2) e ignora moduli senza ore |
-| `assignment-progress.test.ts` | `markModuleComplete` porta l'assegnazione a `in_progress` al primo modulo, a `completed` (con `completedDate`) solo quando tutti i moduli attuali del corso risultano completati; un modulo aggiunto al corso dopo che l'assegnazione era `completed` la riporta a `in_progress` |
-| `badges.test.ts` | `listCompletedCourseBadges` restituisce solo assegnazioni `completed`, niente per corsi `draft`/`cancelled` o assegnazioni `assigned`/`in_progress` |
+| `assignment-progress.test.ts` | `computeAssignmentStatus` (usata da `markModuleComplete` e da `createModule`) resta `assigned` a zero completamenti, passa a `in_progress` al primo modulo, a `completed` solo quando tutti i moduli attuali risultano completati, e torna a `in_progress` se l'insieme dei moduli cresce dopo un completamento |
 
 ## Rischi, detti prima
 
