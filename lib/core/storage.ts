@@ -24,15 +24,6 @@ import type { SupabaseClient } from '@supabase/supabase-js';
  */
 
 const BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'media';
-const PRIVATE_BUCKET =
-  process.env.SUPABASE_CHAT_STORAGE_BUCKET || 'chat-attachments';
-const PRIVATE_ALLOWED_MIME_TYPES = [
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-];
-const PRIVATE_MAX_BYTES = 4 * 1024 * 1024;
-let privateBucketReady: Promise<void> | null = null;
 
 function getSupabaseUrl(): string | undefined {
   // The project URL is public by design, so deployments that already expose it
@@ -85,107 +76,159 @@ function assertSafePrivateKey(key: string): void {
   }
 }
 
-function localPrivatePath(key: string): string {
-  assertSafePrivateKey(key);
-  return path.join(
-    process.cwd(),
-    '.local-storage',
-    ...key.split('/').filter(Boolean)
-  );
-}
+type PrivateBucketConfig = {
+  bucketName: string;
+  allowedMimeTypes: string[];
+  maxBytes: number;
+  /** Sottocartella locale di fallback, separata per bucket per non mischiare i file. */
+  localDir: string;
+};
 
-async function ensurePrivateBucket(client: SupabaseClient): Promise<void> {
-  if (!privateBucketReady) {
-    privateBucketReady = (async () => {
-      const { data: buckets, error: listError } =
-        await client.storage.listBuckets();
-      if (listError) throw new Error(listError.message);
+/**
+ * Un archivio privato parametrizzato per bucket: stesso comportamento di
+ * prima (Supabase Storage se configurato, altrimenti una cartella locale di
+ * fallback), ma riusabile per più bucket con MIME e limiti diversi — la
+ * chat accetta solo immagini fino a 4 MB, l'Academy accetta anche PDF e
+ * video con un tetto più alto (vedi `academyMaterialsStore` sotto).
+ */
+function createPrivateBucketStore(config: PrivateBucketConfig) {
+  let bucketReady: Promise<void> | null = null;
 
-      const existing = buckets.find((bucket) => bucket.name === PRIVATE_BUCKET);
-      if (!existing) {
-        const { error } = await client.storage.createBucket(PRIVATE_BUCKET, {
-          public: false,
-          fileSizeLimit: PRIVATE_MAX_BYTES,
-          allowedMimeTypes: PRIVATE_ALLOWED_MIME_TYPES,
-        });
-        if (error) throw new Error(error.message);
-      } else if (existing.public) {
-        const { error } = await client.storage.updateBucket(PRIVATE_BUCKET, {
-          public: false,
-          fileSizeLimit: PRIVATE_MAX_BYTES,
-          allowedMimeTypes: PRIVATE_ALLOWED_MIME_TYPES,
-        });
-        if (error) throw new Error(error.message);
-      }
-    })().catch((error) => {
-      privateBucketReady = null;
-      throw error;
-    });
+  function localPath(key: string): string {
+    assertSafePrivateKey(key);
+    return path.join(process.cwd(), config.localDir, ...key.split('/').filter(Boolean));
   }
-  await privateBucketReady;
+
+  async function ensureBucket(client: SupabaseClient): Promise<void> {
+    if (!bucketReady) {
+      bucketReady = (async () => {
+        const { data: buckets, error: listError } = await client.storage.listBuckets();
+        if (listError) throw new Error(listError.message);
+
+        const existing = buckets.find((bucket) => bucket.name === config.bucketName);
+        if (!existing) {
+          const { error } = await client.storage.createBucket(config.bucketName, {
+            public: false,
+            fileSizeLimit: config.maxBytes,
+            allowedMimeTypes: config.allowedMimeTypes,
+          });
+          if (error) throw new Error(error.message);
+        } else if (existing.public) {
+          const { error } = await client.storage.updateBucket(config.bucketName, {
+            public: false,
+            fileSizeLimit: config.maxBytes,
+            allowedMimeTypes: config.allowedMimeTypes,
+          });
+          if (error) throw new Error(error.message);
+        }
+      })().catch((error) => {
+        bucketReady = null;
+        throw error;
+      });
+    }
+    await bucketReady;
+  }
+
+  async function getClient() {
+    const { createClient } = await import('@supabase/supabase-js');
+    const client = createClient(getSupabaseUrl()!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+    await ensureBucket(client);
+    return client.storage.from(config.bucketName);
+  }
+
+  return {
+    maxBytes: config.maxBytes,
+    allowedMimeTypes: config.allowedMimeTypes,
+
+    async storeFile(key: string, bytes: Buffer, contentType: string): Promise<void> {
+      assertSafePrivateKey(key);
+      if (isSupabaseStorageConfigured()) {
+        const bucket = await getClient();
+        const { error } = await bucket.upload(key, bytes, { contentType, upsert: false });
+        if (error) throw new Error(error.message);
+        return;
+      }
+
+      const filePath = localPath(key);
+      await mkdir(path.dirname(filePath), { recursive: true });
+      await writeFile(filePath, bytes);
+    },
+
+    async readFile(key: string): Promise<Buffer> {
+      assertSafePrivateKey(key);
+      if (isSupabaseStorageConfigured()) {
+        const bucket = await getClient();
+        const { data, error } = await bucket.download(key);
+        if (error) throw new Error(error.message);
+        return Buffer.from(await data.arrayBuffer());
+      }
+
+      return readFile(localPath(key));
+    },
+
+    async deleteFile(key: string): Promise<void> {
+      assertSafePrivateKey(key);
+      if (isSupabaseStorageConfigured()) {
+        const bucket = await getClient();
+        const { error } = await bucket.remove([key]);
+        if (error) throw new Error(error.message);
+        return;
+      }
+
+      try {
+        await unlink(localPath(key));
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      }
+    },
+  };
 }
 
-async function getPrivateStorageClient() {
-  const { createClient } = await import('@supabase/supabase-js');
-  const client = createClient(
-    getSupabaseUrl()!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-  await ensurePrivateBucket(client);
-  return client.storage.from(PRIVATE_BUCKET);
-}
+const chatAttachmentsStore = createPrivateBucketStore({
+  bucketName: process.env.SUPABASE_CHAT_STORAGE_BUCKET || 'chat-attachments',
+  allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+  maxBytes: 4 * 1024 * 1024,
+  localDir: '.local-storage',
+});
 
 /**
  * Stores a private chat attachment. Only the opaque object key is persisted;
  * files are read back through a participant-authorized API route.
  */
-export async function storePrivateFile(
-  key: string,
-  bytes: Buffer,
-  contentType: string
-): Promise<void> {
-  assertSafePrivateKey(key);
-  if (isSupabaseStorageConfigured()) {
-    const bucket = await getPrivateStorageClient();
-    const { error } = await bucket.upload(key, bytes, {
-      contentType,
-      upsert: false,
-    });
-    if (error) throw new Error(error.message);
-    return;
-  }
-
-  const filePath = localPrivatePath(key);
-  await mkdir(path.dirname(filePath), { recursive: true });
-  await writeFile(filePath, bytes);
-}
-
+export const storePrivateFile = chatAttachmentsStore.storeFile;
 /** Reads a private object for an already-authorized caller. */
-export async function readPrivateFile(key: string): Promise<Buffer> {
-  assertSafePrivateKey(key);
-  if (isSupabaseStorageConfigured()) {
-    const bucket = await getPrivateStorageClient();
-    const { data, error } = await bucket.download(key);
-    if (error) throw new Error(error.message);
-    return Buffer.from(await data.arrayBuffer());
-  }
-
-  return readFile(localPrivatePath(key));
-}
-
+export const readPrivateFile = chatAttachmentsStore.readFile;
 /** Best-effort cleanup when a message insert fails after an upload. */
-export async function deletePrivateFile(key: string): Promise<void> {
-  assertSafePrivateKey(key);
-  if (isSupabaseStorageConfigured()) {
-    const bucket = await getPrivateStorageClient();
-    const { error } = await bucket.remove([key]);
-    if (error) throw new Error(error.message);
-    return;
-  }
+export const deletePrivateFile = chatAttachmentsStore.deleteFile;
 
-  try {
-    await unlink(localPrivatePath(key));
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-  }
-}
+// Il progetto Supabase ha oggi un tetto di upload globale a 50 MB finché non
+// viene alzato (la stessa ragione per cui le registrazioni audio lunghe si
+// perdono, vedi memoria "limite-upload-supabase-audio"): 45 MB lascia un
+// margine sotto quel tetto senza promettere un limite che il progetto non
+// può ancora rispettare. Un video più lungo del margine va alzato insieme al
+// tetto globale, non da qui.
+const academyMaterialsStore = createPrivateBucketStore({
+  bucketName: process.env.SUPABASE_ACADEMY_STORAGE_BUCKET || 'academy-materials',
+  allowedMimeTypes: [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'image/jpeg',
+    'image/png',
+    'video/mp4',
+    'video/quicktime',
+  ],
+  maxBytes: 45 * 1024 * 1024,
+  localDir: '.local-storage-academy',
+});
+
+/** Stores an Academy module material (document, slide deck or video). */
+export const storeAcademyMaterial = academyMaterialsStore.storeFile;
+/** Reads an Academy material for an already-authorized caller. */
+export const readAcademyMaterial = academyMaterialsStore.readFile;
+/** Removes an Academy material's stored bytes when its row is deleted. */
+export const deleteAcademyMaterial = academyMaterialsStore.deleteFile;
+export const ACADEMY_MATERIAL_MAX_BYTES = academyMaterialsStore.maxBytes;
+export const ACADEMY_MATERIAL_ALLOWED_MIME_TYPES = academyMaterialsStore.allowedMimeTypes;

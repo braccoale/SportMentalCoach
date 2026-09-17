@@ -1,17 +1,13 @@
 import Link from 'next/link';
+import { Lock } from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
 import { listCourses } from '@/lib/core/academy/courses';
 import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
+import { StatusPill } from '@/components/admin/academy/status-pill';
 import { createCourseAction } from './actions';
 
 export const dynamic = 'force-dynamic';
-
-const STATUS_LABEL: Record<string, string> = {
-  draft: 'Bozza',
-  active: 'Attivo',
-  cancelled: 'Annullato',
-};
 
 export default async function AdminAcademyPage() {
   const admin = await requireRole('admin');
@@ -69,14 +65,16 @@ export default async function AdminAcademyPage() {
                       <span className="ml-1.5 font-normal text-gray-400">— {course.edition}</span>
                     ) : null}
                   </Link>
-                  <p className="text-xs text-gray-500">
+                  <p className="flex items-center gap-1 text-xs text-gray-500">
                     {course.totalHours} ore totali
-                    {course.structureLocked ? ' · programma bloccato' : ''}
+                    {course.structureLocked && (
+                      <span className="inline-flex items-center gap-1">
+                        · <Lock className="h-3 w-3" aria-hidden="true" /> programma bloccato
+                      </span>
+                    )}
                   </p>
                 </div>
-                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
-                  {STATUS_LABEL[course.status] ?? course.status}
-                </span>
+                <StatusPill status={course.status} />
               </li>
             ))}
           </ul>

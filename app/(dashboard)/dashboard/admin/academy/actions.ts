@@ -7,11 +7,17 @@ import {
   createModule,
   createNewEdition,
   deleteModule,
+  updateCourse,
   updateCourseStatus,
   updateModule,
 } from '@/lib/core/academy/courses';
 import { nominateInstructor } from '@/lib/core/academy/instructors';
 import { assignCourseToUser } from '@/lib/core/academy/assignments';
+import {
+  deleteMaterial,
+  setMaterialPublished,
+  uploadMaterial,
+} from '@/lib/core/academy/materials';
 import { recordAdminAudit } from '@/lib/core/admin/audit-log';
 import type { ActionState } from '@/lib/auth/middleware';
 import type { AcademyCourseStatus } from '@/lib/db/schema';
@@ -25,7 +31,9 @@ function friendlyError(error: unknown, fallback: string): string {
       error.message.startsWith('Un corso senza moduli') ||
       error.message.startsWith('Solo un corso attivo') ||
       error.message.startsWith('Solo un coach con profilo approvato') ||
-      error.message.startsWith('Corso non trovato')
+      error.message.startsWith('Corso non trovato') ||
+      error.message.startsWith('Il file') ||
+      error.message.startsWith('Tipo di file')
     ) {
       return error.message;
     }
@@ -71,6 +79,37 @@ export async function createCourseAction(
 
   revalidatePath('/dashboard/admin/academy');
   return { success: 'Corso creato.' };
+}
+
+export async function updateCourseAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const admin = await requireRole('admin');
+  const courseId = Number(formData.get('courseId'));
+  const title = String(formData.get('title') ?? '').trim();
+  const description = String(formData.get('description') ?? '').trim();
+  const edition = String(formData.get('edition') ?? '').trim();
+  if (!Number.isInteger(courseId) || courseId <= 0) {
+    return { error: 'Corso non valido.' };
+  }
+  if (!title) return { error: 'Il titolo è obbligatorio.' };
+
+  try {
+    await updateCourse({
+      actorUserId: admin.id,
+      courseId,
+      title,
+      description: description || null,
+      edition: edition || null,
+    });
+  } catch (error) {
+    return { error: friendlyError(error, 'Impossibile aggiornare il corso.') };
+  }
+
+  revalidatePath(`/dashboard/admin/academy/${courseId}`);
+  revalidatePath('/dashboard/admin/academy');
+  return { success: 'Corso aggiornato.' };
 }
 
 export async function updateCourseStatusAction(
@@ -160,6 +199,51 @@ export async function createModuleAction(
 
   revalidatePath(`/dashboard/admin/academy/${courseId}`);
   return { success: 'Modulo creato.' };
+}
+
+export async function updateModuleAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const admin = await requireRole('admin');
+  const moduleId = Number(formData.get('moduleId'));
+  const courseId = Number(formData.get('courseId'));
+  const title = String(formData.get('title') ?? '').trim();
+  const description = String(formData.get('description') ?? '').trim();
+  const hours = Number(formData.get('hours'));
+  const sortOrder = Number(formData.get('sortOrder') ?? 0);
+  if (
+    !Number.isInteger(moduleId) || moduleId <= 0 ||
+    !Number.isInteger(courseId) || courseId <= 0
+  ) {
+    return { error: 'Modulo non valido.' };
+  }
+  if (!title) return { error: 'Il titolo del modulo è obbligatorio.' };
+
+  try {
+    await updateModule({
+      actorUserId: admin.id,
+      moduleId,
+      courseId,
+      title,
+      description: description || null,
+      hours,
+      sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
+    });
+    await recordAdminAudit({
+      actor: { id: admin.id, email: admin.email },
+      action: 'academy_module_saved',
+      subjectType: 'academy_course',
+      subjectId: courseId,
+      outcome: 'ok',
+      detail: { titolo: title, ore: hours },
+    });
+  } catch (error) {
+    return { error: friendlyError(error, 'Impossibile modificare il modulo.') };
+  }
+
+  revalidatePath(`/dashboard/admin/academy/${courseId}`);
+  return { success: 'Modulo aggiornato.' };
 }
 
 export async function deleteModuleAction(
@@ -306,4 +390,109 @@ export async function assignCourseAction(
 
   revalidatePath(`/dashboard/admin/academy/${courseId}`);
   return { success: 'Corso assegnato.' };
+}
+
+export async function uploadMaterialAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const admin = await requireRole('admin');
+  const moduleId = Number(formData.get('moduleId'));
+  const courseId = Number(formData.get('courseId'));
+  const title = String(formData.get('title') ?? '').trim();
+  const file = formData.get('file');
+  if (
+    !Number.isInteger(moduleId) || moduleId <= 0 ||
+    !Number.isInteger(courseId) || courseId <= 0
+  ) {
+    return { error: 'Modulo non valido.' };
+  }
+  if (!title) return { error: 'Il titolo del materiale è obbligatorio.' };
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: 'Seleziona un file.' };
+  }
+
+  try {
+    const bytes = Buffer.from(await file.arrayBuffer());
+    await uploadMaterial({
+      actorUserId: admin.id,
+      moduleId,
+      title,
+      fileName: file.name,
+      contentType: file.type || 'application/octet-stream',
+      bytes,
+    });
+    await recordAdminAudit({
+      actor: { id: admin.id, email: admin.email },
+      action: 'academy_material_uploaded',
+      subjectType: 'academy_course',
+      subjectId: courseId,
+      outcome: 'ok',
+      detail: { titolo: title, dimensione: file.size },
+    });
+  } catch (error) {
+    await recordAdminAudit({
+      actor: { id: admin.id, email: admin.email },
+      action: 'academy_material_uploaded',
+      subjectType: 'academy_course',
+      subjectId: courseId,
+      outcome: 'fallita',
+      detail: { titolo: title },
+    });
+    return { error: friendlyError(error, 'Impossibile caricare il materiale.') };
+  }
+
+  revalidatePath(`/dashboard/admin/academy/${courseId}`);
+  return { success: 'Materiale caricato.' };
+}
+
+export async function toggleMaterialPublishedAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const admin = await requireRole('admin');
+  const attachmentId = Number(formData.get('attachmentId'));
+  const courseId = Number(formData.get('courseId'));
+  const published = String(formData.get('published') ?? '') === '1';
+  if (!Number.isInteger(attachmentId) || attachmentId <= 0) {
+    return { error: 'Materiale non valido.' };
+  }
+
+  try {
+    await setMaterialPublished({ actorUserId: admin.id, attachmentId, published });
+    await recordAdminAudit({
+      actor: { id: admin.id, email: admin.email },
+      action: 'academy_material_published',
+      subjectType: 'academy_course',
+      subjectId: Number.isInteger(courseId) ? courseId : null,
+      outcome: 'ok',
+      detail: { materiale: attachmentId, pubblicato: published },
+    });
+  } catch (error) {
+    return { error: friendlyError(error, 'Impossibile aggiornare il materiale.') };
+  }
+
+  revalidatePath(`/dashboard/admin/academy/${courseId}`);
+  return { success: published ? 'Materiale pubblicato.' : 'Materiale nascosto.' };
+}
+
+export async function deleteMaterialAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const admin = await requireRole('admin');
+  const attachmentId = Number(formData.get('attachmentId'));
+  const courseId = Number(formData.get('courseId'));
+  if (!Number.isInteger(attachmentId) || attachmentId <= 0) {
+    return { error: 'Materiale non valido.' };
+  }
+
+  try {
+    await deleteMaterial({ actorUserId: admin.id, attachmentId });
+  } catch (error) {
+    return { error: friendlyError(error, 'Impossibile eliminare il materiale.') };
+  }
+
+  revalidatePath(`/dashboard/admin/academy/${courseId}`);
+  return { success: 'Materiale eliminato.' };
 }

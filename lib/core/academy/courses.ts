@@ -88,6 +88,29 @@ export async function createCourse(params: {
   return created;
 }
 
+/** Titolo e descrizione restano modificabili solo finché il programma non è bloccato. */
+export async function updateCourse(params: {
+  actorUserId: number;
+  courseId: number;
+  title: string;
+  description: string | null;
+  edition: string | null;
+}): Promise<void> {
+  await assertAdmin(params.actorUserId);
+  await assertStructureUnlocked(params.courseId);
+
+  await db
+    .update(academyCourses)
+    .set({
+      title: params.title,
+      description: params.description,
+      edition: params.edition,
+      updatedDate: new Date(),
+      updatedBy: params.actorUserId,
+    })
+    .where(eq(academyCourses.id, params.courseId));
+}
+
 export async function updateCourseStatus(params: {
   actorUserId: number;
   courseId: number;
