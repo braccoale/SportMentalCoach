@@ -60,7 +60,9 @@ export default async function AdminAcademyCourseDetailPage({
     listInstructors(admin.id, courseId),
     listAssignments(admin.id, courseId),
     Promise.all(
-      course.modules.map(async (module) => [module.id, await listMaterials(admin.id, module.id)] as const)
+      course.modules.map(
+        async (module) => [module.id, await listMaterials(admin.id, courseId, module.id)] as const
+      )
     ),
   ]);
   const materials = new Map<number, ModuleMaterial[]>(materialsByModule);

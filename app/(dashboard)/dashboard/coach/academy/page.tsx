@@ -1,7 +1,9 @@
-import { CheckCircle2, Circle, GraduationCap } from 'lucide-react';
+import Link from 'next/link';
+import { CheckCircle2, Circle, GraduationCap, Sparkles } from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
 import { listAssignmentsForUser } from '@/lib/core/academy/assignments';
 import { listInstructorCourses } from '@/lib/core/academy/instructors';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusPill } from '@/components/admin/academy/status-pill';
 
@@ -43,21 +45,46 @@ export default async function CoachAcademyPage() {
           </h2>
           {teaching.map((course) => (
             <Card key={course.courseId}>
-              <CardContent className="flex items-center justify-between gap-3 pt-6">
-                <div>
-                  <p className="font-medium text-gray-900">
-                    {course.title}
-                    {course.edition ? (
-                      <span className="ml-1.5 font-normal text-gray-400">— {course.edition}</span>
-                    ) : null}
-                  </p>
-                  {course.status !== 'active' && (
-                    <p className="mt-0.5 text-xs text-gray-400">
-                      Non ancora attivo: gli iscritti non lo vedono finché l'admin non lo attiva.
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-medium text-gray-900">
+                      {course.title}
+                      {course.edition ? (
+                        <span className="ml-1.5 font-normal text-gray-400">— {course.edition}</span>
+                      ) : null}
                     </p>
-                  )}
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      {course.status === 'active'
+                        ? `Attivo · ${course.moduleCount} moduli`
+                        : "Non ancora attivo: gli iscritti non lo vedono finché l'admin non lo attiva."}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <StatusPill status={course.status} />
+                    <Button asChild variant="outline" className="h-8 px-3 text-xs">
+                      <Link href={`/dashboard/coach/academy/${course.courseId}`}>Apri corso</Link>
+                    </Button>
+                  </div>
                 </div>
-                <StatusPill status={course.status} />
+
+                {course.status === 'active' && course.sessionCount === 0 && (
+                  <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-indigo-100 bg-indigo-50/60 p-3">
+                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" aria-hidden="true" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-gray-900">Prossimo passo</p>
+                      <p className="mt-0.5 text-xs text-gray-600">
+                        Questo corso è attivo ma non ha ancora sessioni. Crea la prima sessione per
+                        iniziare la formazione.
+                      </p>
+                      <Button asChild size="sm" className="mt-2">
+                        <Link href={`/dashboard/coach/academy/${course.courseId}`}>
+                          Crea la prima sessione
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}

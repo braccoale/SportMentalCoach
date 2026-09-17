@@ -1,9 +1,12 @@
 import 'server-only';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
   academyCourseInstructors,
+  academyCourseModules,
   academyCourses,
+  academySessions,
+  userRoles,
   users,
   type AcademyCourseStatus,
 } from '@/lib/db/schema';
@@ -12,14 +15,60 @@ import { isEligibleCoach } from './coaches';
 
 export type CourseInstructor = { userId: number; displayName: string; email: string };
 
+async function isAdmin(userId: number): Promise<boolean> {
+  const [row] = await db
+    .select({ id: userRoles.id })
+    .from(userRoles)
+    .where(and(eq(userRoles.userId, userId), eq(userRoles.roleKey, 'admin')))
+    .limit(1);
+  return Boolean(row);
+}
+
+async function isInstructorOf(userId: number, courseId: number): Promise<boolean> {
+  const [row] = await db
+    .select({ id: academyCourseInstructors.id })
+    .from(academyCourseInstructors)
+    .where(and(eq(academyCourseInstructors.courseId, courseId), eq(academyCourseInstructors.userId, userId)))
+    .limit(1);
+  return Boolean(row);
+}
+
+/**
+ * L'admin vede e gestisce tutto; un docente vede e gestisce solo i propri
+ * corsi. Usata ovunque la vista "chi può operare qui" non sia riservata al
+ * solo admin — moduli, materiali, partecipanti, sessioni di un corso.
+ */
+export async function assertInstructorOrAdmin(actorUserId: number, courseId: number): Promise<void> {
+  if (await isAdmin(actorUserId)) return;
+  if (await isInstructorOf(actorUserId, courseId)) return;
+  throw new Error('FORBIDDEN');
+}
+
+/**
+ * Vero solo se `userId` è davvero nominato docente di questo corso — a
+ * differenza di `assertInstructorOrAdmin`, un admin non nominato non basta:
+ * serve a validare *chi terrà* una sessione, non chi ha il permesso di
+ * crearla.
+ */
+export async function assertIsInstructor(userId: number, courseId: number): Promise<void> {
+  if (await isInstructorOf(userId, courseId)) return;
+  throw new Error('Il docente indicato non è nominato per questo corso.');
+}
+
 export type InstructorCourse = {
   courseId: number;
   title: string;
   edition: string | null;
   status: AcademyCourseStatus;
+  moduleCount: number;
+  sessionCount: number;
 };
 
-/** I corsi che un coach insegna — la sua vista "Corsi che tieni", mai `assertAdmin`. */
+/**
+ * I corsi che un coach insegna — la sua vista "Corsi che tieni", mai
+ * `assertAdmin`. `sessionCount` conta solo le sessioni non annullate: serve
+ * a decidere se mostrare il richiamo "crea la prima sessione".
+ */
 export async function listInstructorCourses(userId: number): Promise<InstructorCourse[]> {
   const rows = await db
     .select({
@@ -31,14 +80,48 @@ export async function listInstructorCourses(userId: number): Promise<InstructorC
     .from(academyCourseInstructors)
     .innerJoin(academyCourses, eq(academyCourses.id, academyCourseInstructors.courseId))
     .where(eq(academyCourseInstructors.userId, userId));
-  return rows.map((row) => ({ ...row, status: row.status as AcademyCourseStatus }));
+
+  if (rows.length === 0) return [];
+
+  const courseIds = rows.map((r) => r.courseId);
+  const [moduleRows, sessionRows] = await Promise.all([
+    db
+      .select({ courseId: academyCourseModules.courseId })
+      .from(academyCourseModules)
+      .where(inArray(academyCourseModules.courseId, courseIds)),
+    db
+      .select({ courseId: academySessions.courseId })
+      .from(academySessions)
+      .where(
+        and(
+          inArray(academySessions.courseId, courseIds),
+          eq(academySessions.instructorUserId, userId),
+          eq(academySessions.status, 'scheduled')
+        )
+      ),
+  ]);
+  const moduleCountByCourse = new Map<number, number>();
+  for (const row of moduleRows) {
+    moduleCountByCourse.set(row.courseId, (moduleCountByCourse.get(row.courseId) ?? 0) + 1);
+  }
+  const sessionCountByCourse = new Map<number, number>();
+  for (const row of sessionRows) {
+    sessionCountByCourse.set(row.courseId, (sessionCountByCourse.get(row.courseId) ?? 0) + 1);
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    status: row.status as AcademyCourseStatus,
+    moduleCount: moduleCountByCourse.get(row.courseId) ?? 0,
+    sessionCount: sessionCountByCourse.get(row.courseId) ?? 0,
+  }));
 }
 
 export async function listInstructors(
   actorUserId: number,
   courseId: number
 ): Promise<CourseInstructor[]> {
-  await assertAdmin(actorUserId);
+  await assertInstructorOrAdmin(actorUserId, courseId);
   const rows = await db
     .select({
       userId: academyCourseInstructors.userId,

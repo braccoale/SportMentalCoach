@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { asc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { academyModuleAttachments, type AcademyModuleAttachment } from '@/lib/db/schema';
-import { assertAdmin } from '@/lib/core/features';
+import { assertInstructorOrAdmin } from './instructors';
 import {
   ACADEMY_MATERIAL_ALLOWED_MIME_TYPES,
   ACADEMY_MATERIAL_MAX_BYTES,
@@ -22,9 +22,10 @@ export type ModuleMaterial = {
 
 export async function listMaterials(
   actorUserId: number,
+  courseId: number,
   moduleId: number
 ): Promise<ModuleMaterial[]> {
-  await assertAdmin(actorUserId);
+  await assertInstructorOrAdmin(actorUserId, courseId);
   const rows = await db
     .select({
       id: academyModuleAttachments.id,
@@ -52,21 +53,23 @@ function sanitizeFileName(fileName: string): string {
 }
 
 /**
- * Carica un materiale per un modulo — pubblicato subito (il caso comune
- * quando è solo l'admin a caricare, in questa fase). Il tipo e la
- * dimensione sono validati qui, non ci si fida del `contentType` dichiarato
- * dal browser da solo: è comunque quello che arriva, ma il bucket stesso ha
- * lo stesso whitelist come seconda barriera.
+ * Carica un materiale per un modulo — pubblicato subito (semplice finché
+ * non serve davvero una bozza intermedia: admin e docenti del corso possono
+ * già nasconderlo con `setMaterialPublished`). Il tipo e la dimensione sono
+ * validati qui, non ci si fida del `contentType` dichiarato dal browser da
+ * solo: è comunque quello che arriva, ma il bucket stesso ha lo stesso
+ * whitelist come seconda barriera.
  */
 export async function uploadMaterial(params: {
   actorUserId: number;
+  courseId: number;
   moduleId: number;
   title: string;
   fileName: string;
   contentType: string;
   bytes: Buffer;
 }): Promise<AcademyModuleAttachment> {
-  await assertAdmin(params.actorUserId);
+  await assertInstructorOrAdmin(params.actorUserId, params.courseId);
 
   if (params.bytes.byteLength === 0) {
     throw new Error('Il file è vuoto.');
@@ -102,10 +105,11 @@ export async function uploadMaterial(params: {
 
 export async function setMaterialPublished(params: {
   actorUserId: number;
+  courseId: number;
   attachmentId: number;
   published: boolean;
 }): Promise<void> {
-  await assertAdmin(params.actorUserId);
+  await assertInstructorOrAdmin(params.actorUserId, params.courseId);
   await db
     .update(academyModuleAttachments)
     .set(
@@ -118,9 +122,10 @@ export async function setMaterialPublished(params: {
 
 export async function deleteMaterial(params: {
   actorUserId: number;
+  courseId: number;
   attachmentId: number;
 }): Promise<void> {
-  await assertAdmin(params.actorUserId);
+  await assertInstructorOrAdmin(params.actorUserId, params.courseId);
   const [attachment] = await db
     .select({ storageKey: academyModuleAttachments.storageKey })
     .from(academyModuleAttachments)

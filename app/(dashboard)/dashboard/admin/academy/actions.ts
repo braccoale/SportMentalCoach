@@ -462,6 +462,7 @@ export async function uploadMaterialAction(
     const bytes = Buffer.from(await file.arrayBuffer());
     await uploadMaterial({
       actorUserId: admin.id,
+      courseId,
       moduleId,
       title,
       fileName: file.name,
@@ -500,17 +501,20 @@ export async function toggleMaterialPublishedAction(
   const attachmentId = Number(formData.get('attachmentId'));
   const courseId = Number(formData.get('courseId'));
   const published = String(formData.get('published') ?? '') === '1';
-  if (!Number.isInteger(attachmentId) || attachmentId <= 0) {
+  if (
+    !Number.isInteger(attachmentId) || attachmentId <= 0 ||
+    !Number.isInteger(courseId) || courseId <= 0
+  ) {
     return { error: 'Materiale non valido.' };
   }
 
   try {
-    await setMaterialPublished({ actorUserId: admin.id, attachmentId, published });
+    await setMaterialPublished({ actorUserId: admin.id, courseId, attachmentId, published });
     await recordAdminAudit({
       actor: { id: admin.id, email: admin.email },
       action: 'academy_material_published',
       subjectType: 'academy_course',
-      subjectId: Number.isInteger(courseId) ? courseId : null,
+      subjectId: courseId,
       outcome: 'ok',
       detail: { materiale: attachmentId, pubblicato: published },
     });
@@ -529,12 +533,15 @@ export async function deleteMaterialAction(
   const admin = await requireRole('admin');
   const attachmentId = Number(formData.get('attachmentId'));
   const courseId = Number(formData.get('courseId'));
-  if (!Number.isInteger(attachmentId) || attachmentId <= 0) {
+  if (
+    !Number.isInteger(attachmentId) || attachmentId <= 0 ||
+    !Number.isInteger(courseId) || courseId <= 0
+  ) {
     return { error: 'Materiale non valido.' };
   }
 
   try {
-    await deleteMaterial({ actorUserId: admin.id, attachmentId });
+    await deleteMaterial({ actorUserId: admin.id, courseId, attachmentId });
   } catch (error) {
     return { error: friendlyError(error, 'Impossibile eliminare il materiale.') };
   }

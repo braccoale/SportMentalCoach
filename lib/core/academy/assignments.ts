@@ -11,6 +11,7 @@ import {
 } from '@/lib/db/schema';
 import { assertAdmin } from '@/lib/core/features';
 import { isEligibleCoach } from './coaches';
+import { assertInstructorOrAdmin } from './instructors';
 
 export type CourseAssignment = {
   assignmentId: number;
@@ -23,7 +24,7 @@ export async function listAssignments(
   actorUserId: number,
   courseId: number
 ): Promise<CourseAssignment[]> {
-  await assertAdmin(actorUserId);
+  await assertInstructorOrAdmin(actorUserId, courseId);
   const rows = await db
     .select({
       assignmentId: academyCourseAssignments.id,

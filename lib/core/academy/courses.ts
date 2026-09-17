@@ -10,6 +10,7 @@ import {
 } from '@/lib/db/schema';
 import { assertAdmin } from '@/lib/core/features';
 import { courseTotalHours } from './course-hours';
+import { assertInstructorOrAdmin } from './instructors';
 
 const STRUCTURE_LOCKED_MESSAGE =
   'Programma bloccato: crea una nuova edizione per modificarlo.';
@@ -169,7 +170,7 @@ export async function getCourseDetail(
   actorUserId: number,
   courseId: number
 ): Promise<CourseDetail | null> {
-  await assertAdmin(actorUserId);
+  await assertInstructorOrAdmin(actorUserId, courseId);
 
   const [course] = await db
     .select({
