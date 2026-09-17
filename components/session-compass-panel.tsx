@@ -212,7 +212,7 @@ function ReportStateChip({ report }: { report: SessionCompassView | null }) {
       : report.sharedAt
         ? {
             tone: tones.shared,
-            label: `Condiviso il ${new Intl.DateTimeFormat('it-IT', {
+            label: `Report approvato e condiviso · ${new Intl.DateTimeFormat('it-IT', {
               day: 'numeric',
               month: 'short',
               timeZone: 'Europe/Rome',
@@ -476,7 +476,6 @@ export function SessionCompassPanel({
                 <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600">
                   <LockKeyhole className="h-3 w-3" /> Solo coach
                 </span>
-                <ReportStateChip report={report} />
               </div>
               {/* «Come funziona» sta qui e non in un banner nella dashboard.
                   L'art. 4 chiede di mettere a disposizione la formazione, non
@@ -497,6 +496,7 @@ export function SessionCompassPanel({
           </div>
 
           <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <ReportStateChip report={report} />
             <Button
               type="button"
               variant="outline"
