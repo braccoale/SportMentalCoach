@@ -1,11 +1,11 @@
 import Link from 'next/link';
-import { Lock } from 'lucide-react';
+import { Clock, Layers, Lock, Pencil } from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
 import { listCourses } from '@/lib/core/academy/courses';
 import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
 import { StatusPill } from '@/components/admin/academy/status-pill';
-import { createCourseAction } from './actions';
+import { createCourseAction, updateCourseAction } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,10 +38,11 @@ export default async function AdminAcademyPage() {
             maxLength={60}
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
           />
-          <input
+          <textarea
             name="description"
             placeholder="descrizione (opzionale)"
-            className="min-w-[16rem] flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            rows={2}
+            className="min-w-[16rem] flex-1 resize-y rounded-lg border border-gray-300 px-3 py-2 text-sm"
           />
           <Button type="submit">Crea</Button>
         </ActionForm>
@@ -52,29 +53,87 @@ export default async function AdminAcademyPage() {
         {courses.length === 0 ? (
           <p className="mt-3 text-sm text-gray-400">Nessun corso ancora — crealo qui sopra.</p>
         ) : (
-          <ul className="mt-3 divide-y divide-gray-100">
-            {courses.map((course) => (
-              <li key={course.id} className="flex items-center justify-between gap-3 py-3">
-                <div>
-                  <Link
-                    href={`/dashboard/admin/academy/${course.id}`}
-                    className="font-medium text-gray-900 hover:underline"
-                  >
-                    {course.title}
-                    {course.edition ? (
-                      <span className="ml-1.5 font-normal text-gray-400">— {course.edition}</span>
-                    ) : null}
-                  </Link>
-                  <p className="flex items-center gap-1 text-xs text-gray-500">
-                    {course.totalHours} ore totali
-                    {course.structureLocked && (
-                      <span className="inline-flex items-center gap-1">
-                        · <Lock className="h-3 w-3" aria-hidden="true" /> programma bloccato
-                      </span>
+          <ul className="mt-3 space-y-2">
+            {courses.map((course, index) => (
+              <li key={course.id} className="rounded-xl border border-gray-100 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-sm font-semibold text-gray-700">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <div>
+                      <Link
+                        href={`/dashboard/admin/academy/${course.id}`}
+                        className="font-medium text-gray-900 hover:underline"
+                      >
+                        {course.title}
+                        {course.edition ? (
+                          <span className="ml-1.5 font-normal text-gray-400">— {course.edition}</span>
+                        ) : null}
+                      </Link>
+                      {course.description && (
+                        <p className="mt-0.5 max-w-xl text-xs text-gray-500">{course.description}</p>
+                      )}
+                      <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                          {course.totalHours} ore totali
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Layers className="h-3.5 w-3.5" aria-hidden="true" />
+                          {course.moduleCount} moduli
+                        </span>
+                        {course.structureLocked && (
+                          <span className="flex items-center gap-1">
+                            <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+                            programma bloccato
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {!course.structureLocked && (
+                      <details className="relative">
+                        <summary
+                          aria-label={`Modifica ${course.title}`}
+                          className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-md border border-gray-200 text-gray-500 hover:bg-gray-50 [&::-webkit-details-marker]:hidden"
+                        >
+                          <Pencil className="h-4 w-4" aria-hidden="true" />
+                        </summary>
+                        <div className="absolute right-0 z-10 mt-2 w-80 rounded-xl border border-gray-200 bg-white p-3 shadow-lg">
+                          <ActionForm action={updateCourseAction} className="flex flex-col gap-2">
+                            <input type="hidden" name="courseId" value={course.id} />
+                            <input
+                              name="title"
+                              defaultValue={course.title}
+                              required
+                              maxLength={200}
+                              placeholder="titolo"
+                              className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+                            />
+                            <input
+                              name="edition"
+                              defaultValue={course.edition ?? ''}
+                              placeholder="edizione (opzionale)"
+                              maxLength={60}
+                              className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+                            />
+                            <textarea
+                              name="description"
+                              defaultValue={course.description ?? ''}
+                              placeholder="descrizione (opzionale)"
+                              rows={3}
+                              className="resize-y rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+                            />
+                            <Button type="submit" size="sm">Salva</Button>
+                          </ActionForm>
+                        </div>
+                      </details>
                     )}
-                  </p>
+                    <StatusPill status={course.status} />
+                  </div>
                 </div>
-                <StatusPill status={course.status} />
               </li>
             ))}
           </ul>

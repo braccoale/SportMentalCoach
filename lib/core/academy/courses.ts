@@ -17,9 +17,11 @@ const STRUCTURE_LOCKED_MESSAGE =
 export type CourseSummary = {
   id: number;
   title: string;
+  description: string | null;
   status: AcademyCourseStatus;
   edition: string | null;
   totalHours: number;
+  moduleCount: number;
   structureLocked: boolean;
 };
 
@@ -37,6 +39,7 @@ export async function listCourses(actorUserId: number): Promise<CourseSummary[]>
       .select({
         id: academyCourses.id,
         title: academyCourses.title,
+        description: academyCourses.description,
         status: academyCourses.status,
         edition: academyCourses.edition,
         structureLockedAt: academyCourses.structureLockedAt,
@@ -51,21 +54,26 @@ export async function listCourses(actorUserId: number): Promise<CourseSummary[]>
       .from(academyCourseModules),
   ]);
 
-  const hoursByCourseId = new Map<number, { hours: number }[]>();
+  const modulesByCourseId = new Map<number, { hours: number }[]>();
   for (const row of moduleRows) {
-    const list = hoursByCourseId.get(row.courseId);
+    const list = modulesByCourseId.get(row.courseId);
     if (list) list.push({ hours: row.hours });
-    else hoursByCourseId.set(row.courseId, [{ hours: row.hours }]);
+    else modulesByCourseId.set(row.courseId, [{ hours: row.hours }]);
   }
 
-  return courses.map((course) => ({
-    id: course.id,
-    title: course.title,
-    status: course.status as AcademyCourseStatus,
-    edition: course.edition,
-    totalHours: courseTotalHours(hoursByCourseId.get(course.id) ?? []),
-    structureLocked: course.structureLockedAt !== null,
-  }));
+  return courses.map((course) => {
+    const modules = modulesByCourseId.get(course.id) ?? [];
+    return {
+      id: course.id,
+      title: course.title,
+      description: course.description,
+      status: course.status as AcademyCourseStatus,
+      edition: course.edition,
+      totalHours: courseTotalHours(modules),
+      moduleCount: modules.length,
+      structureLocked: course.structureLockedAt !== null,
+    };
+  });
 }
 
 export async function createCourse(params: {
@@ -270,6 +278,38 @@ export async function updateModule(params: {
       updatedBy: params.actorUserId,
     })
     .where(eq(academyCourseModules.id, params.moduleId));
+}
+
+/**
+ * Riordina i moduli di un corso secondo l'ordine dato. Ignora qualunque id
+ * che non appartenga davvero a questo corso — un client compromesso non può
+ * far scivolare il modulo di un altro corso dentro l'ordinamento.
+ */
+export async function reorderModules(params: {
+  actorUserId: number;
+  courseId: number;
+  orderedModuleIds: number[];
+}): Promise<void> {
+  await assertAdmin(params.actorUserId);
+  await assertStructureUnlocked(params.courseId);
+
+  const existing = await db
+    .select({ id: academyCourseModules.id })
+    .from(academyCourseModules)
+    .where(eq(academyCourseModules.courseId, params.courseId));
+  const validIds = new Set(existing.map((m) => m.id));
+  const orderedValidIds = params.orderedModuleIds.filter((id) => validIds.has(id));
+
+  await db.transaction(async (tx) => {
+    await Promise.all(
+      orderedValidIds.map((moduleId, index) =>
+        tx
+          .update(academyCourseModules)
+          .set({ sortOrder: index, updatedDate: new Date(), updatedBy: params.actorUserId })
+          .where(eq(academyCourseModules.id, moduleId))
+      )
+    );
+  });
 }
 
 export async function deleteModule(params: {

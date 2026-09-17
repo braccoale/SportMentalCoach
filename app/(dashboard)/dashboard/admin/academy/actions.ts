@@ -7,6 +7,7 @@ import {
   createModule,
   createNewEdition,
   deleteModule,
+  reorderModules,
   updateCourse,
   updateCourseStatus,
   updateModule,
@@ -495,4 +496,21 @@ export async function deleteMaterialAction(
 
   revalidatePath(`/dashboard/admin/academy/${courseId}`);
   return { success: 'Materiale eliminato.' };
+}
+
+/**
+ * Chiamata direttamente dal componente client di trascinamento (non da un
+ * `<form>`), non dal pattern `ActionForm`/`useActionState`: qui non c'è un
+ * fallimento da mostrare in un form, solo un ordine da salvare dopo un
+ * rilascio del drag.
+ */
+export async function reorderModulesAction(
+  courseId: number,
+  orderedModuleIds: number[]
+): Promise<void> {
+  const admin = await requireRole('admin');
+  if (!Number.isInteger(courseId) || courseId <= 0) return;
+
+  await reorderModules({ actorUserId: admin.id, courseId, orderedModuleIds });
+  revalidatePath(`/dashboard/admin/academy/${courseId}`);
 }

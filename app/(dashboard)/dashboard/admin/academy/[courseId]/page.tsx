@@ -11,6 +11,7 @@ import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CourseTabs } from '@/components/admin/academy/course-tabs';
+import { ReorderableModules } from '@/components/admin/academy/reorderable-modules';
 import { StatusPill } from '@/components/admin/academy/status-pill';
 import {
   assignCourseAction,
@@ -19,6 +20,7 @@ import {
   deleteMaterialAction,
   deleteModuleAction,
   nominateInstructorAction,
+  reorderModulesAction,
   toggleMaterialPublishedAction,
   updateCourseAction,
   updateCourseStatusAction,
@@ -44,8 +46,13 @@ export default async function AdminAcademyCourseDetailPage({
   const courseId = Number(courseIdRaw);
   if (!Number.isInteger(courseId) || courseId <= 0) notFound();
 
-  const course = await getCourseDetail(admin.id, courseId);
-  if (!course) notFound();
+  const courseOrNull = await getCourseDetail(admin.id, courseId);
+  if (!courseOrNull) notFound();
+  // Un alias con tipo esplicitamente non-null: le funzioni annidate più
+  // sotto (`moduleRowContent`) chiudono su questa variabile, e TypeScript
+  // non riporta dentro una closure il narrowing ottenuto da `if (!x) return`
+  // nello scope esterno.
+  const course: NonNullable<typeof courseOrNull> = courseOrNull;
 
   const [coaches, instructors, assignments, materialsByModule] = await Promise.all([
     listApprovedCoaches(admin.id),
@@ -67,6 +74,93 @@ export default async function AdminAcademyCourseDetailPage({
     { label: 'Docente nominato', done: instructors.length > 0 },
   ];
 
+  function moduleRowContent(module: (typeof course.modules)[number], index: number) {
+    return (
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-sm font-semibold text-gray-700">
+            {String(index + 1).padStart(2, '0')}
+          </span>
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">
+              Modulo {index + 1}
+            </p>
+            <p className="text-sm font-semibold text-gray-900">{module.title}</p>
+            {module.description && (
+              <p className="mt-0.5 text-xs text-gray-500">{module.description}</p>
+            )}
+            <p className="mt-1.5 flex items-center gap-1 text-xs text-gray-500">
+              <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+              {module.hours} ore
+            </p>
+          </div>
+        </div>
+        {!course.structureLocked && (
+          <div className="flex shrink-0 items-center gap-1.5">
+            <details className="relative">
+              <summary
+                aria-label={`Modifica ${module.title}`}
+                className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-md border border-gray-200 text-gray-500 hover:bg-gray-50 [&::-webkit-details-marker]:hidden"
+              >
+                <Pencil className="h-4 w-4" aria-hidden="true" />
+              </summary>
+              <div className="absolute right-0 z-10 mt-2 w-72 rounded-xl border border-gray-200 bg-white p-3 shadow-lg">
+                <ActionForm action={updateModuleAction} className="flex flex-col gap-2">
+                  <input type="hidden" name="moduleId" value={module.id} />
+                  <input type="hidden" name="courseId" value={course.id} />
+                  <input type="hidden" name="sortOrder" value={module.sortOrder} />
+                  <input
+                    name="title"
+                    defaultValue={module.title}
+                    required
+                    maxLength={200}
+                    placeholder="titolo"
+                    className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+                  />
+                  <textarea
+                    name="description"
+                    defaultValue={module.description ?? ''}
+                    placeholder="descrizione (opzionale)"
+                    rows={3}
+                    className="resize-y rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+                  />
+                  <input
+                    name="hours"
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    defaultValue={module.hours}
+                    required
+                    className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+                  />
+                  <Button type="submit" size="sm">Salva modulo</Button>
+                </ActionForm>
+              </div>
+            </details>
+            <ActionForm
+              action={deleteModuleAction}
+              confirmTitle="Eliminare il modulo?"
+              confirmMessage={`"${module.title}" verrà rimosso dal programma.`}
+              confirmActionLabel="Elimina"
+            >
+              <input type="hidden" name="moduleId" value={module.id} />
+              <input type="hidden" name="courseId" value={course.id} />
+              <Button
+                type="submit"
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                aria-label={`Elimina ${module.title}`}
+              >
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </ActionForm>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const configPanel = (
     <div className="space-y-6">
       <Card>
@@ -81,94 +175,25 @@ export default async function AdminAcademyCourseDetailPage({
         <CardContent>
           {course.modules.length === 0 ? (
             <p className="text-sm text-gray-400">Nessun modulo ancora.</p>
-          ) : (
+          ) : course.structureLocked ? (
             <ol className="space-y-2">
               {course.modules.map((module, index) => (
                 <li key={module.id} className="rounded-xl border border-gray-200 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-sm font-semibold text-gray-700">
-                        {String(index + 1).padStart(2, '0')}
-                      </span>
-                      <div>
-                        <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">
-                          Modulo {index + 1}
-                        </p>
-                        <p className="text-sm font-semibold text-gray-900">{module.title}</p>
-                        {module.description && (
-                          <p className="mt-0.5 text-xs text-gray-500">{module.description}</p>
-                        )}
-                        <p className="mt-1.5 flex items-center gap-1 text-xs text-gray-500">
-                          <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-                          {module.hours} ore
-                        </p>
-                      </div>
-                    </div>
-                    {!course.structureLocked && (
-                      <div className="flex shrink-0 items-center gap-1.5">
-                        <details className="relative">
-                          <summary
-                            aria-label={`Modifica ${module.title}`}
-                            className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-md border border-gray-200 text-gray-500 hover:bg-gray-50 [&::-webkit-details-marker]:hidden"
-                          >
-                            <Pencil className="h-4 w-4" aria-hidden="true" />
-                          </summary>
-                          <div className="absolute right-0 z-10 mt-2 w-72 rounded-xl border border-gray-200 bg-white p-3 shadow-lg">
-                            <ActionForm action={updateModuleAction} className="flex flex-col gap-2">
-                              <input type="hidden" name="moduleId" value={module.id} />
-                              <input type="hidden" name="courseId" value={course.id} />
-                              <input type="hidden" name="sortOrder" value={module.sortOrder} />
-                              <input
-                                name="title"
-                                defaultValue={module.title}
-                                required
-                                maxLength={200}
-                                placeholder="titolo"
-                                className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
-                              />
-                              <input
-                                name="description"
-                                defaultValue={module.description ?? ''}
-                                placeholder="descrizione (opzionale)"
-                                className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
-                              />
-                              <input
-                                name="hours"
-                                type="number"
-                                min={0}
-                                step={0.5}
-                                defaultValue={module.hours}
-                                required
-                                className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
-                              />
-                              <Button type="submit" size="sm">Salva modulo</Button>
-                            </ActionForm>
-                          </div>
-                        </details>
-                        <ActionForm
-                          action={deleteModuleAction}
-                          confirmTitle="Eliminare il modulo?"
-                          confirmMessage={`"${module.title}" verrà rimosso dal programma.`}
-                          confirmActionLabel="Elimina"
-                        >
-                          <input type="hidden" name="moduleId" value={module.id} />
-                          <input type="hidden" name="courseId" value={course.id} />
-                          <Button
-                            type="submit"
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
-                            aria-label={`Elimina ${module.title}`}
-                          >
-                            <Trash2 className="h-4 w-4" aria-hidden="true" />
-                          </Button>
-                        </ActionForm>
-                      </div>
-                    )}
-                  </div>
+                  {moduleRowContent(module, index)}
                 </li>
               ))}
             </ol>
+          ) : (
+            <ReorderableModules
+              items={course.modules.map((module, index) => ({
+                id: module.id,
+                node: moduleRowContent(module, index),
+              }))}
+              onReorder={async (orderedModuleIds) => {
+                'use server';
+                await reorderModulesAction(course.id, orderedModuleIds);
+              }}
+            />
           )}
 
           {!course.structureLocked && (
@@ -182,10 +207,11 @@ export default async function AdminAcademyCourseDetailPage({
                 maxLength={200}
                 className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
               />
-              <input
+              <textarea
                 name="description"
                 placeholder="descrizione (opzionale)"
-                className="min-w-[14rem] flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                rows={2}
+                className="min-w-[14rem] flex-1 resize-y rounded-lg border border-gray-300 px-3 py-2 text-sm"
               />
               <input
                 name="hours"
@@ -448,11 +474,12 @@ export default async function AdminAcademyCourseDetailPage({
                 maxLength={60}
                 className="w-40 rounded-lg border border-gray-300 px-3 py-2 text-sm"
               />
-              <input
+              <textarea
                 name="description"
                 defaultValue={course.description ?? ''}
                 placeholder="descrizione"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                rows={3}
+                className="w-full resize-y rounded-lg border border-gray-300 px-3 py-2 text-sm"
               />
               <Button type="submit" size="sm">Salva</Button>
             </ActionForm>
