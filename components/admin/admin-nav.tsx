@@ -6,6 +6,7 @@ import {
   Activity,
   BrainCircuit,
   CalendarClock,
+  GraduationCap,
   LayoutDashboard,
   Package,
   Settings,
@@ -84,6 +85,11 @@ export function AdminNav({
       href: '/dashboard/admin/ai-notes',
       label: 'Configurazione',
       icon: Sliders,
+    },
+    {
+      href: '/dashboard/admin/academy',
+      label: 'Academy',
+      icon: GraduationCap,
     },
     {
       href: '/dashboard/admin/packages',
