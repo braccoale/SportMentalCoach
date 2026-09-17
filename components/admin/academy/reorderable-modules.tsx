@@ -60,7 +60,7 @@ export function ReorderableModules({
           onDragOver={(event) => event.preventDefault()}
           onDrop={() => handleDrop(id)}
           className={cn(
-            'flex items-start gap-2 rounded-xl border border-gray-200 p-4 transition-shadow',
+            'flex items-start gap-2 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 transition-shadow',
             dragId === id && 'opacity-50 shadow-lg'
           )}
         >

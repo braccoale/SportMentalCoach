@@ -1,5 +1,5 @@
 import 'server-only';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
   academyCourseInstructors,
@@ -79,4 +79,27 @@ export async function nominateInstructor(params: {
       nominatedBy: params.actorUserId,
     })
     .onConflictDoNothing();
+}
+
+/**
+ * Rimuove un docente da un corso. Se esiste già una sessione Academy
+ * tenuta da questo docente per questo corso, il database rifiuta la
+ * cancellazione (la chiave esterna composta di `academy_sessions` non ha
+ * `ON DELETE CASCADE` verso questa tabella): va prima risolta quella
+ * sessione, non è una cancellazione silenziosa a cascata.
+ */
+export async function removeInstructor(params: {
+  actorUserId: number;
+  courseId: number;
+  userId: number;
+}): Promise<void> {
+  await assertAdmin(params.actorUserId);
+  await db
+    .delete(academyCourseInstructors)
+    .where(
+      and(
+        eq(academyCourseInstructors.courseId, params.courseId),
+        eq(academyCourseInstructors.userId, params.userId)
+      )
+    );
 }

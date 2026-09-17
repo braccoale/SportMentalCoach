@@ -547,6 +547,13 @@
       "when": 1789655236436,
       "tag": "0077_right_dark_beast",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1789658837746,
+      "tag": "0078_gray_lethal_legion",
+      "breakpoints": true
     }
   ]
 }

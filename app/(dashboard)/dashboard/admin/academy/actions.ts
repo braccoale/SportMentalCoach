@@ -12,7 +12,7 @@ import {
   updateCourseStatus,
   updateModule,
 } from '@/lib/core/academy/courses';
-import { nominateInstructor } from '@/lib/core/academy/instructors';
+import { nominateInstructor, removeInstructor } from '@/lib/core/academy/instructors';
 import { assignCourseToUser } from '@/lib/core/academy/assignments';
 import {
   deleteMaterial,
@@ -351,6 +351,51 @@ export async function nominateInstructorAction(
 
   revalidatePath(`/dashboard/admin/academy/${courseId}`);
   return { success: 'Docente nominato.' };
+}
+
+export async function removeInstructorAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const admin = await requireRole('admin');
+  const courseId = Number(formData.get('courseId'));
+  const userId = Number(formData.get('userId'));
+  if (
+    !Number.isInteger(courseId) || courseId <= 0 ||
+    !Number.isInteger(userId) || userId <= 0
+  ) {
+    return { error: 'Corso o coach non valido.' };
+  }
+
+  try {
+    await removeInstructor({ actorUserId: admin.id, courseId, userId });
+    await recordAdminAudit({
+      actor: { id: admin.id, email: admin.email },
+      action: 'academy_instructor_removed',
+      subjectType: 'academy_course',
+      subjectId: courseId,
+      outcome: 'ok',
+      detail: { docente: userId },
+    });
+  } catch (error) {
+    await recordAdminAudit({
+      actor: { id: admin.id, email: admin.email },
+      action: 'academy_instructor_removed',
+      subjectType: 'academy_course',
+      subjectId: courseId,
+      outcome: 'fallita',
+      detail: { docente: userId },
+    });
+    return {
+      error: friendlyError(
+        error,
+        'Impossibile rimuovere il docente: probabilmente ha già una sessione su questo corso.'
+      ),
+    };
+  }
+
+  revalidatePath(`/dashboard/admin/academy/${courseId}`);
+  return { success: 'Docente rimosso.' };
 }
 
 export async function assignCourseAction(

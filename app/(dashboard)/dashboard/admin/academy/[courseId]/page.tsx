@@ -20,6 +20,7 @@ import {
   deleteMaterialAction,
   deleteModuleAction,
   nominateInstructorAction,
+  removeInstructorAction,
   reorderModulesAction,
   toggleMaterialPublishedAction,
   updateCourseAction,
@@ -78,7 +79,7 @@ export default async function AdminAcademyCourseDetailPage({
     return (
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-sm font-semibold text-gray-700">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-indigo-100 bg-white text-sm font-semibold text-indigo-700">
             {String(index + 1).padStart(2, '0')}
           </span>
           <div>
@@ -178,7 +179,10 @@ export default async function AdminAcademyCourseDetailPage({
           ) : course.structureLocked ? (
             <ol className="space-y-2">
               {course.modules.map((module, index) => (
-                <li key={module.id} className="rounded-xl border border-gray-200 p-4">
+                <li
+                  key={module.id}
+                  className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4"
+                >
                   {moduleRowContent(module, index)}
                 </li>
               ))}
@@ -236,11 +240,34 @@ export default async function AdminAcademyCourseDetailPage({
           {instructors.length === 0 ? (
             <p className="text-sm text-gray-400">Nessun docente nominato per questo corso.</p>
           ) : (
-            <ul className="mb-3 space-y-1 text-sm text-gray-700">
+            <ul className="mb-3 space-y-1.5">
               {instructors.map((instructor) => (
-                <li key={instructor.userId}>
-                  {instructor.displayName}{' '}
-                  <span className="text-xs text-gray-400">({instructor.email})</span>
+                <li
+                  key={instructor.userId}
+                  className="flex items-center justify-between gap-2 text-sm text-gray-700"
+                >
+                  <span>
+                    {instructor.displayName}{' '}
+                    <span className="text-xs text-gray-400">({instructor.email})</span>
+                  </span>
+                  <ActionForm
+                    action={removeInstructorAction}
+                    confirmTitle="Rimuovere il docente?"
+                    confirmMessage={`${instructor.displayName} non sarà più docente di questo corso.`}
+                    confirmActionLabel="Rimuovi"
+                  >
+                    <input type="hidden" name="courseId" value={course.id} />
+                    <input type="hidden" name="userId" value={instructor.userId} />
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7"
+                      aria-label={`Rimuovi ${instructor.displayName}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    </Button>
+                  </ActionForm>
                 </li>
               ))}
             </ul>

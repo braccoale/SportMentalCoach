@@ -158,6 +158,7 @@ export const ADMIN_AUDIT_ACTION_LABEL: Record<AdminAuditAction, string> = {
   academy_course_edition_created: 'Nuova edizione corso Academy creata',
   academy_module_saved: 'Modulo Academy salvato',
   academy_instructor_nominated: 'Docente Academy nominato',
+  academy_instructor_removed: 'Docente Academy rimosso',
   academy_course_assigned: 'Corso Academy assegnato a un coach',
   academy_session_created: 'Sessione Academy creata',
   academy_session_cancelled: 'Sessione Academy annullata',
