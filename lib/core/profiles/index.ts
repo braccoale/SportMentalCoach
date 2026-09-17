@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db, type DbOrTx } from '@/lib/db/drizzle';
 import { resolveDisplayName, yearsSince } from '@/lib/core/format';
 import { notify } from '@/lib/core/notifications';
+import { CONTACT_INBOX_FALLBACK } from '@/lib/core/email';
 import {
   profiles,
   userRoles,
@@ -54,11 +55,26 @@ async function notifyAdminsOfProviderEvent(
     .from(userRoles)
     .where(eq(userRoles.roleKey, 'admin'));
 
-  await Promise.all(
-    admins.map(({ userId: adminUserId }) =>
-      notify(event, adminUserId, details)
-    )
-  );
+  await notifyAdminAccounts(admins, event, details);
+}
+
+async function notifyAdminAccounts(
+  admins: Array<{ userId: number }>,
+  event: ProviderAdminEvent | 'athlete_registered',
+  details: { providerId?: number; coachName?: string; athleteName?: string; registeredAt: Date; submittedAt?: Date }
+): Promise<void> {
+  const sorted = [...admins].sort((left, right) => left.userId - right.userId);
+  await Promise.all(sorted.map(({ userId }, index) =>
+    notify(event, userId, details, index === 0
+      ? {
+          emailRecipient: {
+            address: CONTACT_INBOX_FALLBACK,
+            firstName: 'Team KaiPai',
+            fullName: 'Team KaiPai',
+          },
+        }
+      : { email: false })
+  ));
 }
 
 /** Alerts every admin as soon as a coach account has been created. */
@@ -95,11 +111,7 @@ export async function notifyAdminsOfAthleteRegistration(
     registeredAt: row.registeredAt,
   };
 
-  await Promise.all(
-    admins.map(({ userId: adminUserId }) =>
-      notify('athlete_registered', adminUserId, details)
-    )
-  );
+  await notifyAdminAccounts(admins, 'athlete_registered', details);
 }
 
 /** Marketplace roles a user can self-select at signup (never `admin`). */

@@ -837,7 +837,11 @@ async function buildEmailPayload(
 export async function notify(
   type: NotificationType,
   recipientUserId: number,
-  ctx: NotifyContext = {}
+  ctx: NotifyContext = {},
+  options: {
+    email?: boolean;
+    emailRecipient?: { address: string; firstName: string; fullName: string };
+  } = {}
 ): Promise<void> {
   // Prima di qualunque cosa: se gli avvisi sono zittiti non si scrive la
   // notifica, non si manda la mail, non si sveglia nessun telefono. Vale solo
@@ -875,14 +879,21 @@ export async function notify(
   // Email mirror — a separate channel with its own preference, template and
   // delivery ledger. Best-effort: it never breaks the domain action. Sent AFTER
   // the response (via `after`) so the provider round-trip adds no latency.
-  if (isEmailEnabled()) {
+  if (isEmailEnabled() && options.email !== false) {
     const sendEmail = async () => {
       try {
-        const recipient = await resolveEmailRecipient(recipientUserId, type);
-        if (!recipient) {
+        const accountRecipient = await resolveEmailRecipient(recipientUserId, type);
+        if (!accountRecipient) {
           console.log(`[email] skipped (preference/no-email): "${title}"`);
           return;
         }
+        const recipient = options.emailRecipient
+          ? {
+              email: options.emailRecipient.address,
+              firstName: options.emailRecipient.firstName,
+              fullName: options.emailRecipient.fullName,
+            }
+          : accountRecipient;
 
         const idempotencyKey = buildEmailIdempotencyKey({
           eventKey: type,
