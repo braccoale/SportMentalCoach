@@ -153,6 +153,18 @@ export const ADMIN_AUDIT_ACTION_LABEL: Record<AdminAuditAction, string> = {
   package_features_updated: 'Feature del pacchetto aggiornate',
   user_package_assigned: 'Pacchetto assegnato a un utente',
   user_package_revoked: 'Pacchetto revocato a un utente',
+  academy_course_created: 'Corso Academy creato',
+  academy_course_status_changed: 'Stato corso Academy cambiato',
+  academy_course_edition_created: 'Nuova edizione corso Academy creata',
+  academy_module_saved: 'Modulo Academy salvato',
+  academy_instructor_nominated: 'Docente Academy nominato',
+  academy_course_assigned: 'Corso Academy assegnato a un coach',
+  academy_session_created: 'Sessione Academy creata',
+  academy_session_cancelled: 'Sessione Academy annullata',
+  academy_material_uploaded: 'Materiale Academy caricato',
+  academy_material_published: 'Materiale Academy pubblicato',
+  academy_module_completed: 'Modulo Academy segnato completato',
+  academy_module_completion_corrected: 'Completamento Academy corretto',
 };
 
 export const ADMIN_AUDIT_OUTCOME_LABEL: Record<AdminAuditOutcome, string> = {

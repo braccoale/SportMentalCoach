@@ -15,6 +15,8 @@ import {
   uuid,
   real,
   pgView,
+  foreignKey,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
@@ -3349,6 +3351,18 @@ export const ADMIN_AUDIT_ACTIONS = [
   'package_features_updated',
   'user_package_assigned',
   'user_package_revoked',
+  'academy_course_created',
+  'academy_course_status_changed',
+  'academy_course_edition_created',
+  'academy_module_saved',
+  'academy_instructor_nominated',
+  'academy_course_assigned',
+  'academy_session_created',
+  'academy_session_cancelled',
+  'academy_material_uploaded',
+  'academy_material_published',
+  'academy_module_completed',
+  'academy_module_completion_corrected',
 ] as const;
 export type AdminAuditAction = (typeof ADMIN_AUDIT_ACTIONS)[number];
 
@@ -3360,6 +3374,7 @@ export const ADMIN_AUDIT_SUBJECTS = [
   'configuration',
   'system',
   'package',
+  'academy_course',
 ] as const;
 export type AdminAuditSubject = (typeof ADMIN_AUDIT_SUBJECTS)[number];
 
@@ -3401,11 +3416,11 @@ export const adminAuditEvents = pgTable(
     index('admin_audit_events_action_idx').on(table.action, table.createdDate),
     check(
       'admin_audit_events_action_check',
-      sql`${table.action} in ('coach_approved', 'coach_rejected', 'coach_verification_changed', 'user_role_changed', 'ai_notes_entitlement_granted', 'ai_notes_entitlement_revoked', 'ai_notes_session_reopened', 'ai_notes_worker_run', 'ai_notes_guidelines_saved', 'ai_notes_callback_probed', 'sensitive_content_accessed', 'data_exported', 'data_deleted', 'configuration_changed', 'package_created', 'package_features_updated', 'user_package_assigned', 'user_package_revoked')`
+      sql`${table.action} in ('coach_approved', 'coach_rejected', 'coach_verification_changed', 'user_role_changed', 'ai_notes_entitlement_granted', 'ai_notes_entitlement_revoked', 'ai_notes_session_reopened', 'ai_notes_worker_run', 'ai_notes_guidelines_saved', 'ai_notes_callback_probed', 'sensitive_content_accessed', 'data_exported', 'data_deleted', 'configuration_changed', 'package_created', 'package_features_updated', 'user_package_assigned', 'user_package_revoked', 'academy_course_created', 'academy_course_status_changed', 'academy_course_edition_created', 'academy_module_saved', 'academy_instructor_nominated', 'academy_course_assigned', 'academy_session_created', 'academy_session_cancelled', 'academy_material_uploaded', 'academy_material_published', 'academy_module_completed', 'academy_module_completion_corrected')`
     ),
     check(
       'admin_audit_events_subject_type_check',
-      sql`${table.subjectType} in ('provider_profile', 'user', 'ai_session', 'feature', 'configuration', 'system', 'package')`
+      sql`${table.subjectType} in ('provider_profile', 'user', 'ai_session', 'feature', 'configuration', 'system', 'package', 'academy_course')`
     ),
     check(
       'admin_audit_events_outcome_check',
@@ -3459,3 +3474,443 @@ export const systemConfig = pgTable(
 
 export type SystemConfig = typeof systemConfig.$inferSelect;
 export type NewSystemConfig = typeof systemConfig.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Academy: corsi di formazione per i coach (vedi
+// docs/superpowers/specs/2026-09-17-academy-corsi-design.md e il piano
+// docs/superpowers/plans/2026-09-17-academy-corsi.md). Erogata con vere
+// sessioni video Academy (individuali o di gruppo), non con `bookings`:
+// `bookings` resta un client + un provider, usato da ~150 moduli di AI
+// Session Notes, dalla policy di cancellazione, dalle notifiche e dalla app
+// mobile — tutti scritti assumendo un atleta. Estenderla per N partecipanti
+// avrebbe significato riverificare ognuno di quei consumatori. Le tabelle
+// qui sotto sono additive e parallele: riusano LiveKit (stessa
+// infrastruttura video) ma con una propria autorizzazione, pensata fin
+// dall'inizio per un docente e più partecipanti.
+//
+// L'integrità course/module/assignment è rinforzata anche a livello di
+// database, non solo applicativo: più tabelle portano una colonna `course_id`
+// ridondante, vincolata da una chiave esterna composta verso la coppia
+// `(id, course_id)` della tabella referenziata. Un completamento, una
+// sessione o un partecipante non possono così puntare a un corso diverso da
+// quello del modulo/assegnazione/sessione a cui si agganciano — Postgres lo
+// rifiuta, non serve fidarsi del controllo applicativo da solo.
+// ---------------------------------------------------------------------------
+
+export const ACADEMY_COURSE_STATUSES = ['draft', 'active', 'cancelled'] as const;
+export type AcademyCourseStatus = (typeof ACADEMY_COURSE_STATUSES)[number];
+
+/**
+ * Un corso — moduli, docenti e stato vivono qui. Le ore totali non sono una
+ * colonna: si calcolano sempre da `academyCourseModules` via
+ * `courseTotalHours` (lib/core/academy/course-hours.ts).
+ *
+ * `structureLockedAt` si valorizza in modo atomico con la prima assegnazione
+ * (stessa transazione, riga del corso bloccata con `SELECT ... FOR UPDATE`
+ * prima del controllo) e non si azzera mai: per cambiare il programma di un
+ * corso già assegnato si crea una nuova edizione (`previousCourseId`), non si
+ * sblocca quella esistente.
+ */
+export const academyCourses = pgTable(
+  'academy_courses',
+  {
+    id: serial('id').primaryKey(),
+    title: varchar('title', { length: 200 }).notNull(),
+    description: text('description'),
+    status: varchar('status', { length: 20 }).notNull().default('draft'),
+    // Etichetta libera dell'admin (es. "Autunno 2026"), non un identificatore.
+    edition: varchar('edition', { length: 60 }),
+    previousCourseId: integer('previous_course_id').references(
+      (): AnyPgColumn => academyCourses.id,
+      { onDelete: 'set null' }
+    ),
+    structureLockedAt: timestamp('structure_locked_at', { withTimezone: true }),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    updatedDate: timestamp('updateddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedBy: integer('updatedby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    check(
+      'academy_courses_status_check',
+      sql`${table.status} in ('draft', 'active', 'cancelled')`
+    ),
+  ]
+);
+
+export type AcademyCourse = typeof academyCourses.$inferSelect;
+export type NewAcademyCourse = typeof academyCourses.$inferInsert;
+
+export const academyCourseModules = pgTable(
+  'academy_course_modules',
+  {
+    id: serial('id').primaryKey(),
+    courseId: integer('course_id')
+      .notNull()
+      .references(() => academyCourses.id, { onDelete: 'cascade' }),
+    title: varchar('title', { length: 200 }).notNull(),
+    description: text('description'),
+    hours: real('hours').notNull().default(0),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    updatedDate: timestamp('updateddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedBy: integer('updatedby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    // Bersaglio delle chiavi esterne composte da academySessions e
+    // academyModuleCompletions — garantisce che un modulo referenziato porti
+    // sempre con sé il proprio corso reale.
+    unique('academy_course_modules_id_course_unique').on(
+      table.id,
+      table.courseId
+    ),
+    index('academy_course_modules_course_idx').on(
+      table.courseId,
+      table.sortOrder
+    ),
+    check('academy_course_modules_hours_check', sql`${table.hours} >= 0`),
+  ]
+);
+
+export type AcademyCourseModule = typeof academyCourseModules.$inferSelect;
+export type NewAcademyCourseModule = typeof academyCourseModules.$inferInsert;
+
+/**
+ * I coach autorizzati a insegnare un corso — una relazione con il corso, non
+ * un ruolo globale. Un coach può insegnare in un corso e partecipare a un
+ * altro. `academySessions` referenzia questa tabella con una chiave esterna
+ * composta su `(course_id, instructor_user_id)`: un docente non nominato per
+ * quel corso non può avere una sessione, imposto dal database.
+ */
+export const academyCourseInstructors = pgTable(
+  'academy_course_instructors',
+  {
+    id: serial('id').primaryKey(),
+    courseId: integer('course_id')
+      .notNull()
+      .references(() => academyCourses.id, { onDelete: 'cascade' }),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    nominatedDate: timestamp('nominated_date', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    nominatedBy: integer('nominated_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    unique('academy_course_instructors_course_user_unique').on(
+      table.courseId,
+      table.userId
+    ),
+  ]
+);
+
+export type AcademyCourseInstructor =
+  typeof academyCourseInstructors.$inferSelect;
+export type NewAcademyCourseInstructor =
+  typeof academyCourseInstructors.$inferInsert;
+
+export const ACADEMY_ASSIGNMENT_STATUSES = [
+  'assigned',
+  'in_progress',
+  'completed',
+] as const;
+export type AcademyAssignmentStatus =
+  (typeof ACADEMY_ASSIGNMENT_STATUSES)[number];
+
+/**
+ * Un coach partecipante assegnato a un corso dall'admin — mai
+ * auto-iscrizione. `status` non è mai scritto a mano: è sempre
+ * `computeAssignmentStatus` (lib/core/academy/assignment-progress.ts)
+ * applicato ai moduli del corso e ai completamenti registrati.
+ */
+export const academyCourseAssignments = pgTable(
+  'academy_course_assignments',
+  {
+    id: serial('id').primaryKey(),
+    courseId: integer('course_id')
+      .notNull()
+      .references(() => academyCourses.id, { onDelete: 'cascade' }),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    status: varchar('status', { length: 20 }).notNull().default('assigned'),
+    assignedDate: timestamp('assigned_date', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    assignedBy: integer('assigned_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    completedDate: timestamp('completed_date', { withTimezone: true }),
+  },
+  (table) => [
+    unique('academy_course_assignments_course_user_unique').on(
+      table.courseId,
+      table.userId
+    ),
+    // Bersaglio delle chiavi esterne composte da academySessionParticipants e
+    // academyModuleCompletions.
+    unique('academy_course_assignments_id_course_unique').on(
+      table.id,
+      table.courseId
+    ),
+    index('academy_course_assignments_user_idx').on(table.userId),
+    check(
+      'academy_course_assignments_status_check',
+      sql`${table.status} in ('assigned', 'in_progress', 'completed')`
+    ),
+  ]
+);
+
+export type AcademyCourseAssignment =
+  typeof academyCourseAssignments.$inferSelect;
+export type NewAcademyCourseAssignment =
+  typeof academyCourseAssignments.$inferInsert;
+
+export const ACADEMY_SESSION_MODES = ['individual', 'group'] as const;
+export type AcademySessionMode = (typeof ACADEMY_SESSION_MODES)[number];
+
+export const ACADEMY_SESSION_STATUSES = ['scheduled', 'cancelled'] as const;
+export type AcademySessionStatus = (typeof ACADEMY_SESSION_STATUSES)[number];
+
+/**
+ * Una sessione video Academy — non una `bookings`. Un docente, uno o più
+ * partecipanti (academySessionParticipants), un modulo. Niente
+ * `sessionStartedAt`/`sessionEndedAt` con euristica a battito cardiaco in
+ * questa prima versione: la fine di una sessione non completa mai un modulo
+ * da sola (l'admin valida sempre a parte), quindi qui basta sapere che la
+ * sessione esiste ed è programmata o annullata — tracciare la durata reale
+ * è rimandabile senza costo per la validazione dei moduli.
+ */
+export const academySessions = pgTable(
+  'academy_sessions',
+  {
+    id: serial('id').primaryKey(),
+    courseId: integer('course_id')
+      .notNull()
+      .references(() => academyCourses.id, { onDelete: 'cascade' }),
+    moduleId: integer('module_id').notNull(),
+    instructorUserId: integer('instructor_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    mode: varchar('mode', { length: 20 }).notNull(),
+    status: varchar('status', { length: 20 }).notNull().default('scheduled'),
+    scheduledFor: timestamp('scheduled_for', { withTimezone: true }).notNull(),
+    durationMin: integer('duration_min').notNull(),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    updatedDate: timestamp('updateddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedBy: integer('updatedby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    unique('academy_sessions_id_course_unique').on(table.id, table.courseId),
+    index('academy_sessions_course_idx').on(table.courseId, table.scheduledFor),
+    index('academy_sessions_instructor_idx').on(
+      table.instructorUserId,
+      table.scheduledFor
+    ),
+    check(
+      'academy_sessions_mode_check',
+      sql`${table.mode} in ('individual', 'group')`
+    ),
+    check(
+      'academy_sessions_status_check',
+      sql`${table.status} in ('scheduled', 'cancelled')`
+    ),
+    check('academy_sessions_duration_check', sql`${table.durationMin} > 0`),
+    // Il modulo deve appartenere allo stesso corso della sessione.
+    foreignKey({
+      columns: [table.moduleId, table.courseId],
+      foreignColumns: [academyCourseModules.id, academyCourseModules.courseId],
+      name: 'academy_sessions_module_course_fk',
+    }),
+    // Il docente deve essere nominato per questo corso — non un coach
+    // qualsiasi con un id valido.
+    foreignKey({
+      columns: [table.courseId, table.instructorUserId],
+      foreignColumns: [
+        academyCourseInstructors.courseId,
+        academyCourseInstructors.userId,
+      ],
+      name: 'academy_sessions_instructor_course_fk',
+    }),
+  ]
+);
+
+export type AcademySession = typeof academySessions.$inferSelect;
+export type NewAcademySession = typeof academySessions.$inferInsert;
+
+/**
+ * Chi partecipa a una sessione — sempre tramite la propria assegnazione al
+ * corso, mai tramite `userId` nudo: la chiave esterna composta verso
+ * `academyCourseAssignments(id, course_id)` impedisce di invitare a una
+ * sessione un coach assegnato a un *altro* corso.
+ */
+export const academySessionParticipants = pgTable(
+  'academy_session_participants',
+  {
+    id: serial('id').primaryKey(),
+    sessionId: integer('session_id')
+      .notNull()
+      .references(() => academySessions.id, { onDelete: 'cascade' }),
+    courseId: integer('course_id').notNull(),
+    assignmentId: integer('assignment_id').notNull(),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    unique('academy_session_participants_session_assignment_unique').on(
+      table.sessionId,
+      table.assignmentId
+    ),
+    foreignKey({
+      columns: [table.sessionId, table.courseId],
+      foreignColumns: [academySessions.id, academySessions.courseId],
+      name: 'academy_session_participants_session_course_fk',
+    }),
+    foreignKey({
+      columns: [table.assignmentId, table.courseId],
+      foreignColumns: [
+        academyCourseAssignments.id,
+        academyCourseAssignments.courseId,
+      ],
+      name: 'academy_session_participants_assignment_course_fk',
+    }),
+  ]
+);
+
+export type AcademySessionParticipant =
+  typeof academySessionParticipants.$inferSelect;
+export type NewAcademySessionParticipant =
+  typeof academySessionParticipants.$inferInsert;
+
+/**
+ * File allegati a un modulo — documenti o video. Solo la chiave dell'oggetto
+ * è salvata qui: il file vive nel bucket privato (pattern
+ * `storePrivateFile`), servito da una route autorizzata. `publishedAt` nullo
+ * = bozza, visibile solo ad admin e docenti del corso; valorizzato = visibile
+ * ai partecipanti assegnati.
+ */
+export const academyModuleAttachments = pgTable(
+  'academy_module_attachments',
+  {
+    id: serial('id').primaryKey(),
+    moduleId: integer('module_id')
+      .notNull()
+      .references(() => academyCourseModules.id, { onDelete: 'cascade' }),
+    title: varchar('title', { length: 200 }).notNull(),
+    fileName: varchar('file_name', { length: 255 }).notNull(),
+    storageKey: text('storage_key').notNull(),
+    contentType: varchar('content_type', { length: 100 }).notNull(),
+    fileSizeBytes: integer('file_size_bytes').notNull(),
+    sortOrder: integer('sort_order').notNull().default(0),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    publishedBy: integer('published_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    createdDate: timestamp('createddate', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    index('academy_module_attachments_module_idx').on(table.moduleId),
+  ]
+);
+
+export type AcademyModuleAttachment =
+  typeof academyModuleAttachments.$inferSelect;
+export type NewAcademyModuleAttachment =
+  typeof academyModuleAttachments.$inferInsert;
+
+/**
+ * Un modulo validato per un coach — sempre dall'admin (in questa fase). Mai
+ * corretta sul posto: un errore si annulla cancellando la riga (vedi
+ * `revokeModuleCompletion` in lib/core/academy/assignments.ts), con motivo e
+ * valore precedente registrati in `admin_audit_events` (append-only) prima
+ * della cancellazione — la storia vive nel registro, non in colonne di
+ * correzione su questa tabella.
+ *
+ * Le due chiavi esterne composte impediscono un completamento associato al
+ * corso sbagliato: `(assignment_id, course_id)` deve esistere in
+ * `academyCourseAssignments`, `(module_id, course_id)` in
+ * `academyCourseModules`. Un'assegnazione del corso 5 non può quindi mai
+ * completare un modulo del corso 7, nemmeno per un bug applicativo.
+ */
+export const academyModuleCompletions = pgTable(
+  'academy_module_completions',
+  {
+    id: serial('id').primaryKey(),
+    assignmentId: integer('assignment_id').notNull(),
+    courseId: integer('course_id').notNull(),
+    moduleId: integer('module_id').notNull(),
+    // La sessione durante cui il modulo è stato trattato, se c'è — solo
+    // informativo: non è quello che rende il completamento valido.
+    sessionId: integer('session_id').references(() => academySessions.id, {
+      onDelete: 'set null',
+    }),
+    completedDate: timestamp('completed_date', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    completedBy: integer('completed_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    unique('academy_module_completions_assignment_module_unique').on(
+      table.assignmentId,
+      table.moduleId
+    ),
+    foreignKey({
+      columns: [table.assignmentId, table.courseId],
+      foreignColumns: [
+        academyCourseAssignments.id,
+        academyCourseAssignments.courseId,
+      ],
+      name: 'academy_module_completions_assignment_course_fk',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [table.moduleId, table.courseId],
+      foreignColumns: [academyCourseModules.id, academyCourseModules.courseId],
+      name: 'academy_module_completions_module_course_fk',
+    }).onDelete('cascade'),
+  ]
+);
+
+export type AcademyModuleCompletion =
+  typeof academyModuleCompletions.$inferSelect;
+export type NewAcademyModuleCompletion =
+  typeof academyModuleCompletions.$inferInsert;
