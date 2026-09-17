@@ -173,7 +173,7 @@ function buildAthleteArchiveData(b: AthleteBooking): CompletedSessionData {
       : archiveReason(b.status, b.lateCancellation, b.cancelledAt, b.cancelledBy),
     requestedAtLabel: formatDate(b.requestedAt),
     aiIndicator: buildAiSessionArchiveIndicator(
-      b.aiNotesStatus,
+      b.aiReportStatus === 'shared' ? 'shared' : b.aiNotesStatus,
       'athlete',
       b.hasRecordedAudio,
       b.hasTranscript,

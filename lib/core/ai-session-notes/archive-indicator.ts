@@ -78,7 +78,10 @@ function baseIndicator(
         label: viewerRole === 'coach' ? 'Report approvato' : 'Report in preparazione',
       };
     case 'shared':
-      return { state: 'shared', label: 'Report pronto' };
+      return {
+        state: 'shared',
+        label: viewerRole === 'coach' ? 'Report approvato e condiviso' : 'Report pronto',
+      };
     case 'transcription_failed':
       // Silenzio e guasto finiscono nello stesso stato ma non sono la stessa
       // cosa: dire «non riuscita» quando semplicemente non si e' parlato

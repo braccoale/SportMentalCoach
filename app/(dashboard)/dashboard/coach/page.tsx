@@ -1166,7 +1166,7 @@ function buildArchiveCardData(
         ),
     requestedAtLabel: formatDate(booking.requestedAt),
     aiIndicator: buildAiSessionArchiveIndicator(
-      booking.aiNotesStatus,
+      booking.aiReportStatus === 'shared' ? 'shared' : booking.aiNotesStatus,
       'coach',
       booking.hasRecordedAudio,
       booking.hasTranscript,

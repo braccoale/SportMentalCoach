@@ -41,6 +41,10 @@ test('adapts report readiness to coach and athlete visibility', () => {
     buildAiSessionArchiveIndicator('shared', 'athlete')?.label,
     'Report pronto'
   );
+  assert.deepEqual(
+    buildAiSessionArchiveIndicator('shared', 'coach'),
+    { state: 'shared', label: 'Report approvato e condiviso' }
+  );
 });
 
 test('does not claim that a recording exists before consent or after cancellation', () => {

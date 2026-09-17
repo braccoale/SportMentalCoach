@@ -1155,14 +1155,17 @@ export async function getAthleteBookings(
         limit 1
       )`,
       /*
-       * Lo stato del report, non quello della sessione.
+       * Lo stato visibile del report, non quello della sessione.
        *
        * «Da validare» e' una proprieta' del report: chiederlo alla sessione
        * significava mostrare l'invito a validare anche dopo che il coach
        * aveva validato, perche' i due stati non si muovevano insieme.
        */
       aiReportStatus: sql<string | null>`(
-        select r.status
+        select case
+          when r.status = 'approved' and r.shared_at is not null then 'shared'
+          else r.status
+        end
         from session_ai_reports r
         join ${sessionAiNotes} n on n.id = r.session_ai_notes_id
         where n.booking_id = ${bookings.id}
@@ -1309,14 +1312,17 @@ export async function getCoachBookings(
         limit 1
       )`,
       /*
-       * Lo stato del report, non quello della sessione.
+       * Lo stato visibile del report, non quello della sessione.
        *
        * «Da validare» e' una proprieta' del report: chiederlo alla sessione
        * significava mostrare l'invito a validare anche dopo che il coach
        * aveva validato, perche' i due stati non si muovevano insieme.
        */
       aiReportStatus: sql<string | null>`(
-        select r.status
+        select case
+          when r.status = 'approved' and r.shared_at is not null then 'shared'
+          else r.status
+        end
         from session_ai_reports r
         join ${sessionAiNotes} n on n.id = r.session_ai_notes_id
         where n.booking_id = ${bookings.id}
