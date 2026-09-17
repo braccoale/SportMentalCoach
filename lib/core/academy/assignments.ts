@@ -1,10 +1,11 @@
 import 'server-only';
-import { eq } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
   academyCourses,
   academyCourseModules,
   academyCourseAssignments,
+  academyModuleCompletions,
   users,
   type AcademyAssignmentStatus,
 } from '@/lib/db/schema';
@@ -41,6 +42,98 @@ export async function listAssignments(
     displayName: [row.name, row.lastName].filter(Boolean).join(' ') || row.email,
     status: row.status as AcademyAssignmentStatus,
   }));
+}
+
+export type UserModuleProgress = {
+  moduleId: number;
+  title: string;
+  sortOrder: number;
+  completed: boolean;
+};
+
+export type UserCourseProgress = {
+  assignmentId: number;
+  courseId: number;
+  courseTitle: string;
+  courseEdition: string | null;
+  status: AcademyAssignmentStatus;
+  modules: UserModuleProgress[];
+};
+
+/**
+ * La vista del coach sulle proprie assegnazioni — legge solo `userId`, mai
+ * `assertAdmin`: ogni coach vede solo sé stesso, il chiamante passa già il
+ * proprio id da `requireRole('coach')`. Solo i corsi `active` compaiono: un
+ * corso tornato `draft`/`cancelled` sparisce dalla vista del coach pur
+ * restando nella sua assegnazione.
+ */
+export async function listAssignmentsForUser(userId: number): Promise<UserCourseProgress[]> {
+  const assignmentRows = await db
+    .select({
+      assignmentId: academyCourseAssignments.id,
+      courseId: academyCourseAssignments.courseId,
+      courseTitle: academyCourses.title,
+      courseEdition: academyCourses.edition,
+      status: academyCourseAssignments.status,
+    })
+    .from(academyCourseAssignments)
+    .innerJoin(academyCourses, eq(academyCourses.id, academyCourseAssignments.courseId))
+    .where(and(eq(academyCourseAssignments.userId, userId), eq(academyCourses.status, 'active')))
+    .orderBy(asc(academyCourseAssignments.id));
+
+  if (assignmentRows.length === 0) return [];
+
+  const courseIds = [...new Set(assignmentRows.map((a) => a.courseId))];
+  const moduleRows = await db
+    .select({
+      id: academyCourseModules.id,
+      courseId: academyCourseModules.courseId,
+      title: academyCourseModules.title,
+      sortOrder: academyCourseModules.sortOrder,
+    })
+    .from(academyCourseModules)
+    .where(inArray(academyCourseModules.courseId, courseIds))
+    .orderBy(asc(academyCourseModules.sortOrder), asc(academyCourseModules.id));
+
+  const modulesByCourse = new Map<number, typeof moduleRows>();
+  for (const module of moduleRows) {
+    const list = modulesByCourse.get(module.courseId);
+    if (list) list.push(module);
+    else modulesByCourse.set(module.courseId, [module]);
+  }
+
+  const completions = await db
+    .select({
+      assignmentId: academyModuleCompletions.assignmentId,
+      moduleId: academyModuleCompletions.moduleId,
+    })
+    .from(academyModuleCompletions)
+    .where(inArray(academyModuleCompletions.assignmentId, assignmentRows.map((a) => a.assignmentId)));
+
+  const completedByAssignment = new Map<number, Set<number>>();
+  for (const row of completions) {
+    const set = completedByAssignment.get(row.assignmentId);
+    if (set) set.add(row.moduleId);
+    else completedByAssignment.set(row.assignmentId, new Set([row.moduleId]));
+  }
+
+  return assignmentRows.map((assignment) => {
+    const completed = completedByAssignment.get(assignment.assignmentId) ?? new Set<number>();
+    const modules = modulesByCourse.get(assignment.courseId) ?? [];
+    return {
+      assignmentId: assignment.assignmentId,
+      courseId: assignment.courseId,
+      courseTitle: assignment.courseTitle,
+      courseEdition: assignment.courseEdition,
+      status: assignment.status as AcademyAssignmentStatus,
+      modules: modules.map((module) => ({
+        moduleId: module.id,
+        title: module.title,
+        sortOrder: module.sortOrder,
+        completed: completed.has(module.id),
+      })),
+    };
+  });
 }
 
 /**

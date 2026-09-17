@@ -1,11 +1,38 @@
 import 'server-only';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
-import { academyCourseInstructors, users } from '@/lib/db/schema';
+import {
+  academyCourseInstructors,
+  academyCourses,
+  users,
+  type AcademyCourseStatus,
+} from '@/lib/db/schema';
 import { assertAdmin } from '@/lib/core/features';
 import { isEligibleCoach } from './coaches';
 
 export type CourseInstructor = { userId: number; displayName: string; email: string };
+
+export type InstructorCourse = {
+  courseId: number;
+  title: string;
+  edition: string | null;
+  status: AcademyCourseStatus;
+};
+
+/** I corsi che un coach insegna — la sua vista "Corsi che tieni", mai `assertAdmin`. */
+export async function listInstructorCourses(userId: number): Promise<InstructorCourse[]> {
+  const rows = await db
+    .select({
+      courseId: academyCourses.id,
+      title: academyCourses.title,
+      edition: academyCourses.edition,
+      status: academyCourses.status,
+    })
+    .from(academyCourseInstructors)
+    .innerJoin(academyCourses, eq(academyCourses.id, academyCourseInstructors.courseId))
+    .where(eq(academyCourseInstructors.userId, userId));
+  return rows.map((row) => ({ ...row, status: row.status as AcademyCourseStatus }));
+}
 
 export async function listInstructors(
   actorUserId: number,

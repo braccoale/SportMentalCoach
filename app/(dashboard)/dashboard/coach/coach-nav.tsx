@@ -7,6 +7,7 @@ import {
   UserRound,
   Briefcase,
   CalendarDays,
+  GraduationCap,
   MessageSquare,
   Users2,
 } from 'lucide-react';
@@ -17,6 +18,7 @@ const TABS = [
   { href: '/dashboard/coach', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/coach/athletes', label: 'I miei Atleti', icon: Users2 },
   { href: '/dashboard/coach/calendar', label: 'Calendario', icon: CalendarDays },
+  { href: '/dashboard/coach/academy', label: 'Academy', icon: GraduationCap },
   { href: '/dashboard/coach/messages', label: 'Messaggi', icon: MessageSquare },
   { href: '/dashboard/coach/profile', label: 'Profilo', icon: UserRound },
   { href: '/dashboard/coach/services', label: 'Servizi', icon: Briefcase },
