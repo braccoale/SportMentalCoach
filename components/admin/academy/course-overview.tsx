@@ -89,11 +89,10 @@ export function CourseOverview({
         .map((material) => ({ module, material }))
     );
 
-  const canScheduleFirstSession =
-    (role === 'admin' || role === 'instructor') &&
-    course.status === 'active' &&
-    course.modules.length > 0 &&
-    sessions.filter((s) => s.status === 'scheduled').length === 0;
+  const activeSessionCount = sessions.filter((s) => s.status === 'scheduled').length;
+  const canScheduleSessions =
+    (role === 'admin' || role === 'instructor') && course.status === 'active' && course.modules.length > 0;
+  const scheduleCtaLabel = activeSessionCount === 0 ? 'Pianifica la prima sessione' : 'Pianifica nuova sessione';
 
   return (
     <div className="space-y-6">
@@ -157,9 +156,9 @@ export function CourseOverview({
               </span>
             )}
 
-            {canScheduleFirstSession && (
+            {canScheduleSessions && (
               <JumpToTabButton targetKey="sessioni" className="ml-auto">
-                Pianifica la prima sessione
+                {scheduleCtaLabel}
               </JumpToTabButton>
             )}
           </div>
