@@ -91,6 +91,7 @@ import { hasSeenTour } from '@/lib/core/tours/state';
 import { ProductTour } from '@/components/product-tour';
 import { CollapsiblePanel } from '@/components/collapsible-panel';
 import { listSessionsForUser } from '@/lib/core/academy/sessions';
+import { isUpcomingScheduledSession } from '@/lib/core/academy/upcoming-sessions';
 import { AcademySessionCard } from '@/components/academy/academy-session-card';
 import { cancelSessionAction } from './academy/actions';
 
@@ -153,9 +154,8 @@ export default async function CoachDashboardPage() {
     listSessionsForUser(user.id),
   ]);
 
-  const academyNowMs = Date.now();
-  const upcomingAcademySessions = academySessions.filter(
-    (session) => session.status === 'scheduled' && session.scheduledFor.getTime() > academyNowMs
+  const upcomingAcademySessions = academySessions.filter((session) =>
+    isUpcomingScheduledSession(session)
   );
 
   // Rete di sicurezza: se il webhook ha accodato la trascrizione ma il suo

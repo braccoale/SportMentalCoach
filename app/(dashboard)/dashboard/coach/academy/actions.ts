@@ -85,6 +85,9 @@ export async function createSessionAction(
   }
 
   revalidatePath(`/dashboard/coach/academy/${courseId}`);
+  // Anche il layout della sezione coach: il badge Academy sulla nav conta le
+  // sessioni future e deve aggiornarsi ovunque, non solo su questa pagina.
+  revalidatePath('/dashboard/coach', 'layout');
   return { success: 'Sessione creata.' };
 }
 
@@ -109,6 +112,7 @@ export async function cancelSessionAction(
   }
 
   revalidatePath(`/dashboard/coach/academy/${courseId}`);
+  revalidatePath('/dashboard/coach', 'layout');
   return { success: 'Sessione annullata.' };
 }
 
@@ -132,7 +136,7 @@ export async function completeAcademySessionAction(
     return { error: friendlyError(error, 'Impossibile completare la sessione.') };
   }
 
-  revalidatePath('/dashboard/coach');
+  revalidatePath('/dashboard/coach', 'layout');
   revalidatePath(`/dashboard/coach/academy/${courseId}`);
   return { success: 'Sessione completata.' };
 }

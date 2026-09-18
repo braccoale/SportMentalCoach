@@ -27,10 +27,13 @@ const TABS = [
 export function CoachNav({
   pendingCount = 0,
   unreadMessages = 0,
+  academyCourseCount = 0,
   coachName,
 }: {
   pendingCount?: number;
   unreadMessages?: number;
+  /** Corsi Academy (come docente o partecipante) con almeno una sessione futura pianificata. */
+  academyCourseCount?: number;
   /** Printed on the hanging badge. */
   coachName?: string | null;
 }) {
@@ -90,6 +93,16 @@ export function CoachNav({
               {tab.href === '/dashboard/coach/messages' && unreadMessages > 0 && (
                 <span className="absolute top-0 right-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
                   {unreadMessages}
+                </span>
+              )}
+              {/* Corsi Academy con almeno una sessione futura pianificata sul tab Academy */}
+              {tab.href === '/dashboard/coach/academy' && academyCourseCount > 0 && (
+                <span
+                  role="status"
+                  aria-label={`${academyCourseCount} corso${academyCourseCount === 1 ? '' : 'i'} Academy con sessioni pianificate`}
+                  className="absolute top-0 right-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white"
+                >
+                  {academyCourseCount}
                 </span>
               )}
             </Link>

@@ -650,6 +650,9 @@ export async function createSessionAction(
   }
 
   revalidatePath(`/dashboard/admin/academy/${courseId}`);
+  // Il badge Academy sulla nav del coach conta le sessioni future: quando è
+  // l'admin a crearne una per suo conto, deve aggiornarsi lo stesso.
+  revalidatePath('/dashboard/coach', 'layout');
   return { success: 'Sessione creata.' };
 }
 
@@ -682,6 +685,7 @@ export async function cancelSessionAction(
   }
 
   revalidatePath(`/dashboard/admin/academy/${courseId}`);
+  revalidatePath('/dashboard/coach', 'layout');
   return { success: 'Sessione annullata.' };
 }
 
