@@ -22,6 +22,7 @@ import { listSessionsForCourse } from '@/lib/core/academy/sessions';
 import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CourseOverview } from '@/components/admin/academy/course-overview';
 import { CourseTabs } from '@/components/admin/academy/course-tabs';
 import { ReorderableModules } from '@/components/admin/academy/reorderable-modules';
 import { StatusPill } from '@/components/admin/academy/status-pill';
@@ -39,8 +40,10 @@ import {
   reorderModulesAction,
   toggleMaterialPublishedAction,
   updateCourseAction,
+  updateCourseOverviewAction,
   updateCourseStatusAction,
   updateModuleAction,
+  uploadCourseHeroAction,
   uploadMaterialAction,
 } from '../actions';
 
@@ -714,6 +717,20 @@ export default async function AdminAcademyCourseDetailPage({
     </div>
   );
 
+  const panoramicaPanel = (
+    <CourseOverview
+      course={course}
+      instructors={instructors}
+      sessions={sessions}
+      materialsByModule={materials}
+      heroImageUrl={course.hasHeroImage ? `/api/academy/courses/${course.id}/hero` : null}
+      role="admin"
+      updateCourseOverviewAction={updateCourseOverviewAction}
+      uploadCourseHeroAction={uploadCourseHeroAction}
+      allParticipants={assignments}
+    />
+  );
+
   return (
     <section className="space-y-6 p-4 lg:p-0">
       <nav className="flex items-center gap-1.5 text-xs text-gray-400">
@@ -788,6 +805,7 @@ export default async function AdminAcademyCourseDetailPage({
         <div>
           <CourseTabs
             tabs={[
+              { key: 'panoramica', label: 'Panoramica', content: panoramicaPanel },
               { key: 'configurazione', label: 'Configurazione', content: configPanel },
               { key: 'sessioni', label: 'Sessioni', content: sessionsPanel },
               { key: 'materiali', label: 'Materiali', content: materialsPanel },

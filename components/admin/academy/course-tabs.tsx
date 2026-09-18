@@ -21,6 +21,7 @@ export function CourseTabs({ tabs }: { tabs: Tab[] }) {
           <button
             key={tab.key}
             type="button"
+            data-tab-key={tab.key}
             onClick={() => setActive(tab.key)}
             aria-current={active === tab.key ? 'page' : undefined}
             className={cn(

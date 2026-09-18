@@ -2,6 +2,7 @@ import 'server-only';
 import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
+  academyCourseAssignments,
   academyCourseInstructors,
   academyCourseModules,
   academyCourses,
@@ -33,6 +34,15 @@ async function isInstructorOf(userId: number, courseId: number): Promise<boolean
   return Boolean(row);
 }
 
+async function isParticipantOf(userId: number, courseId: number): Promise<boolean> {
+  const [row] = await db
+    .select({ id: academyCourseAssignments.id })
+    .from(academyCourseAssignments)
+    .where(and(eq(academyCourseAssignments.courseId, courseId), eq(academyCourseAssignments.userId, userId)))
+    .limit(1);
+  return Boolean(row);
+}
+
 /**
  * L'admin vede e gestisce tutto; un docente vede e gestisce solo i propri
  * corsi. Usata ovunque la vista "chi può operare qui" non sia riservata al
@@ -42,6 +52,25 @@ export async function assertInstructorOrAdmin(actorUserId: number, courseId: num
   if (await isAdmin(actorUserId)) return;
   if (await isInstructorOf(actorUserId, courseId)) return;
   throw new Error('FORBIDDEN');
+}
+
+/**
+ * Vero per chiunque abbia un motivo legittimo di leggere questo corso —
+ * admin, docente o partecipante assegnato. Usata dalla pagina Panoramica e
+ * da tutto ciò che deve funzionare anche per il coach partecipante, non
+ * solo per chi lo gestisce.
+ */
+export async function assertCourseMember(actorUserId: number, courseId: number): Promise<void> {
+  if (await isAdmin(actorUserId)) return;
+  if (await isInstructorOf(actorUserId, courseId)) return;
+  if (await isParticipantOf(actorUserId, courseId)) return;
+  throw new Error('FORBIDDEN');
+}
+
+/** Vero per admin o docente del corso — usata per decidere cosa filtrare, non per bloccare l'accesso. */
+export async function isInstructorOrAdminBool(userId: number, courseId: number): Promise<boolean> {
+  if (await isAdmin(userId)) return true;
+  return isInstructorOf(userId, courseId);
 }
 
 /**
@@ -121,7 +150,7 @@ export async function listInstructors(
   actorUserId: number,
   courseId: number
 ): Promise<CourseInstructor[]> {
-  await assertInstructorOrAdmin(actorUserId, courseId);
+  await assertCourseMember(actorUserId, courseId);
   const rows = await db
     .select({
       userId: academyCourseInstructors.userId,

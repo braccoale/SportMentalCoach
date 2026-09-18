@@ -130,7 +130,9 @@ export default async function CoachAcademyPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between gap-3">
                     <CardTitle className="text-base">
-                      {assignment.courseTitle}
+                      <Link href={`/dashboard/coach/academy/${assignment.courseId}`} className="hover:underline">
+                        {assignment.courseTitle}
+                      </Link>
                       {assignment.courseEdition ? (
                         <span className="ml-1.5 font-normal text-gray-400">
                           — {assignment.courseEdition}

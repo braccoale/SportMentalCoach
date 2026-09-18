@@ -10,7 +10,9 @@ import {
 } from '@/lib/db/schema';
 import { assertAdmin } from '@/lib/core/features';
 import { courseTotalHours } from './course-hours';
-import { assertInstructorOrAdmin } from './instructors';
+import { assertCourseMember, assertInstructorOrAdmin } from './instructors';
+import { deleteAcademyMaterial, storeAcademyMaterial } from '@/lib/core/storage';
+import crypto from 'crypto';
 
 const STRUCTURE_LOCKED_MESSAGE =
   'Programma bloccato: crea una nuova edizione per modificarlo.';
@@ -120,6 +122,82 @@ export async function updateCourse(params: {
     .where(eq(academyCourses.id, params.courseId));
 }
 
+/**
+ * Livello e "cosa imparerai" — contenuto della pagina Panoramica, non del
+ * programma: modificabile anche a struttura bloccata, a differenza di
+ * `updateCourse`.
+ */
+export async function updateCourseOverview(params: {
+  actorUserId: number;
+  courseId: number;
+  level: string | null;
+  whatYoullLearn: string[] | null;
+}): Promise<void> {
+  await assertAdmin(params.actorUserId);
+  await db
+    .update(academyCourses)
+    .set({
+      level: params.level,
+      whatYoullLearn: params.whatYoullLearn,
+      updatedDate: new Date(),
+      updatedBy: params.actorUserId,
+    })
+    .where(eq(academyCourses.id, params.courseId));
+}
+
+const ACADEMY_HERO_ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const ACADEMY_HERO_MAX_BYTES = 8 * 1024 * 1024;
+
+/** Carica l'immagine hero del corso, sostituendo quella precedente se c'è. */
+export async function uploadCourseHero(params: {
+  actorUserId: number;
+  courseId: number;
+  fileName: string;
+  contentType: string;
+  bytes: Buffer;
+}): Promise<void> {
+  await assertAdmin(params.actorUserId);
+
+  if (params.bytes.byteLength === 0) {
+    throw new Error('Il file è vuoto.');
+  }
+  if (params.bytes.byteLength > ACADEMY_HERO_MAX_BYTES) {
+    throw new Error('Il file supera il limite di 8 MB.');
+  }
+  if (!ACADEMY_HERO_ALLOWED_MIME_TYPES.includes(params.contentType)) {
+    throw new Error('Tipo di file non consentito. Usa JPEG, PNG o WebP.');
+  }
+
+  const [existing] = await db
+    .select({ heroImageKey: academyCourses.heroImageKey })
+    .from(academyCourses)
+    .where(eq(academyCourses.id, params.courseId))
+    .limit(1);
+
+  const extension = params.fileName.split('.').pop()?.slice(0, 10) ?? 'jpg';
+  const storageKey = `academy/courses/${params.courseId}/hero-${crypto.randomUUID()}.${extension}`;
+  await storeAcademyMaterial(storageKey, params.bytes, params.contentType);
+
+  await db
+    .update(academyCourses)
+    .set({ heroImageKey: storageKey, updatedDate: new Date(), updatedBy: params.actorUserId })
+    .where(eq(academyCourses.id, params.courseId));
+
+  if (existing?.heroImageKey) {
+    await deleteAcademyMaterial(existing.heroImageKey);
+  }
+}
+
+/** Per la route di download, dopo che il chiamante ha già verificato l'autorizzazione. */
+export async function getCourseHeroKey(courseId: number): Promise<string | null> {
+  const [course] = await db
+    .select({ heroImageKey: academyCourses.heroImageKey })
+    .from(academyCourses)
+    .where(eq(academyCourses.id, courseId))
+    .limit(1);
+  return course?.heroImageKey ?? null;
+}
+
 export async function updateCourseStatus(params: {
   actorUserId: number;
   courseId: number;
@@ -154,6 +232,9 @@ export type CourseDetail = {
   description: string | null;
   status: AcademyCourseStatus;
   edition: string | null;
+  level: string | null;
+  whatYoullLearn: string[] | null;
+  hasHeroImage: boolean;
   previousCourseId: number | null;
   structureLocked: boolean;
   totalHours: number;
@@ -166,11 +247,15 @@ export type CourseDetail = {
   }[];
 };
 
+/**
+ * Letta anche dal coach partecipante, non solo da admin/docente: la pagina
+ * Panoramica deve funzionare per tutti e tre i ruoli.
+ */
 export async function getCourseDetail(
   actorUserId: number,
   courseId: number
 ): Promise<CourseDetail | null> {
-  await assertInstructorOrAdmin(actorUserId, courseId);
+  await assertCourseMember(actorUserId, courseId);
 
   const [course] = await db
     .select({
@@ -179,6 +264,9 @@ export async function getCourseDetail(
       description: academyCourses.description,
       status: academyCourses.status,
       edition: academyCourses.edition,
+      level: academyCourses.level,
+      whatYoullLearn: academyCourses.whatYoullLearn,
+      heroImageKey: academyCourses.heroImageKey,
       previousCourseId: academyCourses.previousCourseId,
       structureLockedAt: academyCourses.structureLockedAt,
     })
@@ -205,6 +293,9 @@ export async function getCourseDetail(
     description: course.description,
     status: course.status as AcademyCourseStatus,
     edition: course.edition,
+    level: course.level,
+    whatYoullLearn: course.whatYoullLearn,
+    hasHeroImage: course.heroImageKey !== null,
     previousCourseId: course.previousCourseId,
     structureLocked: course.structureLockedAt !== null,
     totalHours: courseTotalHours(modules),

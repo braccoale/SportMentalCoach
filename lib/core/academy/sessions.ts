@@ -14,7 +14,7 @@ import {
 } from '@/lib/db/schema';
 import { assertAdmin } from '@/lib/core/features';
 import { getCoachBusyIntervalsByProviderIds } from '@/lib/core/availability';
-import { assertInstructorOrAdmin, assertIsInstructor } from './instructors';
+import { assertCourseMember, assertInstructorOrAdmin, assertIsInstructor } from './instructors';
 
 /** Oltre questo numero, una sessione di gruppo non si può creare: non ancora provata a questa scala. */
 const MAX_GROUP_PARTICIPANTS = 8;
@@ -225,7 +225,7 @@ export async function listSessionsForCourse(
   actorUserId: number,
   courseId: number
 ): Promise<CourseSessionRow[]> {
-  await assertInstructorOrAdmin(actorUserId, courseId);
+  await assertCourseMember(actorUserId, courseId);
 
   const sessions = await db
     .select({

@@ -1,14 +1,15 @@
 import { notFound } from 'next/navigation';
-import { CalendarClock, Clock, Layers, Trash2, Users2 } from 'lucide-react';
+import { CalendarClock, Trash2 } from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
 import { getCourseDetail } from '@/lib/core/academy/courses';
 import { listInstructors } from '@/lib/core/academy/instructors';
-import { listAssignments } from '@/lib/core/academy/assignments';
+import { listAssignments, listAssignmentsForUser } from '@/lib/core/academy/assignments';
 import { listMaterials, type ModuleMaterial } from '@/lib/core/academy/materials';
 import { listSessionsForCourse } from '@/lib/core/academy/sessions';
 import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CourseOverview } from '@/components/admin/academy/course-overview';
 import { CourseTabs } from '@/components/admin/academy/course-tabs';
 import { StatusPill } from '@/components/admin/academy/status-pill';
 import { cn } from '@/lib/utils';
@@ -74,8 +75,49 @@ export default async function CoachAcademyCourseDetailPage({
   }
   if (!course) notFound();
 
-  const [instructors, assignments, sessions, materialsByModule] = await Promise.all([
-    listInstructors(coach.id, courseId),
+  const instructors = await listInstructors(coach.id, courseId);
+  const isInstructor = instructors.some((i) => i.userId === coach.id);
+
+  const heroImageUrl = course.hasHeroImage ? `/api/academy/courses/${course.id}/hero` : null;
+
+  // ── Vista partecipante: sola lettura, solo la Panoramica ──────────────────
+  if (!isInstructor) {
+    const [sessions, ownAssignment, materialsByModule] = await Promise.all([
+      listSessionsForCourse(coach.id, courseId),
+      listAssignmentsForUser(coach.id).then((rows) => rows.find((r) => r.courseId === courseId) ?? null),
+      Promise.all(
+        course.modules.map(
+          async (module) => [module.id, await listMaterials(coach.id, courseId, module.id)] as const
+        )
+      ),
+    ]);
+    const materials = new Map<number, ModuleMaterial[]>(materialsByModule);
+
+    return (
+      <section className="space-y-6 p-4 lg:p-0">
+        <CourseOverview
+          course={course}
+          instructors={instructors}
+          sessions={sessions}
+          materialsByModule={materials}
+          heroImageUrl={heroImageUrl}
+          role="participant"
+          ownProgress={
+            ownAssignment
+              ? {
+                  completedModules: ownAssignment.modules.filter((m) => m.completed).length,
+                  totalModules: ownAssignment.modules.length,
+                  modules: ownAssignment.modules,
+                }
+              : null
+          }
+        />
+      </section>
+    );
+  }
+
+  // ── Vista docente: Panoramica + le tab operative già costruite ────────────
+  const [assignments, sessions, materialsByModule] = await Promise.all([
     listAssignments(coach.id, courseId),
     listSessionsForCourse(coach.id, courseId),
     Promise.all(
@@ -93,82 +135,16 @@ export default async function CoachAcademyCourseDetailPage({
     .sort((a, b) => a.scheduledFor.getTime() - b.scheduledFor.getTime())[0];
   const nextSessionId = nextSession?.id ?? null;
 
-  const overviewPanel = (
-    <div className="space-y-6">
-      <Card>
-        <CardContent className="pt-6">
-          {course.description ? (
-            <p className="text-sm text-gray-700">{course.description}</p>
-          ) : (
-            <p className="text-sm text-gray-400">Nessuna descrizione.</p>
-          )}
-          <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-gray-500">
-            <span className="flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-              {course.totalHours} ore totali
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Layers className="h-3.5 w-3.5" aria-hidden="true" />
-              {course.modules.length} moduli
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Users2 className="h-3.5 w-3.5" aria-hidden="true" />
-              {assignments.length} partecipanti
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Moduli</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {course.modules.length === 0 ? (
-            <p className="text-sm text-gray-400">Nessun modulo ancora.</p>
-          ) : (
-            <ol className="space-y-2">
-              {course.modules.map((module, index) => (
-                <li
-                  key={module.id}
-                  className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4"
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-indigo-100 bg-white text-sm font-semibold text-indigo-700">
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">{module.title}</p>
-                      {module.description && (
-                        <p className="mt-0.5 text-xs text-gray-500">{module.description}</p>
-                      )}
-                      <p className="mt-1.5 text-xs text-gray-500">{module.hours} ore</p>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Docenti</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {instructors.length === 0 ? (
-            <p className="text-sm text-gray-400">Nessun docente nominato.</p>
-          ) : (
-            <ul className="space-y-1 text-sm text-gray-700">
-              {instructors.map((instructor) => (
-                <li key={instructor.userId}>{instructor.displayName}</li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+  const panoramicaPanel = (
+    <CourseOverview
+      course={course}
+      instructors={instructors}
+      sessions={sessions}
+      materialsByModule={materials}
+      heroImageUrl={heroImageUrl}
+      role="instructor"
+      allParticipants={assignments}
+    />
   );
 
   const sessionsPanel = (
@@ -481,6 +457,9 @@ export default async function CoachAcademyCourseDetailPage({
               <li key={assignment.assignmentId} className="flex items-center gap-2">
                 {assignment.displayName}
                 <StatusPill status={assignment.status} />
+                <span className="text-xs text-gray-400">
+                  {assignment.completedModules}/{assignment.totalModules} moduli
+                </span>
               </li>
             ))}
           </ul>
@@ -501,7 +480,7 @@ export default async function CoachAcademyCourseDetailPage({
 
       <CourseTabs
         tabs={[
-          { key: 'panoramica', label: 'Panoramica', content: overviewPanel },
+          { key: 'panoramica', label: 'Panoramica', content: panoramicaPanel },
           { key: 'sessioni', label: 'Sessioni', content: sessionsPanel },
           { key: 'materiali', label: 'Materiali', content: materialsPanel },
           { key: 'partecipanti', label: 'Partecipanti', content: participantsPanel },

@@ -2,8 +2,12 @@ import 'server-only';
 import crypto from 'crypto';
 import { asc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
-import { academyModuleAttachments, type AcademyModuleAttachment } from '@/lib/db/schema';
-import { assertInstructorOrAdmin } from './instructors';
+import {
+  academyCourseModules,
+  academyModuleAttachments,
+  type AcademyModuleAttachment,
+} from '@/lib/db/schema';
+import { assertCourseMember, assertInstructorOrAdmin, isInstructorOrAdminBool } from './instructors';
 import {
   ACADEMY_MATERIAL_ALLOWED_MIME_TYPES,
   ACADEMY_MATERIAL_MAX_BYTES,
@@ -20,12 +24,20 @@ export type ModuleMaterial = {
   published: boolean;
 };
 
+/**
+ * Un partecipante vede solo i materiali pubblicati; admin e docente vedono
+ * anche le bozze. Stesso corso di autorizzazione di `assertCourseMember`,
+ * ma qui il filtro è sul contenuto restituito, non sull'accesso alla
+ * funzione — un partecipante può leggere la lista, solo con meno righe.
+ */
 export async function listMaterials(
   actorUserId: number,
   courseId: number,
   moduleId: number
 ): Promise<ModuleMaterial[]> {
-  await assertInstructorOrAdmin(actorUserId, courseId);
+  await assertCourseMember(actorUserId, courseId);
+  const canSeeDrafts = await isInstructorOrAdminBool(actorUserId, courseId);
+
   const rows = await db
     .select({
       id: academyModuleAttachments.id,
@@ -38,14 +50,16 @@ export async function listMaterials(
     .from(academyModuleAttachments)
     .where(eq(academyModuleAttachments.moduleId, moduleId))
     .orderBy(asc(academyModuleAttachments.sortOrder), asc(academyModuleAttachments.id));
-  return rows.map((row) => ({
-    id: row.id,
-    title: row.title,
-    fileName: row.fileName,
-    contentType: row.contentType,
-    fileSizeBytes: row.fileSizeBytes,
-    published: row.publishedAt !== null,
-  }));
+  return rows
+    .filter((row) => canSeeDrafts || row.publishedAt !== null)
+    .map((row) => ({
+      id: row.id,
+      title: row.title,
+      fileName: row.fileName,
+      contentType: row.contentType,
+      fileSizeBytes: row.fileSizeBytes,
+      published: row.publishedAt !== null,
+    }));
 }
 
 function sanitizeFileName(fileName: string): string {
@@ -137,18 +151,37 @@ export async function deleteMaterial(params: {
   await deleteAcademyMaterial(attachment.storageKey);
 }
 
-/** Per la route di download, dopo che il chiamante ha già verificato l'autorizzazione. */
-export async function getMaterialForDownload(
-  attachmentId: number
-): Promise<{ storageKey: string; fileName: string; contentType: string } | null> {
+/**
+ * Include `courseId` e `published` perché la route di download deve
+ * autorizzare per corso (admin/docente/partecipante) e, per il solo
+ * partecipante, rifiutare una bozza — la stessa regola applicata in
+ * `listMaterials`, qui a livello di singolo file.
+ */
+export async function getMaterialForDownload(attachmentId: number): Promise<{
+  courseId: number;
+  storageKey: string;
+  fileName: string;
+  contentType: string;
+  published: boolean;
+} | null> {
   const [attachment] = await db
     .select({
+      courseId: academyCourseModules.courseId,
       storageKey: academyModuleAttachments.storageKey,
       fileName: academyModuleAttachments.fileName,
       contentType: academyModuleAttachments.contentType,
+      publishedAt: academyModuleAttachments.publishedAt,
     })
     .from(academyModuleAttachments)
+    .innerJoin(academyCourseModules, eq(academyCourseModules.id, academyModuleAttachments.moduleId))
     .where(eq(academyModuleAttachments.id, attachmentId))
     .limit(1);
-  return attachment ?? null;
+  if (!attachment) return null;
+  return {
+    courseId: attachment.courseId,
+    storageKey: attachment.storageKey,
+    fileName: attachment.fileName,
+    contentType: attachment.contentType,
+    published: attachment.publishedAt !== null,
+  };
 }

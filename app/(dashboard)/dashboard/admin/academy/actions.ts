@@ -9,8 +9,10 @@ import {
   deleteModule,
   reorderModules,
   updateCourse,
+  updateCourseOverview,
   updateCourseStatus,
   updateModule,
+  uploadCourseHero,
 } from '@/lib/core/academy/courses';
 import { nominateInstructor, removeInstructor } from '@/lib/core/academy/instructors';
 import { assignCourseToUser } from '@/lib/core/academy/assignments';
@@ -681,4 +683,66 @@ export async function cancelSessionAction(
 
   revalidatePath(`/dashboard/admin/academy/${courseId}`);
   return { success: 'Sessione annullata.' };
+}
+
+export async function updateCourseOverviewAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const admin = await requireRole('admin');
+  const courseId = Number(formData.get('courseId'));
+  const level = String(formData.get('level') ?? '').trim();
+  const whatYoullLearnRaw = String(formData.get('whatYoullLearn') ?? '');
+  const whatYoullLearn = whatYoullLearnRaw
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (!Number.isInteger(courseId) || courseId <= 0) {
+    return { error: 'Corso non valido.' };
+  }
+
+  try {
+    await updateCourseOverview({
+      actorUserId: admin.id,
+      courseId,
+      level: level || null,
+      whatYoullLearn: whatYoullLearn.length > 0 ? whatYoullLearn : null,
+    });
+  } catch (error) {
+    return { error: friendlyError(error, 'Impossibile aggiornare la panoramica.') };
+  }
+
+  revalidatePath(`/dashboard/admin/academy/${courseId}`);
+  return { success: 'Panoramica aggiornata.' };
+}
+
+export async function uploadCourseHeroAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const admin = await requireRole('admin');
+  const courseId = Number(formData.get('courseId'));
+  const file = formData.get('file');
+  if (!Number.isInteger(courseId) || courseId <= 0) {
+    return { error: 'Corso non valido.' };
+  }
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: 'Seleziona un\'immagine.' };
+  }
+
+  try {
+    const bytes = Buffer.from(await file.arrayBuffer());
+    await uploadCourseHero({
+      actorUserId: admin.id,
+      courseId,
+      fileName: file.name,
+      contentType: file.type || 'application/octet-stream',
+      bytes,
+    });
+  } catch (error) {
+    return { error: friendlyError(error, "Impossibile caricare l'immagine hero.") };
+  }
+
+  revalidatePath(`/dashboard/admin/academy/${courseId}`);
+  return { success: 'Immagine hero aggiornata.' };
 }
