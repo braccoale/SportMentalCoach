@@ -555,7 +555,7 @@ export function PreJoinDesktop({
             <button
               type="button"
               onClick={join}
-              className="mt-5 h-12 w-full rounded-full bg-red-600 px-5 text-sm font-semibold text-white shadow-lg shadow-red-950/30 hover:bg-red-500"
+              className="mt-5 h-12 w-full rounded-full bg-green-600 px-5 text-sm font-semibold text-white shadow-lg shadow-green-950/30 hover:bg-green-500"
             >
               Entra nella videochiamata
             </button>

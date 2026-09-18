@@ -208,7 +208,7 @@ export function PreJoinCompact({
         <button
           type="button"
           onClick={state.join}
-          className="h-14 w-full rounded-full bg-red-600 text-base font-semibold text-white shadow-lg shadow-red-950/40 active:bg-red-700"
+          className="h-14 w-full rounded-full bg-green-600 text-base font-semibold text-white shadow-lg shadow-green-950/40 active:bg-green-700"
         >
           Entra nella videochiamata
         </button>
