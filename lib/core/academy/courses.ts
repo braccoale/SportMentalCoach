@@ -1,5 +1,5 @@
 import 'server-only';
-import { asc, eq } from 'drizzle-orm';
+import { asc, count, eq } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
   academyCourseAssignments,
@@ -140,10 +140,25 @@ export async function updateCourseOverview(params: {
   level: string | null;
   whatYoullLearn: string[] | null;
   priceCents: number | null;
+  maxParticipants: number | null;
 }): Promise<void> {
   await assertAdmin(params.actorUserId);
   if (params.priceCents !== null && (!Number.isInteger(params.priceCents) || params.priceCents < 0)) {
     throw new Error('Il costo del corso deve essere un numero positivo.');
+  }
+  if (params.maxParticipants !== null) {
+    if (!Number.isInteger(params.maxParticipants) || params.maxParticipants < 1) {
+      throw new Error('Il limite partecipanti deve essere un numero intero di almeno 1.');
+    }
+    const [{ count: assignedCount }] = await db
+      .select({ count: count() })
+      .from(academyCourseAssignments)
+      .where(eq(academyCourseAssignments.courseId, params.courseId));
+    if (params.maxParticipants < assignedCount) {
+      throw new Error(
+        `Il limite partecipanti non può essere inferiore ai ${assignedCount} coach già assegnati.`
+      );
+    }
   }
   await db
     .update(academyCourses)
@@ -151,6 +166,7 @@ export async function updateCourseOverview(params: {
       level: params.level,
       whatYoullLearn: params.whatYoullLearn,
       priceCents: params.priceCents,
+      maxParticipants: params.maxParticipants,
       updatedDate: new Date(),
       updatedBy: params.actorUserId,
     })
@@ -247,6 +263,8 @@ export type CourseDetail = {
   level: string | null;
   whatYoullLearn: string[] | null;
   priceCents: number | null;
+  maxParticipants: number | null;
+  assignedParticipantCount: number;
   hasHeroImage: boolean;
   previousCourseId: number | null;
   structureLocked: boolean;
@@ -280,6 +298,7 @@ export async function getCourseDetail(
       level: academyCourses.level,
       whatYoullLearn: academyCourses.whatYoullLearn,
       priceCents: academyCourses.priceCents,
+      maxParticipants: academyCourses.maxParticipants,
       heroImageKey: academyCourses.heroImageKey,
       previousCourseId: academyCourses.previousCourseId,
     })
@@ -288,7 +307,7 @@ export async function getCourseDetail(
     .limit(1);
   if (!course) return null;
 
-  const [modules, structureLocked] = await Promise.all([
+  const [modules, structureLocked, [participantCountRow]] = await Promise.all([
     db
       .select({
         id: academyCourseModules.id,
@@ -301,6 +320,10 @@ export async function getCourseDetail(
       .where(eq(academyCourseModules.courseId, courseId))
       .orderBy(asc(academyCourseModules.sortOrder), asc(academyCourseModules.id)),
     isStructureLocked(courseId),
+    db
+      .select({ count: count() })
+      .from(academyCourseAssignments)
+      .where(eq(academyCourseAssignments.courseId, courseId)),
   ]);
 
   return {
@@ -312,6 +335,8 @@ export async function getCourseDetail(
     level: course.level,
     whatYoullLearn: course.whatYoullLearn,
     priceCents: course.priceCents,
+    maxParticipants: course.maxParticipants,
+    assignedParticipantCount: participantCountRow?.count ?? 0,
     hasHeroImage: course.heroImageKey !== null,
     previousCourseId: course.previousCourseId,
     structureLocked,

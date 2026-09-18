@@ -453,10 +453,19 @@ export default async function AdminAcademyCourseDetailPage({
     </div>
   );
 
+  const spotsLeft =
+    course.maxParticipants != null ? course.maxParticipants - assignments.length : null;
+  const isFull = spotsLeft !== null && spotsLeft <= 0;
+
   const assignForm =
     course.status !== 'active' ? (
       <p className="text-xs text-gray-400">
         Solo un corso attivo con almeno un modulo può essere assegnato.
+      </p>
+    ) : isFull ? (
+      <p className="text-xs text-red-600">
+        Il corso ha raggiunto il limite di {course.maxParticipants} partecipanti. Alza il limite in
+        Configurazione o rimuovi qualcuno per fare posto.
       </p>
     ) : eligibleParticipants.length > 0 ? (
       <ActionForm action={assignCourseAction} className="flex flex-wrap items-start gap-3">
@@ -469,7 +478,14 @@ export default async function AdminAcademyCourseDetailPage({
   const participantsPanel = (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Partecipanti</CardTitle>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="text-base">Partecipanti</CardTitle>
+          {spotsLeft !== null && (
+            <span className={`text-xs font-medium ${isFull ? 'text-red-600' : 'text-gray-500'}`}>
+              {isFull ? 'Posti esauriti' : `${spotsLeft} posti liberi su ${course.maxParticipants}`}
+            </span>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         {assignments.length === 0 ? (

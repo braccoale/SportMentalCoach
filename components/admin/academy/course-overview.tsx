@@ -236,7 +236,22 @@ export function CourseOverview({
                       <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/70">
                         <Users2 className="h-3.5 w-3.5" aria-hidden="true" />
                       </span>
-                      {allParticipants.length} partecipanti
+                      {course.maxParticipants != null ? (
+                        <>
+                          {allParticipants.length}/{course.maxParticipants} partecipanti
+                          {allParticipants.length >= course.maxParticipants ? (
+                            <span className="text-red-700"> · posti esauriti</span>
+                          ) : (
+                            <span className="text-gray-500">
+                              {' '}
+                              · {course.maxParticipants - allParticipants.length} liber
+                              {course.maxParticipants - allParticipants.length === 1 ? 'o' : 'i'}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        `${allParticipants.length} partecipanti`
+                      )}
                     </span>
                   </>
                 )}
@@ -337,6 +352,37 @@ export function CourseOverview({
                       className="w-32 rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
                     />
                   </label>
+                </div>
+                <div className="rounded-lg border border-gray-200 p-3">
+                  <input
+                    type="checkbox"
+                    id={`participantLimitEnabled-${course.id}`}
+                    name="participantLimitEnabled"
+                    defaultChecked={course.maxParticipants != null}
+                    className="peer h-4 w-4 align-middle rounded border-gray-300"
+                  />
+                  <label
+                    htmlFor={`participantLimitEnabled-${course.id}`}
+                    className="ml-2 align-middle text-sm text-gray-700"
+                  >
+                    Corso a partecipazione limitata
+                  </label>
+                  <label className="mt-2 block text-sm text-gray-300 peer-checked:text-gray-500">
+                    <span className="mb-1 block text-xs font-medium">Posti disponibili</span>
+                    <input
+                      name="maxParticipants"
+                      type="number"
+                      min={1}
+                      step={1}
+                      defaultValue={course.maxParticipants ?? ''}
+                      placeholder="es. 12"
+                      className="w-28 rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-gray-900"
+                    />
+                  </label>
+                  <p className="mt-1 text-xs text-gray-400">
+                    {course.assignedParticipantCount} coach già assegnat
+                    {course.assignedParticipantCount === 1 ? 'o' : 'i'} a questo corso.
+                  </p>
                 </div>
                 <label className="text-sm">
                   <span className="mb-1 block text-xs font-medium text-gray-500">

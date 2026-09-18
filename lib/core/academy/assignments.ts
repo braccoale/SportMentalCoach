@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, count, eq, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
   academyCourses,
@@ -208,6 +208,7 @@ export async function assignCourseToUser(params: {
       .select({
         status: academyCourses.status,
         structureLockedAt: academyCourses.structureLockedAt,
+        maxParticipants: academyCourses.maxParticipants,
       })
       .from(academyCourses)
       .where(eq(academyCourses.id, params.courseId))
@@ -224,6 +225,30 @@ export async function assignCourseToUser(params: {
       .limit(1);
     if (!moduleRow) {
       throw new Error('Un corso senza moduli non può essere assegnato.');
+    }
+
+    if (course.maxParticipants !== null) {
+      const existing = await tx
+        .select({ id: academyCourseAssignments.id })
+        .from(academyCourseAssignments)
+        .where(
+          and(
+            eq(academyCourseAssignments.courseId, params.courseId),
+            eq(academyCourseAssignments.userId, params.userId)
+          )
+        )
+        .limit(1);
+      // Riassegnare chi c'è già non consuma un posto: il conteggio riguarda
+      // solo chi non è ancora dentro.
+      if (existing.length === 0) {
+        const [{ count: assignedCount }] = await tx
+          .select({ count: count() })
+          .from(academyCourseAssignments)
+          .where(eq(academyCourseAssignments.courseId, params.courseId));
+        if (assignedCount >= course.maxParticipants) {
+          throw new Error('Il corso ha raggiunto il numero massimo di partecipanti.');
+        }
+      }
     }
 
     await tx

@@ -57,6 +57,8 @@ function friendlyError(error: unknown, fallback: string): string {
       error.message.startsWith('Il file') ||
       error.message.startsWith('Tipo di file') ||
       error.message.startsWith('Il costo del corso') ||
+      error.message.startsWith('Il limite partecipanti') ||
+      error.message.startsWith('Il corso ha raggiunto') ||
       error.message.startsWith('La trascrizione') ||
       error.message.startsWith('Sessione non trovata') ||
       error.message.startsWith('Contenuto del recap') ||
@@ -761,13 +763,19 @@ export async function updateCourseOverviewAction(
     .map((line) => line.trim())
     .filter(Boolean);
   const priceRaw = String(formData.get('priceEuro') ?? '').trim().replace(',', '.');
+  const limitEnabled = formData.get('participantLimitEnabled') === 'on';
+  const maxParticipantsRaw = String(formData.get('maxParticipants') ?? '').trim();
   if (!Number.isInteger(courseId) || courseId <= 0) {
     return { error: 'Corso non valido.' };
   }
   if (priceRaw && !Number.isFinite(Number(priceRaw))) {
     return { error: 'Il costo del corso non è un numero valido.' };
   }
+  if (limitEnabled && !/^\d+$/.test(maxParticipantsRaw)) {
+    return { error: 'Il limite partecipanti deve essere un numero intero.' };
+  }
   const priceCents = priceRaw ? Math.round(Number(priceRaw) * 100) : null;
+  const maxParticipants = limitEnabled ? Number(maxParticipantsRaw) : null;
 
   try {
     await updateCourseOverview({
@@ -776,6 +784,7 @@ export async function updateCourseOverviewAction(
       level: level || null,
       whatYoullLearn: whatYoullLearn.length > 0 ? whatYoullLearn : null,
       priceCents,
+      maxParticipants,
     });
   } catch (error) {
     return { error: friendlyError(error, 'Impossibile aggiornare la panoramica.') };

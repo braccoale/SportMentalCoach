@@ -3539,6 +3539,11 @@ export const academyCourses = pgTable(
     // lo imposta: "gratuito" e "non ancora definito" sono cose diverse, non
     // vanno confuse con uno zero.
     priceCents: integer('price_cents'),
+    // Nullo = nessun limite (comportamento di oggi). Quando impostato, il
+    // conto dei "posti liberi" è sempre derivato contando le assegnazioni
+    // vive al momento — mai un contatore scritto a parte che potrebbe
+    // disallinearsi da chi è davvero assegnato.
+    maxParticipants: integer('max_participants'),
     previousCourseId: integer('previous_course_id').references(
       (): AnyPgColumn => academyCourses.id,
       { onDelete: 'set null' }
