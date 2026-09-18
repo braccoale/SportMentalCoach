@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CourseTabs } from '@/components/admin/academy/course-tabs';
 import { StatusPill } from '@/components/admin/academy/status-pill';
+import { cn } from '@/lib/utils';
 import {
   cancelSessionAction,
   createSessionAction,
@@ -85,6 +86,12 @@ export default async function CoachAcademyCourseDetailPage({
   ]);
   const materials = new Map<number, ModuleMaterial[]>(materialsByModule);
   const eligibleParticipants = assignments; // ogni coach assegnato al corso può essere invitato a una sessione
+
+  const now = Date.now();
+  const nextSession = sessions
+    .filter((s) => s.status === 'scheduled' && s.scheduledFor.getTime() > now)
+    .sort((a, b) => a.scheduledFor.getTime() - b.scheduledFor.getTime())[0];
+  const nextSessionId = nextSession?.id ?? null;
 
   const overviewPanel = (
     <div className="space-y-6">
@@ -168,15 +175,23 @@ export default async function CoachAcademyCourseDetailPage({
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Crea sessione</CardTitle>
+          <CardTitle className="text-base">Pianifica sessione</CardTitle>
         </CardHeader>
         <CardContent>
-          {course.modules.length === 0 ? (
-            <p className="text-sm text-gray-400">Il corso non ha ancora moduli.</p>
+          {course.status !== 'active' ? (
+            <p className="text-sm text-gray-400">
+              Il corso non è attivo: la pianificazione delle sessioni è disponibile solo per corsi
+              attivi.
+            </p>
+          ) : course.modules.length === 0 ? (
+            <p className="text-sm text-gray-400">
+              Il corso non ha ancora moduli: aggiungine almeno uno prima di pianificare una
+              sessione.
+            </p>
           ) : eligibleParticipants.length === 0 ? (
             <p className="text-sm text-gray-400">
               Nessun coach è ancora assegnato a questo corso: l'admin deve assegnarne almeno uno
-              prima che tu possa creare una sessione.
+              prima che tu possa pianificare una sessione.
             </p>
           ) : (
             <ActionForm action={createSessionAction} className="flex flex-col gap-3">
@@ -230,6 +245,17 @@ export default async function CoachAcademyCourseDetailPage({
                   />
                 </label>
               </div>
+              <label className="text-sm">
+                <span className="mb-1 block text-xs font-medium text-gray-500">
+                  Descrizione (opzionale)
+                </span>
+                <textarea
+                  name="description"
+                  rows={2}
+                  placeholder="agenda, note per i partecipanti…"
+                  className="w-full resize-y rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+                />
+              </label>
               <fieldset>
                 <legend className="mb-1 text-xs font-medium text-gray-500">
                   Partecipanti — individuale: esattamente uno, gruppo: almeno due
@@ -252,7 +278,7 @@ export default async function CoachAcademyCourseDetailPage({
                 </div>
               </fieldset>
               <Button type="submit" className="self-start">
-                Crea sessione
+                Pianifica sessione
               </Button>
             </ActionForm>
           )}
@@ -265,15 +291,27 @@ export default async function CoachAcademyCourseDetailPage({
         </CardHeader>
         <CardContent>
           {sessions.length === 0 ? (
-            <p className="text-sm text-gray-400">Nessuna sessione ancora.</p>
+            <p className="text-sm text-gray-400">
+              I partecipanti non hanno ancora sessioni. Pianifica la prima sessione qui sopra.
+            </p>
           ) : (
             <ul className="space-y-2">
-              {sessions.map((session) => (
+              {sessions.map((session) => {
+                const isNext = session.id === nextSessionId;
+                return (
                 <li
                   key={session.id}
-                  className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-gray-200 p-4"
+                  className={cn(
+                    'flex flex-wrap items-start justify-between gap-3 rounded-xl border p-4',
+                    isNext ? 'border-indigo-300 bg-indigo-50/60' : 'border-gray-200'
+                  )}
                 >
                   <div>
+                    {isNext && (
+                      <span className="mb-1.5 inline-flex items-center rounded-full bg-indigo-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+                        Prossima sessione
+                      </span>
+                    )}
                     <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-900">
                       <CalendarClock className="h-4 w-4 text-gray-400" aria-hidden="true" />
                       {formatSessionTime(session.scheduledFor)} · {session.durationMin} min
@@ -282,6 +320,9 @@ export default async function CoachAcademyCourseDetailPage({
                       {session.moduleTitle} ·{' '}
                       {session.mode === 'group' ? 'Sessione di gruppo' : 'Sessione individuale'}
                     </p>
+                    {session.description && (
+                      <p className="mt-1 text-xs text-gray-500">{session.description}</p>
+                    )}
                     <p className="mt-1 text-xs text-gray-500">
                       Partecipanti: {session.participants.map((p) => p.displayName).join(', ')}
                     </p>
@@ -310,7 +351,8 @@ export default async function CoachAcademyCourseDetailPage({
                     )}
                   </div>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
         </CardContent>

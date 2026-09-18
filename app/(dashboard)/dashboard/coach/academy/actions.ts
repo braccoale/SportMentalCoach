@@ -23,6 +23,9 @@ function friendlyError(error: unknown, fallback: string): string {
       error.message.startsWith('Il docente non può') ||
       error.message.startsWith('La durata') ||
       error.message.startsWith('La data della sessione') ||
+      error.message.startsWith('Solo un corso attivo') ||
+      error.message.startsWith('Corso non trovato') ||
+      error.message.startsWith('Il docente indicato') ||
       error.message.startsWith('Il file') ||
       error.message.startsWith('Tipo di file')
     ) {
@@ -42,6 +45,7 @@ export async function createSessionAction(
   const mode = String(formData.get('mode') ?? '') as AcademySessionMode;
   const scheduledForRaw = String(formData.get('scheduledFor') ?? '');
   const durationMin = Number(formData.get('durationMin'));
+  const description = String(formData.get('description') ?? '').trim();
   const participantAssignmentIds = formData
     .getAll('participantAssignmentIds')
     .map((value) => Number(value))
@@ -74,6 +78,7 @@ export async function createSessionAction(
       scheduledFor,
       durationMin,
       participantAssignmentIds,
+      description: description || null,
     });
   } catch (error) {
     return { error: friendlyError(error, 'Impossibile creare la sessione.') };

@@ -25,7 +25,7 @@ import type { ActionState } from '@/lib/auth/middleware';
 
 export type CalendarEvent = {
   id: number;
-  status: string; // requested | accepted | completed | cancelled | declined
+  status: string; // requested | accepted | completed | cancelled | declined | scheduled
   /** ISO datetime; null = not scheduled (shown in the agenda only). */
   scheduledFor: string | null;
   requestedAt: string;
@@ -35,6 +35,20 @@ export type CalendarEvent = {
   /** Durata concordata in minuti: decide quando la sessione diventa passata. */
   durationMin: number | null;
   note: string | null;
+  /**
+   * Assente (o 'booking') per una prenotazione normale. 'academy_session' è
+   * una sessione Academy nello stesso calendario — stessa griglia, stesso
+   * posizionamento per data, ma senza chat/videochiamata/completa/annulla
+   * booking-specifici: quelle azioni non hanno senso per una sessione con
+   * più partecipanti e un id che non è un `bookingId`.
+   */
+  kind?: 'booking' | 'academy_session';
+  /** Solo per 'academy_session': dove porta "Vai alla sessione". */
+  href?: string;
+  /** Solo per 'academy_session': riga secondaria nel drawer (es. modulo, modalità). */
+  subtitle?: string;
+  /** Solo per 'academy_session': elenco dei partecipanti, per il drawer. */
+  participantsLabel?: string;
 };
 
 type BookingAction = (
@@ -123,6 +137,9 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: 'Annullata',
   declined: 'Rifiutata',
   expired: 'Scaduta',
+  // Stato di una sessione Academy, non di una prenotazione — stesso trattamento
+  // visivo di 'accepted' (confermata, nel futuro).
+  scheduled: 'Programmata',
 };
 
 /**
@@ -134,6 +151,7 @@ const STATUS_LABELS: Record<string, string> = {
 function statusDotCls(status: string): string {
   switch (status) {
     case 'accepted':
+    case 'scheduled':
       return 'bg-blue-500';
     case 'completed':
       return 'bg-emerald-500';
@@ -151,6 +169,7 @@ function statusDotCls(status: string): string {
 function pillCls(status: string): string {
   switch (status) {
     case 'accepted':
+    case 'scheduled':
       return 'bg-blue-600 text-white';
     case 'completed':
       return 'bg-emerald-600 text-white';
@@ -167,6 +186,7 @@ function pillCls(status: string): string {
 function badgeCls(status: string): string {
   switch (status) {
     case 'accepted':
+    case 'scheduled':
       return 'bg-blue-50 text-blue-700 ring-1 ring-blue-200';
     case 'completed':
       return 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200';
@@ -314,7 +334,7 @@ function MonthView({
                     <div className="mt-1 flex flex-wrap justify-center gap-0.5 sm:hidden">
                       {dayEvents.slice(0, 4).map((e) => (
                         <button
-                          key={e.id}
+                          key={`${e.kind ?? 'booking'}-${e.id}`}
                           type="button"
                           aria-label={`${e.title} — ${STATUS_LABELS[e.status] ?? e.status}`}
                           onClick={() => onSelect(e)}
@@ -327,7 +347,7 @@ function MonthView({
                     </div>
                     <div className="mt-1 hidden flex-col gap-0.5 sm:flex">
                       {dayEvents.slice(0, maxVisible).map((e) => (
-                        <EventPill key={e.id} e={e} role={role} onSelect={onSelect} />
+                        <EventPill key={`${e.kind ?? 'booking'}-${e.id}`} e={e} role={role} onSelect={onSelect} />
                       ))}
                       {dayEvents.length > maxVisible && (
                         <span className="px-1.5 text-[11px] text-gray-400">
@@ -397,7 +417,7 @@ function WeekView({
                 <p className="hidden text-xs text-gray-400/60 sm:block">—</p>
               ) : (
                 dayEvents.map((e) => (
-                  <EventPill key={e.id} e={e} role={role} onSelect={onSelect} />
+                  <EventPill key={`${e.kind ?? 'booking'}-${e.id}`} e={e} role={role} onSelect={onSelect} />
                 ))
               )}
             </div>
@@ -460,7 +480,7 @@ function AgendaView({
           </p>
           <ul className="mt-1.5 flex flex-col gap-1.5">
             {events.map((e) => (
-              <li key={e.id}>
+              <li key={`${e.kind ?? 'booking'}-${e.id}`}>
                 <button
                   type="button"
                   onClick={() => onSelect(e)}
@@ -514,7 +534,7 @@ function AgendaView({
           </p>
           <ul className="mt-1.5 flex flex-col gap-1.5">
             {unscheduled.map((e) => (
-              <li key={e.id}>
+              <li key={`${e.kind ?? 'booking'}-${e.id}`}>
                 <button
                   type="button"
                   onClick={() => onSelect(e)}
@@ -573,6 +593,76 @@ function EventDrawer({
   // close the drawer (the page revalidates underneath).
   function closeAfterSuccess() {
     setTimeout(onClose, 1200);
+  }
+
+  // Una sessione Academy non è una prenotazione: niente chat, videochiamata
+  // o completa/annulla booking-specifici (quell'id non è un bookingId, e la
+  // videochiamata multi-partecipante non esiste ancora — vedi il tab
+  // Sessioni del corso). Il drawer qui si limita a mostrare i dettagli e a
+  // rimandare al corso.
+  if (event.kind === 'academy_session') {
+    return (
+      <div className="fixed inset-0 z-[90]" role="dialog" aria-modal="true">
+        <button
+          type="button"
+          aria-label="Chiudi"
+          onClick={onClose}
+          className="absolute inset-0 cursor-default bg-black/60 backdrop-blur-sm"
+        />
+        <div className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-2xl border border-gray-200 bg-gray-50 p-5 text-gray-900 shadow-2xl sm:inset-x-auto sm:inset-y-0 sm:right-0 sm:max-h-none sm:w-full sm:max-w-md sm:rounded-none sm:border-y-0 sm:border-r-0 sm:p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Sessione Academy
+              </p>
+              <h2 className="mt-1 font-display text-xl font-semibold">{event.title}</h2>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Chiudi dettagli"
+              className="rounded-full p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <span className={cn('mt-3 inline-flex rounded-full px-2.5 py-1 text-xs font-medium', badgeCls(event.status))}>
+            {STATUS_LABELS[event.status] ?? event.status}
+          </span>
+
+          <dl className="mt-5 flex flex-col gap-4 text-sm">
+            {event.subtitle && (
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">Modulo</dt>
+                <dd className="mt-0.5 font-medium">{event.subtitle}</dd>
+              </div>
+            )}
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">Data e ora</dt>
+              <dd className="mt-0.5">{event.when ? fmtFull(event.when) : 'Da definire'}</dd>
+            </div>
+            {event.participantsLabel && (
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">Partecipanti</dt>
+                <dd className="mt-0.5">{event.participantsLabel}</dd>
+              </div>
+            )}
+          </dl>
+
+          {event.href && (
+            <div className="mt-6 border-t border-gray-200 pt-5">
+              <Link
+                href={event.href}
+                className="flex items-center justify-center rounded-full bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+              >
+                Vai al corso
+              </Link>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   }
 
   return (

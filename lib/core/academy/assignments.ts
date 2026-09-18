@@ -18,6 +18,8 @@ export type CourseAssignment = {
   userId: number;
   displayName: string;
   status: AcademyAssignmentStatus;
+  completedModules: number;
+  totalModules: number;
 };
 
 export async function listAssignments(
@@ -37,11 +39,38 @@ export async function listAssignments(
     .from(academyCourseAssignments)
     .innerJoin(users, eq(users.id, academyCourseAssignments.userId))
     .where(eq(academyCourseAssignments.courseId, courseId));
+
+  const totalModules = (
+    await db
+      .select({ id: academyCourseModules.id })
+      .from(academyCourseModules)
+      .where(eq(academyCourseModules.courseId, courseId))
+  ).length;
+
+  const completions =
+    rows.length === 0
+      ? []
+      : await db
+          .select({ assignmentId: academyModuleCompletions.assignmentId })
+          .from(academyModuleCompletions)
+          .where(
+            inArray(
+              academyModuleCompletions.assignmentId,
+              rows.map((r) => r.assignmentId)
+            )
+          );
+  const completedByAssignment = new Map<number, number>();
+  for (const row of completions) {
+    completedByAssignment.set(row.assignmentId, (completedByAssignment.get(row.assignmentId) ?? 0) + 1);
+  }
+
   return rows.map((row) => ({
     assignmentId: row.assignmentId,
     userId: row.userId,
     displayName: [row.name, row.lastName].filter(Boolean).join(' ') || row.email,
     status: row.status as AcademyAssignmentStatus,
+    completedModules: completedByAssignment.get(row.assignmentId) ?? 0,
+    totalModules,
   }));
 }
 

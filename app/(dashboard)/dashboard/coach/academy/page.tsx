@@ -1,20 +1,44 @@
 import Link from 'next/link';
-import { CheckCircle2, Circle, GraduationCap, Sparkles } from 'lucide-react';
+import { CalendarClock, CheckCircle2, Circle, GraduationCap, Sparkles } from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
 import { listAssignmentsForUser } from '@/lib/core/academy/assignments';
 import { listInstructorCourses } from '@/lib/core/academy/instructors';
+import { listSessionsForUser } from '@/lib/core/academy/sessions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusPill } from '@/components/admin/academy/status-pill';
 
 export const dynamic = 'force-dynamic';
 
+function formatSessionTime(date: Date): string {
+  return new Intl.DateTimeFormat('it-IT', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Rome',
+  }).format(date);
+}
+
 export default async function CoachAcademyPage() {
   const coach = await requireRole('coach');
-  const [assignments, teaching] = await Promise.all([
+  const [assignments, teaching, allSessions] = await Promise.all([
     listAssignmentsForUser(coach.id),
     listInstructorCourses(coach.id),
+    listSessionsForUser(coach.id),
   ]);
+
+  // Il partecipante vede solo le sessioni a cui è invitato per i corsi che
+  // segue — mai quelle di un corso che insegna soltanto, e mai quelle
+  // annullate (restano nello storico, non nella lista attiva).
+  const participantSessionsByCourse = new Map<number, typeof allSessions>();
+  for (const session of allSessions) {
+    if (session.asInstructor || session.status !== 'scheduled') continue;
+    const list = participantSessionsByCourse.get(session.courseId) ?? [];
+    list.push(session);
+    participantSessionsByCourse.set(session.courseId, list);
+  }
 
   if (assignments.length === 0 && teaching.length === 0) {
     return (
@@ -98,6 +122,9 @@ export default async function CoachAcademyPage() {
           </h2>
           {assignments.map((assignment) => {
             const completedCount = assignment.modules.filter((m) => m.completed).length;
+            const courseSessions = (participantSessionsByCourse.get(assignment.courseId) ?? []).sort(
+              (a, b) => a.scheduledFor.getTime() - b.scheduledFor.getTime()
+            );
             return (
               <Card key={assignment.assignmentId}>
                 <CardHeader>
@@ -134,6 +161,27 @@ export default async function CoachAcademyPage() {
                       </li>
                     ))}
                   </ul>
+
+                  <div className="mt-4 border-t border-gray-100 pt-3">
+                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                      Le tue sessioni
+                    </p>
+                    {courseSessions.length === 0 ? (
+                      <p className="text-xs text-gray-400">
+                        Nessuna sessione pianificata ancora per questo corso.
+                      </p>
+                    ) : (
+                      <ul className="space-y-1.5">
+                        {courseSessions.map((session) => (
+                          <li key={session.id} className="flex items-center gap-2 text-sm text-gray-700">
+                            <CalendarClock className="h-4 w-4 shrink-0 text-gray-400" aria-hidden="true" />
+                            {formatSessionTime(session.scheduledFor)} · {session.moduleTitle} · Docente:{' '}
+                            {session.instructorName}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             );

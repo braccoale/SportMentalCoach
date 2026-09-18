@@ -14,14 +14,16 @@ import {
 } from '@/lib/core/academy/courses';
 import { nominateInstructor, removeInstructor } from '@/lib/core/academy/instructors';
 import { assignCourseToUser } from '@/lib/core/academy/assignments';
+import { createSession, cancelSession } from '@/lib/core/academy/sessions';
 import {
   deleteMaterial,
   setMaterialPublished,
   uploadMaterial,
 } from '@/lib/core/academy/materials';
+import { parseRomeLocalDateTime } from '@/lib/core/availability';
 import { recordAdminAudit } from '@/lib/core/admin/audit-log';
 import type { ActionState } from '@/lib/auth/middleware';
-import type { AcademyCourseStatus } from '@/lib/db/schema';
+import type { AcademyCourseStatus, AcademySessionMode } from '@/lib/db/schema';
 
 function friendlyError(error: unknown, fallback: string): string {
   if (error instanceof Error) {
@@ -33,6 +35,14 @@ function friendlyError(error: unknown, fallback: string): string {
       error.message.startsWith('Solo un corso attivo') ||
       error.message.startsWith('Solo un coach con profilo approvato') ||
       error.message.startsWith('Corso non trovato') ||
+      error.message.startsWith('Il docente indicato') ||
+      error.message.startsWith('Orario non disponibile') ||
+      error.message.startsWith('Una sessione') ||
+      error.message.startsWith('Il modulo non appartiene') ||
+      error.message.startsWith('Uno o più partecipanti') ||
+      error.message.startsWith('Il docente non può') ||
+      error.message.startsWith('La durata') ||
+      error.message.startsWith('La data della sessione') ||
       error.message.startsWith('Il file') ||
       error.message.startsWith('Tipo di file')
     ) {
@@ -565,4 +575,110 @@ export async function reorderModulesAction(
 
   await reorderModules({ actorUserId: admin.id, courseId, orderedModuleIds });
   revalidatePath(`/dashboard/admin/academy/${courseId}`);
+}
+
+export async function createSessionAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const admin = await requireRole('admin');
+  const courseId = Number(formData.get('courseId'));
+  const instructorUserId = Number(formData.get('instructorUserId'));
+  const moduleId = Number(formData.get('moduleId'));
+  const mode = String(formData.get('mode') ?? '') as AcademySessionMode;
+  const scheduledForRaw = String(formData.get('scheduledFor') ?? '');
+  const durationMin = Number(formData.get('durationMin'));
+  const description = String(formData.get('description') ?? '').trim();
+  const participantAssignmentIds = formData
+    .getAll('participantAssignmentIds')
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value > 0);
+
+  if (
+    !Number.isInteger(courseId) || courseId <= 0 ||
+    !Number.isInteger(instructorUserId) || instructorUserId <= 0 ||
+    !Number.isInteger(moduleId) || moduleId <= 0
+  ) {
+    return { error: 'Corso, docente o modulo non valido.' };
+  }
+  if (mode !== 'individual' && mode !== 'group') {
+    return { error: 'Scegli individuale o di gruppo.' };
+  }
+  const scheduledFor = parseRomeLocalDateTime(scheduledForRaw);
+  if (!scheduledFor) {
+    return { error: 'Data e ora non valide.' };
+  }
+  if (!Number.isFinite(durationMin) || durationMin <= 0) {
+    return { error: 'Durata non valida.' };
+  }
+  if (participantAssignmentIds.length === 0) {
+    return { error: 'Seleziona almeno un partecipante.' };
+  }
+
+  try {
+    await createSession({
+      actorUserId: admin.id,
+      instructorUserId,
+      courseId,
+      moduleId,
+      mode,
+      scheduledFor,
+      durationMin,
+      participantAssignmentIds,
+      description: description || null,
+    });
+    await recordAdminAudit({
+      actor: { id: admin.id, email: admin.email },
+      action: 'academy_session_created',
+      subjectType: 'academy_course',
+      subjectId: courseId,
+      outcome: 'ok',
+      detail: { docente: instructorUserId, modulo: moduleId, modalita: mode },
+    });
+  } catch (error) {
+    await recordAdminAudit({
+      actor: { id: admin.id, email: admin.email },
+      action: 'academy_session_created',
+      subjectType: 'academy_course',
+      subjectId: courseId,
+      outcome: 'fallita',
+      detail: { docente: instructorUserId, modulo: moduleId },
+    });
+    return { error: friendlyError(error, 'Impossibile creare la sessione.') };
+  }
+
+  revalidatePath(`/dashboard/admin/academy/${courseId}`);
+  return { success: 'Sessione creata.' };
+}
+
+export async function cancelSessionAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const admin = await requireRole('admin');
+  const courseId = Number(formData.get('courseId'));
+  const sessionId = Number(formData.get('sessionId'));
+  if (
+    !Number.isInteger(courseId) || courseId <= 0 ||
+    !Number.isInteger(sessionId) || sessionId <= 0
+  ) {
+    return { error: 'Sessione non valida.' };
+  }
+
+  try {
+    await cancelSession({ actorUserId: admin.id, courseId, sessionId });
+    await recordAdminAudit({
+      actor: { id: admin.id, email: admin.email },
+      action: 'academy_session_cancelled',
+      subjectType: 'academy_course',
+      subjectId: courseId,
+      outcome: 'ok',
+      detail: { sessione: sessionId },
+    });
+  } catch (error) {
+    return { error: friendlyError(error, 'Impossibile annullare la sessione.') };
+  }
+
+  revalidatePath(`/dashboard/admin/academy/${courseId}`);
+  return { success: 'Sessione annullata.' };
 }

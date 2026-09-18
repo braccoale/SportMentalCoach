@@ -4,6 +4,7 @@ import { db } from '@/lib/db/drizzle';
 import {
   academyCourseAssignments,
   academyCourseModules,
+  academyCourses,
   academySessionParticipants,
   academySessions,
   providerProfiles,
@@ -96,6 +97,7 @@ export type CreateSessionParams = {
   scheduledFor: Date;
   durationMin: number;
   participantAssignmentIds: number[];
+  description?: string | null;
 };
 
 /**
@@ -117,6 +119,16 @@ export async function createSession(params: CreateSessionParams): Promise<Academ
   }
   if (params.scheduledFor.getTime() <= Date.now()) {
     throw new Error('La data della sessione deve essere nel futuro.');
+  }
+
+  const [course] = await db
+    .select({ status: academyCourses.status })
+    .from(academyCourses)
+    .where(eq(academyCourses.id, params.courseId))
+    .limit(1);
+  if (!course) throw new Error('Corso non trovato.');
+  if (course.status !== 'active') {
+    throw new Error('Solo un corso attivo può avere sessioni pianificate.');
   }
 
   const uniqueParticipantIds = [...new Set(params.participantAssignmentIds)];
@@ -174,6 +186,7 @@ export async function createSession(params: CreateSessionParams): Promise<Academ
         mode: params.mode,
         scheduledFor: params.scheduledFor,
         durationMin: params.durationMin,
+        description: params.description || null,
         createdBy: params.actorUserId,
         updatedBy: params.actorUserId,
       })
@@ -194,6 +207,8 @@ export async function createSession(params: CreateSessionParams): Promise<Academ
 
 export type CourseSessionRow = {
   id: number;
+  courseId: number;
+  courseTitle: string;
   moduleId: number;
   moduleTitle: string;
   instructorUserId: number;
@@ -202,6 +217,7 @@ export type CourseSessionRow = {
   status: 'scheduled' | 'cancelled';
   scheduledFor: Date;
   durationMin: number;
+  description: string | null;
   participants: { userId: number; displayName: string }[];
 };
 
@@ -214,6 +230,8 @@ export async function listSessionsForCourse(
   const sessions = await db
     .select({
       id: academySessions.id,
+      courseId: academySessions.courseId,
+      courseTitle: academyCourses.title,
       moduleId: academySessions.moduleId,
       moduleTitle: academyCourseModules.title,
       instructorUserId: academySessions.instructorUserId,
@@ -224,8 +242,10 @@ export async function listSessionsForCourse(
       status: academySessions.status,
       scheduledFor: academySessions.scheduledFor,
       durationMin: academySessions.durationMin,
+      description: academySessions.description,
     })
     .from(academySessions)
+    .innerJoin(academyCourses, eq(academyCourses.id, academySessions.courseId))
     .innerJoin(academyCourseModules, eq(academyCourseModules.id, academySessions.moduleId))
     .innerJoin(users, eq(users.id, academySessions.instructorUserId))
     .where(eq(academySessions.courseId, courseId))
@@ -260,6 +280,8 @@ export async function listSessionsForCourse(
 
   return sessions.map((session) => ({
     id: session.id,
+    courseId: session.courseId,
+    courseTitle: session.courseTitle,
     moduleId: session.moduleId,
     moduleTitle: session.moduleTitle,
     instructorUserId: session.instructorUserId,
@@ -272,8 +294,131 @@ export async function listSessionsForCourse(
     status: session.status as 'scheduled' | 'cancelled',
     scheduledFor: session.scheduledFor,
     durationMin: session.durationMin,
+    description: session.description,
     participants: participantsBySession.get(session.id) ?? [],
   }));
+}
+
+/**
+ * Tutte le sessioni non annullate a cui un coach partecipa — come docente o
+ * come partecipante — nel futuro o nel passato prossimo, per il suo
+ * calendario. Nessun `assertInstructorOrAdmin`: legge solo le proprie
+ * sessioni, la stessa postura di `listAssignmentsForUser`.
+ */
+export type UserSessionRow = CourseSessionRow & { asInstructor: boolean };
+
+export async function listSessionsForUser(userId: number): Promise<UserSessionRow[]> {
+  const asInstructorRows = await db
+    .select({
+      id: academySessions.id,
+      courseId: academySessions.courseId,
+      courseTitle: academyCourses.title,
+      moduleId: academySessions.moduleId,
+      moduleTitle: academyCourseModules.title,
+      instructorUserId: academySessions.instructorUserId,
+      instructorName: users.name,
+      instructorLastName: users.lastName,
+      instructorEmail: users.email,
+      mode: academySessions.mode,
+      status: academySessions.status,
+      scheduledFor: academySessions.scheduledFor,
+      durationMin: academySessions.durationMin,
+      description: academySessions.description,
+    })
+    .from(academySessions)
+    .innerJoin(academyCourses, eq(academyCourses.id, academySessions.courseId))
+    .innerJoin(academyCourseModules, eq(academyCourseModules.id, academySessions.moduleId))
+    .innerJoin(users, eq(users.id, academySessions.instructorUserId))
+    .where(eq(academySessions.instructorUserId, userId));
+
+  const asParticipantRows = await db
+    .select({
+      id: academySessions.id,
+      courseId: academySessions.courseId,
+      courseTitle: academyCourses.title,
+      moduleId: academySessions.moduleId,
+      moduleTitle: academyCourseModules.title,
+      instructorUserId: academySessions.instructorUserId,
+      instructorName: users.name,
+      instructorLastName: users.lastName,
+      instructorEmail: users.email,
+      mode: academySessions.mode,
+      status: academySessions.status,
+      scheduledFor: academySessions.scheduledFor,
+      durationMin: academySessions.durationMin,
+      description: academySessions.description,
+    })
+    .from(academySessionParticipants)
+    .innerJoin(academySessions, eq(academySessions.id, academySessionParticipants.sessionId))
+    .innerJoin(academyCourses, eq(academyCourses.id, academySessions.courseId))
+    .innerJoin(academyCourseModules, eq(academyCourseModules.id, academySessions.moduleId))
+    .innerJoin(users, eq(users.id, academySessions.instructorUserId))
+    .innerJoin(academyCourseAssignments, eq(academyCourseAssignments.id, academySessionParticipants.assignmentId))
+    .where(eq(academyCourseAssignments.userId, userId));
+
+  const allIds = [...asInstructorRows.map((r) => r.id), ...asParticipantRows.map((r) => r.id)];
+  const participantRows =
+    allIds.length === 0
+      ? []
+      : await db
+          .select({
+            sessionId: academySessionParticipants.sessionId,
+            userId: academyCourseAssignments.userId,
+            name: users.name,
+            lastName: users.lastName,
+            email: users.email,
+          })
+          .from(academySessionParticipants)
+          .innerJoin(
+            academyCourseAssignments,
+            eq(academyCourseAssignments.id, academySessionParticipants.assignmentId)
+          )
+          .innerJoin(users, eq(users.id, academyCourseAssignments.userId))
+          .where(inArray(academySessionParticipants.sessionId, allIds));
+
+  const participantsBySession = new Map<number, { userId: number; displayName: string }[]>();
+  for (const row of participantRows) {
+    const list = participantsBySession.get(row.sessionId) ?? [];
+    list.push({ userId: row.userId, displayName: displayName(row) });
+    participantsBySession.set(row.sessionId, list);
+  }
+
+  function toRow(session: (typeof asInstructorRows)[number], asInstructor: boolean): UserSessionRow {
+    return {
+      id: session.id,
+      courseId: session.courseId,
+      courseTitle: session.courseTitle,
+      moduleId: session.moduleId,
+      moduleTitle: session.moduleTitle,
+      instructorUserId: session.instructorUserId,
+      instructorName: displayName({
+        name: session.instructorName,
+        lastName: session.instructorLastName,
+        email: session.instructorEmail,
+      }),
+      mode: session.mode as AcademySessionMode,
+      status: session.status as 'scheduled' | 'cancelled',
+      scheduledFor: session.scheduledFor,
+      durationMin: session.durationMin,
+      description: session.description,
+      participants: participantsBySession.get(session.id) ?? [],
+      asInstructor,
+    };
+  }
+
+  const seen = new Set<number>();
+  const rows: UserSessionRow[] = [];
+  for (const session of asInstructorRows) {
+    seen.add(session.id);
+    rows.push(toRow(session, true));
+  }
+  for (const session of asParticipantRows) {
+    if (seen.has(session.id)) continue;
+    seen.add(session.id);
+    rows.push(toRow(session, false));
+  }
+
+  return rows.sort((a, b) => a.scheduledFor.getTime() - b.scheduledFor.getTime());
 }
 
 export async function cancelSession(params: {

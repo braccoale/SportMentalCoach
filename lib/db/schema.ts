@@ -3717,6 +3717,7 @@ export const academySessions = pgTable(
     status: varchar('status', { length: 20 }).notNull().default('scheduled'),
     scheduledFor: timestamp('scheduled_for', { withTimezone: true }).notNull(),
     durationMin: integer('duration_min').notNull(),
+    description: text('description'),
     createdDate: timestamp('createddate', { withTimezone: true })
       .notNull()
       .defaultNow(),
