@@ -2,8 +2,10 @@ import 'server-only';
 import { asc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
+  academyCourseAssignments,
   academyCourses,
   academyCourseModules,
+  academySessions,
   type AcademyCourse,
   type AcademyCourseModule,
   type AcademyCourseStatus,
@@ -37,7 +39,7 @@ export type CourseSummary = {
 export async function listCourses(actorUserId: number): Promise<CourseSummary[]> {
   await assertAdmin(actorUserId);
 
-  const [courses, moduleRows] = await Promise.all([
+  const [courses, moduleRows, assignedCourseIds, sessionCourseIds] = await Promise.all([
     db
       .select({
         id: academyCourses.id,
@@ -45,7 +47,6 @@ export async function listCourses(actorUserId: number): Promise<CourseSummary[]>
         description: academyCourses.description,
         status: academyCourses.status,
         edition: academyCourses.edition,
-        structureLockedAt: academyCourses.structureLockedAt,
       })
       .from(academyCourses)
       .orderBy(academyCourses.id),
@@ -55,6 +56,8 @@ export async function listCourses(actorUserId: number): Promise<CourseSummary[]>
         hours: academyCourseModules.hours,
       })
       .from(academyCourseModules),
+    db.selectDistinct({ courseId: academyCourseAssignments.courseId }).from(academyCourseAssignments),
+    db.selectDistinct({ courseId: academySessions.courseId }).from(academySessions),
   ]);
 
   const modulesByCourseId = new Map<number, { hours: number }[]>();
@@ -63,6 +66,10 @@ export async function listCourses(actorUserId: number): Promise<CourseSummary[]>
     if (list) list.push({ hours: row.hours });
     else modulesByCourseId.set(row.courseId, [{ hours: row.hours }]);
   }
+  const lockedCourseIds = new Set([
+    ...assignedCourseIds.map((r) => r.courseId),
+    ...sessionCourseIds.map((r) => r.courseId),
+  ]);
 
   return courses.map((course) => {
     const modules = modulesByCourseId.get(course.id) ?? [];
@@ -74,7 +81,7 @@ export async function listCourses(actorUserId: number): Promise<CourseSummary[]>
       edition: course.edition,
       totalHours: courseTotalHours(modules),
       moduleCount: modules.length,
-      structureLocked: course.structureLockedAt !== null,
+      structureLocked: lockedCourseIds.has(course.id),
     };
   });
 }
@@ -275,24 +282,26 @@ export async function getCourseDetail(
       priceCents: academyCourses.priceCents,
       heroImageKey: academyCourses.heroImageKey,
       previousCourseId: academyCourses.previousCourseId,
-      structureLockedAt: academyCourses.structureLockedAt,
     })
     .from(academyCourses)
     .where(eq(academyCourses.id, courseId))
     .limit(1);
   if (!course) return null;
 
-  const modules = await db
-    .select({
-      id: academyCourseModules.id,
-      title: academyCourseModules.title,
-      description: academyCourseModules.description,
-      hours: academyCourseModules.hours,
-      sortOrder: academyCourseModules.sortOrder,
-    })
-    .from(academyCourseModules)
-    .where(eq(academyCourseModules.courseId, courseId))
-    .orderBy(asc(academyCourseModules.sortOrder), asc(academyCourseModules.id));
+  const [modules, structureLocked] = await Promise.all([
+    db
+      .select({
+        id: academyCourseModules.id,
+        title: academyCourseModules.title,
+        description: academyCourseModules.description,
+        hours: academyCourseModules.hours,
+        sortOrder: academyCourseModules.sortOrder,
+      })
+      .from(academyCourseModules)
+      .where(eq(academyCourseModules.courseId, courseId))
+      .orderBy(asc(academyCourseModules.sortOrder), asc(academyCourseModules.id)),
+    isStructureLocked(courseId),
+  ]);
 
   return {
     id: course.id,
@@ -305,20 +314,44 @@ export async function getCourseDetail(
     priceCents: course.priceCents,
     hasHeroImage: course.heroImageKey !== null,
     previousCourseId: course.previousCourseId,
-    structureLocked: course.structureLockedAt !== null,
+    structureLocked,
     totalHours: courseTotalHours(modules),
     modules,
   };
 }
 
+/**
+ * Il blocco è deciso dal presente, non da `structureLockedAt`: quella
+ * colonna resta scritta la prima volta che qualcuno viene assegnato (solo
+ * come informazione storica), ma non è più letta per decidere se il
+ * programma è modificabile. Un corso senza nessun coach assegnato e senza
+ * nessuna sessione — anche se in passato ne ha avuti e sono stati rimossi
+ * — deve poter tornare modificabile: è così che "nessuno collegato" viene
+ * interpretato ovunque nell'Academy.
+ */
+async function isStructureLocked(courseId: number): Promise<boolean> {
+  const [assignment] = await db
+    .select({ id: academyCourseAssignments.id })
+    .from(academyCourseAssignments)
+    .where(eq(academyCourseAssignments.courseId, courseId))
+    .limit(1);
+  if (assignment) return true;
+  const [session] = await db
+    .select({ id: academySessions.id })
+    .from(academySessions)
+    .where(eq(academySessions.courseId, courseId))
+    .limit(1);
+  return Boolean(session);
+}
+
 async function assertStructureUnlocked(courseId: number): Promise<void> {
   const [course] = await db
-    .select({ structureLockedAt: academyCourses.structureLockedAt })
+    .select({ id: academyCourses.id })
     .from(academyCourses)
     .where(eq(academyCourses.id, courseId))
     .limit(1);
   if (!course) throw new Error('Corso non trovato.');
-  if (course.structureLockedAt !== null) {
+  if (await isStructureLocked(courseId)) {
     throw new Error(STRUCTURE_LOCKED_MESSAGE);
   }
 }

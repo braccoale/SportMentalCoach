@@ -21,6 +21,7 @@ import { listMaterials, type ModuleMaterial } from '@/lib/core/academy/materials
 import { listSessionsForCourse } from '@/lib/core/academy/sessions';
 import { getRecapForSession } from '@/lib/core/academy/recap/service';
 import { AcademyRecapPanel } from '@/components/academy/academy-recap-panel';
+import { MaterialUploadForm } from '@/components/academy/material-upload-form';
 import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -439,28 +440,11 @@ export default async function AdminAcademyCourseDetailPage({
                   </ul>
                 )}
 
-                <ActionForm
+                <MaterialUploadForm
                   action={uploadMaterialAction}
-                  className="flex flex-wrap items-center gap-3 border-t border-gray-100 pt-3"
-                >
-                  <input type="hidden" name="moduleId" value={module.id} />
-                  <input type="hidden" name="courseId" value={course.id} />
-                  <input
-                    name="title"
-                    placeholder="titolo materiale"
-                    required
-                    maxLength={200}
-                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                  />
-                  <input
-                    name="file"
-                    type="file"
-                    required
-                    accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.mp4,.mov"
-                    className="text-sm"
-                  />
-                  <Button type="submit">Carica</Button>
-                </ActionForm>
+                  moduleId={module.id}
+                  courseId={course.id}
+                />
               </CardContent>
             </Card>
           );
