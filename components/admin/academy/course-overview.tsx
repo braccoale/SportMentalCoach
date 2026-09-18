@@ -489,10 +489,12 @@ export function CourseOverview({
         </CardContent>
       </Card>
 
-      {/* Avanzamento */}
+      {/* Avanzamento (partecipante) / Coach Assegnati (admin, docente) */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Avanzamento</CardTitle>
+          <CardTitle className="text-base">
+            {allParticipants ? 'Coach Assegnati' : 'Avanzamento'}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {ownProgress && (
