@@ -3521,6 +3521,15 @@ export const academyCourses = pgTable(
     status: varchar('status', { length: 20 }).notNull().default('draft'),
     // Etichetta libera dell'admin (es. "Autunno 2026"), non un identificatore.
     edition: varchar('edition', { length: 60 }),
+    // Etichetta libera (es. "Livello avanzato") — vuota finché l'admin non la imposta, mai dedotta.
+    level: varchar('level', { length: 60 }),
+    // Chiave nel bucket privato Academy, non un URL pubblico permanente —
+    // stesso pattern di academy_module_attachments.storage_key. Servita da
+    // una route autorizzata, come i materiali.
+    heroImageKey: text('hero_image_key'),
+    // Punti "cosa imparerai" della pagina corso — stesso tipo array già
+    // usato altrove nello schema (es. provider_profiles.specialties).
+    whatYoullLearn: text('what_youll_learn').array(),
     previousCourseId: integer('previous_course_id').references(
       (): AnyPgColumn => academyCourses.id,
       { onDelete: 'set null' }

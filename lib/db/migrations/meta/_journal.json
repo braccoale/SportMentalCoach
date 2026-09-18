@@ -561,6 +561,13 @@
       "when": 1789661266702,
       "tag": "0079_worthless_human_torch",
       "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1789709786242,
+      "tag": "0080_right_shriek",
+      "breakpoints": true
     }
   ]
 }
