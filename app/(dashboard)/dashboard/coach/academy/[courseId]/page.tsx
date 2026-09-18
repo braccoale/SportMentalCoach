@@ -155,20 +155,28 @@ export default async function CoachAcademyCourseDetailPage({
         </CardHeader>
         <CardContent>
           {course.status !== 'active' ? (
-            <p className="text-sm text-gray-400">
-              Il corso non è attivo: la pianificazione delle sessioni è disponibile solo per corsi
-              attivi.
-            </p>
+            <div className="rounded-xl border border-dashed border-gray-300 p-6 text-center">
+              <CalendarClock className="mx-auto h-6 w-6 text-gray-300" aria-hidden="true" />
+              <p className="mt-2 text-sm font-medium text-gray-900">Corso non attivo</p>
+              <p className="mt-0.5 text-xs text-gray-500">
+                La pianificazione delle sessioni è disponibile solo per corsi attivi.
+              </p>
+            </div>
           ) : course.modules.length === 0 ? (
-            <p className="text-sm text-gray-400">
-              Il corso non ha ancora moduli: aggiungine almeno uno prima di pianificare una
-              sessione.
-            </p>
+            <div className="rounded-xl border border-dashed border-gray-300 p-6 text-center">
+              <p className="text-sm font-medium text-gray-900">Il corso non ha ancora moduli</p>
+              <p className="mt-0.5 text-xs text-gray-500">
+                Aggiungine almeno uno prima di pianificare una sessione.
+              </p>
+            </div>
           ) : eligibleParticipants.length === 0 ? (
-            <p className="text-sm text-gray-400">
-              Nessun coach è ancora assegnato a questo corso: l'admin deve assegnarne almeno uno
-              prima che tu possa pianificare una sessione.
-            </p>
+            <div className="rounded-xl border border-dashed border-gray-300 p-6 text-center">
+              <p className="text-sm font-medium text-gray-900">Nessun coach assegnato</p>
+              <p className="mt-0.5 text-xs text-gray-500">
+                L'admin deve assegnare almeno un coach a questo corso prima che tu possa
+                pianificare una sessione.
+              </p>
+            </div>
           ) : (
             <ActionForm action={createSessionAction} className="flex flex-col gap-3">
               <input type="hidden" name="courseId" value={course.id} />

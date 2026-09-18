@@ -23,6 +23,7 @@ import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CourseOverview } from '@/components/admin/academy/course-overview';
+import { JumpToTabButton } from '@/components/admin/academy/jump-to-tab-button';
 import { CourseTabs } from '@/components/admin/academy/course-tabs';
 import { ReorderableModules } from '@/components/admin/academy/reorderable-modules';
 import { StatusPill } from '@/components/admin/academy/status-pill';
@@ -520,22 +521,48 @@ export default async function AdminAcademyCourseDetailPage({
         </CardHeader>
         <CardContent>
           {course.status !== 'active' ? (
-            <p className="text-sm text-gray-400">
-              Il corso non è attivo: la pianificazione delle sessioni è disponibile solo per corsi
-              attivi.
-            </p>
+            <div className="rounded-xl border border-dashed border-gray-300 p-6 text-center">
+              <CalendarClock className="mx-auto h-6 w-6 text-gray-300" aria-hidden="true" />
+              <p className="mt-2 text-sm font-medium text-gray-900">Corso non attivo</p>
+              <p className="mt-0.5 text-xs text-gray-500">
+                La pianificazione delle sessioni è disponibile solo per corsi attivi.
+              </p>
+            </div>
           ) : course.modules.length === 0 ? (
-            <p className="text-sm text-gray-400">
-              Il corso non ha ancora moduli: aggiungine almeno uno prima di pianificare una
-              sessione.
-            </p>
+            <div className="rounded-xl border border-dashed border-gray-300 p-6 text-center">
+              <Layers className="mx-auto h-6 w-6 text-gray-300" aria-hidden="true" />
+              <p className="mt-2 text-sm font-medium text-gray-900">Il corso non ha ancora moduli</p>
+              <p className="mt-0.5 text-xs text-gray-500">Aggiungine almeno uno prima di pianificare una sessione.</p>
+              <div className="mt-3 flex justify-center">
+                <JumpToTabButton targetKey="configurazione" variant="outline" size="sm">
+                  Vai a Configurazione
+                </JumpToTabButton>
+              </div>
+            </div>
           ) : instructors.length === 0 ? (
-            <p className="text-sm text-gray-400">Nomina almeno un docente prima di pianificare una sessione.</p>
+            <div className="rounded-xl border border-dashed border-gray-300 p-6 text-center">
+              <Users2 className="mx-auto h-6 w-6 text-gray-300" aria-hidden="true" />
+              <p className="mt-2 text-sm font-medium text-gray-900">Nessun docente nominato</p>
+              <p className="mt-0.5 text-xs text-gray-500">Nomina almeno un docente prima di pianificare una sessione.</p>
+              <div className="mt-3 flex justify-center">
+                <JumpToTabButton targetKey="configurazione" variant="outline" size="sm">
+                  Vai a Configurazione
+                </JumpToTabButton>
+              </div>
+            </div>
           ) : assignments.length === 0 ? (
-            <p className="text-sm text-gray-400">
-              Nessun coach è ancora assegnato a questo corso: assegnane almeno uno prima di
-              pianificare una sessione.
-            </p>
+            <div className="rounded-xl border border-dashed border-gray-300 p-6 text-center">
+              <Users2 className="mx-auto h-6 w-6 text-gray-300" aria-hidden="true" />
+              <p className="mt-2 text-sm font-medium text-gray-900">Nessun coach assegnato</p>
+              <p className="mt-0.5 text-xs text-gray-500">
+                Assegna almeno un coach al corso prima di pianificare una sessione.
+              </p>
+              <div className="mt-3 flex justify-center">
+                <JumpToTabButton targetKey="partecipanti" variant="outline" size="sm">
+                  Assegna coach
+                </JumpToTabButton>
+              </div>
+            </div>
           ) : (
             <ActionForm action={createSessionAction} className="flex flex-col gap-3">
               <input type="hidden" name="courseId" value={course.id} />
