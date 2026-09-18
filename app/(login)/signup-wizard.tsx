@@ -367,7 +367,7 @@ export function SignupWizard() {
                 <div className="mt-1">
                   <BirthDatePicker
                     id="birthDate"
-                    value={birthDate}
+                    defaultValue={birthDate}
                     onChange={setBirthDate}
                     required
                   />

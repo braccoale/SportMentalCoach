@@ -35,15 +35,18 @@ function parseValue(value: string | undefined): { day: string; month: string; ye
  * raggiunge scrivendo le cifre mentre ha il focus — comportamento nativo
  * della tastiera su ogni browser, nessun codice in più per averlo.
  *
- * Sempre non controllato verso il form nativo (un input nascosto con lo
- * stesso `name` che un `<input type="date">` avrebbe avuto, stesso
- * formato `YYYY-MM-DD`), e in più `onChange`/`value` per chi vuole
- * pilotarlo da fuori (es. per calcolare l'età mentre si scrive).
+ * Non controllato: possiede sempre il proprio stato (giorno/mese/anno
+ * scelti restano quelli scelti, non vengono mai ricalcolati da un valore
+ * esterno a ogni render). `defaultValue` serve solo per il valore
+ * iniziale al montaggio; `onChange` avvisa il genitore della data
+ * completa (stringa vuota finché non sono scelti tutti e tre i campi).
+ * Un input nascosto con lo stesso `name` porta il valore al form nativo,
+ * come avrebbe fatto un `<input type="date">`.
  */
 export function BirthDatePicker({
   id,
   name = 'birthDate',
-  value,
+  defaultValue,
   onChange,
   required,
   minYear,
@@ -52,7 +55,7 @@ export function BirthDatePicker({
 }: {
   id?: string;
   name?: string;
-  value?: string;
+  defaultValue?: string;
   onChange?: (value: string) => void;
   required?: boolean;
   minYear?: number;
@@ -60,8 +63,7 @@ export function BirthDatePicker({
   className?: string;
 }) {
   const currentYear = new Date().getFullYear();
-  const [internal, setInternal] = useState(() => parseValue(value));
-  const parsed = value !== undefined ? parseValue(value) : internal;
+  const [parsed, setParsed] = useState(() => parseValue(defaultValue));
 
   const years = useMemo(() => {
     const from = minYear ?? currentYear - 100;
@@ -82,7 +84,7 @@ export function BirthDatePicker({
       const cappedDay = Math.min(Number(merged.day), daysInMonth(Number(merged.year), Number(merged.month)));
       merged.day = String(cappedDay);
     }
-    if (value === undefined) setInternal(merged);
+    setParsed(merged);
     const complete = merged.day && merged.month && merged.year;
     onChange?.(
       complete
