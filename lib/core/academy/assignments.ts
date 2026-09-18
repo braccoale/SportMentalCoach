@@ -12,6 +12,7 @@ import {
 import { assertAdmin } from '@/lib/core/features';
 import { isEligibleCoach } from './coaches';
 import { assertInstructorOrAdmin, isInstructorOf } from './instructors';
+import { courseTotalHours } from './course-hours';
 
 export type CourseAssignment = {
   assignmentId: number;
@@ -86,6 +87,9 @@ export type UserCourseProgress = {
   courseId: number;
   courseTitle: string;
   courseEdition: string | null;
+  courseLevel: string | null;
+  courseTotalHours: number;
+  heroImageKey: string | null;
   status: AcademyAssignmentStatus;
   modules: UserModuleProgress[];
 };
@@ -104,6 +108,8 @@ export async function listAssignmentsForUser(userId: number): Promise<UserCourse
       courseId: academyCourseAssignments.courseId,
       courseTitle: academyCourses.title,
       courseEdition: academyCourses.edition,
+      courseLevel: academyCourses.level,
+      heroImageKey: academyCourses.heroImageKey,
       status: academyCourseAssignments.status,
     })
     .from(academyCourseAssignments)
@@ -120,6 +126,7 @@ export async function listAssignmentsForUser(userId: number): Promise<UserCourse
       courseId: academyCourseModules.courseId,
       title: academyCourseModules.title,
       sortOrder: academyCourseModules.sortOrder,
+      hours: academyCourseModules.hours,
     })
     .from(academyCourseModules)
     .where(inArray(academyCourseModules.courseId, courseIds))
@@ -155,6 +162,9 @@ export async function listAssignmentsForUser(userId: number): Promise<UserCourse
       courseId: assignment.courseId,
       courseTitle: assignment.courseTitle,
       courseEdition: assignment.courseEdition,
+      courseLevel: assignment.courseLevel,
+      courseTotalHours: courseTotalHours(modules),
+      heroImageKey: assignment.heroImageKey,
       status: assignment.status as AcademyAssignmentStatus,
       modules: modules.map((module) => ({
         moduleId: module.id,

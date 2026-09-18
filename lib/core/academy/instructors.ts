@@ -14,6 +14,7 @@ import {
 } from '@/lib/db/schema';
 import { assertAdmin } from '@/lib/core/features';
 import { isEligibleCoach } from './coaches';
+import { courseTotalHours } from './course-hours';
 
 export type CourseInstructor = {
   userId: number;
@@ -95,9 +96,13 @@ export type InstructorCourse = {
   courseId: number;
   title: string;
   edition: string | null;
+  level: string | null;
+  heroImageKey: string | null;
   status: AcademyCourseStatus;
   moduleCount: number;
+  totalHours: number;
   sessionCount: number;
+  participantCount: number;
 };
 
 /**
@@ -111,6 +116,8 @@ export async function listInstructorCourses(userId: number): Promise<InstructorC
       courseId: academyCourses.id,
       title: academyCourses.title,
       edition: academyCourses.edition,
+      level: academyCourses.level,
+      heroImageKey: academyCourses.heroImageKey,
       status: academyCourses.status,
     })
     .from(academyCourseInstructors)
@@ -120,9 +127,9 @@ export async function listInstructorCourses(userId: number): Promise<InstructorC
   if (rows.length === 0) return [];
 
   const courseIds = rows.map((r) => r.courseId);
-  const [moduleRows, sessionRows] = await Promise.all([
+  const [moduleRows, sessionRows, assignmentRows] = await Promise.all([
     db
-      .select({ courseId: academyCourseModules.courseId })
+      .select({ courseId: academyCourseModules.courseId, hours: academyCourseModules.hours })
       .from(academyCourseModules)
       .where(inArray(academyCourseModules.courseId, courseIds)),
     db
@@ -135,21 +142,33 @@ export async function listInstructorCourses(userId: number): Promise<InstructorC
           eq(academySessions.status, 'scheduled')
         )
       ),
+    db
+      .select({ courseId: academyCourseAssignments.courseId })
+      .from(academyCourseAssignments)
+      .where(inArray(academyCourseAssignments.courseId, courseIds)),
   ]);
-  const moduleCountByCourse = new Map<number, number>();
+  const modulesByCourse = new Map<number, { hours: number }[]>();
   for (const row of moduleRows) {
-    moduleCountByCourse.set(row.courseId, (moduleCountByCourse.get(row.courseId) ?? 0) + 1);
+    const list = modulesByCourse.get(row.courseId);
+    if (list) list.push({ hours: row.hours });
+    else modulesByCourse.set(row.courseId, [{ hours: row.hours }]);
   }
   const sessionCountByCourse = new Map<number, number>();
   for (const row of sessionRows) {
     sessionCountByCourse.set(row.courseId, (sessionCountByCourse.get(row.courseId) ?? 0) + 1);
   }
+  const participantCountByCourse = new Map<number, number>();
+  for (const row of assignmentRows) {
+    participantCountByCourse.set(row.courseId, (participantCountByCourse.get(row.courseId) ?? 0) + 1);
+  }
 
   return rows.map((row) => ({
     ...row,
     status: row.status as AcademyCourseStatus,
-    moduleCount: moduleCountByCourse.get(row.courseId) ?? 0,
+    moduleCount: modulesByCourse.get(row.courseId)?.length ?? 0,
+    totalHours: courseTotalHours(modulesByCourse.get(row.courseId) ?? []),
     sessionCount: sessionCountByCourse.get(row.courseId) ?? 0,
+    participantCount: participantCountByCourse.get(row.courseId) ?? 0,
   }));
 }
 

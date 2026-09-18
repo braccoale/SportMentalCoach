@@ -1,12 +1,11 @@
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 import { CalendarClock, CheckCircle2, Circle, GraduationCap, Sparkles } from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
 import { listAssignmentsForUser } from '@/lib/core/academy/assignments';
 import { listInstructorCourses } from '@/lib/core/academy/instructors';
 import { listSessionsForUser } from '@/lib/core/academy/sessions';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { StatusPill } from '@/components/admin/academy/status-pill';
+import { CourseListCard } from '@/components/coach/academy/course-list-card';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,32 +67,21 @@ export default async function CoachAcademyPage() {
             Corsi che tieni
           </h2>
           {teaching.map((course) => (
-            <Card key={course.courseId}>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-medium text-gray-900">
-                      {course.title}
-                      {course.edition ? (
-                        <span className="ml-1.5 font-normal text-gray-400">— {course.edition}</span>
-                      ) : null}
-                    </p>
-                    <p className="mt-0.5 text-xs text-gray-500">
-                      {course.status === 'active'
-                        ? `Attivo · ${course.moduleCount} moduli`
-                        : "Non ancora attivo: gli iscritti non lo vedono finché l'admin non lo attiva."}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <StatusPill status={course.status} />
-                    <Button asChild variant="outline" className="h-8 px-3 text-xs">
-                      <Link href={`/dashboard/coach/academy/${course.courseId}`}>Apri corso</Link>
-                    </Button>
-                  </div>
-                </div>
-
-                {course.status === 'active' && course.sessionCount === 0 && (
-                  <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-indigo-100 bg-indigo-50/60 p-3">
+            <CourseListCard
+              key={course.courseId}
+              href={`/dashboard/coach/academy/${course.courseId}`}
+              title={course.title}
+              edition={course.edition}
+              level={course.level}
+              moduleCount={course.moduleCount}
+              totalHours={course.totalHours}
+              status={course.status}
+              heroImageUrl={course.heroImageKey ? `/api/academy/courses/${course.courseId}/hero` : null}
+              badgeLabel="Docente"
+              ctaLabel="Apri corso"
+              footer={
+                course.status === 'active' && course.sessionCount === 0 ? (
+                  <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-indigo-100 bg-indigo-50/60 p-3">
                     <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" aria-hidden="true" />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-gray-900">Prossimo passo</p>
@@ -108,9 +96,19 @@ export default async function CoachAcademyPage() {
                       </Button>
                     </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                ) : course.status !== 'active' ? (
+                  <p className="mt-3 text-xs text-gray-400">
+                    Non ancora attivo: gli iscritti non lo vedono finché l'admin non lo attiva.
+                  </p>
+                ) : (
+                  <p className="mt-3 text-xs text-gray-400">
+                    {course.participantCount} partecipant{course.participantCount === 1 ? 'e' : 'i'} ·{' '}
+                    {course.sessionCount} session{course.sessionCount === 1 ? 'e' : 'i'} programmat
+                    {course.sessionCount === 1 ? 'a' : 'e'}
+                  </p>
+                )
+              }
+            />
           ))}
         </div>
       )}
@@ -126,66 +124,65 @@ export default async function CoachAcademyPage() {
               (a, b) => a.scheduledFor.getTime() - b.scheduledFor.getTime()
             );
             return (
-              <Card key={assignment.assignmentId}>
-                <CardHeader>
-                  <div className="flex items-center justify-between gap-3">
-                    <CardTitle className="text-base">
-                      <Link href={`/dashboard/coach/academy/${assignment.courseId}`} className="hover:underline">
-                        {assignment.courseTitle}
-                      </Link>
-                      {assignment.courseEdition ? (
-                        <span className="ml-1.5 font-normal text-gray-400">
-                          — {assignment.courseEdition}
-                        </span>
-                      ) : null}
-                    </CardTitle>
-                    <span className="text-xs font-medium text-gray-500">
-                      {completedCount}/{assignment.modules.length} moduli completati
-                    </span>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-1.5">
-                    {assignment.modules.map((module, index) => (
-                      <li
-                        key={module.moduleId}
-                        className="flex items-center gap-2 text-sm text-gray-700"
-                      >
-                        {module.completed ? (
-                          <CheckCircle2
-                            className="h-4 w-4 shrink-0 text-green-600"
-                            aria-label="Completato"
-                          />
-                        ) : (
-                          <Circle className="h-4 w-4 shrink-0 text-gray-300" aria-label="Da completare" />
-                        )}
-                        Modulo {index + 1} — {module.title}
-                      </li>
-                    ))}
-                  </ul>
-
+              <CourseListCard
+                key={assignment.assignmentId}
+                href={`/dashboard/coach/academy/${assignment.courseId}`}
+                title={assignment.courseTitle}
+                edition={assignment.courseEdition}
+                level={assignment.courseLevel}
+                moduleCount={assignment.modules.length}
+                totalHours={assignment.courseTotalHours}
+                status={assignment.status}
+                heroImageUrl={
+                  assignment.heroImageKey ? `/api/academy/courses/${assignment.courseId}/hero` : null
+                }
+                badgeLabel="Il tuo corso"
+                progress={{ completed: completedCount, total: assignment.modules.length }}
+                ctaLabel={completedCount === 0 ? 'Inizia corso' : 'Continua corso'}
+                footer={
                   <div className="mt-4 border-t border-gray-100 pt-3">
-                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                      Le tue sessioni
-                    </p>
-                    {courseSessions.length === 0 ? (
-                      <p className="text-xs text-gray-400">
-                        Nessuna sessione pianificata ancora per questo corso.
+                    <ul className="space-y-1.5">
+                      {assignment.modules.map((module, index) => (
+                        <li
+                          key={module.moduleId}
+                          className="flex items-center gap-2 text-sm text-gray-700"
+                        >
+                          {module.completed ? (
+                            <CheckCircle2
+                              className="h-4 w-4 shrink-0 text-green-600"
+                              aria-label="Completato"
+                            />
+                          ) : (
+                            <Circle className="h-4 w-4 shrink-0 text-gray-300" aria-label="Da completare" />
+                          )}
+                          Modulo {index + 1} — {module.title}
+                        </li>
+                      ))}
+                    </ul>
+
+                    <div className="mt-4 border-t border-gray-100 pt-3">
+                      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                        Le tue sessioni
                       </p>
-                    ) : (
-                      <ul className="space-y-1.5">
-                        {courseSessions.map((session) => (
-                          <li key={session.id} className="flex items-center gap-2 text-sm text-gray-700">
-                            <CalendarClock className="h-4 w-4 shrink-0 text-gray-400" aria-hidden="true" />
-                            {formatSessionTime(session.scheduledFor)} · {session.moduleTitle} · Docente:{' '}
-                            {session.instructorName}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                      {courseSessions.length === 0 ? (
+                        <p className="text-xs text-gray-400">
+                          Nessuna sessione pianificata ancora per questo corso.
+                        </p>
+                      ) : (
+                        <ul className="space-y-1.5">
+                          {courseSessions.map((session) => (
+                            <li key={session.id} className="flex items-center gap-2 text-sm text-gray-700">
+                              <CalendarClock className="h-4 w-4 shrink-0 text-gray-400" aria-hidden="true" />
+                              {formatSessionTime(session.scheduledFor)} · {session.moduleTitle} · Docente:{' '}
+                              {session.instructorName}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
+                }
+              />
             );
           })}
         </div>
