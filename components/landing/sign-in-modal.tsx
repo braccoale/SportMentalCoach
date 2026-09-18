@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useActionState, useEffect, useState } from 'react';
 import { Eye, EyeOff, Loader2, X } from 'lucide-react';
 import { signIn } from '@/app/(login)/actions';
+import { GoogleButton } from '@/components/auth/google-button';
 import type { ActionState } from '@/lib/auth/middleware';
 
 const inputCls =
@@ -89,7 +90,20 @@ export function SignInModal({
           </h2>
         </div>
 
-        <form className="mt-8 space-y-5" action={formAction}>
+        <div className="mt-8">
+          <GoogleButton redirect="" />
+        </div>
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-kp-line" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="bg-kp-ink2 px-2 text-kp-low">oppure</span>
+          </div>
+        </div>
+
+        <form className="space-y-5" action={formAction}>
           <input type="hidden" name="redirect" value="" />
 
           <div>
