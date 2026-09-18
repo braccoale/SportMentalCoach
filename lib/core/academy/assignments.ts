@@ -11,7 +11,7 @@ import {
 } from '@/lib/db/schema';
 import { assertAdmin } from '@/lib/core/features';
 import { isEligibleCoach } from './coaches';
-import { assertInstructorOrAdmin } from './instructors';
+import { assertInstructorOrAdmin, isInstructorOf } from './instructors';
 
 export type CourseAssignment = {
   assignmentId: number;
@@ -186,6 +186,11 @@ export async function assignCourseToUser(params: {
   await assertAdmin(params.actorUserId);
   if (!(await isEligibleCoach(params.userId))) {
     throw new Error('Solo un coach con profilo approvato può essere assegnato a un corso.');
+  }
+  if (await isInstructorOf(params.userId, params.courseId)) {
+    throw new Error(
+      'Questo coach è già docente di questo corso e non può esserne anche partecipante.'
+    );
   }
 
   await db.transaction(async (tx) => {

@@ -25,6 +25,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CourseOverview } from '@/components/admin/academy/course-overview';
 import { AssignInstructorInline } from '@/components/admin/academy/assign-instructor-inline';
 import { JumpToTabButton } from '@/components/admin/academy/jump-to-tab-button';
+import { SearchableCoachSelect } from '@/components/admin/academy/searchable-coach-select';
+import { SearchableParticipantChecklist } from '@/components/admin/academy/searchable-participant-checklist';
 import { CourseTabs } from '@/components/admin/academy/course-tabs';
 import { ReorderableModules } from '@/components/admin/academy/reorderable-modules';
 import { StatusPill } from '@/components/admin/academy/status-pill';
@@ -117,8 +119,16 @@ export default async function AdminAcademyCourseDetailPage({
   const materials = new Map<number, ModuleMaterial[]>(materialsByModule);
   const instructorIds = new Set(instructors.map((i) => i.userId));
   const assignedIds = new Set(assignments.map((a) => a.userId));
-  const eligibleInstructors = coaches.filter((c) => !instructorIds.has(c.userId));
-  const eligibleParticipants = coaches.filter((c) => !assignedIds.has(c.userId));
+  // Un coach non può essere allo stesso tempo docente e partecipante dello
+  // stesso corso: ogni lista esclude anche chi ha già l'altro ruolo, oltre
+  // a chi ha già lo stesso. La regola vera vive in lib/core/academy — qui
+  // è solo per non offrire in tendina un'opzione che il server rifiuterebbe.
+  const eligibleInstructors = coaches.filter(
+    (c) => !instructorIds.has(c.userId) && !assignedIds.has(c.userId)
+  );
+  const eligibleParticipants = coaches.filter(
+    (c) => !assignedIds.has(c.userId) && !instructorIds.has(c.userId)
+  );
 
   const now = Date.now();
   const nextSession = sessions
@@ -330,19 +340,9 @@ export default async function AdminAcademyCourseDetailPage({
             </ul>
           )}
           {eligibleInstructors.length > 0 && (
-            <ActionForm action={nominateInstructorAction} className="flex flex-wrap gap-3">
+            <ActionForm action={nominateInstructorAction} className="flex flex-wrap items-start gap-3">
               <input type="hidden" name="courseId" value={course.id} />
-              <select
-                name="userId"
-                required
-                className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
-              >
-                {eligibleInstructors.map((coach) => (
-                  <option key={coach.userId} value={coach.userId}>
-                    {coach.displayName} ({coach.email})
-                  </option>
-                ))}
-              </select>
+              <SearchableCoachSelect name="userId" coaches={eligibleInstructors} required />
               <Button type="submit">Aggiungi Docente</Button>
             </ActionForm>
           )}
@@ -466,15 +466,9 @@ export default async function AdminAcademyCourseDetailPage({
         Solo un corso attivo con almeno un modulo può essere assegnato.
       </p>
     ) : eligibleParticipants.length > 0 ? (
-      <ActionForm action={assignCourseAction} className="flex flex-wrap gap-3">
+      <ActionForm action={assignCourseAction} className="flex flex-wrap items-start gap-3">
         <input type="hidden" name="courseId" value={course.id} />
-        <select name="userId" required className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm">
-          {eligibleParticipants.map((coach) => (
-            <option key={coach.userId} value={coach.userId}>
-              {coach.displayName} ({coach.email})
-            </option>
-          ))}
-        </select>
+        <SearchableCoachSelect name="userId" coaches={eligibleParticipants} required />
         <Button type="submit">Assegna coach</Button>
       </ActionForm>
     ) : null;
@@ -575,17 +569,7 @@ export default async function AdminAcademyCourseDetailPage({
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label className="text-sm">
                   <span className="mb-1 block text-xs font-medium text-gray-500">Docente</span>
-                  <select
-                    name="instructorUserId"
-                    required
-                    className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
-                  >
-                    {instructors.map((instructor) => (
-                      <option key={instructor.userId} value={instructor.userId}>
-                        {instructor.displayName}
-                      </option>
-                    ))}
-                  </select>
+                  <SearchableCoachSelect name="instructorUserId" coaches={instructors} required />
                 </label>
                 <label className="text-sm">
                   <span className="mb-1 block text-xs font-medium text-gray-500">Modulo</span>
@@ -650,22 +634,10 @@ export default async function AdminAcademyCourseDetailPage({
                 <legend className="mb-1 text-xs font-medium text-gray-500">
                   Partecipanti — individuale: esattamente uno, gruppo: almeno due
                 </legend>
-                <div className="flex flex-wrap gap-3">
-                  {assignments.map((participant) => (
-                    <label
-                      key={participant.assignmentId}
-                      className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-sm"
-                    >
-                      <input
-                        type="checkbox"
-                        name="participantAssignmentIds"
-                        value={participant.assignmentId}
-                        className="size-4 rounded border-gray-300"
-                      />
-                      {participant.displayName}
-                    </label>
-                  ))}
-                </div>
+                <SearchableParticipantChecklist
+                  name="participantAssignmentIds"
+                  participants={assignments}
+                />
               </fieldset>
               <Button type="submit" className="self-start">
                 Pianifica sessione

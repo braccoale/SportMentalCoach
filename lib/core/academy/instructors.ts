@@ -31,7 +31,8 @@ async function isAdmin(userId: number): Promise<boolean> {
   return Boolean(row);
 }
 
-async function isInstructorOf(userId: number, courseId: number): Promise<boolean> {
+/** Vero solo se `userId` è nominato docente di questo corso — usata anche da `assignments.ts` per impedire che un docente sia anche partecipante dello stesso corso. */
+export async function isInstructorOf(userId: number, courseId: number): Promise<boolean> {
   const [row] = await db
     .select({ id: academyCourseInstructors.id })
     .from(academyCourseInstructors)
@@ -190,6 +191,11 @@ export async function nominateInstructor(params: {
   await assertAdmin(params.actorUserId);
   if (!(await isEligibleCoach(params.userId))) {
     throw new Error('Solo un coach con profilo approvato può essere nominato docente.');
+  }
+  if (await isParticipantOf(params.userId, params.courseId)) {
+    throw new Error(
+      'Questo coach è già assegnato come partecipante a questo corso e non può esserne anche il docente.'
+    );
   }
 
   await db

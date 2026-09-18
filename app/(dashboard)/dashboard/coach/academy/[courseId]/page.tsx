@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CourseOverview } from '@/components/admin/academy/course-overview';
 import { CourseTabs } from '@/components/admin/academy/course-tabs';
+import { SearchableParticipantChecklist } from '@/components/admin/academy/searchable-participant-checklist';
 import { StatusPill } from '@/components/admin/academy/status-pill';
 import { cn } from '@/lib/utils';
 import {
@@ -244,22 +245,10 @@ export default async function CoachAcademyCourseDetailPage({
                 <legend className="mb-1 text-xs font-medium text-gray-500">
                   Partecipanti — individuale: esattamente uno, gruppo: almeno due
                 </legend>
-                <div className="flex flex-wrap gap-3">
-                  {eligibleParticipants.map((participant) => (
-                    <label
-                      key={participant.assignmentId}
-                      className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-sm"
-                    >
-                      <input
-                        type="checkbox"
-                        name="participantAssignmentIds"
-                        value={participant.assignmentId}
-                        className="size-4 rounded border-gray-300"
-                      />
-                      {participant.displayName}
-                    </label>
-                  ))}
-                </div>
+                <SearchableParticipantChecklist
+                  name="participantAssignmentIds"
+                  participants={eligibleParticipants}
+                />
               </fieldset>
               <Button type="submit" className="self-start">
                 Pianifica sessione
