@@ -7,6 +7,7 @@ import {
   academyCourseModules,
   academyCourses,
   academySessions,
+  profiles,
   userRoles,
   users,
   type AcademyCourseStatus,
@@ -14,7 +15,12 @@ import {
 import { assertAdmin } from '@/lib/core/features';
 import { isEligibleCoach } from './coaches';
 
-export type CourseInstructor = { userId: number; displayName: string; email: string };
+export type CourseInstructor = {
+  userId: number;
+  displayName: string;
+  email: string;
+  avatarUrl: string | null;
+};
 
 async function isAdmin(userId: number): Promise<boolean> {
   const [row] = await db
@@ -157,13 +163,16 @@ export async function listInstructors(
       email: users.email,
       name: users.name,
       lastName: users.lastName,
+      avatarUrl: profiles.avatarUrl,
     })
     .from(academyCourseInstructors)
     .innerJoin(users, eq(users.id, academyCourseInstructors.userId))
+    .leftJoin(profiles, eq(profiles.userId, academyCourseInstructors.userId))
     .where(eq(academyCourseInstructors.courseId, courseId));
   return rows.map((row) => ({
     userId: row.userId,
     email: row.email,
+    avatarUrl: row.avatarUrl,
     displayName: [row.name, row.lastName].filter(Boolean).join(' ') || row.email,
   }));
 }

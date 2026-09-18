@@ -1,4 +1,5 @@
 import {
+  ArrowRight,
   CalendarClock,
   CheckCircle2,
   Circle,
@@ -8,6 +9,7 @@ import {
   Layers,
   Pencil,
   Sparkles,
+  Users2,
 } from 'lucide-react';
 import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
@@ -97,77 +99,171 @@ export function CourseOverview({
   return (
     <div className="space-y-6">
       {/* Hero */}
-      <div className="overflow-hidden rounded-2xl border border-gray-800 bg-gray-950 text-white">
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-[#f5f2ec]">
         <div
-          className="relative flex min-h-[220px] flex-col justify-end p-6 sm:p-8"
+          className="relative min-h-[380px] sm:min-h-[440px]"
           style={
             heroImageUrl
               ? {
-                  backgroundImage: `linear-gradient(180deg, rgba(5,10,8,0.35) 0%, rgba(5,10,8,0.92) 100%), url(${heroImageUrl})`,
-                  // Il gradiente (primo layer) copre sempre; l'immagine
-                  // (secondo layer) si stira per riempire esattamente il
-                  // riquadro invece di essere ritagliata — a richiesta,
-                  // preferito al normale "cover" che tagliava i bordi.
-                  backgroundSize: 'cover, 100% 100%',
+                  backgroundImage: `url(${heroImageUrl})`,
+                  backgroundSize: '100% 100%',
                   backgroundPosition: 'center',
                   backgroundRepeat: 'no-repeat',
                 }
               : {
                   backgroundImage:
-                    'radial-gradient(120% 140% at 15% 0%, rgba(220,38,38,0.18) 0%, rgba(5,10,8,0) 55%), linear-gradient(160deg, #0a1410 0%, #050807 100%)',
+                    'radial-gradient(120% 140% at 85% 0%, rgba(220,38,38,0.10) 0%, rgba(5,10,8,0) 55%), linear-gradient(160deg, #0a1410 0%, #050807 100%)',
                 }
           }
         >
-          <div className="flex flex-wrap items-center gap-2">
+          {/* Lettura del testo garantita a sinistra qualunque sia la foto:
+              un velo chiaro che sfuma verso destra, non un riquadro pieno. */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background: heroImageUrl
+                ? 'linear-gradient(90deg, rgba(245,242,236,0.94) 0%, rgba(245,242,236,0.75) 38%, rgba(245,242,236,0.15) 62%, rgba(245,242,236,0) 78%)'
+                : undefined,
+            }}
+          />
+
+          {/* Decorazione sul lato foto — sempre testo reale, mai bruciato nell'immagine. */}
+          {heroImageUrl && (
+            <>
+              <p className="absolute right-8 top-8 hidden max-w-[10rem] text-right font-serif text-xl italic leading-tight text-white/80 sm:block">
+                Better Players
+                <br />
+                Happier People
+              </p>
+              <div className="absolute bottom-8 right-8 hidden flex-col items-end gap-1.5 text-right text-[11px] font-medium uppercase tracking-[0.2em] text-white/70 sm:flex">
+                <span>Disciplina</span>
+                <span>Mentalità</span>
+                <span>Crescita</span>
+                <span>Risultati</span>
+              </div>
+            </>
+          )}
+
+          <div className="relative z-10 flex h-full flex-col justify-between gap-6 p-6 sm:p-10">
+            <div className="max-w-lg">
+              <div className="flex items-center gap-2.5">
+                <img
+                  src="/logo.jpg"
+                  alt="KaiPai"
+                  className="h-9 w-9 rounded-lg object-cover"
+                />
+                <div>
+                  <p className="text-base font-bold leading-none text-blue-950">KaiPai</p>
+                  <p className="mt-0.5 text-[11px] font-medium uppercase tracking-[0.2em] text-gray-500">
+                    Academy
+                  </p>
+                </div>
+              </div>
+
+              <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500">
+                Forma la mente. Potenzia il gioco.
+              </p>
+              <h1 className="mt-2 text-3xl font-bold leading-tight text-blue-950 sm:text-4xl">
+                {course.title}
+              </h1>
+              {course.description && (
+                <p className="mt-2 max-w-md text-sm text-gray-700 sm:text-base">{course.description}</p>
+              )}
+
+              {instructors.length > 0 && (
+                <div className="mt-4 flex flex-wrap items-center gap-4">
+                  {instructors.map((instructor) => (
+                    <div key={instructor.userId} className="flex items-center gap-2.5">
+                      {instructor.avatarUrl ? (
+                        <img
+                          src={instructor.avatarUrl}
+                          alt={instructor.displayName}
+                          className="h-10 w-10 rounded-full object-cover ring-2 ring-white"
+                        />
+                      ) : (
+                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-950 text-sm font-semibold text-white ring-2 ring-white">
+                          {instructor.displayName.charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                      <div>
+                        <p className="text-sm font-semibold leading-none text-blue-950">
+                          {instructor.displayName}
+                        </p>
+                        <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.15em] text-gray-500">
+                          Mental Coach
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-800">
+                <span className="flex items-center gap-2">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/70">
+                    <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                  </span>
+                  {course.totalHours} ore
+                  {course.modules.some((m) => m.hours === 0) && (
+                    <span className="text-gray-400">(da confermare)</span>
+                  )}
+                </span>
+                <span className="hidden h-4 w-px bg-gray-400/40 sm:block" />
+                <span className="flex items-center gap-2">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/70">
+                    <Layers className="h-3.5 w-3.5" aria-hidden="true" />
+                  </span>
+                  {course.modules.length} moduli
+                </span>
+                {allParticipants && (
+                  <>
+                    <span className="hidden h-4 w-px bg-gray-400/40 sm:block" />
+                    <span className="flex items-center gap-2">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/70">
+                        <Users2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      </span>
+                      {allParticipants.length} partecipanti
+                    </span>
+                  </>
+                )}
+              </div>
+
+              {canScheduleSessions && (
+                <div className="mt-5">
+                  <JumpToTabButton
+                    targetKey="sessioni"
+                    className="gap-2 rounded-full px-6"
+                  >
+                    {scheduleCtaLabel}
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </JumpToTabButton>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {course.edition || course.level ? (
+          <div className="flex flex-wrap items-center gap-2 border-t border-gray-200 bg-white px-6 py-3 sm:px-10">
             <StatusPill status={course.status} />
             {course.edition && (
-              <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-medium text-white/80">
+              <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
                 Edizione {course.edition}
               </span>
             )}
             {course.level && (
-              <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-medium text-white/80">
+              <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
                 {course.level}
               </span>
             )}
           </div>
-          <h1 className="mt-3 max-w-2xl text-3xl font-bold sm:text-4xl">{course.title}</h1>
-          {course.description && (
-            <p className="mt-2 max-w-xl text-sm text-white/70 sm:text-base">{course.description}</p>
-          )}
-          {instructors.length > 0 && (
-            <p className="mt-3 flex items-center gap-1.5 text-sm text-white/70">
-              <GraduationCap className="h-4 w-4" aria-hidden="true" />
-              {instructors.map((i) => i.displayName).join(' · ')}
-            </p>
-          )}
-
-          <div className="mt-5 flex flex-wrap items-center gap-5 border-t border-white/10 pt-4 text-sm">
-            <span className="flex items-center gap-1.5 text-white/80">
-              <Clock className="h-4 w-4" aria-hidden="true" />
-              {course.totalHours} ore
-              {course.modules.some((m) => m.hours === 0) && (
-                <span className="text-white/40">(da confermare)</span>
-              )}
-            </span>
-            <span className="flex items-center gap-1.5 text-white/80">
-              <Layers className="h-4 w-4" aria-hidden="true" />
-              {course.modules.length} moduli
-            </span>
-            {allParticipants && (
-              <span className="flex items-center gap-1.5 text-white/80">
-                <GraduationCap className="h-4 w-4" aria-hidden="true" />
-                {allParticipants.length} partecipanti
-              </span>
-            )}
-
-            {canScheduleSessions && (
-              <JumpToTabButton targetKey="sessioni" className="ml-auto">
-                {scheduleCtaLabel}
-              </JumpToTabButton>
-            )}
+        ) : (
+          <div className="border-t border-gray-200 bg-white px-6 py-3 sm:px-10">
+            <StatusPill status={course.status} />
           </div>
-        </div>
+        )}
       </div>
 
       {role === 'admin' && (updateCourseOverviewAction || uploadCourseHeroAction) && (
