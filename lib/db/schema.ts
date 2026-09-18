@@ -3364,6 +3364,8 @@ export const ADMIN_AUDIT_ACTIONS = [
   'academy_session_completed',
   'academy_recap_generated',
   'academy_recap_edited',
+  'academy_recording_consent_given',
+  'academy_recording_consent_declined',
   'academy_material_uploaded',
   'academy_material_published',
   'academy_module_completed',
@@ -3421,7 +3423,7 @@ export const adminAuditEvents = pgTable(
     index('admin_audit_events_action_idx').on(table.action, table.createdDate),
     check(
       'admin_audit_events_action_check',
-      sql`${table.action} in ('coach_approved', 'coach_rejected', 'coach_verification_changed', 'user_role_changed', 'ai_notes_entitlement_granted', 'ai_notes_entitlement_revoked', 'ai_notes_session_reopened', 'ai_notes_worker_run', 'ai_notes_guidelines_saved', 'ai_notes_callback_probed', 'sensitive_content_accessed', 'data_exported', 'data_deleted', 'configuration_changed', 'package_created', 'package_features_updated', 'user_package_assigned', 'user_package_revoked', 'academy_course_created', 'academy_course_status_changed', 'academy_course_edition_created', 'academy_module_saved', 'academy_instructor_nominated', 'academy_instructor_removed', 'academy_course_assigned', 'academy_course_assignment_removed', 'academy_session_created', 'academy_session_cancelled', 'academy_session_completed', 'academy_recap_generated', 'academy_recap_edited', 'academy_material_uploaded', 'academy_material_published', 'academy_module_completed', 'academy_module_completion_corrected')`
+      sql`${table.action} in ('coach_approved', 'coach_rejected', 'coach_verification_changed', 'user_role_changed', 'ai_notes_entitlement_granted', 'ai_notes_entitlement_revoked', 'ai_notes_session_reopened', 'ai_notes_worker_run', 'ai_notes_guidelines_saved', 'ai_notes_callback_probed', 'sensitive_content_accessed', 'data_exported', 'data_deleted', 'configuration_changed', 'package_created', 'package_features_updated', 'user_package_assigned', 'user_package_revoked', 'academy_course_created', 'academy_course_status_changed', 'academy_course_edition_created', 'academy_module_saved', 'academy_instructor_nominated', 'academy_instructor_removed', 'academy_course_assigned', 'academy_course_assignment_removed', 'academy_session_created', 'academy_session_cancelled', 'academy_session_completed', 'academy_recap_generated', 'academy_recap_edited', 'academy_recording_consent_given', 'academy_recording_consent_declined', 'academy_material_uploaded', 'academy_material_published', 'academy_module_completed', 'academy_module_completion_corrected')`
     ),
     check(
       'admin_audit_events_subject_type_check',
@@ -4046,3 +4048,73 @@ export type AcademySessionConfidenceRating =
   typeof academySessionConfidenceRatings.$inferSelect;
 export type NewAcademySessionConfidenceRating =
   typeof academySessionConfidenceRatings.$inferInsert;
+
+export const ACADEMY_RECORDING_STATUSES = [
+  'waiting_for_consent',
+  'recording',
+  'processing',
+  'ready',
+  'failed',
+  'consent_rejected',
+  'cancelled',
+] as const;
+export type AcademyRecordingStatus = (typeof ACADEMY_RECORDING_STATUSES)[number];
+
+/**
+ * Il ciclo di vita della registrazione automatica di una sessione Academy —
+ * gemella di `session_ai_notes` per le prenotazioni, ma mai nella stessa
+ * tabella: quella ha un vincolo che lega la stanza a un `booking_id`
+ * ("`livekit_room_name` = 'booking-' || booking_id"), qui la stanza è
+ * `academy-session-<id>`. Un solo file audio per sessione (RoomComposite,
+ * non TrackComposite): a differenza delle sedute atleta-coach non serve
+ * separare chi parla, il recap non attribuisce le frasi a una persona.
+ * Il testo trascritto finisce in `academy_session_recaps.transcript_text`,
+ * lo stesso campo che finora si riempiva incollandolo a mano — la
+ * generazione del recap che segue è la stessa, automatica o manuale.
+ */
+export const academySessionRecordings = pgTable(
+  'academy_session_recordings',
+  {
+    id: serial('id').primaryKey(),
+    sessionId: integer('session_id')
+      .notNull()
+      .references(() => academySessions.id, { onDelete: 'cascade' }),
+    courseId: integer('course_id').notNull(),
+    status: varchar('status', { length: 24 }).notNull().default('waiting_for_consent'),
+    roomName: varchar('room_name', { length: 160 }).notNull(),
+    egressId: varchar('egress_id', { length: 120 }),
+    audioObjectKey: text('audio_object_key'),
+    consentGivenBy: integer('consent_given_by').references(() => users.id, { onDelete: 'set null' }),
+    consentGivenAt: timestamp('consent_given_at', { withTimezone: true }),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+    sttCallbackToken: varchar('stt_callback_token', { length: 64 }),
+    transcriptionSubmittedAt: timestamp('transcription_submitted_at', { withTimezone: true }),
+    processingCompletedAt: timestamp('processing_completed_at', { withTimezone: true }),
+    errorCode: varchar('error_code', { length: 80 }),
+    errorMessage: text('error_message'),
+    createdDate: timestamp('createddate', { withTimezone: true }).notNull().defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, { onDelete: 'set null' }),
+    updatedDate: timestamp('updateddate', { withTimezone: true }).notNull().defaultNow(),
+    updatedBy: integer('updatedby').references(() => users.id, { onDelete: 'set null' }),
+  },
+  (table) => [
+    unique('academy_session_recordings_session_unique').on(table.sessionId),
+    foreignKey({
+      columns: [table.sessionId, table.courseId],
+      foreignColumns: [academySessions.id, academySessions.courseId],
+      name: 'academy_session_recordings_session_course_fk',
+    }).onDelete('cascade'),
+    check(
+      'academy_session_recordings_status_check',
+      sql`${table.status} in ('waiting_for_consent', 'recording', 'processing', 'ready', 'failed', 'consent_rejected', 'cancelled')`
+    ),
+    check(
+      'academy_session_recordings_room_matches_session_check',
+      sql`${table.roomName} = 'academy-session-' || ${table.sessionId}::text`
+    ),
+  ]
+);
+
+export type AcademySessionRecording = typeof academySessionRecordings.$inferSelect;
+export type NewAcademySessionRecording = typeof academySessionRecordings.$inferInsert;

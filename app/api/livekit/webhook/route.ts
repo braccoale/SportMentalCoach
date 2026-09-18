@@ -1,5 +1,5 @@
 import { after } from 'next/server';
-import { WebhookReceiver } from 'livekit-server-sdk';
+import { EgressStatus, WebhookReceiver } from 'livekit-server-sdk';
 import {
   recordAiWorkerTrigger,
   recordLiveKitWebhookEvent,
@@ -11,9 +11,13 @@ import {
   processVerifiedLiveKitWebhook,
 } from '@/lib/core/ai-session-notes/livekit-webhook';
 import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
+import { handleAcademyEgressEnded } from '@/lib/core/academy/recording/service';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+/** Le uniche stanze LiveKit create per l'Academy — vedi `academy_session_recordings_room_matches_session_check`. */
+const ACADEMY_ROOM_NAME_PATTERN = /^academy-session-\d+$/;
 
 export async function POST(request: Request) {
   const apiKey = process.env.LIVEKIT_API_KEY;
@@ -35,6 +39,28 @@ export async function POST(request: Request) {
     );
   } catch {
     return Response.json({ error: 'Webhook non valido.' }, { status: 401 });
+  }
+
+  /*
+   * Ramo separato per le stanze Academy, prima di qualunque logica delle
+   * prenotazioni. La stanza è la stessa identica cosa già in produzione tra
+   * coach e atleta — quello che cambia è solo cosa succede all'evento di
+   * egress. `processVerifiedLiveKitWebhook` sotto resta intoccato: non deve
+   * mai vedere un evento di una stanza Academy.
+   */
+  if (event.event === 'egress_ended' && ACADEMY_ROOM_NAME_PATTERN.test(event.egressInfo?.roomName ?? '')) {
+    try {
+      await handleAcademyEgressEnded({
+        egressId: event.egressInfo!.egressId,
+        egressFailed: event.egressInfo!.status === EgressStatus.EGRESS_FAILED || Boolean(event.egressInfo!.error),
+        errorDetail: event.egressInfo!.error || undefined,
+      });
+    } catch (error) {
+      console.error('[LiveKit webhook] evento Academy non elaborato', {
+        reason: error instanceof Error ? error.message : 'sconosciuto',
+      });
+    }
+    return Response.json({ received: true, duplicate: false });
   }
 
   try {

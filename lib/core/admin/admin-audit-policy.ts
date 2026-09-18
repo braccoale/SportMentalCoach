@@ -166,6 +166,8 @@ export const ADMIN_AUDIT_ACTION_LABEL: Record<AdminAuditAction, string> = {
   academy_session_completed: 'Sessione Academy completata',
   academy_recap_generated: 'Recap Academy generato',
   academy_recap_edited: 'Recap Academy corretto',
+  academy_recording_consent_given: 'Consenso registrazione Academy dato',
+  academy_recording_consent_declined: 'Consenso registrazione Academy rifiutato',
   academy_material_uploaded: 'Materiale Academy caricato',
   academy_material_published: 'Materiale Academy pubblicato',
   academy_module_completed: 'Modulo Academy segnato completato',

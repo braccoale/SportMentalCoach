@@ -2,8 +2,26 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getUser } from '@/lib/db/queries';
 import { createAcademyRoomToken } from '@/lib/core/video/academy';
+import { getRecordingState } from '@/lib/core/academy/recording/service';
 import { formatDateTime } from '@/lib/core/format';
 import { VideoRoom } from './video-room';
+import type { AcademyRecordingControlStatus } from '@/components/academy/academy-recording-consent-control';
+
+function recordingControlStatus(
+  status: string | undefined
+): AcademyRecordingControlStatus {
+  if (
+    status === 'recording' ||
+    status === 'processing' ||
+    status === 'ready' ||
+    status === 'failed' ||
+    status === 'cancelled'
+  ) {
+    return status;
+  }
+  if (status === 'consent_rejected') return 'declined';
+  return 'undecided';
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +62,8 @@ export default async function AcademyVideoPage({
     notFound();
   }
 
+  const recordingState = result.ok ? await getRecordingState(id) : null;
+
   return (
     <section className="mx-auto w-full max-w-6xl p-6">
       <Link href="/dashboard/coach" className="text-sm text-gray-500 hover:text-gray-900">
@@ -69,6 +89,7 @@ export default async function AcademyVideoPage({
             instructorName={result.instructorName}
             participantNames={result.participantNames}
             backHref={result.backHref}
+            initialRecordingStatus={recordingControlStatus(recordingState?.status)}
           />
         ) : result.reason === 'closed' ? (
           <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6">

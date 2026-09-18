@@ -7,6 +7,7 @@ import { listAssignments, listAssignmentsForUser } from '@/lib/core/academy/assi
 import { listMaterials, type ModuleMaterial } from '@/lib/core/academy/materials';
 import { listSessionsForCourse } from '@/lib/core/academy/sessions';
 import { getRecapForSession, getOwnConfidenceRatings } from '@/lib/core/academy/recap/service';
+import { getRecordingState } from '@/lib/core/academy/recording/service';
 import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +27,7 @@ import {
   generateAcademyRecapAction,
   editAcademyRecapAction,
   setConfidenceRatingAction,
+  retryAcademyTranscriptionAction,
 } from '../actions';
 
 export const dynamic = 'force-dynamic';
@@ -152,6 +154,10 @@ export default async function CoachAcademyCourseDetailPage({
     sessions.map(async (s) => [s.id, await getRecapForSession(coach.id, s.id)] as const)
   );
   const recapsBySession = new Map(recapEntries);
+  const recordingEntries = await Promise.all(
+    sessions.map(async (s) => [s.id, await getRecordingState(s.id)] as const)
+  );
+  const recordingStatusBySession = new Map(recordingEntries.map(([id, state]) => [id, state?.status ?? null]));
   const eligibleParticipants = assignments; // ogni coach assegnato al corso può essere invitato a una sessione
 
   const now = Date.now();
@@ -355,6 +361,8 @@ export default async function CoachAcademyCourseDetailPage({
                       canManage
                       generateAction={generateAcademyRecapAction}
                       editAction={editAcademyRecapAction}
+                      recordingStatus={recordingStatusBySession.get(session.id) ?? null}
+                      retryTranscriptionAction={retryAcademyTranscriptionAction}
                     />
                   </div>
                 </li>

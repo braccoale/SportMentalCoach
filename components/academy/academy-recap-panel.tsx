@@ -14,7 +14,21 @@ export type AcademyRecapPanelData = {
   editedAt: Date | null;
 } | null;
 
+export type AcademyRecordingPanelStatus =
+  | 'waiting_for_consent'
+  | 'recording'
+  | 'processing'
+  | 'ready'
+  | 'failed'
+  | 'consent_rejected'
+  | 'cancelled';
+
 type ActionFn = (state: ActionState, formData: FormData) => Promise<ActionState>;
+
+const RECORDING_STATUS_COPY: Partial<Record<AcademyRecordingPanelStatus, string>> = {
+  recording: 'Registrazione in corso: il recap verrà generato in automatico da qui a poco dopo la fine della sessione.',
+  processing: 'Registrazione conclusa, trascrizione in corso: il recap arriva a breve, senza bisogno di incollare nulla a mano.',
+};
 
 /**
  * Il recap di una sessione Academy — usata sia nella pagina della sessione
@@ -31,6 +45,8 @@ export function AcademyRecapPanel({
   generateAction,
   editAction,
   confidenceAction,
+  recordingStatus,
+  retryTranscriptionAction,
 }: {
   sessionId: number;
   courseId: number;
@@ -42,11 +58,15 @@ export function AcademyRecapPanel({
   generateAction?: ActionFn;
   editAction?: ActionFn;
   confidenceAction?: ActionFn;
+  /** Stato della pipeline automatica — assente per le sessioni senza registrazione (MVP precedente, o consenso mai chiesto). */
+  recordingStatus?: AcademyRecordingPanelStatus | null;
+  retryTranscriptionAction?: ActionFn;
 }) {
   const [editing, setEditing] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
 
   if (!recap || !recap.content) {
+    const recordingCopy = recordingStatus ? RECORDING_STATUS_COPY[recordingStatus] : undefined;
     return (
       <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-6 text-center">
         <FileText className="mx-auto h-6 w-6 text-gray-300" aria-hidden="true" />
@@ -54,8 +74,18 @@ export function AcademyRecapPanel({
         <p className="mx-auto mt-1 max-w-sm text-xs text-gray-500">
           {recap?.status === 'failed'
             ? recap.errorMessage ?? 'La generazione precedente non è riuscita.'
-            : "Questa sessione non ha ancora una trascrizione da cui generare il recap."}
+            : recordingCopy ?? "Questa sessione non ha ancora una trascrizione da cui generare il recap."}
         </p>
+        {canManage && recordingStatus === 'failed' && retryTranscriptionAction && (
+          <ActionForm action={retryTranscriptionAction} className="mx-auto mt-3 flex max-w-md justify-center">
+            <input type="hidden" name="sessionId" value={sessionId} />
+            <input type="hidden" name="courseId" value={courseId} />
+            <Button type="submit" variant="outline" size="sm">
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+              Riprova la trascrizione
+            </Button>
+          </ActionForm>
+        )}
         {canManage && generateAction && (
           <ActionForm action={generateAction} className="mx-auto mt-4 flex max-w-md flex-col gap-2 text-left">
             <input type="hidden" name="sessionId" value={sessionId} />

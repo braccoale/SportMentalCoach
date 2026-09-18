@@ -41,6 +41,10 @@ import { readIsCompact, useIsCompact } from '@/lib/hooks/use-is-compact';
 import { useCallCapabilities } from '@/lib/core/video/capabilities-client';
 import { visibleRoomControls } from '@/lib/core/video/capabilities';
 import { completeAcademySessionAction } from '@/app/(dashboard)/dashboard/coach/academy/actions';
+import {
+  AcademyRecordingConsentControl,
+  type AcademyRecordingControlStatus,
+} from '@/components/academy/academy-recording-consent-control';
 
 /**
  * Stanza LiveKit per una sessione Academy. Stesso motore della videochiamata
@@ -60,6 +64,7 @@ function ConnectedVideoRoom({
   participantsSummary,
   backHref,
   choices,
+  initialRecordingStatus,
 }: {
   serverUrl: string;
   token: string;
@@ -70,6 +75,7 @@ function ConnectedVideoRoom({
   participantsSummary: string;
   backHref: string;
   choices: KaiPaiCallChoices;
+  initialRecordingStatus: AcademyRecordingControlStatus;
 }) {
   const router = useRouter();
   const isCompact = useIsCompact();
@@ -198,6 +204,13 @@ function ConnectedVideoRoom({
               <span className="hidden text-xs font-medium text-white/60 sm:block">
                 {participantsSummary}
               </span>
+              {viewerIsInstructor && (
+                <AcademyRecordingConsentControl
+                  sessionId={sessionId}
+                  courseId={courseId}
+                  initialStatus={initialRecordingStatus}
+                />
+              )}
               <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
                 {controls.includes('fullscreen') && <RoomFullscreenControl />}
                 {controls.includes('picture-in-picture') && <PictureInPictureControl />}
@@ -300,6 +313,7 @@ export function VideoRoom({
   instructorName,
   participantNames,
   backHref,
+  initialRecordingStatus,
 }: {
   serverUrl: string;
   token: string;
@@ -311,6 +325,7 @@ export function VideoRoom({
   instructorName: string;
   participantNames: string[];
   backHref: string;
+  initialRecordingStatus: AcademyRecordingControlStatus;
 }) {
   const router = useRouter();
   const [choices, setChoices] = useState<KaiPaiCallChoices | null>(null);
@@ -345,6 +360,7 @@ export function VideoRoom({
       participantsSummary={participantsSummary}
       backHref={backHref}
       choices={choices}
+      initialRecordingStatus={initialRecordingStatus}
     />
   );
 }

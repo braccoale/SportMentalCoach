@@ -23,6 +23,8 @@ import {
   uploadMaterial,
 } from '@/lib/core/academy/materials';
 import { generateRecap, editRecapContent } from '@/lib/core/academy/recap/service';
+import { retryAcademyTranscription } from '@/lib/core/academy/recording/service';
+import { AcademyRecordingDomainError } from '@/lib/core/academy/recording/state-machine';
 import { parseRomeLocalDateTime } from '@/lib/core/availability';
 import { recordAdminAudit } from '@/lib/core/admin/audit-log';
 import type { ActionState } from '@/lib/auth/middleware';
@@ -901,4 +903,33 @@ export async function editAcademyRecapAction(
 
   revalidatePath(`/dashboard/admin/academy/${courseId}`);
   return { success: 'Recap corretto.' };
+}
+
+/** Ripartenza esplicita di una registrazione Academy fallita dopo la registrazione vera e propria. */
+export async function retryAcademyTranscriptionAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const admin = await requireRole('admin');
+  const sessionId = Number(formData.get('sessionId'));
+  const courseId = Number(formData.get('courseId'));
+  if (
+    !Number.isInteger(sessionId) || sessionId <= 0 ||
+    !Number.isInteger(courseId) || courseId <= 0
+  ) {
+    return { error: 'Sessione non valida.' };
+  }
+
+  try {
+    await retryAcademyTranscription({ actorUserId: admin.id, sessionId });
+  } catch (error) {
+    const message =
+      error instanceof AcademyRecordingDomainError
+        ? error.message
+        : friendlyError(error, 'Impossibile riprendere la trascrizione.');
+    return { error: message };
+  }
+
+  revalidatePath(`/dashboard/admin/academy/${courseId}`);
+  return { success: 'Trascrizione ripresa.' };
 }

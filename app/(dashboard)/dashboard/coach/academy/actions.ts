@@ -14,6 +14,13 @@ import {
   editRecapContent,
   setConfidenceRating,
 } from '@/lib/core/academy/recap/service';
+import {
+  giveConsentAndStartRecording,
+  declineConsent as declineRecordingConsent,
+  retryAcademyTranscription,
+} from '@/lib/core/academy/recording/service';
+import { AcademyRecordingDomainError } from '@/lib/core/academy/recording/state-machine';
+import { recordAdminAudit } from '@/lib/core/admin/audit-log';
 import type { ActionState } from '@/lib/auth/middleware';
 import type { AcademyConfidenceTiming, AcademySessionMode } from '@/lib/db/schema';
 
@@ -308,6 +315,105 @@ export async function editAcademyRecapAction(
 
   revalidatePath(`/dashboard/coach/academy/${courseId}`);
   return { success: 'Recap corretto.' };
+}
+
+function recordingErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof AcademyRecordingDomainError) return error.message;
+  return friendlyError(error, fallback);
+}
+
+/**
+ * Il docente dà il consenso e la registrazione parte nello stesso gesto —
+ * niente conferma intermedia, per non farla percepire come un ostacolo.
+ * Un evento sensibile: entra nel registro amministrativo anche se non è
+ * l'admin a compierlo, stessa logica del consenso nella pipeline prenotazioni.
+ */
+export async function startAcademyRecordingAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const coach = await requireRole('coach');
+  const sessionId = Number(formData.get('sessionId'));
+  const courseId = Number(formData.get('courseId'));
+  if (!Number.isInteger(sessionId) || sessionId <= 0 || !Number.isInteger(courseId) || courseId <= 0) {
+    return { error: 'Sessione non valida.' };
+  }
+
+  try {
+    await giveConsentAndStartRecording({ actorUserId: coach.id, sessionId });
+    await recordAdminAudit({
+      actor: { id: coach.id, email: coach.email },
+      action: 'academy_recording_consent_given',
+      subjectType: 'academy_course',
+      subjectId: courseId,
+      outcome: 'ok',
+      detail: { sessione: sessionId },
+    });
+  } catch (error) {
+    await recordAdminAudit({
+      actor: { id: coach.id, email: coach.email },
+      action: 'academy_recording_consent_given',
+      subjectType: 'academy_course',
+      subjectId: courseId,
+      outcome: 'fallita',
+      detail: { sessione: sessionId },
+    });
+    return { error: recordingErrorMessage(error, 'Impossibile avviare la registrazione.') };
+  }
+
+  revalidatePath(`/dashboard/coach/academy/${courseId}`);
+  return { success: 'Registrazione avviata.' };
+}
+
+export async function declineAcademyRecordingAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const coach = await requireRole('coach');
+  const sessionId = Number(formData.get('sessionId'));
+  const courseId = Number(formData.get('courseId'));
+  if (!Number.isInteger(sessionId) || sessionId <= 0 || !Number.isInteger(courseId) || courseId <= 0) {
+    return { error: 'Sessione non valida.' };
+  }
+
+  try {
+    await declineRecordingConsent({ actorUserId: coach.id, sessionId });
+    await recordAdminAudit({
+      actor: { id: coach.id, email: coach.email },
+      action: 'academy_recording_consent_declined',
+      subjectType: 'academy_course',
+      subjectId: courseId,
+      outcome: 'ok',
+      detail: { sessione: sessionId },
+    });
+  } catch (error) {
+    return { error: recordingErrorMessage(error, 'Impossibile registrare la scelta.') };
+  }
+
+  revalidatePath(`/dashboard/coach/academy/${courseId}`);
+  return { success: 'Sessione non registrata.' };
+}
+
+/** Ripartenza esplicita dopo un fallimento della trascrizione o del recap — l'audio è già in bucket. */
+export async function retryAcademyTranscriptionAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const coach = await requireRole('coach');
+  const sessionId = Number(formData.get('sessionId'));
+  const courseId = Number(formData.get('courseId'));
+  if (!Number.isInteger(sessionId) || sessionId <= 0 || !Number.isInteger(courseId) || courseId <= 0) {
+    return { error: 'Sessione non valida.' };
+  }
+
+  try {
+    await retryAcademyTranscription({ actorUserId: coach.id, sessionId });
+  } catch (error) {
+    return { error: recordingErrorMessage(error, 'Impossibile riprendere la trascrizione.') };
+  }
+
+  revalidatePath(`/dashboard/coach/academy/${courseId}`);
+  return { success: 'Trascrizione ripresa.' };
 }
 
 export async function setConfidenceRatingAction(
