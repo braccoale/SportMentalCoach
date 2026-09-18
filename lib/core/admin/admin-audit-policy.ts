@@ -163,6 +163,8 @@ export const ADMIN_AUDIT_ACTION_LABEL: Record<AdminAuditAction, string> = {
   academy_session_created: 'Sessione Academy creata',
   academy_session_cancelled: 'Sessione Academy annullata',
   academy_session_completed: 'Sessione Academy completata',
+  academy_recap_generated: 'Recap Academy generato',
+  academy_recap_edited: 'Recap Academy corretto',
   academy_material_uploaded: 'Materiale Academy caricato',
   academy_material_published: 'Materiale Academy pubblicato',
   academy_module_completed: 'Modulo Academy segnato completato',

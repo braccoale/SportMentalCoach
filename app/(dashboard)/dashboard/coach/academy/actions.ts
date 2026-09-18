@@ -9,8 +9,21 @@ import {
   setMaterialPublished,
   uploadMaterial,
 } from '@/lib/core/academy/materials';
+import {
+  generateRecap,
+  editRecapContent,
+  setConfidenceRating,
+} from '@/lib/core/academy/recap/service';
 import type { ActionState } from '@/lib/auth/middleware';
-import type { AcademySessionMode } from '@/lib/db/schema';
+import type { AcademyConfidenceTiming, AcademySessionMode } from '@/lib/db/schema';
+
+/** Una lista da un campo form riga per riga — stessa convenzione già usata per "cosa imparerai". */
+function linesOf(formData: FormData, name: string): string[] {
+  return String(formData.get(name) ?? '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
 
 function friendlyError(error: unknown, fallback: string): string {
   if (error instanceof Error) {
@@ -27,7 +40,13 @@ function friendlyError(error: unknown, fallback: string): string {
       error.message.startsWith('Corso non trovato') ||
       error.message.startsWith('Il docente indicato') ||
       error.message.startsWith('Il file') ||
-      error.message.startsWith('Tipo di file')
+      error.message.startsWith('Tipo di file') ||
+      error.message.startsWith('La trascrizione') ||
+      error.message.startsWith('Sessione non trovata') ||
+      error.message.startsWith('Contenuto del recap') ||
+      error.message.startsWith('Nessun recap') ||
+      error.message.startsWith('Solo un partecipante invitato') ||
+      error.message.startsWith('La valutazione')
     ) {
       return error.message;
     }
@@ -227,4 +246,93 @@ export async function deleteMaterialAction(
 
   revalidatePath(`/dashboard/coach/academy/${courseId}`);
   return { success: 'Materiale eliminato.' };
+}
+
+export async function generateAcademyRecapAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const coach = await requireRole('coach');
+  const sessionId = Number(formData.get('sessionId'));
+  const courseId = Number(formData.get('courseId'));
+  const transcriptText = String(formData.get('transcriptText') ?? '');
+  if (
+    !Number.isInteger(sessionId) || sessionId <= 0 ||
+    !Number.isInteger(courseId) || courseId <= 0
+  ) {
+    return { error: 'Sessione non valida.' };
+  }
+
+  try {
+    const recap = await generateRecap({ actorUserId: coach.id, sessionId, courseId, transcriptText });
+    if (recap.status === 'failed') {
+      return { error: recap.errorMessage ?? 'La generazione del recap non è riuscita.' };
+    }
+  } catch (error) {
+    return { error: friendlyError(error, 'Impossibile generare il recap.') };
+  }
+
+  revalidatePath(`/dashboard/coach/academy/${courseId}`);
+  return { success: 'Recap generato.' };
+}
+
+export async function editAcademyRecapAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const coach = await requireRole('coach');
+  const sessionId = Number(formData.get('sessionId'));
+  const courseId = Number(formData.get('courseId'));
+  if (
+    !Number.isInteger(sessionId) || sessionId <= 0 ||
+    !Number.isInteger(courseId) || courseId <= 0
+  ) {
+    return { error: 'Sessione non valida.' };
+  }
+
+  try {
+    await editRecapContent({
+      actorUserId: coach.id,
+      sessionId,
+      courseId,
+      keyConcepts: linesOf(formData, 'keyConcepts'),
+      toolsAndProtocols: linesOf(formData, 'toolsAndProtocols'),
+      practicalCases: linesOf(formData, 'practicalCases'),
+      openQuestions: linesOf(formData, 'openQuestions'),
+      nextAction: String(formData.get('nextAction') ?? '').trim(),
+      topicsCovered: linesOf(formData, 'topicsCovered'),
+    });
+  } catch (error) {
+    return { error: friendlyError(error, 'Impossibile correggere il recap.') };
+  }
+
+  revalidatePath(`/dashboard/coach/academy/${courseId}`);
+  return { success: 'Recap corretto.' };
+}
+
+export async function setConfidenceRatingAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const coach = await requireRole('coach');
+  const sessionId = Number(formData.get('sessionId'));
+  const courseId = Number(formData.get('courseId'));
+  const timing = String(formData.get('timing') ?? '') as AcademyConfidenceTiming;
+  const rating = Number(formData.get('rating'));
+  if (
+    !Number.isInteger(sessionId) || sessionId <= 0 ||
+    !Number.isInteger(courseId) || courseId <= 0 ||
+    (timing !== 'before' && timing !== 'after')
+  ) {
+    return { error: 'Valutazione non valida.' };
+  }
+
+  try {
+    await setConfidenceRating({ actorUserId: coach.id, sessionId, courseId, timing, rating });
+  } catch (error) {
+    return { error: friendlyError(error, 'Impossibile salvare la valutazione.') };
+  }
+
+  revalidatePath(`/dashboard/coach/academy/${courseId}`);
+  return { success: 'Valutazione salvata.' };
 }

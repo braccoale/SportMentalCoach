@@ -6,6 +6,7 @@ import { listInstructors } from '@/lib/core/academy/instructors';
 import { listAssignments, listAssignmentsForUser } from '@/lib/core/academy/assignments';
 import { listMaterials, type ModuleMaterial } from '@/lib/core/academy/materials';
 import { listSessionsForCourse } from '@/lib/core/academy/sessions';
+import { getRecapForSession, getOwnConfidenceRatings } from '@/lib/core/academy/recap/service';
 import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +14,7 @@ import { CourseOverview } from '@/components/admin/academy/course-overview';
 import { CourseTabs } from '@/components/admin/academy/course-tabs';
 import { SearchableParticipantChecklist } from '@/components/admin/academy/searchable-participant-checklist';
 import { StatusPill } from '@/components/admin/academy/status-pill';
+import { AcademyRecapPanel } from '@/components/academy/academy-recap-panel';
 import { cn } from '@/lib/utils';
 import {
   cancelSessionAction,
@@ -20,6 +22,9 @@ import {
   deleteMaterialAction,
   toggleMaterialPublishedAction,
   uploadMaterialAction,
+  generateAcademyRecapAction,
+  editAcademyRecapAction,
+  setConfidenceRatingAction,
 } from '../actions';
 
 export const dynamic = 'force-dynamic';
@@ -94,6 +99,18 @@ export default async function CoachAcademyCourseDetailPage({
     ]);
     const materials = new Map<number, ModuleMaterial[]>(materialsByModule);
 
+    // Solo le sessioni a cui questo coach è stato davvero invitato — mai
+    // quelle di un corso che semplicemente segue, coerente con "il
+    // partecipante vede solo il proprio recap".
+    const myPastSessions = sessions.filter((s) => s.participants.some((p) => p.userId === coach.id));
+    const myRecapSessions = await Promise.all(
+      myPastSessions.map(async (s) => ({
+        session: s,
+        recap: await getRecapForSession(coach.id, s.id),
+        ownConfidence: await getOwnConfidenceRatings(coach.id, s.id),
+      }))
+    );
+
     return (
       <section className="space-y-6 p-4 lg:p-0">
         <CourseOverview
@@ -112,6 +129,8 @@ export default async function CoachAcademyCourseDetailPage({
                 }
               : null
           }
+          myRecapSessions={myRecapSessions}
+          confidenceAction={setConfidenceRatingAction}
         />
       </section>
     );
@@ -128,6 +147,10 @@ export default async function CoachAcademyCourseDetailPage({
     ),
   ]);
   const materials = new Map<number, ModuleMaterial[]>(materialsByModule);
+  const recapEntries = await Promise.all(
+    sessions.map(async (s) => [s.id, await getRecapForSession(coach.id, s.id)] as const)
+  );
+  const recapsBySession = new Map(recapEntries);
   const eligibleParticipants = assignments; // ogni coach assegnato al corso può essere invitato a una sessione
 
   const now = Date.now();
@@ -322,6 +345,16 @@ export default async function CoachAcademyCourseDetailPage({
                         </Button>
                       </ActionForm>
                     )}
+                  </div>
+                  <div className="w-full">
+                    <AcademyRecapPanel
+                      sessionId={session.id}
+                      courseId={course.id}
+                      recap={recapsBySession.get(session.id) ?? null}
+                      canManage
+                      generateAction={generateAcademyRecapAction}
+                      editAction={editAcademyRecapAction}
+                    />
                   </div>
                 </li>
                 );

@@ -19,6 +19,8 @@ import { listInstructors } from '@/lib/core/academy/instructors';
 import { listAssignments } from '@/lib/core/academy/assignments';
 import { listMaterials, type ModuleMaterial } from '@/lib/core/academy/materials';
 import { listSessionsForCourse } from '@/lib/core/academy/sessions';
+import { getRecapForSession } from '@/lib/core/academy/recap/service';
+import { AcademyRecapPanel } from '@/components/academy/academy-recap-panel';
 import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,6 +51,8 @@ import {
   updateModuleAction,
   uploadCourseHeroAction,
   uploadMaterialAction,
+  generateAcademyRecapAction,
+  editAcademyRecapAction,
 } from '../actions';
 
 export const dynamic = 'force-dynamic';
@@ -117,6 +121,10 @@ export default async function AdminAcademyCourseDetailPage({
     ),
   ]);
   const materials = new Map<number, ModuleMaterial[]>(materialsByModule);
+  const recapEntries = await Promise.all(
+    sessions.map(async (s) => [s.id, await getRecapForSession(admin.id, s.id)] as const)
+  );
+  const recapsBySession = new Map(recapEntries);
   const instructorIds = new Set(instructors.map((i) => i.userId));
   const assignedIds = new Set(assignments.map((a) => a.userId));
   // Un coach non può essere allo stesso tempo docente e partecipante dello
@@ -711,6 +719,16 @@ export default async function AdminAcademyCourseDetailPage({
                           </Button>
                         </ActionForm>
                       )}
+                    </div>
+                    <div className="w-full">
+                      <AcademyRecapPanel
+                        sessionId={session.id}
+                        courseId={course.id}
+                        recap={recapsBySession.get(session.id) ?? null}
+                        canManage
+                        generateAction={generateAcademyRecapAction}
+                        editAction={editAcademyRecapAction}
+                      />
                     </div>
                   </li>
                 );

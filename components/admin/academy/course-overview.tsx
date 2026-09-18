@@ -22,6 +22,7 @@ import type { CourseInstructor } from '@/lib/core/academy/instructors';
 import type { CourseAssignment } from '@/lib/core/academy/assignments';
 import type { CourseSessionRow } from '@/lib/core/academy/sessions';
 import type { ModuleMaterial } from '@/lib/core/academy/materials';
+import { AcademyRecapPanel, type AcademyRecapPanelData } from '@/components/academy/academy-recap-panel';
 
 type BoundAction = (state: ActionState, formData: FormData) => Promise<ActionState>;
 
@@ -61,6 +62,8 @@ export function CourseOverview({
   uploadCourseHeroAction,
   allParticipants,
   ownProgress,
+  myRecapSessions,
+  confidenceAction,
 }: {
   course: CourseDetail;
   instructors: CourseInstructor[];
@@ -74,6 +77,13 @@ export function CourseOverview({
   allParticipants?: CourseAssignment[];
   /** Per il partecipante: solo il proprio avanzamento. */
   ownProgress?: OwnProgress | null;
+  /** Per il partecipante: le sessioni a cui è stato invitato, coi propri recap. */
+  myRecapSessions?: {
+    session: CourseSessionRow;
+    recap: AcademyRecapPanelData;
+    ownConfidence: { before: number | null; after: number | null };
+  }[];
+  confidenceAction?: BoundAction;
 }) {
   const now = Date.now();
   const nextSession = sessions
@@ -493,6 +503,41 @@ export function CourseOverview({
           )}
         </CardContent>
       </Card>
+
+      {/* Recap — solo il partecipante, solo le proprie sessioni */}
+      {role === 'participant' && myRecapSessions && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Recap delle sessioni</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {myRecapSessions.length === 0 ? (
+              <p className="text-sm text-gray-400">
+                Non sei ancora stato invitato a nessuna sessione di questo corso.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {myRecapSessions.map(({ session, recap, ownConfidence }) => (
+                  <div key={session.id}>
+                    <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+                      <CalendarClock className="h-4 w-4 text-gray-400" aria-hidden="true" />
+                      {formatSessionTime(session.scheduledFor)} · {session.moduleTitle}
+                    </p>
+                    <AcademyRecapPanel
+                      sessionId={session.id}
+                      courseId={course.id}
+                      recap={recap}
+                      canManage={false}
+                      ownConfidence={ownConfidence}
+                      confidenceAction={confidenceAction}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

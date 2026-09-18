@@ -3361,6 +3361,8 @@ export const ADMIN_AUDIT_ACTIONS = [
   'academy_session_created',
   'academy_session_cancelled',
   'academy_session_completed',
+  'academy_recap_generated',
+  'academy_recap_edited',
   'academy_material_uploaded',
   'academy_material_published',
   'academy_module_completed',
@@ -3418,7 +3420,7 @@ export const adminAuditEvents = pgTable(
     index('admin_audit_events_action_idx').on(table.action, table.createdDate),
     check(
       'admin_audit_events_action_check',
-      sql`${table.action} in ('coach_approved', 'coach_rejected', 'coach_verification_changed', 'user_role_changed', 'ai_notes_entitlement_granted', 'ai_notes_entitlement_revoked', 'ai_notes_session_reopened', 'ai_notes_worker_run', 'ai_notes_guidelines_saved', 'ai_notes_callback_probed', 'sensitive_content_accessed', 'data_exported', 'data_deleted', 'configuration_changed', 'package_created', 'package_features_updated', 'user_package_assigned', 'user_package_revoked', 'academy_course_created', 'academy_course_status_changed', 'academy_course_edition_created', 'academy_module_saved', 'academy_instructor_nominated', 'academy_instructor_removed', 'academy_course_assigned', 'academy_session_created', 'academy_session_cancelled', 'academy_session_completed', 'academy_material_uploaded', 'academy_material_published', 'academy_module_completed', 'academy_module_completion_corrected')`
+      sql`${table.action} in ('coach_approved', 'coach_rejected', 'coach_verification_changed', 'user_role_changed', 'ai_notes_entitlement_granted', 'ai_notes_entitlement_revoked', 'ai_notes_session_reopened', 'ai_notes_worker_run', 'ai_notes_guidelines_saved', 'ai_notes_callback_probed', 'sensitive_content_accessed', 'data_exported', 'data_deleted', 'configuration_changed', 'package_created', 'package_features_updated', 'user_package_assigned', 'user_package_revoked', 'academy_course_created', 'academy_course_status_changed', 'academy_course_edition_created', 'academy_module_saved', 'academy_instructor_nominated', 'academy_instructor_removed', 'academy_course_assigned', 'academy_session_created', 'academy_session_cancelled', 'academy_session_completed', 'academy_recap_generated', 'academy_recap_edited', 'academy_material_uploaded', 'academy_material_published', 'academy_module_completed', 'academy_module_completion_corrected')`
     ),
     check(
       'admin_audit_events_subject_type_check',
@@ -3927,3 +3929,109 @@ export type AcademyModuleCompletion =
   typeof academyModuleCompletions.$inferSelect;
 export type NewAcademyModuleCompletion =
   typeof academyModuleCompletions.$inferInsert;
+
+export const ACADEMY_RECAP_STATUSES = ['generated', 'edited', 'failed'] as const;
+export type AcademyRecapStatus = (typeof ACADEMY_RECAP_STATUSES)[number];
+
+/**
+ * Un recap per sessione, non per partecipante: nasce da un'unica
+ * trascrizione condivisa (l'intera sessione di gruppo), quindi il contenuto
+ * è lo stesso per chi la vede — a cambiare è solo chi può vederla
+ * (`lib/core/academy/recap`). `content` è un solo blob JSON versionato
+ * (`AcademyRecapContent`, vedi `lib/core/academy/recap/contract.ts`):
+ * rigenerare o correggere sostituisce il blob intero, non i singoli campi.
+ * `transcriptText` è incollata a mano in questo MVP — non c'è ancora una
+ * pipeline di registrazione/trascrizione per le sessioni Academy (quella
+ * delle prenotazioni non si estende qui, vedi `ai-session-notes` skill).
+ */
+export const academySessionRecaps = pgTable(
+  'academy_session_recaps',
+  {
+    id: serial('id').primaryKey(),
+    sessionId: integer('session_id')
+      .notNull()
+      .references(() => academySessions.id, { onDelete: 'cascade' }),
+    courseId: integer('course_id').notNull(),
+    transcriptText: text('transcript_text').notNull(),
+    status: varchar('status', { length: 20 }).notNull().default('generated'),
+    content: jsonb('content').$type<Record<string, unknown>>(),
+    errorMessage: text('error_message'),
+    generationProvider: varchar('generation_provider', { length: 60 }),
+    generationModel: varchar('generation_model', { length: 60 }),
+    generatedAt: timestamp('generated_at', { withTimezone: true }),
+    editedBy: integer('edited_by').references(() => users.id, { onDelete: 'set null' }),
+    editedAt: timestamp('edited_at', { withTimezone: true }),
+    createdDate: timestamp('createddate', { withTimezone: true }).notNull().defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, { onDelete: 'set null' }),
+    updatedDate: timestamp('updateddate', { withTimezone: true }).notNull().defaultNow(),
+    updatedBy: integer('updatedby').references(() => users.id, { onDelete: 'set null' }),
+  },
+  (table) => [
+    unique('academy_session_recaps_session_unique').on(table.sessionId),
+    foreignKey({
+      columns: [table.sessionId, table.courseId],
+      foreignColumns: [academySessions.id, academySessions.courseId],
+      name: 'academy_session_recaps_session_course_fk',
+    }).onDelete('cascade'),
+    check(
+      'academy_session_recaps_status_check',
+      sql`${table.status} in ('generated', 'edited', 'failed')`
+    ),
+  ]
+);
+
+export type AcademySessionRecap = typeof academySessionRecaps.$inferSelect;
+export type NewAcademySessionRecap = typeof academySessionRecaps.$inferInsert;
+
+export const ACADEMY_CONFIDENCE_TIMINGS = ['before', 'after'] as const;
+export type AcademyConfidenceTiming = (typeof ACADEMY_CONFIDENCE_TIMINGS)[number];
+
+/**
+ * L'autovalutazione 1-5 di un partecipante sulla propria sicurezza — mai
+ * generata dall'AI, mai derivata dal tempo di parola: la scrive solo la
+ * persona a cui appartiene, prima e/o dopo la sessione.
+ */
+export const academySessionConfidenceRatings = pgTable(
+  'academy_session_confidence_ratings',
+  {
+    id: serial('id').primaryKey(),
+    sessionId: integer('session_id')
+      .notNull()
+      .references(() => academySessions.id, { onDelete: 'cascade' }),
+    courseId: integer('course_id').notNull(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    timing: varchar('timing', { length: 10 }).notNull(),
+    rating: integer('rating').notNull(),
+    createdDate: timestamp('createddate', { withTimezone: true }).notNull().defaultNow(),
+    createdBy: integer('createdby').references(() => users.id, { onDelete: 'set null' }),
+    updatedDate: timestamp('updateddate', { withTimezone: true }).notNull().defaultNow(),
+    updatedBy: integer('updatedby').references(() => users.id, { onDelete: 'set null' }),
+  },
+  (table) => [
+    unique('academy_session_confidence_ratings_unique').on(
+      table.sessionId,
+      table.userId,
+      table.timing
+    ),
+    foreignKey({
+      columns: [table.sessionId, table.courseId],
+      foreignColumns: [academySessions.id, academySessions.courseId],
+      name: 'academy_session_confidence_ratings_session_course_fk',
+    }).onDelete('cascade'),
+    check(
+      'academy_session_confidence_ratings_timing_check',
+      sql`${table.timing} in ('before', 'after')`
+    ),
+    check(
+      'academy_session_confidence_ratings_rating_check',
+      sql`${table.rating} between 1 and 5`
+    ),
+  ]
+);
+
+export type AcademySessionConfidenceRating =
+  typeof academySessionConfidenceRatings.$inferSelect;
+export type NewAcademySessionConfidenceRating =
+  typeof academySessionConfidenceRatings.$inferInsert;

@@ -432,6 +432,17 @@ export async function listSessionsForUser(userId: number): Promise<UserSessionRo
   return rows.sort((a, b) => a.scheduledFor.getTime() - b.scheduledFor.getTime());
 }
 
+/** Vero se `userId` è tra i partecipanti invitati a questa specifica sessione — non solo del corso. */
+export async function isSessionParticipant(userId: number, sessionId: number): Promise<boolean> {
+  const [row] = await db
+    .select({ id: academySessionParticipants.id })
+    .from(academySessionParticipants)
+    .innerJoin(academyCourseAssignments, eq(academyCourseAssignments.id, academySessionParticipants.assignmentId))
+    .where(and(eq(academySessionParticipants.sessionId, sessionId), eq(academyCourseAssignments.userId, userId)))
+    .limit(1);
+  return Boolean(row);
+}
+
 export async function cancelSession(params: {
   actorUserId: number;
   courseId: number;

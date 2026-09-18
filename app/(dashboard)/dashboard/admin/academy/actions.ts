@@ -22,10 +22,19 @@ import {
   setMaterialPublished,
   uploadMaterial,
 } from '@/lib/core/academy/materials';
+import { generateRecap, editRecapContent } from '@/lib/core/academy/recap/service';
 import { parseRomeLocalDateTime } from '@/lib/core/availability';
 import { recordAdminAudit } from '@/lib/core/admin/audit-log';
 import type { ActionState } from '@/lib/auth/middleware';
 import type { AcademyCourseStatus, AcademySessionMode } from '@/lib/db/schema';
+
+/** Una lista da un campo form riga per riga — stessa convenzione già usata per "cosa imparerai". */
+function linesOf(formData: FormData, name: string): string[] {
+  return String(formData.get(name) ?? '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
 
 function friendlyError(error: unknown, fallback: string): string {
   if (error instanceof Error) {
@@ -46,7 +55,11 @@ function friendlyError(error: unknown, fallback: string): string {
       error.message.startsWith('La durata') ||
       error.message.startsWith('La data della sessione') ||
       error.message.startsWith('Il file') ||
-      error.message.startsWith('Tipo di file')
+      error.message.startsWith('Tipo di file') ||
+      error.message.startsWith('La trascrizione') ||
+      error.message.startsWith('Sessione non trovata') ||
+      error.message.startsWith('Contenuto del recap') ||
+      error.message.startsWith('Nessun recap')
     ) {
       return error.message;
     }
@@ -749,4 +762,82 @@ export async function uploadCourseHeroAction(
 
   revalidatePath(`/dashboard/admin/academy/${courseId}`);
   return { success: 'Immagine hero aggiornata.' };
+}
+
+export async function generateAcademyRecapAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const admin = await requireRole('admin');
+  const sessionId = Number(formData.get('sessionId'));
+  const courseId = Number(formData.get('courseId'));
+  const transcriptText = String(formData.get('transcriptText') ?? '');
+  if (
+    !Number.isInteger(sessionId) || sessionId <= 0 ||
+    !Number.isInteger(courseId) || courseId <= 0
+  ) {
+    return { error: 'Sessione non valida.' };
+  }
+
+  try {
+    const recap = await generateRecap({ actorUserId: admin.id, sessionId, courseId, transcriptText });
+    await recordAdminAudit({
+      actor: { id: admin.id, email: admin.email },
+      action: 'academy_recap_generated',
+      subjectType: 'academy_course',
+      subjectId: courseId,
+      outcome: recap.status === 'failed' ? 'fallita' : 'ok',
+      detail: { sessione: sessionId },
+    });
+    if (recap.status === 'failed') {
+      return { error: recap.errorMessage ?? 'La generazione del recap non è riuscita.' };
+    }
+  } catch (error) {
+    return { error: friendlyError(error, 'Impossibile generare il recap.') };
+  }
+
+  revalidatePath(`/dashboard/admin/academy/${courseId}`);
+  return { success: 'Recap generato.' };
+}
+
+export async function editAcademyRecapAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const admin = await requireRole('admin');
+  const sessionId = Number(formData.get('sessionId'));
+  const courseId = Number(formData.get('courseId'));
+  if (
+    !Number.isInteger(sessionId) || sessionId <= 0 ||
+    !Number.isInteger(courseId) || courseId <= 0
+  ) {
+    return { error: 'Sessione non valida.' };
+  }
+
+  try {
+    await editRecapContent({
+      actorUserId: admin.id,
+      sessionId,
+      courseId,
+      keyConcepts: linesOf(formData, 'keyConcepts'),
+      toolsAndProtocols: linesOf(formData, 'toolsAndProtocols'),
+      practicalCases: linesOf(formData, 'practicalCases'),
+      openQuestions: linesOf(formData, 'openQuestions'),
+      nextAction: String(formData.get('nextAction') ?? '').trim(),
+      topicsCovered: linesOf(formData, 'topicsCovered'),
+    });
+    await recordAdminAudit({
+      actor: { id: admin.id, email: admin.email },
+      action: 'academy_recap_edited',
+      subjectType: 'academy_course',
+      subjectId: courseId,
+      outcome: 'ok',
+      detail: { sessione: sessionId },
+    });
+  } catch (error) {
+    return { error: friendlyError(error, 'Impossibile correggere il recap.') };
+  }
+
+  revalidatePath(`/dashboard/admin/academy/${courseId}`);
+  return { success: 'Recap corretto.' };
 }
