@@ -243,3 +243,26 @@ export async function assignCourseToUser(params: {
     }
   });
 }
+
+/**
+ * Rimuove l'assegnazione di un coach dal corso — non tocca lo "sblocco" del
+ * programma: resta bloccato finché esiste anche un solo altro partecipante
+ * (o è già stato bloccato una volta, per design). Se questo coach è già
+ * iscritto a una sessione del corso, il database rifiuta la cancellazione
+ * (la chiave esterna composta di `academy_session_participants` non ha
+ * `ON DELETE CASCADE` verso questa tabella): va prima tolto da quelle
+ * sessioni, non è una cancellazione silenziosa a cascata. I completamenti
+ * modulo dell'assegnazione, invece, vengono cancellati insieme ad essa.
+ */
+export async function removeAssignment(params: {
+  actorUserId: number;
+  courseId: number;
+  userId: number;
+}): Promise<void> {
+  await assertAdmin(params.actorUserId);
+  await db
+    .delete(academyCourseAssignments)
+    .where(
+      and(eq(academyCourseAssignments.courseId, params.courseId), eq(academyCourseAssignments.userId, params.userId))
+    );
+}

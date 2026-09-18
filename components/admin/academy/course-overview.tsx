@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   Circle,
   Clock,
+  Euro,
   FileText,
   GraduationCap,
   Layers,
@@ -11,6 +12,7 @@ import {
   Sparkles,
   Users2,
 } from 'lucide-react';
+import { formatPrice } from '@/lib/core/format';
 import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -238,6 +240,17 @@ export function CourseOverview({
                     </span>
                   </>
                 )}
+                {course.priceCents != null && (
+                  <>
+                    <span className="hidden h-4 w-px bg-gray-400/40 sm:block" />
+                    <span className="flex items-center gap-2">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/70">
+                        <Euro className="h-3.5 w-3.5" aria-hidden="true" />
+                      </span>
+                      {formatPrice(course.priceCents)}
+                    </span>
+                  </>
+                )}
               </div>
 
               {canScheduleSessions && (
@@ -285,6 +298,7 @@ export function CourseOverview({
           <div className="mt-2 space-y-3 rounded-xl border border-gray-200 p-3">
             {uploadCourseHeroAction && (
               <ActionForm action={uploadCourseHeroAction} className="flex flex-wrap items-center gap-3">
+                <input type="hidden" name="courseId" value={course.id} />
                 <input
                   name="file"
                   type="file"
@@ -299,16 +313,31 @@ export function CourseOverview({
             )}
             {updateCourseOverviewAction && (
               <ActionForm action={updateCourseOverviewAction} className="flex flex-col gap-2">
-                <label className="text-sm">
-                  <span className="mb-1 block text-xs font-medium text-gray-500">Livello</span>
-                  <input
-                    name="level"
-                    defaultValue={course.level ?? ''}
-                    placeholder="es. Livello avanzato"
-                    maxLength={60}
-                    className="w-full max-w-xs rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
-                  />
-                </label>
+                <input type="hidden" name="courseId" value={course.id} />
+                <div className="flex flex-wrap gap-3">
+                  <label className="text-sm">
+                    <span className="mb-1 block text-xs font-medium text-gray-500">Livello</span>
+                    <input
+                      name="level"
+                      defaultValue={course.level ?? ''}
+                      placeholder="es. Livello avanzato"
+                      maxLength={60}
+                      className="w-full max-w-xs rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+                    />
+                  </label>
+                  <label className="text-sm">
+                    <span className="mb-1 block text-xs font-medium text-gray-500">Costo del corso (€)</span>
+                    <input
+                      name="priceEuro"
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      defaultValue={course.priceCents != null ? (course.priceCents / 100).toFixed(2) : ''}
+                      placeholder="es. 149.00"
+                      className="w-32 rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+                    />
+                  </label>
+                </div>
                 <label className="text-sm">
                   <span className="mb-1 block text-xs font-medium text-gray-500">
                     Cosa imparerai (una riga per punto)
@@ -360,19 +389,21 @@ export function CourseOverview({
             <ol className="space-y-2">
               {course.modules.map((module, index) => (
                 <li key={module.id} className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-3">
-                  <div className="flex items-start gap-3">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-indigo-100 bg-white text-xs font-semibold text-indigo-700">
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">{module.title}</p>
-                      {module.description && (
-                        <p className="mt-0.5 text-xs text-gray-500">{module.description}</p>
-                      )}
-                      <p className="mt-1 text-xs text-gray-500">
-                        {module.hours > 0 ? `${module.hours} ore` : 'Ore da confermare'}
-                      </p>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-indigo-100 bg-white text-xs font-semibold text-indigo-700">
+                        {String(index + 1).padStart(2, '0')}
+                      </span>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">{module.title}</p>
+                        {module.description && (
+                          <p className="mt-0.5 text-xs text-gray-500">{module.description}</p>
+                        )}
+                      </div>
                     </div>
+                    <span className="shrink-0 whitespace-nowrap text-xs font-medium text-gray-500">
+                      {module.hours > 0 ? `${module.hours} ore` : 'Ore da confermare'}
+                    </span>
                   </div>
                 </li>
               ))}

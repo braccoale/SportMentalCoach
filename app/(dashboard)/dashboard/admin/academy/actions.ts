@@ -15,7 +15,7 @@ import {
   uploadCourseHero,
 } from '@/lib/core/academy/courses';
 import { nominateInstructor, removeInstructor } from '@/lib/core/academy/instructors';
-import { assignCourseToUser } from '@/lib/core/academy/assignments';
+import { assignCourseToUser, removeAssignment } from '@/lib/core/academy/assignments';
 import { createSession, cancelSession } from '@/lib/core/academy/sessions';
 import {
   deleteMaterial,
@@ -56,6 +56,7 @@ function friendlyError(error: unknown, fallback: string): string {
       error.message.startsWith('La data della sessione') ||
       error.message.startsWith('Il file') ||
       error.message.startsWith('Tipo di file') ||
+      error.message.startsWith('Il costo del corso') ||
       error.message.startsWith('La trascrizione') ||
       error.message.startsWith('Sessione non trovata') ||
       error.message.startsWith('Contenuto del recap') ||
@@ -463,6 +464,51 @@ export async function assignCourseAction(
   return { success: 'Corso assegnato.' };
 }
 
+export async function removeAssignmentAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const admin = await requireRole('admin');
+  const courseId = Number(formData.get('courseId'));
+  const userId = Number(formData.get('userId'));
+  if (
+    !Number.isInteger(courseId) || courseId <= 0 ||
+    !Number.isInteger(userId) || userId <= 0
+  ) {
+    return { error: 'Corso o coach non valido.' };
+  }
+
+  try {
+    await removeAssignment({ actorUserId: admin.id, courseId, userId });
+    await recordAdminAudit({
+      actor: { id: admin.id, email: admin.email },
+      action: 'academy_course_assignment_removed',
+      subjectType: 'academy_course',
+      subjectId: courseId,
+      outcome: 'ok',
+      detail: { coach: userId },
+    });
+  } catch (error) {
+    await recordAdminAudit({
+      actor: { id: admin.id, email: admin.email },
+      action: 'academy_course_assignment_removed',
+      subjectType: 'academy_course',
+      subjectId: courseId,
+      outcome: 'fallita',
+      detail: { coach: userId },
+    });
+    return {
+      error: friendlyError(
+        error,
+        'Impossibile rimuovere il partecipante: probabilmente è già iscritto a una sessione di questo corso.'
+      ),
+    };
+  }
+
+  revalidatePath(`/dashboard/admin/academy/${courseId}`);
+  return { success: 'Partecipante rimosso.' };
+}
+
 export async function uploadMaterialAction(
   _previous: ActionState,
   formData: FormData
@@ -714,9 +760,14 @@ export async function updateCourseOverviewAction(
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean);
+  const priceRaw = String(formData.get('priceEuro') ?? '').trim().replace(',', '.');
   if (!Number.isInteger(courseId) || courseId <= 0) {
     return { error: 'Corso non valido.' };
   }
+  if (priceRaw && !Number.isFinite(Number(priceRaw))) {
+    return { error: 'Il costo del corso non è un numero valido.' };
+  }
+  const priceCents = priceRaw ? Math.round(Number(priceRaw) * 100) : null;
 
   try {
     await updateCourseOverview({
@@ -724,6 +775,7 @@ export async function updateCourseOverviewAction(
       courseId,
       level: level || null,
       whatYoullLearn: whatYoullLearn.length > 0 ? whatYoullLearn : null,
+      priceCents,
     });
   } catch (error) {
     return { error: friendlyError(error, 'Impossibile aggiornare la panoramica.') };

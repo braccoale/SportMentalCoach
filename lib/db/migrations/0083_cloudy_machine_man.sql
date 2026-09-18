@@ -1,0 +1,1 @@
+ALTER TABLE "academy_courses" ADD COLUMN "price_cents" integer;

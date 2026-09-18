@@ -160,6 +160,7 @@ export const ADMIN_AUDIT_ACTION_LABEL: Record<AdminAuditAction, string> = {
   academy_instructor_nominated: 'Docente Academy nominato',
   academy_instructor_removed: 'Docente Academy rimosso',
   academy_course_assigned: 'Corso Academy assegnato a un coach',
+  academy_course_assignment_removed: 'Partecipante Academy rimosso dal corso',
   academy_session_created: 'Sessione Academy creata',
   academy_session_cancelled: 'Sessione Academy annullata',
   academy_session_completed: 'Sessione Academy completata',

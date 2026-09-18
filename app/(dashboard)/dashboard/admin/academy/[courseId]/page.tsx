@@ -43,6 +43,7 @@ import {
   deleteModuleAction,
   nominateInstructorAction,
   removeInstructorAction,
+  removeAssignmentAction,
   reorderModulesAction,
   toggleMaterialPublishedAction,
   updateCourseAction,
@@ -501,11 +502,29 @@ export default async function AdminAcademyCourseDetailPage({
             <ul className="mb-4 space-y-1.5 text-sm text-gray-700">
               {assignments.map((assignment) => (
                 <li key={assignment.assignmentId} className="flex items-center gap-2">
-                  {assignment.displayName}
+                  <span className="min-w-0 flex-1 truncate">{assignment.displayName}</span>
                   <StatusPill status={assignment.status} />
-                  <span className="text-xs text-gray-400">
+                  <span className="shrink-0 text-xs text-gray-400">
                     {assignment.completedModules}/{assignment.totalModules} moduli completati
                   </span>
+                  <ActionForm
+                    action={removeAssignmentAction}
+                    confirmTitle="Rimuovere il partecipante?"
+                    confirmMessage={`${assignment.displayName} non sarà più assegnato a questo corso.`}
+                    confirmActionLabel="Rimuovi"
+                  >
+                    <input type="hidden" name="courseId" value={course.id} />
+                    <input type="hidden" name="userId" value={assignment.userId} />
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7 shrink-0"
+                      aria-label={`Rimuovi ${assignment.displayName}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    </Button>
+                  </ActionForm>
                 </li>
               ))}
             </ul>

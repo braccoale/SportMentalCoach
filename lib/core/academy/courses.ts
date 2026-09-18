@@ -132,13 +132,18 @@ export async function updateCourseOverview(params: {
   courseId: number;
   level: string | null;
   whatYoullLearn: string[] | null;
+  priceCents: number | null;
 }): Promise<void> {
   await assertAdmin(params.actorUserId);
+  if (params.priceCents !== null && (!Number.isInteger(params.priceCents) || params.priceCents < 0)) {
+    throw new Error('Il costo del corso deve essere un numero positivo.');
+  }
   await db
     .update(academyCourses)
     .set({
       level: params.level,
       whatYoullLearn: params.whatYoullLearn,
+      priceCents: params.priceCents,
       updatedDate: new Date(),
       updatedBy: params.actorUserId,
     })
@@ -234,6 +239,7 @@ export type CourseDetail = {
   edition: string | null;
   level: string | null;
   whatYoullLearn: string[] | null;
+  priceCents: number | null;
   hasHeroImage: boolean;
   previousCourseId: number | null;
   structureLocked: boolean;
@@ -266,6 +272,7 @@ export async function getCourseDetail(
       edition: academyCourses.edition,
       level: academyCourses.level,
       whatYoullLearn: academyCourses.whatYoullLearn,
+      priceCents: academyCourses.priceCents,
       heroImageKey: academyCourses.heroImageKey,
       previousCourseId: academyCourses.previousCourseId,
       structureLockedAt: academyCourses.structureLockedAt,
@@ -295,6 +302,7 @@ export async function getCourseDetail(
     edition: course.edition,
     level: course.level,
     whatYoullLearn: course.whatYoullLearn,
+    priceCents: course.priceCents,
     hasHeroImage: course.heroImageKey !== null,
     previousCourseId: course.previousCourseId,
     structureLocked: course.structureLockedAt !== null,
