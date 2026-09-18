@@ -14,12 +14,12 @@ type ActionFn = (state: ActionState, formData: FormData) => Promise<ActionState>
  * nativo del browser sopra il campo file, non vicino al bottone appena
  * premuto — leggibile come "non succede niente".
  *
- * Ora "Carica file" è l'unica azione: apre subito il selettore del
- * sistema, e appena un file è scelto il form si invia da solo (lo stesso
- * submit che prima serviva un secondo click) — a patto che il titolo ci
- * sia già; se manca, il focus va sul titolo e il file resta scelto finché
- * non lo si scrive, poi parte da solo. Il bottone "Carica" reale resta nel
- * form ma invisibile: submit ancora raggiungibile da tastiera/lettore di
+ * Ora "Carica file" è l'unica azione: resta disattivato finché il titolo
+ * non è scritto (niente selettore file finché manca il nome del
+ * materiale), poi apre subito il selettore del sistema, e appena un file
+ * è scelto il form si invia da solo — lo stesso submit che prima serviva
+ * un secondo click. Il bottone "Carica" reale resta nel form ma
+ * invisibile: submit ancora raggiungibile da tastiera/lettore di
  * schermo, mai un secondo gesto per chi vede lo schermo.
  */
 export function MaterialUploadForm({
@@ -47,10 +47,10 @@ export function MaterialUploadForm({
 
   function handleFileChosen(file: File | undefined) {
     setFileName(file?.name ?? null);
-    if (!file) return;
-    setPendingSubmit(true);
-    if (!title.trim()) titleInputRef.current?.focus();
+    if (file) setPendingSubmit(true);
   }
+
+  const titleFilled = title.trim().length > 0;
 
   function reset() {
     setTitle('');
@@ -76,21 +76,28 @@ export function MaterialUploadForm({
         maxLength={200}
         className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
       />
-      <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-        <Paperclip className="h-4 w-4 shrink-0 text-gray-400" aria-hidden="true" />
+      <label
+        className={
+          titleFilled
+            ? 'inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50'
+            : 'inline-flex cursor-not-allowed items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-400'
+        }
+      >
+        <Paperclip className="h-4 w-4 shrink-0" aria-hidden="true" />
         <span className="max-w-[14rem] truncate">{fileName ?? 'Carica file'}</span>
         <input
           ref={fileInputRef}
           name="file"
           type="file"
           required
+          disabled={!titleFilled}
           accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.mp4,.mov"
           className="sr-only"
           onChange={(event) => handleFileChosen(event.target.files?.[0])}
         />
       </label>
-      {fileName && !title.trim() && (
-        <span className="text-xs text-amber-600">Aggiungi un titolo per completare il caricamento.</span>
+      {!titleFilled && (
+        <span className="text-xs text-gray-400">Scrivi prima un titolo per poter caricare il file.</span>
       )}
       <button ref={submitRef} type="submit" className="sr-only">
         Carica
