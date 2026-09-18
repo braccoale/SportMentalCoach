@@ -12,6 +12,7 @@ import {
   users,
   type AcademySession,
   type AcademySessionMode,
+  type AcademySessionStatus,
 } from '@/lib/db/schema';
 import { assertAdmin } from '@/lib/core/features';
 import { getCoachBusyIntervalsByProviderIds } from '@/lib/core/availability';
@@ -216,7 +217,7 @@ export type CourseSessionRow = {
   instructorName: string;
   instructorAvatarUrl: string | null;
   mode: AcademySessionMode;
-  status: 'scheduled' | 'cancelled';
+  status: AcademySessionStatus;
   scheduledFor: Date;
   durationMin: number;
   description: string | null;
@@ -296,7 +297,7 @@ export async function listSessionsForCourse(
     }),
     instructorAvatarUrl: session.instructorAvatarUrl,
     mode: session.mode as AcademySessionMode,
-    status: session.status as 'scheduled' | 'cancelled',
+    status: session.status as AcademySessionStatus,
     scheduledFor: session.scheduledFor,
     durationMin: session.durationMin,
     description: session.description,
@@ -407,7 +408,7 @@ export async function listSessionsForUser(userId: number): Promise<UserSessionRo
       }),
       instructorAvatarUrl: session.instructorAvatarUrl,
       mode: session.mode as AcademySessionMode,
-      status: session.status as 'scheduled' | 'cancelled',
+      status: session.status as AcademySessionStatus,
       scheduledFor: session.scheduledFor,
       durationMin: session.durationMin,
       description: session.description,
@@ -440,5 +441,32 @@ export async function cancelSession(params: {
   await db
     .update(academySessions)
     .set({ status: 'cancelled', updatedDate: new Date(), updatedBy: params.actorUserId })
+    .where(and(eq(academySessions.id, params.sessionId), eq(academySessions.courseId, params.courseId)));
+}
+
+/**
+ * Chiude manualmente una sessione — l'equivalente Academy di "Completa
+ * sessione" sulle prenotazioni, chiamata dall'uscita dalla videochiamata.
+ * Nessun battito cardiaco: qui la fine è sempre una scelta del docente, mai
+ * dedotta dalla connessione LiveKit.
+ */
+export async function completeSession(params: {
+  actorUserId: number;
+  courseId: number;
+  sessionId: number;
+}): Promise<void> {
+  await assertInstructorOrAdmin(params.actorUserId, params.courseId);
+  const [session] = await db
+    .select({ status: academySessions.status })
+    .from(academySessions)
+    .where(and(eq(academySessions.id, params.sessionId), eq(academySessions.courseId, params.courseId)))
+    .limit(1);
+  if (!session) throw new Error('Sessione non trovata.');
+  if (session.status !== 'scheduled') {
+    throw new Error('Solo una sessione programmata può essere completata.');
+  }
+  await db
+    .update(academySessions)
+    .set({ status: 'completed', updatedDate: new Date(), updatedBy: params.actorUserId })
     .where(and(eq(academySessions.id, params.sessionId), eq(academySessions.courseId, params.courseId)));
 }

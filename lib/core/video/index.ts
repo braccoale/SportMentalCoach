@@ -25,7 +25,7 @@ function guestInviteSecret(): string {
   return secret;
 }
 
-async function createPreflightToken(): Promise<string> {
+export async function createPreflightToken(): Promise<string> {
   const checkId = crypto.randomUUID();
   return mintAccessToken({
     apiKey: process.env.LIVEKIT_API_KEY!,

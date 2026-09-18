@@ -3360,6 +3360,7 @@ export const ADMIN_AUDIT_ACTIONS = [
   'academy_course_assigned',
   'academy_session_created',
   'academy_session_cancelled',
+  'academy_session_completed',
   'academy_material_uploaded',
   'academy_material_published',
   'academy_module_completed',
@@ -3417,7 +3418,7 @@ export const adminAuditEvents = pgTable(
     index('admin_audit_events_action_idx').on(table.action, table.createdDate),
     check(
       'admin_audit_events_action_check',
-      sql`${table.action} in ('coach_approved', 'coach_rejected', 'coach_verification_changed', 'user_role_changed', 'ai_notes_entitlement_granted', 'ai_notes_entitlement_revoked', 'ai_notes_session_reopened', 'ai_notes_worker_run', 'ai_notes_guidelines_saved', 'ai_notes_callback_probed', 'sensitive_content_accessed', 'data_exported', 'data_deleted', 'configuration_changed', 'package_created', 'package_features_updated', 'user_package_assigned', 'user_package_revoked', 'academy_course_created', 'academy_course_status_changed', 'academy_course_edition_created', 'academy_module_saved', 'academy_instructor_nominated', 'academy_instructor_removed', 'academy_course_assigned', 'academy_session_created', 'academy_session_cancelled', 'academy_material_uploaded', 'academy_material_published', 'academy_module_completed', 'academy_module_completion_corrected')`
+      sql`${table.action} in ('coach_approved', 'coach_rejected', 'coach_verification_changed', 'user_role_changed', 'ai_notes_entitlement_granted', 'ai_notes_entitlement_revoked', 'ai_notes_session_reopened', 'ai_notes_worker_run', 'ai_notes_guidelines_saved', 'ai_notes_callback_probed', 'sensitive_content_accessed', 'data_exported', 'data_deleted', 'configuration_changed', 'package_created', 'package_features_updated', 'user_package_assigned', 'user_package_revoked', 'academy_course_created', 'academy_course_status_changed', 'academy_course_edition_created', 'academy_module_saved', 'academy_instructor_nominated', 'academy_instructor_removed', 'academy_course_assigned', 'academy_session_created', 'academy_session_cancelled', 'academy_session_completed', 'academy_material_uploaded', 'academy_material_published', 'academy_module_completed', 'academy_module_completion_corrected')`
     ),
     check(
       'admin_audit_events_subject_type_check',
@@ -3699,7 +3700,7 @@ export type NewAcademyCourseAssignment =
 export const ACADEMY_SESSION_MODES = ['individual', 'group'] as const;
 export type AcademySessionMode = (typeof ACADEMY_SESSION_MODES)[number];
 
-export const ACADEMY_SESSION_STATUSES = ['scheduled', 'cancelled'] as const;
+export const ACADEMY_SESSION_STATUSES = ['scheduled', 'cancelled', 'completed'] as const;
 export type AcademySessionStatus = (typeof ACADEMY_SESSION_STATUSES)[number];
 
 /**
@@ -3707,9 +3708,10 @@ export type AcademySessionStatus = (typeof ACADEMY_SESSION_STATUSES)[number];
  * partecipanti (academySessionParticipants), un modulo. Niente
  * `sessionStartedAt`/`sessionEndedAt` con euristica a battito cardiaco in
  * questa prima versione: la fine di una sessione non completa mai un modulo
- * da sola (l'admin valida sempre a parte), quindi qui basta sapere che la
- * sessione esiste ed è programmata o annullata — tracciare la durata reale
- * è rimandabile senza costo per la validazione dei moduli.
+ * da sola (l'admin valida sempre a parte), quindi tracciare la durata reale
+ * resta rimandabile. `completed` esiste solo come stato che il docente
+ * imposta manualmente lasciando la videochiamata — non deriva da alcun
+ * battito cardiaco.
  */
 export const academySessions = pgTable(
   'academy_sessions',
@@ -3753,7 +3755,7 @@ export const academySessions = pgTable(
     ),
     check(
       'academy_sessions_status_check',
-      sql`${table.status} in ('scheduled', 'cancelled')`
+      sql`${table.status} in ('scheduled', 'cancelled', 'completed')`
     ),
     check('academy_sessions_duration_check', sql`${table.durationMin} > 0`),
     // Il modulo deve appartenere allo stesso corso della sessione.

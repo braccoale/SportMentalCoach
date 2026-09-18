@@ -124,6 +124,8 @@ function HintPill({ children }: { children: ReactNode }) {
   );
 }
 
+export const dynamic = 'force-dynamic';
+
 export default async function CoachDashboardPage() {
   const user = await requireRole('coach');
   const config = getVerticalConfig();
@@ -743,36 +745,35 @@ export default async function CoachDashboardPage() {
 
       {upcomingAcademySessions.length > 0 && (
         <div id="sessioni-academy" className="scroll-mt-24">
-          <div className="max-w-3xl">
-            <h2 className="text-lg font-medium text-blue-700">
-              Sessioni Academy ({upcomingAcademySessions.length})
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-gray-500">
-              Sessioni formative del corso Academy — distinte dalle sessioni di coaching con i
-              tuoi atleti.
-            </p>
-          </div>
-          <div className="mt-5 flex flex-col gap-4">
-            {upcomingAcademySessions.map((session) => (
-              <AcademySessionCard
-                key={session.id}
-                data={{
-                  id: session.id,
-                  courseId: session.courseId,
-                  courseTitle: session.courseTitle,
-                  moduleTitle: session.moduleTitle,
-                  instructorName: session.instructorName,
-                  instructorAvatarUrl: session.instructorAvatarUrl,
-                  description: session.description,
-                  scheduledFor: session.scheduledFor,
-                  durationMin: session.durationMin,
-                  participantCount: session.participants.length,
-                  canCancel: session.asInstructor,
-                }}
-                cancelSessionAction={session.asInstructor ? cancelSessionAction : undefined}
-              />
-            ))}
-          </div>
+          <CollapsiblePanel
+            title="Sessioni Academy"
+            count={upcomingAcademySessions.length}
+            hint="Sessioni formative — distinte dalle sessioni di coaching con i tuoi atleti."
+            persistKey="sessioni-academy"
+          >
+            <div className="flex flex-col gap-3">
+              {upcomingAcademySessions.map((session) => (
+                <AcademySessionCard
+                  key={session.id}
+                  compact
+                  data={{
+                    id: session.id,
+                    courseId: session.courseId,
+                    courseTitle: session.courseTitle,
+                    moduleTitle: session.moduleTitle,
+                    instructorName: session.instructorName,
+                    instructorAvatarUrl: session.instructorAvatarUrl,
+                    description: session.description,
+                    scheduledFor: session.scheduledFor,
+                    durationMin: session.durationMin,
+                    participantCount: session.participants.length,
+                    canCancel: session.asInstructor,
+                  }}
+                  cancelSessionAction={session.asInstructor ? cancelSessionAction : undefined}
+                />
+              ))}
+            </div>
+          </CollapsiblePanel>
         </div>
       )}
 

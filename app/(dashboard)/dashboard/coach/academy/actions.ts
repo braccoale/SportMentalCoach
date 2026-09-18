@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/core/auth';
 import { parseRomeLocalDateTime } from '@/lib/core/availability';
-import { createSession, cancelSession } from '@/lib/core/academy/sessions';
+import { createSession, cancelSession, completeSession } from '@/lib/core/academy/sessions';
 import {
   deleteMaterial,
   setMaterialPublished,
@@ -110,6 +110,31 @@ export async function cancelSessionAction(
 
   revalidatePath(`/dashboard/coach/academy/${courseId}`);
   return { success: 'Sessione annullata.' };
+}
+
+export async function completeAcademySessionAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const coach = await requireRole('coach');
+  const courseId = Number(formData.get('courseId'));
+  const sessionId = Number(formData.get('sessionId'));
+  if (
+    !Number.isInteger(courseId) || courseId <= 0 ||
+    !Number.isInteger(sessionId) || sessionId <= 0
+  ) {
+    return { error: 'Sessione non valida.' };
+  }
+
+  try {
+    await completeSession({ actorUserId: coach.id, courseId, sessionId });
+  } catch (error) {
+    return { error: friendlyError(error, 'Impossibile completare la sessione.') };
+  }
+
+  revalidatePath('/dashboard/coach');
+  revalidatePath(`/dashboard/coach/academy/${courseId}`);
+  return { success: 'Sessione completata.' };
 }
 
 export async function uploadMaterialAction(
