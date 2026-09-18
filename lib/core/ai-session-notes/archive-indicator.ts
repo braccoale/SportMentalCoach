@@ -13,6 +13,18 @@ export type AiSessionArchiveIndicator = {
   label: string;
 };
 
+/** Un report già scritto si può leggere anche se la trascrizione non è più presente. */
+export function coachArchiveReportHref(
+  bookingId: number,
+  reportStatus: string | null,
+  hasTranscript: boolean
+): string | null {
+  if (reportStatus === 'approved' || reportStatus === 'shared') {
+    return `/dashboard/appointments/${bookingId}#session-compass`;
+  }
+  return hasTranscript ? `/dashboard/appointments/${bookingId}` : null;
+}
+
 function transcriptReadyIndicator(
   viewerRole: 'coach' | 'athlete'
 ): AiSessionArchiveIndicator {

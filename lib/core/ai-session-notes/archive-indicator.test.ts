@@ -1,6 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildAiSessionArchiveIndicator } from './archive-indicator';
+import { buildAiSessionArchiveIndicator, coachArchiveReportHref } from './archive-indicator';
+
+test('un report approvato demo si apre anche senza trascrizione', () => {
+  assert.equal(
+    coachArchiveReportHref(243, 'approved', false),
+    '/dashboard/appointments/243#session-compass'
+  );
+  assert.equal(
+    coachArchiveReportHref(243, 'shared', false),
+    '/dashboard/appointments/243#session-compass'
+  );
+  assert.equal(coachArchiveReportHref(243, null, false), null);
+});
 
 test('shows recording and processing progress on archived sessions', () => {
   assert.deepEqual(buildAiSessionArchiveIndicator('active', 'coach'), {
