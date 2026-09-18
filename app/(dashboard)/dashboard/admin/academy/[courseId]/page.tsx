@@ -23,6 +23,7 @@ import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CourseOverview } from '@/components/admin/academy/course-overview';
+import { AssignInstructorInline } from '@/components/admin/academy/assign-instructor-inline';
 import { JumpToTabButton } from '@/components/admin/academy/jump-to-tab-button';
 import { CourseTabs } from '@/components/admin/academy/course-tabs';
 import { ReorderableModules } from '@/components/admin/academy/reorderable-modules';
@@ -542,12 +543,17 @@ export default async function AdminAcademyCourseDetailPage({
           ) : instructors.length === 0 ? (
             <div className="rounded-xl border border-dashed border-gray-300 p-6 text-center">
               <Users2 className="mx-auto h-6 w-6 text-gray-300" aria-hidden="true" />
-              <p className="mt-2 text-sm font-medium text-gray-900">Nessun docente nominato</p>
-              <p className="mt-0.5 text-xs text-gray-500">Nomina almeno un docente prima di pianificare una sessione.</p>
-              <div className="mt-3 flex justify-center">
-                <JumpToTabButton targetKey="configurazione" variant="outline" size="sm">
-                  Vai a Configurazione
-                </JumpToTabButton>
+              <p className="mt-2 text-sm font-medium text-gray-900">Assegna il docente</p>
+              <p className="mt-0.5 text-xs text-gray-500">
+                Questo corso non ha ancora un docente. Assegnane uno per continuare a pianificare
+                la sessione.
+              </p>
+              <div className="mt-3">
+                <AssignInstructorInline
+                  action={nominateInstructorAction}
+                  courseId={course.id}
+                  coaches={eligibleInstructors}
+                />
               </div>
             </div>
           ) : assignments.length === 0 ? (
