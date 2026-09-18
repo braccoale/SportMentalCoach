@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
+import { BirthDatePicker } from '@/components/birth-date-picker';
 import {
   AGE_OF_MAJORITY,
   MIN_SIGNUP_AGE,
@@ -363,14 +364,14 @@ export function SignupWizard() {
                   Data di nascita
                   <Req />
                 </Label>
-                <Input
-                  id="birthDate"
-                  name="birthDate"
-                  type="date"
-                  value={birthDate}
-                  onChange={(e) => setBirthDate(e.target.value)}
-                  className={`mt-1 ${INPUT}`}
-                />
+                <div className="mt-1">
+                  <BirthDatePicker
+                    id="birthDate"
+                    value={birthDate}
+                    onChange={setBirthDate}
+                    required
+                  />
+                </div>
               </div>
             )}
 

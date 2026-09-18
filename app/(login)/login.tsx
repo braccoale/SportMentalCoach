@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
+import { BirthDatePicker } from '@/components/birth-date-picker';
 import { Loader2 } from 'lucide-react';
 import { signIn, signUp } from './actions';
 import { GoogleButton } from '@/components/auth/google-button';
@@ -229,13 +230,7 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
                 Data di nascita
               </Label>
               <div className="mt-1">
-                <Input
-                  id="birthDate"
-                  name="birthDate"
-                  type="date"
-                  required
-                  className="appearance-none rounded-full relative block w-full px-3 py-2 border border-gray-300 text-gray-900 focus:outline-none focus:ring-red-500 focus:border-red-500 focus:z-10 sm:text-sm"
-                />
+                <BirthDatePicker id="birthDate" name="birthDate" required />
               </div>
               <p className="mt-1.5 text-xs text-gray-500">
                 KaiPai è riservato agli atleti dai 15 anni in su. Sotto i 18
