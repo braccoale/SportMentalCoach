@@ -7,6 +7,7 @@ import {
   academyCourses,
   academySessionParticipants,
   academySessions,
+  profiles,
   providerProfiles,
   users,
   type AcademySession,
@@ -213,6 +214,7 @@ export type CourseSessionRow = {
   moduleTitle: string;
   instructorUserId: number;
   instructorName: string;
+  instructorAvatarUrl: string | null;
   mode: AcademySessionMode;
   status: 'scheduled' | 'cancelled';
   scheduledFor: Date;
@@ -238,6 +240,7 @@ export async function listSessionsForCourse(
       instructorName: users.name,
       instructorLastName: users.lastName,
       instructorEmail: users.email,
+      instructorAvatarUrl: profiles.avatarUrl,
       mode: academySessions.mode,
       status: academySessions.status,
       scheduledFor: academySessions.scheduledFor,
@@ -248,6 +251,7 @@ export async function listSessionsForCourse(
     .innerJoin(academyCourses, eq(academyCourses.id, academySessions.courseId))
     .innerJoin(academyCourseModules, eq(academyCourseModules.id, academySessions.moduleId))
     .innerJoin(users, eq(users.id, academySessions.instructorUserId))
+    .leftJoin(profiles, eq(profiles.userId, academySessions.instructorUserId))
     .where(eq(academySessions.courseId, courseId))
     .orderBy(academySessions.scheduledFor);
 
@@ -290,6 +294,7 @@ export async function listSessionsForCourse(
       lastName: session.instructorLastName,
       email: session.instructorEmail,
     }),
+    instructorAvatarUrl: session.instructorAvatarUrl,
     mode: session.mode as AcademySessionMode,
     status: session.status as 'scheduled' | 'cancelled',
     scheduledFor: session.scheduledFor,
@@ -319,6 +324,7 @@ export async function listSessionsForUser(userId: number): Promise<UserSessionRo
       instructorName: users.name,
       instructorLastName: users.lastName,
       instructorEmail: users.email,
+      instructorAvatarUrl: profiles.avatarUrl,
       mode: academySessions.mode,
       status: academySessions.status,
       scheduledFor: academySessions.scheduledFor,
@@ -329,6 +335,7 @@ export async function listSessionsForUser(userId: number): Promise<UserSessionRo
     .innerJoin(academyCourses, eq(academyCourses.id, academySessions.courseId))
     .innerJoin(academyCourseModules, eq(academyCourseModules.id, academySessions.moduleId))
     .innerJoin(users, eq(users.id, academySessions.instructorUserId))
+    .leftJoin(profiles, eq(profiles.userId, academySessions.instructorUserId))
     .where(eq(academySessions.instructorUserId, userId));
 
   const asParticipantRows = await db
@@ -342,6 +349,7 @@ export async function listSessionsForUser(userId: number): Promise<UserSessionRo
       instructorName: users.name,
       instructorLastName: users.lastName,
       instructorEmail: users.email,
+      instructorAvatarUrl: profiles.avatarUrl,
       mode: academySessions.mode,
       status: academySessions.status,
       scheduledFor: academySessions.scheduledFor,
@@ -353,6 +361,7 @@ export async function listSessionsForUser(userId: number): Promise<UserSessionRo
     .innerJoin(academyCourses, eq(academyCourses.id, academySessions.courseId))
     .innerJoin(academyCourseModules, eq(academyCourseModules.id, academySessions.moduleId))
     .innerJoin(users, eq(users.id, academySessions.instructorUserId))
+    .leftJoin(profiles, eq(profiles.userId, academySessions.instructorUserId))
     .innerJoin(academyCourseAssignments, eq(academyCourseAssignments.id, academySessionParticipants.assignmentId))
     .where(eq(academyCourseAssignments.userId, userId));
 
@@ -396,6 +405,7 @@ export async function listSessionsForUser(userId: number): Promise<UserSessionRo
         lastName: session.instructorLastName,
         email: session.instructorEmail,
       }),
+      instructorAvatarUrl: session.instructorAvatarUrl,
       mode: session.mode as AcademySessionMode,
       status: session.status as 'scheduled' | 'cancelled',
       scheduledFor: session.scheduledFor,

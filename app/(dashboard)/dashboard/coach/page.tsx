@@ -82,7 +82,7 @@ import { ShareButton } from '@/components/share-button';
 import { ResendAthleteCallLinkButton } from '@/components/resend-athlete-call-link-button';
 import { EditAppointmentButton } from '@/components/edit-appointment-button';
 import { VideoCallButton } from '@/components/video-call-button';
-import { buildAiSessionArchiveIndicator } from '@/lib/core/ai-session-notes/archive-indicator';
+import { buildAiSessionArchiveIndicator, coachArchiveReportHref } from '@/lib/core/ai-session-notes/archive-indicator';
 import { isPendingAiNotesStatus } from '@/lib/core/ai-session-notes/worker-nudge';
 import { runAiNotesQueueAfterResponse } from '@/lib/core/ai-session-notes/queue-runner';
 import { getPipelineHealth } from '@/lib/core/ai-session-notes/pipeline-health';
@@ -90,6 +90,9 @@ import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger
 import { hasSeenTour } from '@/lib/core/tours/state';
 import { ProductTour } from '@/components/product-tour';
 import { CollapsiblePanel } from '@/components/collapsible-panel';
+import { listSessionsForUser } from '@/lib/core/academy/sessions';
+import { AcademySessionCard } from '@/components/academy/academy-session-card';
+import { cancelSessionAction } from './academy/actions';
 
 /**
  * Il riepilogo impiega dai dieci ai venti secondi, e qui dentro gira la coda.
@@ -136,6 +139,7 @@ export default async function CoachDashboardPage() {
     coachServices,
     coachAvailability,
     hasAiSessionNotes,
+    academySessions,
   ] = await Promise.all([
     getProviderProfileByUser(user.id),
     getCoachBookings(user.id),
@@ -144,7 +148,13 @@ export default async function CoachDashboardPage() {
     getCoachServices(user.id),
     getCoachAvailability(user.id),
     hasFeatureEntitlement(user.id, FEATURE_CODES.AI_SESSION_NOTES),
+    listSessionsForUser(user.id),
   ]);
+
+  const academyNowMs = Date.now();
+  const upcomingAcademySessions = academySessions.filter(
+    (session) => session.status === 'scheduled' && session.scheduledFor.getTime() > academyNowMs
+  );
 
   // Rete di sicurezza: se il webhook ha accodato la trascrizione ma il suo
   // risveglio HTTP è fallito, l'apertura della dashboard del coach riprova.
@@ -731,6 +741,41 @@ export default async function CoachDashboardPage() {
         }}
       />
 
+      {upcomingAcademySessions.length > 0 && (
+        <div id="sessioni-academy" className="scroll-mt-24">
+          <div className="max-w-3xl">
+            <h2 className="text-lg font-medium text-blue-700">
+              Sessioni Academy ({upcomingAcademySessions.length})
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-gray-500">
+              Sessioni formative del corso Academy — distinte dalle sessioni di coaching con i
+              tuoi atleti.
+            </p>
+          </div>
+          <div className="mt-5 flex flex-col gap-4">
+            {upcomingAcademySessions.map((session) => (
+              <AcademySessionCard
+                key={session.id}
+                data={{
+                  id: session.id,
+                  courseId: session.courseId,
+                  courseTitle: session.courseTitle,
+                  moduleTitle: session.moduleTitle,
+                  instructorName: session.instructorName,
+                  instructorAvatarUrl: session.instructorAvatarUrl,
+                  description: session.description,
+                  scheduledFor: session.scheduledFor,
+                  durationMin: session.durationMin,
+                  participantCount: session.participants.length,
+                  canCancel: session.asInstructor,
+                }}
+                cancelSessionAction={session.asInstructor ? cancelSessionAction : undefined}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       <ArchiveSection
         id="percorsi-archiviati"
         title="Sessioni effettuate"
@@ -1172,11 +1217,11 @@ function buildArchiveCardData(
       booking.hasTranscript,
       booking.aiNotesErrorCode
     ),
-    // Solo quando c'e' qualcosa da leggere: un link su «trascrizione in
-    // corso» porterebbe a una pagina che ripete l'etichetta.
-    aiIndicatorHref: booking.hasTranscript
-      ? `/dashboard/appointments/${booking.id}`
-      : null,
+    aiIndicatorHref: coachArchiveReportHref(
+      booking.id,
+      booking.aiReportStatus,
+      booking.hasTranscript
+    ),
   };
 }
 

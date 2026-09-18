@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
 type Tab = { key: string; label: string; content: React.ReactNode };
@@ -10,9 +11,16 @@ type Tab = { key: string; label: string; content: React.ReactNode };
  * server e passati come nodi pronti: nessun fetch nel client, solo quale
  * pannello mostrare. Tutti i pannelli restano montati (solo nascosti), così
  * un form compilato in una tab non perde i valori passando a un'altra.
+ *
+ * La tab iniziale legge `?tab=` dall'URL (se corrisponde a una tab reale):
+ * serve ai link esterni (es. "Materiali" da una card sessione nella
+ * dashboard) per atterrare sulla tab giusta invece che sempre sulla prima.
  */
 export function CourseTabs({ tabs }: { tabs: Tab[] }) {
-  const [active, setActive] = useState(tabs[0]?.key);
+  const searchParams = useSearchParams();
+  const requestedTab = searchParams.get('tab');
+  const initialTab = tabs.find((tab) => tab.key === requestedTab)?.key ?? tabs[0]?.key;
+  const [active, setActive] = useState(initialTab);
 
   return (
     <div>
