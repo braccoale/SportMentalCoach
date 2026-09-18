@@ -104,8 +104,13 @@ export function CourseOverview({
             heroImageUrl
               ? {
                   backgroundImage: `linear-gradient(180deg, rgba(5,10,8,0.35) 0%, rgba(5,10,8,0.92) 100%), url(${heroImageUrl})`,
-                  backgroundSize: 'cover',
+                  // Il gradiente (primo layer) copre sempre; l'immagine
+                  // (secondo layer) si stira per riempire esattamente il
+                  // riquadro invece di essere ritagliata — a richiesta,
+                  // preferito al normale "cover" che tagliava i bordi.
+                  backgroundSize: 'cover, 100% 100%',
                   backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
                 }
               : {
                   backgroundImage:
