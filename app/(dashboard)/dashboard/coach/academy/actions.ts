@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/core/auth';
 import { parseRomeLocalDateTime } from '@/lib/core/availability';
 import { createSession, cancelSession, completeSession } from '@/lib/core/academy/sessions';
+import { setModuleCompletion } from '@/lib/core/academy/assignments';
 import {
   deleteMaterial,
   setMaterialPublished,
@@ -53,7 +54,8 @@ function friendlyError(error: unknown, fallback: string): string {
       error.message.startsWith('Contenuto del recap') ||
       error.message.startsWith('Nessun recap') ||
       error.message.startsWith('Solo un partecipante invitato') ||
-      error.message.startsWith('La valutazione')
+      error.message.startsWith('La valutazione') ||
+      error.message.startsWith('Assegnazione non trovata')
     ) {
       return error.message;
     }
@@ -414,6 +416,47 @@ export async function retryAcademyTranscriptionAction(
 
   revalidatePath(`/dashboard/coach/academy/${courseId}`);
   return { success: 'Trascrizione ripresa.' };
+}
+
+/**
+ * Correzione manuale di un completamento modulo — sia per aggiungerne uno
+ * che l'automatismo (presenza alla sessione) non ha colto, sia per toglierne
+ * uno. Un evento sensibile per lo stesso motivo del consenso alla
+ * registrazione: entra nel registro amministrativo.
+ */
+export async function toggleModuleCompletionAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const coach = await requireRole('coach');
+  const courseId = Number(formData.get('courseId'));
+  const assignmentId = Number(formData.get('assignmentId'));
+  const moduleId = Number(formData.get('moduleId'));
+  const completed = String(formData.get('completed') ?? '') === '1';
+  if (
+    !Number.isInteger(courseId) || courseId <= 0 ||
+    !Number.isInteger(assignmentId) || assignmentId <= 0 ||
+    !Number.isInteger(moduleId) || moduleId <= 0
+  ) {
+    return { error: 'Modulo o assegnazione non validi.' };
+  }
+
+  try {
+    await setModuleCompletion({ actorUserId: coach.id, courseId, assignmentId, moduleId, completed });
+    await recordAdminAudit({
+      actor: { id: coach.id, email: coach.email },
+      action: 'academy_module_completion_corrected',
+      subjectType: 'academy_course',
+      subjectId: courseId,
+      outcome: 'ok',
+      detail: { assegnazione: assignmentId, modulo: moduleId, completato: completed },
+    });
+  } catch (error) {
+    return { error: friendlyError(error, 'Impossibile aggiornare il completamento.') };
+  }
+
+  revalidatePath(`/dashboard/coach/academy/${courseId}`);
+  return { success: completed ? 'Modulo segnato completato.' : 'Completamento tolto.' };
 }
 
 export async function setConfidenceRatingAction(

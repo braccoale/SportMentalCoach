@@ -8,6 +8,7 @@ import { listMaterials, type ModuleMaterial } from '@/lib/core/academy/materials
 import { listSessionsForCourse } from '@/lib/core/academy/sessions';
 import { getRecapForSession, getOwnConfidenceRatings } from '@/lib/core/academy/recap/service';
 import { getRecordingState } from '@/lib/core/academy/recording/service';
+import { summarizeCourseOutcomes, summarizeModuleOutcomes } from '@/lib/core/academy/outcomes';
 import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +17,8 @@ import { CourseTabs } from '@/components/admin/academy/course-tabs';
 import { SearchableParticipantChecklist } from '@/components/admin/academy/searchable-participant-checklist';
 import { StatusPill } from '@/components/admin/academy/status-pill';
 import { AcademyRecapPanel } from '@/components/academy/academy-recap-panel';
+import { CourseOutcomesSummaryCard } from '@/components/academy/course-outcomes-summary';
+import { ModuleCompletionToggles } from '@/components/academy/module-completion-toggles';
 import { MaterialUploadForm } from '@/components/academy/material-upload-form';
 import { cn } from '@/lib/utils';
 import {
@@ -28,6 +31,7 @@ import {
   editAcademyRecapAction,
   setConfidenceRatingAction,
   retryAcademyTranscriptionAction,
+  toggleModuleCompletionAction,
 } from '../actions';
 
 export const dynamic = 'force-dynamic';
@@ -154,6 +158,8 @@ export default async function CoachAcademyCourseDetailPage({
     sessions.map(async (s) => [s.id, await getRecapForSession(coach.id, s.id)] as const)
   );
   const recapsBySession = new Map(recapEntries);
+  const outcomesSummary = summarizeCourseOutcomes(assignments);
+  const moduleOutcomes = summarizeModuleOutcomes(assignments);
   const recordingEntries = await Promise.all(
     sessions.map(async (s) => [s.id, await getRecordingState(s.id)] as const)
   );
@@ -474,17 +480,28 @@ export default async function CoachAcademyCourseDetailPage({
         {assignments.length === 0 ? (
           <p className="text-sm text-gray-400">Nessun coach assegnato a questo corso.</p>
         ) : (
-          <ul className="space-y-1.5 text-sm text-gray-700">
-            {assignments.map((assignment) => (
-              <li key={assignment.assignmentId} className="flex items-center gap-2">
-                {assignment.displayName}
-                <StatusPill status={assignment.status} />
-                <span className="text-xs text-gray-400">
-                  {assignment.completedModules}/{assignment.totalModules} moduli
-                </span>
-              </li>
-            ))}
-          </ul>
+          <>
+            <CourseOutcomesSummaryCard summary={outcomesSummary} moduleOutcomes={moduleOutcomes} />
+            <ul className="space-y-2.5 text-sm text-gray-700">
+              {assignments.map((assignment) => (
+                <li key={assignment.assignmentId} className="flex flex-col gap-1.5 border-b border-gray-100 pb-2.5 last:border-0 last:pb-0">
+                  <div className="flex items-center gap-2">
+                    {assignment.displayName}
+                    <StatusPill status={assignment.status} />
+                    <span className="text-xs text-gray-400">
+                      {assignment.completedModules}/{assignment.totalModules} moduli
+                    </span>
+                  </div>
+                  <ModuleCompletionToggles
+                    courseId={course.id}
+                    assignmentId={assignment.assignmentId}
+                    modules={assignment.modules}
+                    action={toggleModuleCompletionAction}
+                  />
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </CardContent>
     </Card>

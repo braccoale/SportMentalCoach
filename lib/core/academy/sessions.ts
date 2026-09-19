@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import {
   academyCourseAssignments,
@@ -17,6 +17,7 @@ import {
 import { assertAdmin } from '@/lib/core/features';
 import { getCoachBusyIntervalsByProviderIds } from '@/lib/core/availability';
 import { assertCourseMember, assertInstructorOrAdmin, assertIsInstructor } from './instructors';
+import { autoCompleteModuleForAttendees } from './assignments';
 
 /** Oltre questo numero, una sessione di gruppo non si può creare: non ancora provata a questa scala. */
 const MAX_GROUP_PARTICIPANTS = 8;
@@ -460,6 +461,10 @@ export async function cancelSession(params: {
  * sessione" sulle prenotazioni, chiamata dall'uscita dalla videochiamata.
  * Nessun battito cardiaco: qui la fine è sempre una scelta del docente, mai
  * dedotta dalla connessione LiveKit.
+ *
+ * Chi risulta presente (`attendedAt` valorizzato dal webhook LiveKit al
+ * primo `participant_joined`) viene segnato completato per il modulo di
+ * questa sessione in automatico — vedi `autoCompleteModuleForAttendees`.
  */
 export async function completeSession(params: {
   actorUserId: number;
@@ -468,7 +473,7 @@ export async function completeSession(params: {
 }): Promise<void> {
   await assertInstructorOrAdmin(params.actorUserId, params.courseId);
   const [session] = await db
-    .select({ status: academySessions.status })
+    .select({ status: academySessions.status, moduleId: academySessions.moduleId })
     .from(academySessions)
     .where(and(eq(academySessions.id, params.sessionId), eq(academySessions.courseId, params.courseId)))
     .limit(1);
@@ -480,4 +485,51 @@ export async function completeSession(params: {
     .update(academySessions)
     .set({ status: 'completed', updatedDate: new Date(), updatedBy: params.actorUserId })
     .where(and(eq(academySessions.id, params.sessionId), eq(academySessions.courseId, params.courseId)));
+
+  const attended = await db
+    .select({ assignmentId: academySessionParticipants.assignmentId })
+    .from(academySessionParticipants)
+    .where(
+      and(
+        eq(academySessionParticipants.sessionId, params.sessionId),
+        isNotNull(academySessionParticipants.attendedAt)
+      )
+    );
+  await autoCompleteModuleForAttendees({
+    sessionId: params.sessionId,
+    courseId: params.courseId,
+    moduleId: session.moduleId,
+    attendedAssignmentIds: attended.map((row) => row.assignmentId),
+  });
+}
+
+/**
+ * Registra la presenza reale di un coach partecipante in una sessione —
+ * chiamata solo dal webhook LiveKit al primo `participant_joined` nella
+ * stanza `academy-session-<id>`, mai da un client. No-op silenzioso per chi
+ * non è tra i partecipanti invitati a questa sessione (tipicamente il
+ * docente stesso, che non ha una riga qui) e per una seconda consegna dello
+ * stesso evento (`attendedAt` si scrive una sola volta).
+ */
+export async function recordAcademyAttendance(params: {
+  sessionId: number;
+  userId: number;
+}): Promise<void> {
+  const [participant] = await db
+    .select({ id: academySessionParticipants.id })
+    .from(academySessionParticipants)
+    .innerJoin(academyCourseAssignments, eq(academyCourseAssignments.id, academySessionParticipants.assignmentId))
+    .where(
+      and(
+        eq(academySessionParticipants.sessionId, params.sessionId),
+        eq(academyCourseAssignments.userId, params.userId)
+      )
+    )
+    .limit(1);
+  if (!participant) return;
+
+  await db
+    .update(academySessionParticipants)
+    .set({ attendedAt: new Date() })
+    .where(and(eq(academySessionParticipants.id, participant.id), isNull(academySessionParticipants.attendedAt)));
 }

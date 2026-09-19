@@ -1,0 +1,1 @@
+ALTER TABLE "academy_session_participants" ADD COLUMN "attended_at" timestamp with time zone;

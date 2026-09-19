@@ -3722,11 +3722,17 @@ export type AcademySessionStatus = (typeof ACADEMY_SESSION_STATUSES)[number];
  * Una sessione video Academy — non una `bookings`. Un docente, uno o più
  * partecipanti (academySessionParticipants), un modulo. Niente
  * `sessionStartedAt`/`sessionEndedAt` con euristica a battito cardiaco in
- * questa prima versione: la fine di una sessione non completa mai un modulo
- * da sola (l'admin valida sempre a parte), quindi tracciare la durata reale
- * resta rimandabile. `completed` esiste solo come stato che il docente
+ * questa prima versione. `completed` esiste solo come stato che il docente
  * imposta manualmente lasciando la videochiamata — non deriva da alcun
  * battito cardiaco.
+ *
+ * A differenza della prima versione, completare una sessione *può* chiudere
+ * un modulo: chi risulta presente (`academySessionParticipants.attendedAt`
+ * valorizzato) viene segnato completato per il modulo di questa sessione in
+ * automatico, con `academyModuleCompletions.completedBy` lasciato `null` a
+ * marcare che è stato il sistema a deciderlo, non una persona. Resta sempre
+ * correggibile a mano da docente o admin — vedi `setModuleCompletion` in
+ * lib/core/academy/assignments.ts.
  */
 export const academySessions = pgTable(
   'academy_sessions',
@@ -3800,6 +3806,12 @@ export type NewAcademySession = typeof academySessions.$inferInsert;
  * corso, mai tramite `userId` nudo: la chiave esterna composta verso
  * `academyCourseAssignments(id, course_id)` impedisce di invitare a una
  * sessione un coach assegnato a un *altro* corso.
+ *
+ * `attendedAt` è la presenza reale, non l'invito: viene scritta dal webhook
+ * LiveKit al primo `participant_joined` nella stanza di questa sessione, mai
+ * dal client. Resta `null` per chi è stato invitato ma non si è collegato —
+ * è quello che decide se, a fine sessione, il suo modulo viene segnato
+ * completato in automatico.
  */
 export const academySessionParticipants = pgTable(
   'academy_session_participants',
@@ -3810,6 +3822,7 @@ export const academySessionParticipants = pgTable(
       .references(() => academySessions.id, { onDelete: 'cascade' }),
     courseId: integer('course_id').notNull(),
     assignmentId: integer('assignment_id').notNull(),
+    attendedAt: timestamp('attended_at', { withTimezone: true }),
     createdDate: timestamp('createddate', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -3885,12 +3898,26 @@ export type NewAcademyModuleAttachment =
   typeof academyModuleAttachments.$inferInsert;
 
 /**
- * Un modulo validato per un coach — sempre dall'admin (in questa fase). Mai
- * corretta sul posto: un errore si annulla cancellando la riga (vedi
- * `revokeModuleCompletion` in lib/core/academy/assignments.ts), con motivo e
- * valore precedente registrati in `admin_audit_events` (append-only) prima
- * della cancellazione — la storia vive nel registro, non in colonne di
- * correzione su questa tabella.
+ * Un modulo completato per un coach — scritto in due modi, distinti dal
+ * valore di `completedBy`:
+ *
+ * - **Automatico**: alla chiusura di una sessione, ogni partecipante
+ *   risultato presente (`academySessionParticipants.attendedAt` valorizzato)
+ *   viene segnato completato per il modulo di quella sessione.
+ *   `completedBy` resta `null` — nessuna persona lo ha deciso, solo la
+ *   presenza registrata.
+ * - **Manuale**: docente o admin correggono con `setModuleCompletion`
+ *   (lib/core/academy/assignments.ts) — sia per aggiungere un completamento
+ *   che l'automatismo non ha colto, sia per toglierne uno (presente ma non
+ *   ha davvero seguito). `completedBy` riporta chi ha corretto, e l'azione
+ *   finisce in `admin_audit_events` come `academy_module_completion_corrected`
+ *   — mai una colonna di correzione su questa tabella, la storia vive nel
+ *   registro append-only.
+ *
+ * La sessione (`sessionId`) resta comunque solo il contesto — se il
+ * completamento è manuale può anche non essercene una. La correzione umana
+ * vince sempre sull'automatismo: non c'è modo di ripristinare quello che un
+ * docente ha tolto se non rifacendolo lui stesso.
  *
  * Le due chiavi esterne composte impediscono un completamento associato al
  * corso sbagliato: `(assignment_id, course_id)` deve esistere in
@@ -3905,8 +3932,8 @@ export const academyModuleCompletions = pgTable(
     assignmentId: integer('assignment_id').notNull(),
     courseId: integer('course_id').notNull(),
     moduleId: integer('module_id').notNull(),
-    // La sessione durante cui il modulo è stato trattato, se c'è — solo
-    // informativo: non è quello che rende il completamento valido.
+    // La sessione durante cui il modulo è stato trattato — presente per un
+    // completamento automatico (l'ha causata), nulla per uno manuale.
     sessionId: integer('session_id').references(() => academySessions.id, {
       onDelete: 'set null',
     }),

@@ -15,7 +15,7 @@ import {
   uploadCourseHero,
 } from '@/lib/core/academy/courses';
 import { nominateInstructor, removeInstructor } from '@/lib/core/academy/instructors';
-import { assignCourseToUser, removeAssignment } from '@/lib/core/academy/assignments';
+import { assignCourseToUser, removeAssignment, setModuleCompletion } from '@/lib/core/academy/assignments';
 import { createSession, cancelSession } from '@/lib/core/academy/sessions';
 import {
   deleteMaterial,
@@ -64,7 +64,8 @@ function friendlyError(error: unknown, fallback: string): string {
       error.message.startsWith('La trascrizione') ||
       error.message.startsWith('Sessione non trovata') ||
       error.message.startsWith('Contenuto del recap') ||
-      error.message.startsWith('Nessun recap')
+      error.message.startsWith('Nessun recap') ||
+      error.message.startsWith('Assegnazione non trovata')
     ) {
       return error.message;
     }
@@ -903,6 +904,42 @@ export async function editAcademyRecapAction(
 
   revalidatePath(`/dashboard/admin/academy/${courseId}`);
   return { success: 'Recap corretto.' };
+}
+
+/** Correzione manuale di un completamento modulo — vedi l'equivalente coach in coach/academy/actions.ts. */
+export async function toggleModuleCompletionAction(
+  _previous: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const admin = await requireRole('admin');
+  const courseId = Number(formData.get('courseId'));
+  const assignmentId = Number(formData.get('assignmentId'));
+  const moduleId = Number(formData.get('moduleId'));
+  const completed = String(formData.get('completed') ?? '') === '1';
+  if (
+    !Number.isInteger(courseId) || courseId <= 0 ||
+    !Number.isInteger(assignmentId) || assignmentId <= 0 ||
+    !Number.isInteger(moduleId) || moduleId <= 0
+  ) {
+    return { error: 'Modulo o assegnazione non validi.' };
+  }
+
+  try {
+    await setModuleCompletion({ actorUserId: admin.id, courseId, assignmentId, moduleId, completed });
+    await recordAdminAudit({
+      actor: { id: admin.id, email: admin.email },
+      action: 'academy_module_completion_corrected',
+      subjectType: 'academy_course',
+      subjectId: courseId,
+      outcome: 'ok',
+      detail: { assegnazione: assignmentId, modulo: moduleId, completato: completed },
+    });
+  } catch (error) {
+    return { error: friendlyError(error, 'Impossibile aggiornare il completamento.') };
+  }
+
+  revalidatePath(`/dashboard/admin/academy/${courseId}`);
+  return { success: completed ? 'Modulo segnato completato.' : 'Completamento tolto.' };
 }
 
 /** Ripartenza esplicita di una registrazione Academy fallita dopo la registrazione vera e propria. */

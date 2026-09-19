@@ -12,12 +12,15 @@ import {
 } from '@/lib/core/ai-session-notes/livekit-webhook';
 import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
 import { handleAcademyEgressEnded } from '@/lib/core/academy/recording/service';
+import { recordAcademyAttendance } from '@/lib/core/academy/sessions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /** Le uniche stanze LiveKit create per l'Academy — vedi `academy_session_recordings_room_matches_session_check`. */
-const ACADEMY_ROOM_NAME_PATTERN = /^academy-session-\d+$/;
+const ACADEMY_ROOM_NAME_PATTERN = /^academy-session-(\d+)$/;
+/** Formato deciso in `createAcademyRoomToken` (lib/core/video/academy.ts) — mai `coach-<id>`/`athlete-<id>` come le prenotazioni. */
+const ACADEMY_IDENTITY_PATTERN = /^user-(\d+)$/;
 
 export async function POST(request: Request) {
   const apiKey = process.env.LIVEKIT_API_KEY;
@@ -44,21 +47,41 @@ export async function POST(request: Request) {
   /*
    * Ramo separato per le stanze Academy, prima di qualunque logica delle
    * prenotazioni. La stanza è la stessa identica cosa già in produzione tra
-   * coach e atleta — quello che cambia è solo cosa succede all'evento di
-   * egress. `processVerifiedLiveKitWebhook` sotto resta intoccato: non deve
-   * mai vedere un evento di una stanza Academy.
+   * coach e atleta — quello che cambia è solo cosa succede a due eventi:
+   * fine egress (registrazione) e ingresso di un partecipante (presenza, per
+   * l'auto-completamento del modulo a fine sessione). `processVerifiedLiveKitWebhook`
+   * sotto resta intoccato: non deve mai vedere un evento di una stanza Academy.
    */
-  if (event.event === 'egress_ended' && ACADEMY_ROOM_NAME_PATTERN.test(event.egressInfo?.roomName ?? '')) {
-    try {
-      await handleAcademyEgressEnded({
-        egressId: event.egressInfo!.egressId,
-        egressFailed: event.egressInfo!.status === EgressStatus.EGRESS_FAILED || Boolean(event.egressInfo!.error),
-        errorDetail: event.egressInfo!.error || undefined,
-      });
-    } catch (error) {
-      console.error('[LiveKit webhook] evento Academy non elaborato', {
-        reason: error instanceof Error ? error.message : 'sconosciuto',
-      });
+  const academyRoomMatch = (event.egressInfo?.roomName ?? event.room?.name ?? '').match(
+    ACADEMY_ROOM_NAME_PATTERN
+  );
+  if (academyRoomMatch) {
+    if (event.event === 'egress_ended') {
+      try {
+        await handleAcademyEgressEnded({
+          egressId: event.egressInfo!.egressId,
+          egressFailed: event.egressInfo!.status === EgressStatus.EGRESS_FAILED || Boolean(event.egressInfo!.error),
+          errorDetail: event.egressInfo!.error || undefined,
+        });
+      } catch (error) {
+        console.error('[LiveKit webhook] evento Academy (egress) non elaborato', {
+          reason: error instanceof Error ? error.message : 'sconosciuto',
+        });
+      }
+    } else if (event.event === 'participant_joined') {
+      const identityMatch = (event.participant?.identity ?? '').match(ACADEMY_IDENTITY_PATTERN);
+      if (identityMatch) {
+        try {
+          await recordAcademyAttendance({
+            sessionId: Number(academyRoomMatch[1]),
+            userId: Number(identityMatch[1]),
+          });
+        } catch (error) {
+          console.error('[LiveKit webhook] evento Academy (presenza) non elaborato', {
+            reason: error instanceof Error ? error.message : 'sconosciuto',
+          });
+        }
+      }
     }
     return Response.json({ received: true, duplicate: false });
   }

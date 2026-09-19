@@ -13,6 +13,7 @@ import { assertAdmin } from '@/lib/core/features';
 import { isEligibleCoach } from './coaches';
 import { assertInstructorOrAdmin, isInstructorOf } from './instructors';
 import { courseTotalHours } from './course-hours';
+import { computeAssignmentStatus } from './assignment-progress';
 
 export type CourseAssignment = {
   assignmentId: number;
@@ -21,6 +22,9 @@ export type CourseAssignment = {
   status: AcademyAssignmentStatus;
   completedModules: number;
   totalModules: number;
+  /** Ultimo segnale di attività: l'ultimo completamento (automatico o manuale), o l'assegnazione se non ce n'è ancora nessuno. */
+  lastActivityAt: Date;
+  modules: { moduleId: number; title: string; sortOrder: number; completed: boolean }[];
 };
 
 export async function listAssignments(
@@ -33,6 +37,7 @@ export async function listAssignments(
       assignmentId: academyCourseAssignments.id,
       userId: academyCourseAssignments.userId,
       status: academyCourseAssignments.status,
+      assignedDate: academyCourseAssignments.assignedDate,
       email: users.email,
       name: users.name,
       lastName: users.lastName,
@@ -41,18 +46,21 @@ export async function listAssignments(
     .innerJoin(users, eq(users.id, academyCourseAssignments.userId))
     .where(eq(academyCourseAssignments.courseId, courseId));
 
-  const totalModules = (
-    await db
-      .select({ id: academyCourseModules.id })
-      .from(academyCourseModules)
-      .where(eq(academyCourseModules.courseId, courseId))
-  ).length;
+  const moduleRows = await db
+    .select({ id: academyCourseModules.id, title: academyCourseModules.title, sortOrder: academyCourseModules.sortOrder })
+    .from(academyCourseModules)
+    .where(eq(academyCourseModules.courseId, courseId))
+    .orderBy(asc(academyCourseModules.sortOrder), asc(academyCourseModules.id));
 
   const completions =
     rows.length === 0
       ? []
       : await db
-          .select({ assignmentId: academyModuleCompletions.assignmentId })
+          .select({
+            assignmentId: academyModuleCompletions.assignmentId,
+            moduleId: academyModuleCompletions.moduleId,
+            completedDate: academyModuleCompletions.completedDate,
+          })
           .from(academyModuleCompletions)
           .where(
             inArray(
@@ -60,19 +68,37 @@ export async function listAssignments(
               rows.map((r) => r.assignmentId)
             )
           );
-  const completedByAssignment = new Map<number, number>();
+  const completedModulesByAssignment = new Map<number, Set<number>>();
+  const lastCompletionByAssignment = new Map<number, Date>();
   for (const row of completions) {
-    completedByAssignment.set(row.assignmentId, (completedByAssignment.get(row.assignmentId) ?? 0) + 1);
+    const set = completedModulesByAssignment.get(row.assignmentId);
+    if (set) set.add(row.moduleId);
+    else completedModulesByAssignment.set(row.assignmentId, new Set([row.moduleId]));
+
+    const previous = lastCompletionByAssignment.get(row.assignmentId);
+    if (!previous || row.completedDate > previous) {
+      lastCompletionByAssignment.set(row.assignmentId, row.completedDate);
+    }
   }
 
-  return rows.map((row) => ({
-    assignmentId: row.assignmentId,
-    userId: row.userId,
-    displayName: [row.name, row.lastName].filter(Boolean).join(' ') || row.email,
-    status: row.status as AcademyAssignmentStatus,
-    completedModules: completedByAssignment.get(row.assignmentId) ?? 0,
-    totalModules,
-  }));
+  return rows.map((row) => {
+    const completedModuleIds = completedModulesByAssignment.get(row.assignmentId) ?? new Set<number>();
+    return {
+      assignmentId: row.assignmentId,
+      userId: row.userId,
+      displayName: [row.name, row.lastName].filter(Boolean).join(' ') || row.email,
+      status: row.status as AcademyAssignmentStatus,
+      completedModules: completedModuleIds.size,
+      totalModules: moduleRows.length,
+      lastActivityAt: lastCompletionByAssignment.get(row.assignmentId) ?? row.assignedDate,
+      modules: moduleRows.map((module) => ({
+        moduleId: module.id,
+        title: module.title,
+        sortOrder: module.sortOrder,
+        completed: completedModuleIds.has(module.id),
+      })),
+    };
+  });
 }
 
 export type UserModuleProgress = {
@@ -290,4 +316,124 @@ export async function removeAssignment(params: {
     .where(
       and(eq(academyCourseAssignments.courseId, params.courseId), eq(academyCourseAssignments.userId, params.userId))
     );
+}
+
+/**
+ * Correzione umana di un completamento modulo — sia per aggiungerne uno che
+ * l'automatismo (presenza alla sessione) non ha colto, sia per toglierne uno
+ * (era presente ma non ha davvero seguito). Sempre `completedBy` valorizzato
+ * con chi corregge: è quello che distingue una riga scritta qui da una
+ * scritta da `completeSession`, dove resta `null` di proposito.
+ *
+ * Lo stato dell'assegnazione si ricalcola sempre da zero dopo, mai in modo
+ * incrementale — stessa regola di `computeAssignmentStatus`.
+ */
+export async function setModuleCompletion(params: {
+  actorUserId: number;
+  courseId: number;
+  assignmentId: number;
+  moduleId: number;
+  completed: boolean;
+}): Promise<void> {
+  await assertInstructorOrAdmin(params.actorUserId, params.courseId);
+
+  const [assignment] = await db
+    .select({ id: academyCourseAssignments.id })
+    .from(academyCourseAssignments)
+    .where(and(eq(academyCourseAssignments.id, params.assignmentId), eq(academyCourseAssignments.courseId, params.courseId)))
+    .limit(1);
+  if (!assignment) throw new Error('Assegnazione non trovata per questo corso.');
+
+  const [module] = await db
+    .select({ id: academyCourseModules.id })
+    .from(academyCourseModules)
+    .where(and(eq(academyCourseModules.id, params.moduleId), eq(academyCourseModules.courseId, params.courseId)))
+    .limit(1);
+  if (!module) throw new Error('Il modulo non appartiene a questo corso.');
+
+  if (params.completed) {
+    await db
+      .insert(academyModuleCompletions)
+      .values({
+        assignmentId: params.assignmentId,
+        courseId: params.courseId,
+        moduleId: params.moduleId,
+        sessionId: null,
+        completedBy: params.actorUserId,
+      })
+      .onConflictDoNothing();
+  } else {
+    await db
+      .delete(academyModuleCompletions)
+      .where(
+        and(
+          eq(academyModuleCompletions.assignmentId, params.assignmentId),
+          eq(academyModuleCompletions.moduleId, params.moduleId)
+        )
+      );
+  }
+
+  await recomputeAssignmentStatus(params.assignmentId, params.courseId);
+}
+
+/**
+ * Segna completato il modulo di una sessione per ogni assegnazione risultata
+ * presente — chiamata da `completeSession` (lib/core/academy/sessions.ts),
+ * mai da un'azione utente diretta. `completedBy` resta `null`: nessuna
+ * persona ha deciso, solo la presenza registrata dal webhook LiveKit.
+ * Idempotente: un'assegnazione già completata per quel modulo (a mano o da
+ * una sessione precedente sullo stesso modulo) non viene toccata di nuovo.
+ */
+export async function autoCompleteModuleForAttendees(params: {
+  sessionId: number;
+  courseId: number;
+  moduleId: number;
+  attendedAssignmentIds: number[];
+}): Promise<void> {
+  if (params.attendedAssignmentIds.length === 0) return;
+
+  await db
+    .insert(academyModuleCompletions)
+    .values(
+      params.attendedAssignmentIds.map((assignmentId) => ({
+        assignmentId,
+        courseId: params.courseId,
+        moduleId: params.moduleId,
+        sessionId: params.sessionId,
+        completedBy: null,
+      }))
+    )
+    .onConflictDoNothing();
+
+  for (const assignmentId of params.attendedAssignmentIds) {
+    await recomputeAssignmentStatus(assignmentId, params.courseId);
+  }
+}
+
+/** Ricalcola e riscrive lo stato di un'assegnazione dai moduli del corso e dai completamenti registrati — mai incrementale. */
+async function recomputeAssignmentStatus(assignmentId: number, courseId: number): Promise<void> {
+  const moduleIds = (
+    await db.select({ id: academyCourseModules.id }).from(academyCourseModules).where(eq(academyCourseModules.courseId, courseId))
+  ).map((m) => m.id);
+  const completedModuleIds = (
+    await db
+      .select({ moduleId: academyModuleCompletions.moduleId })
+      .from(academyModuleCompletions)
+      .where(eq(academyModuleCompletions.assignmentId, assignmentId))
+  ).map((c) => c.moduleId);
+
+  const status = computeAssignmentStatus(moduleIds, completedModuleIds);
+  const [current] = await db
+    .select({ status: academyCourseAssignments.status })
+    .from(academyCourseAssignments)
+    .where(eq(academyCourseAssignments.id, assignmentId))
+    .limit(1);
+
+  await db
+    .update(academyCourseAssignments)
+    .set({
+      status,
+      completedDate: status === 'completed' ? (current?.status === 'completed' ? undefined : new Date()) : null,
+    })
+    .where(eq(academyCourseAssignments.id, assignmentId));
 }

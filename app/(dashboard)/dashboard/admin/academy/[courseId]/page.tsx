@@ -21,7 +21,10 @@ import { listMaterials, type ModuleMaterial } from '@/lib/core/academy/materials
 import { listSessionsForCourse } from '@/lib/core/academy/sessions';
 import { getRecapForSession } from '@/lib/core/academy/recap/service';
 import { getRecordingState } from '@/lib/core/academy/recording/service';
+import { summarizeCourseOutcomes, summarizeModuleOutcomes } from '@/lib/core/academy/outcomes';
 import { AcademyRecapPanel } from '@/components/academy/academy-recap-panel';
+import { CourseOutcomesSummaryCard } from '@/components/academy/course-outcomes-summary';
+import { ModuleCompletionToggles } from '@/components/academy/module-completion-toggles';
 import { MaterialUploadForm } from '@/components/academy/material-upload-form';
 import { ActionForm } from '@/components/action-form';
 import { Button } from '@/components/ui/button';
@@ -57,6 +60,7 @@ import {
   generateAcademyRecapAction,
   editAcademyRecapAction,
   retryAcademyTranscriptionAction,
+  toggleModuleCompletionAction,
 } from '../actions';
 
 export const dynamic = 'force-dynamic';
@@ -129,6 +133,8 @@ export default async function AdminAcademyCourseDetailPage({
     sessions.map(async (s) => [s.id, await getRecapForSession(admin.id, s.id)] as const)
   );
   const recapsBySession = new Map(recapEntries);
+  const outcomesSummary = summarizeCourseOutcomes(assignments);
+  const moduleOutcomes = summarizeModuleOutcomes(assignments);
   const recordingEntries = await Promise.all(
     sessions.map(async (s) => [s.id, await getRecordingState(s.id)] as const)
   );
@@ -505,32 +511,41 @@ export default async function AdminAcademyCourseDetailPage({
           </div>
         ) : (
           <>
-            <ul className="mb-4 space-y-1.5 text-sm text-gray-700">
+            <CourseOutcomesSummaryCard summary={outcomesSummary} moduleOutcomes={moduleOutcomes} />
+            <ul className="mb-4 space-y-2.5 text-sm text-gray-700">
               {assignments.map((assignment) => (
-                <li key={assignment.assignmentId} className="flex items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate">{assignment.displayName}</span>
-                  <StatusPill status={assignment.status} />
-                  <span className="shrink-0 text-xs text-gray-400">
-                    {assignment.completedModules}/{assignment.totalModules} moduli completati
-                  </span>
-                  <ActionForm
-                    action={removeAssignmentAction}
-                    confirmTitle="Rimuovere il partecipante?"
-                    confirmMessage={`${assignment.displayName} non sarà più assegnato a questo corso.`}
-                    confirmActionLabel="Rimuovi"
-                  >
-                    <input type="hidden" name="courseId" value={course.id} />
-                    <input type="hidden" name="userId" value={assignment.userId} />
-                    <Button
-                      type="submit"
-                      variant="outline"
-                      size="icon"
-                      className="h-7 w-7 shrink-0"
-                      aria-label={`Rimuovi ${assignment.displayName}`}
+                <li key={assignment.assignmentId} className="flex flex-col gap-1.5 border-b border-gray-100 pb-2.5 last:border-0 last:pb-0">
+                  <div className="flex items-center gap-2">
+                    <span className="min-w-0 flex-1 truncate">{assignment.displayName}</span>
+                    <StatusPill status={assignment.status} />
+                    <span className="shrink-0 text-xs text-gray-400">
+                      {assignment.completedModules}/{assignment.totalModules} moduli completati
+                    </span>
+                    <ActionForm
+                      action={removeAssignmentAction}
+                      confirmTitle="Rimuovere il partecipante?"
+                      confirmMessage={`${assignment.displayName} non sarà più assegnato a questo corso.`}
+                      confirmActionLabel="Rimuovi"
                     >
-                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                    </Button>
-                  </ActionForm>
+                      <input type="hidden" name="courseId" value={course.id} />
+                      <input type="hidden" name="userId" value={assignment.userId} />
+                      <Button
+                        type="submit"
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7 shrink-0"
+                        aria-label={`Rimuovi ${assignment.displayName}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      </Button>
+                    </ActionForm>
+                  </div>
+                  <ModuleCompletionToggles
+                    courseId={course.id}
+                    assignmentId={assignment.assignmentId}
+                    modules={assignment.modules}
+                    action={toggleModuleCompletionAction}
+                  />
                 </li>
               ))}
             </ul>
