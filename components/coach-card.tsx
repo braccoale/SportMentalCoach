@@ -12,7 +12,7 @@ import { CoachChatButton } from '@/components/coach-chat-button';
 import { ShareCoachButton } from '@/components/share-coach-button';
 import { IntroSessionButton } from '@/components/intro-session-button';
 import { StatMedal } from '@/components/coach-experience-stats';
-import { SHOW_COACH_HOURLY_RATE } from '@/lib/core/flags';
+import { canSeeCoachPricing } from '@/lib/core/flags';
 import { DEMO_READONLY_MESSAGE } from '@/lib/auth/demo-readonly';
 
 function StatCell({
@@ -54,6 +54,7 @@ export function CoachCard({
   bookableDays,
   introAlreadyUsed,
   isDemo = false,
+  viewerEmail,
 }: {
   coach: DiscoveryCoach;
   loggedIn: boolean;
@@ -69,6 +70,9 @@ export function CoachCard({
   /** Account demo: prenotazione e sessione conoscitiva restano visibili ma
    * disabilitate, invece di far scoprire il blocco server-side al submit. */
   isDemo?: boolean;
+  /** Email di chi guarda la card, per il pilota chiuso del prezzo
+   * (`canSeeCoachPricing`) — vedi lib/core/flags.ts. */
+  viewerEmail?: string | null;
 }) {
   const config = getVerticalConfig();
   const sportSource = sportsList ?? config.taxonomies.categories;
@@ -144,7 +148,7 @@ export function CoachCard({
                   scelta che si confronta subito, non dopo statistiche e
                   bottoni. Blu come le medaglie sotto, non rosso — sulla
                   piattaforma il rosso segnala un problema, non un prezzo. */}
-              {SHOW_COACH_HOURLY_RATE &&
+              {canSeeCoachPricing({ viewerEmail, coachSlug: coach.slug }) &&
                 (primaryService?.durationMin != null && primaryService?.price != null ? (
                   <span className="text-base font-bold text-blue-700">
                     {formatPrice(primaryService.price, primaryService.currency)}

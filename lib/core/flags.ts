@@ -14,6 +14,43 @@ export const BILLING_ENABLED =
 // everywhere.
 export const SHOW_COACH_HOURLY_RATE = false;
 
+function parseAllowlist(value: string | undefined): string[] {
+  return (value ?? '')
+    .split(',')
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+/**
+ * Pilota chiuso del prezzo per servizio, per testarlo con una coppia
+ * coach/atleta reale prima che `SHOW_COACH_HOURLY_RATE` valga per tutti.
+ *
+ * Richiede **entrambe** le allowlist non vuote (`PRICING_PILOT_COACH_SLUGS`
+ * e `PRICING_PILOT_ATHLETE_EMAILS`, liste separate da virgola) e che sia lo
+ * slug del coach mostrato sia l'email di chi guarda vi compaiano — non
+ * basta una delle due. Se una delle due variabili non è configurata il
+ * pilota è spento: non esiste una coppia vuota che matcha per errore
+ * chiunque guardi un coach senza slug o un utente senza email.
+ */
+export function canSeeCoachPricing({
+  viewerEmail,
+  coachSlug,
+}: {
+  viewerEmail?: string | null;
+  coachSlug?: string | null;
+}): boolean {
+  if (SHOW_COACH_HOURLY_RATE) return true;
+
+  const pilotCoachSlugs = parseAllowlist(process.env.PRICING_PILOT_COACH_SLUGS);
+  const pilotAthleteEmails = parseAllowlist(process.env.PRICING_PILOT_ATHLETE_EMAILS);
+  if (pilotCoachSlugs.length === 0 || pilotAthleteEmails.length === 0) return false;
+
+  const coachMatch = !!coachSlug && pilotCoachSlugs.includes(coachSlug.trim().toLowerCase());
+  const viewerMatch =
+    !!viewerEmail && pilotAthleteEmails.includes(viewerEmail.trim().toLowerCase());
+  return coachMatch && viewerMatch;
+}
+
 // UI flag: show "coming soon" entry points (AI matching, saved searches).
 // OFF for production polish: the marketplace only exposes finished features.
 export const SHOW_UPCOMING_FEATURES = false;

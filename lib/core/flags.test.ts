@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { areNotificationsSilenced } from './flags';
+import { areNotificationsSilenced, canSeeCoachPricing } from './flags';
 
 /**
  * La proprietà che conta davvero non è che l'interruttore funzioni: è che
@@ -80,5 +80,92 @@ test('su una Preview di Vercel si può zittire', () => {
   withEnv(
     { VERCEL_ENV: 'preview', NOTIFICATIONS_SILENCED: 'true' },
     () => assert.equal(areNotificationsSilenced(), true)
+  );
+});
+
+/**
+ * `canSeeCoachPricing` è il pilota chiuso del prezzo: deve accendersi solo
+ * per la coppia esatta configurata, e restare spento per chiunque altro,
+ * incluso chi manca di una sola delle due variabili.
+ */
+
+test('senza allowlist configurate nessuno vede il prezzo', () => {
+  withEnv(
+    { PRICING_PILOT_COACH_SLUGS: undefined, PRICING_PILOT_ATHLETE_EMAILS: undefined },
+    () =>
+      assert.equal(
+        canSeeCoachPricing({ viewerEmail: 'chiunque@example.com', coachSlug: 'un-coach' }),
+        false
+      )
+  );
+});
+
+test('coach e atleta pilota insieme vedono il prezzo', () => {
+  withEnv(
+    {
+      PRICING_PILOT_COACH_SLUGS: 'daniela-rossi',
+      PRICING_PILOT_ATHLETE_EMAILS: 'alessandro@example.com',
+    },
+    () =>
+      assert.equal(
+        canSeeCoachPricing({
+          viewerEmail: 'Alessandro@Example.com',
+          coachSlug: 'Daniela-Rossi',
+        }),
+        true
+      )
+  );
+});
+
+test('atleta pilota su un coach diverso non vede il prezzo', () => {
+  withEnv(
+    {
+      PRICING_PILOT_COACH_SLUGS: 'daniela-rossi',
+      PRICING_PILOT_ATHLETE_EMAILS: 'alessandro@example.com',
+    },
+    () =>
+      assert.equal(
+        canSeeCoachPricing({ viewerEmail: 'alessandro@example.com', coachSlug: 'altro-coach' }),
+        false
+      )
+  );
+});
+
+test('coach pilota visto da un atleta diverso non mostra il prezzo', () => {
+  withEnv(
+    {
+      PRICING_PILOT_COACH_SLUGS: 'daniela-rossi',
+      PRICING_PILOT_ATHLETE_EMAILS: 'alessandro@example.com',
+    },
+    () =>
+      assert.equal(
+        canSeeCoachPricing({ viewerEmail: 'qualcun-altro@example.com', coachSlug: 'daniela-rossi' }),
+        false
+      )
+  );
+});
+
+test('visitatore non loggato non vede mai il prezzo, anche sul coach pilota', () => {
+  withEnv(
+    {
+      PRICING_PILOT_COACH_SLUGS: 'daniela-rossi',
+      PRICING_PILOT_ATHLETE_EMAILS: 'alessandro@example.com',
+    },
+    () =>
+      assert.equal(
+        canSeeCoachPricing({ viewerEmail: null, coachSlug: 'daniela-rossi' }),
+        false
+      )
+  );
+});
+
+test('con una sola allowlist configurata il pilota resta spento', () => {
+  withEnv(
+    { PRICING_PILOT_COACH_SLUGS: 'daniela-rossi', PRICING_PILOT_ATHLETE_EMAILS: undefined },
+    () =>
+      assert.equal(
+        canSeeCoachPricing({ viewerEmail: 'alessandro@example.com', coachSlug: 'daniela-rossi' }),
+        false
+      )
   );
 });
