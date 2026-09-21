@@ -528,6 +528,7 @@ export default async function CoachesPage({
             bookableDaysByProvider={bookableDaysByProvider}
             introUsedIds={introUsedIds}
             isDemo={isDemo}
+            viewerEmail={user?.email}
           />
         ) : (
           <div className="mt-5 flex flex-col gap-4">
@@ -541,6 +542,7 @@ export default async function CoachesPage({
                 bookableDays={bookableDaysByProvider.get(coach.providerId) ?? []}
                 introAlreadyUsed={introUsedIds.has(coach.providerId)}
                 isDemo={isDemo}
+                viewerEmail={user?.email}
               />
             ))}
           </div>
@@ -645,6 +647,7 @@ function NoResults({
   bookableDaysByProvider,
   introUsedIds,
   isDemo,
+  viewerEmail,
 }: {
   anyFilter: boolean;
   fallback: Awaited<ReturnType<typeof getCoachDiscovery>>;
@@ -655,6 +658,7 @@ function NoResults({
   bookableDaysByProvider: Map<number, BookableDay[]>;
   introUsedIds: Set<number>;
   isDemo: boolean;
+  viewerEmail?: string | null;
 }) {
   if (!anyFilter) {
     return (
@@ -699,6 +703,7 @@ function NoResults({
                 bookableDays={bookableDaysByProvider.get(coach.providerId) ?? []}
                 introAlreadyUsed={introUsedIds.has(coach.providerId)}
                 isDemo={isDemo}
+                viewerEmail={viewerEmail}
               />
             ))}
           </div>

@@ -29,7 +29,7 @@ import { formatPrice, formatDateTime, formatDate } from '@/lib/core/format';
 import { getUser } from '@/lib/db/queries';
 import { getAllSports, getAllSpecialties } from '@/lib/core/taxonomies';
 import { hasRole } from '@/lib/core/auth';
-import { SHOW_COACH_HOURLY_RATE } from '@/lib/core/flags';
+import { canSeeCoachPricing } from '@/lib/core/flags';
 import { CoachAvatar, CertifiedBadge } from '@/components/coach-visuals';
 import { CoachExperienceStats } from '@/components/coach-experience-stats';
 import { FavoriteButton } from '@/components/favorite-button';
@@ -152,6 +152,7 @@ export default async function CoachDetailPage({
   if (!coach) {
     notFound();
   }
+  const showPricing = canSeeCoachPricing({ viewerEmail: user?.email, coachSlug: coach.slug });
 
   const [
     availability,
@@ -250,7 +251,7 @@ export default async function CoachDetailPage({
             services: coach.services,
             // Le tariffe entrano nel markup solo se la pagina le mostra
             // davvero: in produzione l'interruttore e' spento.
-            publishPrices: SHOW_COACH_HOURLY_RATE,
+            publishPrices: showPricing,
           }),
           breadcrumbJsonLd([
             { name: 'Home', path: '/' },
@@ -345,12 +346,12 @@ export default async function CoachDetailPage({
                       </span>
                       <span className="text-lg font-bold text-blue-900">
                         {service.durationMin ? `${service.durationMin} min` : ''}
-                        {SHOW_COACH_HOURLY_RATE &&
+                        {showPricing &&
                         service.durationMin != null &&
                         service.price != null
                           ? ' · '
                           : ''}
-                        {SHOW_COACH_HOURLY_RATE && service.price != null
+                        {showPricing && service.price != null
                           ? formatPrice(service.price, service.currency)
                           : ''}
                       </span>
@@ -533,7 +534,7 @@ export default async function CoachDetailPage({
                   <CardTitle className="text-lg">
                     Inizia il tuo percorso con {firstName}
                   </CardTitle>
-                  {SHOW_COACH_HOURLY_RATE && coach.hourlyRate != null && (
+                  {showPricing && coach.hourlyRate != null && (
                     <p className="text-sm text-muted-foreground">
                       a partire da{' '}
                       <span className="font-semibold text-gray-900">
