@@ -144,23 +144,23 @@ export function CoachCard({
                   scelta che si confronta subito, non dopo statistiche e
                   bottoni. Blu come le medaglie sotto, non rosso — sulla
                   piattaforma il rosso segnala un problema, non un prezzo. */}
-              {primaryService?.durationMin != null && primaryService?.price != null ? (
-                <span className="text-base font-bold text-blue-700">
-                  {formatPrice(primaryService.price, primaryService.currency)}
-                  <span className="text-sm font-medium text-blue-400">
-                    {' '}
-                    / {primaryService.durationMin} min
-                  </span>
-                </span>
-              ) : (
-                SHOW_COACH_HOURLY_RATE &&
-                coach.hourlyRate != null && (
+              {SHOW_COACH_HOURLY_RATE &&
+                (primaryService?.durationMin != null && primaryService?.price != null ? (
                   <span className="text-base font-bold text-blue-700">
-                    {formatPrice(coach.hourlyRate, coach.currency)}
-                    <span className="text-sm font-medium text-blue-400"> / h</span>
+                    {formatPrice(primaryService.price, primaryService.currency)}
+                    <span className="text-sm font-medium text-blue-400">
+                      {' '}
+                      / {primaryService.durationMin} min
+                    </span>
                   </span>
-                )
-              )}
+                ) : (
+                  coach.hourlyRate != null && (
+                    <span className="text-base font-bold text-blue-700">
+                      {formatPrice(coach.hourlyRate, coach.currency)}
+                      <span className="text-sm font-medium text-blue-400"> / h</span>
+                    </span>
+                  )
+                ))}
             </div>
           </div>
 

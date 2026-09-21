@@ -21,6 +21,7 @@ import { getFavoriteProviderIds } from '@/lib/core/favorites';
 import {
   SHOW_UPCOMING_FEATURES,
   SHOW_ATHLETE_NEEDS_SECTION,
+  SHOW_COACH_HOURLY_RATE,
 } from '@/lib/core/flags';
 import { getActiveSports, getActiveSpecialties } from '@/lib/core/taxonomies';
 import { hasRole } from '@/lib/core/auth';
@@ -71,8 +72,12 @@ const SORTS: { value: DiscoverySort; label: string }[] = [
   { value: 'activity', label: 'Ore e atleti seguiti' },
   { value: 'recommended', label: 'Consigliati' },
   { value: 'rating', label: 'Valutazione' },
-  { value: 'price', label: 'Prezzo crescente' },
-  { value: 'price_desc', label: 'Prezzo decrescente' },
+  ...(SHOW_COACH_HOURLY_RATE
+    ? ([
+        { value: 'price', label: 'Prezzo crescente' },
+        { value: 'price_desc', label: 'Prezzo decrescente' },
+      ] as const)
+    : []),
   { value: 'experience', label: 'Esperienza' },
 ];
 
@@ -433,7 +438,7 @@ export default async function CoachesPage({
                 ))}
               </select>
             </div>
-            {priceRange && priceRangeMinEur != null && priceRangeMaxEur != null ? (
+            {SHOW_COACH_HOURLY_RATE && priceRange && priceRangeMinEur != null && priceRangeMaxEur != null ? (
               <PriceRangeFilter
                 min={priceRangeMinEur}
                 max={priceRangeMaxEur}

@@ -345,10 +345,12 @@ export default async function CoachDetailPage({
                       </span>
                       <span className="text-lg font-bold text-blue-900">
                         {service.durationMin ? `${service.durationMin} min` : ''}
-                        {service.durationMin && service.price != null
+                        {SHOW_COACH_HOURLY_RATE &&
+                        service.durationMin != null &&
+                        service.price != null
                           ? ' · '
                           : ''}
-                        {service.price != null
+                        {SHOW_COACH_HOURLY_RATE && service.price != null
                           ? formatPrice(service.price, service.currency)
                           : ''}
                       </span>
