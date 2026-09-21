@@ -6,10 +6,12 @@ export const BILLING_ENABLED =
   process.env.BILLING_ENABLED === 'true' ||
   process.env.NEXT_PUBLIC_BILLING_ENABLED === 'true';
 
-// UI flag: show a coach's individual hourly rate on their card and profile.
-// Off while the commercial model is based on club packages/subscriptions
-// (see the "Pacchetti" section on the landing). The price data and rendering
-// code are kept intact — flip this to `true` to re-enable everywhere.
+// UI flag: show any coach price to athletes — hourly rate, per-service price
+// (card and profile), the price sort options and the price range filter on
+// /coaches. Off while the commercial model is based on club packages/
+// subscriptions (see the "Pacchetti" section on the landing). The price data
+// and rendering code are kept intact — flip this to `true` to re-enable
+// everywhere.
 export const SHOW_COACH_HOURLY_RATE = false;
 
 // UI flag: show "coming soon" entry points (AI matching, saved searches).
