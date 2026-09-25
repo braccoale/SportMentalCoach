@@ -35,8 +35,13 @@ const TRANSITIONS: Record<AiSessionNoteStatus, readonly AiSessionNoteStatus[]> =
      * `transcription_failed` resta chiuso di proposito: lì il materiale non
      * c'è, e riaprire non produrrebbe nulla, solo un secondo giro di attesa.
      *
-     * La riapertura non è mai automatica. Nessun worker la percorre da solo:
-     * richiede un'azione esplicita, che finisce nel registro come tale.
+     * La riapertura non è illimitata. Fino a due volte per seduta la percorre
+     * il worker da solo (`report-auto-reopen.ts`, regole in
+     * `report-retry-policy.ts`), e nel registro finisce con `automatic: true`;
+     * oltre, o dopo due settimane, serve un'azione esplicita di una persona
+     * (`npm run ai-notes:reopen`, o il pulsante dell'admin), registrata con
+     * `automatic: false`. Prima era solo manuale, e otto sedute sono rimaste
+     * ferme finché qualcuno non se n'è accorto — tutte recuperate al primo giro.
      */
     report_failed: ['processing'],
   };
