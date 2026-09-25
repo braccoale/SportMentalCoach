@@ -224,6 +224,75 @@ test('omette gli insight privi di evidenza verificabile invece di inventarli', (
   assert.equal(report.sessionOverview.themes.length, 2);
 });
 
+const FAKE = { providerName: 'fake', modelName: 'fake-compass-v1' };
+
+test('se le citazioni della sintesi non reggono, la sintesi si appoggia alle evidenze verificate dei temi', () => {
+  const report = assembleSessionCompassReport(
+    {
+      ...CONTENT,
+      sessionOverview: {
+        ...CONTENT.sessionOverview,
+        summaryEvidence: [{ transcriptSegmentId: 2, quote: 'una parafrasi mai detta' }],
+      },
+    },
+    input(),
+    FAKE
+  );
+  const summary = report.sessionOverview.summaryEvidence;
+  assert.ok(summary.length > 0);
+  // Non e' testo nuovo: sono evidenze gia' presenti sui temi.
+  const themeEvidence = report.sessionOverview.themes.map((theme) => theme.evidence.quote);
+  for (const item of summary) assert.ok(themeEvidence.includes(item.quote));
+  assert.deepEqual(
+    validateSessionCompassReport(report, {
+      sessionId: '9',
+      sourceFingerprint: 'fingerprint-a',
+      segments: SEGMENTS,
+    }),
+    []
+  );
+});
+
+test('un tema con citazione non reggente non fa perdere la seduta: ne basta uno verificato', async () => {
+  const provider = new FakeSessionCompassReportProvider({
+    content: {
+      ...CONTENT,
+      sessionOverview: {
+        ...CONTENT.sessionOverview,
+        summaryEvidence: [{ transcriptSegmentId: 2, quote: 'parafrasi' }],
+        themes: [
+          { text: 'Attenzione in gara', evidence: { transcriptSegmentId: 2, quote: 'testa altrove' } },
+          { text: 'Tema con citazione inesatta', evidence: { transcriptSegmentId: 1, quote: 'come stai dopo la gara' } },
+        ],
+      },
+    },
+  });
+  const report = await generateValidatedSessionCompassReport(input(), provider);
+  assert.equal(report.sessionOverview.themes.length, 1);
+  assert.ok(report.sessionOverview.summaryEvidence.length > 0);
+});
+
+test('il blocco resta solo quando nulla e\' verificabile: nessuna citazione regge', async () => {
+  const provider = new FakeSessionCompassReportProvider({
+    content: {
+      ...CONTENT,
+      sessionOverview: {
+        ...CONTENT.sessionOverview,
+        summaryEvidence: [{ transcriptSegmentId: 2, quote: 'inventata' }],
+        themes: [
+          { text: 'Tema', evidence: { transcriptSegmentId: 2, quote: 'frase mai pronunciata' } },
+        ],
+      },
+    },
+  });
+  await assert.rejects(
+    generateValidatedSessionCompassReport(input(), provider),
+    (error: unknown) =>
+      error instanceof SessionCompassGenerationError &&
+      error.code === 'INVALID_PROVIDER_OUTPUT'
+  );
+});
+
 test('scarta i testi che presentano una causa come fatto', () => {
   const report = assembleSessionCompassReport(
     {

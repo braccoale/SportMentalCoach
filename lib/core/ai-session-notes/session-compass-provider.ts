@@ -154,7 +154,7 @@ export function assembleSessionCompassReport(
   const segments = indexSourceSegments(input.segments);
   const overview = asRecord(content.sessionOverview) ?? {};
   const summary = asProse(overview.summary);
-  const summaryEvidence = asArray(overview.summaryEvidence)
+  const ownSummaryEvidence = asArray(overview.summaryEvidence)
     .map((item) => evidenceOf(item, segments))
     .filter(isEvidence);
 
@@ -168,6 +168,19 @@ export function assembleSessionCompassReport(
       return [{ text, evidence }];
     })
   ).slice(0, MAX_THEMES);
+
+  /*
+   * La sintesi poggia sui temi che la compongono. Se le citazioni che il
+   * modello ha dato *per la sintesi* non reggono ma quelle dei temi sì, il
+   * riepilogo ha comunque passaggi verificati a cui rimandare: scartarlo per
+   * questo costava la seduta intera. Sono evidenze già risolte contro il
+   * transcript, mai testo costruito qui; senza temi verificati non c'è nulla
+   * da prendere e la validazione resta il filtro.
+   */
+  const summaryEvidence =
+    ownSummaryEvidence.length > 0
+      ? ownSummaryEvidence
+      : uniqueBySegment(themes.map((theme) => theme.evidence)).slice(0, 2);
 
   const resourceRecord = asRecord(overview.emergingResource);
   const resourceText = asProse(resourceRecord?.text);
@@ -472,6 +485,15 @@ function evidenceOf(
 
 function isEvidence(value: CompassEvidence | null): value is CompassEvidence {
   return value !== null;
+}
+
+function uniqueBySegment(items: CompassEvidence[]): CompassEvidence[] {
+  const seen = new Set<number>();
+  return items.filter((item) => {
+    if (seen.has(item.transcriptSegmentId)) return false;
+    seen.add(item.transcriptSegmentId);
+    return true;
+  });
 }
 
 /** Testo accettabile solo se non presenta cause o diagnosi come fatto. */

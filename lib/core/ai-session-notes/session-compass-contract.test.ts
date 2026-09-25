@@ -214,12 +214,90 @@ test('rifiuta più di tre momenti chiave o punti di preparazione', () => {
   assert.ok(codes.includes('TOO_MANY_KEY_MOMENTS'));
 });
 
-test('rifiuta un report con meno di due temi', () => {
+test('rifiuta un report senza nessun tema verificato', () => {
   const invalid = report({
     sessionOverview: { ...report().sessionOverview, themes: [] },
   });
   const codes = validateSessionCompassReport(invalid, context).map((issue) => issue.code);
   assert.ok(codes.includes('TOO_FEW_THEMES'));
+});
+
+test('accetta un report con un solo tema: e\' consegnabile e il coach lo rilegge', () => {
+  const single = report();
+  single.sessionOverview.themes = single.sessionOverview.themes.slice(0, 1);
+  assert.deepEqual(validateSessionCompassReport(single, context), []);
+});
+
+/*
+ * Trascrizione come arriva davvero: frammenti brevi, con un'interiezione
+ * dell'altro parlante in mezzo. Una frase citata bene attraversa piu' segmenti.
+ */
+const FRAMMENTI: CompassSourceSegment[] = [
+  { transcriptSegmentId: 21, startMs: 10_000, endMs: 12_000, speaker: 'athlete', text: 'Quando sbaglio un servizio' },
+  { transcriptSegmentId: 22, startMs: 12_000, endMs: 13_000, speaker: 'coach', text: 'mh' },
+  { transcriptSegmentId: 23, startMs: 13_000, endMs: 16_000, speaker: 'athlete', text: 'resto ancora su quel punto' },
+  { transcriptSegmentId: 24, startMs: 16_000, endMs: 19_000, speaker: 'athlete', text: 'e perdo anche il successivo.' },
+  ...Array.from({ length: 10 }, (_, index) => ({
+    transcriptSegmentId: 30 + index,
+    startMs: 20_000 + index * 1_000,
+    endMs: 21_000 + index * 1_000,
+    speaker: 'coach' as const,
+    text: `intervento ${index}`,
+  })),
+];
+
+test('resolveEvidence accetta una citazione fedele a cavallo di segmenti vicini dello stesso parlante', () => {
+  const segments = indexSourceSegments(FRAMMENTI);
+  const resolved = resolveEvidence(
+    { transcriptSegmentId: 21, quote: 'Quando sbaglio un servizio resto ancora su quel punto' },
+    segments
+  );
+  assert.ok(resolved);
+  // Resta ancorata al segmento indicato, con il suo minuto e il suo parlante.
+  assert.equal(resolved.transcriptSegmentId, 21);
+  assert.equal(resolved.speaker, 'athlete');
+  assert.equal(resolved.startMs, 10_000);
+});
+
+test('resolveEvidence tollera che il modello indichi l\'ultimo segmento invece del primo', () => {
+  const segments = indexSourceSegments(FRAMMENTI);
+  assert.ok(
+    resolveEvidence(
+      { transcriptSegmentId: 24, quote: 'resto ancora su quel punto e perdo anche il successivo' },
+      segments
+    )
+  );
+});
+
+test('resolveEvidence non accetta parafrasi, ne\' testo di un altro parlante, ne\' segmenti lontani', () => {
+  const segments = indexSourceSegments(FRAMMENTI);
+  // Parafrasi: nessuna frase pronunciata contiene queste parole.
+  assert.equal(
+    resolveEvidence({ transcriptSegmentId: 21, quote: 'dopo un errore rimango bloccato sul punto perso' }, segments),
+    null
+  );
+  // Testo del coach citato con il segmento dell'atleta.
+  assert.equal(resolveEvidence({ transcriptSegmentId: 21, quote: 'mh resto ancora' }, segments), null);
+  // Testo reale, ma a piu' di cinque segmenti da quello citato.
+  assert.equal(resolveEvidence({ transcriptSegmentId: 21, quote: 'intervento 9' }, segments), null);
+});
+
+test('il validatore applica la stessa regola di resolveEvidence', () => {
+  const spanning = report();
+  spanning.sessionOverview.summaryEvidence = [
+    {
+      transcriptSegmentId: 21,
+      startMs: 10_000,
+      minute: minuteFromMs(10_000),
+      speaker: 'athlete',
+      quote: 'Quando sbaglio un servizio resto ancora su quel punto',
+    },
+  ];
+  const codes = validateSessionCompassReport(spanning, {
+    ...context,
+    segments: [...SEGMENTS, ...FRAMMENTI],
+  }).map((issue) => issue.code);
+  assert.ok(!codes.includes('EVIDENCE_QUOTE_NOT_FOUND'));
 });
 
 test('rifiuta una scadenza che non è una data di calendario', () => {
