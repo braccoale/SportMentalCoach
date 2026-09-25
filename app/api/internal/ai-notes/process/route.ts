@@ -10,6 +10,7 @@ import {
 } from '@/lib/core/ai-session-notes/processing';
 import { closeExpiredAiNotesSessions } from '@/lib/core/ai-session-notes/maintenance';
 import { resumeInterruptedRecordings } from '@/lib/core/ai-session-notes/recording-resume';
+import { reopenFailedReportsAutomatically } from '@/lib/core/ai-session-notes/report-auto-reopen';
 import { sendPendingSessionOutcomes } from '@/lib/core/ai-session-notes/session-outcome-email';
 import { closeStuckProcessingSessions } from '@/lib/core/ai-session-notes/stuck-sessions';
 import { createProductionAiSessionNotesDependencies } from '@/lib/core/ai-session-notes/dependencies';
@@ -127,6 +128,17 @@ async function drainQueue(workerId: string, limit: number) {
     console.error('[ai-notes] ripresa registrazioni fallita', error);
     return { retried: 0, skipped: 0 };
   });
+  // Un riepilogo fallito con la trascrizione intatta si riprova da solo, con un
+  // limite (vedi `report-retry-policy.ts`). Prima della coda, perché il job
+  // riaperto va preso già in questa corsa. Isolato: una riapertura che fallisce
+  // non deve fermare le altre sedute.
+  const reportsReopened = await reopenFailedReportsAutomatically(
+    { limit },
+    dependencies
+  ).catch((error: unknown) => {
+    console.error('[ai-notes] riapertura automatica fallita', error);
+    return { reopened: 0, skipped: 0, failed: 0 };
+  });
   const compassJobsQueued = await enqueueReadySessionCompassJobs(
     { limit },
     dependencies
@@ -157,6 +169,7 @@ async function drainQueue(workerId: string, limit: number) {
     recovered,
     recordingsResumed,
     outcomesReported,
+    reportsReopened,
     compassJobsQueued,
     stuckClosed,
     ...processed,

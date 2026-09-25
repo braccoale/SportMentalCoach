@@ -32,7 +32,7 @@ report_failed       → processing          (riapertura, mai automatica)
 
 Terminal states are terminal, with **one deliberate exception**: `report_failed → processing`. That state does not mean "this session could not be summarised", it means "the summary never arrived" — and the transcript is usually still sitting in the table. `transcription_failed` stays closed on purpose: there the material is missing, so reopening would only buy a second round of waiting.
 
-The reopening is never automatic. No worker walks it; it needs `npm run ai-notes:reopen -- <id> --apply`, which refuses anything but `report_failed` with segments present, and records `{ reopened: true, automatic: false }` in the audit trail. Entering any healthy state also clears `error_code` (`RESET_ERROR_ON` in `state-machine.ts`): a delivered report must not carry the reason it once failed.
+The reopening is automatic but bounded. The worker walks it itself (`report-auto-reopen.ts`, rules in `report-retry-policy.ts`): up to **2 times per session**, after a **15-minute pause**, only with segments present, and never on a failure older than **14 days**; the audit trail says `{ reopened: true, automatic: true }`. Beyond that a person decides with `npm run ai-notes:reopen -- <id> --apply` (or the admin button), which refuses anything but `report_failed` with segments present and records `automatic: false`. Counting the two automatic reopenings, a session gets up to nine generation attempts before it waits for a person. Entering any healthy state also clears `error_code` (`RESET_ERROR_ON` in `state-machine.ts`): a delivered report must not carry the reason it once failed.
 
 Errors are a closed set (`AiNotesErrorCode`): `NOT_ENTITLED`, `OUTSIDE_CALL_WINDOW`, `UNVERIFIED_PARTICIPANT_PRESENT`, `REQUIRED_AUDIO_TRACK_MISSING`, `RECORDING_NOT_READY`, and others. Use the existing code; a new one means a genuinely new situation.
 
@@ -68,6 +68,14 @@ The AI providers sit behind interfaces with contract tests. Keep them there: the
 If nothing is progressing, check in this order: the workflow ran at all; the secret is right (a wrong one gives 404, not 401); the job found candidates; the step that failed in `pipeline-log`.
 
 A session sitting in `processing` is the normal symptom of every one of these.
+
+### The long worker
+
+Vercel gives the worker 60 seconds and a report takes 25–45, so long sessions time out (`COMPASS_TIMEOUT`) and retrying on the same worker times out again. When a `report_generation` job fails with `COMPASS_TIMEOUT`, `failAiProcessingJob` sets `metadata.runner = 'long'` on it (no migration: `metadata` already exists, and the mark survives a reopening because the cause does not change). The Vercel worker then leaves it alone for **30 minutes** (`LONG_RUNNER_GRACE_MS`) and the *long worker* takes it: `.github/workflows/ai-notes-long-worker.yml` every 10 minutes, which runs `npm run ai-notes:process-reports` — no time ceiling, effort `medium`, 5-minute timeout. If that workflow is not configured or not running, after the grace period Vercel takes the job back, so the worst case is the behaviour that existed before, never worse.
+
+The long worker needs only three secrets and eight variables (list at the top of the workflow file) because a report works on segments already in the database and touches no audio; it uses `createReportOnlyAiSessionNotesDependencies`, whose audio, STT and LiveKit dependencies throw if anything reaches for them. The mail variables are required too: the worker announces "a report awaits review" to the coach, and without them that notice can be lost silently — so the workflow does not run at all when one is missing, and says so in a warning. **A workflow that exits green without doing anything looks healthy and is not.**
+
+Only `COMPASS_TIMEOUT` is routed there. A report rejected by the contract does not need more seconds.
 
 ## The external boundaries, and what they actually answer
 

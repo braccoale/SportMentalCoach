@@ -39,6 +39,11 @@ import {
   rebuildSessionTimeline,
 } from './timeline-store';
 import { advanceAiNotesSessionStatus } from './session-status';
+import {
+  LONG_RUNNER,
+  LONG_RUNNER_GRACE_MS,
+  routesToLongRunner,
+} from './report-retry-policy';
 import { sourceFingerprint, type TimelineSource } from './timeline';
 import type { AiSessionNotesDependencies } from './dependencies';
 
@@ -248,9 +253,30 @@ export async function enqueueAiProcessingJob(params: {
   });
 }
 
+/**
+ * Quali job può prendere un worker.
+ *
+ * `long` prende solo i riepiloghi marcati per lui (falliti per tempo) e
+ * nient'altro. `default` — il worker di Vercel — prende tutto il resto, e
+ * anche i job del worker lungo che aspettano da più del periodo di grazia:
+ * se quel worker non gira, il lavoro non resta fermo per sempre.
+ */
+export type AiWorkerRunner = 'default' | typeof LONG_RUNNER;
+
+function runnerFilter(runner: AiWorkerRunner | undefined, now: Date) {
+  if (runner === LONG_RUNNER) {
+    return sql`AND j.job_type = 'report_generation'
+          AND j.metadata->>'runner' = ${LONG_RUNNER}`;
+  }
+  const graceIso = new Date(now.getTime() - LONG_RUNNER_GRACE_MS).toISOString();
+  return sql`AND (COALESCE(j.metadata->>'runner', '') <> ${LONG_RUNNER}
+            OR j.updateddate <= ${graceIso}::timestamptz)`;
+}
+
 /** Atomically claims one due job with SKIP LOCKED for multi-worker safety. */
 export async function claimNextAiProcessingJob(params: {
   workerId: string;
+  runner?: AiWorkerRunner;
 }, dependencies: AiSessionNotesDependencies): Promise<JobRow | null> {
   if (!params.workerId || params.workerId.length > 160) {
     throw new AiNotesProcessingError('INVALID_JOB', 'Worker non valido.');
@@ -267,6 +293,7 @@ export async function claimNextAiProcessingJob(params: {
         WHERE j.status = 'queued'
           AND j.available_after <= ${nowIso}::timestamptz
           AND j.attempt_count < j.max_attempts
+          ${runnerFilter(params.runner, now)}
           AND EXISTS (
             SELECT 1 FROM session_ai_notes s
             WHERE s.id = j.session_ai_notes_id
@@ -679,6 +706,17 @@ export async function failAiProcessingJob(params: {
         errorCode: failure.code,
         errorMessageSanitized: failure.message,
         updatedDate: now,
+        // Un riepilogo fallito per tempo non ha senso riprovarlo dove il tempo
+        // è lo stesso: si marca per il worker lungo. Il marcatore resta anche
+        // se il job si esaurisce e viene riaperto, perché la causa non cambia.
+        ...(job.job_type === 'report_generation' &&
+        routesToLongRunner(failure.code)
+          ? {
+              metadata: sql`${sessionAiProcessingJobs.metadata} || ${JSON.stringify(
+                { runner: LONG_RUNNER }
+              )}::jsonb`,
+            }
+          : {}),
       })
       .where(eq(sessionAiProcessingJobs.id, job.id));
     await auditJob(tx, {
@@ -906,13 +944,20 @@ async function assertClaimStillProcessable(
 export async function countReadyAiNotesJobs(
   now: Date = new Date()
 ): Promise<number> {
+  const graceStart = new Date(now.getTime() - LONG_RUNNER_GRACE_MS);
   const [row] = await db
     .select({ total: count() })
     .from(sessionAiProcessingJobs)
     .where(
       and(
         eq(sessionAiProcessingJobs.status, 'queued'),
-        lte(sessionAiProcessingJobs.availableAfter, now)
+        lte(sessionAiProcessingJobs.availableAfter, now),
+        // Coerente con la presa del worker di Vercel: un job riservato al
+        // worker lungo non è «pronto» per lui finché dura il periodo di grazia,
+        // e contarlo farebbe richiamare la catena per un lavoro che non può
+        // prendere.
+        sql`(COALESCE(${sessionAiProcessingJobs.metadata}->>'runner', '') <> ${LONG_RUNNER}
+          OR ${sessionAiProcessingJobs.updatedDate} <= ${graceStart.toISOString()}::timestamptz)`
       )
     );
   return Number(row?.total ?? 0);
@@ -922,12 +967,14 @@ export async function countReadyAiNotesJobs(
 export async function processAiNotesBatch(params: {
   workerId: string;
   limit: number;
+  /** Quale worker è: decide quali job può prendere. Assente = Vercel. */
+  runner?: AiWorkerRunner;
 }, dependencies: AiSessionNotesDependencies): Promise<{ claimed: number; completed: number; parked: number; failed: number; cancelled: number }> {
   const limit = Math.max(1, Math.min(params.limit, 100));
   const result = { claimed: 0, completed: 0, parked: 0, failed: 0, cancelled: 0 };
   for (let index = 0; index < limit; index += 1) {
     const job = await claimNextAiProcessingJob(
-      { workerId: params.workerId },
+      { workerId: params.workerId, runner: params.runner },
       dependencies
     );
     if (!job) break;

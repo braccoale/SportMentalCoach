@@ -1,0 +1,136 @@
+# Il worker lungo degli Appunti AI: genera i riepiloghi che sul worker di
+# Vercel non hanno fatto in tempo.
+#
+# Perché esiste. Vercel dà un minuto a ogni invocazione e la generazione di un
+# riepilogo ne usa 25-45, con code fino a oltre il limite sulle sedute lunghe.
+# Tre riepiloghi sono falliti per `COMPASS_TIMEOUT` e riprovarli sullo stesso
+# worker li avrebbe fatti fallire di nuovo. Qui gira un processo Node vero,
+# senza quel tetto, ed è lo stesso comando con cui sono state recuperate a
+# mano: `npm run ai-notes:process-reports`.
+#
+# Che cosa prende. Solo i job marcati per lui (`metadata.runner = 'long'`,
+# messo automaticamente quando un riepilogo fallisce per timeout). Tutto il
+# resto resta a Vercel. Se questo workflow non gira o non è configurato, dopo
+# 30 minuti Vercel riprende quei job da sé: nel caso peggiore si è dove si era
+# prima, mai peggio.
+#
+# Quanto costa. Ogni dieci minuti un controllo di pochi secondi chiede al
+# database se c'è lavoro; l'installazione delle dipendenze e la generazione
+# partono solo se c'è. Senza lavoro non si spende quasi niente.
+#
+# Passando al piano Pro di Vercel, con più di un minuto a disposizione, questo
+# workflow si può eliminare: i timeout non ci sarebbero più.
+#
+# CONFIGURAZIONE (Settings → Secrets and variables → Actions)
+#
+#   Secrets (riservati):
+#     POSTGRES_URL      la stessa connessione delle env di produzione. Dà
+#                       accesso al database di produzione: va trattata come
+#                       tale, e non riusata altrove.
+#     OPENAI_API_KEY    la chiave del modello
+#     RESEND_API_KEY    la chiave della posta
+#
+#   Variables (non riservate, si vedono nei log):
+#     AI_NOTES_COMPASS_MODEL           es. gpt-5-mini
+#     AI_NOTES_COMPASS_PROMPT_VERSION  es. compass-v1
+#     EMAIL_NOTIFICATIONS_ENABLED      true
+#     EMAIL_PROVIDER                   resend
+#     EMAIL_FROM_ADDRESS, EMAIL_FROM_NAME, EMAIL_REPLY_TO
+#     BASE_URL                         origine di produzione
+#
+# Perché anche la posta. Terminato il riepilogo, il worker avvisa il coach che
+# c'è qualcosa da rileggere. Senza le variabili della mail quell'avviso
+# potrebbe non partire e nessuno lo saprebbe: per questo il job non parte
+# affatto se ne manca una, e lo dice.
+#
+# Finché mancano, il job si ferma con un avviso e NON fallisce: un workflow
+# rosso ogni dieci minuti sarebbe solo rumore. Attenzione però — un workflow
+# che esce verde senza aver fatto niente sembra funzionante e non lo è: il
+# messaggio di avviso è l'unico modo per accorgersene.
+
+name: Worker lungo Appunti AI
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  # Un solo worker lungo alla volta: due processi su una stessa generazione
+  # non si pestano i piedi (il job è preso con un lock), ma sprecherebbero
+  # chiamate al modello.
+  group: ai-notes-long-worker
+  cancel-in-progress: false
+
+jobs:
+  reports:
+    name: Riepiloghi lunghi
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      AI_NOTES_COMPASS_MODEL: ${{ vars.AI_NOTES_COMPASS_MODEL }}
+      AI_NOTES_COMPASS_PROMPT_VERSION: ${{ vars.AI_NOTES_COMPASS_PROMPT_VERSION }}
+      EMAIL_NOTIFICATIONS_ENABLED: ${{ vars.EMAIL_NOTIFICATIONS_ENABLED }}
+      EMAIL_PROVIDER: ${{ vars.EMAIL_PROVIDER }}
+      EMAIL_FROM_ADDRESS: ${{ vars.EMAIL_FROM_ADDRESS }}
+      EMAIL_FROM_NAME: ${{ vars.EMAIL_FROM_NAME }}
+      EMAIL_REPLY_TO: ${{ vars.EMAIL_REPLY_TO }}
+      BASE_URL: ${{ vars.BASE_URL }}
+    steps:
+      - name: Controlla se c'è lavoro
+        id: gate
+        run: |
+          missing=""
+          for name in POSTGRES_URL OPENAI_API_KEY RESEND_API_KEY AI_NOTES_COMPASS_MODEL \
+                      AI_NOTES_COMPASS_PROMPT_VERSION EMAIL_NOTIFICATIONS_ENABLED \
+                      EMAIL_PROVIDER EMAIL_FROM_ADDRESS EMAIL_FROM_NAME EMAIL_REPLY_TO BASE_URL; do
+            if [ -z "${!name}" ]; then missing="$missing $name"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::warning::Worker lungo NON configurato, mancano:$missing. I riepiloghi restano a Vercel, che dopo 30 minuti li riprende da sé."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Un errore qui (database irraggiungibile) deve vedersi: niente `|| true`.
+          waiting=$(psql "$POSTGRES_URL" -tAc "
+            select count(*) from session_ai_processing_jobs
+            where status = 'queued'
+              and job_type = 'report_generation'
+              and metadata->>'runner' = 'long'
+              and available_after <= now()
+              and attempt_count < max_attempts")
+          echo "Riepiloghi in coda per il worker lungo: $waiting"
+          if [ "$waiting" -gt 0 ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.run == 'true'
+
+      - uses: pnpm/action-setup@v4
+        if: steps.gate.outputs.run == 'true'
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.run == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Installa le dipendenze
+        if: steps.gate.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Genera i riepiloghi
+        if: steps.gate.outputs.run == 'true'
+        # Sforzo `medium` e cinque minuti sono i predefiniti dello script: qui
+        # non c'è il minuto di Vercel. Un job che sfora anche questo torna in
+        # coda e viene ripreso dal recupero dei job orfani.
+        run: npm run ai-notes:process-reports -- --limit=2

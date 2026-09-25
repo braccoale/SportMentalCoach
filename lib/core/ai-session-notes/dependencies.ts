@@ -21,24 +21,54 @@ export function createProductionAiSessionNotesDependencies(): AiSessionNotesDepe
     speechToTextProvider: getSpeechToTextProvider().provider,
     clock: { now: () => new Date() },
     liveKit: new ProductionLiveKitSessionControl(config),
-    generateSessionCompass: async ({ sessionId, actorUserId }) => {
-      // Caricamento lazy: i test del worker possono iniettare la propria
-      // implementazione senza importare il runtime Next/Auth di produzione.
-      const [{ ensureSessionCompassDraft }, { sessionCompassDependencies }] =
-        await Promise.all([
-          import('./session-compass'),
-          import('./session-compass-runtime'),
-        ]);
-      const result = await ensureSessionCompassDraft(
-        { sessionId, actorUserId },
-        sessionCompassDependencies()
-      );
-      return {
-        providerOperationId: `session-compass:${result.view.reportId}:v${result.view.reportVersion}`,
-      };
-    },
+    generateSessionCompass: runSessionCompassJob,
   };
 }
+
+/** La generazione del riepilogo: identica per il worker di Vercel e per quello lungo. */
+const runSessionCompassJob: SessionCompassJobRunner = async ({ sessionId, actorUserId }) => {
+  // Caricamento lazy: i test del worker possono iniettare la propria
+  // implementazione senza importare il runtime Next/Auth di produzione.
+  const [{ ensureSessionCompassDraft }, { sessionCompassDependencies }] =
+    await Promise.all([
+      import('./session-compass'),
+      import('./session-compass-runtime'),
+    ]);
+  const result = await ensureSessionCompassDraft(
+    { sessionId, actorUserId },
+    sessionCompassDependencies()
+  );
+  return {
+    providerOperationId: `session-compass:${result.view.reportId}:v${result.view.reportVersion}`,
+  };
+};
+/**
+ * Le dipendenze del worker lungo, che genera soltanto riepiloghi.
+ *
+ * Non ha lo storage audio né il provider di trascrizione né LiveKit, e di
+ * proposito: gira fuori da Vercel con il minimo dei segreti (database e
+ * modello). Un riepilogo lavora sui segmenti già nel database e non tocca
+ * l'audio. Se per un errore il worker prendesse un job di un altro tipo, la
+ * dipendenza mancante fa fallire *quel job* con un messaggio chiaro invece di
+ * lasciarlo eseguire a metà.
+ */
+export function createReportOnlyAiSessionNotesDependencies(): AiSessionNotesDependencies {
+  const unavailable = (name: string) =>
+    new Proxy({}, {
+      get() {
+        throw new Error(`${name} non è disponibile nel worker dei riepiloghi.`);
+      },
+    });
+  return {
+    db,
+    audioStorage: unavailable('audioStorage') as AudioStorage,
+    speechToTextProvider: unavailable('speechToTextProvider') as SpeechToTextProvider,
+    clock: { now: () => new Date() },
+    liveKit: unavailable('liveKit') as LiveKitSessionControl,
+    generateSessionCompass: runSessionCompassJob,
+  };
+}
+
 export function createTestAiSessionNotesDependencies(
   dependencies: AiSessionNotesDependencies,
   options?: { onProductionDependencyCreation?: () => void }
