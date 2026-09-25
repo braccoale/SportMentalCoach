@@ -14,12 +14,17 @@ export const SESSION_COMPASS_SCHEMA_VERSION = '1.0' as const;
 export const MAX_KEY_MOMENTS = 3;
 export const MAX_THEMES = 3;
 /**
- * Il prompt chiede al modello "da 2 a MAX_THEMES temi" (openai-session-compass-provider.ts),
- * ma finché nessuno lo impone qui un array vuoto passa la validazione lo stesso: è
- * così che un retry rifiutato per un'evidenza debole può tornare con zero temi
- * invece di doverne trovare almeno due.
+ * Il prompt chiede al modello "da 2 a MAX_THEMES temi" (openai-session-compass-provider.ts):
+ * è l'obiettivo, non la soglia sotto cui un report va buttato.
+ *
+ * Ne basta uno perché un report sia consegnabile. Con due come minimo, una
+ * citazione scartata su tre bastava a far fallire tutta la generazione, e il
+ * coach si ritrovava senza niente una seduta che aveva trascrizione e racconto
+ * regolari. Un report con un solo tema arriva in revisione, dove il coach lo
+ * legge prima di condividerlo; zero temi resta un rifiuto, perché allora non
+ * c'è nessuna evidenza verificata su cui appoggiarsi.
  */
-export const MIN_THEMES = 2;
+export const MIN_THEMES = 1;
 export const MAX_NEXT_SESSION_PREP = 3;
 export const MAX_SESSION_METRICS = 6;
 export const MAX_EMOTIONAL_TREND_POINTS = 8;
@@ -355,7 +360,7 @@ export function resolveEvidence(
   if (typeof candidate.quote !== 'string') return null;
   const quote = candidate.quote.trim().slice(0, MAX_QUOTE_LENGTH);
   if (!quote) return null;
-  if (!containsQuote(segment.text, quote)) return null;
+  if (!quoteIsSupported(segment, quote, segments)) return null;
   return {
     transcriptSegmentId: segment.transcriptSegmentId,
     startMs: segment.startMs,
@@ -368,6 +373,67 @@ export function resolveEvidence(
 /** Confronto tollerante a spaziatura e maiuscole, non al contenuto. */
 function containsQuote(segmentText: string, quote: string): boolean {
   return comparableText(segmentText).includes(comparableText(quote));
+}
+
+/**
+ * Quanti segmenti attorno a quello citato possono ospitare la citazione.
+ *
+ * La trascrizione arriva a frammenti brevissimi — in produzione la mediana è
+ * di 32 caratteri — mentre una frase citata bene ne attraversa due o tre. Con
+ * la regola "la citazione sta dentro *un* segmento" cadevano anche le
+ * citazioni fedeli, e con esse sintesi e temi: sei sedute su otto sono finite
+ * in `report_failed` per questo, senza che nessuna citazione fosse inventata.
+ *
+ * Il margine prima esiste perché il modello, citando una frase lunga, indica
+ * spesso l'ultimo dei segmenti e non il primo.
+ */
+const QUOTE_SPAN_BEFORE = 3;
+const QUOTE_SPAN_AFTER = 5;
+
+type SegmentOrder = {
+  ids: readonly number[];
+  position: ReadonlyMap<number, number>;
+};
+
+const segmentOrders = new WeakMap<
+  ReadonlyMap<number, CompassSourceSegment>,
+  SegmentOrder
+>();
+
+/** L'ordine di lettura dei segmenti: quello con cui la mappa è stata costruita. */
+function orderOf(segments: ReadonlyMap<number, CompassSourceSegment>): SegmentOrder {
+  const cached = segmentOrders.get(segments);
+  if (cached) return cached;
+  const ids = [...segments.keys()];
+  const order = { ids, position: new Map(ids.map((id, index) => [id, index])) };
+  segmentOrders.set(segments, order);
+  return order;
+}
+
+/**
+ * La citazione è sostenuta dal transcript se compare alla lettera nel segmento
+ * citato oppure nel testo continuo di quel parlante nei segmenti vicini.
+ *
+ * Non cambia ciò che si accetta come prova — resta testo realmente pronunciato,
+ * dello stesso parlante, a pochi secondi di distanza — ma smette di dipendere
+ * da dove Deepgram ha tagliato il segmento. Una parafrasi non passa.
+ */
+function quoteIsSupported(
+  segment: CompassSourceSegment,
+  quote: string,
+  segments: ReadonlyMap<number, CompassSourceSegment>
+): boolean {
+  if (containsQuote(segment.text, quote)) return true;
+  const { ids, position } = orderOf(segments);
+  const at = position.get(segment.transcriptSegmentId);
+  if (at === undefined) return false;
+  const texts: string[] = [];
+  const last = Math.min(ids.length - 1, at + QUOTE_SPAN_AFTER);
+  for (let index = Math.max(0, at - QUOTE_SPAN_BEFORE); index <= last; index += 1) {
+    const neighbour = segments.get(ids[index]);
+    if (neighbour && neighbour.speaker === segment.speaker) texts.push(neighbour.text);
+  }
+  return containsQuote(texts.join(' '), quote);
 }
 
 function comparableText(value: string): string {
@@ -631,8 +697,8 @@ function validateEvidence(
   if (evidence.quote.length > MAX_QUOTE_LENGTH) {
     add(issues, 'EVIDENCE_QUOTE_TOO_LONG', `${path}.quote`, `L’estratto supera ${MAX_QUOTE_LENGTH} caratteri.`);
   }
-  if (!containsQuote(segment.text, evidence.quote)) {
-    add(issues, 'EVIDENCE_QUOTE_NOT_FOUND', `${path}.quote`, 'L’estratto non compare nel segmento citato.');
+  if (!quoteIsSupported(segment, evidence.quote, segments)) {
+    add(issues, 'EVIDENCE_QUOTE_NOT_FOUND', `${path}.quote`, 'L’estratto non compare nel segmento citato né in quelli vicini dello stesso parlante.');
   }
   return evidence;
 }
