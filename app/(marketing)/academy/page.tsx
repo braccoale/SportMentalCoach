@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { SiteNav } from '@/components/landing/site-nav';
@@ -35,7 +36,6 @@ export const metadata: Metadata = audienceMetadata({
   image: '/og/academy.jpg',
 });
 
-const WRAP = 'mx-auto w-full max-w-6xl px-5 sm:px-8';
 const SIGNUP = '/sign-up?ruolo=coach';
 
 /** Il percorso di un coach KaiPai, dalla candidatura in poi. */
@@ -70,11 +70,7 @@ const COURSE = [
   },
   {
     t: 'Attestato di completamento',
-    b: 'Chi completa il corso riceve un attestato che ne certifica la frequenza.',
-  },
-  {
-    t: 'Avanzamento visibile',
-    b: 'La partecipazione alle sessioni completa i moduli: sai sempre a che punto sei del corso.',
+    b: 'Alla fine del percorso ricevi un attestato che ne certifica la frequenza.',
   },
 ];
 
@@ -183,25 +179,57 @@ export default function AcademyPage() {
         </AudiencePageHero>
 
         {/* Com'è fatto un corso */}
-        <section id="corso" className="scroll-mt-24 py-20 sm:py-28">
-          <div className={`${WRAP} grid gap-14 lg:grid-cols-[1fr_1.5fr]`}>
+        <section id="corso" className="scroll-mt-24 py-14 sm:py-16">
+          <div className="mx-auto grid w-full max-w-7xl items-center gap-12 px-5 sm:px-8 lg:grid-cols-[1fr_1.15fr]">
             <div>
-              <p className="kp-eyebrow text-kp-red">Com’è fatto un corso</p>
-              <h2 className="kp-display mt-4 text-[clamp(1.75rem,4vw,3rem)] text-kp-hi">
+              <p className="kp-eyebrow flex items-center gap-3 text-kp-red">
+                <span className="h-px w-10 bg-kp-red" aria-hidden />
+                Com’è fatto un corso
+              </p>
+              <h2 className="kp-display mt-5 text-[clamp(2.25rem,4.6vw,4rem)] leading-[0.98] text-kp-hi">
                 Pratica, non teoria da manuale.
               </h2>
+              <p className="mt-5 max-w-lg text-lg leading-relaxed text-kp-mid">
+                Ogni percorso è pensato per aiutarti ad applicare subito ciò che
+                impari: moduli chiari, confronto con i docenti, materiali utili e
+                momenti pratici.
+              </p>
+              <div className="mt-7">
+                <Link href={SIGNUP} className={AUDIENCE_PRIMARY_CTA}>
+                  Candidati come coach
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </Link>
+              </div>
+              <div className="mt-5">
+                <DemoRequestButton
+                  plain
+                  label="Hai domande? Parla con noi"
+                  className={FAQ_SECONDARY_LINK}
+                />
+              </div>
+              <div className="relative mt-8 hidden aspect-[1100/917] w-full max-w-md overflow-hidden rounded-3xl shadow-[0_30px_70px_-35px_rgba(5,5,7,0.55)] lg:block">
+                <Image
+                  src="/landing/audience/academy-docente.webp"
+                  alt="Un docente della KaiPai Academy durante una sessione"
+                  fill
+                  sizes="28rem"
+                  className="object-cover"
+                />
+              </div>
             </div>
-            <ol className="border-t border-kp-line">
+
+            <ol className="flex flex-col gap-3">
               {COURSE.map((c, i) => (
-                <li key={c.t} className="flex gap-6 border-b border-kp-line py-7">
-                  <span className="font-display text-sm font-semibold tabular-nums text-kp-red">
+                <li
+                  key={c.t}
+                  className="flex gap-4 rounded-2xl bg-kp-surface px-5 py-5 sm:gap-6 sm:px-6 shadow-[0_18px_45px_-30px_rgba(5,5,7,0.35)] ring-1 ring-black/5"
+                >
+                  <span className="w-6 shrink-0 pt-1 font-display text-sm font-semibold tabular-nums text-kp-red">
                     {String(i + 1).padStart(2, '0')}
                   </span>
-                  <div>
-                    <h3 className="font-display text-xl font-semibold text-kp-hi">
-                      {c.t}
-                    </h3>
-                    <p className="mt-2 leading-relaxed text-kp-mid">{c.b}</p>
+                  <div className="border-l border-kp-line pl-4 sm:pl-6">
+                    <h3 className="font-display text-lg font-semibold text-kp-hi">{c.t}</h3>
+                    <p className="mt-1 text-sm leading-relaxed text-kp-mid">{c.b}</p>
                   </div>
                 </li>
               ))}
