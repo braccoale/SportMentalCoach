@@ -105,7 +105,6 @@ export default async function KaiPaiLanding() {
       <Founder />
       <MarketplaceAcademy />
       <TrustHowItWorks />
-      <Vision />
       <MovementResources />
       <FinalCta />
       <SiteFooter />
@@ -636,64 +635,6 @@ function TrustHowItWorks() {
   );
 }
 
-/* ── 11 · Vision ── */
-function Vision() {
-  const layers = [
-    { t: 'Il Metodo', d: 'Il linguaggio comune', tag: 'fondamenta' },
-    { t: 'Le Guide', d: "L'incontro con chi ti accompagna", tag: 'oggi' },
-    { t: "L'Academy", d: 'Lo standard di qualità', tag: 'oggi' },
-    { t: 'La Mappa Mentale', d: 'Misurare la crescita nel tempo', tag: 'prossimo' },
-    { t: 'Le Società', d: 'La mentalità dentro i club', tag: 'prossimo' },
-    { t: 'La Cultura', d: 'Rendere normale allenare la mente', tag: 'la missione' },
-  ];
-  return (
-    <section id="visione" className={SECTION}>
-      <div className={WRAP}>
-        <SectionHeader
-          eyebrow="La visione"
-          title={
-            <>
-              Trovare una guida è <span className="text-kp-red">solo l'inizio</span>.
-            </>
-          }
-          sub="Vogliamo cambiare il modo in cui lo sport allena la mente — dal singolo atleta a un'intera cultura. Un passo alla volta."
-        />
-        <div className="mx-auto mt-14 max-w-3xl space-y-3">
-          {layers.map((l, i) => {
-            const mission = i === layers.length - 1;
-            return (
-              <Reveal key={l.t} delay={i * 0.08} y={16}>
-                <div
-                  className={`flex items-center justify-between rounded-2xl border p-5 ${
-                    mission
-                      ? 'border-kp-red/50 bg-kp-red/10 shadow-[0_0_50px_rgba(225,29,42,0.18)]'
-                      : 'border-kp-line bg-white/[0.02]'
-                  }`}
-                  style={{ marginLeft: `${(layers.length - 1 - i) * 6}%` }}
-                >
-                  <div>
-                    <span className="font-display text-lg font-semibold text-kp-hi">
-                      {l.t}
-                    </span>
-                    <span className="ml-3 text-sm text-kp-mid">{l.d}</span>
-                  </div>
-                  <span
-                    className={`kp-eyebrow shrink-0 ${
-                      mission ? 'text-kp-red' : 'text-kp-low'
-                    }`}
-                  >
-                    {l.tag}
-                  </span>
-                </div>
-              </Reveal>
-            );
-          })}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 /* ── 12 · Movement ── */
 /* ── Resources + movement · one page ── */
 function MovementResources() {
@@ -711,7 +652,7 @@ function MovementResources() {
     { icon: FlaskConical, t: 'Ricerca & metodo' },
   ];
   return (
-    <section className="kp-snap relative bg-kp-ink2 py-20 sm:py-24">
+    <section id="movimento" className="kp-snap relative bg-kp-ink2 py-20 sm:py-24">
       {/* Risorse & ricerca */}
       <div className={WRAP}>
         <div className="flex flex-col items-start justify-between gap-8 lg:flex-row lg:items-center">

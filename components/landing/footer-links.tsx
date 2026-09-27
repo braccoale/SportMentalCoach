@@ -44,7 +44,7 @@ const COLUMNS: {
     h: 'Azienda',
     links: [
       { label: 'Origine', href: '/#origine' },
-      { label: 'Movimento', href: '/#visione' },
+      { label: 'Movimento', href: '/#movimento' },
       { label: 'Contatti', action: 'contact' },
     ],
   },
