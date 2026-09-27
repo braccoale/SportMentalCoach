@@ -1110,3 +1110,16 @@
     inset 0 1px 0 color-mix(in srgb, var(--color-kp-red) 45%, transparent),
     0 30px 80px -40px color-mix(in srgb, var(--color-kp-red) 35%, transparent);
 }
+
+/* Una sezione che resta chiara anche dove l'alternanza la farebbe scura. */
+.kp-alt > section.kp-force-light {
+  --color-kp-ink: #ffffff;
+  --color-kp-ink2: var(--color-kp2-day2);
+  --color-kp-surface: #ffffff;
+  --color-kp-hi: var(--color-kp2-dayhi);
+  --color-kp-mid: var(--color-kp2-daymid);
+  --color-kp-low: var(--color-kp2-daylow);
+  --color-kp-line: var(--color-kp2-dayline);
+  background-color: var(--color-kp2-day2);
+  color: var(--color-kp-hi);
+}

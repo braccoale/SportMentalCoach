@@ -4,17 +4,31 @@ import Link from 'next/link';
 import {
   ArrowRight,
   CalendarDays,
+  Clock,
   FilePen,
+  Gift,
   GraduationCap,
+  Link2,
+  Mic,
+  Receipt,
   ShieldCheck,
   UserRound,
+  Users,
+  Wallet,
 } from 'lucide-react';
 import { SiteNav } from '@/components/landing/site-nav';
 import { ScrollProgress } from '@/components/landing/smooth-scroll';
 import { SnapScroll } from '@/components/landing/snap-scroll';
 import { Footer } from '@/components/footer';
 import { JsonLd } from '@/components/json-ld';
-import { AudienceFaq } from '@/components/landing/audience-paths/audience-faq';
+import {
+  AudienceFaq,
+  FAQ_SECONDARY_LINK,
+  type FaqItem,
+} from '@/components/landing/audience-paths/audience-faq';
+import { DemoRequestButton } from '@/components/landing/demo-request-button';
+import { CANCELLATION_NOTICE_HOURS } from '@/lib/core/legal/processors';
+import { INTRO_SESSION } from '@/lib/core/services/introduction';
 import {
   audienceJsonLd,
   audienceMetadata,
@@ -98,22 +112,66 @@ const STEPS = [
   },
 ];
 
-const FAQ = [
+/**
+ * Le domande di un coach che valuta KaiPai. Le risposte sui soldi seguono i
+ * Termini (§ 9): oggi la piattaforma non gestisce pagamenti fra atleta e
+ * coach. Se il modello cambia, cambiano prima i Termini e poi queste righe.
+ */
+const FAQ: FaqItem[] = [
   {
     q: 'Il profilo viene pubblicato subito?',
     a: 'No. Ogni profilo viene rivisto dal team KaiPai prima di diventare visibile agli atleti. Finché non è approvato puoi completarlo, ma non ricevere prenotazioni.',
+    icon: UserRound,
+  },
+  {
+    q: 'Come funziona la revisione del profilo?',
+    a: 'Il team KaiPai controlla il profilo prima della pubblicazione: completezza delle informazioni, chiarezza della presentazione e documentazione di identità e certificazioni che indichi, di cui resti garante. Se manca qualcosa te lo diciamo, e puoi correggerlo.',
+    icon: FilePen,
+  },
+  {
+    q: 'Quanto costa usare KaiPai?',
+    a: 'Oggi candidarsi e usare la piattaforma non ha costi per il coach, e non ti chiediamo dati di pagamento. Se in futuro verranno introdotte funzioni a pagamento, le condizioni saranno aggiornate e comunicate prima dell’attivazione.',
+    icon: Wallet,
+  },
+  {
+    q: 'Come vengo pagato per le sedute?',
+    a: 'KaiPai oggi non incassa né gira pagamenti fra atleta e coach: l’accesso alle sedute passa da accordi con club e organizzazioni. Il rapporto professionale resta fra te e chi segui, e sei tu il professionista indipendente che lo gestisce. Quando la piattaforma introdurrà i pagamenti, le regole saranno pubblicate prima.',
+    icon: Receipt,
+  },
+  {
+    q: 'Quando inizio a ricevere richieste dagli atleti?',
+    a: 'Dal momento in cui il profilo è approvato: compari nella lista dei coach, e gli atleti possono chiederti una seduta negli orari che hai reso disponibili. Nulla è confermato finché non accetti tu.',
+    icon: CalendarDays,
+  },
+  {
+    q: 'Cos’è la sessione conoscitiva gratuita?',
+    a: `Ogni coach ha una sessione conoscitiva di ${INTRO_SESSION.durationMin} minuti, gratuita, in videochiamata: è il primo incontro con un atleta nuovo, per conoscervi e parlare dei suoi obiettivi. Ogni atleta può richiederla una volta per coach.`,
+    icon: Gift,
+  },
+  {
+    q: 'Decido io orari e appuntamenti?',
+    a: `Sì. Imposti la tua disponibilità settimanale e accetti o rifiuti ogni richiesta. Con un atleta che già segui puoi anche proporre tu un appuntamento, e spostarlo se serve. Le sedute si possono annullare fino al loro svolgimento: è buona norma farlo con almeno ${CANCELLATION_NOTICE_HOURS} ore di preavviso.`,
+    icon: Clock,
+  },
+  {
+    q: 'Posso portare su KaiPai gli atleti che seguo già?',
+    a: 'Sì. Hai un link personale per invitarli, e dalla dashboard vedi quanti si sono registrati grazie a te.',
+    icon: Link2,
   },
   {
     q: 'Gli Appunti AI registrano la seduta anche senza consenso?',
-    a: 'No. La registrazione parte solo dopo il consenso dell’atleta, che può anche rifiutare: in quel caso la seduta si svolge normalmente, senza appunti. Il report resta tuo finché non lo approvi.',
+    a: 'No. La registrazione parte solo dopo il consenso dell’atleta, che può anche rifiutare: in quel caso la seduta si svolge normalmente, senza appunti. Il report lo rivedi e lo approvi tu prima che l’atleta lo veda.',
+    icon: Mic,
   },
   {
     q: 'Posso lavorare con atleti minorenni?',
-    a: 'Sì. Un atleta fra i 15 e i 17 anni può registrarsi, ma non può richiedere sedute finché un genitore non lo autorizza. La piattaforma gestisce la richiesta al tutore per te.',
+    a: 'Sì. Un atleta fra i 15 e i 17 anni può registrarsi, ma non può richiedere sedute finché un genitore o il tutore legale non lo autorizza: la piattaforma gestisce la richiesta per te. Sai che l’atleta è minorenne prima di accettare, e per registrare la seduta serve un’autorizzazione a parte.',
+    icon: Users,
   },
   {
     q: 'Il mental coaching su KaiPai è una terapia?',
     a: 'No. Si allenano abilità mentali legate alla prestazione sportiva. Se emerge un bisogno clinico, l’atleta va indirizzato verso un professionista sanitario.',
+    icon: ShieldCheck,
   },
 ];
 
@@ -248,13 +306,26 @@ export default function DiventaCoachPage() {
         </section>
 
         <AudienceFaq
-          title="Prima di" emphasis="candidarti"
+          id="faq"
+          title="Prima di"
+          emphasis="candidarti"
+          intro="Qui trovi le risposte essenziali alle domande più comuni dei coach, per iniziare il tuo percorso su KaiPai con chiarezza e serenità."
           faq={FAQ}
+          variant="card"
+          tone="light"
+          photo={{ src: '/landing/audience/faq-coach.webp', alt: '' }}
           action={
             <Link href={SIGNUP} className={PRIMARY}>
               Candidati come coach
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
+          }
+          secondary={
+            <DemoRequestButton
+              plain
+              label="Hai ancora dubbi? Parla con noi"
+              className={FAQ_SECONDARY_LINK}
+            />
           }
         />
       </main>
