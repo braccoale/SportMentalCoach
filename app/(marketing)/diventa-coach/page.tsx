@@ -1,6 +1,14 @@
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
+import {
+  ArrowRight,
+  CalendarDays,
+  FilePen,
+  GraduationCap,
+  ShieldCheck,
+  UserRound,
+} from 'lucide-react';
 import { SiteNav } from '@/components/landing/site-nav';
 import { ScrollProgress } from '@/components/landing/smooth-scroll';
 import { SnapScroll } from '@/components/landing/snap-scroll';
@@ -29,7 +37,6 @@ export const metadata: Metadata = audienceMetadata({
   image: '/og/coaches.jpg',
 });
 
-const WRAP = 'mx-auto w-full max-w-6xl px-5 sm:px-8';
 const SIGNUP = '/sign-up?ruolo=coach';
 const PRIMARY = AUDIENCE_PRIMARY_CTA;
 
@@ -65,18 +72,29 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { t: 'Crea l’account da coach', b: 'Pochi minuti: credenziali, dati e condizioni.' },
+  {
+    t: 'Crea l’account da coach',
+    b: 'Pochi minuti: credenziali, dati e condizioni per iniziare il percorso su KaiPai.',
+    tag: 'Accesso',
+    icon: UserRound,
+  },
   {
     t: 'Completa il profilo',
-    b: 'Presentazione, servizi che offri e disponibilità settimanale.',
+    b: 'Presentazione, servizi che offri, sport seguiti e disponibilità settimanale.',
+    tag: 'Profilo',
+    icon: FilePen,
   },
   {
     t: 'Invialo in revisione',
-    b: 'Il team KaiPai controlla il profilo prima di pubblicarlo.',
+    b: 'Il team KaiPai controlla il profilo prima della pubblicazione, per mantenere qualità e affidabilità.',
+    tag: 'Verifica',
+    icon: ShieldCheck,
   },
   {
     t: 'Ricevi le prime richieste',
-    b: 'Dall’approvazione sei visibile agli atleti e puoi fissare appuntamenti.',
+    b: 'Dopo l’approvazione sei visibile agli atleti e puoi fissare appuntamenti e prime sedute.',
+    tag: 'Primi clienti',
+    icon: CalendarDays,
   },
 ];
 
@@ -153,35 +171,79 @@ export default function DiventaCoachPage() {
         </AudiencePageHero>
 
         {/* Come funziona */}
-        <section id="come-funziona" className="scroll-mt-24 py-20 sm:py-28">
-          <div className={WRAP}>
-            <p className="kp-eyebrow text-kp-red">Come funziona</p>
-            <h2 className="kp-display mt-4 max-w-2xl text-[clamp(1.75rem,4vw,3rem)] text-kp-hi">
-              Dalla candidatura alla prima seduta.
+        <section id="come-funziona" className="relative isolate scroll-mt-24 overflow-hidden pt-14 pb-28">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute right-0 top-0 -z-10 hidden aspect-[642/436] w-[42%] lg:block"
+          >
+            <Image
+              src="/landing/audience/come-funziona-coach.webp"
+              alt=""
+              fill
+              sizes="42vw"
+              className="object-cover"
+            />
+            <div className="absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-kp-ink2 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-kp-ink2 to-transparent" />
+          </div>
+
+          <div className="mx-auto w-full max-w-7xl px-5 sm:px-8">
+            <p className="kp-eyebrow flex items-center gap-3 text-kp-mid">
+              <span className="h-px w-10 bg-kp-red" aria-hidden />
+              Come funziona
+            </p>
+            <h2 className="kp-display mt-5 max-w-2xl text-[clamp(2.25rem,5vw,4.25rem)] leading-[0.98] text-kp-hi">
+              Dalla candidatura <br className="hidden sm:block" />
+              alla prima seduta<span className="text-kp-red">.</span>
             </h2>
-            <ol className="mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
-              {STEPS.map((s, i) => (
-                <li key={s.t}>
-                  <span className="kp-display block text-6xl leading-none text-kp-hi/15">
-                    {i + 1}
-                  </span>
-                  <h3 className="mt-4 font-display text-lg font-semibold text-kp-hi">
-                    {s.t}
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-kp-mid">{s.b}</p>
+            <p className="mt-5 max-w-xl text-lg leading-relaxed text-kp-mid">
+              In pochi passaggi entri su KaiPai, completi il profilo e inizi a
+              ricevere richieste dagli atleti.
+            </p>
+
+            <ol className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
+              {STEPS.map((step, i) => (
+                <li key={step.t} className="relative flex">
+                  <article className="flex w-full flex-col rounded-3xl bg-kp-surface p-6 shadow-[0_24px_60px_-30px_rgba(5,5,7,0.35)] ring-1 ring-black/5">
+                    <div className="flex items-center gap-5">
+                      <span className="kp-display text-4xl leading-none tabular-nums text-kp-mid/50">
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-kp-ink2">
+                        <step.icon className="h-6 w-6 text-kp-hi" aria-hidden />
+                      </span>
+                    </div>
+                    <h3 className="mt-6 font-display text-lg font-semibold text-kp-hi">{step.t}</h3>
+                    <p className="mt-2 flex-1 text-sm leading-relaxed text-kp-mid">{step.b}</p>
+                    <span className="mt-5 w-fit rounded-full bg-kp-ink2 px-4 py-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-kp-hi">
+                      {step.tag}
+                    </span>
+                  </article>
+                  {i < STEPS.length - 1 ? (
+                    <ArrowRight
+                      aria-hidden
+                      className="absolute -right-6 top-1/2 hidden h-4 w-4 -translate-y-1/2 text-kp-hi lg:block"
+                    />
+                  ) : null}
                 </li>
               ))}
             </ol>
-            <p className="mt-14 max-w-2xl text-kp-mid">
-              Vuoi formarti prima di iniziare?{' '}
-              <a
-                href="/#academy"
-                className="font-semibold text-kp-hi underline decoration-kp-red decoration-2 underline-offset-4"
-              >
-                Scopri la KaiPai Academy
-              </a>
-              .
-            </p>
+
+            <div className="mt-10 flex items-center gap-5 border-t border-kp-line pt-6">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-kp-surface ring-1 ring-black/5">
+                <GraduationCap className="h-5 w-5 text-kp-hi" aria-hidden />
+              </span>
+              <p className="text-kp-mid">
+                Vuoi formarti prima di iniziare?{' '}
+                <Link
+                  href="/academy"
+                  className="group inline-flex items-center gap-2 font-medium text-kp-red underline decoration-1 underline-offset-[6px]"
+                >
+                  Scopri la KaiPai Academy.
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden />
+                </Link>
+              </p>
+            </div>
           </div>
         </section>
 
