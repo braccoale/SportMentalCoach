@@ -15,6 +15,7 @@ import { CoachVsPsychologist } from '@/components/landing/audience-paths/coach-v
 import { AudiencePathsDock } from '@/components/landing/audience-paths/audience-paths-dock';
 import { AUDIENCE_PRIMARY_CTA } from '@/components/landing/audience-paths/audience-page-hero';
 import { AthleteHowItWorks } from '@/components/landing/audience-paths/athlete-how-it-works';
+import { AthleteFocusDashboard } from '@/components/landing/audience-paths/athlete-focus-dashboard';
 
 export const metadata: Metadata = audienceMetadata({
   path: '/atleti',
@@ -26,28 +27,6 @@ export const metadata: Metadata = audienceMetadata({
     'Più forte nella testa, più lontano nel tuo sport: il mental coaching sportivo, passo per passo.',
   image: '/og/athletes.jpg',
 });
-
-const WRAP = 'mx-auto w-full max-w-6xl px-5 sm:px-8';
-
-/** Su cosa si lavora: temi di coaching, non funzioni del prodotto. */
-const FOCUS = [
-  {
-    t: 'Concentrazione',
-    b: 'Restare dentro la gara quando intorno succede di tutto: rumore, errori, un risultato che cambia.',
-  },
-  {
-    t: 'Gestione della pressione',
-    b: 'Trasformare l’ansia pre-gara in energia utile, invece di subirla.',
-  },
-  {
-    t: 'Motivazione',
-    b: 'Ritrovare il perché nei momenti in cui allenarsi costa di più: un infortunio, una stagione storta.',
-  },
-  {
-    t: 'Routine pre-gara',
-    b: 'Costruire un rituale tuo, che ti metta nella condizione giusta ogni volta che entri in campo.',
-  },
-];
 
 const FAQ = [
   {
@@ -82,28 +61,7 @@ export default function AtletiPage() {
       <main className="kp-alt flex-1">
         <AthleteHowItWorks />
 
-        {/* Su cosa lavori — tipografia, non card */}
-        <section className="bg-kp-ink2 py-20 sm:py-28">
-          <div className={`${WRAP} grid gap-14 lg:grid-cols-[1fr_1.5fr]`}>
-            <div>
-              <p className="kp-eyebrow text-kp-red">Su cosa lavori</p>
-              <h2 className="kp-display mt-4 text-[clamp(1.75rem,4vw,3rem)] text-kp-hi">
-                Il fisico lo alleni ogni giorno. La testa, quasi mai.
-              </h2>
-            </div>
-            <ul className="border-t border-kp-line">
-              {FOCUS.map((f) => (
-                <li key={f.t} className="border-b border-kp-line py-7">
-                  <h3 className="font-display text-xl font-semibold text-kp-hi">
-                    {f.t}
-                  </h3>
-                  <p className="mt-2 leading-relaxed text-kp-mid">{f.b}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-
+        <AthleteFocusDashboard />
 
         <CoachVsPsychologist />
 

@@ -8,12 +8,12 @@ import {
   Search,
   TrendingUp,
 } from 'lucide-react';
-import { DEMO_ATHLETE, DEMO_JOURNEY } from '@/components/landing/v2/demo-compass';
+import { DEMO_ATHLETE } from '@/components/landing/v2/demo-compass';
 import { JourneyProgressChart } from '@/components/session-compass/journey-progress';
 import { buildJourneyProgress } from '@/lib/core/ai-session-notes/journey-progress';
-import type { MentalJourneyEntry } from '@/lib/core/ai-session-notes/mental-journey';
 import { INTRO_SESSION } from '@/lib/core/services/introduction';
 import { AUDIENCE_CARDS } from './audience-cards';
+import { DEMO_TIMELINE } from './athlete-focus-dashboard';
 import { audiencePhotoName } from './morph-navigation';
 import { AUDIENCE_PRIMARY_CTA } from './audience-page-hero';
 
@@ -261,36 +261,6 @@ function BookingScreen() {
     </div>
   );
 }
-
-/**
- * La demo nella forma che `buildJourneyProgress` si aspetta: le due metriche
- * di ogni seduta dimostrativa diventano gli indicatori del Compass. Tutto il
- * resto è vuoto perché il grafico non lo legge.
- */
-const DEMO_TIMELINE: MentalJourneyEntry[] = DEMO_JOURNEY.map((entry) => ({
-  sessionId: entry.sessionId,
-  bookingId: 0,
-  reportId: 0,
-  reportVersion: 1,
-  sessionDate: entry.sessionDate,
-  approvedAt: entry.sessionDate ?? '',
-  sharedAt: null,
-  coachName: 'Marco R.',
-  summary: entry.summary,
-  focus: entry.focus,
-  themes: [...entry.themes],
-  emergingResource: null,
-  throughLine: null,
-  metrics: [
-    { key: 'concentration', value: entry.concentration, confidence: 'medium', transcriptSegmentId: 0 },
-    { key: 'emotional_management', value: entry.emotionalManagement, confidence: 'medium', transcriptSegmentId: 0 },
-  ],
-  keyMoments: [],
-  nextSessionPrep: [],
-  commitments: [],
-  compassHref: '#',
-  isApproved: true,
-}));
 
 function JourneyScreen() {
   const progress = buildJourneyProgress(DEMO_TIMELINE);
