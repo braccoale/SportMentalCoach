@@ -23,6 +23,8 @@ export function AudiencePageHero({
   layout = 'split',
   position,
   children,
+  photoClassName,
+  titleClassName = 'max-w-2xl',
 }: {
   id: AudienceId;
   eyebrow: string;
@@ -35,6 +37,9 @@ export function AudiencePageHero({
   position?: string;
   /** Contenuto sotto i bottoni, nella stessa schermata (es. i principi su /famiglie). */
   children?: ReactNode;
+  /** Riquadro della foto, se diverso dal predefinito (es. più corto, per alzarla). */
+  photoClassName?: string;
+  titleClassName?: string;
 }) {
   const card = AUDIENCE_CARDS.find((c) => c.id === id)!;
   const split = layout === 'split';
@@ -44,7 +49,7 @@ export function AudiencePageHero({
       <div
         data-aud-hero={id}
         className={`absolute -z-10 ${
-          split ? 'inset-y-0 right-0 w-full md:w-[58%]' : 'inset-0'
+          photoClassName ?? (split ? 'inset-y-0 right-0 w-full md:w-[58%]' : 'inset-0')
         }`}
         style={{ viewTransitionName: audiencePhotoName(id) }}
       >
@@ -70,7 +75,7 @@ export function AudiencePageHero({
         }`}
       >
         <p className="kp-eyebrow text-kp-red">{eyebrow}</p>
-        <h1 className="kp-display mt-4 max-w-2xl text-[clamp(2.4rem,6vw,4.75rem)] leading-[1.02] text-kp-hi">
+        <h1 className={`kp-display mt-4 ${titleClassName} text-[clamp(2.4rem,6vw,4.75rem)] leading-[1.02] text-kp-hi`}>
           {lead} <span className="text-kp-red">{emphasis}</span>
         </h1>
         <p className="mt-6 max-w-xl text-lg leading-relaxed text-kp-mid">{text}</p>

@@ -52,8 +52,8 @@ export function AudienceFaq({
           className="pointer-events-none absolute bottom-0 left-0 -z-10 hidden aspect-[740/386] w-[44%] lg:block"
         >
           <Image src={photo.src} alt="" fill sizes="44vw" className="object-cover" />
-          <div className="absolute inset-x-0 top-0 h-1/6 bg-gradient-to-b from-kp-ink2 to-transparent" />
-          <div className="absolute inset-y-0 right-0 w-1/3 bg-gradient-to-l from-kp-ink2 to-transparent" />
+          <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-kp-ink2 to-transparent" />
+          <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-kp-ink2 to-transparent" />
         </div>
       ) : null}
 

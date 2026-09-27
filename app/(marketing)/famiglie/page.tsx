@@ -121,10 +121,12 @@ export default function FamigliePage() {
         <AudiencePageHero
           id="families"
           eyebrow="Mental coaching per giovani atleti"
-          lead="Sostieni il loro talento."
-          emphasis="Con la giusta guida."
+          lead="Il tuo sostegno è parte"
+          emphasis="dell’allenamento."
           text="La testa di tuo figlio si allena anche fuori dal campo — a casa, nel modo in cui gli parli dopo una partita. Non devi essere il suo coach: devi essere il suo posto sicuro. Ti aiutiamo a farlo."
-          position="62% 60%"
+          position="62% 100%"
+          photoClassName="inset-y-0 right-0 w-full md:bottom-[250px] md:top-0 md:w-[58%] md:inset-y-auto"
+          titleClassName="max-w-3xl"
           actions={
             <>
               <Link href="/coaches" className={AUDIENCE_PRIMARY_CTA}>
@@ -159,6 +161,8 @@ export default function FamigliePage() {
           </div>
         </AudiencePageHero>
 
+        <CoachVsPsychologist />
+
         <AudienceFaq
           id="faq"
           title="Per le"
@@ -180,7 +184,6 @@ export default function FamigliePage() {
             />
           }
         />
-        <CoachVsPsychologist />
       </main>
 
       <Footer />
