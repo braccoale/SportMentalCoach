@@ -44,23 +44,11 @@ export function AudienceFaq({
   return (
     <section
       id={id}
-      className={`relative isolate scroll-mt-24 overflow-hidden border-t border-kp-line bg-kp-ink2 py-16 sm:py-20 ${className}`}
+      className={`relative isolate scroll-mt-24 overflow-hidden !justify-start border-t border-kp-line bg-kp-ink2 py-16 sm:py-20 ${className}`}
     >
-      {photo ? (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute bottom-0 left-0 -z-10 hidden aspect-[740/386] w-[44%] lg:block"
-        >
-          <Image src={photo.src} alt="" fill sizes="44vw" className="object-cover" />
-          <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-kp-ink2 to-transparent" />
-          <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-kp-ink2 to-transparent" />
-        </div>
-      ) : null}
 
       <div
-        className={`mx-auto grid w-full max-w-7xl gap-12 px-5 sm:px-8 lg:grid-cols-[1fr_1.45fr] ${
-          photo ? 'lg:pb-40' : ''
-        }`}
+        className="mx-auto grid w-full max-w-7xl gap-12 px-5 sm:px-8 lg:grid-cols-[1fr_1.45fr]"
       >
         <div>
           <p className="kp-eyebrow flex items-center gap-3 text-kp-red">
@@ -81,6 +69,19 @@ export function AudienceFaq({
           ) : null}
           {action ? <div className="mt-8">{action}</div> : null}
           {secondary ? <div className="mt-5">{secondary}</div> : null}
+          {/* La foto segue il testo, subito sotto il collegamento, e sborda
+              fino al bordo sinistro della finestra. */}
+          {photo ? (
+            <div
+              aria-hidden
+              className="pointer-events-none relative mt-8 hidden aspect-[740/386] lg:-ml-[max(2rem,calc((100vw-80rem)/2+2rem))] lg:block"
+            >
+              <Image src={photo.src} alt="" fill sizes="50vw" className="object-cover" />
+              <div className="absolute inset-x-0 top-0 h-1/6 bg-gradient-to-b from-kp-ink2 to-transparent" />
+              <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-kp-ink2 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-kp-ink2 to-transparent" />
+            </div>
+          ) : null}
         </div>
 
         <div className="divide-y divide-kp-line border-y border-kp-line">
