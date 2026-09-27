@@ -210,21 +210,21 @@ export default function AcademyPage() {
               {/* Fusa nel fondo: una maschera che sfuma i bordi fino al trasparente,
                   non un riquadro con angoli e ombra. */}
               <div
-                className="relative -mt-2 hidden aspect-[1100/917] w-full max-w-[28rem] lg:block"
+                className="relative -mt-2 hidden aspect-[805/465] w-full max-w-[34rem] lg:block"
                 style={{
                   maskImage:
-                    'linear-gradient(to right, transparent, black 22%, black 78%, transparent), linear-gradient(to bottom, transparent, black 20%, black 78%, transparent)',
+                    'linear-gradient(to right, transparent, black 10%, black 82%, transparent), linear-gradient(to bottom, transparent, black 14%, black 80%, transparent)',
                   maskComposite: 'intersect',
                   WebkitMaskImage:
-                    'linear-gradient(to right, transparent, black 22%, black 78%, transparent), linear-gradient(to bottom, transparent, black 20%, black 78%, transparent)',
+                    'linear-gradient(to right, transparent, black 10%, black 82%, transparent), linear-gradient(to bottom, transparent, black 14%, black 80%, transparent)',
                   WebkitMaskComposite: 'source-in',
                 }}
               >
                 <Image
-                  src="/landing/audience/academy-docente.webp"
-                  alt="Un docente della KaiPai Academy durante una sessione"
+                  src="/landing/audience/academy-corso.webp"
+                  alt="Un docente della KaiPai Academy al tavolo con due partecipanti"
                   fill
-                  sizes="28rem"
+                  sizes="34rem"
                   className="object-cover"
                 />
               </div>
