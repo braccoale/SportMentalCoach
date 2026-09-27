@@ -179,35 +179,47 @@ export default function AcademyPage() {
         </AudiencePageHero>
 
         {/* Com'è fatto un corso */}
-        <section id="corso" className="scroll-mt-24 py-14 sm:py-16">
+        <section id="corso" className="scroll-mt-24 py-10 sm:py-12">
           <div className="mx-auto grid w-full max-w-7xl items-center gap-12 px-5 sm:px-8 lg:grid-cols-[1fr_1.15fr]">
             <div>
               <p className="kp-eyebrow flex items-center gap-3 text-kp-red">
                 <span className="h-px w-10 bg-kp-red" aria-hidden />
                 Com’è fatto un corso
               </p>
-              <h2 className="kp-display mt-5 text-[clamp(2.25rem,4.6vw,4rem)] leading-[0.98] text-kp-hi">
+              <h2 className="kp-display mt-4 text-[clamp(2rem,3.8vw,3.25rem)] leading-[0.98] text-kp-hi">
                 Pratica, non teoria da manuale.
               </h2>
-              <p className="mt-5 max-w-lg text-lg leading-relaxed text-kp-mid">
+              <p className="mt-4 max-w-lg leading-relaxed text-kp-mid">
                 Ogni percorso è pensato per aiutarti ad applicare subito ciò che
                 impari: moduli chiari, confronto con i docenti, materiali utili e
                 momenti pratici.
               </p>
-              <div className="mt-7">
+              <div className="mt-6">
                 <Link href={SIGNUP} className={AUDIENCE_PRIMARY_CTA}>
                   Candidati come coach
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </Link>
               </div>
-              <div className="mt-5">
+              <div className="mt-4">
                 <DemoRequestButton
                   plain
                   label="Hai domande? Parla con noi"
                   className={FAQ_SECONDARY_LINK}
                 />
               </div>
-              <div className="relative mt-8 hidden aspect-[1100/917] w-full max-w-md overflow-hidden rounded-3xl shadow-[0_30px_70px_-35px_rgba(5,5,7,0.55)] lg:block">
+              {/* Fusa nel fondo: una maschera che sfuma i bordi fino al trasparente,
+                  non un riquadro con angoli e ombra. */}
+              <div
+                className="relative -mt-2 hidden aspect-[1100/917] w-full max-w-[28rem] lg:block"
+                style={{
+                  maskImage:
+                    'linear-gradient(to right, transparent, black 22%, black 78%, transparent), linear-gradient(to bottom, transparent, black 20%, black 78%, transparent)',
+                  maskComposite: 'intersect',
+                  WebkitMaskImage:
+                    'linear-gradient(to right, transparent, black 22%, black 78%, transparent), linear-gradient(to bottom, transparent, black 20%, black 78%, transparent)',
+                  WebkitMaskComposite: 'source-in',
+                }}
+              >
                 <Image
                   src="/landing/audience/academy-docente.webp"
                   alt="Un docente della KaiPai Academy durante una sessione"
@@ -218,18 +230,18 @@ export default function AcademyPage() {
               </div>
             </div>
 
-            <ol className="flex flex-col gap-3">
+            <ol className="flex flex-col gap-2.5">
               {COURSE.map((c, i) => (
                 <li
                   key={c.t}
-                  className="flex gap-4 rounded-2xl bg-kp-surface px-5 py-5 sm:gap-6 sm:px-6 shadow-[0_18px_45px_-30px_rgba(5,5,7,0.35)] ring-1 ring-black/5"
+                  className="flex gap-4 rounded-2xl bg-kp-surface px-5 py-3.5 sm:gap-6 sm:px-6 shadow-[0_18px_45px_-30px_rgba(5,5,7,0.35)] ring-1 ring-black/5"
                 >
                   <span className="w-6 shrink-0 pt-1 font-display text-sm font-semibold tabular-nums text-kp-red">
                     {String(i + 1).padStart(2, '0')}
                   </span>
                   <div className="border-l border-kp-line pl-4 sm:pl-6">
-                    <h3 className="font-display text-lg font-semibold text-kp-hi">{c.t}</h3>
-                    <p className="mt-1 text-sm leading-relaxed text-kp-mid">{c.b}</p>
+                    <h3 className="font-display text-base font-semibold text-kp-hi">{c.t}</h3>
+                    <p className="mt-0.5 text-sm leading-relaxed text-kp-mid">{c.b}</p>
                   </div>
                 </li>
               ))}
