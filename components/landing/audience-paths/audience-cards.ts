@@ -22,6 +22,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
+export type AudienceId = 'athletes' | 'families' | 'coaches' | 'academy' | 'teams';
+
 export type AudienceCta =
   | { kind: 'link'; href: string }
   | { kind: 'contact' };
@@ -32,7 +34,9 @@ export type AudienceBenefit = {
 };
 
 export type AudienceCard = {
-  id: string;
+  id: AudienceId;
+  /** Nome breve per la barra dei percorsi sulle pagine dedicate. */
+  short: string;
   /** Small uppercase eyebrow, e.g. "PER ATLETI". */
   label: string;
   /** Wordmark shown instead of/above the eyebrow — only the Academy card uses it. */
@@ -70,6 +74,7 @@ export type AudienceCard = {
 export const AUDIENCE_CARDS: AudienceCard[] = [
   {
     id: 'athletes',
+    short: 'Atleti',
     label: 'PER ATLETI',
     headlineLead: 'Più forte nella testa.',
     headlineEmphasis: 'Più lontano nel tuo sport.',
@@ -96,6 +101,7 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
   },
   {
     id: 'families',
+    short: 'Famiglie',
     label: 'PER FAMIGLIE',
     headlineLead: 'Sostieni il loro talento.',
     headlineEmphasis: 'Con la giusta guida.',
@@ -123,6 +129,7 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
   },
   {
     id: 'coaches',
+    short: 'Coach',
     label: 'PER COACH',
     headlineLead: 'Tutto il tuo lavoro,',
     headlineEmphasis: 'in un unico spazio.',
@@ -150,6 +157,7 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
   },
   {
     id: 'academy',
+    short: 'Academy',
     label: 'PER FUTURI COACH E PROFESSIONISTI',
     brand: 'KaiPai Academy',
     headlineLead: 'Formazione che lascia',
@@ -178,6 +186,7 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
   },
   {
     id: 'teams',
+    short: 'Squadre',
     label: 'PER SQUADRE E ACADEMY',
     headlineLead: 'Squadre più unite.',
     headlineEmphasis: 'Obiettivi più grandi.',
@@ -203,3 +212,8 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
     },
   },
 ];
+
+/** Il ritorno alle card dalle pagine dedicate: riapre quella di provenienza. */
+export function audienceReturnHref(id: AudienceId): string {
+  return `/?percorso=${id}#percorsi`;
+}

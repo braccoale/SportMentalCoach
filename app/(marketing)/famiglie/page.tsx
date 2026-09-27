@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { SiteNav } from '@/components/landing/site-nav';
 import { Footer } from '@/components/footer';
+import { AudiencePathsDock } from '@/components/landing/audience-paths/audience-paths-dock';
 
 export const metadata: Metadata = {
   title: 'Famiglie — Accompagnare tuo figlio | KaiPai',
@@ -236,9 +237,12 @@ export default function FamigliePage() {
             </div>
           </div>
         </section>
+        {/* Spazio per la barra dei percorsi, che è fissa in basso. */}
+        <div aria-hidden className="h-24" />
       </main>
 
       <Footer />
+      <AudiencePathsDock current="families" />
     </div>
   );
 }

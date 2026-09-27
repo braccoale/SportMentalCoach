@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { SiteNav } from '@/components/landing/site-nav';
 import { Footer } from '@/components/footer';
+import { AudiencePathsDock } from '@/components/landing/audience-paths/audience-paths-dock';
 
 export const metadata: Metadata = {
   title: 'Diventa coach KaiPai — Il tuo lavoro in un unico spazio | KaiPai',
@@ -228,9 +229,12 @@ export default function DiventaCoachPage() {
             </div>
           </div>
         </section>
+        {/* Spazio per la barra dei percorsi, che è fissa in basso. */}
+        <div aria-hidden className="h-24" />
       </main>
 
       <Footer />
+      <AudiencePathsDock current="coaches" />
     </div>
   );
 }

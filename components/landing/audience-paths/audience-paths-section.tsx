@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  useEffect,
   useState,
   type FocusEvent,
   type ReactNode,
@@ -8,7 +9,11 @@ import {
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, ArrowUpRight, ChevronDown } from 'lucide-react';
-import { AUDIENCE_CARDS, type AudienceCard } from './audience-cards';
+import {
+  AUDIENCE_CARDS,
+  type AudienceCard,
+  type AudienceId,
+} from './audience-cards';
 import { ContactModal } from '../contact-modal';
 
 const WRAP = 'mx-auto max-w-7xl px-5 sm:px-8';
@@ -57,6 +62,7 @@ const TONE = {
  */
 export function AudiencePathsSection() {
   const [contactOpen, setContactOpen] = useState(false);
+  const returnedId = useReturnedAudience();
 
   return (
     <section
@@ -74,8 +80,14 @@ export function AudiencePathsSection() {
           </p>
         </div>
 
-        <DesktopRow onRequestContact={() => setContactOpen(true)} />
-        <MobileAccordion onRequestContact={() => setContactOpen(true)} />
+        <DesktopRow
+          returnedId={returnedId}
+          onRequestContact={() => setContactOpen(true)}
+        />
+        <MobileAccordion
+          returnedId={returnedId}
+          onRequestContact={() => setContactOpen(true)}
+        />
       </div>
 
       <ContactModal open={contactOpen} onClose={() => setContactOpen(false)} />
@@ -84,8 +96,38 @@ export function AudiencePathsSection() {
 }
 
 /* ── Desktop: hover/focus-to-expand row (xl and up) ── */
-function DesktopRow({ onRequestContact }: { onRequestContact: () => void }) {
+/**
+ * Da quale pagina dedicata si torna: `?percorso=` scritto dalla barra dei
+ * percorsi. Letto dopo il montaggio (la home resta statica) e poi tolto
+ * dall'indirizzo, così un ricaricamento non riapre la card.
+ */
+function useReturnedAudience(): AudienceId | null {
+  const [id, setId] = useState<AudienceId | null>(null);
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const raw = url.searchParams.get('percorso');
+    const match = AUDIENCE_CARDS.find((card) => card.id === raw);
+    if (!match) return;
+    setId(match.id);
+    url.searchParams.delete('percorso');
+    window.history.replaceState(window.history.state, '', url.toString());
+  }, []);
+  return id;
+}
+
+function DesktopRow({
+  returnedId,
+  onRequestContact,
+}: {
+  returnedId: AudienceId | null;
+  onRequestContact: () => void;
+}) {
   const [expandedId, setActiveId] = useState<string | null>(null);
+  // Si torna con la card di provenienza già aperta, finché il puntatore non
+  // ne sceglie un'altra.
+  useEffect(() => {
+    if (returnedId) setActiveId(returnedId);
+  }, [returnedId]);
 
   return (
     <div className="mt-12 hidden h-[600px] gap-3 xl:flex">
@@ -129,7 +171,9 @@ function DesktopRow({ onRequestContact }: { onRequestContact: () => void }) {
           </div>
           <div
             data-expanded={isExpanded}
-            className={`kp-aud-card group absolute inset-0 overflow-hidden ${tone.card} shadow-[0_18px_40px_-24px_rgba(12,12,18,0.55)]`}
+            className={`kp-aud-card group absolute inset-0 overflow-hidden ${tone.card} shadow-[0_18px_40px_-24px_rgba(12,12,18,0.55)] ${
+              returnedId === card.id ? 'kp-aud-returned' : ''
+            }`}
           >
             {/* Tutta la card porta alla pagina del percorso: l'espansione al
                 passaggio è già l'anteprima, il click va avanti. Il bottone sta
@@ -214,11 +258,16 @@ function DesktopRow({ onRequestContact }: { onRequestContact: () => void }) {
 
 /* ── Mobile/tablet: vertical accordion (below xl) ── */
 function MobileAccordion({
+  returnedId,
   onRequestContact,
 }: {
+  returnedId: AudienceId | null;
   onRequestContact: () => void;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  useEffect(() => {
+    if (returnedId) setOpenId(returnedId);
+  }, [returnedId]);
 
   return (
     <div className="mt-10 flex min-w-0 flex-col gap-3 xl:hidden">
@@ -228,7 +277,9 @@ function MobileAccordion({
           <div
             key={card.id}
             data-expanded={isOpen}
-            className="kp-aud-acc-item min-w-0 overflow-hidden rounded-2xl bg-kp-ink2 shadow-[0_12px_30px_-20px_rgba(12,12,18,0.5)]"
+            className={`kp-aud-acc-item min-w-0 overflow-hidden rounded-2xl bg-kp-ink2 shadow-[0_12px_30px_-20px_rgba(12,12,18,0.5)] ${
+              returnedId === card.id ? 'kp-aud-returned' : ''
+            }`}
           >
             <button
               type="button"

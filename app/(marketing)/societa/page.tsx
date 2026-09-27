@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
 import { SiteNav } from '@/components/landing/site-nav';
 import { Footer } from '@/components/footer';
+import { AudiencePathsDock } from '@/components/landing/audience-paths/audience-paths-dock';
 import { DemoRequestButton } from '@/components/landing/demo-request-button';
 import { COACHING_PACKAGES } from '@/lib/core/pricing';
 
@@ -171,9 +172,12 @@ export default function SocietaPage() {
             </div>
           </div>
         </section>
+        {/* Spazio per la barra dei percorsi, che è fissa in basso. */}
+        <div aria-hidden className="h-24" />
       </main>
 
       <Footer />
+      <AudiencePathsDock current="teams" />
     </div>
   );
 }

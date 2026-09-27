@@ -1021,3 +1021,32 @@
 @media (prefers-reduced-motion: reduce) {
   .kp-aud-tip { transform: none; transition: opacity 0.01s; }
 }
+
+/* Barra dei percorsi sulle pagine dedicate: entra dal basso dopo la hero. */
+.kp-aud-dock {
+  opacity: 0;
+  transform: translateY(24px);
+  pointer-events: none;
+  transition: opacity 0.35s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.kp-aud-dock[data-visible='true'] {
+  opacity: 1;
+  transform: none;
+}
+.kp-aud-dock[data-visible='true'] > * {
+  pointer-events: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kp-aud-dock { transform: none; transition: opacity 0.01s; }
+}
+/* La card da cui si torna: un segno breve, poi niente. */
+@keyframes kp-aud-return {
+  0% { outline: 3px solid rgba(225, 29, 42, 0.9); outline-offset: 2px; }
+  100% { outline: 3px solid rgba(225, 29, 42, 0); outline-offset: 14px; }
+}
+.kp-aud-returned {
+  animation: kp-aud-return 1.2s ease-out 0.3s 2;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kp-aud-returned { animation: none; }
+}
