@@ -3,10 +3,7 @@ import Link from 'next/link';
 import {
   ArrowRight,
   HeartHandshake,
-  Scale,
-  ShieldCheck,
   Sprout,
-  Lock,
   MessageSquare,
 } from 'lucide-react';
 import { SiteNav } from '@/components/landing/site-nav';
@@ -15,6 +12,13 @@ import { SnapScroll } from '@/components/landing/snap-scroll';
 import { Footer } from '@/components/footer';
 import { JsonLd } from '@/components/json-ld';
 import { audienceJsonLd, audienceMetadata } from '@/components/landing/audience-paths/audience-seo';
+import {
+  AudienceFaq,
+  FAQ_SECONDARY_LINK,
+  type FaqItem,
+} from '@/components/landing/audience-paths/audience-faq';
+import { DemoRequestButton } from '@/components/landing/demo-request-button';
+import { INTRO_SESSION } from '@/lib/core/services/introduction';
 import { CoachVsPsychologist } from '@/components/landing/audience-paths/coach-vs-psychologist';
 import { AudiencePathsDock } from '@/components/landing/audience-paths/audience-paths-dock';
 import {
@@ -55,35 +59,56 @@ const ROLE = [
   },
 ];
 
-/** FAQ dedicated to minors, consent and confidentiality. */
-const FAQ = [
+/**
+ * Le domande dei genitori. Le regole sui minori sono quelle di
+ * `lib/core/guardians` (15–17 anni: serve l’autorizzazione, e a parte quella
+ * alla registrazione); non vanno scritte qui in modo diverso da là.
+ */
+const FAQ: FaqItem[] = [
   {
-    q: 'Mio figlio è minorenne: serve il mio consenso?',
-    a: 'Sì, ed è la piattaforma stessa a chiederlo: un atleta fra i 15 e i 17 anni può registrarsi ed esplorare, ma non può richiedere sessioni finché non autorizzi tu. Ricevi un’email con un link, leggi cosa stai autorizzando e confermi in un minuto, senza creare un account. Il consenso privacy, invece, il ragazzo lo presta da sé: dai 14 anni la legge italiana glielo riconosce.',
+    q: 'Come funziona il percorso per mio figlio?',
+    a: `Scegliete insieme un coach, fate la sessione conoscitiva gratuita di ${INTRO_SESSION.durationMin} minuti in videochiamata e, se vi convince, si parte con le sedute: ognuna è una richiesta che il coach conferma. Obiettivi e progressi restano scritti nella pagina del percorso.`,
   },
   {
-    q: 'Cosa mi viene condiviso delle sessioni?',
-    a: 'Non la trascrizione dei contenuti: uno spazio riservato è ciò che permette al ragazzo di aprirsi, ed è quello che rende utile il coaching. Puoi però chiedere al coach un confronto sull’andamento generale e sugli obiettivi di lavoro, e resti il referente per tutto ciò che riguarda il percorso. Se emerge qualcosa che riguarda la sua sicurezza, vieni sempre coinvolto.',
+    q: 'Se mio figlio è minorenne, cosa devo fare?',
+    a: 'Un atleta fra i 15 e i 17 anni può registrarsi ed esplorare, ma non può richiedere sedute finché non autorizzi tu, come genitore o tutore legale. Ricevi un’email con un link, leggi cosa stai autorizzando e confermi in un minuto, senza creare un account. Puoi revocare l’autorizzazione in qualsiasi momento.',
   },
   {
-    q: 'Le sessioni sono riservate?',
-    a: 'Sì. I contenuti condivisi dal ragazzo con il coach sono trattati con riservatezza. La riservatezza non è mai un ostacolo alla tutela: in situazioni che riguardano la salute o l’incolumità del minore, il coach agisce nell’interesse del ragazzo e coinvolge la famiglia.',
+    q: 'Possiamo fare la sessione conoscitiva insieme?',
+    a: 'Sì. La sessione conoscitiva è gratuita e potete farla insieme, genitore e figlio: è il momento per conoscere il coach, raccontare da dove parte il ragazzo e capire se è la persona giusta.',
   },
   {
-    q: 'Posso assistere alle sessioni?',
-    a: 'Per i più piccoli concordiamo insieme al coach la modalità più adatta. Con gli adolescenti, di norma, uno spazio autonomo funziona meglio: resti comunque il primo riferimento e sei aggiornato sul percorso.',
+    q: 'Come scelgo il coach più adatto?',
+    a: 'Nella lista dei coach puoi filtrare per sport, specializzazione, livello e lingua, e leggere il profilo di ognuno. Ogni coach è approvato dal team KaiPai prima di comparire. Se hai un dubbio, scrivici: ti aiutiamo a orientarti.',
+    link: { href: '/coaches', label: 'Vai alla lista dei coach' },
   },
   {
-    q: 'Il mental coaching è una terapia psicologica?',
-    a: 'No. Il mental coaching allena abilità mentali legate alla performance sportiva (concentrazione, gestione della pressione, fiducia) e non sostituisce un percorso clinico o psicoterapeutico. Se emerge un bisogno di natura clinica, ti indirizziamo verso il supporto appropriato.',
+    q: 'Posso partecipare anch’io al percorso?',
+    a: 'Resti il primo riferimento, e puoi chiedere al coach un confronto sull’andamento e sugli obiettivi. Alle sedute, con gli adolescenti, di norma funziona meglio uno spazio suo: per i più giovani la modalità si concorda con il coach.',
+  },
+  {
+    q: 'Cosa mi viene condiviso delle sedute?',
+    a: 'Non i contenuti: uno spazio riservato è ciò che permette al ragazzo di aprirsi. Ricevi invece il quadro generale del percorso. La riservatezza non è mai un ostacolo alla tutela: se emerge qualcosa che riguarda la sua salute o la sua sicurezza, vieni sempre coinvolto.',
+  },
+  {
+    q: 'Le sedute vengono registrate o trascritte?',
+    a: 'Solo con il consenso. Se il coach usa gli Appunti AI, per un minorenne serve che tu abbia autorizzato anche la registrazione, a parte rispetto alle sedute; e il ragazzo può comunque rifiutare all’inizio della seduta, che si svolge normalmente. Il riepilogo lo rivede il coach prima di condividerlo.',
+  },
+  {
+    q: 'Come vengono monitorati i progressi?',
+    a: 'Nella pagina del percorso ci sono gli obiettivi concordati con il coach, le azioni prese seduta dopo seduta e l’andamento nel tempo. I riepiloghi li scrive e li approva il coach.',
+  },
+  {
+    q: 'Cosa succede se emergono difficoltà che vanno oltre lo sport?',
+    a: 'Il mental coaching non è una terapia: allena abilità mentali legate alla prestazione. Se emerge un bisogno di natura clinica, il coach lo dice chiaramente, coinvolge la famiglia e indirizza verso un professionista sanitario.',
   },
   {
     q: 'Come vengono trattati i dati di mio figlio?',
-    a: 'Trattiamo i dati nel rispetto del GDPR, solo per erogare il servizio. Puoi accedere ai dati, chiederne la rettifica o la cancellazione in ogni momento scrivendo a privacy@kaipaicoaching.com. I dettagli sono nella Privacy Policy.',
+    a: 'Nel rispetto del GDPR, solo per erogare il servizio. Puoi accedere ai dati, chiederne la rettifica o la cancellazione in ogni momento scrivendo a privacy@kaipaicoaching.com. I dettagli sono nella Privacy Policy.',
   },
   {
-    q: 'I coach sono verificati?',
-    a: 'Sì. Ogni coach è approvato dal nostro team e le guide certificate sono formate dalla KaiPai Academy. Identità, credenziali ed esperienza sono controllate prima della pubblicazione del profilo.',
+    q: 'Quando pago, e posso spostare un appuntamento?',
+    a: 'La prima sessione conoscitiva è gratis. Per le altre la prenotazione è una richiesta: nulla è dovuto finché il coach non accetta e la seduta non è confermata. Un appuntamento non ancora svolto si può spostare su un orario libero del calendario del coach.',
   },
 ];
 
@@ -147,94 +172,29 @@ export default function FamigliePage() {
           </div>
         </section>
 
-        {/* Tutela — reassurance band */}
-        <section className="border-b border-kp-line py-16 sm:py-20">
-          <div className={WRAP}>
-            <div className="grid gap-6 sm:grid-cols-3">
-              {[
-                {
-                  icon: ShieldCheck,
-                  t: 'Consenso dei genitori',
-                  b: 'Per gli under 18 sei tu ad autorizzare le sessioni e, a parte, la registrazione per gli Appunti AI. Puoi revocare in qualsiasi momento.',
-                },
-                {
-                  icon: Lock,
-                  t: 'Riservatezza',
-                  b: 'Uno spazio protetto per il ragazzo; a te l’autorizzazione del percorso e il confronto con il coach.',
-                },
-                {
-                  icon: Scale,
-                  t: 'Coach verificati & GDPR',
-                  b: 'Guide approvate e certificate. Dati trattati solo per il servizio, nel rispetto del GDPR.',
-                },
-              ].map((p) => (
-                <div key={p.t} className="flex gap-4">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-kp-verify/10 text-kp-verify">
-                    <p.icon className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <h3 className="font-display text-base font-semibold text-kp-hi">
-                      {p.t}
-                    </h3>
-                    <p className="mt-1.5 text-sm leading-relaxed text-kp-mid">
-                      {p.b}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         <CoachVsPsychologist />
 
-        {/* FAQ */}
-        <section id="faq" className="bg-kp-ink2 py-16 sm:py-20">
-          <div className={WRAP}>
-            <p className="kp-eyebrow text-kp-red">Domande frequenti</p>
-            <h2 className="kp-display mt-4 text-[clamp(1.5rem,3.5vw,2.5rem)] text-kp-hi">
-              Minori, consenso e riservatezza.
-            </h2>
-            <div className="mt-10 divide-y divide-kp-line rounded-2xl border border-kp-line bg-white/[0.02]">
-              {FAQ.map((f) => (
-                <details key={f.q} className="group px-6">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-5 text-left font-display text-base font-semibold text-kp-hi marker:content-none [&::-webkit-details-marker]:hidden">
-                    {f.q}
-                    <ArrowRight className="h-4 w-4 shrink-0 text-kp-red transition-transform group-open:rotate-90" />
-                  </summary>
-                  <p className="pb-5 pr-8 text-sm leading-relaxed text-kp-mid">
-                    {f.a}
-                  </p>
-                </details>
-              ))}
-            </div>
-
-            {/* Closing CTA */}
-            <div className="mt-12 flex flex-col items-start justify-between gap-6 rounded-2xl border border-kp-red/40 bg-kp-red/[0.06] p-8 sm:flex-row sm:items-center">
-              <div>
-                <h3 className="font-display text-xl font-semibold text-kp-hi">
-                  Pronto ad accompagnarlo nel modo giusto?
-                </h3>
-                <p className="mt-2 text-sm text-kp-mid">
-                  Trova una guida verificata o scrivici: ti aiutiamo a scegliere il
-                  percorso adatto a tuo figlio.
-                </p>
-              </div>
-              <div className="flex shrink-0 flex-wrap gap-3">
-                <Link href="/coaches" className={AUDIENCE_PRIMARY_CTA}>
-                  Trova una guida
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-                <a
-                  href="mailto:info@kaipaicoaching.com?subject=Informazioni%20percorso%20per%20mio%20figlio"
-                  className="inline-flex items-center rounded-full border border-kp-line px-6 py-3 font-semibold text-kp-hi transition-colors hover:border-kp-red/50"
-                >
-                  Scrivici
-                </a>
-              </div>
-            </div>
-          </div>
-        </section>
+        <AudienceFaq
+          id="faq"
+          title="Per le"
+          emphasis="famiglie"
+          intro="Le risposte essenziali per genitori e famiglie, prima di iniziare un percorso di mental coaching con KaiPai."
+          faq={FAQ}
+          photo={{ src: '/landing/audience/faq-famiglie.webp', alt: '' }}
+          action={
+            <Link href="/coaches" className={AUDIENCE_PRIMARY_CTA}>
+              Trova il coach giusto
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+          }
+          secondary={
+            <DemoRequestButton
+              plain
+              label="Hai domande? Parla con noi"
+              className={FAQ_SECONDARY_LINK}
+            />
+          }
+        />
       </main>
 
       <Footer />
