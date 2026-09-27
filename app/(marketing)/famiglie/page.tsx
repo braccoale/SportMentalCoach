@@ -105,8 +105,8 @@ const FAQ: FaqItem[] = [
     a: 'Nel rispetto del GDPR, solo per erogare il servizio. Puoi accedere ai dati, chiederne la rettifica o la cancellazione in ogni momento scrivendo a privacy@kaipaicoaching.com. I dettagli sono nella Privacy Policy.',
   },
   {
-    q: 'Quando pago, e posso spostare un appuntamento?',
-    a: 'La prima sessione conoscitiva è gratis. Per le altre la prenotazione è una richiesta: nulla è dovuto finché il coach non accetta e la seduta non è confermata. Un appuntamento non ancora svolto si può spostare su un orario libero del calendario del coach.',
+    q: 'Si paga qualcosa, e posso spostare un appuntamento?',
+    a: 'La prima sessione conoscitiva è gratis. Oggi KaiPai non addebita nulla e non chiede dati di pagamento: l’accesso alle sedute passa da accordi con club e organizzazioni. Se verranno introdotti pagamenti, le condizioni saranno aggiornate e comunicate prima. Un appuntamento non ancora svolto si può spostare su un orario libero del calendario del coach.',
   },
 ];
 

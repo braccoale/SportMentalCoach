@@ -35,8 +35,9 @@ Punti fermi utili a chi cita KaiPai:
 - Per gli atleti minorenni serve il consenso di un genitore o tutore, che
   mantiene il controllo del percorso.
 - Le sessioni si svolgono in videochiamata dentro la piattaforma.
-- La prenotazione è una richiesta: nulla è dovuto finché il coach non accetta
-  e la sessione non è confermata.
+- La prenotazione è una richiesta che il coach conferma. Oggi la piattaforma
+  non gestisce pagamenti fra atleta e coach: l'accesso passa da accordi con
+  club e organizzazioni, e all'atleta non viene addebitato nulla.
 
 ## Pagine principali
 

@@ -28,8 +28,8 @@ export const HOME_FAQ: FaqItem[] = [
     link: { href: '/coaches', label: 'Trova il tuo coach' },
   },
   {
-    q: 'Quando pago?',
-    a: 'La prima sessione conoscitiva, di 20 minuti, è gratis. Per le altre la prenotazione è una richiesta: nulla è dovuto finché il coach non accetta e la seduta non è confermata.',
+    q: 'Quanto costa?',
+    a: 'La prima sessione conoscitiva, di 20 minuti, è gratis. Oggi KaiPai non ti addebita nulla e non chiede dati di pagamento: l’accesso alle sedute passa da accordi con club e organizzazioni. Se verranno introdotti pagamenti, le condizioni saranno aggiornate e comunicate prima.',
   },
   {
     q: 'Mio figlio è minorenne: può iniziare?',

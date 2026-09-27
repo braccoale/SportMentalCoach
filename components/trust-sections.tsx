@@ -75,8 +75,8 @@ export const MARKETPLACE_FAQS = [
     a: 'Dai 15 anni il ragazzo si registra da sé. Per richiedere sessioni serve l’autorizzazione di un genitore o tutore: riceve un’email con un link, legge cosa sta autorizzando e conferma. L’autorizzazione si può revocare in qualsiasi momento.',
   },
   {
-    q: 'Quando pago?',
-    a: 'La prima sessione conoscitiva, di 20 minuti, è gratis. Per le altre la prenotazione è una richiesta: paghi solo quando il coach accetta e la sessione è confermata. Nessun costo nascosto.',
+    q: 'Quanto costa?',
+    a: 'La prima sessione conoscitiva, di 20 minuti, è gratis. Oggi KaiPai non ti addebita nulla e non chiede dati di pagamento: l’accesso alle sedute passa da accordi con club e organizzazioni. Se verranno introdotti pagamenti, le condizioni saranno aggiornate e comunicate prima.',
   },
   {
     q: 'Posso annullare?',

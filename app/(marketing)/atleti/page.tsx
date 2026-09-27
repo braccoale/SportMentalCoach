@@ -69,8 +69,8 @@ const FAQ: FaqItem[] = [
     a: 'Nella tua pagina del percorso trovi gli obiettivi concordati con il coach, le azioni prese seduta dopo seduta e l’andamento nel tempo. I riepiloghi li scrive e li approva il coach.',
   },
   {
-    q: 'Quando pago, e posso spostare un appuntamento?',
-    a: 'La prima sessione conoscitiva è gratis. Per le altre la prenotazione è una richiesta: nulla è dovuto finché il coach non accetta e la seduta non è confermata. Un appuntamento non ancora svolto puoi spostarlo tu o il coach, su un orario libero del suo calendario.',
+    q: 'Si paga qualcosa, e posso spostare un appuntamento?',
+    a: 'La prima sessione conoscitiva è gratis. Oggi KaiPai non ti addebita nulla e non chiede dati di pagamento: l’accesso alle sedute passa da accordi con club e organizzazioni. Se verranno introdotti pagamenti, le condizioni saranno aggiornate e comunicate prima. Un appuntamento non ancora svolto puoi spostarlo tu o il coach, su un orario libero del suo calendario.',
   },
 ];
 
