@@ -126,37 +126,31 @@ export default function DiventaCoachPage() {
               </a>
             </>
           }
-        />
-
-        {/* Cosa trovi — righe numerate, non card */}
-        <section className="bg-kp-ink2 py-20 sm:py-28">
-          <div className={WRAP}>
-            <div className="max-w-2xl">
-              <p className="kp-eyebrow text-kp-red">Cosa trovi</p>
-              <h2 className="kp-display mt-4 text-[clamp(1.75rem,4vw,3rem)] text-kp-hi">
-                Meno strumenti. Più tempo per l’atleta.
-              </h2>
-            </div>
-            <ol className="mt-14 grid gap-x-16 md:grid-cols-2">
+        >
+          {/* «Cosa trovi»: stava in una sezione a sé, ora chiude la prima
+              schermata — è il dettaglio di «tutto in un unico spazio». */}
+          <div className="mt-10 border-t border-white/15 pt-7">
+            <p className="kp-eyebrow text-kp-red">Cosa trovi</p>
+            <ol className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {FEATURES.map((f, i) => (
                 <li
                   key={f.t}
-                  className="flex gap-6 border-t border-kp-line py-8"
+                  className="flex gap-4 rounded-2xl border border-white/10 bg-kp-ink/60 p-4 backdrop-blur-sm"
                 >
                   <span className="font-display text-sm font-semibold tabular-nums text-kp-red">
                     {String(i + 1).padStart(2, '0')}
                   </span>
                   <div>
-                    <h3 className="font-display text-xl font-semibold text-kp-hi">
+                    <h2 className="font-display text-[0.95rem] font-semibold leading-snug text-kp-hi">
                       {f.t}
-                    </h3>
-                    <p className="mt-2 leading-relaxed text-kp-mid">{f.b}</p>
+                    </h2>
+                    <p className="mt-1 text-[0.8rem] leading-relaxed text-kp-mid">{f.b}</p>
                   </div>
                 </li>
               ))}
             </ol>
           </div>
-        </section>
+        </AudiencePageHero>
 
         {/* Come funziona */}
         <section id="come-funziona" className="scroll-mt-24 py-20 sm:py-28">
