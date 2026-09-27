@@ -3,6 +3,13 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { SiteNav } from '@/components/landing/site-nav';
 import { Footer } from '@/components/footer';
+import { JsonLd } from '@/components/json-ld';
+import { AudienceFaq } from '@/components/landing/audience-paths/audience-faq';
+import {
+  audienceJsonLd,
+  audienceMetadata,
+} from '@/components/landing/audience-paths/audience-seo';
+import { courseJsonLd } from '@/lib/core/seo';
 import { AudiencePathsDock } from '@/components/landing/audience-paths/audience-paths-dock';
 import {
   AudiencePageHero,
@@ -10,18 +17,16 @@ import {
   AUDIENCE_SECONDARY_LINK,
 } from '@/components/landing/audience-paths/audience-page-hero';
 
-export const metadata: Metadata = {
-  alternates: { canonical: '/academy' },
+export const metadata: Metadata = audienceMetadata({
+  path: '/academy',
   title: 'KaiPai Academy — Formazione per mental coach sportivi',
   description:
     'Formazione in mental coaching sportivo: corsi in moduli online e in presenza, sessioni live con mentor esperti e attestato di completamento.',
-  openGraph: {
-    title: 'KaiPai Academy',
-    description:
-      'Formazione che lascia il segno: come si formano i mental coach KaiPai.',
-    type: 'website',
-  },
-};
+  shareTitle: 'KaiPai Academy',
+  shareDescription:
+    'Formazione che lascia il segno: come si formano i mental coach KaiPai.',
+  image: '/og/academy.jpg',
+});
 
 const WRAP = 'mx-auto max-w-6xl px-5 sm:px-8';
 const SIGNUP = '/sign-up?ruolo=coach';
@@ -66,6 +71,25 @@ const COURSE = [
   },
 ];
 
+const FAQ = [
+  {
+    q: 'Chi può seguire i corsi dell’Academy?',
+    a: 'Chi si candida come coach KaiPai. Il team valuta il profilo e assegna i corsi del percorso: l’Academy è la strada con cui un professionista entra a lavorare sulla piattaforma.',
+  },
+  {
+    q: 'I corsi sono online o in presenza?',
+    a: 'Entrambi. Le sessioni live si seguono in videochiamata da dove sei; alcuni momenti del percorso si svolgono in presenza.',
+  },
+  {
+    q: 'Si riceve un attestato?',
+    a: 'Sì: chi completa il corso riceve un attestato di completamento. Non sostituisce titoli o abilitazioni professionali.',
+  },
+  {
+    q: 'Chi sono i docenti?',
+    a: 'Coach esperti che fanno da mentor: guidano le sessioni live e seguono i partecipanti lungo i moduli.',
+  },
+];
+
 export default function AcademyPage() {
   return (
     <div className="kp-root flex min-h-screen flex-col bg-kp-ink text-kp-hi">
@@ -74,7 +98,7 @@ export default function AcademyPage() {
       <main className="flex-1">
         <AudiencePageHero
           id="academy"
-          eyebrow="KaiPai Academy · Per futuri coach e professionisti"
+          eyebrow="KaiPai Academy · Formazione per mental coach"
           lead="Formazione che lascia"
           emphasis="il segno."
           text="Percorsi formativi dedicati al mental coaching sportivo, con contenuti pratici, mentor esperti e una community di professionisti."
@@ -147,6 +171,8 @@ export default function AcademyPage() {
           </div>
         </section>
 
+        <AudienceFaq title="Prima di candidarti." faq={FAQ} />
+
         {/* Chiusura */}
         <section className="border-t border-kp-line bg-kp-ink2 py-20 sm:py-24">
           <div className={`${WRAP} flex flex-col items-start justify-between gap-8 lg:flex-row lg:items-end`}>
@@ -172,6 +198,22 @@ export default function AcademyPage() {
 
       <Footer />
       <AudiencePathsDock current="academy" />
+      <JsonLd
+        nodes={audienceJsonLd({
+          name: 'Academy',
+          path: '/academy',
+          faq: FAQ,
+          extra: [
+            courseJsonLd({
+              name: 'KaiPai Academy — Formazione in mental coaching sportivo',
+              description:
+                'Corsi in moduli con sessioni live, materiali e riepiloghi, guidati da mentor esperti; attestato di completamento.',
+              path: '/academy',
+              modes: ['online', 'onsite'],
+            }),
+          ],
+        })}
+      />
     </div>
   );
 }

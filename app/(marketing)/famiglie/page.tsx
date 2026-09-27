@@ -11,6 +11,9 @@ import {
 } from 'lucide-react';
 import { SiteNav } from '@/components/landing/site-nav';
 import { Footer } from '@/components/footer';
+import { JsonLd } from '@/components/json-ld';
+import { audienceJsonLd, audienceMetadata } from '@/components/landing/audience-paths/audience-seo';
+import { CoachVsPsychologist } from '@/components/landing/audience-paths/coach-vs-psychologist';
 import { AudiencePathsDock } from '@/components/landing/audience-paths/audience-paths-dock';
 import {
   AudiencePageHero,
@@ -18,18 +21,16 @@ import {
   AUDIENCE_SECONDARY_LINK,
 } from '@/components/landing/audience-paths/audience-page-hero';
 
-export const metadata: Metadata = {
-  alternates: { canonical: '/famiglie' },
-  title: 'Famiglie — Accompagnare tuo figlio | KaiPai',
+export const metadata: Metadata = audienceMetadata({
+  path: '/famiglie',
+  title: 'Mental coach per ragazzi: la guida per i genitori | KaiPai',
   description:
     'Il ruolo dei genitori nel percorso mentale di un giovane atleta: meno pressione, più fiducia. Tutela dei minori, consenso e riservatezza spiegati con chiarezza.',
-  openGraph: {
-    title: 'KaiPai per le famiglie — Accompagnare tuo figlio',
-    description:
-      'Come i genitori possono sostenere la crescita mentale di un giovane atleta. Consenso, minori e riservatezza spiegati con chiarezza.',
-    type: 'website',
-  },
-};
+  shareTitle: 'KaiPai per le famiglie — Accompagnare tuo figlio',
+  shareDescription:
+    'Come i genitori possono sostenere la crescita mentale di un giovane atleta. Consenso, minori e riservatezza spiegati con chiarezza.',
+  image: '/og/families.jpg',
+});
 
 const WRAP = 'mx-auto max-w-5xl px-5 sm:px-8';
 
@@ -92,7 +93,7 @@ export default function FamigliePage() {
       <main className="flex-1">
         <AudiencePageHero
           id="families"
-          eyebrow="Per le famiglie"
+          eyebrow="Mental coaching per giovani atleti"
           lead="Sostieni il loro talento."
           emphasis="Con la giusta guida."
           text="La testa di tuo figlio si allena anche fuori dal campo — a casa, nel modo in cui gli parli dopo una partita. Non devi essere il suo coach: devi essere il suo posto sicuro. Ti aiutiamo a farlo."
@@ -181,6 +182,8 @@ export default function FamigliePage() {
           </div>
         </section>
 
+        <CoachVsPsychologist />
+
         {/* FAQ */}
         <section id="faq" className="bg-kp-ink2 py-16 sm:py-20">
           <div className={WRAP}>
@@ -234,6 +237,7 @@ export default function FamigliePage() {
 
       <Footer />
       <AudiencePathsDock current="families" />
+      <JsonLd nodes={audienceJsonLd({ name: 'Famiglie', path: '/famiglie', faq: FAQ })} />
     </div>
   );
 }

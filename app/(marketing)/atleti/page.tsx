@@ -3,6 +3,16 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { SiteNav } from '@/components/landing/site-nav';
 import { Footer } from '@/components/footer';
+import { JsonLd } from '@/components/json-ld';
+import { AudienceFaq } from '@/components/landing/audience-paths/audience-faq';
+import {
+  audienceJsonLd,
+  audienceMetadata,
+} from '@/components/landing/audience-paths/audience-seo';
+import { CoachVsPsychologist } from '@/components/landing/audience-paths/coach-vs-psychologist';
+import { getApprovedCoaches } from '@/lib/core/listings';
+import { sportsCoveredByCoaches } from '@/lib/core/listings/sport-coverage';
+import { getActiveSports } from '@/lib/core/taxonomies';
 import { AudiencePathsDock } from '@/components/landing/audience-paths/audience-paths-dock';
 import {
   AudiencePageHero,
@@ -10,18 +20,19 @@ import {
   AUDIENCE_SECONDARY_LINK,
 } from '@/components/landing/audience-paths/audience-page-hero';
 
-export const metadata: Metadata = {
-  alternates: { canonical: '/atleti' },
+export const metadata: Metadata = audienceMetadata({
+  path: '/atleti',
   title: 'Mental coaching per atleti: la testa si allena | KaiPai',
   description:
     'Mental coaching per atleti: concentrazione, pressione, motivazione e routine pre-gara con un mental coach sportivo, in videochiamata.',
-  openGraph: {
-    title: 'KaiPai per gli atleti',
-    description:
-      'Più forte nella testa, più lontano nel tuo sport: il mental coaching sportivo, passo per passo.',
-    type: 'website',
-  },
-};
+  shareTitle: 'KaiPai per gli atleti',
+  shareDescription:
+    'Più forte nella testa, più lontano nel tuo sport: il mental coaching sportivo, passo per passo.',
+  image: '/og/athletes.jpg',
+});
+
+/** Gli sport collegati cambiano con i coach approvati: basta rileggerli ogni ora. */
+export const revalidate = 3600;
 
 const WRAP = 'mx-auto max-w-6xl px-5 sm:px-8';
 
@@ -67,6 +78,10 @@ const STEPS = [
 
 const FAQ = [
   {
+    q: 'Che differenza c’è tra mental coach e psicologo dello sport?',
+    a: 'Il mental coach allena abilità mentali legate alla prestazione sportiva; lo psicologo dello sport è uno psicologo iscritto all’Albo, che può valutare e, se psicoterapeuta, curare. Su KaiPai lavorano mental coach: se emerge un bisogno clinico, il coach indirizza verso un professionista sanitario.',
+  },
+  {
     q: 'Ho meno di 18 anni: posso iniziare?',
     a: 'Dai 15 anni puoi registrarti ed esplorare. Per richiedere sedute serve l’autorizzazione di un genitore: la piattaforma gli manda un’email con un link, e conferma in un minuto.',
   },
@@ -84,7 +99,13 @@ const FAQ = [
   },
 ];
 
-export default function AtletiPage() {
+export default async function AtletiPage() {
+  const [sports, coaches] = await Promise.all([
+    getActiveSports(),
+    getApprovedCoaches(),
+  ]);
+  const covered = sportsCoveredByCoaches(sports, coaches);
+
   return (
     <div className="kp-root flex min-h-screen flex-col bg-kp-ink text-kp-hi">
       <SiteNav />
@@ -92,7 +113,7 @@ export default function AtletiPage() {
       <main className="flex-1">
         <AudiencePageHero
           id="athletes"
-          eyebrow="Per atleti"
+          eyebrow="Mental coaching per atleti"
           lead="Più forte nella testa."
           emphasis="Più lontano nel tuo sport."
           text="Lavora su concentrazione, pressione, motivazione e routine pre-gara con il supporto di un mental coach."
@@ -156,36 +177,47 @@ export default function AtletiPage() {
           </div>
         </section>
 
-        {/* FAQ */}
-        <section className="border-t border-kp-line bg-kp-ink2 py-20 sm:py-24">
-          <div className={`${WRAP} grid gap-12 lg:grid-cols-[1fr_1.4fr]`}>
-            <div>
-              <p className="kp-eyebrow text-kp-red">Domande frequenti</p>
-              <h2 className="kp-display mt-4 text-[clamp(1.5rem,3.5vw,2.5rem)] text-kp-hi">
-                Prima di iniziare.
+        {/* Per il tuo sport — solo gli sport con almeno un coach approvato */}
+        {covered.length > 0 ? (
+          <section className="border-t border-kp-line bg-kp-ink2 py-20 sm:py-24">
+            <div className={WRAP}>
+              <p className="kp-eyebrow text-kp-red">Per il tuo sport</p>
+              <h2 className="kp-display mt-4 max-w-2xl text-[clamp(1.75rem,4vw,3rem)] text-kp-hi">
+                Un mental coach che conosce il tuo sport.
               </h2>
-              <div className="mt-8">
-                <Link href="/coaches" className={AUDIENCE_PRIMARY_CTA}>
-                  Trova il tuo coach
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </Link>
-              </div>
+              <p className="mt-5 max-w-2xl text-lg leading-relaxed text-kp-mid">
+                La pressione di un rigore non è quella di una finale di tennis.
+                Scegli il tuo sport e trovi i coach che ci lavorano già.
+              </p>
+              <ul className="mt-10 flex flex-wrap gap-3">
+                {covered.map((sport) => (
+                  <li key={sport.key}>
+                    <Link
+                      href={`/coaches?sport=${encodeURIComponent(sport.key)}`}
+                      className="inline-flex items-center gap-2 rounded-full border border-kp-line px-5 py-2.5 text-sm font-semibold text-kp-hi transition-colors hover:border-white/30 hover:bg-white/5"
+                    >
+                      Mental coach · {sport.label}
+                      <ArrowRight className="h-3.5 w-3.5 text-kp-red" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </div>
-            <div className="divide-y divide-kp-line border-y border-kp-line">
-              {FAQ.map((f) => (
-                <details key={f.q} className="group">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-5 text-left font-display text-base font-semibold text-kp-hi marker:content-none [&::-webkit-details-marker]:hidden">
-                    {f.q}
-                    <ArrowRight className="h-4 w-4 shrink-0 text-kp-red transition-transform group-open:rotate-90" />
-                  </summary>
-                  <p className="pb-5 pr-8 text-sm leading-relaxed text-kp-mid">
-                    {f.a}
-                  </p>
-                </details>
-              ))}
-            </div>
-          </div>
-        </section>
+          </section>
+        ) : null}
+
+        <CoachVsPsychologist />
+
+        <AudienceFaq
+          title="Prima di iniziare."
+          faq={FAQ}
+          action={
+            <Link href="/coaches" className={AUDIENCE_PRIMARY_CTA}>
+              Trova il tuo coach
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+          }
+        />
 
         {/* Spazio per la barra dei percorsi, che è fissa in basso. */}
         <div aria-hidden className="h-24" />
@@ -193,6 +225,7 @@ export default function AtletiPage() {
 
       <Footer />
       <AudiencePathsDock current="athletes" />
+      <JsonLd nodes={audienceJsonLd({ name: 'Atleti', path: '/atleti', faq: FAQ })} />
     </div>
   );
 }

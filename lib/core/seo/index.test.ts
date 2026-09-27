@@ -5,6 +5,8 @@ import {
   breadcrumbJsonLd,
   coachJsonLd,
   coachListJsonLd,
+  courseJsonLd,
+  serviceJsonLd,
   faqJsonLd,
   jsonLdGraph,
   metaDescription,
@@ -324,4 +326,35 @@ test('llms.txt e’ italiano pubblicato, non italiano con gli apostrofi', () => 
     [],
     `accenti appiattiti nel testo pubblico: ${flattened.join(', ')}`
   );
+});
+
+test('courseJsonLd: corso con modalità e fornitore, senza prezzo', () => {
+  const course = courseJsonLd({
+    name: 'KaiPai Academy',
+    description: 'Formazione in mental coaching sportivo.',
+    path: '/academy',
+    modes: ['online', 'onsite'],
+  });
+  assert.equal(course['@type'], 'Course');
+  assert.equal(course.url, absoluteUrl('/academy'));
+  assert.deepEqual(
+    (course.hasCourseInstance as { courseMode: string[] }).courseMode,
+    ['online', 'onsite']
+  );
+  assert.ok((course.provider as { '@id': string })['@id'].endsWith('#organization'));
+  assert.equal('offers' in course, false);
+});
+
+test('serviceJsonLd: servizio per un pubblico, senza prezzo', () => {
+  const service = serviceJsonLd({
+    name: 'Mental coaching per società sportive',
+    serviceType: 'Mental coaching sportivo',
+    description: 'Percorsi per squadre e settori giovanili.',
+    path: '/societa',
+    audience: 'Società sportive',
+  });
+  assert.equal(service['@type'], 'Service');
+  assert.equal(service.url, absoluteUrl('/societa'));
+  assert.equal((service.audience as { audienceType: string }).audienceType, 'Società sportive');
+  assert.equal('offers' in service, false);
 });

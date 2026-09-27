@@ -121,6 +121,57 @@ export function breadcrumbJsonLd(items: BreadcrumbItem[]): JsonLdNode {
   };
 }
 
+/**
+ * Un corso dell'Academy come `Course`.
+ *
+ * Niente `offers`: la pagina non mostra un prezzo, e un prezzo dichiarato nei
+ * dati strutturati ma assente dalla pagina è esattamente ciò che Google
+ * penalizza. `courseMode` dice come si segue — online, in presenza o
+ * entrambi — perché è la domanda che la pagina risolve.
+ */
+export function courseJsonLd(input: {
+  name: string;
+  description: string;
+  path: string;
+  modes: Array<'online' | 'onsite'>;
+}): JsonLdNode {
+  return {
+    '@type': 'Course',
+    name: input.name,
+    description: input.description,
+    url: absoluteUrl(input.path),
+    inLanguage: 'it',
+    provider: { '@id': ORGANIZATION_ID },
+    hasCourseInstance: {
+      '@type': 'CourseInstance',
+      courseMode: input.modes,
+    },
+  };
+}
+
+/**
+ * Un servizio di KaiPai come `Service`, per le pagine che vendono un percorso
+ * (le società sportive). Stessa regola del corso: nessun prezzo qui.
+ */
+export function serviceJsonLd(input: {
+  name: string;
+  serviceType: string;
+  description: string;
+  path: string;
+  audience: string;
+}): JsonLdNode {
+  return {
+    '@type': 'Service',
+    name: input.name,
+    serviceType: input.serviceType,
+    description: input.description,
+    url: absoluteUrl(input.path),
+    provider: { '@id': ORGANIZATION_ID },
+    areaServed: { '@type': 'Country', name: 'Italia' },
+    audience: { '@type': 'Audience', audienceType: input.audience },
+  };
+}
+
 export type FaqEntry = { q: string; a: string };
 
 export function faqJsonLd(entries: FaqEntry[]): JsonLdNode {

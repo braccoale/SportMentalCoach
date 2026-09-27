@@ -2,6 +2,13 @@ import type { Metadata } from 'next';
 import { ArrowRight } from 'lucide-react';
 import { SiteNav } from '@/components/landing/site-nav';
 import { Footer } from '@/components/footer';
+import { JsonLd } from '@/components/json-ld';
+import { AudienceFaq } from '@/components/landing/audience-paths/audience-faq';
+import {
+  audienceJsonLd,
+  audienceMetadata,
+} from '@/components/landing/audience-paths/audience-seo';
+import { serviceJsonLd } from '@/lib/core/seo';
 import { AudiencePathsDock } from '@/components/landing/audience-paths/audience-paths-dock';
 import {
   AudiencePageHero,
@@ -10,18 +17,16 @@ import {
 import { DemoRequestButton } from '@/components/landing/demo-request-button';
 import { COACHING_PACKAGES } from '@/lib/core/pricing';
 
-export const metadata: Metadata = {
-  alternates: { canonical: '/societa' },
+export const metadata: Metadata = audienceMetadata({
+  path: '/societa',
   title: 'Mental coaching per società sportive e squadre | KaiPai',
   description:
     'Mental coaching per società sportive, squadre e settori giovanili: lavoro con gli atleti, supporto allo staff, workshop per le famiglie.',
-  openGraph: {
-    title: 'KaiPai per società sportive e academy',
-    description:
-      'Squadre più unite, obiettivi più grandi: la crescita mentale dentro il progetto tecnico del club.',
-    type: 'website',
-  },
-};
+  shareTitle: 'KaiPai per società sportive e academy',
+  shareDescription:
+    'Squadre più unite, obiettivi più grandi: la crescita mentale dentro il progetto tecnico del club.',
+  image: '/og/teams.jpg',
+});
 
 const WRAP = 'mx-auto max-w-6xl px-5 sm:px-8';
 
@@ -51,6 +56,25 @@ const STEPS = [
   { t: 'Avvio e verifiche', b: 'Si parte, e lungo la stagione si fa il punto con lo staff.' },
 ];
 
+const FAQ = [
+  {
+    q: 'Lavorate anche con i settori giovanili?',
+    a: 'Sì, è uno dei percorsi per i club: lavoro con i ragazzi, workshop per staff e genitori. Ogni atleta minorenne partecipa con l’autorizzazione di un genitore, che la piattaforma richiede e registra.',
+  },
+  {
+    q: 'Il mental coach lavora al campo o online?',
+    a: 'Dipende dal percorso: i programmi per i club prevedono presenza al campo, e le sedute individuali possono svolgersi anche in videochiamata su KaiPai.',
+  },
+  {
+    q: 'Il mental coach sostituisce lo psicologo del club?',
+    a: 'No. Il mental coaching allena abilità mentali legate alla prestazione e non è una terapia. Se emerge un bisogno clinico, il coach lo segnala e indirizza verso un professionista sanitario.',
+  },
+  {
+    q: 'Come si parte?',
+    a: 'Con una richiesta dal modulo contatti: fissiamo una chiamata conoscitiva, analizziamo con voi bisogni e obiettivi e proponiamo un programma su misura.',
+  },
+];
+
 export default function SocietaPage() {
   return (
     <div className="kp-root flex min-h-screen flex-col bg-kp-ink text-kp-hi">
@@ -60,7 +84,7 @@ export default function SocietaPage() {
         <AudiencePageHero
           id="teams"
           layout="full"
-          eyebrow="Per squadre e academy"
+          eyebrow="Mental coaching per società sportive"
           lead="Squadre più unite."
           emphasis="Obiettivi più grandi."
           text="Per società sportive, squadre e academy che vogliono investire sulla crescita mentale dei propri atleti, dentro il progetto tecnico."
@@ -129,6 +153,8 @@ export default function SocietaPage() {
           </div>
         </section>
 
+        <AudienceFaq title="Prima di iniziare." faq={FAQ} />
+
         {/* Come funziona + chiusura */}
         <section className="border-t border-kp-line bg-kp-ink2 py-20 sm:py-28">
           <div className={WRAP}>
@@ -165,6 +191,23 @@ export default function SocietaPage() {
 
       <Footer />
       <AudiencePathsDock current="teams" />
+      <JsonLd
+        nodes={audienceJsonLd({
+          name: 'Società sportive',
+          path: '/societa',
+          faq: FAQ,
+          extra: [
+            serviceJsonLd({
+              name: 'Mental coaching per società sportive',
+              serviceType: 'Mental coaching sportivo',
+              description:
+                'Percorsi di mental coaching per squadre e settori giovanili, con supporto a tecnici, staff e famiglie.',
+              path: '/societa',
+              audience: 'Società sportive, squadre e academy',
+            }),
+          ],
+        })}
+      />
     </div>
   );
 }

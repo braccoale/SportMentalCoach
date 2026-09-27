@@ -3,6 +3,12 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { SiteNav } from '@/components/landing/site-nav';
 import { Footer } from '@/components/footer';
+import { JsonLd } from '@/components/json-ld';
+import { AudienceFaq } from '@/components/landing/audience-paths/audience-faq';
+import {
+  audienceJsonLd,
+  audienceMetadata,
+} from '@/components/landing/audience-paths/audience-seo';
 import { AudiencePathsDock } from '@/components/landing/audience-paths/audience-paths-dock';
 import {
   AudiencePageHero,
@@ -10,18 +16,16 @@ import {
   AUDIENCE_SECONDARY_LINK,
 } from '@/components/landing/audience-paths/audience-page-hero';
 
-export const metadata: Metadata = {
-  alternates: { canonical: '/diventa-coach' },
+export const metadata: Metadata = audienceMetadata({
+  path: '/diventa-coach',
   title: 'Diventa mental coach sportivo su KaiPai',
   description:
     'Per mental coach sportivi: profilo pubblico, prenotazioni, videochiamate, Appunti AI con consenso e il percorso di ogni atleta in un unico spazio.',
-  openGraph: {
-    title: 'Diventa coach KaiPai',
-    description:
-      'Atleti, calendario, prenotazioni, videochiamate, note e storico del percorso in un unico spazio.',
-    type: 'website',
-  },
-};
+  shareTitle: 'Diventa coach KaiPai',
+  shareDescription:
+    'Atleti, calendario, prenotazioni, videochiamate, note e storico del percorso in un unico spazio.',
+  image: '/og/coaches.jpg',
+});
 
 const WRAP = 'mx-auto max-w-6xl px-5 sm:px-8';
 const SIGNUP = '/sign-up?ruolo=coach';
@@ -101,7 +105,7 @@ export default function DiventaCoachPage() {
       <main className="flex-1">
         <AudiencePageHero
           id="coaches"
-          eyebrow="Per coach"
+          eyebrow="Per mental coach sportivi"
           lead="Tutto il tuo lavoro,"
           emphasis="in un unico spazio."
           text="Atleti, calendario, prenotazioni, videochiamate, note e storico del percorso — senza avere il lavoro sparso tra più strumenti."
@@ -183,42 +187,23 @@ export default function DiventaCoachPage() {
           </div>
         </section>
 
-        {/* FAQ */}
-        <section className="border-t border-kp-line bg-kp-ink2 py-20 sm:py-24">
-          <div className={`${WRAP} grid gap-12 lg:grid-cols-[1fr_1.4fr]`}>
-            <div>
-              <p className="kp-eyebrow text-kp-red">Domande frequenti</p>
-              <h2 className="kp-display mt-4 text-[clamp(1.5rem,3.5vw,2.5rem)] text-kp-hi">
-                Prima di candidarti.
-              </h2>
-              <div className="mt-8">
-                <Link href={SIGNUP} className={PRIMARY}>
-                  Candidati come coach
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </Link>
-              </div>
-            </div>
-            <div className="divide-y divide-kp-line border-y border-kp-line">
-              {FAQ.map((f) => (
-                <details key={f.q} className="group">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-5 text-left font-display text-base font-semibold text-kp-hi marker:content-none [&::-webkit-details-marker]:hidden">
-                    {f.q}
-                    <ArrowRight className="h-4 w-4 shrink-0 text-kp-red transition-transform group-open:rotate-90" />
-                  </summary>
-                  <p className="pb-5 pr-8 text-sm leading-relaxed text-kp-mid">
-                    {f.a}
-                  </p>
-                </details>
-              ))}
-            </div>
-          </div>
-        </section>
+        <AudienceFaq
+          title="Prima di candidarti."
+          faq={FAQ}
+          action={
+            <Link href={SIGNUP} className={PRIMARY}>
+              Candidati come coach
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+          }
+        />
         {/* Spazio per la barra dei percorsi, che è fissa in basso. */}
         <div aria-hidden className="h-24" />
       </main>
 
       <Footer />
       <AudiencePathsDock current="coaches" />
+      <JsonLd nodes={audienceJsonLd({ name: 'Diventa coach', path: '/diventa-coach', faq: FAQ })} />
     </div>
   );
 }
