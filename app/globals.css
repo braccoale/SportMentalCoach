@@ -899,3 +899,91 @@
   opacity: 0.45;
   filter: grayscale(0.35);
 }
+
+/*
+  ---break---
+  Audience paths section (below the Hero) — the interactive 5-card selector
+  and its mobile accordion twin. Scoped by `kp-aud-*`, dark-first like the
+  rest of the landing.
+*/
+.kp-aud-card {
+  border-radius: 28px;
+  transition:
+    flex-grow 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    min-width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.kp-aud-card .kp-aud-img {
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.kp-aud-card[data-expanded='true'] .kp-aud-img {
+  transform: scale(1.03);
+}
+.kp-aud-toggle:focus-visible {
+  outline: 2px solid var(--color-kp-red2);
+  outline-offset: -3px;
+}
+.kp-aud-detail {
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(10px);
+  overflow: hidden;
+  transition:
+    opacity 0.45s ease,
+    transform 0.45s ease,
+    max-height 0.55s ease;
+}
+.kp-aud-card[data-expanded='true'] .kp-aud-detail {
+  opacity: 1;
+  max-height: 30rem;
+  transform: none;
+  transition-delay: 0.1s;
+}
+.kp-aud-laptop {
+  opacity: 0;
+  transform: translate(12px, 12px);
+  transition:
+    opacity 0.45s ease,
+    transform 0.45s ease;
+  transition-delay: 0s;
+}
+.kp-aud-card[data-expanded='true'] .kp-aud-laptop {
+  opacity: 1;
+  transform: none;
+  transition-delay: 0.2s;
+}
+.kp-aud-cta {
+  transition: background-color 0.25s ease, border-color 0.25s ease;
+}
+/* Accordion (mobile/tablet, below lg) */
+.kp-aud-acc-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.kp-aud-acc-panel[data-expanded='true'] {
+  grid-template-rows: 1fr;
+}
+.kp-aud-acc-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+.kp-aud-acc-chevron {
+  transition: transform 0.35s ease;
+}
+.kp-aud-acc-item[data-expanded='true'] .kp-aud-acc-chevron {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .kp-aud-card,
+  .kp-aud-card .kp-aud-img,
+  .kp-aud-detail,
+  .kp-aud-laptop,
+  .kp-aud-cta,
+  .kp-aud-acc-panel,
+  .kp-aud-acc-chevron {
+    transition: none !important;
+  }
+  .kp-aud-card[data-expanded='true'] .kp-aud-img {
+    transform: none;
+  }
+}

@@ -31,6 +31,7 @@ import { SnapScroll } from '@/components/landing/snap-scroll';
 import { RevealProvider } from '@/components/landing/reveal-provider';
 import { SiteNav } from '@/components/landing/site-nav';
 import { Hero } from '@/components/landing/hero';
+import { AudiencePathsSection } from '@/components/landing/audience-paths/audience-paths-section';
 import { EcosystemAthlete } from '@/components/landing/ecosystem-athlete';
 import { MethodDiamond } from '@/components/landing/method';
 import { Reveal } from '@/components/landing/reveal';
@@ -110,6 +111,7 @@ export default async function KaiPaiLanding() {
 
       <Hero stats={stats} />
 
+      <AudiencePathsSection />
       <EcosystemAthlete />
       <WhyNow />
       <Audience />
