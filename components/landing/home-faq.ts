@@ -38,7 +38,7 @@ export const HOME_FAQ: FaqItem[] = [
   },
   {
     q: 'Le sedute vengono registrate?',
-    a: 'Solo con il consenso dell’atleta. Se il coach usa gli Appunti AI, il consenso viene chiesto prima di iniziare e si può rifiutare; il riepilogo lo rivede il coach prima di condividerlo.',
+    a: 'Solo con il consenso dell’atleta. Se il coach usa gli Appunti AI, il consenso viene chiesto prima di iniziare e si può rifiutare; per un minorenne serve anche che il genitore abbia autorizzato proprio la registrazione, non solo le sedute. Il riepilogo lo rivede il coach prima di condividerlo.',
   },
   {
     q: 'Come si diventa coach KaiPai?',

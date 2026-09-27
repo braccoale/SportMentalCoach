@@ -87,7 +87,7 @@ const FAQ = [
   },
   {
     q: 'Le sedute vengono registrate?',
-    a: 'Solo se lo accetti. Se il coach usa gli Appunti AI, ti viene chiesto il consenso prima di iniziare e puoi rifiutare: la seduta si svolge normalmente. Il riepilogo lo rivede il coach prima di condividerlo con te.',
+    a: 'Solo se lo accetti. Se il coach usa gli Appunti AI, ti viene chiesto il consenso prima di iniziare e puoi rifiutare: la seduta si svolge normalmente. Se sei minorenne serve anche che il genitore abbia autorizzato la registrazione, non solo le sedute. Il riepilogo lo rivede il coach prima di condividerlo con te.',
   },
   {
     q: 'Il mental coaching è una terapia?',

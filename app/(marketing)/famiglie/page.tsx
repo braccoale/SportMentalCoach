@@ -151,7 +151,7 @@ export default function FamigliePage() {
                 {
                   icon: ShieldCheck,
                   t: 'Consenso dei genitori',
-                  b: 'Per gli under 18 sei tu ad autorizzare account, prima sessione e trattamento dei dati.',
+                  b: 'Per gli under 18 sei tu ad autorizzare le sessioni e, a parte, la registrazione per gli Appunti AI. Puoi revocare in qualsiasi momento.',
                 },
                 {
                   icon: Lock,
