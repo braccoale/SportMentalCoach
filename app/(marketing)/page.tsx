@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
   ArrowRight,
@@ -40,6 +41,15 @@ import { BackToTop } from '@/components/back-to-top';
 import { getLandingStats } from '@/lib/db/landing-stats';
 
 /** First-letter monogram from a display name (drops trailing ", 17 anni" etc). */
+/*
+ * Solo il canonical: titolo e descrizione arrivano dal layout. Serve perché la
+ * home si apre anche con `?percorso=…` (il ritorno dalle pagine percorso), e
+ * senza canonical quello è un secondo indirizzo della stessa pagina.
+ */
+export const metadata: Metadata = {
+  alternates: { canonical: '/' },
+};
+
 /* ── shared bits ── */
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return <p className="kp-eyebrow text-kp-red">{children}</p>;

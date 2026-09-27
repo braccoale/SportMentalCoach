@@ -19,6 +19,7 @@ import {
 } from '@/components/landing/audience-paths/audience-page-hero';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/famiglie' },
   title: 'Famiglie — Accompagnare tuo figlio | KaiPai',
   description:
     'Il ruolo dei genitori nel percorso mentale di un giovane atleta: meno pressione, più fiducia. Tutela dei minori, consenso e riservatezza spiegati con chiarezza.',

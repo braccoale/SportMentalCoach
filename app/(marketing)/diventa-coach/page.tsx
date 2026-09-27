@@ -11,9 +11,10 @@ import {
 } from '@/components/landing/audience-paths/audience-page-hero';
 
 export const metadata: Metadata = {
-  title: 'Diventa coach KaiPai — Il tuo lavoro in un unico spazio | KaiPai',
+  alternates: { canonical: '/diventa-coach' },
+  title: 'Diventa mental coach sportivo su KaiPai',
   description:
-    'Per mental coach sportivi: profilo pubblico, disponibilità e prenotazioni, videochiamate, Appunti AI con il consenso dell’atleta e il percorso di ogni atleta in una sola piattaforma.',
+    'Per mental coach sportivi: profilo pubblico, prenotazioni, videochiamate, Appunti AI con consenso e il percorso di ogni atleta in un unico spazio.',
   openGraph: {
     title: 'Diventa coach KaiPai',
     description:

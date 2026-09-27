@@ -11,9 +11,10 @@ import {
 } from '@/components/landing/audience-paths/audience-page-hero';
 
 export const metadata: Metadata = {
-  title: 'KaiPai Academy — Formazione in mental coaching sportivo | KaiPai',
+  alternates: { canonical: '/academy' },
+  title: 'KaiPai Academy — Formazione per mental coach sportivi',
   description:
-    'La KaiPai Academy forma i mental coach sportivi della piattaforma: corsi in moduli online e in presenza, sessioni live con coach docenti, materiali e attestato di completamento.',
+    'Formazione in mental coaching sportivo: corsi in moduli online e in presenza, sessioni live con mentor esperti e attestato di completamento.',
   openGraph: {
     title: 'KaiPai Academy',
     description:

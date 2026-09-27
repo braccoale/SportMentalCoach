@@ -11,9 +11,10 @@ import {
 } from '@/components/landing/audience-paths/audience-page-hero';
 
 export const metadata: Metadata = {
-  title: 'Atleti — Mental coaching per lo sport | KaiPai',
+  alternates: { canonical: '/atleti' },
+  title: 'Mental coaching per atleti: la testa si allena | KaiPai',
   description:
-    'Concentrazione, pressione, motivazione e routine pre-gara con un mental coach sportivo: come scegliere il coach, prenotare una seduta in videochiamata e seguire il tuo percorso.',
+    'Mental coaching per atleti: concentrazione, pressione, motivazione e routine pre-gara con un mental coach sportivo, in videochiamata.',
   openGraph: {
     title: 'KaiPai per gli atleti',
     description:

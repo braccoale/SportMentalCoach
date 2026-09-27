@@ -11,9 +11,10 @@ import { DemoRequestButton } from '@/components/landing/demo-request-button';
 import { COACHING_PACKAGES } from '@/lib/core/pricing';
 
 export const metadata: Metadata = {
-  title: 'Società sportive e academy — Mental coaching per squadre | KaiPai',
+  alternates: { canonical: '/societa' },
+  title: 'Mental coaching per società sportive e squadre | KaiPai',
   description:
-    'Percorsi di mental coaching per società sportive, squadre e settori giovanili: lavoro con gli atleti, supporto a tecnici e staff, workshop per le famiglie, programmi su misura.',
+    'Mental coaching per società sportive, squadre e settori giovanili: lavoro con gli atleti, supporto allo staff, workshop per le famiglie.',
   openGraph: {
     title: 'KaiPai per società sportive e academy',
     description:
