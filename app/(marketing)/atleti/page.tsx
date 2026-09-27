@@ -12,9 +12,6 @@ import {
   audienceMetadata,
 } from '@/components/landing/audience-paths/audience-seo';
 import { CoachVsPsychologist } from '@/components/landing/audience-paths/coach-vs-psychologist';
-import { getApprovedCoaches } from '@/lib/core/listings';
-import { sportsCoveredByCoaches } from '@/lib/core/listings/sport-coverage';
-import { getActiveSports } from '@/lib/core/taxonomies';
 import { AudiencePathsDock } from '@/components/landing/audience-paths/audience-paths-dock';
 import { AUDIENCE_PRIMARY_CTA } from '@/components/landing/audience-paths/audience-page-hero';
 import { AthleteHowItWorks } from '@/components/landing/audience-paths/athlete-how-it-works';
@@ -29,9 +26,6 @@ export const metadata: Metadata = audienceMetadata({
     'Più forte nella testa, più lontano nel tuo sport: il mental coaching sportivo, passo per passo.',
   image: '/og/athletes.jpg',
 });
-
-/** Gli sport collegati cambiano con i coach approvati: basta rileggerli ogni ora. */
-export const revalidate = 3600;
 
 const WRAP = 'mx-auto w-full max-w-6xl px-5 sm:px-8';
 
@@ -78,13 +72,7 @@ const FAQ = [
   },
 ];
 
-export default async function AtletiPage() {
-  const [sports, coaches] = await Promise.all([
-    getActiveSports(),
-    getApprovedCoaches(),
-  ]);
-  const covered = sportsCoveredByCoaches(sports, coaches);
-
+export default function AtletiPage() {
   return (
     <div className="kp-root kp-snap-page flex min-h-screen flex-col bg-kp-ink text-kp-hi">
       <SnapScroll />
@@ -116,35 +104,6 @@ export default async function AtletiPage() {
           </div>
         </section>
 
-
-        {/* Per il tuo sport — solo gli sport con almeno un coach approvato */}
-        {covered.length > 0 ? (
-          <section className="border-t border-kp-line bg-kp-ink2 py-20 sm:py-24">
-            <div className={WRAP}>
-              <p className="kp-eyebrow text-kp-red">Per il tuo sport</p>
-              <h2 className="kp-display mt-4 max-w-2xl text-[clamp(1.75rem,4vw,3rem)] text-kp-hi">
-                Un mental coach che conosce il tuo sport.
-              </h2>
-              <p className="mt-5 max-w-2xl text-lg leading-relaxed text-kp-mid">
-                La pressione di un rigore non è quella di una finale di tennis.
-                Scegli il tuo sport e trovi i coach che ci lavorano già.
-              </p>
-              <ul className="mt-10 flex flex-wrap gap-3">
-                {covered.map((sport) => (
-                  <li key={sport.key}>
-                    <Link
-                      href={`/coaches?sport=${encodeURIComponent(sport.key)}`}
-                      className="inline-flex items-center gap-2 rounded-full border border-kp-line px-5 py-2.5 text-sm font-semibold text-kp-hi transition-colors hover:border-white/30 hover:bg-white/5"
-                    >
-                      Mental coach · {sport.label}
-                      <ArrowRight className="h-3.5 w-3.5 text-kp-red" />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </section>
-        ) : null}
 
         <CoachVsPsychologist />
 
