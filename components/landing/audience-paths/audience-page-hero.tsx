@@ -22,6 +22,7 @@ export function AudiencePageHero({
   actions,
   layout = 'split',
   position,
+  children,
 }: {
   id: AudienceId;
   eyebrow: string;
@@ -32,6 +33,8 @@ export function AudiencePageHero({
   layout?: 'split' | 'full';
   /** object-position della foto nella hero, se diverso da quello della card. */
   position?: string;
+  /** Contenuto sotto i bottoni, nella stessa schermata (es. i principi su /famiglie). */
+  children?: ReactNode;
 }) {
   const card = AUDIENCE_CARDS.find((c) => c.id === id)!;
   const split = layout === 'split';
@@ -61,13 +64,18 @@ export function AudiencePageHero({
         />
         <div className="absolute inset-0 bg-gradient-to-t from-kp-ink via-transparent to-kp-ink/40" />
       </div>
-      <div className="mx-auto flex min-h-svh w-full max-w-6xl flex-col justify-end px-5 pt-32 pb-16 sm:px-8 sm:pb-24">
+      <div
+        className={`mx-auto flex min-h-svh w-full max-w-6xl flex-col justify-end px-5 sm:px-8 ${
+          children ? 'pt-28 pb-12 sm:pb-14' : 'pt-32 pb-16 sm:pb-24'
+        }`}
+      >
         <p className="kp-eyebrow text-kp-red">{eyebrow}</p>
         <h1 className="kp-display mt-4 max-w-2xl text-[clamp(2.4rem,6vw,4.75rem)] leading-[1.02] text-kp-hi">
           {lead} <span className="text-kp-red">{emphasis}</span>
         </h1>
         <p className="mt-6 max-w-xl text-lg leading-relaxed text-kp-mid">{text}</p>
         <div className="mt-9 flex flex-wrap items-center gap-5">{actions}</div>
+        {children}
       </div>
     </section>
   );

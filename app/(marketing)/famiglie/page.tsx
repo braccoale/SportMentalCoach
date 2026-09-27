@@ -38,8 +38,6 @@ export const metadata: Metadata = audienceMetadata({
   image: '/og/families.jpg',
 });
 
-const WRAP = 'mx-auto w-full max-w-5xl px-5 sm:px-8';
-
 /** Parent-role pillars. */
 const ROLE = [
   {
@@ -139,40 +137,27 @@ export default function FamigliePage() {
               </a>
             </>
           }
-        />
-
-        {/* Il ruolo dei genitori */}
-        <section className="border-b border-kp-line bg-kp-ink2 py-16 sm:py-20">
-          <div className={WRAP}>
+        >
+          {/* Il ruolo dei genitori: stava in una sezione a sé, ora chiude la
+              prima schermata — è la stessa promessa detta in tre principi. */}
+          <div className="mt-12 border-t border-white/15 pt-8">
             <p className="kp-eyebrow text-kp-red">Il ruolo dei genitori</p>
-            <h2 className="kp-display mt-4 max-w-2xl text-[clamp(1.5rem,3.5vw,2.5rem)] text-kp-hi">
-              Il tuo sostegno è parte dell’allenamento.
-            </h2>
-            <p className="mt-5 max-w-2xl text-kp-mid">
-              Il coach lavora sulla mente del ragazzo; tu costruisci il contesto in
-              cui quella crescita mette radici. Tre principi che fanno la
-              differenza.
-            </p>
-            <div className="mt-10 grid gap-6 md:grid-cols-3">
+            <ul className="mt-5 grid gap-4 md:grid-cols-3">
               {ROLE.map((r) => (
-                <div
+                <li
                   key={r.t}
-                  className="h-full rounded-2xl border border-kp-line bg-white/[0.02] p-6"
+                  className="rounded-2xl border border-white/10 bg-kp-ink/60 p-5 backdrop-blur-sm"
                 >
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-kp-red/10 text-kp-red">
-                    <r.icon className="h-5 w-5" />
-                  </span>
-                  <h3 className="mt-4 font-display text-lg font-semibold text-kp-hi">
-                    {r.t}
-                  </h3>
+                  <div className="flex items-center gap-3">
+                    <r.icon className="h-5 w-5 shrink-0 text-kp-red" aria-hidden />
+                    <h2 className="font-display text-base font-semibold text-kp-hi">{r.t}</h2>
+                  </div>
                   <p className="mt-2 text-sm leading-relaxed text-kp-mid">{r.b}</p>
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
-        </section>
-
-        <CoachVsPsychologist />
+        </AudiencePageHero>
 
         <AudienceFaq
           id="faq"
@@ -195,6 +180,7 @@ export default function FamigliePage() {
             />
           }
         />
+        <CoachVsPsychologist />
       </main>
 
       <Footer />
