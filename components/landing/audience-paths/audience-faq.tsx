@@ -1,15 +1,11 @@
-import type { ComponentType, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, ChevronUp } from 'lucide-react';
 import type { FaqEntry } from '@/lib/core/seo';
 
 /** Una voce può rimandare alla pagina che la approfondisce. */
-export type FaqItem = FaqEntry & {
-  link?: { href: string; label: string };
-  /** Icona accanto alla domanda (variante `card`). Non va nei dati strutturati. */
-  icon?: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
-};
+export type FaqItem = FaqEntry & { link?: { href: string; label: string } };
 
 /**
  * Le domande frequenti delle pagine percorso. Le stesse voci vanno anche nei
@@ -31,7 +27,6 @@ export function AudienceFaq({
   photo,
   id,
   className = '',
-  variant = 'plain',
   tone,
 }: {
   title: string;
@@ -46,15 +41,12 @@ export function AudienceFaq({
   id?: string;
   /** Classi in più per la sezione (in home: `kp-snap`, vedi SnapScroll). */
   className?: string;
-  /** `card`: l'elenco sta in un riquadro bianco, con l'icona di ogni domanda. */
-  variant?: 'plain' | 'card';
   /**
    * `light` forza il fondo chiaro anche dove l'alternanza di `.kp-alt`
    * darebbe lo scuro (vedi `.kp-force-light` in globals.css).
    */
   tone?: 'light';
 }) {
-  const card = variant === 'card';
   return (
     <section
       id={id}
@@ -100,35 +92,15 @@ export function AudienceFaq({
           ) : null}
         </div>
 
-        <div
-          className={
-            card
-              ? 'self-start rounded-3xl bg-kp-surface px-5 py-2 shadow-[0_24px_60px_-30px_rgba(5,5,7,0.3)] ring-1 ring-black/5 sm:px-8'
-              : 'divide-y divide-kp-line border-y border-kp-line'
-          }
-        >
+        <div className="divide-y divide-kp-line border-y border-kp-line">
           {faq.map((f) => (
-            <details
-              key={f.q}
-              className={`group ${card ? 'border-b border-kp-line last:border-b-0' : ''}`}
-            >
+            <details key={f.q} className="group">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-5 text-left font-display text-base font-semibold text-kp-hi marker:content-none sm:text-lg [&::-webkit-details-marker]:hidden">
-                <span className="flex items-center gap-4">
-                  {card && f.icon ? (
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-kp-ink2">
-                      <f.icon className="h-5 w-5 text-kp-hi" aria-hidden />
-                    </span>
-                  ) : null}
-                  {f.q}
-                </span>
+                {f.q}
                 <ArrowRight className="h-5 w-5 shrink-0 text-kp-red group-open:hidden" aria-hidden />
                 <ChevronUp className="hidden h-5 w-5 shrink-0 text-kp-red group-open:block" aria-hidden />
               </summary>
-              <p
-                className={`mb-5 text-sm leading-relaxed text-kp-mid ${
-                  card && f.icon ? 'ml-16 pr-8' : 'ml-0.5 border-l-2 border-kp-red pl-5 pr-8'
-                }`}
-              >
+              <p className="mb-5 ml-0.5 border-l-2 border-kp-red pl-5 pr-8 text-sm leading-relaxed text-kp-mid">
                 {f.a}
                 {f.link ? (
                   <>
