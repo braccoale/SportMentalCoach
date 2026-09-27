@@ -1000,28 +1000,6 @@
   .kp-aud-card:not([data-expanded='true']) .kp-aud-cta-arrow { display: none; }
 }
 
-/* Tooltip delle card percorso: sopra la card aperta, solo con un puntatore
-   vero (mai su touch). */
-.kp-aud-tip {
-  opacity: 0;
-  transform: translateY(4px);
-  transition: opacity 0.25s ease, transform 0.3s ease;
-}
-@media (hover: hover) and (pointer: fine) {
-  .kp-aud-slot[data-expanded='true']:hover .kp-aud-tip {
-    opacity: 1;
-    transform: none;
-    transition-delay: 0.2s;
-  }
-  .kp-aud-slot:has(.kp-aud-cta:hover) .kp-aud-tip {
-    opacity: 0;
-    transition-delay: 0s;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .kp-aud-tip { transform: none; transition: opacity 0.01s; }
-}
-
 /* Barra dei percorsi sulle pagine dedicate: entra dal basso dopo la hero. */
 .kp-aud-dock {
   opacity: 0;

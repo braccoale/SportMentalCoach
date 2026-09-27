@@ -9,7 +9,7 @@ import {
 } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, ArrowUpRight, ChevronDown } from 'lucide-react';
+import { ArrowRight, ChevronDown } from 'lucide-react';
 import {
   AUDIENCE_CARDS,
   type AudienceCard,
@@ -150,7 +150,7 @@ function DesktopRow({
   };
 
   return (
-    <div className="mt-24 hidden h-[600px] gap-3 xl:flex">
+    <div className="mt-8 hidden h-[600px] gap-3 xl:flex">
       {AUDIENCE_CARDS.map((card) => {
         const isExpanded = expandedId === card.id;
         const tone = TONE[card.tone ?? 'dark'];
@@ -178,18 +178,6 @@ function DesktopRow({
               }
             }}
           >
-          {/* Tooltip sopra la card, fuori dal suo ritaglio: dice dove porta il
-              click senza coprire niente. Sparisce sopra il bottone. */}
-          <div aria-hidden className="kp-aud-tip pointer-events-none absolute bottom-full left-1/2 z-30 mb-3 w-72 -translate-x-1/2 rounded-2xl bg-kp-ink px-4 py-3 shadow-xl">
-            <span className="absolute -bottom-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 bg-kp-ink" />
-            <p className="relative flex items-center gap-1.5 text-[0.8rem] font-semibold text-kp-hi">
-              {card.preview.title}
-              <ArrowUpRight className="h-3.5 w-3.5 text-kp-red" />
-            </p>
-            <p className="relative mt-1 text-xs leading-snug text-kp-mid">
-              {card.preview.text}
-            </p>
-          </div>
           <div
             data-expanded={isExpanded}
             className={`kp-aud-card group absolute inset-0 overflow-hidden ${tone.card} shadow-[0_18px_40px_-24px_rgba(12,12,18,0.55)] ${
@@ -295,7 +283,7 @@ function MobileAccordion({
   }, [returnedId]);
 
   return (
-    <div className="mt-10 flex min-w-0 flex-col gap-3 xl:hidden">
+    <div className="mt-8 flex min-w-0 flex-col gap-3 xl:hidden">
       {AUDIENCE_CARDS.map((card) => {
         const isOpen = openId === card.id;
         return (
