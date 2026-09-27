@@ -12,6 +12,11 @@ import {
 import { SiteNav } from '@/components/landing/site-nav';
 import { Footer } from '@/components/footer';
 import { AudiencePathsDock } from '@/components/landing/audience-paths/audience-paths-dock';
+import {
+  AudiencePageHero,
+  AUDIENCE_PRIMARY_CTA,
+  AUDIENCE_SECONDARY_LINK,
+} from '@/components/landing/audience-paths/audience-page-hero';
 
 export const metadata: Metadata = {
   title: 'Famiglie — Accompagnare tuo figlio | KaiPai',
@@ -84,38 +89,26 @@ export default function FamigliePage() {
       <SiteNav />
 
       <main className="flex-1">
-        {/* Hero */}
-        <section className="relative overflow-hidden border-b border-kp-line pt-28 pb-16 sm:pt-32 sm:pb-20">
-          <div className="kp-vignette absolute inset-0" />
-          <div className={`relative ${WRAP}`}>
-            <p className="kp-eyebrow text-kp-red">Per le famiglie</p>
-            <h1 className="kp-display mt-4 max-w-3xl text-[clamp(2rem,5vw,3.5rem)] leading-tight text-kp-hi">
-              Dietro ogni giovane atleta,{' '}
-              <span className="text-kp-red">una famiglia</span>.
-            </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-kp-mid">
-              La testa di tuo figlio si allena anche fuori dal campo — a casa, nel
-              modo in cui gli parli dopo una partita. Non devi essere il suo coach:
-              devi essere il suo posto sicuro. Ti aiutiamo a farlo.
-            </p>
-            <div className="mt-9 flex flex-wrap items-center gap-4">
-              <Link
-                href="/coaches"
-                className="kp-cta group inline-flex items-center gap-2 rounded-full px-6 py-3.5 font-semibold text-white"
-              >
+        <AudiencePageHero
+          id="families"
+          eyebrow="Per le famiglie"
+          lead="Sostieni il loro talento."
+          emphasis="Con la giusta guida."
+          text="La testa di tuo figlio si allena anche fuori dal campo — a casa, nel modo in cui gli parli dopo una partita. Non devi essere il suo coach: devi essere il suo posto sicuro. Ti aiutiamo a farlo."
+          position="62% 60%"
+          actions={
+            <>
+              <Link href="/coaches" className={AUDIENCE_PRIMARY_CTA}>
                 Trova una guida per tuo figlio
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Link>
-              <a
-                href="#faq"
-                className="inline-flex items-center gap-1.5 text-sm font-semibold text-kp-mid transition-colors hover:text-kp-hi"
-              >
+              <a href="#faq" className={AUDIENCE_SECONDARY_LINK}>
                 Minori, consenso e riservatezza
                 <ArrowRight className="h-4 w-4" />
               </a>
-            </div>
-          </div>
-        </section>
+            </>
+          }
+        />
 
         {/* Il ruolo dei genitori */}
         <section className="border-b border-kp-line bg-kp-ink2 py-16 sm:py-20">
@@ -220,10 +213,7 @@ export default function FamigliePage() {
                 </p>
               </div>
               <div className="flex shrink-0 flex-wrap gap-3">
-                <Link
-                  href="/coaches"
-                  className="kp-cta inline-flex items-center gap-2 rounded-full px-6 py-3 font-semibold text-white"
-                >
+                <Link href="/coaches" className={AUDIENCE_PRIMARY_CTA}>
                   Trova una guida
                   <ArrowRight className="h-4 w-4" />
                 </Link>

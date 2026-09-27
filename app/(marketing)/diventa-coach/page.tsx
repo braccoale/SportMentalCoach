@@ -1,10 +1,14 @@
 import type { Metadata } from 'next';
-import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { SiteNav } from '@/components/landing/site-nav';
 import { Footer } from '@/components/footer';
 import { AudiencePathsDock } from '@/components/landing/audience-paths/audience-paths-dock';
+import {
+  AudiencePageHero,
+  AUDIENCE_PRIMARY_CTA,
+  AUDIENCE_SECONDARY_LINK,
+} from '@/components/landing/audience-paths/audience-page-hero';
 
 export const metadata: Metadata = {
   title: 'Diventa coach KaiPai — Il tuo lavoro in un unico spazio | KaiPai',
@@ -20,8 +24,7 @@ export const metadata: Metadata = {
 
 const WRAP = 'mx-auto max-w-6xl px-5 sm:px-8';
 const SIGNUP = '/sign-up?ruolo=coach';
-const PRIMARY =
-  'group inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-green-600 px-6 py-3.5 font-semibold text-white transition-colors hover:bg-green-700';
+const PRIMARY = AUDIENCE_PRIMARY_CTA;
 
 /**
  * Solo ciò che il prodotto fa oggi. Ogni riga corrisponde a una funzione in
@@ -95,51 +98,26 @@ export default function DiventaCoachPage() {
       <SiteNav />
 
       <main className="flex-1">
-        {/* Hero — foto a tutta altezza a destra, testo a sinistra */}
-        <section className="relative isolate overflow-hidden border-b border-kp-line">
-          <div
-            data-aud-hero="coaches"
-            className="absolute inset-y-0 right-0 -z-10 w-full md:w-[58%]"
-            // Stesso nome della foto nella card: il browser fa il morph.
-            style={{ viewTransitionName: 'kp-aud-photo-coaches' }}
-          >
-            <Image
-              src="/landing/audience/percorso-coach.webp"
-              alt="Allenatore con il cappellino a bordo campo, braccia conserte"
-              fill
-              priority
-              sizes="(min-width: 768px) 58vw, 100vw"
-              className="object-cover"
-              style={{ objectPosition: '75% 25%' }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-kp-ink via-kp-ink/70 to-kp-ink/10 md:via-kp-ink/40" />
-            <div className="absolute inset-0 bg-gradient-to-t from-kp-ink via-transparent to-kp-ink/40" />
-          </div>
-          <div className={`${WRAP} flex min-h-[88svh] flex-col justify-end pt-32 pb-16 sm:pb-24`}>
-            <p className="kp-eyebrow text-kp-red">Per coach</p>
-            <h1 className="kp-display mt-4 max-w-2xl text-[clamp(2.4rem,6vw,4.75rem)] leading-[1.02] text-kp-hi">
-              Tutto il tuo lavoro,{' '}
-              <span className="text-kp-red">in un unico spazio.</span>
-            </h1>
-            <p className="mt-6 max-w-xl text-lg leading-relaxed text-kp-mid">
-              Atleti, calendario, prenotazioni, videochiamate, note e storico del
-              percorso — senza avere il lavoro sparso tra più strumenti.
-            </p>
-            <div className="mt-9 flex flex-wrap items-center gap-5">
+        <AudiencePageHero
+          id="coaches"
+          eyebrow="Per coach"
+          lead="Tutto il tuo lavoro,"
+          emphasis="in un unico spazio."
+          text="Atleti, calendario, prenotazioni, videochiamate, note e storico del percorso — senza avere il lavoro sparso tra più strumenti."
+          position="75% 25%"
+          actions={
+            <>
               <Link href={SIGNUP} className={PRIMARY}>
                 Candidati come coach
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Link>
-              <a
-                href="#come-funziona"
-                className="inline-flex items-center gap-1.5 text-sm font-semibold text-kp-mid transition-colors hover:text-kp-hi"
-              >
+              <a href="#come-funziona" className={AUDIENCE_SECONDARY_LINK}>
                 Come funziona
                 <ArrowRight className="h-4 w-4" />
               </a>
-            </div>
-          </div>
-        </section>
+            </>
+          }
+        />
 
         {/* Cosa trovi — righe numerate, non card */}
         <section className="bg-kp-ink2 py-20 sm:py-28">

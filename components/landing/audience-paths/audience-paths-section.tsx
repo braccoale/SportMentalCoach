@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useRef,
   useState,
   type FocusEvent,
   type ReactNode,
@@ -129,11 +130,24 @@ function DesktopRow({
   onRequestContact: () => void;
 }) {
   const [expandedId, setActiveId] = useState<string | null>(null);
-  // Si torna con la card di provenienza già aperta, finché il puntatore non
-  // ne sceglie un'altra.
+  // Tornando da «Tutti i percorsi» il puntatore è rimasto dov'era il bottone,
+  // in basso: la pagina gli fa scorrere sotto una card qualunque, che si
+  // aprirebbe al posto di quella di provenienza. Finché il mouse non si muove
+  // davvero, l'hover non conta.
+  const hoverLocked = useRef(false);
   useEffect(() => {
-    if (returnedId) setActiveId(returnedId);
+    if (!returnedId) return;
+    setActiveId(returnedId);
+    hoverLocked.current = true;
+    const unlock = () => {
+      hoverLocked.current = false;
+    };
+    window.addEventListener('pointermove', unlock, { once: true });
+    return () => window.removeEventListener('pointermove', unlock);
   }, [returnedId]);
+  const hover = (id: string) => {
+    if (!hoverLocked.current) setActiveId(id);
+  };
 
   return (
     <div className="mt-12 hidden h-[600px] gap-3 xl:flex">
@@ -152,10 +166,11 @@ function DesktopRow({
               flexGrow: isExpanded ? 2.7 : 1,
               flexBasis: 0,
             }}
-            onMouseEnter={() => setActiveId(card.id)}
-            onMouseLeave={() =>
-              setActiveId((cur) => (cur === card.id ? null : cur))
-            }
+            onMouseEnter={() => hover(card.id)}
+            onMouseLeave={() => {
+              if (hoverLocked.current) return;
+              setActiveId((cur) => (cur === card.id ? null : cur));
+            }}
             onFocus={() => setActiveId(card.id)}
             onBlur={(e: FocusEvent<HTMLDivElement>) => {
               if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {

@@ -90,10 +90,11 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
     ],
     ctaLabel: 'Trova il tuo coach',
     cta: { kind: 'link', href: '/coaches' },
-    page: '/coaches',
+    page: '/atleti',
+    morph: true,
     preview: {
-      title: 'Apre l’elenco dei coach',
-      text: 'Filtra per sport e livello e scegli il mental coach giusto per te.',
+      title: 'Apre la pagina Atleti',
+      text: 'Come funziona un percorso di mental coaching, dalla scelta del coach alla seduta.',
     },
     image: {
       src: '/landing/audience/percorso-athlete.webp',
@@ -118,6 +119,7 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
     ctaLabel: 'Scopri di più',
     cta: { kind: 'link', href: '/famiglie' },
     page: '/famiglie',
+    morph: true,
     preview: {
       title: 'Apre la pagina Famiglie',
       text: 'Come accompagnare tuo figlio: consenso, minori e riservatezza.',
@@ -174,11 +176,12 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
       { icon: Network, label: 'Community e networking' },
     ],
     ctaLabel: "Scopri l'Academy",
-    cta: { kind: 'link', href: '#academy' },
-    page: '/#academy',
+    cta: { kind: 'link', href: '/academy' },
+    page: '/academy',
+    morph: true,
     preview: {
-      title: 'Porta alla KaiPai Academy',
-      text: 'I percorsi formativi per futuri coach e professionisti.',
+      title: 'Apre la KaiPai Academy',
+      text: 'Come si formano i coach KaiPai: corsi, sessioni live e mentor.',
     },
     tone: 'light',
     image: {

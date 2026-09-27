@@ -1052,13 +1052,22 @@
 }
 
 /* Morph della foto percorso fra card e pagina dedicata (morph-navigation.ts). */
+::view-transition-group(kp-aud-photo-athletes),
+::view-transition-group(kp-aud-photo-families),
 ::view-transition-group(kp-aud-photo-coaches),
+::view-transition-group(kp-aud-photo-academy),
 ::view-transition-group(kp-aud-photo-teams) {
   animation-duration: 0.65s;
   animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
+::view-transition-old(kp-aud-photo-athletes),
+::view-transition-new(kp-aud-photo-athletes),
+::view-transition-old(kp-aud-photo-families),
+::view-transition-new(kp-aud-photo-families),
 ::view-transition-old(kp-aud-photo-coaches),
 ::view-transition-new(kp-aud-photo-coaches),
+::view-transition-old(kp-aud-photo-academy),
+::view-transition-new(kp-aud-photo-academy),
 ::view-transition-old(kp-aud-photo-teams),
 ::view-transition-new(kp-aud-photo-teams) {
   height: 100%;

@@ -1,9 +1,12 @@
 import type { Metadata } from 'next';
-import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
 import { SiteNav } from '@/components/landing/site-nav';
 import { Footer } from '@/components/footer';
 import { AudiencePathsDock } from '@/components/landing/audience-paths/audience-paths-dock';
+import {
+  AudiencePageHero,
+  AUDIENCE_SECONDARY_LINK,
+} from '@/components/landing/audience-paths/audience-page-hero';
 import { DemoRequestButton } from '@/components/landing/demo-request-button';
 import { COACHING_PACKAGES } from '@/lib/core/pricing';
 
@@ -53,48 +56,24 @@ export default function SocietaPage() {
       <SiteNav />
 
       <main className="flex-1">
-        {/* Hero — la squadra a tutto schermo */}
-        <section className="relative isolate overflow-hidden border-b border-kp-line">
-          <div
-            data-aud-hero="teams"
-            className="absolute inset-0 -z-10"
-            // Stesso nome della foto nella card: il browser fa il morph.
-            style={{ viewTransitionName: 'kp-aud-photo-teams' }}
-          >
-              <Image
-                src="/landing/audience/percorso-teams.webp"
-                alt="Squadra abbracciata in cerchio sotto le luci dello stadio"
-                fill
-                priority
-                sizes="100vw"
-                className="object-cover"
-                style={{ objectPosition: '55% 88%' }}
-              />
-          </div>
-          <div className="absolute inset-0 -z-10 bg-gradient-to-t from-kp-ink via-kp-ink/55 to-kp-ink/30" />
-          <div className="absolute inset-0 -z-10 bg-gradient-to-r from-kp-ink/80 via-kp-ink/30 to-transparent" />
-          <div className={`${WRAP} flex min-h-[88svh] flex-col justify-end pt-32 pb-16 sm:pb-24`}>
-            <p className="kp-eyebrow text-kp-red">Per squadre e academy</p>
-            <h1 className="kp-display mt-4 max-w-3xl text-[clamp(2.4rem,6vw,4.75rem)] leading-[1.02] text-kp-hi">
-              Squadre più unite.{' '}
-              <span className="text-kp-red">Obiettivi più grandi.</span>
-            </h1>
-            <p className="mt-6 max-w-xl text-lg leading-relaxed text-kp-mid">
-              Per società sportive, squadre e academy che vogliono investire sulla
-              crescita mentale dei propri atleti, dentro il progetto tecnico.
-            </p>
-            <div className="mt-9 flex flex-wrap items-center gap-5">
+        <AudiencePageHero
+          id="teams"
+          layout="full"
+          eyebrow="Per squadre e academy"
+          lead="Squadre più unite."
+          emphasis="Obiettivi più grandi."
+          text="Per società sportive, squadre e academy che vogliono investire sulla crescita mentale dei propri atleti, dentro il progetto tecnico."
+          position="55% 88%"
+          actions={
+            <>
               <DemoRequestButton />
-              <a
-                href="#percorsi-club"
-                className="inline-flex items-center gap-1.5 text-sm font-semibold text-kp-mid transition-colors hover:text-kp-hi"
-              >
+              <a href="#percorsi-club" className={AUDIENCE_SECONDARY_LINK}>
                 I percorsi per i club
                 <ArrowRight className="h-4 w-4" />
               </a>
-            </div>
-          </div>
-        </section>
+            </>
+          }
+        />
 
         {/* Cosa portiamo — righe, non card */}
         <section className="bg-kp-ink2 py-20 sm:py-28">

@@ -21,6 +21,16 @@ const publicPages: MetadataRoute.Sitemap = [
     priority: 0.8,
   },
   {
+    url: `${SITE_URL}/atleti`,
+    changeFrequency: 'monthly',
+    priority: 0.8,
+  },
+  {
+    url: `${SITE_URL}/academy`,
+    changeFrequency: 'monthly',
+    priority: 0.8,
+  },
+  {
     url: `${SITE_URL}/diventa-coach`,
     changeFrequency: 'monthly',
     priority: 0.8,
