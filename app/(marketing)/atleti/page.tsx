@@ -16,11 +16,8 @@ import { getApprovedCoaches } from '@/lib/core/listings';
 import { sportsCoveredByCoaches } from '@/lib/core/listings/sport-coverage';
 import { getActiveSports } from '@/lib/core/taxonomies';
 import { AudiencePathsDock } from '@/components/landing/audience-paths/audience-paths-dock';
-import {
-  AudiencePageHero,
-  AUDIENCE_PRIMARY_CTA,
-  AUDIENCE_SECONDARY_LINK,
-} from '@/components/landing/audience-paths/audience-page-hero';
+import { AUDIENCE_PRIMARY_CTA } from '@/components/landing/audience-paths/audience-page-hero';
+import { AthleteHowItWorks } from '@/components/landing/audience-paths/athlete-how-it-works';
 
 export const metadata: Metadata = audienceMetadata({
   path: '/atleti',
@@ -55,26 +52,6 @@ const FOCUS = [
   {
     t: 'Routine pre-gara',
     b: 'Costruire un rituale tuo, che ti metta nella condizione giusta ogni volta che entri in campo.',
-  },
-];
-
-/** Come funziona su KaiPai: ogni passo corrisponde al prodotto di oggi. */
-const STEPS = [
-  {
-    t: 'Scegli il tuo coach',
-    b: 'Nell’elenco dei coach KaiPai, filtrando per sport, specialità, livello e lingua.',
-  },
-  {
-    t: 'Chiedi una seduta',
-    b: 'Scegli un orario libero. È una richiesta: nulla è dovuto finché il coach non la conferma.',
-  },
-  {
-    t: 'Seduta in videochiamata',
-    b: 'Dentro KaiPai, dal browser o dall’app. Nessun link esterno.',
-  },
-  {
-    t: 'Il tuo percorso',
-    b: 'Obiettivi e impegni concordati con il coach restano in una pagina tua, seduta dopo seduta.',
   },
 ];
 
@@ -115,26 +92,7 @@ export default async function AtletiPage() {
       <SiteNav />
 
       <main className="kp-alt flex-1">
-        <AudiencePageHero
-          id="athletes"
-          eyebrow="Mental coaching per atleti"
-          lead="Più forte nella testa."
-          emphasis="Più lontano nel tuo sport."
-          text="Lavora su concentrazione, pressione, motivazione e routine pre-gara con il supporto di un mental coach."
-          position="72% 30%"
-          actions={
-            <>
-              <Link href="/coaches" className={AUDIENCE_PRIMARY_CTA}>
-                Trova il tuo coach
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Link>
-              <a href="#come-funziona" className={AUDIENCE_SECONDARY_LINK}>
-                Come funziona
-                <ArrowRight className="h-4 w-4" />
-              </a>
-            </>
-          }
-        />
+        <AthleteHowItWorks />
 
         {/* Su cosa lavori — tipografia, non card */}
         <section className="bg-kp-ink2 py-20 sm:py-28">
@@ -158,28 +116,6 @@ export default async function AtletiPage() {
           </div>
         </section>
 
-        {/* Come funziona */}
-        <section id="come-funziona" className="scroll-mt-24 py-20 sm:py-28">
-          <div className={WRAP}>
-            <p className="kp-eyebrow text-kp-red">Come funziona</p>
-            <h2 className="kp-display mt-4 max-w-2xl text-[clamp(1.75rem,4vw,3rem)] text-kp-hi">
-              Dalla scelta del coach alla prima seduta.
-            </h2>
-            <ol className="mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
-              {STEPS.map((s, i) => (
-                <li key={s.t}>
-                  <span className="kp-display block text-6xl leading-none text-kp-hi/15">
-                    {i + 1}
-                  </span>
-                  <h3 className="mt-4 font-display text-lg font-semibold text-kp-hi">
-                    {s.t}
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-kp-mid">{s.b}</p>
-                </li>
-              ))}
-            </ol>
-          </div>
-        </section>
 
         {/* Per il tuo sport — solo gli sport con almeno un coach approvato */}
         {covered.length > 0 ? (

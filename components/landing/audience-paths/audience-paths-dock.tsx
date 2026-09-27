@@ -16,10 +16,9 @@ import { isPlainClick, navigateWithMorph } from './morph-navigation';
  * La barra dei percorsi sulle pagine dedicate (/diventa-coach, /societa,
  * /famiglie): le cinque card in miniatura, sempre a un tocco.
  *
- * Compare dopo la prima schermata — sopra la hero della pagina sarebbe solo
- * rumore — quando si risale o si arriva in fondo, e si toglie di mezzo mentre
- * si scende a leggere. Permette di passare di lato da un percorso all'altro
- * senza tornare alla home. «Tutti» riporta alle card con quella di provenienza già
+ * Compare appena si lascia la prima schermata — sopra la hero sarebbe solo
+ * rumore — e resta, scendendo e risalendo. Permette di passare di lato da un
+ * percorso all'altro senza tornare alla home. «Tutti» riporta alle card con quella di provenienza già
  * aperta (`audienceReturnHref`).
  */
 export function AudiencePathsDock({ current }: { current: AudienceId }) {
@@ -29,21 +28,12 @@ export function AudiencePathsDock({ current }: { current: AudienceId }) {
 
   useEffect(() => {
     let frame = 0;
-    let lastY = window.scrollY;
     const update = () => {
       frame = 0;
-      const y = window.scrollY;
-      const pastHero = y > window.innerHeight * 0.6;
-      const nearEnd =
-        window.innerHeight + y >= document.documentElement.scrollHeight - 120;
-      // Chi scende sta leggendo: la barra si toglie di mezzo. Riappare appena
-      // si risale — il gesto di chi cerca dove andare — e in fondo alla pagina.
-      const goingUp = y < lastY - 2;
-      const goingDown = y > lastY + 2;
-      lastY = y;
-      setVisible((was) =>
-        !pastHero ? false : nearEnd || goingUp ? true : goingDown ? false : was
-      );
+      // Visibile appena si lascia la prima schermata, sia scendendo sia
+      // risalendo: è la via per passare a un altro percorso, deve esserci
+      // quando serve e non solo quando si torna indietro.
+      setVisible(window.scrollY > window.innerHeight * 0.4);
     };
     const onScroll = () => {
       if (!frame) frame = requestAnimationFrame(update);
