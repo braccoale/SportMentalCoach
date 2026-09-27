@@ -13,7 +13,7 @@ import {
 export const metadata: Metadata = {
   title: 'KaiPai Academy — Formazione in mental coaching sportivo | KaiPai',
   description:
-    'La KaiPai Academy forma i mental coach sportivi della piattaforma: corsi in moduli, sessioni live con coach docenti, materiali e riepilogo di ogni sessione.',
+    'La KaiPai Academy forma i mental coach sportivi della piattaforma: corsi in moduli online e in presenza, sessioni live con coach docenti, materiali e attestato di completamento.',
   openGraph: {
     title: 'KaiPai Academy',
     description:
@@ -29,8 +29,10 @@ const SIGNUP = '/sign-up?ruolo=coach';
 const PATH = ['Selezione', 'Formazione', 'Supervisione', 'Crescita continua'];
 
 /**
- * Com'è fatto un corso: ogni riga corrisponde a ciò che l'Academy fa oggi
- * nel prodotto (moduli, sessioni live, materiali, riepiloghi, avanzamento).
+ * Com'è fatto un corso. Moduli, sessioni live, materiali, riepiloghi e
+ * avanzamento sono nel prodotto; «in presenza» e «attestato» sono
+ * dell'attività reale dell'Academy (confermati dal titolare, 2026-09-27) e non
+ * passano dalla piattaforma.
  */
 const COURSE = [
   {
@@ -48,6 +50,14 @@ const COURSE = [
   {
     t: 'Il riepilogo di ogni sessione',
     b: 'Dopo la sessione trovi i punti chiave, per ripassare invece di ricordare a memoria.',
+  },
+  {
+    t: 'Online e in presenza',
+    b: 'Le sessioni si seguono in videochiamata da dove sei; alcuni momenti del percorso si svolgono in presenza.',
+  },
+  {
+    t: 'Attestato di completamento',
+    b: 'Chi completa il corso riceve un attestato che ne certifica la frequenza.',
   },
   {
     t: 'Avanzamento visibile',
