@@ -161,8 +161,6 @@ export default function FamigliePage() {
           </div>
         </AudiencePageHero>
 
-        <CoachVsPsychologist />
-
         <AudienceFaq
           id="faq"
           title="Per le"
@@ -184,6 +182,7 @@ export default function FamigliePage() {
             />
           }
         />
+        <CoachVsPsychologist />
       </main>
 
       <Footer />
