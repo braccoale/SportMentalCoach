@@ -34,6 +34,7 @@ import {
   type CoachOnboarding,
 } from '@/lib/core/onboarding';
 import { resolveDisplayName } from '@/lib/core/format';
+import { getReferrersForUsers, type ReferredBy } from '@/lib/core/referrals';
 import type { Result } from '@/lib/core/result';
 import { MAX_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
 
@@ -176,6 +177,8 @@ export type AthleteAdminItem = {
   scheduledSessions: number;
   totalMinutes: number;
   createdAt: Date;
+  /** Chi lo ha portato su KaiPai col proprio link; null se è arrivato da solo. */
+  referredBy: ReferredBy | null;
 };
 
 /** Every registered athlete, for the admin overview. Newest first. */
@@ -205,6 +208,7 @@ export async function getAllAthletesForAdmin(): Promise<AthleteAdminItem[]> {
     .orderBy(desc(users.createdAt));
 
   const userIds = rows.map((row) => row.userId);
+  const referrers = await getReferrersForUsers(userIds);
   const statsRows =
     userIds.length === 0
       ? []
@@ -259,6 +263,7 @@ export async function getAllAthletesForAdmin(): Promise<AthleteAdminItem[]> {
     scheduledSessions: statsByUser.get(r.userId)?.scheduledSessions ?? 0,
     totalMinutes: statsByUser.get(r.userId)?.totalMinutes ?? 0,
     createdAt: r.createdAt,
+    referredBy: referrers.get(r.userId) ?? null,
   }));
 }
 

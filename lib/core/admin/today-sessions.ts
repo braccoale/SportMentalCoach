@@ -2,6 +2,10 @@ import { athleteDisplayName } from '@/lib/core/bookings/coach-athletes';
 import { formatRomeDateValue } from '@/lib/core/format';
 import { isSessionLive } from './live-session-state';
 import type { AdminBookingRow } from './booking-rows';
+import {
+  transcriptionOutcome,
+  type TranscriptionOutcome,
+} from './transcription-outcome';
 
 /**
  * La giornata di oggi, vista dall'amministrazione: chi vede chi, e quando.
@@ -44,6 +48,8 @@ export type AdminTodaySession = {
   isLive: boolean;
   /** La trascrizione AI è mai stata avviata (non se è andata a buon fine, solo se è partita). */
   aiTranscriptionActivated: boolean;
+  /** Se la trascrizione è andata a buon fine, non solo se è partita. */
+  transcription: TranscriptionOutcome;
 };
 
 /**
@@ -102,5 +108,9 @@ export function buildDaySessions(
       status: row.status,
       isLive: isSessionLive(row.sessionEndedAt, now, liveSilenceMs),
       aiTranscriptionActivated: row.aiTranscriptionActivated ?? false,
+      transcription: transcriptionOutcome({
+        aiTranscriptionStatus: row.aiTranscriptionStatus ?? null,
+        transcriptSegments: row.aiTranscriptSegments ?? 0,
+      }),
     }));
 }

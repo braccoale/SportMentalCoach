@@ -14,6 +14,7 @@ import {
   Medal,
   Target,
   Trophy,
+  UserPlus,
   X,
 } from 'lucide-react';
 import { CoachAvatar } from '@/components/coach-visuals';
@@ -35,6 +36,8 @@ export type AthleteProfileDialogData = {
   scheduledSessions: number;
   totalMinutes: number;
   registeredAt: string;
+  /** Chi lo ha portato su KaiPai col proprio link; null se è arrivato da solo. */
+  referredBy: { name: string; isCoach: boolean } | null;
 };
 
 function ProfileField({
@@ -178,6 +181,15 @@ export function AthleteProfileDialog({
           {meta && (
             <span className="block truncate text-xs text-gray-400">{meta}</span>
           )}
+          {athlete.referredBy && (
+            <span className="mt-1 flex items-center gap-1 truncate text-xs font-medium text-green-700">
+              <UserPlus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span className="truncate">
+                {athlete.referredBy.isCoach ? 'Coach ' : 'Invitato da '}
+                {athlete.referredBy.name}
+              </span>
+            </span>
+          )}
         </span>
         <span className="flex shrink-0 flex-col items-end gap-2 text-xs text-gray-400">
           <span>Iscritto il {athlete.registeredAt}</span>
@@ -244,6 +256,15 @@ export function AthleteProfileDialog({
                 icon={CalendarDays}
                 label="Iscrizione"
                 value={athlete.registeredAt}
+              />
+              <ProfileField
+                icon={UserPlus}
+                label="Registrato tramite"
+                value={
+                  athlete.referredBy
+                    ? `${athlete.referredBy.isCoach ? 'Coach ' : 'Atleta '}${athlete.referredBy.name}`
+                    : 'Registrazione diretta'
+                }
               />
               <ProfileField
                 icon={Target}
