@@ -1,6 +1,5 @@
 import type { ComponentType } from 'react';
 import {
-  ArrowRight,
   BarChart3,
   Brain,
   CalendarDays,
@@ -81,24 +80,21 @@ const GOALS: { title: string; touched: boolean[]; tone: GoalTone; icon: Icon }[]
   },
 ];
 
-const GOAL_TONE: Record<GoalTone, { label: string; pill: string; tint: string; bg: string }> = {
+const GOAL_TONE: Record<GoalTone, { label: string; pill: string; tint: string }> = {
   improving: {
     label: 'In miglioramento',
     pill: 'bg-green-50 text-green-700',
     tint: 'var(--color-jp-problema)',
-    bg: 'bg-red-50',
   },
   ongoing: {
     label: 'In corso',
     pill: 'bg-violet-50 text-violet-700',
     tint: 'var(--color-jp-strategia)',
-    bg: 'bg-violet-50',
   },
   resume: {
     label: 'Da riprendere',
     pill: 'bg-amber-50 text-amber-800',
     tint: 'var(--color-jp-focus)',
-    bg: 'bg-amber-50',
   },
 };
 
@@ -148,23 +144,23 @@ export const DEMO_TIMELINE: MentalJourneyEntry[] = DEMO_JOURNEY.map((entry) => (
 }));
 
 const CARD =
-  'rounded-3xl bg-white p-6 text-kp2-dayhi shadow-[0_24px_60px_-30px_rgba(5,5,7,0.35)] ring-1 ring-black/5';
+  'rounded-3xl bg-white p-5 text-kp2-dayhi shadow-[0_24px_60px_-30px_rgba(5,5,7,0.35)] ring-1 ring-black/5';
 
 export function AthleteFocusDashboard() {
   return (
-    <section className="bg-kp-ink2 py-20 sm:py-24">
+    <section className="bg-kp-ink2 py-14 sm:py-16">
       <div className="mx-auto w-full max-w-7xl px-5 sm:px-8">
-        <div className="grid gap-12 lg:grid-cols-[1fr_1.1fr] lg:items-center">
+        <div className="grid gap-8 lg:grid-cols-[1fr_1.1fr] lg:items-center">
           <div>
             <p className="kp-eyebrow flex items-center gap-3 text-kp-red">
               <span className="h-px w-10 bg-kp-red" aria-hidden />
               Su cosa lavori
             </p>
-            <h2 className="kp-display mt-5 text-[clamp(2rem,4.6vw,3.75rem)] leading-[1.02] text-kp-hi">
+            <h2 className="kp-display mt-4 text-[clamp(1.75rem,3.6vw,3rem)] leading-[1.02] text-kp-hi">
               Il fisico lo alleni ogni giorno.{' '}
               <span className="text-kp-red">La testa, quasi mai.</span>
             </h2>
-            <p className="mt-6 max-w-xl text-lg leading-relaxed text-kp-mid">
+            <p className="mt-4 max-w-xl leading-relaxed text-kp-mid">
               KaiPai ti aiuta a trasformare temi mentali in obiettivi concreti,
               azioni concordate e progressi visibili nel tempo.
             </p>
@@ -172,26 +168,23 @@ export function AthleteFocusDashboard() {
 
           <ul className="divide-y divide-kp-line">
             {FOCUS.map((f) => (
-              <li key={f.t} className="flex items-center gap-5 py-5">
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-kp-red/10">
-                  <f.icon className="h-5 w-5 text-kp-red" aria-hidden />
-                </span>
+              <li key={f.t} className="flex items-center gap-4 py-3">
+                <f.icon className="h-5 w-5 shrink-0 text-kp-red" aria-hidden />
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-display text-lg font-semibold text-kp-hi">{f.t}</h3>
-                  <p className="mt-1 text-sm leading-relaxed text-kp-mid">{f.b}</p>
+                  <h3 className="font-display text-base font-semibold text-kp-hi">{f.t}</h3>
+                  <p className="mt-0.5 text-sm leading-snug text-kp-mid">{f.b}</p>
                 </div>
-                <ArrowRight className="h-4 w-4 shrink-0 text-kp-mid" aria-hidden />
               </li>
             ))}
           </ul>
         </div>
 
-        <p className="mt-14 text-xs font-semibold uppercase tracking-wider text-kp-mid">
+        <p className="mt-8 text-xs font-semibold uppercase tracking-wider text-kp-mid">
           Esempio · il percorso di {DEMO_ATHLETE.name}, {DEMO_ATHLETE.sport.toLowerCase()}
         </p>
-        <div className="mt-4 grid gap-5 lg:grid-cols-[1.05fr_1fr]">
+        <div className="mt-3 grid gap-4 lg:grid-cols-[1.05fr_1fr]">
           <GoalsCard />
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <ProgressCard />
             <CommitmentsCard />
             <ThemesCard />
@@ -206,9 +199,7 @@ function CardHeader({ icon: Icon, title, action }: { icon: Icon; title: string; 
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50">
-          <Icon className="h-5 w-5 text-kp-red" aria-hidden />
-        </span>
+        <Icon className="h-5 w-5 shrink-0 text-kp-red" aria-hidden />
         <h3 className="font-display text-base font-semibold">{title}</h3>
       </div>
       {action ? (
@@ -226,9 +217,7 @@ function GoalsCard() {
     <article className={`${CARD} flex flex-col`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50">
-            <Target className="h-5 w-5 text-kp-red" aria-hidden />
-          </span>
+          <Target className="mt-0.5 h-5 w-5 shrink-0 text-kp-red" aria-hidden />
           <div>
             <h3 className="font-display text-base font-semibold">Obiettivi del percorso</h3>
             <p className="mt-0.5 text-sm text-kp2-daymid">
@@ -242,17 +231,17 @@ function GoalsCard() {
         </span>
       </div>
 
-      <ul className="mt-5 flex flex-1 flex-col gap-3">
+      <ul className="mt-4 flex flex-1 flex-col gap-2.5">
         {GOALS.map((goal) => {
           const tone = GOAL_TONE[goal.tone];
           const touched = goal.touched.filter(Boolean).length;
           return (
             <li
               key={goal.title}
-              className="flex flex-1 items-center gap-3 rounded-2xl border border-kp2-dayline p-3 sm:p-4"
+              className="flex flex-1 items-center gap-3 rounded-2xl border border-kp2-dayline p-3"
             >
               <span
-                className={`hidden h-9 w-9 shrink-0 items-center justify-center rounded-full sm:flex ${tone.bg}`}
+                className="hidden shrink-0 sm:block"
                 style={{ color: tone.tint }}
               >
                 <goal.icon className="h-4 w-4" aria-hidden />
@@ -308,7 +297,7 @@ function ProgressCard() {
   return (
     <article className={`${CARD} sm:col-span-2`}>
       <CardHeader icon={TrendingUp} title="Progresso complessivo" />
-      <div className="mt-4">{progress ? <JourneyProgressChart progress={progress} /> : null}</div>
+      <div className="mt-3">{progress ? <JourneyProgressChart progress={progress} /> : null}</div>
     </article>
   );
 }
@@ -327,7 +316,7 @@ function CommitmentsCard() {
   return (
     <article className={CARD}>
       <CardHeader icon={ClipboardList} title="Azioni concordate" />
-      <div className="mt-5 flex items-center gap-4">
+      <div className="mt-4 flex items-center gap-4">
         <div className="relative size-20 shrink-0">
           <svg viewBox="0 0 100 100" className="size-full -rotate-90" aria-hidden>
             <circle cx="50" cy="50" r={RING_RADIUS} fill="none" stroke="#f3f4f6" strokeWidth="10" />
@@ -371,7 +360,7 @@ function ThemesCard() {
   return (
     <article className={CARD}>
       <CardHeader icon={BarChart3} title="Temi principali" />
-      <ul className="mt-5 flex flex-col gap-4">
+      <ul className="mt-4 flex flex-col gap-4">
         {themeBars().map((bar, i) => (
           <li key={bar.label}>
             <div className="flex items-baseline justify-between gap-3 text-sm">

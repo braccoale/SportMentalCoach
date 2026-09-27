@@ -204,10 +204,13 @@ function CoachScreen() {
       <p className="mt-4 text-sm italic leading-relaxed text-kp2-daymid">
         “Aiuto i giovani atleti a esprimere il loro potenziale, in campo e fuori.”
       </p>
-      <span className="mt-auto flex w-full items-center justify-center gap-2 rounded-full bg-green-600 py-2.5 text-sm font-semibold text-white">
-        Vedi profilo
+      <Link
+        href="/coaches"
+        className="mt-auto flex w-full items-center justify-center gap-2 rounded-full bg-green-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+      >
+        Vedi i coach
         <ArrowRight className="h-4 w-4" aria-hidden />
-      </span>
+      </Link>
     </div>
   );
 }
@@ -254,10 +257,13 @@ function BookingScreen() {
       <p className="mt-4 text-center text-[11px] text-kp2-daymid">
         Il coach conferma prima che la seduta sia fissata.
       </p>
-      <span className="mt-auto flex w-full items-center justify-center gap-2 rounded-full bg-green-600 py-2.5 text-sm font-semibold text-white">
+      <Link
+        href="/coaches"
+        className="mt-auto flex w-full items-center justify-center gap-2 rounded-full bg-green-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+      >
         Richiedi l’incontro
         <ArrowRight className="h-4 w-4" aria-hidden />
-      </span>
+      </Link>
     </div>
   );
 }
