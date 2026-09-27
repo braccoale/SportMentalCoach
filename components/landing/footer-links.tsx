@@ -34,10 +34,10 @@ const COLUMNS: {
   {
     h: 'Per chi',
     links: [
-      { label: 'Atleti', href: '/#per-chi' },
+      { label: 'Atleti', href: '/#percorsi' },
       { label: 'Famiglie', href: '/famiglie' },
       { label: 'Coach', href: '/coaches' },
-      { label: 'Società', href: '/#per-chi' },
+      { label: 'Società', href: '/#percorsi' },
     ],
   },
   {

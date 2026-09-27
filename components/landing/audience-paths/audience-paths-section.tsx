@@ -18,12 +18,12 @@ const WRAP = 'mx-auto max-w-7xl px-5 sm:px-8';
  * four shrink together; a click pins the expansion until another card is
  * chosen. Mobile/tablet: a vertical accordion, one panel open at a time.
  *
- * Photo credit: athlete/families/coach crops are cropped from the brand's
- * own reference mockups (face-only regions, no baked-in text); the academy
- * photo is cropped from the existing `/academy/session-card-bg.png`; the
- * teams photo reuses `/squadra.jpg`, already used elsewhere on this page.
- * All are placeholders for a dedicated shoot — see the final report for the
- * full list.
+ * La sezione è chiara, le card restano scure: le foto sono notturne e il
+ * contrasto fra pagina e card è ciò che le fa leggere come oggetti.
+ *
+ * Foto: atleta, allenatore, famiglia e squadra sono quelle che usava la
+ * vecchia sezione «Per chi è KaiPai», che questa sostituisce; l'Academy è
+ * ritagliata da `/academy/session-card-bg.png`.
  */
 export function AudiencePathsSection() {
   const [contactOpen, setContactOpen] = useState(false);
@@ -31,15 +31,15 @@ export function AudiencePathsSection() {
   return (
     <section
       id="percorsi"
-      className="kp-snap relative flex min-h-svh flex-col justify-center bg-kp-ink py-20 sm:py-24"
+      className="kp-snap relative flex min-h-svh flex-col justify-center bg-kp2-day2 py-20 sm:py-24"
     >
       <div className={`${WRAP} min-w-0`}>
         <div className="max-w-2xl">
           <p className="kp-eyebrow text-kp-red">I tuoi percorsi</p>
-          <h2 className="kp-display mt-4 text-[clamp(1.9rem,4.5vw,3.5rem)] text-kp-hi">
+          <h2 className="kp-display mt-4 text-[clamp(1.9rem,4.5vw,3.5rem)] text-kp2-dayhi">
             Qual è il tuo percorso?
           </h2>
-          <p className="mt-5 text-lg leading-relaxed text-kp-mid">
+          <p className="mt-5 text-lg leading-relaxed text-kp2-daymid">
             Scopri cosa KaiPai può fare per te.
           </p>
         </div>
@@ -68,11 +68,13 @@ function DesktopRow({ onRequestContact }: { onRequestContact: () => void }) {
           <div
             key={card.id}
             data-expanded={isExpanded}
-            className="kp-aud-card group relative min-w-[13rem] flex-1 flex-grow overflow-hidden bg-kp-ink2"
+            className="kp-aud-card group relative min-w-0 overflow-hidden bg-kp-ink2 shadow-[0_18px_40px_-24px_rgba(12,12,18,0.55)]"
             style={{
-              flexGrow: isExpanded ? 7 : anyExpanded ? 0.62 : 1,
+              // Proporzioni, non larghezze minime: con cinque card e una
+              // espansa, qualunque somma di minimi fissi sfora il contenitore.
+              // 2.7 su 6.7 = ~40% per la card aperta.
+              flexGrow: isExpanded ? 2.7 : 1,
               flexBasis: 0,
-              minWidth: isExpanded ? '30rem' : '13rem',
             }}
             onMouseEnter={() => setActiveId(card.id)}
             onMouseLeave={() =>
@@ -107,9 +109,10 @@ function DesktopRow({ onRequestContact }: { onRequestContact: () => void }) {
               style={{ objectPosition: card.image.position }}
               priority={card.id === 'athletes'}
             />
-            {/* legibility scrims: left-heavy (text column) + bottom (CTA) */}
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-kp-ink via-kp-ink/60 to-kp-ink/15" />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-kp-ink/85 via-transparent to-kp-ink/25" />
+            {/* Chiusa: solo testa (titolo) e piede (CTA) velati, la foto resta
+                visibile. Aperta: si aggiunge il velo laterale sotto al testo. */}
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-kp-ink/85 via-kp-ink/5 to-kp-ink/80" />
+            <div className="kp-aud-side-scrim pointer-events-none absolute inset-0 bg-gradient-to-r from-kp-ink/90 via-kp-ink/55 to-transparent opacity-0 group-data-[expanded=true]:opacity-100" />
 
             {/* dashboard-mockup slot — coach card only, revealed when expanded */}
             {card.splitOnExpand && (
@@ -137,7 +140,7 @@ function DesktopRow({ onRequestContact }: { onRequestContact: () => void }) {
               </div>
             )}
 
-            <div className="relative z-10 flex h-full flex-col p-6">
+            <div className="relative z-10 flex h-full min-w-0 flex-col p-5 xl:p-6">
               {card.brand && (
                 <p className="font-display text-sm font-semibold text-kp-hi">
                   KaiPai <span className="text-kp-red">Academy</span>
@@ -149,14 +152,14 @@ function DesktopRow({ onRequestContact }: { onRequestContact: () => void }) {
                 </span>
                 <span className="mt-1.5 block h-[2px] w-8 bg-kp-red" />
               </div>
-              <h3 className="kp-display mt-3 text-[1.35rem] leading-[1.08] text-kp-hi xl:text-[1.55rem]">
+              <h3 className="kp-display mt-3 text-[1.2rem] leading-[1.08] text-kp-hi xl:text-[1.45rem]">
                 {card.headlineLead}
                 <br />
                 <span className="text-kp-red">{card.headlineEmphasis}</span>
               </h3>
 
               <div id={`${card.id}-detail`} className="kp-aud-detail mt-4">
-                <p className="max-w-[26rem] text-sm leading-relaxed text-kp-mid">
+                <p className="max-w-[24rem] text-sm leading-relaxed text-kp-mid">
                   {card.description}
                 </p>
                 <ul className="mt-5 space-y-3">
@@ -201,7 +204,7 @@ function MobileAccordion({
           <div
             key={card.id}
             data-expanded={isOpen}
-            className="kp-aud-acc-item min-w-0 overflow-hidden rounded-2xl border border-kp-line bg-white/[0.02]"
+            className="kp-aud-acc-item min-w-0 overflow-hidden rounded-2xl bg-kp-ink2 shadow-[0_12px_30px_-20px_rgba(12,12,18,0.5)]"
           >
             <button
               type="button"

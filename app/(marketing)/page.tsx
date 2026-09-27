@@ -13,15 +13,12 @@ import {
   HeartHandshake,
   MessageSquare,
   Mic,
-  Quote,
   Search,
   ShieldCheck,
   Shirt,
   Star,
   TrendingUp,
   Trophy,
-  User,
-  Users,
   Video,
   Volleyball,
 } from 'lucide-react';
@@ -43,17 +40,6 @@ import { BackToTop } from '@/components/back-to-top';
 import { getLandingStats } from '@/lib/db/landing-stats';
 
 /** First-letter monogram from a display name (drops trailing ", 17 anni" etc). */
-function initials(name: string) {
-  return name
-    .split(',')[0]
-    .trim()
-    .split(/\s+/)
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
-}
-
 /* ── shared bits ── */
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return <p className="kp-eyebrow text-kp-red">{children}</p>;
@@ -114,12 +100,10 @@ export default async function KaiPaiLanding() {
       <AudiencePathsSection />
       <EcosystemAthlete />
       <WhyNow />
-      <Audience />
       <Problem />
       <Method />
       <Founder />
       <MarketplaceAcademy />
-      <Results />
       <TrustHowItWorks />
       <Vision />
       <MovementResources />
@@ -428,119 +412,6 @@ function WhyNow() {
   );
 }
 
-/* ── Audience · per ogni ruolo ── */
-function Audience() {
-  const roles = [
-    {
-      icon: User,
-      t: 'Atleti',
-      img: '/atleta.png',
-      b: 'Sviluppa il tuo potenziale mentale. Affronta ogni sfida al massimo.',
-      href: '/coaches',
-      cta: 'Scopri di più',
-    },
-    {
-      icon: Users,
-      t: 'Allenatori',
-      img: '/allenatore.png',
-      b: 'Migliora la gestione del gruppo. Comunica, guida, ispira.',
-      href: '/coaches',
-      cta: 'Scopri di più',
-    },
-    {
-      icon: HeartHandshake,
-      t: 'Famiglie',
-      img: '/famiglia.jpg',
-      b: 'Il tuo ruolo conta più di quanto pensi. Ti aiutiamo ad accompagnare tuo figlio con equilibrio: meno pressione, più fiducia — nel rispetto della sua riservatezza.',
-      href: '/famiglie',
-      cta: 'Scopri come accompagnare tuo figlio',
-    },
-  ];
-  return (
-    <section id="per-chi" className={`${SECTION} bg-kp-ink2`}>
-      <div className={WRAP}>
-        <div className="mx-auto max-w-3xl text-center">
-          <Reveal>
-            <Eyebrow>Per chi è KaiPai</Eyebrow>
-          </Reveal>
-          <Reveal delay={0.05}>
-            <h2 className="kp-display mt-4 text-[clamp(1.4rem,3vw,2.25rem)] text-kp-hi lg:whitespace-nowrap">
-              Un percorso su misura per ogni ruolo.
-            </h2>
-          </Reveal>
-        </div>
-        <div className="mx-auto mt-8 grid max-w-5xl gap-6 md:grid-cols-3">
-          {roles.map((r, i) => (
-            <Reveal key={r.t} delay={i * 0.1}>
-              <div className="group h-full overflow-hidden rounded-2xl border border-kp-line bg-white/[0.02]">
-                <ImageSlot
-                  src={r.img}
-                  position="center top"
-                  icon={r.icon}
-                  label={r.t}
-                  className="aspect-[4/3] w-full"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-t from-kp-ink via-kp-ink/25 to-transparent" />
-                </ImageSlot>
-                <div className="p-6">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-kp-red/10 text-kp-red">
-                    <r.icon className="h-5 w-5" />
-                  </span>
-                  <h3 className="mt-4 font-display text-xl font-semibold uppercase tracking-wide text-kp-hi">
-                    {r.t}
-                  </h3>
-                  <p className="mt-2 text-sm text-kp-mid">{r.b}</p>
-                  <a
-                    href={r.href}
-                    className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-kp-red"
-                  >
-                    {r.cta}
-                    <ArrowRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-1" />
-                  </a>
-                </div>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-
-        {/* KaiPai per Società Sportive — wide banner */}
-        <Reveal delay={0.3}>
-          <div className="mx-auto mt-6 grid max-w-5xl overflow-hidden rounded-2xl border border-kp-line bg-white/[0.02] md:grid-cols-2">
-            <ImageSlot
-              src="/squadra.jpg"
-              position="center"
-              icon={Building2}
-              label="Società Sportive"
-              className="min-h-[220px] w-full"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent to-kp-ink/30" />
-            </ImageSlot>
-            <div className="flex flex-col justify-center p-8">
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-kp-red/10 text-kp-red">
-                <Building2 className="h-5 w-5" />
-              </span>
-              <h3 className="mt-4 font-display text-2xl font-semibold text-kp-hi">
-                KaiPai per Società Sportive
-              </h3>
-              <p className="mt-2 text-kp-mid">
-                Inseriamo la preparazione mentale all&apos;interno del tuo
-                progetto tecnico.
-              </p>
-              <a
-                href="/coaches"
-                className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-kp-red"
-              >
-                Scopri di più
-                <ArrowRight className="h-4 w-4" />
-              </a>
-            </div>
-          </div>
-        </Reveal>
-      </div>
-    </section>
-  );
-}
-
 /* ── Marketplace + academy · one page ── */
 function MarketplaceAcademy() {
   const steps = [
@@ -679,91 +550,6 @@ function MarketplaceAcademy() {
             </div>
           </Reveal>
         </div>
-      </div>
-    </section>
-  );
-}
-
-/* ── 08 · Results ── */
-function Results() {
-  const stats = [
-    { to: 34, prefix: '+', suffix: '%', label: 'Gestione della pressione*' },
-    { to: 9, suffix: ' su 10', label: 'Tornerebbero a farlo' },
-    { to: 2400, suffix: '+', label: 'Sessioni completate' },
-    { to: 18, label: 'Regioni coperte' },
-  ];
-  const quotes = [
-    {
-      q: 'Il mental coaching mi ha aiutato a gestire la pressione e a tornare a divertirmi in campo.',
-      n: 'Luca, 17 anni',
-      r: 'Calciatore U17',
-    },
-    {
-      q: 'Ho imparato a preparare la partita con la giusta mentalità, non solo con le gambe.',
-      n: 'Marco',
-      r: 'Allenatore, Prima Categoria',
-    },
-    {
-      q: 'Come genitore ho imparato a sostenere mio figlio senza mettergli addosso pressione.',
-      n: 'Giulia',
-      r: 'Mamma di un atleta',
-    },
-  ];
-  return (
-    <section className={`${SECTION} overflow-hidden bg-kp-ink2`}>
-      <ImageSlot
-        src="/orizzonte.png"
-        position="center"
-        placeholder="none"
-        className="absolute inset-0"
-      >
-        <div className="absolute inset-0 bg-kp-ink/78" />
-        <div className="kp-vignette absolute inset-0" />
-      </ImageSlot>
-      <div className={`relative z-10 ${WRAP}`}>
-        <SectionHeader
-          center
-          eyebrow="Chi ha già iniziato"
-          title={
-            <>
-              Non numeri.{' '}
-              <span className="text-kp-red">Persone che sono cambiate.</span>
-            </>
-          }
-        />
-        <div className="mt-14 grid grid-cols-2 gap-6 lg:grid-cols-4">
-          {stats.map((s, i) => (
-            <Reveal key={s.label} delay={i * 0.08} className="text-center">
-              <div className="font-display text-[clamp(2.2rem,5vw,3.2rem)] font-bold text-kp-hi">
-                <CountUp to={s.to} prefix={s.prefix} suffix={s.suffix} />
-              </div>
-              <p className="mt-1 text-sm text-kp-mid">{s.label}</p>
-            </Reveal>
-          ))}
-        </div>
-        <div className="mt-14 grid gap-5 md:grid-cols-3">
-          {quotes.map((t, i) => (
-            <Reveal key={t.n} delay={i * 0.1}>
-              <figure className="kp-card h-full rounded-2xl p-6">
-                <Quote className="h-6 w-6 text-kp-red" />
-                <blockquote className="mt-4 text-kp-hi">{t.q}</blockquote>
-                <figcaption className="mt-5 flex items-center gap-3 text-sm">
-                  <AvatarSlot monogram={initials(t.n)} />
-                  <span>
-                    <span className="block font-medium text-kp-hi">{t.n}</span>
-                    <span className="block text-kp-low">{t.r}</span>
-                  </span>
-                </figcaption>
-              </figure>
-            </Reveal>
-          ))}
-        </div>
-        <Reveal>
-          <p className="mt-8 text-center text-xs text-kp-low">
-            *Dato illustrativo, in fase di validazione con i risultati reali dei
-            percorsi KaiPai.
-          </p>
-        </Reveal>
       </div>
     </section>
   );

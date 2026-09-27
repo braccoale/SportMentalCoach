@@ -61,10 +61,7 @@ export type AudienceCard = {
  * of `app/(marketing)/page.tsx` (no next-intl catalogue exists for the
  * landing yet — see CLAUDE.md on staying next-intl-ready once one lands).
  *
- * Images are cropped from the brand's own reference mockups (faces only, no
- * baked-in text) or reused from existing on-brand assets — see the section
- * README note in `audience-paths-section.tsx` for what still wants a proper
- * photo shoot.
+ * Images are existing on-brand assets in /public — one-line swaps here.
  */
 export const AUDIENCE_CARDS: AudienceCard[] = [
   {
@@ -83,9 +80,9 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
     ctaLabel: 'Trova il tuo coach',
     cta: { kind: 'link', href: '/coaches' },
     image: {
-      src: '/landing/audience/athlete.webp',
-      alt: 'Giovane atleta all’aperto, luce cinematica al tramonto',
-      position: '50% 22%',
+      src: '/atleta.png',
+      alt: 'Ritratto di un giovane atleta',
+      position: '50% 20%',
     },
   },
   {
@@ -104,9 +101,9 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
     ctaLabel: 'Scopri di più',
     cta: { kind: 'link', href: '/famiglie' },
     image: {
-      src: '/landing/audience/families.webp',
-      alt: 'Genitore e giovane atleta, luce calda',
-      position: '50% 20%',
+      src: '/famiglia.jpg',
+      alt: 'Una famiglia di spalle al tramonto',
+      position: '50% 40%',
     },
   },
   {
@@ -126,9 +123,9 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
     ctaLabel: 'Unisciti come coach',
     cta: { kind: 'link', href: '/sign-up' },
     image: {
-      src: '/landing/audience/coach.webp',
-      alt: 'Coach KaiPai, ritratto',
-      position: '35% 18%',
+      src: '/allenatore.png',
+      alt: 'Ritratto di un allenatore con il cappellino',
+      position: '55% 25%',
     },
     splitOnExpand: true,
   },
