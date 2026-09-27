@@ -752,11 +752,6 @@ function SiteFooter() {
               per chi fa sport.
             </p>
             <div className="mt-4 space-y-2 text-sm text-kp-mid">
-              <p>
-                <a href="tel:+393286212598" className="transition-colors hover:text-kp-hi">
-                  +39 328 6212598
-                </a>
-              </p>
               <p>Genova, Italia</p>
             </div>
           </div>

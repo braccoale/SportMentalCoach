@@ -179,8 +179,28 @@ export default function AcademyPage() {
         </AudiencePageHero>
 
         {/* Com'è fatto un corso */}
-        <section id="corso" className="scroll-mt-24 py-10 sm:py-12">
-          <div className="mx-auto grid w-full max-w-7xl items-center gap-12 px-5 sm:px-8 lg:grid-cols-[1fr_1.15fr]">
+        <section id="corso" className="relative isolate scroll-mt-24 overflow-hidden py-10 sm:py-12">
+          {/* La foto è lo sfondo dell’angolo in basso a sinistra: tocca i bordi
+              della finestra e sfuma solo verso l’alto e verso destra. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute bottom-0 left-0 -z-10 hidden aspect-[805/465] w-[56%] lg:block"
+            style={{
+              maskImage: 'linear-gradient(to right, black 55%, transparent), linear-gradient(to bottom, transparent, black 30%)',
+              maskComposite: 'intersect',
+              WebkitMaskImage: 'linear-gradient(to right, black 55%, transparent), linear-gradient(to bottom, transparent, black 30%)',
+              WebkitMaskComposite: 'source-in',
+            }}
+          >
+            <Image
+              src="/landing/audience/academy-corso.webp"
+              alt=""
+              fill
+              sizes="56vw"
+              className="object-cover"
+            />
+          </div>
+          <div className="mx-auto grid w-full max-w-7xl items-start gap-12 px-5 sm:px-8 lg:grid-cols-[1fr_1.15fr]">
             <div>
               <p className="kp-eyebrow flex items-center gap-3 text-kp-red">
                 <span className="h-px w-10 bg-kp-red" aria-hidden />
@@ -205,27 +225,6 @@ export default function AcademyPage() {
                   plain
                   label="Hai domande? Parla con noi"
                   className={FAQ_SECONDARY_LINK}
-                />
-              </div>
-              {/* Fusa nel fondo: una maschera che sfuma i bordi fino al trasparente,
-                  non un riquadro con angoli e ombra. */}
-              <div
-                className="relative -mt-2 hidden aspect-[805/465] w-full max-w-[34rem] lg:block"
-                style={{
-                  maskImage:
-                    'linear-gradient(to right, transparent, black 10%, black 82%, transparent), linear-gradient(to bottom, transparent, black 14%, black 80%, transparent)',
-                  maskComposite: 'intersect',
-                  WebkitMaskImage:
-                    'linear-gradient(to right, transparent, black 10%, black 82%, transparent), linear-gradient(to bottom, transparent, black 14%, black 80%, transparent)',
-                  WebkitMaskComposite: 'source-in',
-                }}
-              >
-                <Image
-                  src="/landing/audience/academy-corso.webp"
-                  alt="Un docente della KaiPai Academy al tavolo con due partecipanti"
-                  fill
-                  sizes="34rem"
-                  className="object-cover"
                 />
               </div>
             </div>

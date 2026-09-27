@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import {
   Mail,
-  Phone,
   MapPin,
   Instagram,
   Facebook,
@@ -58,12 +57,6 @@ export function Footer() {
               <Mail className="h-4 w-4 text-kp-low" />
               <a href="mailto:info@kaipaicoaching.com" className="hover:text-kp-hi">
                 info@kaipaicoaching.com
-              </a>
-            </li>
-            <li className="flex items-center gap-2">
-              <Phone className="h-4 w-4 text-kp-low" />
-              <a href="tel:+393286212598" className="hover:text-kp-hi">
-                +39 328 6212598
               </a>
             </li>
             <li className="flex items-center gap-2">
