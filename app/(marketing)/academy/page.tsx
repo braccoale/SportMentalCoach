@@ -6,7 +6,12 @@ import { ScrollProgress } from '@/components/landing/smooth-scroll';
 import { SnapScroll } from '@/components/landing/snap-scroll';
 import { Footer } from '@/components/footer';
 import { JsonLd } from '@/components/json-ld';
-import { AudienceFaq } from '@/components/landing/audience-paths/audience-faq';
+import {
+  AudienceFaq,
+  FAQ_SECONDARY_LINK,
+  type FaqItem,
+} from '@/components/landing/audience-paths/audience-faq';
+import { DemoRequestButton } from '@/components/landing/demo-request-button';
 import {
   audienceJsonLd,
   audienceMetadata,
@@ -73,22 +78,52 @@ const COURSE = [
   },
 ];
 
-const FAQ = [
+/**
+ * Le domande di chi valuta l’Academy. Le risposte seguono `lib/core/academy`:
+ * i corsi li assegna il team a coach con profilo approvato, le ore di un
+ * corso sono la somma dei suoi moduli, il modulo si completa con la presenza
+ * alla sessione e dopo ogni sessione arriva il riepilogo (anche in PDF).
+ */
+const FAQ: FaqItem[] = [
   {
     q: 'Chi può seguire i corsi dell’Academy?',
-    a: 'Chi si candida come coach KaiPai. Il team valuta il profilo e assegna i corsi del percorso: l’Academy è la strada con cui un professionista entra a lavorare sulla piattaforma.',
+    a: 'I coach KaiPai: dopo la candidatura e l’approvazione del profilo, il team assegna i corsi del percorso. L’Academy è la strada con cui un professionista si prepara a lavorare sulla piattaforma.',
   },
   {
     q: 'I corsi sono online o in presenza?',
     a: 'Entrambi. Le sessioni live si seguono in videochiamata da dove sei; alcuni momenti del percorso si svolgono in presenza.',
   },
   {
-    q: 'Si riceve un attestato?',
-    a: 'Sì: chi completa il corso riceve un attestato di completamento. Non sostituisce titoli o abilitazioni professionali.',
+    q: 'Come si svolge una sessione live?',
+    a: 'In videochiamata dentro KaiPai, con il docente: nessun link esterno. Trovi le prossime sessioni del tuo corso nella tua area, con data e orario.',
+  },
+  {
+    q: 'Quanto dura il percorso?',
+    a: 'Dipende dal corso. Ogni corso è diviso in moduli, e le ore totali che vedi sono la somma dei suoi moduli: sai fin dall’inizio quanto impegno richiede.',
+  },
+  {
+    q: 'Ci sono momenti pratici o mentorship?',
+    a: 'Sì, è il cuore del percorso: si lavora nelle sessioni live con coach esperti che fanno da mentor, su casi ed esercizi, non davanti a un video registrato.',
   },
   {
     q: 'Chi sono i docenti?',
     a: 'Coach esperti che fanno da mentor: guidano le sessioni live e seguono i partecipanti lungo i moduli.',
+  },
+  {
+    q: 'Cosa resta dopo ogni sessione?',
+    a: 'Il riepilogo con i punti chiave, che puoi anche scaricare in PDF, e i materiali del modulo: letture, schede ed esercizi, per ripassare invece di ricordare a memoria.',
+  },
+  {
+    q: 'Come vedo a che punto sono?',
+    a: 'La partecipazione alle sessioni completa i moduli, e l’avanzamento del corso si aggiorna da solo: sai sempre quanti moduli hai chiuso e quanti ne mancano.',
+  },
+  {
+    q: 'Se salto una sessione?',
+    a: 'Il modulo di quella sessione resta da completare. Parlane con il team dell’Academy: ti aiuta a capire come recuperarlo.',
+  },
+  {
+    q: 'Si riceve un attestato?',
+    a: 'Sì: chi completa il corso riceve un attestato di completamento. Non sostituisce titoli o abilitazioni professionali.',
   },
 ];
 
@@ -174,26 +209,28 @@ export default function AcademyPage() {
           </div>
         </section>
 
-        <AudienceFaq title="Prima di" emphasis="candidarti" faq={FAQ} />
-
-        {/* Chiusura */}
-        <section className="border-t border-kp-line bg-kp-ink2 py-20 sm:py-24">
-          <div className={`${WRAP} flex flex-col items-start justify-between gap-8 lg:flex-row lg:items-end`}>
-            <div className="max-w-2xl">
-              <h2 className="kp-display text-[clamp(1.5rem,3.5vw,2.5rem)] text-kp-hi">
-                Vuoi diventare coach KaiPai?
-              </h2>
-              <p className="mt-4 text-kp-mid">
-                Si parte dalla candidatura: il team valuta il profilo e ti
-                accompagna nel percorso dell’Academy.
-              </p>
-            </div>
+        <AudienceFaq
+          id="faq"
+          title="Per l’"
+          emphasis="Academy"
+          intro="Qui trovi le risposte essenziali alle domande più comuni sui corsi dell’Academy, per iniziare il tuo percorso con consapevolezza e serenità."
+          faq={FAQ}
+          tone="light"
+          photo={{ src: '/landing/audience/faq-academy.webp', alt: '' }}
+          action={
             <Link href={SIGNUP} className={AUDIENCE_PRIMARY_CTA}>
               Candidati come coach
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
-          </div>
-        </section>
+          }
+          secondary={
+            <DemoRequestButton
+              plain
+              label="Hai ancora dubbi? Parla con noi"
+              className={FAQ_SECONDARY_LINK}
+            />
+          }
+        />
 
       </main>
 

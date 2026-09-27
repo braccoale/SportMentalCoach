@@ -67,7 +67,8 @@ export function AudienceFaq({
             {title}
             {emphasis ? (
               <>
-                {' '}
+                {/* «Per l’» + «Academy»: dopo un apostrofo niente spazio. */}
+                {/['’]$/.test(title) ? '' : ' '}
                 <span className="text-kp-red">{emphasis}</span>.
               </>
             ) : null}
