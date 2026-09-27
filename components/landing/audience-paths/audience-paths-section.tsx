@@ -35,10 +35,11 @@ const TONE = {
  * "Qual è il tuo percorso?" — the interactive audience selector, immediately
  * below the Hero.
  *
- * Desktop (lg+): five equal-width portrait cards in one row. Hovering or
+ * Desktop (xl+): five equal-width portrait cards in one row. Hovering or
  * focusing one grows it (flex-grow, CSS-only transition) while the other
- * four shrink together; a click pins the expansion until another card is
- * chosen. Mobile/tablet: a vertical accordion, one panel open at a time.
+ * four shrink together; a click opens the audience's own page, the button is
+ * the shortcut for who is ready. Mobile/tablet: a vertical accordion, one
+ * panel open at a time, with both links inside.
  *
  * La sezione è chiara, le card restano scure: le foto sono notturne e il
  * contrasto fra pagina e card è ciò che le fa leggere come oggetti.
@@ -74,11 +75,9 @@ export function AudiencePathsSection() {
   );
 }
 
-/* ── Desktop: hover/pin-to-expand row (xl and up) ── */
+/* ── Desktop: hover/focus-to-expand row (xl and up) ── */
 function DesktopRow({ onRequestContact }: { onRequestContact: () => void }) {
-  const [pinnedId, setPinnedId] = useState<string | null>(null);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const expandedId = pinnedId ?? activeId;
+  const [expandedId, setActiveId] = useState<string | null>(null);
 
   return (
     <div className="mt-12 hidden h-[600px] gap-3 xl:flex">
@@ -108,17 +107,12 @@ function DesktopRow({ onRequestContact }: { onRequestContact: () => void }) {
               }
             }}
           >
-            <button
-              type="button"
-              className="kp-aud-toggle absolute inset-0 z-0 h-full w-full cursor-pointer"
-              aria-expanded={isExpanded}
-              aria-controls={`${card.id}-detail`}
-              aria-label={`${card.label}: ${card.headlineLead} ${card.headlineEmphasis} ${
-                isExpanded ? '— comprimi dettagli' : '— espandi dettagli'
-              }`}
-              onClick={() =>
-                setPinnedId((cur) => (cur === card.id ? null : card.id))
-              }
+            {/* Tutta la card porta alla pagina del percorso: l'espansione al
+                passaggio è già l'anteprima, il click va avanti. Il bottone sta
+                sopra questo link, non dentro: due azioni, nessun annidamento. */}
+            <CardLink
+              href={card.page}
+              label={`${card.label}: ${card.headlineLead} ${card.headlineEmphasis} — scopri il percorso`}
             />
 
             {/* La foto si ferma sopra la fascia del bottone: il soggetto non
@@ -145,7 +139,7 @@ function DesktopRow({ onRequestContact }: { onRequestContact: () => void }) {
             )}
 
 
-            <div className="relative z-10 flex h-full min-w-0 flex-col p-4 xl:p-5">
+            <div className="pointer-events-none relative z-10 flex h-full min-w-0 flex-col p-4 xl:p-5">
               {card.brand && (
                 <p className={`font-display text-sm font-semibold ${tone.hi}`}>
                   KaiPai <span className="text-kp-red">Academy</span>
@@ -268,7 +262,18 @@ function MobileAccordion({
                       </li>
                     ))}
                   </ul>
-                  <CardCta card={card} onRequestContact={onRequestContact} />
+                  <div className="flex flex-wrap items-center gap-4">
+                    <CardCta card={card} onRequestContact={onRequestContact} />
+                    {card.cta.kind !== 'link' || card.cta.href !== card.page ? (
+                      <Link
+                        href={card.page}
+                        className="inline-flex items-center gap-1 text-sm font-semibold text-kp-hi underline-offset-4 hover:underline"
+                      >
+                        Scopri il percorso
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             </div>
@@ -276,6 +281,17 @@ function MobileAccordion({
         );
       })}
     </div>
+  );
+}
+
+/* Link a tutta superficie della card. */
+function CardLink({ href, label }: { href: string; label: string }) {
+  const className =
+    'kp-aud-toggle absolute inset-0 z-0 h-full w-full cursor-pointer';
+  return href.startsWith('/#') ? (
+    <a href={href} aria-label={label} className={className} />
+  ) : (
+    <Link href={href} aria-label={label} className={className} />
   );
 }
 

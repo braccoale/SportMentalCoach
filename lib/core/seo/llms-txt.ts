@@ -43,6 +43,8 @@ Punti fermi utili a chi cita KaiPai:
 - [Home](${baseUrl}/): che cos'è KaiPai, per chi è, il metodo e i pacchetti per i club.
 - [Coach](${baseUrl}/coaches): l'elenco dei mental coach verificati, filtrabile per sport, specialità, livello e lingua.
 - [Famiglie](${baseUrl}/famiglie): come funziona per genitori e atleti minorenni, incluso il consenso del tutore.
+- [Diventa coach](${baseUrl}/diventa-coach): per mental coach sportivi — cosa offre la piattaforma, come ci si candida e come avviene l'approvazione.
+- [Società sportive](${baseUrl}/societa): percorsi di mental coaching per club, squadre e settori giovanili.
 - [Prezzi](${baseUrl}/pricing.md): i pacchetti per club e società sportive, in formato leggibile da un agente.
 
 ## Documenti

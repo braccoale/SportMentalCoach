@@ -45,6 +45,8 @@ export type AudienceCard = {
   benefits: AudienceBenefit[];
   ctaLabel: string;
   cta: AudienceCta;
+  /** Dove porta il click sulla card: la pagina che spiega il percorso. */
+  page: string;
   image: {
     /** Path under /public. Kept separate from copy so it's a one-line swap. */
     src: string;
@@ -79,6 +81,7 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
     ],
     ctaLabel: 'Trova il tuo coach',
     cta: { kind: 'link', href: '/coaches' },
+    page: '/coaches',
     image: {
       src: '/landing/audience/percorso-athlete.webp',
       alt: 'Giovane atleta in campo al tramonto, sguardo verso il cielo',
@@ -100,6 +103,7 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
     ],
     ctaLabel: 'Scopri di più',
     cta: { kind: 'link', href: '/famiglie' },
+    page: '/famiglie',
     tone: 'light',
     image: {
       src: '/landing/audience/percorso-families.webp',
@@ -121,8 +125,9 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
       { icon: LineChart, label: 'Monitoraggio dei progressi' },
       { icon: Rocket, label: 'Più visibilità e nuove opportunità' },
     ],
-    ctaLabel: 'Unisciti come coach',
-    cta: { kind: 'link', href: '/sign-up' },
+    ctaLabel: 'Candidati come coach',
+    cta: { kind: 'link', href: '/sign-up?ruolo=coach' },
+    page: '/diventa-coach',
     image: {
       src: '/landing/audience/percorso-coach.webp',
       alt: 'Allenatore con il cappellino a bordo campo, braccia conserte',
@@ -145,6 +150,7 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
     ],
     ctaLabel: "Scopri l'Academy",
     cta: { kind: 'link', href: '#academy' },
+    page: '/#academy',
     tone: 'light',
     image: {
       src: '/landing/audience/percorso-academy-2.webp',
@@ -167,6 +173,7 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
     ],
     ctaLabel: 'Richiedi una demo',
     cta: { kind: 'contact' },
+    page: '/societa',
     image: {
       src: '/landing/audience/percorso-teams.webp',
       alt: 'Squadra abbracciata in cerchio sotto le luci dello stadio',
