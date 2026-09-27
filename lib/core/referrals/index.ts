@@ -1,7 +1,7 @@
 import 'server-only';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db, type DbOrTx } from '@/lib/db/drizzle';
-import { referralCodes, referrals, users } from '@/lib/db/schema';
+import { referralCodes, referrals, userRoles, users } from '@/lib/db/schema';
 import {
   buildInviteUrl,
   firstNameForDisplay,
@@ -139,4 +139,71 @@ export async function attributeReferral(
   } catch (err) {
     console.error('attributeReferral failed (ignored):', err);
   }
+}
+
+/**
+ * Quanti atleti si sono registrati con il link personale di questo utente.
+ *
+ * Conta solo chi ha il ruolo `athlete` e non è stato eliminato: un coach
+ * invitato da un coach non è un «atleta registrato con il mio link», e un
+ * account cancellato non è una persona che il coach possa ritrovare.
+ */
+export async function countReferredAthletes(inviterUserId: number): Promise<number> {
+  const [row] = await db
+    .select({ total: sql<number>`count(distinct ${referrals.referredUserId})::int` })
+    .from(referrals)
+    .innerJoin(users, eq(users.id, referrals.referredUserId))
+    .innerJoin(
+      userRoles,
+      and(eq(userRoles.userId, users.id), eq(userRoles.roleKey, 'athlete'))
+    )
+    .where(and(eq(referrals.inviterUserId, inviterUserId), isNull(users.deletedAt)));
+  return row?.total ?? 0;
+}
+
+export type ReferredBy = {
+  inviterUserId: number;
+  /** Nome e cognome, o l'email se mancano: mai vuoto. */
+  inviterName: string;
+  /** Chi ha invitato è un coach, non un altro atleta. */
+  inviterIsCoach: boolean;
+};
+
+/**
+ * Per ciascun utente indicato, chi lo ha portato su KaiPai col proprio link.
+ * Solo per l'amministrazione: espone il nome di chi ha invitato. Gli utenti
+ * arrivati per conto proprio non compaiono nella mappa.
+ */
+export async function getReferrersForUsers(
+  referredUserIds: number[]
+): Promise<Map<number, ReferredBy>> {
+  if (referredUserIds.length === 0) return new Map();
+
+  const rows = await db
+    .select({
+      referredUserId: referrals.referredUserId,
+      inviterUserId: users.id,
+      name: users.name,
+      lastName: users.lastName,
+      email: users.email,
+      isCoach: sql<boolean>`exists (
+        select 1 from user_roles ur
+        where ur.user_id = ${users.id} and ur.role_key = 'coach'
+      )`,
+    })
+    .from(referrals)
+    .innerJoin(users, eq(users.id, referrals.inviterUserId))
+    .where(inArray(referrals.referredUserId, referredUserIds));
+
+  return new Map(
+    rows.map((row) => [
+      row.referredUserId,
+      {
+        inviterUserId: row.inviterUserId,
+        inviterName:
+          [row.name, row.lastName].filter(Boolean).join(' ').trim() || row.email,
+        inviterIsCoach: row.isCoach,
+      },
+    ])
+  );
 }

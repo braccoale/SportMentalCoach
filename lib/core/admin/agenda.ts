@@ -52,6 +52,8 @@ type RawDayRow = {
   coach_name: string;
   service_title: string | null;
   ai_transcription_activated: boolean;
+  ai_notes_status: string | null;
+  ai_transcript_segments: number | null;
 };
 
 function toDate(value: Date | string | null): Date | null {
@@ -101,8 +103,19 @@ export async function getAdminDaySessions(
       EXISTS (
         SELECT 1 FROM session_ai_notes san
         WHERE san.booking_id = b.id AND san.started_at IS NOT NULL
-      ) AS ai_transcription_activated
+      ) AS ai_transcription_activated,
+      latest_notes.status AS ai_notes_status,
+      (
+        SELECT count(*)::int FROM session_transcript_segments sts
+        WHERE sts.session_ai_notes_id = latest_notes.id
+      ) AS ai_transcript_segments
     FROM bookings b
+    LEFT JOIN LATERAL (
+      SELECT san.id, san.status FROM session_ai_notes san
+      WHERE san.booking_id = b.id
+      ORDER BY san.id DESC
+      LIMIT 1
+    ) latest_notes ON true
     JOIN users atleta ON atleta.id = b.client_id
     JOIN provider_profiles pp ON pp.id = b.provider_id
     JOIN users coach_user ON coach_user.id = pp.user_id
@@ -148,6 +161,8 @@ export async function getAdminDaySessions(
       coachName: row.coach_name,
       serviceTitle: row.service_title,
       aiTranscriptionActivated: row.ai_transcription_activated,
+      aiTranscriptionStatus: row.ai_notes_status,
+      aiTranscriptSegments: Number(row.ai_transcript_segments ?? 0),
     };
   });
 

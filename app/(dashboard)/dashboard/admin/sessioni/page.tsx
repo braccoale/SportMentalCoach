@@ -14,6 +14,7 @@ import {
 } from '@/lib/core/admin/agenda';
 import { romeDayValueToInstant } from '@/lib/core/admin/period';
 import { upcomingDayName } from '@/lib/core/admin/upcoming';
+import type { TranscriptionOutcomeKind } from '@/lib/core/admin/transcription-outcome';
 import { SectionHeader, EmptyBlock } from '@/components/admin/control-room';
 import { LiveSessionDot } from '@/components/admin/live-session-dot';
 
@@ -29,6 +30,16 @@ const STATUS_STYLE: Record<string, string> = {
   accepted: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   requested: 'bg-amber-50 text-amber-800 ring-amber-200',
   completed: 'bg-gray-100 text-gray-600 ring-gray-200',
+};
+
+const TRANSCRIPTION_STYLE: Record<TranscriptionOutcomeKind, string> = {
+  none: 'bg-gray-100 text-gray-600 ring-gray-200',
+  waiting: 'bg-gray-100 text-gray-600 ring-gray-200',
+  in_progress: 'bg-sky-50 text-sky-700 ring-sky-200',
+  done: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  summary_failed: 'bg-amber-50 text-amber-800 ring-amber-200',
+  failed: 'bg-red-50 text-red-700 ring-red-200',
+  refused: 'bg-gray-100 text-gray-600 ring-gray-200',
 };
 
 /**
@@ -190,6 +201,7 @@ export default async function AdminSessionsPage({
                     <th scope="col" className="px-4 py-3">Durata</th>
                     <th scope="col" className="px-4 py-3">Stato</th>
                     <th scope="col" className="px-4 py-3">AI</th>
+                    <th scope="col" className="px-4 py-3">Trascrizione</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -230,6 +242,19 @@ export default async function AdminSessionsPage({
                           </span>
                         ) : (
                           <span className="text-xs text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {session.transcription.kind === 'none' ? (
+                          <span className="text-xs text-gray-400">—</span>
+                        ) : (
+                          <span
+                            className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
+                              TRANSCRIPTION_STYLE[session.transcription.kind]
+                            }`}
+                          >
+                            {session.transcription.label}
+                          </span>
                         )}
                       </td>
                     </tr>

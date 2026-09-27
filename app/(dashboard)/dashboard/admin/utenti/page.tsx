@@ -125,6 +125,9 @@ export default async function AdminUsersPage({
                 scheduledSessions: a.scheduledSessions,
                 totalMinutes: a.totalMinutes,
                 registeredAt: formatDate(a.createdAt),
+                referredBy: a.referredBy
+                  ? { name: a.referredBy.inviterName, isCoach: a.referredBy.inviterIsCoach }
+                  : null,
               };
               const guardian = flagged.get(a.userId);
               return (
