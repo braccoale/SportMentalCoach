@@ -1,9 +1,13 @@
 'use client';
 
-import { useState, type FocusEvent, type ReactNode } from 'react';
+import {
+  useState,
+  type FocusEvent,
+  type ReactNode,
+} from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, ChevronDown } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, ChevronDown } from 'lucide-react';
 import { AUDIENCE_CARDS, type AudienceCard } from './audience-cards';
 import { ContactModal } from '../contact-modal';
 
@@ -19,6 +23,7 @@ const TONE = {
     card: 'bg-kp-ink2',
     fade: 'from-kp-ink2',
     badge: 'bg-white/12 text-white ring-1 ring-white/15 backdrop-blur-sm',
+    row: '',
   },
   light: {
     scrim: 'from-white/90 via-white/45 via-35% to-transparent to-60%',
@@ -28,6 +33,9 @@ const TONE = {
     card: 'bg-white',
     fade: 'from-white',
     badge: 'bg-kp2-dayhi text-white shadow-sm',
+    // Sulla foto chiara il testo scuro da solo non basta: un alone chiaro
+    // sfumato, non una base visibile.
+    row: '[text-shadow:0_0_10px_rgba(255,255,255,0.95),0_0_2px_rgba(255,255,255,0.9)]',
   },
 } as const;
 
@@ -55,7 +63,7 @@ export function AudiencePathsSection() {
       id="percorsi"
       className="kp-snap relative flex min-h-svh flex-col justify-center bg-kp2-day2 py-20 sm:py-24"
     >
-      <div className={`${WRAP} min-w-0`}>
+      <div className={`${WRAP} w-full min-w-0`}>
         <div className="max-w-2xl">
           <p className="kp-eyebrow text-kp-red">I tuoi percorsi</p>
           <h2 className="kp-display mt-4 text-[clamp(1.9rem,4.5vw,3.5rem)] text-kp2-dayhi">
@@ -88,7 +96,7 @@ function DesktopRow({ onRequestContact }: { onRequestContact: () => void }) {
           <div
             key={card.id}
             data-expanded={isExpanded}
-            className={`kp-aud-card group relative min-w-0 overflow-hidden ${tone.card} shadow-[0_18px_40px_-24px_rgba(12,12,18,0.55)]`}
+            className="kp-aud-slot relative min-w-0"
             style={{
               // Proporzioni, non larghezze minime: con cinque card e una
               // espansa, qualunque somma di minimi fissi sfora il contenitore.
@@ -107,12 +115,28 @@ function DesktopRow({ onRequestContact }: { onRequestContact: () => void }) {
               }
             }}
           >
+          {/* Tooltip sotto la card, fuori dal suo ritaglio: dice dove porta il
+              click senza coprire niente. Sparisce sopra il bottone. */}
+          <div aria-hidden className="kp-aud-tip pointer-events-none absolute left-1/2 top-full z-30 mt-3 w-72 -translate-x-1/2 rounded-2xl bg-kp-ink px-4 py-3 shadow-xl">
+            <span className="absolute -top-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 bg-kp-ink" />
+            <p className="relative flex items-center gap-1.5 text-[0.8rem] font-semibold text-kp-hi">
+              {card.preview.title}
+              <ArrowUpRight className="h-3.5 w-3.5 text-kp-red" />
+            </p>
+            <p className="relative mt-1 text-xs leading-snug text-kp-mid">
+              {card.preview.text}
+            </p>
+          </div>
+          <div
+            data-expanded={isExpanded}
+            className={`kp-aud-card group absolute inset-0 overflow-hidden ${tone.card} shadow-[0_18px_40px_-24px_rgba(12,12,18,0.55)]`}
+          >
             {/* Tutta la card porta alla pagina del percorso: l'espansione al
                 passaggio è già l'anteprima, il click va avanti. Il bottone sta
                 sopra questo link, non dentro: due azioni, nessun annidamento. */}
             <CardLink
               href={card.page}
-              label={`${card.label}: ${card.headlineLead} ${card.headlineEmphasis} — scopri il percorso`}
+              label={`${card.label}: ${card.headlineLead} ${card.headlineEmphasis}. ${card.preview.title}: ${card.preview.text}`}
             />
 
             {/* La foto si ferma sopra la fascia del bottone: il soggetto non
@@ -166,7 +190,7 @@ function DesktopRow({ onRequestContact }: { onRequestContact: () => void }) {
                   {card.benefits.map((b) => (
                     <li
                       key={b.label}
-                      className={`flex min-w-0 items-center gap-2.5 text-[0.8rem] leading-tight xl:gap-3 xl:text-sm ${tone.hi}`}
+                      className={`flex w-fit max-w-full min-w-0 items-center gap-2.5 text-[0.8rem] font-medium leading-tight xl:gap-3 xl:text-sm ${tone.hi} ${tone.row}`}
                     >
                       <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${tone.badge}`}>
                         <b.icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
@@ -180,6 +204,7 @@ function DesktopRow({ onRequestContact }: { onRequestContact: () => void }) {
                 <CardCta card={card} onRequestContact={onRequestContact} centered />
               </div>
             </div>
+          </div>
           </div>
         );
       })}

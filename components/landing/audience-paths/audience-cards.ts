@@ -47,6 +47,8 @@ export type AudienceCard = {
   cta: AudienceCta;
   /** Dove porta il click sulla card: la pagina che spiega il percorso. */
   page: string;
+  /** Il tooltip della card: che pagina apre il click, in due righe. */
+  preview: { title: string; text: string };
   image: {
     /** Path under /public. Kept separate from copy so it's a one-line swap. */
     src: string;
@@ -82,6 +84,10 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
     ctaLabel: 'Trova il tuo coach',
     cta: { kind: 'link', href: '/coaches' },
     page: '/coaches',
+    preview: {
+      title: 'Apre l’elenco dei coach',
+      text: 'Filtra per sport e livello e scegli il mental coach giusto per te.',
+    },
     image: {
       src: '/landing/audience/percorso-athlete.webp',
       alt: 'Giovane atleta in campo al tramonto, sguardo verso il cielo',
@@ -104,6 +110,10 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
     ctaLabel: 'Scopri di più',
     cta: { kind: 'link', href: '/famiglie' },
     page: '/famiglie',
+    preview: {
+      title: 'Apre la pagina Famiglie',
+      text: 'Come accompagnare tuo figlio: consenso, minori e riservatezza.',
+    },
     tone: 'light',
     image: {
       src: '/landing/audience/percorso-families.webp',
@@ -128,6 +138,10 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
     ctaLabel: 'Candidati come coach',
     cta: { kind: 'link', href: '/sign-up?ruolo=coach' },
     page: '/diventa-coach',
+    preview: {
+      title: 'Apre «Diventa coach»',
+      text: 'Cosa offre KaiPai ai coach e come candidarsi, passo per passo.',
+    },
     image: {
       src: '/landing/audience/percorso-coach.webp',
       alt: 'Allenatore con il cappellino a bordo campo, braccia conserte',
@@ -151,6 +165,10 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
     ctaLabel: "Scopri l'Academy",
     cta: { kind: 'link', href: '#academy' },
     page: '/#academy',
+    preview: {
+      title: 'Porta alla KaiPai Academy',
+      text: 'I percorsi formativi per futuri coach e professionisti.',
+    },
     tone: 'light',
     image: {
       src: '/landing/audience/percorso-academy-2.webp',
@@ -174,6 +192,10 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
     ctaLabel: 'Richiedi una demo',
     cta: { kind: 'contact' },
     page: '/societa',
+    preview: {
+      title: 'Apre la pagina Società',
+      text: 'Percorsi per club e settori giovanili, e come si parte.',
+    },
     image: {
       src: '/landing/audience/percorso-teams.webp',
       alt: 'Squadra abbracciata in cerchio sotto le luci dello stadio',

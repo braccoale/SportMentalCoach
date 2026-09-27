@@ -908,9 +908,9 @@
 */
 .kp-aud-card {
   border-radius: 28px;
-  transition:
-    flex-grow 0.55s cubic-bezier(0.22, 1, 0.36, 1),
-    min-width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.kp-aud-slot {
+  transition: flex-grow 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .kp-aud-card .kp-aud-img {
   transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
@@ -974,7 +974,7 @@
   transform: rotate(180deg);
 }
 @media (prefers-reduced-motion: reduce) {
-  .kp-aud-card,
+  .kp-aud-slot,
   .kp-aud-card .kp-aud-img,
   .kp-aud-detail,
   .kp-aud-laptop,
@@ -998,4 +998,26 @@
 /* Freccia del bottone: sulle card chiuse della riga desktop non c'è spazio. */
 @media (min-width: 1280px) {
   .kp-aud-card:not([data-expanded='true']) .kp-aud-cta-arrow { display: none; }
+}
+
+/* Tooltip delle card percorso: sotto la card aperta, solo con un puntatore
+   vero (mai su touch). */
+.kp-aud-tip {
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.25s ease, transform 0.3s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .kp-aud-slot[data-expanded='true']:hover .kp-aud-tip {
+    opacity: 1;
+    transform: none;
+    transition-delay: 0.2s;
+  }
+  .kp-aud-slot:has(.kp-aud-cta:hover) .kp-aud-tip {
+    opacity: 0;
+    transition-delay: 0s;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kp-aud-tip { transform: none; transition: opacity 0.01s; }
 }
