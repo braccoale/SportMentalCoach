@@ -157,7 +157,7 @@ export default function SocietaPage() {
           </div>
         </section>
 
-        <AudienceFaq title="Prima di iniziare." faq={FAQ} />
+        <AudienceFaq title="Prima di" emphasis="iniziare" faq={FAQ} />
 
         {/* Come funziona + chiusura */}
         <section className="border-t border-kp-line bg-kp-ink2 py-20 sm:py-28">

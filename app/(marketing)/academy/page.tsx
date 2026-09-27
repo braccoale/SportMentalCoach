@@ -175,7 +175,7 @@ export default function AcademyPage() {
           </div>
         </section>
 
-        <AudienceFaq title="Prima di candidarti." faq={FAQ} />
+        <AudienceFaq title="Prima di" emphasis="candidarti" faq={FAQ} />
 
         {/* Chiusura */}
         <section className="border-t border-kp-line bg-kp-ink2 py-20 sm:py-24">

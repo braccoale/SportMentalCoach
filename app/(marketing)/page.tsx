@@ -123,7 +123,7 @@ export default async function KaiPaiLanding() {
       <AudienceFaq
         id="faq"
         className="kp-snap"
-        title="Tutto quello che ci chiedono."
+        title="Tutto quello che ci" emphasis="chiedono"
         faq={HOME_FAQ}
       />
       <FinalCta />

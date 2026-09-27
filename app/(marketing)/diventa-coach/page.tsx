@@ -192,7 +192,7 @@ export default function DiventaCoachPage() {
         </section>
 
         <AudienceFaq
-          title="Prima di candidarti."
+          title="Prima di" emphasis="candidarti"
           faq={FAQ}
           action={
             <Link href={SIGNUP} className={PRIMARY}>
