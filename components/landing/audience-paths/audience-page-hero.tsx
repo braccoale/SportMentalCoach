@@ -61,7 +61,7 @@ export function AudiencePageHero({
         />
         <div className="absolute inset-0 bg-gradient-to-t from-kp-ink via-transparent to-kp-ink/40" />
       </div>
-      <div className="mx-auto flex min-h-[88svh] max-w-6xl flex-col justify-end px-5 pt-32 pb-16 sm:px-8 sm:pb-24">
+      <div className="mx-auto flex min-h-svh w-full max-w-6xl flex-col justify-end px-5 pt-32 pb-16 sm:px-8 sm:pb-24">
         <p className="kp-eyebrow text-kp-red">{eyebrow}</p>
         <h1 className="kp-display mt-4 max-w-2xl text-[clamp(2.4rem,6vw,4.75rem)] leading-[1.02] text-kp-hi">
           {lead} <span className="text-kp-red">{emphasis}</span>

@@ -1000,11 +1000,11 @@
   .kp-aud-card:not([data-expanded='true']) .kp-aud-cta-arrow { display: none; }
 }
 
-/* Tooltip delle card percorso: sotto la card aperta, solo con un puntatore
+/* Tooltip delle card percorso: sopra la card aperta, solo con un puntatore
    vero (mai su touch). */
 .kp-aud-tip {
   opacity: 0;
-  transform: translateY(-4px);
+  transform: translateY(4px);
   transition: opacity 0.25s ease, transform 0.3s ease;
 }
 @media (hover: hover) and (pointer: fine) {
@@ -1083,4 +1083,42 @@
   ::view-transition-new(*) {
     animation: none !important;
   }
+}
+
+/*
+  Pagine percorso (/atleti, /famiglie, /diventa-coach, /academy, /societa):
+  lo stesso scorrimento a scatti della home, una sezione per schermata, e
+  sezioni alternate scura / chiara — la prima (la hero) scura.
+
+  L'alternanza ridefinisce i token del brand dentro le sezioni pari: le
+  classi (text-kp-hi, bg-kp-ink2, border-kp-line…) restano quelle della
+  versione scura e cambiano colore da sole. Tailwind 4 legge i colori di
+  @theme dalle variabili, ed è ciò che lo rende possibile.
+*/
+.kp-alt > section {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100svh;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+.kp-alt > section:nth-of-type(odd) {
+  background-color: var(--color-kp-ink);
+}
+.kp-alt > section:nth-of-type(even) {
+  --color-kp-ink: #ffffff;
+  --color-kp-ink2: var(--color-kp2-day2);
+  --color-kp-surface: #ffffff;
+  --color-kp-hi: var(--color-kp2-dayhi);
+  --color-kp-mid: var(--color-kp2-daymid);
+  --color-kp-low: var(--color-kp2-daylow);
+  --color-kp-line: var(--color-kp2-dayline);
+  background-color: var(--color-kp2-day2);
+  color: var(--color-kp-hi);
+}
+/* Il footer è più basso di uno schermo: allineato alla fine resta
+   raggiungibile con lo scatto obbligatorio (come .kp-snap-end in home). */
+.kp-snap-page > footer {
+  scroll-snap-align: end;
 }

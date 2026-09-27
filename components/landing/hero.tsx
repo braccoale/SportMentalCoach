@@ -1,23 +1,15 @@
-import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { Reveal } from './reveal';
 import { ImageSlot } from './image-slot';
-import { VideoCta } from './video-cta';
 import { ParallaxGroup, ParallaxLayer, AnimatedHeadline } from './hero-fx';
 import { Synapses } from './synapses';
 import { LiveStats } from './live-stats';
 import type { LandingStats } from '@/lib/db/schema';
 
-const SIDE_STATS = [
-  { label: 'Concentrazione', value: '+28%', float: 'kp-float' },
-  { label: 'Resilienza', value: '+35%', float: 'kp-float-slow' },
-  { label: 'Gestione stress', value: '+42%', float: 'kp-float' },
-];
-
 /**
  * Cinematic hero — the trust-in-5-seconds moment. A large portrait bleeds
  * full-height on the right (behind the transparent nav), lit by a neural glow,
- * with floating glass widgets alongside. Drop the portrait at
+ * with the headline and the action row on the left. Drop the portrait at
  * `public/hero-athlete.jpg`; until then the slot shows an elegant dark
  * placeholder with the glow, never a broken frame.
  */
@@ -53,27 +45,6 @@ export function Hero({ stats }: { stats: LandingStats }) {
         </ImageSlot>
       </ParallaxLayer>
 
-      {/* Floating stat widgets — deepest layer, follow the cursor */}
-      <ParallaxLayer
-        depth={26}
-        className="absolute right-48 top-1/2 z-20 hidden -translate-y-1/2 xl:block"
-      >
-        <div className="flex flex-col gap-6">
-        {SIDE_STATS.map((s, i) => (
-          <Reveal key={s.label} delay={0.45 + i * 0.12}>
-            <div className={`kp-glass w-52 rounded-2xl px-4 py-3 ${s.float}`}>
-              <p className="kp-eyebrow text-[0.65rem] text-kp-mid">{s.label}</p>
-              <div className="mt-1 flex items-end justify-between gap-3">
-                <span className="font-display text-3xl font-bold text-kp-red">
-                  {s.value}
-                </span>
-                <Sparkline />
-              </div>
-            </div>
-          </Reveal>
-        ))}
-        </div>
-      </ParallaxLayer>
       </ParallaxGroup>
 
       {/* Content */}
@@ -100,17 +71,18 @@ export function Hero({ stats }: { stats: LandingStats }) {
           </Reveal>
         </div>
 
-        {/* Riga d'azione: le due CTA e il video stanno sulla stessa linea, così
-            la riga esce dal `max-w-xl` del blocco testo per avere spazio. */}
+        {/* Riga d'azione: le due CTA sulla stessa linea. */}
         <Reveal delay={0.25} className="mt-9 max-w-3xl">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Link
-              href="/coaches"
-              className="kp-cta group inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 font-semibold text-white"
+            {/* Porta alle cinque card subito sotto: prima di scegliere un
+                coach, chi arriva sceglie il proprio percorso. */}
+            <a
+              href="#percorsi"
+              className="group inline-flex items-center justify-center gap-2 rounded-full bg-green-600 px-7 py-3.5 font-semibold text-white transition-colors hover:bg-green-700"
             >
               Inizia il tuo percorso
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Link>
+            </a>
             <a
               href="#metodo"
               className="inline-flex items-center justify-center gap-2 rounded-full border border-kp-line px-6 py-3.5 font-medium text-kp-hi backdrop-blur-sm transition-colors hover:border-kp-hi/30"
@@ -118,7 +90,6 @@ export function Hero({ stats }: { stats: LandingStats }) {
               Scopri il Metodo
               <ArrowRight className="h-4 w-4" />
             </a>
-            <VideoCta />
           </div>
         </Reveal>
 
@@ -134,20 +105,5 @@ export function Hero({ stats }: { stats: LandingStats }) {
         <div className="mx-auto h-10 w-[1px] bg-gradient-to-b from-kp-mid to-transparent" />
       </div>
     </section>
-  );
-}
-
-function Sparkline() {
-  return (
-    <svg width="52" height="26" viewBox="0 0 52 26" fill="none" aria-hidden>
-      <polyline
-        points="2,22 14,16 24,19 34,9 50,3"
-        stroke="#e11d2a"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="50" cy="3" r="2" fill="#f5333f" />
-    </svg>
   );
 }

@@ -30,7 +30,7 @@ export function AudienceFaq({
       id={id}
       className={`scroll-mt-24 border-t border-kp-line bg-kp-ink2 py-20 sm:py-24 ${className}`}
     >
-      <div className="mx-auto grid max-w-6xl gap-12 px-5 sm:px-8 lg:grid-cols-[1fr_1.4fr]">
+      <div className="mx-auto grid w-full max-w-6xl gap-12 px-5 sm:px-8 lg:grid-cols-[1fr_1.4fr]">
         <div>
           <p className="kp-eyebrow text-kp-red">Domande frequenti</p>
           <h2 className="kp-display mt-4 text-[clamp(1.5rem,3.5vw,2.5rem)] text-kp-hi">

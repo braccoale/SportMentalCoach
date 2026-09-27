@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { ArrowRight } from 'lucide-react';
 import { SiteNav } from '@/components/landing/site-nav';
+import { ScrollProgress } from '@/components/landing/smooth-scroll';
+import { SnapScroll } from '@/components/landing/snap-scroll';
 import { Footer } from '@/components/footer';
 import { JsonLd } from '@/components/json-ld';
 import { AudienceFaq } from '@/components/landing/audience-paths/audience-faq';
@@ -28,7 +30,7 @@ export const metadata: Metadata = audienceMetadata({
   image: '/og/teams.jpg',
 });
 
-const WRAP = 'mx-auto max-w-6xl px-5 sm:px-8';
+const WRAP = 'mx-auto w-full max-w-6xl px-5 sm:px-8';
 
 const PILLARS = [
   {
@@ -77,10 +79,12 @@ const FAQ = [
 
 export default function SocietaPage() {
   return (
-    <div className="kp-root flex min-h-screen flex-col bg-kp-ink text-kp-hi">
+    <div className="kp-root kp-snap-page flex min-h-screen flex-col bg-kp-ink text-kp-hi">
+      <SnapScroll />
+      <ScrollProgress />
       <SiteNav />
 
-      <main className="flex-1">
+      <main className="kp-alt flex-1">
         <AudiencePageHero
           id="teams"
           layout="full"
@@ -185,8 +189,6 @@ export default function SocietaPage() {
             </div>
           </div>
         </section>
-        {/* Spazio per la barra dei percorsi, che è fissa in basso. */}
-        <div aria-hidden className="h-24" />
       </main>
 
       <Footer />

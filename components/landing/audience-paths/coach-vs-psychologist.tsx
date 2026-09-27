@@ -28,7 +28,7 @@ const COLUMNS = [
 export function CoachVsPsychologist() {
   return (
     <section className="border-t border-kp-line py-20 sm:py-28">
-      <div className="mx-auto max-w-6xl px-5 sm:px-8">
+      <div className="mx-auto w-full max-w-6xl px-5 sm:px-8">
         <p className="kp-eyebrow text-kp-red">Prima di iniziare</p>
         <h2 className="kp-display mt-4 max-w-3xl text-[clamp(1.75rem,4vw,3rem)] text-kp-hi">
           Mental coach o psicologo dello sport?

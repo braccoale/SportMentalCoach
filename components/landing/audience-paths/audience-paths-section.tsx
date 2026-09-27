@@ -150,7 +150,7 @@ function DesktopRow({
   };
 
   return (
-    <div className="mt-12 hidden h-[600px] gap-3 xl:flex">
+    <div className="mt-24 hidden h-[600px] gap-3 xl:flex">
       {AUDIENCE_CARDS.map((card) => {
         const isExpanded = expandedId === card.id;
         const tone = TONE[card.tone ?? 'dark'];
@@ -178,10 +178,10 @@ function DesktopRow({
               }
             }}
           >
-          {/* Tooltip sotto la card, fuori dal suo ritaglio: dice dove porta il
+          {/* Tooltip sopra la card, fuori dal suo ritaglio: dice dove porta il
               click senza coprire niente. Sparisce sopra il bottone. */}
-          <div aria-hidden className="kp-aud-tip pointer-events-none absolute left-1/2 top-full z-30 mt-3 w-72 -translate-x-1/2 rounded-2xl bg-kp-ink px-4 py-3 shadow-xl">
-            <span className="absolute -top-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 bg-kp-ink" />
+          <div aria-hidden className="kp-aud-tip pointer-events-none absolute bottom-full left-1/2 z-30 mb-3 w-72 -translate-x-1/2 rounded-2xl bg-kp-ink px-4 py-3 shadow-xl">
+            <span className="absolute -bottom-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 bg-kp-ink" />
             <p className="relative flex items-center gap-1.5 text-[0.8rem] font-semibold text-kp-hi">
               {card.preview.title}
               <ArrowUpRight className="h-3.5 w-3.5 text-kp-red" />

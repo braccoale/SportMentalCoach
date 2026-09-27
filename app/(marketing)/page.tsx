@@ -770,13 +770,13 @@ function FinalCta() {
         </Reveal>
         <Reveal delay={0.15}>
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link
-              href="/coaches"
-              className="kp-cta group inline-flex items-center gap-2 rounded-full px-8 py-4 font-semibold text-white"
+            <a
+              href="#percorsi"
+              className="group inline-flex items-center gap-2 rounded-full bg-green-600 px-8 py-4 font-semibold text-white transition-colors hover:bg-green-700"
             >
               Inizia il tuo percorso
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Link>
+            </a>
             <a
               href="#metodo"
               className="inline-flex items-center rounded-full border border-kp-line px-7 py-4 font-medium text-kp-hi hover:border-kp-hi/30"

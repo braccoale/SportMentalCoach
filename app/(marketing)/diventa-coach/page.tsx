@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { SiteNav } from '@/components/landing/site-nav';
+import { ScrollProgress } from '@/components/landing/smooth-scroll';
+import { SnapScroll } from '@/components/landing/snap-scroll';
 import { Footer } from '@/components/footer';
 import { JsonLd } from '@/components/json-ld';
 import { AudienceFaq } from '@/components/landing/audience-paths/audience-faq';
@@ -27,7 +29,7 @@ export const metadata: Metadata = audienceMetadata({
   image: '/og/coaches.jpg',
 });
 
-const WRAP = 'mx-auto max-w-6xl px-5 sm:px-8';
+const WRAP = 'mx-auto w-full max-w-6xl px-5 sm:px-8';
 const SIGNUP = '/sign-up?ruolo=coach';
 const PRIMARY = AUDIENCE_PRIMARY_CTA;
 
@@ -99,10 +101,12 @@ const FAQ = [
 
 export default function DiventaCoachPage() {
   return (
-    <div className="kp-root flex min-h-screen flex-col bg-kp-ink text-kp-hi">
+    <div className="kp-root kp-snap-page flex min-h-screen flex-col bg-kp-ink text-kp-hi">
+      <SnapScroll />
+      <ScrollProgress />
       <SiteNav />
 
-      <main className="flex-1">
+      <main className="kp-alt flex-1">
         <AudiencePageHero
           id="coaches"
           eyebrow="Per mental coach sportivi"
@@ -197,8 +201,6 @@ export default function DiventaCoachPage() {
             </Link>
           }
         />
-        {/* Spazio per la barra dei percorsi, che è fissa in basso. */}
-        <div aria-hidden className="h-24" />
       </main>
 
       <Footer />

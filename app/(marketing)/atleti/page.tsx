@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { SiteNav } from '@/components/landing/site-nav';
+import { ScrollProgress } from '@/components/landing/smooth-scroll';
+import { SnapScroll } from '@/components/landing/snap-scroll';
 import { Footer } from '@/components/footer';
 import { JsonLd } from '@/components/json-ld';
 import { AudienceFaq } from '@/components/landing/audience-paths/audience-faq';
@@ -34,7 +36,7 @@ export const metadata: Metadata = audienceMetadata({
 /** Gli sport collegati cambiano con i coach approvati: basta rileggerli ogni ora. */
 export const revalidate = 3600;
 
-const WRAP = 'mx-auto max-w-6xl px-5 sm:px-8';
+const WRAP = 'mx-auto w-full max-w-6xl px-5 sm:px-8';
 
 /** Su cosa si lavora: temi di coaching, non funzioni del prodotto. */
 const FOCUS = [
@@ -107,10 +109,12 @@ export default async function AtletiPage() {
   const covered = sportsCoveredByCoaches(sports, coaches);
 
   return (
-    <div className="kp-root flex min-h-screen flex-col bg-kp-ink text-kp-hi">
+    <div className="kp-root kp-snap-page flex min-h-screen flex-col bg-kp-ink text-kp-hi">
+      <SnapScroll />
+      <ScrollProgress />
       <SiteNav />
 
-      <main className="flex-1">
+      <main className="kp-alt flex-1">
         <AudiencePageHero
           id="athletes"
           eyebrow="Mental coaching per atleti"
@@ -219,8 +223,6 @@ export default async function AtletiPage() {
           }
         />
 
-        {/* Spazio per la barra dei percorsi, che è fissa in basso. */}
-        <div aria-hidden className="h-24" />
       </main>
 
       <Footer />
