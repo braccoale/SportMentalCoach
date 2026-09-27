@@ -37,7 +37,16 @@ export function AudienceFaq({
   action?: ReactNode;
   secondary?: ReactNode;
   /** Foto in basso a sinistra; pensata per il fondo chiaro. */
-  photo?: { src: string; alt: string };
+  photo?: {
+    src: string;
+    alt: string;
+    /**
+     * `bleed` (predefinito): foto larga che sborda fino al bordo sinistro.
+     * `portrait`: un oggetto in verticale (il badge dell’Academy), dentro la
+     * colonna, con i bordi sfumati nel fondo.
+     */
+    layout?: 'bleed' | 'portrait';
+  };
   id?: string;
   /** Classi in più per la sezione (in home: `kp-snap`, vedi SnapScroll). */
   className?: string;
@@ -78,9 +87,16 @@ export function AudienceFaq({
           ) : null}
           {action ? <div className="mt-8">{action}</div> : null}
           {secondary ? <div className="mt-5">{secondary}</div> : null}
-          {/* La foto segue il testo, subito sotto il collegamento, e sborda
-              fino al bordo sinistro della finestra. */}
-          {photo ? (
+          {/* La foto segue il testo, subito sotto il collegamento. */}
+          {photo?.layout === 'portrait' ? (
+            <div
+              aria-hidden
+              className="pointer-events-none relative mt-6 hidden aspect-[900/1080] w-full max-w-[22rem] lg:block"
+            >
+              <Image src={photo.src} alt="" fill sizes="22rem" className="object-cover" />
+              <div className="absolute inset-0 [background:radial-gradient(ellipse_at_center,transparent_45%,var(--color-kp-ink2)_75%)]" />
+            </div>
+          ) : photo ? (
             <div
               aria-hidden
               className="pointer-events-none relative mt-8 hidden aspect-[740/386] lg:-ml-[max(2rem,calc((100vw-80rem)/2+2rem))] lg:block"

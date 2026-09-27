@@ -216,7 +216,7 @@ export default function AcademyPage() {
           intro="Qui trovi le risposte essenziali alle domande più comuni sui corsi dell’Academy, per iniziare il tuo percorso con consapevolezza e serenità."
           faq={FAQ}
           tone="light"
-          photo={{ src: '/landing/audience/faq-academy.webp', alt: '' }}
+          photo={{ src: '/landing/audience/faq-academy-badge.webp', alt: '', layout: 'portrait' }}
           action={
             <Link href={SIGNUP} className={AUDIENCE_PRIMARY_CTA}>
               Candidati come coach
