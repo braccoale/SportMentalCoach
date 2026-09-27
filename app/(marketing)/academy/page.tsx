@@ -10,7 +10,6 @@ import { JsonLd } from '@/components/json-ld';
 import {
   AudienceFaq,
   FAQ_SECONDARY_LINK,
-  type FaqItem,
 } from '@/components/landing/audience-paths/audience-faq';
 import { DemoRequestButton } from '@/components/landing/demo-request-button';
 import {
@@ -18,6 +17,7 @@ import {
   audienceMetadata,
 } from '@/components/landing/audience-paths/audience-seo';
 import { courseJsonLd } from '@/lib/core/seo';
+import { ACADEMY_FAQ } from '@/components/landing/audience-paths/audience-faqs';
 import { AudiencePathsDock } from '@/components/landing/audience-paths/audience-paths-dock';
 import {
   AudiencePageHero,
@@ -74,54 +74,6 @@ const COURSE = [
   },
 ];
 
-/**
- * Le domande di chi valuta l’Academy. Le risposte seguono `lib/core/academy`:
- * i corsi li assegna il team a coach con profilo approvato, le ore di un
- * corso sono la somma dei suoi moduli, il modulo si completa con la presenza
- * alla sessione e dopo ogni sessione arriva il riepilogo (anche in PDF).
- */
-const FAQ: FaqItem[] = [
-  {
-    q: 'Chi può seguire i corsi dell’Academy?',
-    a: 'I coach KaiPai: dopo la candidatura e l’approvazione del profilo, il team assegna i corsi del percorso. L’Academy è la strada con cui un professionista si prepara a lavorare sulla piattaforma.',
-  },
-  {
-    q: 'I corsi sono online o in presenza?',
-    a: 'Entrambi. Le sessioni live si seguono in videochiamata da dove sei; alcuni momenti del percorso si svolgono in presenza.',
-  },
-  {
-    q: 'Come si svolge una sessione live?',
-    a: 'In videochiamata dentro KaiPai, con il docente: nessun link esterno. Trovi le prossime sessioni del tuo corso nella tua area, con data e orario.',
-  },
-  {
-    q: 'Quanto dura il percorso?',
-    a: 'Dipende dal corso. Ogni corso è diviso in moduli, e le ore totali che vedi sono la somma dei suoi moduli: sai fin dall’inizio quanto impegno richiede.',
-  },
-  {
-    q: 'Ci sono momenti pratici o mentorship?',
-    a: 'Sì, è il cuore del percorso: si lavora nelle sessioni live con coach esperti che fanno da mentor, su casi ed esercizi, non davanti a un video registrato.',
-  },
-  {
-    q: 'Chi sono i docenti?',
-    a: 'Coach esperti che fanno da mentor: guidano le sessioni live e seguono i partecipanti lungo i moduli.',
-  },
-  {
-    q: 'Cosa resta dopo ogni sessione?',
-    a: 'Il riepilogo con i punti chiave, che puoi anche scaricare in PDF, e i materiali del modulo: letture, schede ed esercizi, per ripassare invece di ricordare a memoria.',
-  },
-  {
-    q: 'Come vedo a che punto sono?',
-    a: 'La partecipazione alle sessioni completa i moduli, e l’avanzamento del corso si aggiorna da solo: sai sempre quanti moduli hai chiuso e quanti ne mancano.',
-  },
-  {
-    q: 'Se salto una sessione?',
-    a: 'Il modulo di quella sessione resta da completare. Parlane con il team dell’Academy: ti aiuta a capire come recuperarlo.',
-  },
-  {
-    q: 'Si riceve un attestato?',
-    a: 'Sì: chi completa il corso riceve un attestato di completamento. Non sostituisce titoli o abilitazioni professionali.',
-  },
-];
 
 export default function AcademyPage() {
   return (
@@ -253,7 +205,7 @@ export default function AcademyPage() {
           title="Per l’"
           emphasis="Academy"
           intro="Qui trovi le risposte essenziali alle domande più comuni sui corsi dell’Academy, per iniziare il tuo percorso con consapevolezza e serenità."
-          faq={FAQ}
+          faq={ACADEMY_FAQ}
           tone="light"
           photo={{ src: '/landing/audience/faq-academy-badge.webp', alt: '', layout: 'portrait' }}
           action={
@@ -279,7 +231,7 @@ export default function AcademyPage() {
         nodes={audienceJsonLd({
           name: 'Academy',
           path: '/academy',
-          faq: FAQ,
+          faq: ACADEMY_FAQ,
           extra: [
             courseJsonLd({
               name: 'KaiPai Academy — Formazione in mental coaching sportivo',

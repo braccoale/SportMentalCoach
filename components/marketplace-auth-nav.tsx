@@ -6,6 +6,7 @@ import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import { UserMenu } from '@/components/user-menu';
 import { NotificationBell } from '@/components/notification-bell';
+import { SupportLink } from '@/components/support-link';
 import { fetcher } from '@/lib/fetcher';
 import type { SessionUser } from '@/lib/auth/session-user';
 
@@ -21,6 +22,7 @@ export function MarketplaceAuthNav() {
   if (user) {
     return (
       <div className="flex items-center gap-2.5">
+        <SupportLink appearance="light" />
         <NotificationBell appearance="light" />
         <Link
           href="/dashboard"

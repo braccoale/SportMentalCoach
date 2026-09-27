@@ -11,6 +11,7 @@ import {
   audienceMetadata,
 } from '@/components/landing/audience-paths/audience-seo';
 import { serviceJsonLd } from '@/lib/core/seo';
+import { TEAMS_FAQ } from '@/components/landing/audience-paths/audience-faqs';
 import { AudiencePathsDock } from '@/components/landing/audience-paths/audience-paths-dock';
 import {
   AudiencePageHero,
@@ -58,24 +59,6 @@ const STEPS = [
   { t: 'Avvio e verifiche', b: 'Si parte, e lungo la stagione si fa il punto con lo staff.' },
 ];
 
-const FAQ = [
-  {
-    q: 'Lavorate anche con i settori giovanili?',
-    a: 'Sì, è uno dei percorsi per i club: lavoro con i ragazzi, workshop per staff e genitori. Ogni atleta minorenne partecipa con l’autorizzazione di un genitore, che la piattaforma richiede e registra.',
-  },
-  {
-    q: 'Il mental coach lavora al campo o online?',
-    a: 'Dipende dal percorso: i programmi per i club prevedono presenza al campo, e le sedute individuali possono svolgersi anche in videochiamata su KaiPai.',
-  },
-  {
-    q: 'Il mental coach sostituisce lo psicologo del club?',
-    a: 'No. Il mental coaching allena abilità mentali legate alla prestazione e non è una terapia. Se emerge un bisogno clinico, il coach lo segnala e indirizza verso un professionista sanitario.',
-  },
-  {
-    q: 'Come si parte?',
-    a: 'Con una richiesta dal modulo contatti: fissiamo una chiamata conoscitiva, analizziamo con voi bisogni e obiettivi e proponiamo un programma su misura.',
-  },
-];
 
 export default function SocietaPage() {
   return (
@@ -157,7 +140,7 @@ export default function SocietaPage() {
           </div>
         </section>
 
-        <AudienceFaq title="Prima di" emphasis="iniziare" faq={FAQ} />
+        <AudienceFaq title="Prima di" emphasis="iniziare" faq={TEAMS_FAQ} />
 
         {/* Come funziona + chiusura */}
         <section className="border-t border-kp-line bg-kp-ink2 py-20 sm:py-28">
@@ -197,7 +180,7 @@ export default function SocietaPage() {
         nodes={audienceJsonLd({
           name: 'Società sportive',
           path: '/societa',
-          faq: FAQ,
+          faq: TEAMS_FAQ,
           extra: [
             serviceJsonLd({
               name: 'Mental coaching per società sportive',

@@ -7,6 +7,7 @@ import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import { UserMenu } from '@/components/user-menu';
 import { NotificationBell } from '@/components/notification-bell';
+import { SupportLink } from '@/components/support-link';
 import type { SessionUser } from '@/lib/auth/session-user';
 import { BILLING_ENABLED } from '@/lib/core/flags';
 import { fetcher } from '@/lib/fetcher';
@@ -66,6 +67,7 @@ export function DashboardHeader() {
           >
             {t('findCoach')}
           </Link>
+          <SupportLink />
           <NotificationBell />
           <Suspense fallback={<div className="h-9" />}>
             <HeaderUserMenu />

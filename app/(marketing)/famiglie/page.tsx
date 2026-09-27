@@ -15,11 +15,10 @@ import { audienceJsonLd, audienceMetadata } from '@/components/landing/audience-
 import {
   AudienceFaq,
   FAQ_SECONDARY_LINK,
-  type FaqItem,
 } from '@/components/landing/audience-paths/audience-faq';
 import { DemoRequestButton } from '@/components/landing/demo-request-button';
-import { INTRO_SESSION } from '@/lib/core/services/introduction';
 import { CoachVsPsychologist } from '@/components/landing/audience-paths/coach-vs-psychologist';
+import { FAMILY_FAQ } from '@/components/landing/audience-paths/audience-faqs';
 import { AudiencePathsDock } from '@/components/landing/audience-paths/audience-paths-dock';
 import {
   AudiencePageHero,
@@ -57,58 +56,6 @@ const ROLE = [
   },
 ];
 
-/**
- * Le domande dei genitori. Le regole sui minori sono quelle di
- * `lib/core/guardians` (15–17 anni: serve l’autorizzazione, e a parte quella
- * alla registrazione); non vanno scritte qui in modo diverso da là.
- */
-const FAQ: FaqItem[] = [
-  {
-    q: 'Come funziona il percorso per mio figlio?',
-    a: `Scegliete insieme un coach, fate la sessione conoscitiva gratuita di ${INTRO_SESSION.durationMin} minuti in videochiamata e, se vi convince, si parte con le sedute: ognuna è una richiesta che il coach conferma. Obiettivi e progressi restano scritti nella pagina del percorso.`,
-  },
-  {
-    q: 'Se mio figlio è minorenne, cosa devo fare?',
-    a: 'Un atleta fra i 15 e i 17 anni può registrarsi ed esplorare, ma non può richiedere sedute finché non autorizzi tu, come genitore o tutore legale. Ricevi un’email con un link, leggi cosa stai autorizzando e confermi in un minuto, senza creare un account. Puoi revocare l’autorizzazione in qualsiasi momento.',
-  },
-  {
-    q: 'Possiamo fare la sessione conoscitiva insieme?',
-    a: 'Sì. La sessione conoscitiva è gratuita e potete farla insieme, genitore e figlio: è il momento per conoscere il coach, raccontare da dove parte il ragazzo e capire se è la persona giusta.',
-  },
-  {
-    q: 'Come scelgo il coach più adatto?',
-    a: 'Nella lista dei coach puoi filtrare per sport, specializzazione, livello e lingua, e leggere il profilo di ognuno. Ogni coach è approvato dal team KaiPai prima di comparire. Se hai un dubbio, scrivici: ti aiutiamo a orientarti.',
-    link: { href: '/coaches', label: 'Vai alla lista dei coach' },
-  },
-  {
-    q: 'Posso partecipare anch’io al percorso?',
-    a: 'Resti il primo riferimento, e puoi chiedere al coach un confronto sull’andamento e sugli obiettivi. Alle sedute, con gli adolescenti, di norma funziona meglio uno spazio suo: per i più giovani la modalità si concorda con il coach.',
-  },
-  {
-    q: 'Cosa mi viene condiviso delle sedute?',
-    a: 'Non i contenuti: uno spazio riservato è ciò che permette al ragazzo di aprirsi. Ricevi invece il quadro generale del percorso. La riservatezza non è mai un ostacolo alla tutela: se emerge qualcosa che riguarda la sua salute o la sua sicurezza, vieni sempre coinvolto.',
-  },
-  {
-    q: 'Le sedute vengono registrate o trascritte?',
-    a: 'Solo con il consenso. Se il coach usa gli Appunti AI, per un minorenne serve che tu abbia autorizzato anche la registrazione, a parte rispetto alle sedute; e il ragazzo può comunque rifiutare all’inizio della seduta, che si svolge normalmente. Il riepilogo lo rivede il coach prima di condividerlo.',
-  },
-  {
-    q: 'Come vengono monitorati i progressi?',
-    a: 'Nella pagina del percorso ci sono gli obiettivi concordati con il coach, le azioni prese seduta dopo seduta e l’andamento nel tempo. I riepiloghi li scrive e li approva il coach.',
-  },
-  {
-    q: 'Cosa succede se emergono difficoltà che vanno oltre lo sport?',
-    a: 'Il mental coaching non è una terapia: allena abilità mentali legate alla prestazione. Se emerge un bisogno di natura clinica, il coach lo dice chiaramente, coinvolge la famiglia e indirizza verso un professionista sanitario.',
-  },
-  {
-    q: 'Come vengono trattati i dati di mio figlio?',
-    a: 'Nel rispetto del GDPR, solo per erogare il servizio. Puoi accedere ai dati, chiederne la rettifica o la cancellazione in ogni momento scrivendo a privacy@kaipaicoaching.com. I dettagli sono nella Privacy Policy.',
-  },
-  {
-    q: 'Si paga qualcosa, e posso spostare un appuntamento?',
-    a: 'La prima sessione conoscitiva è gratis. Oggi KaiPai non addebita nulla e non chiede dati di pagamento: l’accesso alle sedute passa da accordi con club e organizzazioni. Se verranno introdotti pagamenti, le condizioni saranno aggiornate e comunicate prima. Un appuntamento non ancora svolto si può spostare su un orario libero del calendario del coach.',
-  },
-];
 
 export default function FamigliePage() {
   return (
@@ -166,7 +113,7 @@ export default function FamigliePage() {
           title="Per le"
           emphasis="famiglie"
           intro="Le risposte essenziali per genitori e famiglie, prima di iniziare un percorso di mental coaching con KaiPai."
-          faq={FAQ}
+          faq={FAMILY_FAQ}
           photo={{ src: '/landing/audience/faq-famiglie.webp', alt: '' }}
           action={
             <Link href="/coaches" className={AUDIENCE_PRIMARY_CTA}>
@@ -187,7 +134,7 @@ export default function FamigliePage() {
 
       <Footer />
       <AudiencePathsDock current="families" />
-      <JsonLd nodes={audienceJsonLd({ name: 'Famiglie', path: '/famiglie', faq: FAQ })} />
+      <JsonLd nodes={audienceJsonLd({ name: 'Famiglie', path: '/famiglie', faq: FAMILY_FAQ })} />
     </div>
   );
 }

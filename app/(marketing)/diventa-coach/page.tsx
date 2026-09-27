@@ -17,15 +17,13 @@ import { JsonLd } from '@/components/json-ld';
 import {
   AudienceFaq,
   FAQ_SECONDARY_LINK,
-  type FaqItem,
 } from '@/components/landing/audience-paths/audience-faq';
 import { DemoRequestButton } from '@/components/landing/demo-request-button';
-import { CANCELLATION_NOTICE_HOURS } from '@/lib/core/legal/processors';
-import { INTRO_SESSION } from '@/lib/core/services/introduction';
 import {
   audienceJsonLd,
   audienceMetadata,
 } from '@/components/landing/audience-paths/audience-seo';
+import { COACH_FAQ } from '@/components/landing/audience-paths/audience-faqs';
 import { AudiencePathsDock } from '@/components/landing/audience-paths/audience-paths-dock';
 import {
   AudiencePageHero,
@@ -73,8 +71,8 @@ const FEATURES = [
     b: 'Obiettivi, impegni e andamento seduta dopo seduta, in una scheda sola invece che sparsi fra quaderni e chat.',
   },
   {
-    t: 'Porta i tuoi atleti',
-    b: 'Un link personale per invitarli su KaiPai; dalla dashboard vedi quanti si sono registrati grazie a te.',
+    t: '«Preparati», prima di ogni seduta',
+    b: 'Un bottone nella scheda della prossima call: riassume le sedute precedenti — obiettivi, dove eravate rimasti, le tue note — e ti dice cosa riprendere.',
   },
 ];
 
@@ -105,57 +103,6 @@ const STEPS = [
   },
 ];
 
-/**
- * Le domande di un coach che valuta KaiPai. Le risposte sui soldi seguono i
- * Termini (§ 9): oggi la piattaforma non gestisce pagamenti fra atleta e
- * coach. Se il modello cambia, cambiano prima i Termini e poi queste righe.
- */
-const FAQ: FaqItem[] = [
-  {
-    q: 'Il profilo viene pubblicato subito?',
-    a: 'No. Ogni profilo viene rivisto dal team KaiPai prima di diventare visibile agli atleti. Finché non è approvato puoi completarlo, ma non ricevere prenotazioni.',
-  },
-  {
-    q: 'Come funziona la revisione del profilo?',
-    a: 'Il team KaiPai controlla il profilo prima della pubblicazione: completezza delle informazioni, chiarezza della presentazione e documentazione di identità e certificazioni che indichi, di cui resti garante. Se manca qualcosa te lo diciamo, e puoi correggerlo.',
-  },
-  {
-    q: 'Quanto costa usare KaiPai?',
-    a: 'Oggi candidarsi e usare la piattaforma non ha costi per il coach, e non ti chiediamo dati di pagamento. Se in futuro verranno introdotte funzioni a pagamento, le condizioni saranno aggiornate e comunicate prima dell’attivazione.',
-  },
-  {
-    q: 'Come vengo pagato per le sedute?',
-    a: 'KaiPai oggi non incassa né gira pagamenti fra atleta e coach: l’accesso alle sedute passa da accordi con club e organizzazioni. Il rapporto professionale resta fra te e chi segui, e sei tu il professionista indipendente che lo gestisce. Quando la piattaforma introdurrà i pagamenti, le regole saranno pubblicate prima.',
-  },
-  {
-    q: 'Quando inizio a ricevere richieste dagli atleti?',
-    a: 'Dal momento in cui il profilo è approvato: compari nella lista dei coach, e gli atleti possono chiederti una seduta negli orari che hai reso disponibili. Nulla è confermato finché non accetti tu.',
-  },
-  {
-    q: 'Cos’è la sessione conoscitiva gratuita?',
-    a: `Ogni coach ha una sessione conoscitiva di ${INTRO_SESSION.durationMin} minuti, gratuita, in videochiamata: è il primo incontro con un atleta nuovo, per conoscervi e parlare dei suoi obiettivi. Ogni atleta può richiederla una volta per coach.`,
-  },
-  {
-    q: 'Decido io orari e appuntamenti?',
-    a: `Sì. Imposti la tua disponibilità settimanale e accetti o rifiuti ogni richiesta. Con un atleta che già segui puoi anche proporre tu un appuntamento, e spostarlo se serve. Le sedute si possono annullare fino al loro svolgimento: è buona norma farlo con almeno ${CANCELLATION_NOTICE_HOURS} ore di preavviso.`,
-  },
-  {
-    q: 'Posso portare su KaiPai gli atleti che seguo già?',
-    a: 'Sì. Hai un link personale per invitarli, e dalla dashboard vedi quanti si sono registrati grazie a te.',
-  },
-  {
-    q: 'Gli Appunti AI registrano la seduta anche senza consenso?',
-    a: 'No. La registrazione parte solo dopo il consenso dell’atleta, che può anche rifiutare: in quel caso la seduta si svolge normalmente, senza appunti. Il report lo rivedi e lo approvi tu prima che l’atleta lo veda.',
-  },
-  {
-    q: 'Posso lavorare con atleti minorenni?',
-    a: 'Sì. Un atleta fra i 15 e i 17 anni può registrarsi, ma non può richiedere sedute finché un genitore o il tutore legale non lo autorizza: la piattaforma gestisce la richiesta per te. Sai che l’atleta è minorenne prima di accettare, e per registrare la seduta serve un’autorizzazione a parte.',
-  },
-  {
-    q: 'Il mental coaching su KaiPai è una terapia?',
-    a: 'No. Si allenano abilità mentali legate alla prestazione sportiva. Se emerge un bisogno clinico, l’atleta va indirizzato verso un professionista sanitario.',
-  },
-];
 
 export default function DiventaCoachPage() {
   return (
@@ -292,7 +239,7 @@ export default function DiventaCoachPage() {
           title="Prima di"
           emphasis="candidarti"
           intro="Qui trovi le risposte essenziali alle domande più comuni dei coach, per iniziare il tuo percorso su KaiPai con chiarezza e serenità."
-          faq={FAQ}
+          faq={COACH_FAQ}
           tone="light"
           photo={{ src: '/landing/audience/faq-coach.webp', alt: '' }}
           action={
@@ -313,7 +260,7 @@ export default function DiventaCoachPage() {
 
       <Footer />
       <AudiencePathsDock current="coaches" />
-      <JsonLd nodes={audienceJsonLd({ name: 'Diventa coach', path: '/diventa-coach', faq: FAQ })} />
+      <JsonLd nodes={audienceJsonLd({ name: 'Diventa coach', path: '/diventa-coach', faq: COACH_FAQ })} />
     </div>
   );
 }

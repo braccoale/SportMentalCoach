@@ -38,7 +38,8 @@
   "DashboardShell": {
     "pricing": "Pricing",
     "signUp": "Registrati",
-    "findCoach": "Trova un coach"
+    "findCoach": "Trova un coach",
+    "support": "Supporto e domande frequenti"
   },
   "Notifications": {
     "label": "Notifiche",
@@ -90,5 +91,18 @@
     "copyLink": "Copia link",
     "shareTelegram": "Condividi su Telegram",
     "moreOptions": "Altre opzioni"
+  },
+  "Support": {
+    "title": "Supporto",
+    "intro": "Le risposte alle domande più comuni su KaiPai, divise per argomento.",
+    "forYou": "Per te",
+    "general": "KaiPai in generale",
+    "athletes": "Atleti",
+    "families": "Famiglie",
+    "coaches": "Coach",
+    "academy": "Academy",
+    "teams": "Società sportive",
+    "notFound": "Non trovi la risposta? Contattaci:",
+    "contact": "Scrivici"
   }
 }
