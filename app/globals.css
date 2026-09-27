@@ -994,3 +994,8 @@
 @media (prefers-reduced-motion: reduce) {
   .kp-aud-side-scrim { transition: none; }
 }
+
+/* Freccia del bottone: sulle card chiuse della riga desktop non c'è spazio. */
+@media (min-width: 1280px) {
+  .kp-aud-card:not([data-expanded='true']) .kp-aud-cta-arrow { display: none; }
+}

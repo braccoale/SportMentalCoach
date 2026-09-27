@@ -9,6 +9,28 @@ import { ContactModal } from '../contact-modal';
 
 const WRAP = 'mx-auto max-w-7xl px-5 sm:px-8';
 
+/** Le due tonalità della card desktop: velo, testo e CTA cambiano insieme. */
+const TONE = {
+  dark: {
+    scrim: 'from-kp-ink/80 via-transparent via-45% to-kp-ink/55',
+    side: 'from-kp-ink/85 via-kp-ink/45 via-40% to-transparent',
+    hi: 'text-kp-hi',
+    mid: 'text-kp-mid',
+    card: 'bg-kp-ink2',
+    fade: 'from-kp-ink2',
+    badge: 'bg-white/12 text-white ring-1 ring-white/15 backdrop-blur-sm',
+  },
+  light: {
+    scrim: 'from-white/90 via-white/45 via-35% to-transparent to-60%',
+    side: '',
+    hi: 'text-kp2-dayhi',
+    mid: 'text-kp2-daymid',
+    card: 'bg-white',
+    fade: 'from-white',
+    badge: 'bg-kp2-dayhi text-white shadow-sm',
+  },
+} as const;
+
 /**
  * "Qual è il tuo percorso?" — the interactive audience selector, immediately
  * below the Hero.
@@ -21,9 +43,8 @@ const WRAP = 'mx-auto max-w-7xl px-5 sm:px-8';
  * La sezione è chiara, le card restano scure: le foto sono notturne e il
  * contrasto fra pagina e card è ciò che le fa leggere come oggetti.
  *
- * Foto: atleta, allenatore, famiglia e squadra sono quelle che usava la
- * vecchia sezione «Per chi è KaiPai», che questa sostituisce; l'Academy è
- * ritagliata da `/academy/session-card-bg.png`.
+ * Foto: una per card, in `public/landing/audience/`. Famiglie e Academy
+ * sono luminose e usano la tonalità chiara (velo bianco, testo scuro).
  */
 export function AudiencePathsSection() {
   const [contactOpen, setContactOpen] = useState(false);
@@ -53,22 +74,22 @@ export function AudiencePathsSection() {
   );
 }
 
-/* ── Desktop: hover/pin-to-expand row (lg and up) ── */
+/* ── Desktop: hover/pin-to-expand row (xl and up) ── */
 function DesktopRow({ onRequestContact }: { onRequestContact: () => void }) {
   const [pinnedId, setPinnedId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const expandedId = pinnedId ?? activeId;
 
   return (
-    <div className="mt-12 hidden h-[600px] gap-3 lg:flex">
+    <div className="mt-12 hidden h-[600px] gap-3 xl:flex">
       {AUDIENCE_CARDS.map((card) => {
         const isExpanded = expandedId === card.id;
-        const anyExpanded = expandedId !== null;
+        const tone = TONE[card.tone ?? 'dark'];
         return (
           <div
             key={card.id}
             data-expanded={isExpanded}
-            className="kp-aud-card group relative min-w-0 overflow-hidden bg-kp-ink2 shadow-[0_18px_40px_-24px_rgba(12,12,18,0.55)]"
+            className={`kp-aud-card group relative min-w-0 overflow-hidden ${tone.card} shadow-[0_18px_40px_-24px_rgba(12,12,18,0.55)]`}
             style={{
               // Proporzioni, non larghezze minime: con cinque card e una
               // espansa, qualunque somma di minimi fissi sfora il contenitore.
@@ -100,85 +121,69 @@ function DesktopRow({ onRequestContact }: { onRequestContact: () => void }) {
               }
             />
 
-            <Image
-              src={card.image.src}
-              alt={card.image.alt}
-              fill
-              sizes="(min-width: 1024px) 40vw, 100vw"
-              className="kp-aud-img object-cover"
-              style={{ objectPosition: card.image.position }}
-              priority={card.id === 'athletes'}
-            />
+            {/* La foto si ferma sopra la fascia del bottone: il soggetto non
+                finisce mai dietro la CTA, e sfuma nel fondo della card. */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 bottom-[84px] overflow-hidden">
+              <Image
+                src={card.image.src}
+                alt={card.image.alt}
+                fill
+                sizes="(min-width: 1280px) 40vw, 100vw"
+                className="kp-aud-img object-cover"
+                style={{ objectPosition: card.image.position }}
+                priority={card.id === 'athletes'}
+              />
+              <div className={`absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t ${tone.fade} to-transparent`} />
+            </div>
             {/* Chiusa: solo testa (titolo) e piede (CTA) velati, la foto resta
                 visibile. Aperta: si aggiunge il velo laterale sotto al testo. */}
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-kp-ink/85 via-kp-ink/5 to-kp-ink/80" />
-            <div className="kp-aud-side-scrim pointer-events-none absolute inset-0 bg-gradient-to-r from-kp-ink/90 via-kp-ink/55 to-transparent opacity-0 group-data-[expanded=true]:opacity-100" />
-
-            {/* dashboard-mockup slot — coach card only, revealed when expanded */}
-            {card.splitOnExpand && (
-              <div
-                aria-hidden
-                className="kp-aud-laptop pointer-events-none absolute bottom-20 right-5 hidden w-[44%] max-w-[220px] xl:block"
-              >
-                <div className="rounded-[10px] border border-white/15 bg-kp-ink2/90 p-2.5 shadow-2xl">
-                  <div className="flex items-center gap-1 pb-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-white/20" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-white/20" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-white/20" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="h-2 w-2/3 rounded bg-white/20" />
-                    <div className="h-1.5 w-full rounded bg-white/10" />
-                    <div className="h-1.5 w-5/6 rounded bg-white/10" />
-                    <div className="h-1.5 w-4/6 rounded bg-kp-red/40" />
-                  </div>
-                </div>
-                <div className="mx-auto h-1.5 w-[92%] rounded-b-md bg-white/10" />
-                <p className="mt-2 text-center text-[0.58rem] uppercase tracking-wide text-kp-low">
-                  Anteprima dashboard — screenshot in arrivo
-                </p>
-              </div>
+            <div className={`pointer-events-none absolute inset-0 bg-gradient-to-b ${tone.scrim}`} />
+            {/* Solo sulle card scure: su quelle chiare un velo in più sbiadiva la
+                foto all'apertura. */}
+            {tone.side && (
+              <div className={`kp-aud-side-scrim pointer-events-none absolute inset-0 bg-gradient-to-r ${tone.side} opacity-0 group-data-[expanded=true]:opacity-100`} />
             )}
 
-            <div className="relative z-10 flex h-full min-w-0 flex-col p-5 xl:p-6">
+
+            <div className="relative z-10 flex h-full min-w-0 flex-col p-4 xl:p-5">
               {card.brand && (
-                <p className="font-display text-sm font-semibold text-kp-hi">
+                <p className={`font-display text-sm font-semibold ${tone.hi}`}>
                   KaiPai <span className="text-kp-red">Academy</span>
                 </p>
               )}
               <div className={card.brand ? 'mt-3' : ''}>
-                <span className="kp-eyebrow block text-[0.62rem] text-kp-mid">
+                <span className={`kp-eyebrow block text-[0.62rem] ${tone.mid}`}>
                   {card.label}
                 </span>
                 <span className="mt-1.5 block h-[2px] w-8 bg-kp-red" />
               </div>
-              <h3 className="kp-display mt-3 text-[1.2rem] leading-[1.08] text-kp-hi xl:text-[1.45rem]">
+              <h3 className={`kp-display mt-3 text-[1.2rem] leading-[1.08] ${tone.hi} xl:text-[1.45rem]`}>
                 {card.headlineLead}
                 <br />
                 <span className="text-kp-red">{card.headlineEmphasis}</span>
               </h3>
 
               <div id={`${card.id}-detail`} className="kp-aud-detail mt-4">
-                <p className="max-w-[24rem] text-sm leading-relaxed text-kp-mid">
+                <p className={`max-w-[24rem] text-sm leading-relaxed ${tone.mid}`}>
                   {card.description}
                 </p>
-                <ul className="mt-5 space-y-3">
+              </div>
+                <ul className="mt-5 space-y-2.5" aria-label="Cosa trovi">
                   {card.benefits.map((b) => (
                     <li
                       key={b.label}
-                      className="flex items-center gap-3 text-sm text-kp-hi"
+                      className={`flex min-w-0 items-center gap-2.5 text-[0.8rem] leading-tight xl:gap-3 xl:text-sm ${tone.hi}`}
                     >
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-kp-red/10 text-kp-red">
-                        <b.icon className="h-3.5 w-3.5" strokeWidth={2} />
+                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${tone.badge}`}>
+                        <b.icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
                       </span>
                       {b.label}
                     </li>
                   ))}
                 </ul>
-              </div>
 
-              <div className="mt-auto pt-5">
-                <CardCta card={card} onRequestContact={onRequestContact} />
+              <div className="mt-auto flex justify-center pt-5">
+                <CardCta card={card} onRequestContact={onRequestContact} centered />
               </div>
             </div>
           </div>
@@ -188,7 +193,7 @@ function DesktopRow({ onRequestContact }: { onRequestContact: () => void }) {
   );
 }
 
-/* ── Mobile/tablet: vertical accordion (below lg) ── */
+/* ── Mobile/tablet: vertical accordion (below xl) ── */
 function MobileAccordion({
   onRequestContact,
 }: {
@@ -197,7 +202,7 @@ function MobileAccordion({
   const [openId, setOpenId] = useState<string | null>(null);
 
   return (
-    <div className="mt-10 flex min-w-0 flex-col gap-3 lg:hidden">
+    <div className="mt-10 flex min-w-0 flex-col gap-3 xl:hidden">
       {AUDIENCE_CARDS.map((card) => {
         const isOpen = openId === card.id;
         return (
@@ -256,8 +261,8 @@ function MobileAccordion({
                         key={b.label}
                         className="flex items-center gap-3 text-sm text-kp-hi"
                       >
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-kp-red/10 text-kp-red">
-                          <b.icon className="h-3.5 w-3.5" strokeWidth={2} />
+                        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${TONE.dark.badge}`}>
+                          <b.icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
                         </span>
                         {b.label}
                       </li>
@@ -274,22 +279,27 @@ function MobileAccordion({
   );
 }
 
-/* ── shared CTA — never red: a translucent white pill on dark photos ── */
+/* ── shared CTA ── */
 function CardCta({
   card,
   onRequestContact,
+  centered = false,
 }: {
   card: AudienceCard;
   onRequestContact: () => void;
+  /** Riga desktop: centrato e della stessa larghezza in tutte le card. */
+  centered?: boolean;
 }) {
   const content: ReactNode = (
     <>
       {card.ctaLabel}
-      <ArrowRight className="h-4 w-4 transition-transform group-hover/cta:translate-x-1" />
+      <ArrowRight className="kp-aud-cta-arrow h-4 w-4 shrink-0 transition-transform group-hover/cta:translate-x-1" />
     </>
   );
+  // Verde come ogni bottone primario di KaiPai (mai rosso), su una riga sola.
   const className =
-    'kp-aud-cta group/cta pointer-events-auto relative z-20 inline-flex w-fit items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2.5 text-xs font-semibold text-kp-hi backdrop-blur-sm hover:border-white/40 hover:bg-white/20 sm:text-sm';
+    (centered ? 'w-full max-w-[11.5rem] justify-center ' : 'w-fit ') +
+    'kp-aud-cta group/cta pointer-events-auto relative z-20 inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-green-600 px-2.5 py-2.5 text-[0.68rem] font-semibold text-white shadow-sm hover:bg-green-700 xl:px-3 xl:text-[0.78rem] group-data-[expanded=true]:px-4 group-data-[expanded=true]:text-sm';
 
   if (card.cta.kind === 'contact') {
     return (

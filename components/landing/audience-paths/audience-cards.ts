@@ -52,8 +52,8 @@ export type AudienceCard = {
     /** CSS object-position for the crop. */
     position: string;
   };
-  /** Only the coach card gets the extra split layout + dashboard slot when expanded. */
-  splitOnExpand?: boolean;
+  /** Foto luminosa: velo chiaro e testo scuro, invece del velo scuro. */
+  tone?: 'dark' | 'light';
 };
 
 /**
@@ -80,9 +80,9 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
     ctaLabel: 'Trova il tuo coach',
     cta: { kind: 'link', href: '/coaches' },
     image: {
-      src: '/atleta.png',
-      alt: 'Ritratto di un giovane atleta',
-      position: '50% 20%',
+      src: '/landing/audience/percorso-athlete.webp',
+      alt: 'Giovane atleta in campo al tramonto, sguardo verso il cielo',
+      position: '78% 30%',
     },
   },
   {
@@ -100,10 +100,11 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
     ],
     ctaLabel: 'Scopri di più',
     cta: { kind: 'link', href: '/famiglie' },
+    tone: 'light',
     image: {
-      src: '/famiglia.jpg',
-      alt: 'Una famiglia di spalle al tramonto',
-      position: '50% 40%',
+      src: '/landing/audience/percorso-families.webp',
+      alt: 'Madre e figlio sorridenti a bordo campo, luce calda',
+      position: '80% 60%',
     },
   },
   {
@@ -123,11 +124,10 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
     ctaLabel: 'Unisciti come coach',
     cta: { kind: 'link', href: '/sign-up' },
     image: {
-      src: '/allenatore.png',
-      alt: 'Ritratto di un allenatore con il cappellino',
-      position: '55% 25%',
+      src: '/landing/audience/percorso-coach.webp',
+      alt: 'Allenatore con il cappellino a bordo campo, braccia conserte',
+      position: '78% 25%',
     },
-    splitOnExpand: true,
   },
   {
     id: 'academy',
@@ -145,10 +145,11 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
     ],
     ctaLabel: "Scopri l'Academy",
     cta: { kind: 'link', href: '#academy' },
+    tone: 'light',
     image: {
-      src: '/landing/audience/academy.webp',
-      alt: 'Mentor KaiPai Academy con un allievo, lavagna tattica',
-      position: '50% 15%',
+      src: '/landing/audience/percorso-academy-2.webp',
+      alt: 'Scrivania luminosa con laptop, quaderno e borraccia, campo sullo sfondo',
+      position: '70% 70%',
     },
   },
   {
@@ -167,9 +168,9 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
     ctaLabel: 'Richiedi una demo',
     cta: { kind: 'contact' },
     image: {
-      src: '/squadra.jpg',
-      alt: 'Squadra giovanile in cerchio con il proprio tecnico, luci dello stadio',
-      position: '50% 30%',
+      src: '/landing/audience/percorso-teams.webp',
+      alt: 'Squadra abbracciata in cerchio sotto le luci dello stadio',
+      position: '68% 80%',
     },
   },
 ];
