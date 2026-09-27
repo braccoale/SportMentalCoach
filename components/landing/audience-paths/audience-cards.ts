@@ -51,6 +51,8 @@ export type AudienceCard = {
   cta: AudienceCta;
   /** Dove porta il click sulla card: la pagina che spiega il percorso. */
   page: string;
+  /** La pagina ha una hero con la stessa foto: il click fa il morph. */
+  morph?: boolean;
   /** Il tooltip della card: che pagina apre il click, in due righe. */
   preview: { title: string; text: string };
   image: {
@@ -145,6 +147,7 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
     ctaLabel: 'Candidati come coach',
     cta: { kind: 'link', href: '/sign-up?ruolo=coach' },
     page: '/diventa-coach',
+    morph: true,
     preview: {
       title: 'Apre «Diventa coach»',
       text: 'Cosa offre KaiPai ai coach e come candidarsi, passo per passo.',
@@ -201,6 +204,7 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
     ctaLabel: 'Richiedi una demo',
     cta: { kind: 'contact' },
     page: '/societa',
+    morph: true,
     preview: {
       title: 'Apre la pagina Società',
       text: 'Percorsi per club e settori giovanili, e come si parte.',

@@ -97,7 +97,12 @@ export default function DiventaCoachPage() {
       <main className="flex-1">
         {/* Hero — foto a tutta altezza a destra, testo a sinistra */}
         <section className="relative isolate overflow-hidden border-b border-kp-line">
-          <div className="absolute inset-y-0 right-0 -z-10 w-full md:w-[58%]">
+          <div
+            data-aud-hero="coaches"
+            className="absolute inset-y-0 right-0 -z-10 w-full md:w-[58%]"
+            // Stesso nome della foto nella card: il browser fa il morph.
+            style={{ viewTransitionName: 'kp-aud-photo-coaches' }}
+          >
             <Image
               src="/landing/audience/percorso-coach.webp"
               alt="Allenatore con il cappellino a bordo campo, braccia conserte"

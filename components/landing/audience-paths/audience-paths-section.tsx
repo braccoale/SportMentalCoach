@@ -15,6 +15,12 @@ import {
   type AudienceId,
 } from './audience-cards';
 import { ContactModal } from '../contact-modal';
+import { useRouter } from 'next/navigation';
+import {
+  audiencePhotoName,
+  isPlainClick,
+  navigateWithMorph,
+} from './morph-navigation';
 
 const WRAP = 'mx-auto max-w-7xl px-5 sm:px-8';
 
@@ -179,13 +185,17 @@ function DesktopRow({
                 passaggio è già l'anteprima, il click va avanti. Il bottone sta
                 sopra questo link, non dentro: due azioni, nessun annidamento. */}
             <CardLink
-              href={card.page}
+              card={card}
               label={`${card.label}: ${card.headlineLead} ${card.headlineEmphasis}. ${card.preview.title}: ${card.preview.text}`}
             />
 
             {/* La foto si ferma sopra la fascia del bottone: il soggetto non
                 finisce mai dietro la CTA, e sfuma nel fondo della card. */}
-            <div className="pointer-events-none absolute inset-x-0 top-0 bottom-[84px] overflow-hidden">
+            <div
+              data-aud-photo={card.id}
+              className="pointer-events-none absolute inset-x-0 top-0 bottom-[84px] overflow-hidden rounded-t-[28px]"
+              style={{ viewTransitionName: audiencePhotoName(card.id) }}
+            >
               <Image
                 src={card.image.src}
                 alt={card.image.alt}
@@ -361,13 +371,24 @@ function MobileAccordion({
 }
 
 /* Link a tutta superficie della card. */
-function CardLink({ href, label }: { href: string; label: string }) {
+function CardLink({ card, label }: { card: AudienceCard; label: string }) {
+  const router = useRouter();
   const className =
     'kp-aud-toggle absolute inset-0 z-0 h-full w-full cursor-pointer';
-  return href.startsWith('/#') ? (
-    <a href={href} aria-label={label} className={className} />
-  ) : (
-    <Link href={href} aria-label={label} className={className} />
+  if (card.page.startsWith('/#')) {
+    return <a href={card.page} aria-label={label} className={className} />;
+  }
+  return (
+    <Link
+      href={card.page}
+      aria-label={label}
+      className={className}
+      onClick={(e) => {
+        if (!card.morph || !isPlainClick(e)) return;
+        e.preventDefault();
+        navigateWithMorph(router, card.page, `[data-aud-hero="${card.id}"]`);
+      }}
+    />
   );
 }
 

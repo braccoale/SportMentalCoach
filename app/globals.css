@@ -1050,3 +1050,28 @@
 @media (prefers-reduced-motion: reduce) {
   .kp-aud-returned { animation: none; }
 }
+
+/* Morph della foto percorso fra card e pagina dedicata (morph-navigation.ts). */
+::view-transition-group(kp-aud-photo-coaches),
+::view-transition-group(kp-aud-photo-teams) {
+  animation-duration: 0.65s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+::view-transition-old(kp-aud-photo-coaches),
+::view-transition-new(kp-aud-photo-coaches),
+::view-transition-old(kp-aud-photo-teams),
+::view-transition-new(kp-aud-photo-teams) {
+  height: 100%;
+  object-fit: cover;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.35s;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

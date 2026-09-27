@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { LayoutGrid } from 'lucide-react';
 import {
   AUDIENCE_CARDS,
   audienceReturnHref,
   type AudienceId,
 } from './audience-cards';
+import { isPlainClick, navigateWithMorph } from './morph-navigation';
 
 /**
  * La barra dei percorsi sulle pagine dedicate (/diventa-coach, /societa,
@@ -22,6 +24,8 @@ import {
  */
 export function AudiencePathsDock({ current }: { current: AudienceId }) {
   const [visible, setVisible] = useState(false);
+  const router = useRouter();
+  const currentCard = AUDIENCE_CARDS.find((card) => card.id === current);
 
   useEffect(() => {
     let frame = 0;
@@ -61,6 +65,23 @@ export function AudiencePathsDock({ current }: { current: AudienceId }) {
       <div className="flex items-center gap-1 rounded-full border border-white/10 bg-kp-ink/90 p-1.5 shadow-[0_18px_50px_-12px_rgba(0,0,0,0.6)] backdrop-blur-md">
         <Link
           href={audienceReturnHref(current)}
+          onClick={(e) => {
+            // Il morph all'indietro solo dove la card esiste come foto: la
+            // riga desktop. Su mobile la fisarmonica non ha la foto grande.
+            if (
+              !currentCard?.morph ||
+              !isPlainClick(e) ||
+              !window.matchMedia('(min-width: 1280px)').matches
+            ) {
+              return;
+            }
+            e.preventDefault();
+            navigateWithMorph(
+              router,
+              audienceReturnHref(current),
+              `[data-aud-photo="${current}"]`
+            );
+          }}
           className="flex h-10 items-center gap-2 rounded-full px-3 text-xs font-semibold text-kp-hi transition-colors hover:bg-white/10 sm:px-4 sm:text-sm"
         >
           <LayoutGrid className="h-4 w-4 text-kp-red" aria-hidden />

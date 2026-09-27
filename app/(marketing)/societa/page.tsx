@@ -55,15 +55,22 @@ export default function SocietaPage() {
       <main className="flex-1">
         {/* Hero — la squadra a tutto schermo */}
         <section className="relative isolate overflow-hidden border-b border-kp-line">
-          <Image
-            src="/landing/audience/percorso-teams.webp"
-            alt="Squadra abbracciata in cerchio sotto le luci dello stadio"
-            fill
-            priority
-            sizes="100vw"
-            className="-z-10 object-cover"
-            style={{ objectPosition: '55% 88%' }}
-          />
+          <div
+            data-aud-hero="teams"
+            className="absolute inset-0 -z-10"
+            // Stesso nome della foto nella card: il browser fa il morph.
+            style={{ viewTransitionName: 'kp-aud-photo-teams' }}
+          >
+              <Image
+                src="/landing/audience/percorso-teams.webp"
+                alt="Squadra abbracciata in cerchio sotto le luci dello stadio"
+                fill
+                priority
+                sizes="100vw"
+                className="object-cover"
+                style={{ objectPosition: '55% 88%' }}
+              />
+          </div>
           <div className="absolute inset-0 -z-10 bg-gradient-to-t from-kp-ink via-kp-ink/55 to-kp-ink/30" />
           <div className="absolute inset-0 -z-10 bg-gradient-to-r from-kp-ink/80 via-kp-ink/30 to-transparent" />
           <div className={`${WRAP} flex min-h-[88svh] flex-col justify-end pt-32 pb-16 sm:pb-24`}>
