@@ -46,6 +46,7 @@ const COLUMNS: {
     links: [
       { label: 'Origine', href: '/#origine' },
       { label: 'Movimento', href: '/#movimento' },
+      { label: 'Domande frequenti', href: '/#faq' },
       { label: 'Contatti', action: 'contact' },
     ],
   },

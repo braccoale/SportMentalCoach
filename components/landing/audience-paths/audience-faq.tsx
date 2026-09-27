@@ -1,6 +1,10 @@
 import type { ReactNode } from 'react';
+import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import type { FaqEntry } from '@/lib/core/seo';
+
+/** Una voce può rimandare alla pagina che la approfondisce. */
+export type FaqItem = FaqEntry & { link?: { href: string; label: string } };
 
 /**
  * Le domande frequenti delle pagine percorso. Le stesse voci vanno anche nei
@@ -11,13 +15,21 @@ export function AudienceFaq({
   title,
   faq,
   action,
+  id,
+  className = '',
 }: {
   title: string;
-  faq: FaqEntry[];
+  faq: FaqItem[];
   action?: ReactNode;
+  id?: string;
+  /** Classi in più per la sezione (in home: `kp-snap`, vedi SnapScroll). */
+  className?: string;
 }) {
   return (
-    <section className="border-t border-kp-line bg-kp-ink2 py-20 sm:py-24">
+    <section
+      id={id}
+      className={`scroll-mt-24 border-t border-kp-line bg-kp-ink2 py-20 sm:py-24 ${className}`}
+    >
       <div className="mx-auto grid max-w-6xl gap-12 px-5 sm:px-8 lg:grid-cols-[1fr_1.4fr]">
         <div>
           <p className="kp-eyebrow text-kp-red">Domande frequenti</p>
@@ -33,7 +45,20 @@ export function AudienceFaq({
                 {f.q}
                 <ArrowRight className="h-4 w-4 shrink-0 text-kp-red transition-transform group-open:rotate-90" />
               </summary>
-              <p className="pb-5 pr-8 text-sm leading-relaxed text-kp-mid">{f.a}</p>
+              <p className="pb-5 pr-8 text-sm leading-relaxed text-kp-mid">
+                {f.a}
+                {f.link ? (
+                  <>
+                    {' '}
+                    <Link
+                      href={f.link.href}
+                      className="font-semibold text-kp-hi underline decoration-kp-red decoration-2 underline-offset-4"
+                    >
+                      {f.link.label}
+                    </Link>
+                  </>
+                ) : null}
+              </p>
             </details>
           ))}
         </div>

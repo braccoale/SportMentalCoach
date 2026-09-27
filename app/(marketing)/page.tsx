@@ -29,6 +29,10 @@ import { SnapScroll } from '@/components/landing/snap-scroll';
 import { RevealProvider } from '@/components/landing/reveal-provider';
 import { SiteNav } from '@/components/landing/site-nav';
 import { Hero } from '@/components/landing/hero';
+import { JsonLd } from '@/components/json-ld';
+import { AudienceFaq } from '@/components/landing/audience-paths/audience-faq';
+import { HOME_FAQ } from '@/components/landing/home-faq';
+import { faqJsonLd } from '@/lib/core/seo';
 import { AudiencePathsSection } from '@/components/landing/audience-paths/audience-paths-section';
 import { EcosystemAthlete } from '@/components/landing/ecosystem-athlete';
 import { MethodDiamond } from '@/components/landing/method';
@@ -116,12 +120,19 @@ export default async function KaiPaiLanding() {
       <MarketplaceAcademy />
       <TrustHowItWorks />
       <MovementResources />
+      <AudienceFaq
+        id="faq"
+        className="kp-snap"
+        title="Tutto quello che ci chiedono."
+        faq={HOME_FAQ}
+      />
       <FinalCta />
       <SiteFooter />
 
       {/* La landing e' lunga per scelta: dopo l'ultima sezione tornare in
           cima significava risalire tutte le altre. */}
       <BackToTop tone="dark" showAfterPx={900} />
+      <JsonLd nodes={[faqJsonLd(HOME_FAQ)]} />
     </main>
   );
 }
