@@ -97,8 +97,7 @@ export function AthleteHowItWorks() {
           <div>
             <p className="kp-eyebrow text-kp-red">Mental coaching per atleti · Come funziona</p>
             <h1 className="kp-display mt-4 max-w-3xl text-[clamp(1.9rem,3.6vw,3rem)] leading-[1.04] text-kp-hi">
-              {card.headlineLead}{' '}
-              <span className="text-kp-red">{card.headlineEmphasis}</span>
+              Scegli. Inizia. <span className="text-kp-red">Cresci.</span>
             </h1>
           </div>
           <Link href="/coaches" className={`${AUDIENCE_PRIMARY_CTA} w-fit shrink-0`}>

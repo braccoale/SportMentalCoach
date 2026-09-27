@@ -9,11 +9,9 @@ import {
   Building2,
   CalendarCheck,
   CheckCircle2,
-  FlaskConical,
   Footprints,
   HeartHandshake,
   MessageSquare,
-  Mic,
   Search,
   ShieldCheck,
   Shirt,
@@ -119,7 +117,6 @@ export default async function KaiPaiLanding() {
       <Founder />
       <MarketplaceAcademy />
       <TrustHowItWorks />
-      <MovementResources />
       <AudienceFaq
         id="faq"
         className="kp-snap"
@@ -651,75 +648,6 @@ function TrustHowItWorks() {
             in videochiamata <Video className="h-4 w-4" /> — tutto in un posto.
           </p>
         </Reveal>
-      </div>
-    </section>
-  );
-}
-
-/* ── 12 · Movement ── */
-/* ── Resources + movement · one page ── */
-function MovementResources() {
-  const lines = [
-    'Alleniamo la mente.',
-    'Non aspettiamo di stare male per iniziare.',
-    'La pressione non ci spaventa: la alleniamo.',
-    'Perdere fa parte. Arrendersi no.',
-    'Il talento è un inizio, non una scusa.',
-  ];
-  const items = [
-    { icon: Mic, t: 'Podcast' },
-    { icon: BookOpen, t: 'Guide per genitori' },
-    { icon: Building2, t: 'Risorse per le società' },
-    { icon: FlaskConical, t: 'Ricerca & metodo' },
-  ];
-  return (
-    <section id="movimento" className="kp-snap relative bg-kp-ink2 py-20 sm:py-24">
-      {/* Risorse & ricerca */}
-      <div className={WRAP}>
-        <div className="flex flex-col items-start justify-between gap-8 lg:flex-row lg:items-center">
-          <div className="max-w-md">
-            <Reveal>
-              <Eyebrow>Risorse & ricerca</Eyebrow>
-            </Reveal>
-            <Reveal delay={0.05}>
-              <h2 className="kp-display mt-4 text-[clamp(1.6rem,3vw,2.4rem)] text-kp-hi">
-                Stiamo cambiando come si{' '}
-                <span className="text-kp-red">pensa</span> lo sport.
-              </h2>
-            </Reveal>
-          </div>
-          <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4 lg:max-w-xl">
-            {items.map((it, i) => (
-              <Reveal key={it.t} delay={i * 0.06}>
-                <div className="kp-card flex h-full flex-col gap-3 rounded-2xl p-5">
-                  <it.icon className="h-5 w-5 text-kp-red" />
-                  <span className="text-sm font-medium text-kp-hi">{it.t}</span>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Il movimento */}
-      <div className={`${WRAP} mt-16 max-w-4xl`}>
-        <Reveal>
-          <Eyebrow>Il movimento</Eyebrow>
-        </Reveal>
-        <div className="mt-8 space-y-2">
-          {lines.map((l, i) => (
-            <Reveal key={l} delay={i * 0.1} y={18}>
-              <p className="kp-display text-[clamp(1.6rem,4.5vw,3rem)] leading-tight text-kp-hi">
-                {l}
-              </p>
-            </Reveal>
-          ))}
-          <Reveal delay={lines.length * 0.1}>
-            <p className="kp-display text-[clamp(1.6rem,4.5vw,3rem)] leading-tight text-kp-red">
-              Questo è KaiPai.
-            </p>
-          </Reveal>
-        </div>
       </div>
     </section>
   );
