@@ -29,7 +29,7 @@ export const HOME_FAQ: FaqItem[] = [
   },
   {
     q: 'Quando pago?',
-    a: 'La prenotazione è una richiesta: nulla è dovuto finché il coach non accetta e la seduta non è confermata.',
+    a: 'La prima sessione conoscitiva, di 20 minuti, è gratis. Per le altre la prenotazione è una richiesta: nulla è dovuto finché il coach non accetta e la seduta non è confermata.',
   },
   {
     q: 'Mio figlio è minorenne: può iniziare?',

@@ -76,7 +76,7 @@ export const MARKETPLACE_FAQS = [
   },
   {
     q: 'Quando pago?',
-    a: 'La prenotazione è una richiesta: paghi solo quando il coach accetta e la sessione è confermata. Nessun costo nascosto.',
+    a: 'La prima sessione conoscitiva, di 20 minuti, è gratis. Per le altre la prenotazione è una richiesta: paghi solo quando il coach accetta e la sessione è confermata. Nessun costo nascosto.',
   },
   {
     q: 'Posso annullare?',
