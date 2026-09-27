@@ -1100,3 +1100,13 @@
 .kp-snap-page > footer {
   scroll-snap-align: end;
 }
+
+/* «Mental coach o psicologo»: foto e bagliore rosso solo su fondo scuro. */
+.kp-alt > section:nth-of-type(even).kp-cvp .kp-cvp-photo {
+  display: none;
+}
+.kp-alt > section:nth-of-type(odd).kp-cvp .kp-cvp-card {
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--color-kp-red) 45%, transparent),
+    0 30px 80px -40px color-mix(in srgb, var(--color-kp-red) 35%, transparent);
+}
