@@ -119,34 +119,33 @@ export default function AcademyPage() {
               </a>
             </>
           }
-        />
-
-        {/* Il percorso — una riga di tipografia */}
-        <section className="bg-kp-ink2 py-20 sm:py-28">
-          <div className={WRAP}>
+        >
+          {/* «Il percorso»: stava in una sezione a sé, ora chiude la prima
+              schermata — le quattro tappe dopo la candidatura. */}
+          <div className="mt-10 border-t border-white/15 pt-7">
             <p className="kp-eyebrow text-kp-red">Il percorso</p>
-            <h2 className="kp-display mt-4 max-w-3xl text-[clamp(1.75rem,4vw,3rem)] text-kp-hi">
+            <p className="mt-3 max-w-3xl font-display text-xl font-semibold text-kp-hi sm:text-2xl">
               Non scegliamo i coach. <span className="text-kp-red">Li formiamo.</span>
-            </h2>
-            <p className="mt-5 max-w-2xl text-lg leading-relaxed text-kp-mid">
-              L’Academy è la strada con cui un professionista diventa coach
-              KaiPai: si entra con la candidatura, si cresce con la formazione e
-              la supervisione di chi lo fa da anni.
             </p>
-            <ol className="mt-14 grid gap-px overflow-hidden rounded-3xl bg-kp-line sm:grid-cols-2 lg:grid-cols-4">
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-kp-mid">
+              Si entra con la candidatura, si cresce con la formazione e la
+              supervisione di chi lo fa da anni.
+            </p>
+            <ol className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
               {PATH.map((step, i) => (
-                <li key={step} className="bg-kp-ink2 p-7">
+                <li
+                  key={step}
+                  className="rounded-2xl border border-white/10 bg-kp-ink/60 p-4 backdrop-blur-sm"
+                >
                   <span className="font-display text-sm font-semibold tabular-nums text-kp-red">
                     {String(i + 1).padStart(2, '0')}
                   </span>
-                  <p className="mt-3 font-display text-xl font-semibold text-kp-hi">
-                    {step}
-                  </p>
+                  <h2 className="mt-2 font-display text-lg font-semibold text-kp-hi">{step}</h2>
                 </li>
               ))}
             </ol>
           </div>
-        </section>
+        </AudiencePageHero>
 
         {/* Com'è fatto un corso */}
         <section id="corso" className="scroll-mt-24 py-20 sm:py-28">
