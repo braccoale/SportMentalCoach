@@ -15,10 +15,10 @@ import { fetcher } from '@/lib/fetcher';
 import type { SessionUser } from '@/lib/auth/session-user';
 
 const LINKS = [
-  { href: '/#ecosistema-atleta', label: 'Ecosistema' },
-  { href: '/#metodo', label: 'Metodo' },
-  { href: '/academy', label: 'Academy' },
   { href: '/#percorsi', label: 'Percorsi' },
+  { href: '/#ecosistema-atleta', label: 'Ecosistema' },
+  { href: '/academy', label: 'Academy' },
+  { href: '/#metodo', label: 'Metodo' },
   { href: '/coaches', label: 'Coach' },
 ];
 
@@ -125,13 +125,13 @@ export function SiteNav() {
                 onClick={() => setDemoOpen(true)}
                 className="inline-flex items-center gap-1.5 rounded-full border border-white/25 px-4 py-2 text-sm font-semibold text-kp-hi transition-colors hover:border-white/50 hover:bg-white/10"
               >
-                <PlayCircle className="h-4 w-4 text-kp-red" />
+                <PlayCircle className="h-4 w-4 text-green-500" />
                 Demo
               </button>
               <button
                 type="button"
                 onClick={() => setAuthMode('signin')}
-                className="text-sm font-medium text-kp-mid transition-colors hover:text-kp-hi"
+                className="rounded-full border border-white/25 px-4 py-2 text-sm font-semibold text-kp-hi transition-colors hover:border-white/50 hover:bg-white/10"
               >
                 Accedi
               </button>
@@ -168,7 +168,7 @@ export function SiteNav() {
                 aria-label="Apri demo"
                 className="flex h-9 w-9 items-center justify-center rounded-full border border-white/25 text-kp-hi"
               >
-                <PlayCircle className="h-4 w-4" />
+                <PlayCircle className="h-4 w-4 text-green-500" />
               </button>
               <button
                 type="button"
@@ -240,7 +240,7 @@ export function SiteNav() {
                   }}
                   className="inline-flex items-center justify-center gap-2 rounded-full border border-white/25 px-5 py-3.5 text-center font-semibold text-kp-hi"
                 >
-                  <PlayCircle className="h-4 w-4 text-kp-red" />
+                  <PlayCircle className="h-4 w-4 text-green-500" />
                   Prova la Demo
                 </button>
                 <button
