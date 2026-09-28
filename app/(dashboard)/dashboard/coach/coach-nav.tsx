@@ -10,6 +10,7 @@ import {
   GraduationCap,
   MessageSquare,
   Users2,
+  LifeBuoy,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CoachBadge } from '@/components/coach-badge';
@@ -22,6 +23,7 @@ const TABS = [
   { href: '/dashboard/coach/messages', label: 'Messaggi', icon: MessageSquare },
   { href: '/dashboard/coach/profile', label: 'Profilo', icon: UserRound },
   { href: '/dashboard/coach/services', label: 'Servizi', icon: Briefcase },
+  { href: '/dashboard/supporto', label: 'Supporto', icon: LifeBuoy },
 ];
 
 export function CoachNav({

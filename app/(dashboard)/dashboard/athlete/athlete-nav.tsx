@@ -8,6 +8,7 @@ import {
   CalendarDays,
   MessageSquare,
   UserRound,
+  LifeBuoy,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +28,10 @@ const TABS = [
     href: '/dashboard/athlete/profile',
     label: 'Profilo',
     icon: UserRound,
+  },  {
+    href: '/dashboard/supporto',
+    label: 'Supporto',
+    icon: LifeBuoy,
   },
 ];
 
