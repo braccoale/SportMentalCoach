@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Loader2, Mail, MapPin, Phone, X } from 'lucide-react';
+import { CheckCircle2, Loader2, Mail, MapPin, X } from 'lucide-react';
 
 const inputCls =
   'w-full rounded-xl border border-kp-line bg-kp-surface px-4 py-2.5 text-sm text-kp-hi placeholder:text-kp-low focus:border-kp-red/50 focus:outline-none';
@@ -147,13 +147,6 @@ export function ContactModal({
               >
                 <Mail className="h-3.5 w-3.5 text-kp-red" />
                 info@kaipaicoaching.com
-              </a>
-              <a
-                href="tel:+393286212598"
-                className="inline-flex items-center gap-1.5 transition-colors hover:text-kp-mid"
-              >
-                <Phone className="h-3.5 w-3.5 text-kp-red" />
-                +39 328 6212598
               </a>
               <span className="inline-flex items-center gap-1.5">
                 <MapPin className="h-3.5 w-3.5 text-kp-red" />

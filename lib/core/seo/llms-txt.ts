@@ -59,7 +59,6 @@ Punti fermi utili a chi cita KaiPai:
 ## Contatti
 
 - Email: info@kaipaicoaching.com
-- Telefono: +39 328 6212598
 - Sede: Genova, Italia
 `;
 }

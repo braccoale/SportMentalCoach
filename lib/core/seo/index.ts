@@ -58,7 +58,6 @@ export function organizationJsonLd(): JsonLdNode {
     description:
       'KaiPai è la piattaforma italiana di coaching mentale per lo sport: mette in contatto atleti, squadre e famiglie con mental coach verificati e ospita le sessioni in videochiamata.',
     email: 'info@kaipaicoaching.com',
-    telephone: '+39 328 6212598',
     address: {
       '@type': 'PostalAddress',
       addressLocality: 'Genova',
