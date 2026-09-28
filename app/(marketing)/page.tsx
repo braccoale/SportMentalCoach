@@ -6,7 +6,6 @@ import {
   BadgeCheck,
   BookOpen,
   Brain,
-  Building2,
   CalendarCheck,
   CheckCircle2,
   Footprints,
@@ -14,10 +13,8 @@ import {
   MessageSquare,
   Search,
   ShieldCheck,
-  Shirt,
   Star,
   TrendingUp,
-  Trophy,
   Video,
   Volleyball,
 } from 'lucide-react';
@@ -111,7 +108,6 @@ export default async function KaiPaiLanding() {
 
       <AudiencePathsSection />
       <EcosystemAthlete />
-      <WhyNow />
       <Problem />
       <Method />
       <Founder />
@@ -245,8 +241,18 @@ function Method() {
 function Founder() {
   const chips = ['Certificato ACSI–CONI', 'Autore', 'Al fianco di atleti olimpici e calciatori pro'];
   return (
-    <section id="origine" className={`${SECTION} bg-kp-ink2`}>
-      <div className={`${WRAP} grid items-center gap-14 lg:grid-cols-[0.8fr_1.2fr]`}>
+    <section id="origine" className={`${SECTION} overflow-hidden`}>
+      {/* Lo stadio di sera: lo sfondo che era di «Il mondo è già cambiato». */}
+      <ImageSlot
+        src="/stadio.jpg"
+        position="center"
+        placeholder="none"
+        className="absolute inset-0"
+      >
+        <div className="absolute inset-0 bg-kp-ink/80" />
+        <div className="kp-vignette absolute inset-0" />
+      </ImageSlot>
+      <div className={`relative z-10 ${WRAP} grid items-center gap-14 lg:grid-cols-[0.8fr_1.2fr]`}>
         <Reveal>
           <ImageSlot
             src="/founder.jpg"
@@ -324,106 +330,6 @@ function Founder() {
             </div>
           </Reveal>
         </div>
-      </div>
-    </section>
-  );
-}
-
-/* ── Why now · stats ── */
-function WhyNow() {
-  const stats = [
-    {
-      icon: Building2,
-      label: 'Club di Serie A',
-      to: 95,
-      prefix: '',
-      note: 'allenano la mente con figure dedicate',
-    },
-    {
-      icon: Shirt,
-      label: 'Settori giovanili',
-      to: 70,
-      prefix: '+',
-      note: 'di investimento nell’allenamento mentale in 5 anni',
-    },
-    {
-      icon: Trophy,
-      label: 'In campo',
-      to: 30,
-      prefix: '+',
-      note: 'concentrazione e lucidità nei momenti decisivi',
-    },
-    {
-      icon: ShieldCheck,
-      label: 'Fuori dal campo',
-      to: 40,
-      prefix: '−',
-      note: 'meno burnout, meno ragazzi che abbandonano',
-    },
-  ];
-  return (
-    <section id="perche-oggi" className={`${SECTION} overflow-hidden`}>
-      <ImageSlot
-        src="/stadio.jpg"
-        position="center"
-        placeholder="none"
-        className="absolute inset-0"
-      >
-        <div className="absolute inset-0 bg-kp-ink/80" />
-        <div className="kp-vignette absolute inset-0" />
-      </ImageSlot>
-      <div
-        className={`relative z-10 ${WRAP} grid items-center gap-12 lg:grid-cols-[0.9fr_1.1fr]`}
-      >
-        <div>
-          <Reveal>
-            <Eyebrow>Il mondo è già cambiato</Eyebrow>
-          </Reveal>
-          <Reveal delay={0.05}>
-            <h2 className="kp-display mt-4 text-[clamp(1.8rem,4vw,3rem)] text-kp-hi">
-              La testa non è più un dettaglio.
-              <br />È il primo <span className="text-kp-red">allenamento</span>.
-            </h2>
-          </Reveal>
-          <Reveal delay={0.1}>
-            <p className="mt-6 max-w-md text-lg leading-relaxed text-kp-mid">
-              I più grandi club del mondo allenano la mente ogni giorno, dai
-              campioni ai ragazzi del vivaio. Non è una moda: è il nuovo modo
-              di crescere nello sport.
-            </p>
-          </Reveal>
-          <Reveal delay={0.15}>
-            <a
-              href="#metodo"
-              className="kp-cta group mt-8 inline-flex items-center gap-2 rounded-full px-7 py-3.5 font-semibold text-white"
-            >
-              Scopri come si allena
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </a>
-          </Reveal>
-        </div>
-
-        <Reveal delay={0.1}>
-          <div className="grid grid-cols-2 gap-3 rounded-3xl border border-kp-line bg-kp-surface/40 p-4 sm:grid-cols-4 sm:p-5">
-            {stats.map((s) => (
-              <div
-                key={s.label}
-                className="rounded-2xl bg-white/[0.02] p-5 text-center"
-              >
-                <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-kp-red/10 text-kp-red">
-                  <s.icon className="h-5 w-5" />
-                </span>
-                <p className="kp-eyebrow mt-4 text-[0.6rem] text-kp-mid">
-                  {s.label}
-                </p>
-                <p className="mt-2 font-display text-3xl font-bold text-kp-hi">
-                  <CountUp to={s.to} prefix={s.prefix} suffix="%" />
-                </p>
-                <p className="mt-2 text-xs leading-snug text-kp-low">{s.note}</p>
-              </div>
-            ))}
-          </div>
-        </Reveal>
       </div>
     </section>
   );

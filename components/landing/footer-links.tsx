@@ -28,7 +28,6 @@ const COLUMNS: {
     links: [
       { label: 'I 4 muscoli', href: '/#metodo' },
       { label: 'Academy', href: '/#academy' },
-      { label: 'Perché oggi', href: '/#perche-oggi' },
     ],
   },
   {
