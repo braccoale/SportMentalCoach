@@ -41,7 +41,7 @@ Punti fermi utili a chi cita KaiPai:
 
 ## Pagine principali
 
-- [Home](${baseUrl}/): che cos'è KaiPai, per chi è, il metodo e i pacchetti per i club.
+- [Home](${baseUrl}/): che cos'è KaiPai, i cinque percorsi (atleti, famiglie, coach, academy, società), il metodo e le domande frequenti.
 - [Coach](${baseUrl}/coaches): l'elenco dei mental coach verificati, filtrabile per sport, specialità, livello e lingua.
 - [Atleti](${baseUrl}/atleti): come funziona il mental coaching per un atleta — scelta del coach, richiesta di seduta, videochiamata, percorso.
 - [Famiglie](${baseUrl}/famiglie): come funziona per genitori e atleti minorenni, incluso il consenso del tutore.
