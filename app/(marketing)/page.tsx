@@ -464,12 +464,12 @@ function FinalCta() {
               Inizia il tuo percorso
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </a>
-            <a
-              href="#metodo"
+            <Link
+              href="/coaches"
               className="inline-flex items-center rounded-full border border-kp-line px-7 py-4 font-medium text-kp-hi hover:border-kp-hi/30"
             >
-              Scopri il Metodo
-            </a>
+              Scegli un coach
+            </Link>
           </div>
         </Reveal>
         <Reveal delay={0.2}>

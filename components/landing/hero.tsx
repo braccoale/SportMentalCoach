@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { Reveal } from './reveal';
 import { ImageSlot } from './image-slot';
@@ -83,13 +84,13 @@ export function Hero({ stats }: { stats: LandingStats }) {
               Inizia il tuo percorso
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </a>
-            <a
-              href="#metodo"
+            <Link
+              href="/coaches"
               className="inline-flex items-center justify-center gap-2 rounded-full border border-kp-line px-6 py-3.5 font-medium text-kp-hi backdrop-blur-sm transition-colors hover:border-kp-hi/30"
             >
-              Scopri il Metodo
+              Scegli un coach
               <ArrowRight className="h-4 w-4" />
-            </a>
+            </Link>
           </div>
         </Reveal>
 
