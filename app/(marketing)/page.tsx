@@ -2,12 +2,10 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
   ArrowRight,
-  Award,
   BadgeCheck,
   BookOpen,
   Brain,
   CalendarCheck,
-  CheckCircle2,
   Footprints,
   HeartHandshake,
   MessageSquare,
@@ -32,8 +30,7 @@ import { AudiencePathsSection } from '@/components/landing/audience-paths/audien
 import { EcosystemAthlete } from '@/components/landing/ecosystem-athlete';
 import { MethodDiamond } from '@/components/landing/method';
 import { Reveal } from '@/components/landing/reveal';
-import { CountUp } from '@/components/landing/count-up';
-import { ImageSlot, AvatarSlot } from '@/components/landing/image-slot';
+import { ImageSlot } from '@/components/landing/image-slot';
 import { CookieSettingsButton } from '@/components/google-analytics';
 import { FooterLinks } from '@/components/landing/footer-links';
 import { BackToTop } from '@/components/back-to-top';
@@ -111,7 +108,6 @@ export default async function KaiPaiLanding() {
       <Problem />
       <Method />
       <Founder />
-      <MarketplaceAcademy />
       <TrustHowItWorks />
       <AudienceFaq
         id="faq"
@@ -327,149 +323,6 @@ function Founder() {
                   Compra il libro di Francesco
                 </a>
               </Button>
-            </div>
-          </Reveal>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ── Marketplace + academy · one page ── */
-function MarketplaceAcademy() {
-  const steps = [
-    'Selezione',
-    'Formazione',
-    'Certificazione',
-    'Supervisione',
-    'Crescita continua',
-  ];
-  return (
-    <section className="kp-snap relative bg-kp-ink2 py-20 sm:py-24">
-      <div className={`${WRAP} grid items-center gap-14 lg:grid-cols-2`}>
-        <div>
-          <SectionHeader
-            eyebrow="Le nostre guide"
-            title={
-              <>
-                Non un coach qualsiasi.{' '}
-                <span className="text-kp-red">Una guida formata da noi</span>.
-              </>
-            }
-            sub="Ogni guida KaiPai è verificata, certificata e cresciuta dalla nostra Academy. Niente vetrine, niente sconosciuti: solo persone di cui fidarti."
-          />
-          <Reveal delay={0.15}>
-            <ul className="mt-8 space-y-3">
-              {[
-                'Identità e credenziali verificate',
-                'Recensioni vere, solo dopo sessioni reali',
-                'Formate dalla KaiPai Academy',
-              ].map((f) => (
-                <li key={f} className="flex items-center gap-3 text-kp-mid">
-                  <CheckCircle2 className="h-5 w-5 shrink-0 text-kp-verify" />
-                  {f}
-                </li>
-              ))}
-            </ul>
-          </Reveal>
-          <Reveal delay={0.2}>
-            <Link
-              href="/coaches"
-              className="kp-cta group mt-9 inline-flex items-center gap-2 rounded-full px-6 py-3.5 font-semibold text-white"
-            >
-              Sfoglia i coach
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Link>
-          </Reveal>
-        </div>
-
-        {/* single beautiful coach card */}
-        <Reveal delay={0.1}>
-          <div className="kp-card kp-elevated relative mx-auto w-full max-w-sm rounded-3xl p-6">
-            <div className="flex items-center gap-4">
-              <ImageSlot
-                src="/coach-marco.jpg"
-                monogram="MR"
-                className="h-16 w-16 rounded-2xl border border-kp-line text-xl font-semibold"
-              />
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-display text-lg font-semibold text-kp-hi">
-                    Marco Rossi
-                  </span>
-                  <BadgeCheck className="h-4 w-4 text-kp-verify" />
-                </div>
-                <p className="text-sm text-kp-mid">Mental coach · Calcio</p>
-                <div className="mt-1 flex items-center gap-1 text-sm text-kp-hi">
-                  <Star className="h-3.5 w-3.5 fill-kp-red text-kp-red" />
-                  4.9
-                  <span className="text-kp-low">· 3 recensioni</span>
-                </div>
-              </div>
-            </div>
-            <div className="mt-5 flex flex-wrap gap-2">
-              {['Identità verificata', 'Academy', 'Under 18'].map((b) => (
-                <span
-                  key={b}
-                  className="rounded-full border border-kp-line px-2.5 py-1 text-xs text-kp-mid"
-                >
-                  {b}
-                </span>
-              ))}
-            </div>
-            <div className="mt-5 rounded-2xl border border-kp-line bg-white/[0.02] p-4">
-              <p className="kp-eyebrow text-kp-low">Prossima disponibilità</p>
-              <div className="mt-2 flex gap-2">
-                {['Lun 17:00', 'Mer 17:00', 'Sab 10:00'].map((s) => (
-                  <span
-                    key={s}
-                    className="rounded-lg bg-kp-red/10 px-2.5 py-1 text-xs font-medium text-kp-red"
-                  >
-                    {s}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </Reveal>
-      </div>
-
-      {/* KaiPai Academy */}
-      <div className={`${WRAP} mt-16`} id="academy">
-        <div className="mx-auto max-w-4xl text-center">
-          <Reveal>
-            <Eyebrow>KaiPai Academy</Eyebrow>
-          </Reveal>
-          <Reveal delay={0.05}>
-            <h2 className="kp-display mt-4 text-[clamp(1.5rem,3.4vw,2.6rem)] text-kp-hi lg:whitespace-nowrap">
-              Non scegliamo i coach.{' '}
-              <span className="text-kp-red">Li formiamo.</span>
-            </h2>
-          </Reveal>
-          <Reveal delay={0.1}>
-            <p className="mt-5 text-lg leading-relaxed text-kp-mid">
-              Ogni coach supera un percorso rigoroso prima di affiancare un
-              atleta. Solo chi lo completa entra a far parte di KaiPai.
-            </p>
-          </Reveal>
-        </div>
-        <div className="mt-10 flex flex-col items-stretch gap-3 lg:flex-row lg:items-center">
-          {steps.map((s, i) => (
-            <Reveal key={s} delay={i * 0.1} className="flex-1">
-              <div className="flex items-center gap-3 rounded-2xl border border-kp-line bg-white/[0.02] p-4">
-                <span className="font-mono text-sm text-kp-red">
-                  0{i + 1}
-                </span>
-                <span className="font-display font-medium text-kp-hi">{s}</span>
-              </div>
-            </Reveal>
-          ))}
-          <Reveal delay={0.6}>
-            <div className="flex items-center gap-2 rounded-2xl border border-kp-verify/40 bg-kp-verify/10 p-4">
-              <Award className="h-5 w-5 text-kp-verify" />
-              <span className="font-display font-semibold text-kp-hi">
-                Coach Verificato
-              </span>
             </div>
           </Reveal>
         </div>

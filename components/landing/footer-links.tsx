@@ -27,7 +27,6 @@ const COLUMNS: {
     h: 'Metodo',
     links: [
       { label: 'I 4 muscoli', href: '/#metodo' },
-      { label: 'Academy', href: '/#academy' },
     ],
   },
   {

@@ -17,7 +17,7 @@ import type { SessionUser } from '@/lib/auth/session-user';
 const LINKS = [
   { href: '/#ecosistema-atleta', label: 'Ecosistema' },
   { href: '/#metodo', label: 'Metodo' },
-  { href: '/#academy', label: 'Academy' },
+  { href: '/academy', label: 'Academy' },
   { href: '/#percorsi', label: 'Percorsi' },
   { href: '/coaches', label: 'Coach' },
 ];
