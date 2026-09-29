@@ -43,7 +43,27 @@ import { getLandingStats } from '@/lib/db/landing-stats';
  * senza canonical quello è un secondo indirizzo della stessa pagina.
  */
 export const metadata: Metadata = {
+  // «mental coaching» nel titolo: è quello che si cerca, e il claim della
+  // hero («Allena la mente…») non lo dice.
+  title: 'Mental coaching sportivo per atleti, famiglie e club | KaiPai',
+  description:
+    'Mental coaching sportivo con coach verificati: concentrazione, pressione e motivazione per atleti, famiglie e società. La prima sessione conoscitiva è gratis.',
   alternates: { canonical: '/' },
+  openGraph: {
+    title: 'KaiPai — Mental coaching sportivo',
+    description:
+      'Il metodo, la scuola e la rete di coach che allenano la mente di atleti, squadre e famiglie.',
+    type: 'website',
+    siteName: 'KaiPai',
+    locale: 'it_IT',
+    url: '/',
+    images: [{ url: '/og/athletes.jpg', width: 1200, height: 630, alt: 'KaiPai — mental coaching sportivo' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'KaiPai — Mental coaching sportivo',
+    images: ['/og/athletes.jpg'],
+  },
 };
 
 /* ── shared bits ── */

@@ -4,9 +4,18 @@ import { CANONICAL_APP_URL as SITE_URL } from '@/lib/core/site';
 
 export const revalidate = 3600;
 
+/**
+ * Ultima revisione dei contenuti delle pagine pubbliche. Una data scritta a
+ * mano e non `new Date()`: una data che cambia a ogni richiesta dice a Google
+ * che la pagina cambia sempre, cioè niente. Va aggiornata quando cambiano i
+ * testi.
+ */
+const CONTENT_REVISED = new Date('2026-09-29');
+
 const publicPages: MetadataRoute.Sitemap = [
   {
     url: SITE_URL,
+    lastModified: CONTENT_REVISED,
     changeFrequency: 'weekly',
     priority: 1,
   },
@@ -17,26 +26,31 @@ const publicPages: MetadataRoute.Sitemap = [
   },
   {
     url: `${SITE_URL}/famiglie`,
+    lastModified: CONTENT_REVISED,
     changeFrequency: 'monthly',
     priority: 0.8,
   },
   {
     url: `${SITE_URL}/atleti`,
+    lastModified: CONTENT_REVISED,
     changeFrequency: 'monthly',
     priority: 0.8,
   },
   {
     url: `${SITE_URL}/academy`,
+    lastModified: CONTENT_REVISED,
     changeFrequency: 'monthly',
     priority: 0.8,
   },
   {
     url: `${SITE_URL}/diventa-coach`,
+    lastModified: CONTENT_REVISED,
     changeFrequency: 'monthly',
     priority: 0.8,
   },
   {
     url: `${SITE_URL}/societa`,
+    lastModified: CONTENT_REVISED,
     changeFrequency: 'monthly',
     priority: 0.8,
   },

@@ -106,7 +106,7 @@ export default function AcademyPage() {
           {/* «Il percorso»: stava in una sezione a sé, ora chiude la prima
               schermata — le quattro tappe dopo la candidatura. */}
           <div className="mt-10 border-t border-white/15 pt-7">
-            <p className="kp-eyebrow text-kp-red">Il percorso</p>
+            <h2 className="kp-eyebrow text-kp-red">Il percorso</h2>
             <p className="mt-3 max-w-3xl font-display text-xl font-semibold text-kp-hi sm:text-2xl">
               Non scegliamo i coach. <span className="text-kp-red">Li formiamo.</span>
             </p>
@@ -123,7 +123,7 @@ export default function AcademyPage() {
                   <span className="font-display text-sm font-semibold tabular-nums text-kp-red">
                     {String(i + 1).padStart(2, '0')}
                   </span>
-                  <h2 className="mt-2 font-display text-lg font-semibold text-kp-hi">{step}</h2>
+                  <h3 className="mt-2 font-display text-lg font-semibold text-kp-hi">{step}</h3>
                 </li>
               ))}
             </ol>

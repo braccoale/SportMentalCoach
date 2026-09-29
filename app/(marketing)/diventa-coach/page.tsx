@@ -33,7 +33,7 @@ import {
 
 export const metadata: Metadata = audienceMetadata({
   path: '/diventa-coach',
-  title: 'Diventa mental coach sportivo su KaiPai',
+  title: 'Diventa mental coach sportivo: atleti e sedute | KaiPai',
   description:
     'Per mental coach sportivi: profilo pubblico, prenotazioni, videochiamate, Appunti AI con consenso e il percorso di ogni atleta in un unico spazio.',
   shareTitle: 'Diventa coach KaiPai',
@@ -135,7 +135,7 @@ export default function DiventaCoachPage() {
           {/* «Cosa trovi»: stava in una sezione a sé, ora chiude la prima
               schermata — è il dettaglio di «tutto in un unico spazio». */}
           <div className="mt-10 border-t border-white/15 pt-7">
-            <p className="kp-eyebrow text-kp-red">Cosa trovi</p>
+            <h2 className="kp-eyebrow text-kp-red">Cosa trovi</h2>
             <ol className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {FEATURES.map((f, i) => (
                 <li
@@ -146,9 +146,9 @@ export default function DiventaCoachPage() {
                     {String(i + 1).padStart(2, '0')}
                   </span>
                   <div>
-                    <h2 className="font-display text-[0.95rem] font-semibold leading-snug text-kp-hi">
+                    <h3 className="font-display text-[0.95rem] font-semibold leading-snug text-kp-hi">
                       {f.t}
-                    </h2>
+                    </h3>
                     <p className="mt-1 text-[0.8rem] leading-relaxed text-kp-mid">{f.b}</p>
                   </div>
                 </li>

@@ -90,7 +90,7 @@ export default function FamigliePage() {
           {/* Il ruolo dei genitori: stava in una sezione a sé, ora chiude la
               prima schermata — è la stessa promessa detta in tre principi. */}
           <div className="mt-12 border-t border-white/15 pt-8">
-            <p className="kp-eyebrow text-kp-red">Il ruolo dei genitori</p>
+            <h2 className="kp-eyebrow text-kp-red">Il ruolo dei genitori</h2>
             <ul className="mt-5 grid gap-4 md:grid-cols-3">
               {ROLE.map((r) => (
                 <li
@@ -99,7 +99,7 @@ export default function FamigliePage() {
                 >
                   <div className="flex items-center gap-3">
                     <r.icon className="h-5 w-5 shrink-0 text-kp-red" aria-hidden />
-                    <h2 className="font-display text-base font-semibold text-kp-hi">{r.t}</h2>
+                    <h3 className="font-display text-base font-semibold text-kp-hi">{r.t}</h3>
                   </div>
                   <p className="mt-2 text-sm leading-relaxed text-kp-mid">{r.b}</p>
                 </li>

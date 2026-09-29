@@ -95,10 +95,10 @@ export function AthleteHowItWorks() {
       <div className="mx-auto w-full max-w-7xl px-5 pt-24 pb-14 sm:px-8 lg:pt-28">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="kp-eyebrow text-kp-red">Mental coaching per atleti · Come funziona</p>
-            <h1 className="kp-display mt-4 max-w-3xl text-[clamp(1.9rem,3.6vw,3rem)] leading-[1.04] text-kp-hi">
+            <h1 className="kp-eyebrow text-kp-red">Mental coaching per atleti · Come funziona</h1>
+            <p className="kp-display mt-4 max-w-3xl text-[clamp(1.9rem,3.6vw,3rem)] leading-[1.04] text-kp-hi">
               Scegli. Inizia. <span className="text-kp-red">Cresci.</span>
-            </h1>
+            </p>
           </div>
           <Link href="/coaches" className={`${AUDIENCE_PRIMARY_CTA} w-fit shrink-0`}>
             Trova il tuo coach

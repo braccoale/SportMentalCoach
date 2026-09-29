@@ -74,10 +74,13 @@ export function AudiencePageHero({
           children ? 'pt-28 pb-12 sm:pb-14' : 'pt-32 pb-16 sm:pb-24'
         }`}
       >
-        <p className="kp-eyebrow text-kp-red">{eyebrow}</p>
-        <h1 className={`kp-display mt-4 ${titleClassName} text-[clamp(2.4rem,6vw,4.75rem)] leading-[1.02] text-kp-hi`}>
+        {/* Per i motori di ricerca il titolo è la riga piccola, che dice che
+            cosa è la pagina («Mental coaching per atleti»); la frase grande è
+            il claim, e resta identica a schermo. */}
+        <h1 className="kp-eyebrow text-kp-red">{eyebrow}</h1>
+        <p className={`kp-display mt-4 ${titleClassName} text-[clamp(2.4rem,6vw,4.75rem)] leading-[1.02] text-kp-hi`}>
           {lead} <span className="text-kp-red">{emphasis}</span>
-        </h1>
+        </p>
         <p className="mt-6 max-w-xl text-lg leading-relaxed text-kp-mid">{text}</p>
         <div className="mt-9 flex flex-wrap items-center gap-5">{actions}</div>
         {children}
