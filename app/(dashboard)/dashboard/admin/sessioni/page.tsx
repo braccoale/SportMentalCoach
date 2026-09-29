@@ -17,6 +17,7 @@ import { upcomingDayName } from '@/lib/core/admin/upcoming';
 import type { TranscriptionOutcomeKind } from '@/lib/core/admin/transcription-outcome';
 import { SectionHeader, EmptyBlock } from '@/components/admin/control-room';
 import { LiveSessionDot } from '@/components/admin/live-session-dot';
+import { formatCallDuration } from '@/lib/core/admin/call-span';
 
 export const dynamic = 'force-dynamic';
 
@@ -199,6 +200,8 @@ export default async function AdminSessionsPage({
                     <th scope="col" className="px-4 py-3">Atleta</th>
                     <th scope="col" className="px-4 py-3">Servizio</th>
                     <th scope="col" className="px-4 py-3">Durata</th>
+                    <th scope="col" className="px-4 py-3">Inizio / fine call</th>
+                    <th scope="col" className="px-4 py-3">Tempo in call</th>
                     <th scope="col" className="px-4 py-3">Stato</th>
                     <th scope="col" className="px-4 py-3">AI</th>
                     <th scope="col" className="px-4 py-3">Trascrizione</th>
@@ -221,6 +224,30 @@ export default async function AdminSessionsPage({
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 tabular-nums text-gray-600">
                         {session.durationMin ? `${session.durationMin}′` : '—'}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 tabular-nums text-gray-800">
+                        {session.call.startedAt ? (
+                          <>
+                            {formatTime(session.call.startedAt)}
+                            <span className="text-gray-400"> – </span>
+                            {session.call.endedAt ? (
+                              formatTime(session.call.endedAt)
+                            ) : session.call.inProgress ? (
+                              <span className="text-emerald-700">in corso</span>
+                            ) : (
+                              '—'
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 tabular-nums text-gray-800">
+                        {session.call.durationMin != null ? (
+                          formatCallDuration(session.call.durationMin)
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <span className="flex items-center gap-2">
