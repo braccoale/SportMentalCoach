@@ -17,6 +17,7 @@ import { upcomingDayName } from '@/lib/core/admin/upcoming';
 import type { TranscriptionOutcomeKind } from '@/lib/core/admin/transcription-outcome';
 import { SectionHeader, EmptyBlock } from '@/components/admin/control-room';
 import { LiveSessionDot } from '@/components/admin/live-session-dot';
+import { RefreshButton } from '@/components/admin/refresh-button';
 import { formatCallDuration } from '@/lib/core/admin/call-span';
 
 export const dynamic = 'force-dynamic';
@@ -126,6 +127,8 @@ export default async function AdminSessionsPage({
             Torna a oggi
           </Link>
         ) : null}
+
+        <RefreshButton />
       </div>
 
       {/* I prossimi sette giorni: la stessa agenda della panoramica, qui come
