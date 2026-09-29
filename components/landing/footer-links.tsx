@@ -42,7 +42,7 @@ const COLUMNS: {
   {
     h: 'Azienda',
     links: [
-      { label: 'Origine', href: '/#origine' },
+      { label: 'Chi siamo', href: '/chi-siamo' },
       { label: 'Domande frequenti', href: '/#faq' },
       { label: 'Contatti', action: 'contact' },
     ],

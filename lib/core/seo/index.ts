@@ -171,6 +171,51 @@ export function serviceJsonLd(input: {
   };
 }
 
+/**
+ * La pagina /chi-siamo come `AboutPage`, con il fondatore come `Person`
+ * collegato all'organizzazione: è ciò che dice a un motore di ricerca chi c'è
+ * dietro KaiPai. `founder` sull'organizzazione punta alla stessa persona per
+ * `@id`, così i due nodi non si descrivono in modo diverso.
+ */
+export function aboutPageJsonLd(input: {
+  path: string;
+  founder: {
+    name: string;
+    jobTitle: string;
+    description: string;
+    image: string;
+    knowsAbout: string[];
+    sameAs?: string[];
+  };
+}): JsonLdNode[] {
+  const url = absoluteUrl(input.path);
+  const founderId = `${url}#founder`;
+  return [
+    {
+      '@type': 'AboutPage',
+      '@id': `${url}#page`,
+      url,
+      name: 'Chi siamo — KaiPai',
+      inLanguage: 'it',
+      about: { '@id': ORGANIZATION_ID },
+      mainEntity: { '@id': founderId },
+    },
+    compact({
+      '@type': 'Person',
+      '@id': founderId,
+      name: input.founder.name,
+      jobTitle: input.founder.jobTitle,
+      description: input.founder.description,
+      image: absoluteUrl(input.founder.image),
+      url,
+      knowsAbout: input.founder.knowsAbout,
+      sameAs: input.founder.sameAs ?? [],
+      worksFor: { '@id': ORGANIZATION_ID },
+    }),
+    { '@id': ORGANIZATION_ID, founder: { '@id': founderId } },
+  ];
+}
+
 export type FaqEntry = { q: string; a: string };
 
 export function faqJsonLd(entries: FaqEntry[]): JsonLdNode {

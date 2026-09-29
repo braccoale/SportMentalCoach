@@ -55,6 +55,12 @@ const publicPages: MetadataRoute.Sitemap = [
     priority: 0.8,
   },
   {
+    url: `${SITE_URL}/chi-siamo`,
+    lastModified: CONTENT_REVISED,
+    changeFrequency: 'monthly',
+    priority: 0.7,
+  },
+  {
     url: `${SITE_URL}/privacy`,
     changeFrequency: 'yearly',
     priority: 0.2,

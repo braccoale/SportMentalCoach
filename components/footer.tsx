@@ -29,6 +29,7 @@ export function Footer() {
     { href: '/diventa-coach', label: t('pathCoaches') },
     { href: '/academy', label: t('pathAcademy') },
     { href: '/societa', label: t('pathClubs') },
+    { href: '/chi-siamo', label: t('about') },
     { href: '/#faq', label: t('faq') },
   ];
   const legalLinks = [

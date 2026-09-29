@@ -5,6 +5,7 @@ import {
   breadcrumbJsonLd,
   coachJsonLd,
   coachListJsonLd,
+  aboutPageJsonLd,
   courseJsonLd,
   serviceJsonLd,
   faqJsonLd,
@@ -357,4 +358,26 @@ test('serviceJsonLd: servizio per un pubblico, senza prezzo', () => {
   assert.equal(service.url, absoluteUrl('/societa'));
   assert.equal((service.audience as { audienceType: string }).audienceType, 'Società sportive');
   assert.equal('offers' in service, false);
+});
+
+test('aboutPageJsonLd: pagina, fondatore collegato all’organizzazione', () => {
+  const [page, person, org] = aboutPageJsonLd({
+    path: '/chi-siamo',
+    founder: {
+      name: 'Francesco Borrelli',
+      jobTitle: 'Fondatore di KaiPai',
+      description: 'Mental coach sportivo.',
+      image: '/founder.jpg',
+      knowsAbout: ['Mental coaching sportivo'],
+    },
+  });
+  assert.equal(page['@type'], 'AboutPage');
+  assert.equal(person['@type'], 'Person');
+  assert.equal(person.image, absoluteUrl('/founder.jpg'));
+  // La pagina, la persona e l’organizzazione si riconoscono per @id.
+  assert.deepEqual(page.mainEntity, { '@id': person['@id'] });
+  assert.deepEqual(org.founder, { '@id': person['@id'] });
+  assert.deepEqual(person.worksFor, { '@id': organizationJsonLd()['@id'] });
+  // Una lista vuota non diventa un campo vuoto nel markup.
+  assert.equal('sameAs' in person, false);
 });

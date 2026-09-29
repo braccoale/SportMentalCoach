@@ -20,6 +20,7 @@ const LINKS = [
   { href: '/academy', label: 'Academy' },
   { href: '/#metodo', label: 'Metodo' },
   { href: '/coaches', label: 'Coach' },
+  { href: '/chi-siamo', label: 'Chi siamo' },
 ];
 
 const linkCls =

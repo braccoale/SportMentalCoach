@@ -47,6 +47,7 @@ Punti fermi utili a chi cita KaiPai:
 - [Famiglie](${baseUrl}/famiglie): come funziona per genitori e atleti minorenni, incluso il consenso del tutore.
 - [Diventa coach](${baseUrl}/diventa-coach): per mental coach sportivi — cosa offre la piattaforma, come ci si candida e come avviene l'approvazione.
 - [KaiPai Academy](${baseUrl}/academy): come si formano i mental coach KaiPai.
+- [Chi siamo](${baseUrl}/chi-siamo): Francesco Borrelli, fondatore, e le tre parti di KaiPai — metodo, scuola e rete di coach.
 - [Società sportive](${baseUrl}/societa): percorsi di mental coaching per club, squadre e settori giovanili.
 - [Prezzi](${baseUrl}/pricing.md): i pacchetti per club e società sportive, in formato leggibile da un agente.
 
