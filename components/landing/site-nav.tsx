@@ -21,6 +21,7 @@ const LINKS = [
   { href: '/#metodo', label: 'Metodo' },
   { href: '/coaches', label: 'Coach' },
   { href: '/chi-siamo', label: 'Chi siamo' },
+  { href: '/blog', label: 'Blog' },
 ];
 
 const linkCls =

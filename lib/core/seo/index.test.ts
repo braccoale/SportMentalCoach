@@ -6,6 +6,7 @@ import {
   coachJsonLd,
   coachListJsonLd,
   aboutPageJsonLd,
+  articleJsonLd,
   courseJsonLd,
   serviceJsonLd,
   faqJsonLd,
@@ -380,4 +381,24 @@ test('aboutPageJsonLd: pagina, fondatore collegato all’organizzazione', () => 
   assert.deepEqual(person.worksFor, { '@id': organizationJsonLd()['@id'] });
   // Una lista vuota non diventa un campo vuoto nel markup.
   assert.equal('sameAs' in person, false);
+});
+
+test('articleJsonLd: autore collegato alla persona di /chi-siamo', () => {
+  const node = articleJsonLd({
+    path: '/blog/x',
+    title: 'T',
+    description: 'D',
+    image: '/blog/x.webp',
+    publishedAt: '2026-09-29',
+    authorName: 'Francesco Borrelli',
+    authorPath: '/chi-siamo',
+  });
+  const [, person] = aboutPageJsonLd({
+    path: '/chi-siamo',
+    founder: { name: 'Francesco Borrelli', jobTitle: 'F', description: 'D', image: '/f.jpg', knowsAbout: [] },
+  });
+  assert.equal(node['@type'], 'BlogPosting');
+  assert.equal((node.author as { '@id': string })['@id'], person['@id']);
+  assert.equal(node.dateModified, '2026-09-29');
+  assert.equal('keywords' in node, false);
 });

@@ -216,6 +216,45 @@ export function aboutPageJsonLd(input: {
   ];
 }
 
+/**
+ * Un articolo del blog come `BlogPosting`. L'autore punta per `@id` alla
+ * persona descritta in /chi-siamo (`aboutPageJsonLd`): è la stessa persona, e
+ * dirlo così la rende riconoscibile come autore di tutti gli articoli.
+ */
+export function articleJsonLd(input: {
+  path: string;
+  title: string;
+  description: string;
+  image: string;
+  publishedAt: string;
+  updatedAt?: string;
+  authorName: string;
+  authorPath: string;
+  keywords?: string[];
+}): JsonLdNode {
+  const url = absoluteUrl(input.path);
+  return compact({
+    '@type': 'BlogPosting',
+    '@id': `${url}#article`,
+    headline: input.title,
+    description: input.description,
+    url,
+    mainEntityOfPage: url,
+    image: absoluteUrl(input.image),
+    datePublished: input.publishedAt,
+    dateModified: input.updatedAt ?? input.publishedAt,
+    inLanguage: 'it',
+    author: {
+      '@type': 'Person',
+      '@id': `${absoluteUrl(input.authorPath)}#founder`,
+      name: input.authorName,
+      url: absoluteUrl(input.authorPath),
+    },
+    publisher: { '@id': ORGANIZATION_ID },
+    keywords: input.keywords?.join(', '),
+  });
+}
+
 export type FaqEntry = { q: string; a: string };
 
 export function faqJsonLd(entries: FaqEntry[]): JsonLdNode {

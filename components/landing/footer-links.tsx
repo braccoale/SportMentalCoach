@@ -43,6 +43,7 @@ const COLUMNS: {
     h: 'Azienda',
     links: [
       { label: 'Chi siamo', href: '/chi-siamo' },
+      { label: 'Blog', href: '/blog' },
       { label: 'Domande frequenti', href: '/#faq' },
       { label: 'Contatti', action: 'contact' },
     ],

@@ -30,6 +30,7 @@ export function Footer() {
     { href: '/academy', label: t('pathAcademy') },
     { href: '/societa', label: t('pathClubs') },
     { href: '/chi-siamo', label: t('about') },
+    { href: '/blog', label: t('blog') },
     { href: '/#faq', label: t('faq') },
   ];
   const legalLinks = [
