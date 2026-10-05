@@ -14,7 +14,7 @@ import { runAiNotesQueueAfterResponse } from '@/lib/core/ai-session-notes/queue-
  * esattamente il doppio tentativo visto su due sedute di fila — non un
  * guasto del modello, un budget di tempo troppo stretto.
  */
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 
 /**

@@ -104,7 +104,7 @@ import { cancelSessionAction } from './academy/actions';
  * esattamente il doppio tentativo visto su due sedute di fila — non un
  * guasto del modello, un budget di tempo troppo stretto.
  */
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 
 /** Sort key for the archive: when the session actually happened, newest first. */

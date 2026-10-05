@@ -18,7 +18,7 @@ import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger
 
 export const dynamic = 'force-dynamic';
 /**
- * Tetto del piano Hobby.
+ * Tetto del piano Pro: 300 secondi (era 60 su Hobby).
  *
  * Non è più un vincolo sulla durata delle sessioni: il worker consegna la
  * trascrizione al provider e si ritira, quindi l'invocazione dura circa un
@@ -26,7 +26,7 @@ export const dynamic = 'force-dynamic';
  * segmento — ciò che è già trascritto o già consegnato viene saltato — così
  * un timeout non perde lavoro.
  */
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /**
  * Esecuzione del worker AI Session Notes, invocabile dal cron Vercel o a mano.

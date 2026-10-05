@@ -9,7 +9,7 @@ import {
 } from '../request';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /**
  * Genera la bozza se manca, la rigenera quando cambia il fingerprint o la
