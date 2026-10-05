@@ -45,6 +45,7 @@ import {
   logActivity,
 } from '@/lib/core/auth/account-provisioning';
 import { safeRedirectPath } from '@/lib/core/auth/safe-redirect';
+import { passwordRejectionMessage } from '@/lib/core/auth/password-rejection';
 
 const signInSchema = z.object({
   email: z.string().email().min(3).max(255),
@@ -288,10 +289,13 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
   if (authError || !createdAuth.user) {
     console.error('Supabase signUp failed:', authError);
     const duplicate = authError?.message?.toLowerCase().includes('already');
+    const rifiutata = passwordRejectionMessage(authError);
     return {
       error: duplicate
         ? 'Esiste già un account con questa email. Accedi oppure usa un’altra email.'
-        : 'Creazione account non riuscita. Riprova.',
+        : rifiutata
+          ? `${rifiutata} Torna al passaggio precedente per cambiarla.`
+          : 'Creazione account non riuscita. Riprova.',
       email,
       password
     };
@@ -457,7 +461,9 @@ export const updatePassword = validatedActionWithUser(
         currentPassword,
         newPassword,
         confirmPassword,
-        error: 'Aggiornamento password non riuscito. Riprova.'
+        error:
+          passwordRejectionMessage(updateError) ??
+          'Aggiornamento password non riuscito. Riprova.'
       };
     }
 
@@ -586,7 +592,13 @@ export const confirmPasswordReset = validatedAction(
       password: data.password
     });
     if (error) {
-      return { error: 'Aggiornamento non riuscito. Richiedi un nuovo link.' };
+      // Una password rifiutata non invalida il link: si può riprovare con
+      // un'altra sulla stessa pagina, senza chiedere una nuova mail.
+      return {
+        error:
+          passwordRejectionMessage(error) ??
+          'Aggiornamento non riuscito. Richiedi un nuovo link.'
+      };
     }
 
     // The user already has a valid session: straight to their area.

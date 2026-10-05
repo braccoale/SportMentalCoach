@@ -1,6 +1,7 @@
 import { athleteDisplayName } from '@/lib/core/bookings/coach-athletes';
 import { formatRomeDateValue } from '@/lib/core/format';
 import { isSessionLive } from './live-session-state';
+import { callSpan, type CallSpan } from './call-span';
 import type { AdminBookingRow } from './booking-rows';
 import {
   transcriptionOutcome,
@@ -50,6 +51,8 @@ export type AdminTodaySession = {
   aiTranscriptionActivated: boolean;
   /** Se la trascrizione è andata a buon fine, non solo se è partita. */
   transcription: TranscriptionOutcome;
+  /** Inizio, fine e durata reali della videochiamata (vedi `call-span.ts`). */
+  call: CallSpan;
 };
 
 /**
@@ -96,7 +99,9 @@ export function buildDaySessions(
         formatRomeDateValue(row.scheduledFor) === day
     )
     .sort((a, b) => a.scheduledFor!.getTime() - b.scheduledFor!.getTime())
-    .map((row) => ({
+    .map((row) => {
+      const isLive = isSessionLive(row.sessionEndedAt, now, liveSilenceMs);
+      return {
       bookingId: row.id,
       scheduledFor: row.scheduledFor!,
       durationMin: row.durationMin,
@@ -106,11 +111,18 @@ export function buildDaySessions(
       athleteName: athleteDisplayName(row),
       serviceTitle: row.serviceTitle,
       status: row.status,
-      isLive: isSessionLive(row.sessionEndedAt, now, liveSilenceMs),
+      isLive,
       aiTranscriptionActivated: row.aiTranscriptionActivated ?? false,
       transcription: transcriptionOutcome({
         aiTranscriptionStatus: row.aiTranscriptionStatus ?? null,
         transcriptSegments: row.aiTranscriptSegments ?? 0,
       }),
-    }));
+      call: callSpan({
+        sessionStartedAt: row.sessionStartedAt,
+        sessionEndedAt: row.sessionEndedAt,
+        isLive,
+        now,
+      }),
+      };
+    });
 }

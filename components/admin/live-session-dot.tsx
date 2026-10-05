@@ -9,7 +9,7 @@ import { Video } from 'lucide-react';
  * questo è l'unica cosa che si muove qui dentro.
  *
  * Il testo accanto non è ridondante: un pallino verde che lampeggia si presta
- * a molte letture, «In sessione» a una sola. E per chi usa uno screen reader
+ * a molte letture, «Online» a una sola. E per chi usa uno screen reader
  * il colore non esiste.
  */
 export function LiveSessionDot({ className = '' }: { className?: string }) {
@@ -25,7 +25,7 @@ export function LiveSessionDot({ className = '' }: { className?: string }) {
         <span className="relative inline-flex size-2 rounded-full bg-emerald-600" />
       </span>
       <Video className="size-3.5" aria-hidden="true" />
-      In sessione
+      Online
     </span>
   );
 }
