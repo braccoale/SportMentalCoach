@@ -9,8 +9,10 @@
 # essere chiamata dall'esterno: è protetta da CRON_SECRET e il ledger di
 # deduplica rende innocua qualsiasi esecuzione ripetuta o sovrapposta.
 #
-# Passando al piano Pro di Vercel, questo workflow si può eliminare e la voce
-# torna in `vercel.json` con schedule "0 * * * *".
+# Dal 2026-10-05 (piano Pro) lo stesso schedule è anche in `vercel.json`: per un
+# periodo girano insieme, ed è innocuo perché il ledger di deduplica arbitra. Quando
+# il cron di Vercel risulta girare con regolarità (Vercel → Logs → Cron), questo
+# workflow si elimina.
 #
 # CONFIGURAZIONE (Settings → Secrets and variables → Actions):
 #   secret  CRON_SECRET    lo stesso valore impostato nelle env di Vercel
