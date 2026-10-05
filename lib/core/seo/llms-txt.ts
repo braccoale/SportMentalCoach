@@ -35,14 +35,21 @@ Punti fermi utili a chi cita KaiPai:
 - Per gli atleti minorenni serve il consenso di un genitore o tutore, che
   mantiene il controllo del percorso.
 - Le sessioni si svolgono in videochiamata dentro la piattaforma.
-- La prenotazione è una richiesta: nulla è dovuto finché il coach non accetta
-  e la sessione non è confermata.
+- La prenotazione è una richiesta che il coach conferma. Oggi la piattaforma
+  non gestisce pagamenti fra atleta e coach: l'accesso passa da accordi con
+  club e organizzazioni, e all'atleta non viene addebitato nulla.
 
 ## Pagine principali
 
-- [Home](${baseUrl}/): che cos'è KaiPai, per chi è, il metodo e i pacchetti per i club.
+- [Home](${baseUrl}/): che cos'è KaiPai, i cinque percorsi (atleti, famiglie, coach, academy, società), il metodo e le domande frequenti.
 - [Coach](${baseUrl}/coaches): l'elenco dei mental coach verificati, filtrabile per sport, specialità, livello e lingua.
+- [Atleti](${baseUrl}/atleti): come funziona il mental coaching per un atleta — scelta del coach, richiesta di seduta, videochiamata, percorso.
 - [Famiglie](${baseUrl}/famiglie): come funziona per genitori e atleti minorenni, incluso il consenso del tutore.
+- [Diventa coach](${baseUrl}/diventa-coach): per mental coach sportivi — cosa offre la piattaforma, come ci si candida e come avviene l'approvazione.
+- [KaiPai Academy](${baseUrl}/academy): come si formano i mental coach KaiPai.
+- [Blog](${baseUrl}/blog): articoli di mental coaching sportivo per atleti, genitori e allenatori.
+- [Chi siamo](${baseUrl}/chi-siamo): Francesco Borrelli, fondatore, e le tre parti di KaiPai — metodo, scuola e rete di coach.
+- [Società sportive](${baseUrl}/societa): percorsi di mental coaching per club, squadre e settori giovanili.
 - [Prezzi](${baseUrl}/pricing.md): i pacchetti per club e società sportive, in formato leggibile da un agente.
 
 ## Documenti
@@ -54,7 +61,6 @@ Punti fermi utili a chi cita KaiPai:
 ## Contatti
 
 - Email: info@kaipaicoaching.com
-- Telefono: +39 328 6212598
 - Sede: Genova, Italia
 `;
 }

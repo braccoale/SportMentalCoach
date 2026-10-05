@@ -3,28 +3,39 @@ import Link from 'next/link';
 import {
   ArrowRight,
   HeartHandshake,
-  Scale,
-  ShieldCheck,
   Sprout,
-  Lock,
   MessageSquare,
 } from 'lucide-react';
 import { SiteNav } from '@/components/landing/site-nav';
+import { ScrollProgress } from '@/components/landing/smooth-scroll';
+import { SnapScroll } from '@/components/landing/snap-scroll';
 import { Footer } from '@/components/footer';
+import { JsonLd } from '@/components/json-ld';
+import { audienceJsonLd, audienceMetadata } from '@/components/landing/audience-paths/audience-seo';
+import {
+  AudienceFaq,
+  FAQ_SECONDARY_LINK,
+} from '@/components/landing/audience-paths/audience-faq';
+import { DemoRequestButton } from '@/components/landing/demo-request-button';
+import { CoachVsPsychologist } from '@/components/landing/audience-paths/coach-vs-psychologist';
+import { FAMILY_FAQ } from '@/components/landing/audience-paths/audience-faqs';
+import { AudiencePathsDock } from '@/components/landing/audience-paths/audience-paths-dock';
+import {
+  AudiencePageHero,
+  AUDIENCE_PRIMARY_CTA,
+  AUDIENCE_SECONDARY_LINK,
+} from '@/components/landing/audience-paths/audience-page-hero';
 
-export const metadata: Metadata = {
-  title: 'Famiglie — Accompagnare tuo figlio | KaiPai',
+export const metadata: Metadata = audienceMetadata({
+  path: '/famiglie',
+  title: 'Mental coach per ragazzi: la guida per i genitori | KaiPai',
   description:
     'Il ruolo dei genitori nel percorso mentale di un giovane atleta: meno pressione, più fiducia. Tutela dei minori, consenso e riservatezza spiegati con chiarezza.',
-  openGraph: {
-    title: 'KaiPai per le famiglie — Accompagnare tuo figlio',
-    description:
-      'Come i genitori possono sostenere la crescita mentale di un giovane atleta. Consenso, minori e riservatezza spiegati con chiarezza.',
-    type: 'website',
-  },
-};
-
-const WRAP = 'mx-auto max-w-5xl px-5 sm:px-8';
+  shareTitle: 'KaiPai per le famiglie — Accompagnare tuo figlio',
+  shareDescription:
+    'Come i genitori possono sostenere la crescita mentale di un giovane atleta. Consenso, minori e riservatezza spiegati con chiarezza.',
+  image: '/og/families.jpg',
+});
 
 /** Parent-role pillars. */
 const ROLE = [
@@ -45,200 +56,85 @@ const ROLE = [
   },
 ];
 
-/** FAQ dedicated to minors, consent and confidentiality. */
-const FAQ = [
-  {
-    q: 'Mio figlio è minorenne: serve il mio consenso?',
-    a: 'Sì, ed è la piattaforma stessa a chiederlo: un atleta fra i 15 e i 17 anni può registrarsi ed esplorare, ma non può richiedere sessioni finché non autorizzi tu. Ricevi un’email con un link, leggi cosa stai autorizzando e confermi in un minuto, senza creare un account. Il consenso privacy, invece, il ragazzo lo presta da sé: dai 14 anni la legge italiana glielo riconosce.',
-  },
-  {
-    q: 'Cosa mi viene condiviso delle sessioni?',
-    a: 'Non la trascrizione dei contenuti: uno spazio riservato è ciò che permette al ragazzo di aprirsi, ed è quello che rende utile il coaching. Puoi però chiedere al coach un confronto sull’andamento generale e sugli obiettivi di lavoro, e resti il referente per tutto ciò che riguarda il percorso. Se emerge qualcosa che riguarda la sua sicurezza, vieni sempre coinvolto.',
-  },
-  {
-    q: 'Le sessioni sono riservate?',
-    a: 'Sì. I contenuti condivisi dal ragazzo con il coach sono trattati con riservatezza. La riservatezza non è mai un ostacolo alla tutela: in situazioni che riguardano la salute o l’incolumità del minore, il coach agisce nell’interesse del ragazzo e coinvolge la famiglia.',
-  },
-  {
-    q: 'Posso assistere alle sessioni?',
-    a: 'Per i più piccoli concordiamo insieme al coach la modalità più adatta. Con gli adolescenti, di norma, uno spazio autonomo funziona meglio: resti comunque il primo riferimento e sei aggiornato sul percorso.',
-  },
-  {
-    q: 'Il mental coaching è una terapia psicologica?',
-    a: 'No. Il mental coaching allena abilità mentali legate alla performance sportiva (concentrazione, gestione della pressione, fiducia) e non sostituisce un percorso clinico o psicoterapeutico. Se emerge un bisogno di natura clinica, ti indirizziamo verso il supporto appropriato.',
-  },
-  {
-    q: 'Come vengono trattati i dati di mio figlio?',
-    a: 'Trattiamo i dati nel rispetto del GDPR, solo per erogare il servizio. Puoi accedere ai dati, chiederne la rettifica o la cancellazione in ogni momento scrivendo a privacy@kaipaicoaching.com. I dettagli sono nella Privacy Policy.',
-  },
-  {
-    q: 'I coach sono verificati?',
-    a: 'Sì. Ogni coach è approvato dal nostro team e le guide certificate sono formate dalla KaiPai Academy. Identità, credenziali ed esperienza sono controllate prima della pubblicazione del profilo.',
-  },
-];
 
 export default function FamigliePage() {
   return (
-    <div className="kp-root flex min-h-screen flex-col bg-kp-ink text-kp-hi">
+    <div className="kp-root kp-snap-page flex min-h-screen flex-col bg-kp-ink text-kp-hi">
+      <SnapScroll />
+      <ScrollProgress />
       <SiteNav />
 
-      <main className="flex-1">
-        {/* Hero */}
-        <section className="relative overflow-hidden border-b border-kp-line pt-28 pb-16 sm:pt-32 sm:pb-20">
-          <div className="kp-vignette absolute inset-0" />
-          <div className={`relative ${WRAP}`}>
-            <p className="kp-eyebrow text-kp-red">Per le famiglie</p>
-            <h1 className="kp-display mt-4 max-w-3xl text-[clamp(2rem,5vw,3.5rem)] leading-tight text-kp-hi">
-              Dietro ogni giovane atleta,{' '}
-              <span className="text-kp-red">una famiglia</span>.
-            </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-kp-mid">
-              La testa di tuo figlio si allena anche fuori dal campo — a casa, nel
-              modo in cui gli parli dopo una partita. Non devi essere il suo coach:
-              devi essere il suo posto sicuro. Ti aiutiamo a farlo.
-            </p>
-            <div className="mt-9 flex flex-wrap items-center gap-4">
-              <Link
-                href="/coaches"
-                className="kp-cta group inline-flex items-center gap-2 rounded-full px-6 py-3.5 font-semibold text-white"
-              >
+      <main className="kp-alt flex-1">
+        <AudiencePageHero
+          id="families"
+          eyebrow="Mental coaching per giovani atleti"
+          lead="Il tuo sostegno è parte"
+          emphasis="dell’allenamento."
+          text="La testa di tuo figlio si allena anche fuori dal campo — a casa, nel modo in cui gli parli dopo una partita. Non devi essere il suo coach: devi essere il suo posto sicuro. Ti aiutiamo a farlo."
+          position="62% 100%"
+          photoClassName="inset-y-0 right-0 w-full md:bottom-[250px] md:top-0 md:w-[58%] md:inset-y-auto"
+          titleClassName="max-w-3xl"
+          actions={
+            <>
+              <Link href="/coaches" className={AUDIENCE_PRIMARY_CTA}>
                 Trova una guida per tuo figlio
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Link>
-              <a
-                href="#faq"
-                className="inline-flex items-center gap-1.5 text-sm font-semibold text-kp-mid transition-colors hover:text-kp-hi"
-              >
+              <a href="#faq" className={AUDIENCE_SECONDARY_LINK}>
                 Minori, consenso e riservatezza
                 <ArrowRight className="h-4 w-4" />
               </a>
-            </div>
-          </div>
-        </section>
-
-        {/* Il ruolo dei genitori */}
-        <section className="border-b border-kp-line bg-kp-ink2 py-16 sm:py-20">
-          <div className={WRAP}>
-            <p className="kp-eyebrow text-kp-red">Il ruolo dei genitori</p>
-            <h2 className="kp-display mt-4 max-w-2xl text-[clamp(1.5rem,3.5vw,2.5rem)] text-kp-hi">
-              Il tuo sostegno è parte dell’allenamento.
-            </h2>
-            <p className="mt-5 max-w-2xl text-kp-mid">
-              Il coach lavora sulla mente del ragazzo; tu costruisci il contesto in
-              cui quella crescita mette radici. Tre principi che fanno la
-              differenza.
-            </p>
-            <div className="mt-10 grid gap-6 md:grid-cols-3">
+            </>
+          }
+        >
+          {/* Il ruolo dei genitori: stava in una sezione a sé, ora chiude la
+              prima schermata — è la stessa promessa detta in tre principi. */}
+          <div className="mt-12 border-t border-white/15 pt-8">
+            <h2 className="kp-eyebrow text-kp-red">Il ruolo dei genitori</h2>
+            <ul className="mt-5 grid gap-4 md:grid-cols-3">
               {ROLE.map((r) => (
-                <div
+                <li
                   key={r.t}
-                  className="h-full rounded-2xl border border-kp-line bg-white/[0.02] p-6"
+                  className="rounded-2xl border border-white/10 bg-kp-ink/60 p-5 backdrop-blur-sm"
                 >
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-kp-red/10 text-kp-red">
-                    <r.icon className="h-5 w-5" />
-                  </span>
-                  <h3 className="mt-4 font-display text-lg font-semibold text-kp-hi">
-                    {r.t}
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-kp-mid">{r.b}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Tutela — reassurance band */}
-        <section className="border-b border-kp-line py-16 sm:py-20">
-          <div className={WRAP}>
-            <div className="grid gap-6 sm:grid-cols-3">
-              {[
-                {
-                  icon: ShieldCheck,
-                  t: 'Consenso dei genitori',
-                  b: 'Per gli under 18 sei tu ad autorizzare account, prima sessione e trattamento dei dati.',
-                },
-                {
-                  icon: Lock,
-                  t: 'Riservatezza',
-                  b: 'Uno spazio protetto per il ragazzo; a te l’autorizzazione del percorso e il confronto con il coach.',
-                },
-                {
-                  icon: Scale,
-                  t: 'Coach verificati & GDPR',
-                  b: 'Guide approvate e certificate. Dati trattati solo per il servizio, nel rispetto del GDPR.',
-                },
-              ].map((p) => (
-                <div key={p.t} className="flex gap-4">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-kp-verify/10 text-kp-verify">
-                    <p.icon className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <h3 className="font-display text-base font-semibold text-kp-hi">
-                      {p.t}
-                    </h3>
-                    <p className="mt-1.5 text-sm leading-relaxed text-kp-mid">
-                      {p.b}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <r.icon className="h-5 w-5 shrink-0 text-kp-red" aria-hidden />
+                    <h3 className="font-display text-base font-semibold text-kp-hi">{r.t}</h3>
                   </div>
-                </div>
+                  <p className="mt-2 text-sm leading-relaxed text-kp-mid">{r.b}</p>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
-        </section>
+        </AudiencePageHero>
 
-        {/* FAQ */}
-        <section id="faq" className="bg-kp-ink2 py-16 sm:py-20">
-          <div className={WRAP}>
-            <p className="kp-eyebrow text-kp-red">Domande frequenti</p>
-            <h2 className="kp-display mt-4 text-[clamp(1.5rem,3.5vw,2.5rem)] text-kp-hi">
-              Minori, consenso e riservatezza.
-            </h2>
-            <div className="mt-10 divide-y divide-kp-line rounded-2xl border border-kp-line bg-white/[0.02]">
-              {FAQ.map((f) => (
-                <details key={f.q} className="group px-6">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-5 text-left font-display text-base font-semibold text-kp-hi marker:content-none [&::-webkit-details-marker]:hidden">
-                    {f.q}
-                    <ArrowRight className="h-4 w-4 shrink-0 text-kp-red transition-transform group-open:rotate-90" />
-                  </summary>
-                  <p className="pb-5 pr-8 text-sm leading-relaxed text-kp-mid">
-                    {f.a}
-                  </p>
-                </details>
-              ))}
-            </div>
-
-            {/* Closing CTA */}
-            <div className="mt-12 flex flex-col items-start justify-between gap-6 rounded-2xl border border-kp-red/40 bg-kp-red/[0.06] p-8 sm:flex-row sm:items-center">
-              <div>
-                <h3 className="font-display text-xl font-semibold text-kp-hi">
-                  Pronto ad accompagnarlo nel modo giusto?
-                </h3>
-                <p className="mt-2 text-sm text-kp-mid">
-                  Trova una guida verificata o scrivici: ti aiutiamo a scegliere il
-                  percorso adatto a tuo figlio.
-                </p>
-              </div>
-              <div className="flex shrink-0 flex-wrap gap-3">
-                <Link
-                  href="/coaches"
-                  className="kp-cta inline-flex items-center gap-2 rounded-full px-6 py-3 font-semibold text-white"
-                >
-                  Trova una guida
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-                <a
-                  href="mailto:info@kaipaicoaching.com?subject=Informazioni%20percorso%20per%20mio%20figlio"
-                  className="inline-flex items-center rounded-full border border-kp-line px-6 py-3 font-semibold text-kp-hi transition-colors hover:border-kp-red/50"
-                >
-                  Scrivici
-                </a>
-              </div>
-            </div>
-          </div>
-        </section>
+        <AudienceFaq
+          id="faq"
+          title="Per le"
+          emphasis="famiglie"
+          intro="Le risposte essenziali per genitori e famiglie, prima di iniziare un percorso di mental coaching con KaiPai."
+          faq={FAMILY_FAQ}
+          photo={{ src: '/landing/audience/faq-famiglie.webp', alt: '' }}
+          action={
+            <Link href="/coaches" className={AUDIENCE_PRIMARY_CTA}>
+              Trova il coach giusto
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+          }
+          secondary={
+            <DemoRequestButton
+              plain
+              label="Hai domande? Parla con noi"
+              className={FAQ_SECONDARY_LINK}
+            />
+          }
+        />
+        <CoachVsPsychologist />
       </main>
 
       <Footer />
+      <AudiencePathsDock current="families" />
+      <JsonLd nodes={audienceJsonLd({ name: 'Famiglie', path: '/famiglie', faq: FAMILY_FAQ })} />
     </div>
   );
 }

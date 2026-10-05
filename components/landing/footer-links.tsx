@@ -27,24 +27,24 @@ const COLUMNS: {
     h: 'Metodo',
     links: [
       { label: 'I 4 muscoli', href: '/#metodo' },
-      { label: 'Academy', href: '/#academy' },
-      { label: 'Perché oggi', href: '/#perche-oggi' },
     ],
   },
   {
     h: 'Per chi',
     links: [
-      { label: 'Atleti', href: '/#per-chi' },
+      { label: 'Atleti', href: '/atleti' },
       { label: 'Famiglie', href: '/famiglie' },
-      { label: 'Coach', href: '/coaches' },
-      { label: 'Società', href: '/#per-chi' },
+      { label: 'Coach', href: '/diventa-coach' },
+      { label: 'Academy', href: '/academy' },
+      { label: 'Società', href: '/societa' },
     ],
   },
   {
     h: 'Azienda',
     links: [
-      { label: 'Origine', href: '/#origine' },
-      { label: 'Movimento', href: '/#visione' },
+      { label: 'Chi siamo', href: '/chi-siamo' },
+      { label: 'Blog', href: '/blog' },
+      { label: 'Domande frequenti', href: '/#faq' },
       { label: 'Contatti', action: 'contact' },
     ],
   },

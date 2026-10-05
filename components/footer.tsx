@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import {
   Mail,
-  Phone,
   MapPin,
   Instagram,
   Facebook,
@@ -22,6 +21,18 @@ export function Footer() {
   const t = useTranslations('Footer');
   const brand = t('brandName');
   const year = new Date().getFullYear();
+  // Le cinque pagine percorso e le FAQ: il footer è su quasi ogni pagina
+  // pubblica, ed è il collegamento interno che le tiene tutte a un clic.
+  const pathLinks = [
+    { href: '/atleti', label: t('pathAthletes') },
+    { href: '/famiglie', label: t('pathFamilies') },
+    { href: '/diventa-coach', label: t('pathCoaches') },
+    { href: '/academy', label: t('pathAcademy') },
+    { href: '/societa', label: t('pathClubs') },
+    { href: '/chi-siamo', label: t('about') },
+    { href: '/blog', label: t('blog') },
+    { href: '/#faq', label: t('faq') },
+  ];
   const legalLinks = [
     { href: '/terms', label: t('terms') },
     { href: '/privacy', label: t('privacyPolicy') },
@@ -30,7 +41,7 @@ export function Footer() {
 
   return (
     <footer className="mt-auto border-t border-kp-line bg-kp-ink2">
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
+      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:grid-cols-2 sm:px-6 lg:grid-cols-5 lg:px-8">
         <div>
           <Link href="/" className="flex items-center gap-2">
             <img src="/logo.jpg" alt="KaiPai" width={127} height={141} className="h-8 w-auto rounded-md" />
@@ -51,15 +62,22 @@ export function Footer() {
               </a>
             </li>
             <li className="flex items-center gap-2">
-              <Phone className="h-4 w-4 text-kp-low" />
-              <a href="tel:+393286212598" className="hover:text-kp-hi">
-                +39 328 6212598
-              </a>
-            </li>
-            <li className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-kp-low" />
               <span>{t('location')}</span>
             </li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-semibold text-kp-hi">{t('paths')}</h3>
+          <ul className="mt-3 space-y-2 text-sm text-kp-mid">
+            {pathLinks.map(({ href, label }) => (
+              <li key={href}>
+                <Link href={href} className="hover:text-kp-hi">
+                  {label}
+                </Link>
+              </li>
+            ))}
           </ul>
         </div>
 

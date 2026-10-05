@@ -62,8 +62,7 @@ export function renderPricingMarkdown(
     '## Contatti',
     '',
     '- Informazioni sui pacchetti: info@kaipaicoaching.com',
-    '- Telefono: +39 328 6212598',
-    `- Pagina pacchetti: ${CANONICAL_APP_URL}/#pacchetti`,
+    `- Pagina pacchetti: ${CANONICAL_APP_URL}/societa`,
     `- Elenco dei coach: ${CANONICAL_APP_URL}/coaches`,
     '',
   ].join('\n');

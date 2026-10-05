@@ -10,6 +10,7 @@ import {
   Settings,
   UserPlus,
   ShieldCheck,
+  LifeBuoy,
 } from 'lucide-react';
 import useSWR, { mutate } from 'swr';
 import {
@@ -125,6 +126,12 @@ export function UserMenu({
               </DropdownMenuItem>
             </>
           )}
+          <DropdownMenuItem asChild className="cursor-pointer" onSelect={closeMenu}>
+            <Link href="/dashboard/supporto" onClick={closeMenu}>
+              <LifeBuoy className="size-4" />
+              <span>{t('support')}</span>
+            </Link>
+          </DropdownMenuItem>
           <DropdownMenuItem
             className="cursor-pointer"
             onSelect={() => {

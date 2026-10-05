@@ -15,11 +15,13 @@ import { fetcher } from '@/lib/fetcher';
 import type { SessionUser } from '@/lib/auth/session-user';
 
 const LINKS = [
-  { href: '#ecosistema-atleta', label: 'Ecosistema' },
-  { href: '#metodo', label: 'Metodo' },
-  { href: '#academy', label: 'Academy' },
-  { href: '#visione', label: 'Visione' },
+  { href: '/#percorsi', label: 'Percorsi' },
+  { href: '/#ecosistema-atleta', label: 'Ecosistema' },
+  { href: '/academy', label: 'Academy' },
+  { href: '/#metodo', label: 'Metodo' },
   { href: '/coaches', label: 'Coach' },
+  { href: '/chi-siamo', label: 'Chi siamo' },
+  { href: '/blog', label: 'Blog' },
 ];
 
 const linkCls =
@@ -123,21 +125,21 @@ export function SiteNav() {
               <button
                 type="button"
                 onClick={() => setDemoOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-kp-red/50 px-4 py-2 text-sm font-semibold text-kp-hi transition-colors hover:border-kp-red hover:bg-kp-red/10"
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/25 px-4 py-2 text-sm font-semibold text-kp-hi transition-colors hover:border-white/50 hover:bg-white/10"
               >
-                <PlayCircle className="h-4 w-4 text-kp-red" />
+                <PlayCircle className="h-4 w-4 text-green-500" />
                 Demo
               </button>
               <button
                 type="button"
                 onClick={() => setAuthMode('signin')}
-                className="text-sm font-medium text-kp-mid transition-colors hover:text-kp-hi"
+                className="rounded-full border border-white/25 px-4 py-2 text-sm font-semibold text-kp-hi transition-colors hover:border-white/50 hover:bg-white/10"
               >
                 Accedi
               </button>
               <Link
                 href="/sign-up"
-                className="kp-cta rounded-full px-4 py-2 text-sm font-semibold text-white"
+                className="rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700"
               >
                 Inizia gratis
               </Link>
@@ -166,9 +168,9 @@ export function SiteNav() {
                 type="button"
                 onClick={() => setDemoOpen(true)}
                 aria-label="Apri demo"
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-kp-red/50 text-kp-red"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/25 text-kp-hi"
               >
-                <PlayCircle className="h-4 w-4" />
+                <PlayCircle className="h-4 w-4 text-green-500" />
               </button>
               <button
                 type="button"
@@ -228,7 +230,7 @@ export function SiteNav() {
                 <Link
                   href="/sign-up"
                   onClick={() => setOpen(false)}
-                  className="kp-cta rounded-full px-5 py-3.5 text-center font-semibold text-white"
+                  className="rounded-full bg-green-600 px-5 py-3.5 text-center font-semibold text-white transition-colors hover:bg-green-700"
                 >
                   Inizia gratis
                 </Link>
@@ -238,9 +240,9 @@ export function SiteNav() {
                     setOpen(false);
                     setDemoOpen(true);
                   }}
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-kp-red/50 px-5 py-3.5 text-center font-semibold text-kp-hi"
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-white/25 px-5 py-3.5 text-center font-semibold text-kp-hi"
                 >
-                  <PlayCircle className="h-4 w-4 text-kp-red" />
+                  <PlayCircle className="h-4 w-4 text-green-500" />
                   Prova la Demo
                 </button>
                 <button

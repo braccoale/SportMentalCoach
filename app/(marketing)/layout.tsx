@@ -22,6 +22,15 @@ export const metadata: Metadata = {
     description:
       'Il metodo, la scuola e la rete di coach che allenano la mente di atleti, squadre e famiglie.',
     type: 'website',
+    siteName: 'KaiPai',
+    locale: 'it_IT',
+    // Immagine di default per le pagine senza una propria (home compresa):
+    // senza, un link condiviso usciva senza anteprima.
+    images: [{ url: '/og/teams.jpg', width: 1200, height: 630, alt: 'KaiPai' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    images: ['/og/teams.jpg'],
   },
 };
 

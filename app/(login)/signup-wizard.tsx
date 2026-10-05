@@ -73,7 +73,12 @@ export function SignupWizard() {
   );
 
   const [step, setStep] = useState(0);
-  const [role, setRole] = useState('');
+  // `?ruolo=coach` arriva dalla pagina «Diventa coach»: il ruolo è già
+  // scelto, ma il passo resta visibile e si può cambiare.
+  const [role, setRole] = useState(() => {
+    const ruolo = searchParams.get('ruolo');
+    return ruolo === 'coach' ? 'coach' : ruolo === 'atleta' ? 'athlete' : '';
+  });
   const [vexatious, setVexatious] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

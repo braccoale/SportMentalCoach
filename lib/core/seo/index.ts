@@ -58,7 +58,6 @@ export function organizationJsonLd(): JsonLdNode {
     description:
       'KaiPai è la piattaforma italiana di coaching mentale per lo sport: mette in contatto atleti, squadre e famiglie con mental coach verificati e ospita le sessioni in videochiamata.',
     email: 'info@kaipaicoaching.com',
-    telephone: '+39 328 6212598',
     address: {
       '@type': 'PostalAddress',
       addressLocality: 'Genova',
@@ -119,6 +118,141 @@ export function breadcrumbJsonLd(items: BreadcrumbItem[]): JsonLdNode {
       item: absoluteUrl(item.path),
     })),
   };
+}
+
+/**
+ * Un corso dell'Academy come `Course`.
+ *
+ * Niente `offers`: la pagina non mostra un prezzo, e un prezzo dichiarato nei
+ * dati strutturati ma assente dalla pagina è esattamente ciò che Google
+ * penalizza. `courseMode` dice come si segue — online, in presenza o
+ * entrambi — perché è la domanda che la pagina risolve.
+ */
+export function courseJsonLd(input: {
+  name: string;
+  description: string;
+  path: string;
+  modes: Array<'online' | 'onsite'>;
+}): JsonLdNode {
+  return {
+    '@type': 'Course',
+    name: input.name,
+    description: input.description,
+    url: absoluteUrl(input.path),
+    inLanguage: 'it',
+    provider: { '@id': ORGANIZATION_ID },
+    hasCourseInstance: {
+      '@type': 'CourseInstance',
+      courseMode: input.modes,
+    },
+  };
+}
+
+/**
+ * Un servizio di KaiPai come `Service`, per le pagine che vendono un percorso
+ * (le società sportive). Stessa regola del corso: nessun prezzo qui.
+ */
+export function serviceJsonLd(input: {
+  name: string;
+  serviceType: string;
+  description: string;
+  path: string;
+  audience: string;
+}): JsonLdNode {
+  return {
+    '@type': 'Service',
+    name: input.name,
+    serviceType: input.serviceType,
+    description: input.description,
+    url: absoluteUrl(input.path),
+    provider: { '@id': ORGANIZATION_ID },
+    areaServed: { '@type': 'Country', name: 'Italia' },
+    audience: { '@type': 'Audience', audienceType: input.audience },
+  };
+}
+
+/**
+ * La pagina /chi-siamo come `AboutPage`, con il fondatore come `Person`
+ * collegato all'organizzazione: è ciò che dice a un motore di ricerca chi c'è
+ * dietro KaiPai. `founder` sull'organizzazione punta alla stessa persona per
+ * `@id`, così i due nodi non si descrivono in modo diverso.
+ */
+export function aboutPageJsonLd(input: {
+  path: string;
+  founder: {
+    name: string;
+    jobTitle: string;
+    description: string;
+    image: string;
+    knowsAbout: string[];
+    sameAs?: string[];
+  };
+}): JsonLdNode[] {
+  const url = absoluteUrl(input.path);
+  const founderId = `${url}#founder`;
+  return [
+    {
+      '@type': 'AboutPage',
+      '@id': `${url}#page`,
+      url,
+      name: 'Chi siamo — KaiPai',
+      inLanguage: 'it',
+      about: { '@id': ORGANIZATION_ID },
+      mainEntity: { '@id': founderId },
+    },
+    compact({
+      '@type': 'Person',
+      '@id': founderId,
+      name: input.founder.name,
+      jobTitle: input.founder.jobTitle,
+      description: input.founder.description,
+      image: absoluteUrl(input.founder.image),
+      url,
+      knowsAbout: input.founder.knowsAbout,
+      sameAs: input.founder.sameAs ?? [],
+      worksFor: { '@id': ORGANIZATION_ID },
+    }),
+    { '@id': ORGANIZATION_ID, founder: { '@id': founderId } },
+  ];
+}
+
+/**
+ * Un articolo del blog come `BlogPosting`. L'autore punta per `@id` alla
+ * persona descritta in /chi-siamo (`aboutPageJsonLd`): è la stessa persona, e
+ * dirlo così la rende riconoscibile come autore di tutti gli articoli.
+ */
+export function articleJsonLd(input: {
+  path: string;
+  title: string;
+  description: string;
+  image: string;
+  publishedAt: string;
+  updatedAt?: string;
+  authorName: string;
+  authorPath: string;
+  keywords?: string[];
+}): JsonLdNode {
+  const url = absoluteUrl(input.path);
+  return compact({
+    '@type': 'BlogPosting',
+    '@id': `${url}#article`,
+    headline: input.title,
+    description: input.description,
+    url,
+    mainEntityOfPage: url,
+    image: absoluteUrl(input.image),
+    datePublished: input.publishedAt,
+    dateModified: input.updatedAt ?? input.publishedAt,
+    inLanguage: 'it',
+    author: {
+      '@type': 'Person',
+      '@id': `${absoluteUrl(input.authorPath)}#founder`,
+      name: input.authorName,
+      url: absoluteUrl(input.authorPath),
+    },
+    publisher: { '@id': ORGANIZATION_ID },
+    keywords: input.keywords?.join(', '),
+  });
 }
 
 export type FaqEntry = { q: string; a: string };

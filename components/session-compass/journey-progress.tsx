@@ -81,6 +81,99 @@ function InsightPanel({ insight }: { insight: JourneyInsight | null }) {
   );
 }
 
+/**
+ * Il solo grafico, senza riquadro né insight: lo usa il pannello qui sotto e
+ * la pagina pubblica /atleti, dove gira sui dati demo. Un disegno solo, così
+ * la pagina pubblica non può mostrare un grafico diverso da quello vero.
+ */
+export function JourneyProgressChart({ progress }: { progress: JourneyProgress }) {
+  return (
+    <>
+      <div className="flex gap-3">
+        <div className="flex h-32 shrink-0 flex-col justify-between py-1 text-[11px] text-gray-400">
+          {LEVELS.map((level) => (
+            <span key={level}>{level}</span>
+          ))}
+        </div>
+
+        <div className="relative min-w-0 flex-1">
+          <svg
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            className="h-32 w-full"
+            role="img"
+            aria-label={`Andamento su ${progress.points.length} sedute, scala da 1 a 5`}
+          >
+            {[0, 50, 100].map((y) => (
+              <line
+                key={y}
+                x1="0"
+                x2="100"
+                y1={y}
+                y2={y}
+                stroke="#f3f4f6"
+                strokeWidth="1"
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+            <path
+              d={progress.areaPath}
+              fill="color-mix(in srgb, var(--color-jp-strategia) 12%, transparent)"
+            />
+            <polyline
+              points={progress.polyline}
+              fill="none"
+              stroke="var(--color-jp-strategia)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+
+          {/* I pallini stanno fuori dall'SVG: dentro, il
+              `preserveAspectRatio="none"` li schiaccerebbe in ellissi. */}
+          {progress.points.map((point, index) => {
+            const x = (index / (progress.points.length - 1)) * 100;
+            const y = 100 - ((point.value - 1) / 4) * 100;
+            return (
+              <span
+                key={point.sessionId}
+                title={progressPointTooltip(point)}
+                className="absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-white"
+                style={{
+                  left: `${x}%`,
+                  top: `${y}%`,
+                  borderColor: 'var(--color-jp-strategia)',
+                }}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="ml-12 mt-2 flex justify-between text-[11px] text-gray-400">
+        {progress.points.map((point) => (
+          <span key={point.sessionId}>
+            {point.sessionDate
+              ? shortDate.format(new Date(point.sessionDate)).toUpperCase()
+              : '—'}
+          </span>
+        ))}
+      </div>
+
+      <p className="mt-3 text-xs text-gray-400">
+        Media degli indicatori del Compass, scala 1–5. Il punto più
+        debole poggia su{' '}
+        {progress.weakestMetricCount === 1
+          ? '1 indicatore'
+          : `${progress.weakestMetricCount} indicatori`}
+        .
+      </p>
+    </>
+  );
+}
+
 export function JourneyProgressPanel({
   progress,
   insight,
@@ -97,89 +190,7 @@ export function JourneyProgressPanel({
       <div className="mt-4 flex flex-col gap-4 lg:flex-row">
         <div className="min-w-0 flex-1">
           {progress ? (
-            <>
-              <div className="flex gap-3">
-                <div className="flex h-32 shrink-0 flex-col justify-between py-1 text-[11px] text-gray-400">
-                  {LEVELS.map((level) => (
-                    <span key={level}>{level}</span>
-                  ))}
-                </div>
-
-                <div className="relative min-w-0 flex-1">
-                  <svg
-                    viewBox="0 0 100 100"
-                    preserveAspectRatio="none"
-                    className="h-32 w-full"
-                    role="img"
-                    aria-label={`Andamento su ${progress.points.length} sedute, scala da 1 a 5`}
-                  >
-                    {[0, 50, 100].map((y) => (
-                      <line
-                        key={y}
-                        x1="0"
-                        x2="100"
-                        y1={y}
-                        y2={y}
-                        stroke="#f3f4f6"
-                        strokeWidth="1"
-                        vectorEffect="non-scaling-stroke"
-                      />
-                    ))}
-                    <path
-                      d={progress.areaPath}
-                      fill="color-mix(in srgb, var(--color-jp-strategia) 12%, transparent)"
-                    />
-                    <polyline
-                      points={progress.polyline}
-                      fill="none"
-                      stroke="var(--color-jp-strategia)"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      vectorEffect="non-scaling-stroke"
-                    />
-                  </svg>
-
-                  {/* I pallini stanno fuori dall'SVG: dentro, il
-                      `preserveAspectRatio="none"` li schiaccerebbe in ellissi. */}
-                  {progress.points.map((point, index) => {
-                    const x = (index / (progress.points.length - 1)) * 100;
-                    const y = 100 - ((point.value - 1) / 4) * 100;
-                    return (
-                      <span
-                        key={point.sessionId}
-                        title={progressPointTooltip(point)}
-                        className="absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-white"
-                        style={{
-                          left: `${x}%`,
-                          top: `${y}%`,
-                          borderColor: 'var(--color-jp-strategia)',
-                        }}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="ml-12 mt-2 flex justify-between text-[11px] text-gray-400">
-                {progress.points.map((point) => (
-                  <span key={point.sessionId}>
-                    {point.sessionDate
-                      ? shortDate.format(new Date(point.sessionDate)).toUpperCase()
-                      : '—'}
-                  </span>
-                ))}
-              </div>
-
-              <p className="mt-3 text-xs text-gray-400">
-                Media degli indicatori del Compass, scala 1–5. Il punto più
-                debole poggia su{' '}
-                {progress.weakestMetricCount === 1
-                  ? '1 indicatore'
-                  : `${progress.weakestMetricCount} indicatori`}
-                .
-              </p>
-            </>
+            <JourneyProgressChart progress={progress} />
           ) : (
             <div className="flex h-full min-h-32 items-center">
               <p className="text-sm leading-relaxed text-gray-500">
