@@ -106,6 +106,30 @@ export function metaDescription(
   return `${(lastSpace > 0 ? cut.slice(0, lastSpace) : cut).replace(/[ ·,;.]+$/, '')}…`;
 }
 
+/** Lunghezza oltre la quale un titolo viene troncato nei risultati. */
+const TITLE_MAX = 60;
+const COACH_TITLE_FALLBACK = 'Mental coach sportivo';
+
+/**
+ * Il titolo della pagina di un coach: `Nome — frase | KaiPai`, ma solo se sta
+ * nei 60 caratteri che un motore mostra.
+ *
+ * La frase è scritta dal coach, senza limiti, e finiva intera nel titolo: due
+ * profili avevano titoli di 105 e 133 caratteri, tagliati a metà frase nei
+ * risultati. Quando non ci sta, si ripiega sulla dicitura generica e la frase
+ * resta dove serve, nella description e nella pagina.
+ */
+export function coachPageTitle(
+  name: string,
+  headline?: string | null
+): string {
+  const clean = headline?.replace(/\s+/g, ' ').trim();
+  const full = `${name} — ${clean || COACH_TITLE_FALLBACK} | KaiPai`;
+  return full.length <= TITLE_MAX
+    ? full
+    : `${name} — ${COACH_TITLE_FALLBACK} | KaiPai`;
+}
+
 export type BreadcrumbItem = { name: string; path: string };
 
 export function breadcrumbJsonLd(items: BreadcrumbItem[]): JsonLdNode {

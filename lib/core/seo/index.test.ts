@@ -4,6 +4,7 @@ import {
   absoluteUrl,
   breadcrumbJsonLd,
   coachJsonLd,
+  coachPageTitle,
   coachListJsonLd,
   aboutPageJsonLd,
   articleJsonLd,
@@ -401,4 +402,25 @@ test('articleJsonLd: autore collegato alla persona di /chi-siamo', () => {
   assert.equal((node.author as { '@id': string })['@id'], person['@id']);
   assert.equal(node.dateModified, '2026-09-29');
   assert.equal('keywords' in node, false);
+});
+
+test('coachPageTitle: la frase del coach entra solo se il titolo sta nei 60 caratteri', () => {
+  assert.equal(
+    coachPageTitle('Daniela Chiappara', 'Coach Sportivo'),
+    'Daniela Chiappara — Coach Sportivo | KaiPai'
+  );
+  const lunga =
+    'Il più grande spreco è la differenza fra chi siamo e chi possiamo diventare';
+  const titolo = coachPageTitle('Francesco Borrelli', lunga);
+  assert.equal(titolo, 'Francesco Borrelli — Mental coach sportivo | KaiPai');
+  assert.ok(titolo.length <= 60);
+});
+
+test('coachPageTitle: senza frase, o con spazi, ripiega sulla dicitura generica', () => {
+  assert.equal(coachPageTitle('Ada', null), 'Ada — Mental coach sportivo | KaiPai');
+  assert.equal(coachPageTitle('Ada', '   '), 'Ada — Mental coach sportivo | KaiPai');
+  assert.equal(
+    coachPageTitle('Ada', '  Mental   coach  '),
+    'Ada — Mental coach | KaiPai'
+  );
 });
