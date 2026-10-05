@@ -51,6 +51,7 @@ import {
   breadcrumbJsonLd,
   coachJsonLd,
   metaDescription,
+  coachPageTitle,
 } from '@/lib/core/seo';
 import { BookingRequest } from './booking-request';
 
@@ -76,7 +77,7 @@ export async function generateMetadata({
 
   const name = coach.displayName ?? 'Coach';
   const canonical = `/coaches/${encodeURIComponent(slug)}`;
-  const title = `${name} — ${coach.headline ?? 'Mental coach sportivo'} | KaiPai`;
+  const title = coachPageTitle(name, coach.headline);
   const description = metaDescription([
     coach.headline,
     coach.bio ?? coach.description,
