@@ -8,7 +8,7 @@ import { ingestVoiceNoteTranscript } from '@/lib/core/ai-session-notes/voice-not
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 /** L'ingestione è scrittura su database, non attesa di rete: bastano pochi secondi. */
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /**
  * Riceve i risultati della trascrizione dal provider Speech-to-Text.

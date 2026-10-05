@@ -3,7 +3,7 @@ import { ingestAcademyTranscriptionCallback } from '@/lib/core/academy/recording
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 /** Generazione del recap inclusa: una chiamata OpenAI, non solo scrittura su database. */
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /**
  * Riceve la trascrizione Deepgram per una sessione Academy e, in caso di

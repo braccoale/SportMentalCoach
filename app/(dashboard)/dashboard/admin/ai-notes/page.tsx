@@ -17,7 +17,7 @@ import { getSystemConfigNumber } from '@/lib/core/system-config';
 export const dynamic = 'force-dynamic';
 // Il worker gira dentro questa rotta quando l'admin lo lancia a mano: serve
 // tutto il tempo che il piano concede, non i pochi secondi di default.
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 function statusLabel(status: string | null) {
   switch (status) {
