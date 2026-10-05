@@ -16,8 +16,10 @@
 # CRON_SECRET, e ogni job è idempotente, quindi una corsa ripetuta o
 # sovrapposta non fa danni.
 #
-# Passando al piano Pro di Vercel, questo workflow si può eliminare e la voce
-# torna in `vercel.json` con uno schedule frequente.
+# Dal 2026-10-05 (piano Pro) lo stesso schedule è anche in `vercel.json`: per un
+# periodo girano insieme, ed è innocuo perché la rotta è idempotente. Quando il
+# cron di Vercel risulta girare con regolarità (Vercel → Logs → Cron), questo
+# workflow si elimina.
 #
 # CONFIGURAZIONE (Settings → Secrets and variables → Actions):
 #   secret  CRON_SECRET    lo stesso valore impostato nelle env di Vercel
