@@ -15,6 +15,7 @@ export function BuySessionButton({
   priceLabel,
   label = 'Aggiungi una seduta',
   variant = 'solid',
+  showPrice = true,
   className,
 }: {
   slug: string;
@@ -22,6 +23,8 @@ export function BuySessionButton({
   label?: string;
   /** `solid` = pulsante verde pieno; `link` = testo sottolineato dentro una frase. */
   variant?: 'solid' | 'link';
+  /** Se il prezzo sta nel testo del pulsante; altrimenti resta solo per i lettori di schermo. */
+  showPrice?: boolean;
   className?: string;
 }) {
   return (
@@ -36,7 +39,8 @@ export function BuySessionButton({
           )}
         >
           <Plus className="h-4 w-4" aria-hidden />
-          {label} · {priceLabel}
+          {label}
+          {showPrice ? ` · ${priceLabel}` : <span className="sr-only"> · {priceLabel}</span>}
         </Button>
       ) : (
         <button
