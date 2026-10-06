@@ -696,7 +696,7 @@ export type RelationshipCredits = {
  * (`decideBookingAccess`): offrire ciò che il server poi rifiuta sembra un
  * guasto.
  */
-function applyBookingCredits<
+export function applyBookingCredits<
   T extends { bookableDays: BookableDay[]; canCallNow: boolean }
 >(
   coach: T,

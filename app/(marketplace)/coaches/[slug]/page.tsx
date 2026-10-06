@@ -34,12 +34,14 @@ import {
   formatEuroCents,
   formatLongDateRome,
   getAthleteSubscriptionForCoach,
+  getBookingCreditContexts,
   getPlansVisibleToAthlete,
   perSessionCents,
   purchaseNoticeFor,
   subscribedOn,
 } from '@/lib/core/billing';
 import { PlanPicker } from '@/components/plan-picker';
+import { applyBookingCredits } from '@/lib/core/bookings';
 import { SubscriptionCard } from '@/components/subscription-card';
 import { CoachAvatar, CertifiedBadge } from '@/components/coach-visuals';
 import { CoachExperienceStats } from '@/components/coach-experience-stats';
@@ -243,6 +245,29 @@ export default async function CoachDetailPage({
     user && isAthlete
       ? await hasUsedIntroSession(coach.providerId, user.id)
       : false;
+  // Con un coach a pagamento si prenota con un abbonamento. Lo decide il
+  // server, non il form: chi non ce l'ha non vede un calendario che poi
+  // rifiuterebbe (stessa regola di `createBookingRequest`); chi ce l'ha vede
+  // solo le date ammesse e quante sedute gli restano. Un account demo non
+  // compra e non prenota davvero: per lui il form resta com'è.
+  const creditContext =
+    user && isAthlete && !isDemo
+      ? (await getBookingCreditContexts(user.id, [coach.providerId])).get(
+          coach.providerId
+        )
+      : undefined;
+  const needsSubscription = Boolean(
+    creditContext?.requiresSubscription && !creditContext.subscription
+  );
+  const creditView =
+    creditContext?.requiresSubscription && creditContext.subscription
+      ? applyBookingCredits(
+          { bookableDays, canCallNow: true },
+          creditContext,
+          new Date()
+        )
+      : null;
+  const bookingDays = creditView?.bookableDays ?? bookableDays;
   // Niente tour per un visitatore non loggato o un coach che guarda il
   // proprio stesso profilo: il calendario di prenotazione (bersaglio del
   // tour) non è in pagina per loro.
@@ -681,26 +706,58 @@ export default async function CoachDetailPage({
                       </Link>
                     </Button>
                   </div>
+                ) : isAthlete && needsSubscription ? (
+                  <div className="flex flex-col gap-3">
+                    <p className="text-sm leading-relaxed text-gray-700">
+                      Con {firstName} prenoti con un{' '}
+                      <strong>abbonamento mensile</strong>: scegli il tuo
+                      percorso e le sedute sono tue da prenotare quando vuoi.
+                    </p>
+                    <Button asChild size="lg" className="rounded-full">
+                      <a href="#percorsi">Vedi i percorsi</a>
+                    </Button>
+                    {!introAlreadyUsed && (
+                      <p className="text-xs text-gray-500">
+                        Vuoi prima conoscerlo? Usa «Sessione conoscitiva
+                        (gratis)» in alto: non richiede l&apos;abbonamento.
+                      </p>
+                    )}
+                  </div>
                 ) : isAthlete ? (
-                  <BookingRequest
-                    slug={slug}
-                    coachFirstName={firstName}
-                    services={coach.services.map((s) => ({
-                      id: s.id,
-                      title: s.title,
-                      durationMin: s.durationMin,
-                    }))}
-                    bookableDays={bookableDays}
-                    isDemo={isDemo}
-                    tourAlreadySeen={bookingTourSeen}
-                  />
+                  <>
+                    {creditView?.creditsNotice && (
+                      <p
+                        role="status"
+                        className="rounded-md bg-blue-50 px-3 py-2 text-sm text-gray-700"
+                      >
+                        {creditView.creditsNotice}
+                      </p>
+                    )}
+                    {/* Se le sedute non lasciano nessuna data, l'avviso sopra
+                        la spiega: un calendario vuoto accanto direbbe che il
+                        coach non è disponibile, e non è vero. */}
+                    {!(creditView && bookingDays.length === 0) && (
+                      <BookingRequest
+                        slug={slug}
+                        coachFirstName={firstName}
+                        services={coach.services.map((s) => ({
+                          id: s.id,
+                          title: s.title,
+                          durationMin: s.durationMin,
+                        }))}
+                        bookableDays={bookingDays}
+                        isDemo={isDemo}
+                        tourAlreadySeen={bookingTourSeen}
+                      />
+                    )}
+                  </>
                 ) : (
                   <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-800">
                     Solo gli atleti possono richiedere una sessione.
                   </p>
                 )}
 
-                {!justRequested && (
+                {!justRequested && !needsSubscription && (
                   <>
                     {/* Cosa succede adesso? — 4 rassicurazioni in 4 righe */}
                     <div className="border-t border-gray-100 pt-3">
