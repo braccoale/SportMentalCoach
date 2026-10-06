@@ -36,6 +36,11 @@ export function purchaseNoticeFor(
             tone: 'info',
             text: 'Pagamento ricevuto: stiamo confermando il tuo abbonamento.',
           };
+    case 'seduta-ok':
+      return {
+        tone: 'ok',
+        text: 'Pagamento ricevuto. La seduta compare qui sotto appena è confermata: puoi prenotarla entro 60 giorni.',
+      };
     case 'annullato':
       return {
         tone: 'info',

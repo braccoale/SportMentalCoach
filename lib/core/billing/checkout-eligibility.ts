@@ -26,7 +26,8 @@ export type CheckoutRefusal =
   | 'PLAN_UNAVAILABLE'
   | 'UNKNOWN_AGE'
   | 'MINOR_NOT_SUPPORTED'
-  | 'ALREADY_SUBSCRIBED';
+  | 'ALREADY_SUBSCRIBED'
+  | 'SINGLE_SESSION_UNAVAILABLE';
 
 export type CheckoutEligibility =
   | { ok: true }
@@ -45,6 +46,8 @@ export const CHECKOUT_REFUSAL_MESSAGES: Record<CheckoutRefusal, string> = {
     'L’acquisto è riservato ai maggiorenni. Per i minorenni sarà disponibile con l’autorizzazione di un genitore o tutore.',
   ALREADY_SUBSCRIBED:
     'Hai già un abbonamento attivo con questo coach.',
+  SINGLE_SESSION_UNAVAILABLE:
+    'Questo coach non vende la seduta singola.',
 };
 
 export type CheckoutEligibilityInput = {

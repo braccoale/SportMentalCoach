@@ -2,7 +2,8 @@ import 'server-only';
 import { and, eq, sql } from 'drizzle-orm';
 import type Stripe from 'stripe';
 import { db } from '@/lib/db/drizzle';
-import { planSubscriptions, stripeWebhookEvents } from '@/lib/db/schema';
+import { planSubscriptions, sessionCredits, stripeWebhookEvents } from '@/lib/db/schema';
+import { singleSessionExpiresAt } from './single-session';
 import {
   nextPlanSubscriptionStatus,
   ownRowId,
@@ -131,10 +132,58 @@ async function applyStatus(
   }
 }
 
+/**
+ * Una seduta acquistata a parte diventa prenotabile solo qui, a pagamento
+ * incassato. Ripetibile: una riga già concessa non si tocca, quindi la
+ * scadenza dei 60 giorni non si sposta se Stripe rimanda l'evento.
+ */
+async function onSessionPurchased(
+  session: Stripe.Checkout.Session,
+  accountId: string
+): Promise<'processed' | 'ignored'> {
+  const raw = session.metadata?.kaipai_session_credit_id;
+  if (!raw || !/^\d{1,9}$/.test(raw)) return 'ignored';
+  const creditId = Number(raw);
+  if (session.payment_status !== 'paid') return 'processed';
+
+  const [row] = await db
+    .select({
+      id: sessionCredits.id,
+      status: sessionCredits.status,
+      stripeAccountId: sessionCredits.stripeAccountId,
+    })
+    .from(sessionCredits)
+    .where(eq(sessionCredits.id, creditId))
+    .limit(1);
+  if (!row || row.stripeAccountId !== accountId) {
+    throw new RetryableError('ROW_NOT_FOUND');
+  }
+  if (row.status !== 'pending') return 'processed';
+
+  const grantedAt = new Date();
+  const paymentIntentId =
+    typeof session.payment_intent === 'string'
+      ? session.payment_intent
+      : session.payment_intent?.id ?? null;
+  await db
+    .update(sessionCredits)
+    .set({
+      status: 'granted',
+      grantedAt,
+      expiresAt: singleSessionExpiresAt(grantedAt),
+      stripeCheckoutSessionId: session.id,
+      stripePaymentIntentId: paymentIntentId,
+      updatedAt: grantedAt,
+    })
+    .where(and(eq(sessionCredits.id, creditId), eq(sessionCredits.status, 'pending')));
+  return 'processed';
+}
+
 async function onCheckoutCompleted(
   session: Stripe.Checkout.Session,
   accountId: string
 ): Promise<'processed' | 'ignored'> {
+  if (session.mode === 'payment') return onSessionPurchased(session, accountId);
   if (session.mode !== 'subscription') return 'ignored';
   const rowId = ownRowId(session.metadata, session.client_reference_id);
   if (rowId === null) return 'ignored';

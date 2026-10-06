@@ -23,6 +23,7 @@ import {
   createAccountSession,
   createCoachConnectedAccount,
   createPlanCheckoutSession,
+  createSingleSessionCheckoutSession,
   getSubscriptionPaymentMethod,
   retrieveConnectedAccount,
   setSubscriptionCancelAtPeriodEnd,
@@ -1422,4 +1423,191 @@ export async function getAthleteExtraSessions(
     }
   }
   return result;
+}
+
+/**
+ * Avvia l'acquisto di UNA seduta (singola, o extra se c'è già un abbonamento).
+ * Il prezzo si legge qui dal profilo pagamenti del coach e si fotografa sulla
+ * riga, così un cambio di prezzo dopo non tocca ciò che l'atleta ha già
+ * pagato. La riga nasce `pending`; diventa prenotabile solo col webhook.
+ */
+export async function startSingleSessionCheckout(params: {
+  athleteUserId: number;
+  coachUserId: number;
+}): Promise<StartCheckoutResult> {
+  const [athlete] = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      isDemo: users.isDemo,
+      birthDate: clientProfiles.birthDate,
+    })
+    .from(users)
+    .leftJoin(clientProfiles, eq(clientProfiles.userId, users.id))
+    .where(eq(users.id, params.athleteUserId))
+    .limit(1);
+  if (!athlete) return { ok: false, error: 'Account non trovato.' };
+
+  const [athleteRole] = await db
+    .select({ id: userRoles.id })
+    .from(userRoles)
+    .where(and(eq(userRoles.userId, athlete.id), eq(userRoles.roleKey, 'athlete')))
+    .limit(1);
+
+  const coachProfile = await getCoachBillingProfile(params.coachUserId);
+  const priceCents = coachProfile?.singleSessionPriceCents ?? null;
+
+  const eligibility = checkoutEligibility({
+    viewer: {
+      userId: athlete.id,
+      isAthlete: Boolean(athleteRole),
+      isDemo: athlete.isDemo,
+      birthDate: athlete.birthDate,
+    },
+    coachUserId: params.coachUserId,
+    coachState: coachPaymentsState(coachProfile),
+    // Qui non c'è un piano: la regola chiede solo che «esista ed è attivo».
+    plan: { status: 'active', coachUserId: params.coachUserId },
+    // Chi ha già un abbonamento può aggiungere una seduta: è proprio il caso.
+    hasLiveSubscriptionWithCoach: false,
+  });
+  if (!eligibility.ok) {
+    return { ok: false, error: eligibility.message, reason: eligibility.reason };
+  }
+  if (!coachProfile?.stripeAccountId || !priceCents) {
+    return {
+      ok: false,
+      error: 'Questo coach non vende la seduta singola.',
+      reason: 'SINGLE_SESSION_UNAVAILABLE',
+    };
+  }
+
+  const [coach] = await db
+    .select({ slug: providerProfiles.slug, displayName: profiles.displayName })
+    .from(providerProfiles)
+    .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
+    .where(eq(providerProfiles.userId, params.coachUserId))
+    .limit(1);
+  const base = getAppBaseUrl() ?? CANONICAL_APP_URL;
+  const profileUrl = coach?.slug
+    ? `${base}/coaches/${encodeURIComponent(coach.slug)}`
+    : `${base}/coaches`;
+
+  const [live] = await db
+    .select({ id: planSubscriptions.id })
+    .from(planSubscriptions)
+    .where(
+      and(
+        eq(planSubscriptions.athleteUserId, athlete.id),
+        eq(planSubscriptions.coachUserId, params.coachUserId),
+        inArray(planSubscriptions.status, ['active', 'past_due'])
+      )
+    )
+    .limit(1);
+
+  const [row] = await db
+    .insert(sessionCredits)
+    .values({
+      athleteUserId: athlete.id,
+      coachUserId: params.coachUserId,
+      kind: live ? 'extra' : 'single',
+      status: 'pending',
+      priceCents,
+      stripeAccountId: coachProfile.stripeAccountId,
+      createdBy: athlete.id,
+      updatedBy: athlete.id,
+    })
+    .returning({ id: sessionCredits.id });
+
+  try {
+    const session = await createSingleSessionCheckoutSession({
+      connectedAccountId: coachProfile.stripeAccountId,
+      creditRowId: row.id,
+      priceCents,
+      coachName: coach?.displayName ?? 'il coach',
+      athleteEmail: athlete.email,
+      successUrl: `${base}/dashboard/athlete/abbonamenti?abbonamento=seduta-ok`,
+      cancelUrl: `${profileUrl}?abbonamento=annullato`,
+    });
+    await db
+      .update(sessionCredits)
+      .set({ stripeCheckoutSessionId: session.id, updatedAt: new Date() })
+      .where(eq(sessionCredits.id, row.id));
+    return { ok: true, url: session.url };
+  } catch (error) {
+    // Nessuno ha pagato: la riga aperta non serve a niente (un `pending` non è
+    // mai prenotabile), quindi non la si lascia in giro.
+    await db.delete(sessionCredits).where(eq(sessionCredits.id, row.id));
+    throw error;
+  }
+}
+
+/**
+ * Il prezzo di una seduta in più che l'atleta può comprare da ciascun coach:
+ * solo se il coach incassa davvero (stato `active`) e ha impostato il prezzo.
+ * Un coach senza prezzo non compare nella mappa.
+ */
+export async function getSingleSessionOffers(
+  coachUserIds: number[]
+): Promise<Map<number, number>> {
+  const offers = new Map<number, number>();
+  if (coachUserIds.length === 0) return offers;
+  const rows = await db
+    .select()
+    .from(coachBillingProfiles)
+    .where(inArray(coachBillingProfiles.coachUserId, coachUserIds));
+  for (const profile of rows) {
+    if (
+      profile.singleSessionPriceCents &&
+      coachPaymentsState(profile) === 'active'
+    ) {
+      offers.set(profile.coachUserId, profile.singleSessionPriceCents);
+    }
+  }
+  return offers;
+}
+
+export type StandaloneCreditHolder = {
+  coachUserId: number;
+  name: string;
+  slug: string | null;
+  avatarUrl: string | null;
+  count: number;
+  nextExpiry: Date;
+};
+
+/**
+ * I coach con cui l'atleta ha sedute acquistate libere ma **nessun abbonamento
+ * vivo**: sono quelli che la pagina «Abbonamenti» altrimenti non mostrerebbe.
+ */
+export async function getStandaloneCreditHolders(
+  athleteUserId: number,
+  coachUserIdsWithSubscription: number[]
+): Promise<StandaloneCreditHolder[]> {
+  const extras = await getAthleteExtraSessions(athleteUserId);
+  const ids = [...extras.keys()].filter(
+    (id) => !coachUserIdsWithSubscription.includes(id)
+  );
+  if (ids.length === 0) return [];
+  const coaches = await db
+    .select({
+      userId: providerProfiles.userId,
+      slug: providerProfiles.slug,
+      name: profiles.displayName,
+      avatarUrl: profiles.avatarUrl,
+    })
+    .from(providerProfiles)
+    .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
+    .where(inArray(providerProfiles.userId, ids));
+  return coaches.map((coach) => {
+    const extra = extras.get(coach.userId)!;
+    return {
+      coachUserId: coach.userId,
+      name: coach.name ?? 'Coach',
+      slug: coach.slug,
+      avatarUrl: coach.avatarUrl,
+      count: extra.count,
+      nextExpiry: extra.nextExpiry,
+    };
+  });
 }

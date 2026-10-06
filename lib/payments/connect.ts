@@ -325,3 +325,62 @@ export async function getSubscriptionPaymentMethod(params: {
     return null;
   }
 }
+
+export type SingleSessionCheckoutParams = {
+  connectedAccountId: string;
+  creditRowId: number;
+  priceCents: number;
+  coachName: string;
+  athleteEmail: string;
+  successUrl: string;
+  cancelUrl: string;
+};
+
+/**
+ * Checkout di un pagamento singolo (una seduta) sull'account del coach, come
+ * per l'abbonamento: il denaro va a lui e la commissione KaiPai è zero. Il
+ * segno `kaipai_session_credit_id` ci fa riconoscere l'evento al ritorno.
+ */
+export async function createSingleSessionCheckoutSession(
+  params: SingleSessionCheckoutParams
+): Promise<{ id: string; url: string }> {
+  const form = new URLSearchParams({
+    mode: 'payment',
+    locale: 'it',
+    customer_email: params.athleteEmail,
+    client_reference_id: `credit-${params.creditRowId}`,
+    success_url: params.successUrl,
+    cancel_url: params.cancelUrl,
+    'line_items[0][quantity]': '1',
+    'line_items[0][price_data][currency]': 'eur',
+    'line_items[0][price_data][unit_amount]': String(params.priceCents),
+    'line_items[0][price_data][product_data][name]': `Seduta singola con ${params.coachName}`,
+    'line_items[0][price_data][product_data][description]':
+      'Una seduta, valida 60 giorni dal pagamento',
+    'metadata[kaipai_session_credit_id]': String(params.creditRowId),
+    'payment_intent_data[metadata][kaipai_session_credit_id]': String(
+      params.creditRowId
+    ),
+  });
+
+  const response = await fetch(`${STRIPE_API}/v1/checkout/sessions`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${secretKey()}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Stripe-Account': params.connectedAccountId,
+      'Idempotency-Key': `kaipai-session-checkout-${params.creditRowId}`,
+    },
+    body: form,
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    cache: 'no-store',
+  });
+  const body = await parse<{ id?: string; url?: string }>(response);
+  if (!body.id || !body.url) {
+    throw new StripeConnectError(
+      'STRIPE_NO_CHECKOUT_URL',
+      'Stripe non ha restituito il collegamento al pagamento.'
+    );
+  }
+  return { id: body.id, url: body.url };
+}

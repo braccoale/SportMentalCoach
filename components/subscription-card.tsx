@@ -7,9 +7,11 @@ import {
   CheckCircle2,
   CreditCard,
   Percent,
+  Plus,
   TriangleAlert,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { BuySessionButton } from '@/components/buy-session-button';
 import { CoachAvatar } from '@/components/coach-visuals';
 import { SubscriptionIllustration } from '@/components/subscription-illustration';
 import {
@@ -45,6 +47,10 @@ export type SubscriptionCardData = {
   usage?: SessionUsage;
   /** «Carta •••• 4242», letto da Stripe e mai salvato; assente se non si sa. */
   paymentMethodLabel?: string | null;
+  /** Il prezzo di una seduta in più, già formattato; assente se il coach non la vende. */
+  singleSessionPriceLabel?: string | null;
+  /** Sedute acquistate a parte e ancora da usare. */
+  extraSessions?: { count: number; expiryLabel: string } | null;
 };
 
 type Props = {
@@ -270,6 +276,9 @@ export function SubscriptionCard({
       ? { label: 'Annullato', tone: 'bg-amber-100 text-amber-800', dot: 'bg-amber-500', warn: true }
       : { label: 'Piano attivo', tone: 'bg-emerald-100 text-emerald-800', dot: 'bg-emerald-600', warn: false };
   const usage = subscription.usage;
+  // Aggiungere una seduta a un abbonamento che sta per finire non ha senso:
+  // si compra, se serve, dopo averlo riattivato.
+  const singleOffer = Boolean(subscription.singleSessionPriceLabel) && !cancelAtPeriodEnd;
   const sessionWord = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
   return (
@@ -336,6 +345,24 @@ export function SubscriptionCard({
                 tinted
               />
             </div>
+          )}
+          {subscription.extraSessions && (
+            <p className="flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-sm text-gray-800">
+              <Plus className="h-4 w-4 shrink-0 text-emerald-700" aria-hidden />
+              <span>
+                <span className="font-semibold">
+                  {subscription.extraSessions.count}{' '}
+                  {sessionWord(
+                    subscription.extraSessions.count,
+                    'seduta extra',
+                    'sedute extra'
+                  )}
+                </span>{' '}
+                {sessionWord(subscription.extraSessions.count, 'valida', 'valide')}{' '}
+                fino al {subscription.extraSessions.expiryLabel}: si usano dopo
+                quelle del piano.
+              </span>
+            </p>
           )}
           {usage?.known && usage.overBooked && (
             <p className="-mt-1.5 text-xs text-amber-800">
@@ -405,7 +432,20 @@ export function SubscriptionCard({
             </p>
           )}
 
-          <div className="mt-auto pt-1">
+          {singleOffer && usage?.known && usage.remaining === 0 && (
+            <p className="text-xs text-gray-700">
+              Hai finito le sedute di questo mese. Puoi aggiungerne una subito,
+              senza aspettare il rinnovo.
+            </p>
+          )}
+
+          <div className="mt-auto flex flex-col gap-2 pt-1">
+            {singleOffer && (
+              <BuySessionButton
+                slug={slug}
+                priceLabel={subscription.singleSessionPriceLabel!}
+              />
+            )}
             <ManageActions
               slug={slug}
               subscription={subscription}
