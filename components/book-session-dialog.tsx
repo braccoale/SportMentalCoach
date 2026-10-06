@@ -1,7 +1,7 @@
 'use client';
 
 import { ArrowRight } from 'lucide-react';
-import { BookingRequest } from '@/app/(marketplace)/coaches/[slug]/booking-request';
+import { SessionBookingForm } from '@/components/session-booking-form';
 import { BuySessionButton } from '@/components/buy-session-button';
 import {
   Dialog,
@@ -23,21 +23,30 @@ import type { BookableDay } from '@/lib/core/availability';
  */
 export function BookSessionDialog({
   slug,
+  coachName,
   coachFirstName,
+  coachAvatarUrl,
+  coachHeadline,
   services,
   bookableDays,
   notice,
   remaining,
+  total,
   singlePriceLabel,
 }: {
   slug: string;
+  coachName: string;
   coachFirstName: string;
+  coachAvatarUrl: string | null;
+  coachHeadline: string | null;
   services: { id: number; title: string | null; durationMin: number | null }[];
   bookableDays: BookableDay[];
   /** Perché le date sono poche o nessuna, già scritto dal server. */
   notice: string | null;
   /** Sedute ancora disponibili adesso (piano + extra); `null` se non si sa. */
   remaining: number | null;
+  /** Sedute del piano + extra, per il confronto «N su M». */
+  total: number | null;
   singlePriceLabel: string | null;
 }) {
   const label =
@@ -56,16 +65,16 @@ export function BookSessionDialog({
           {label} <ArrowRight className="h-4 w-4" aria-hidden />
         </button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto rounded-3xl p-6">
-        <DialogTitle className="pr-8 text-xl">
+      <DialogContent className="max-h-[92dvh] max-w-4xl overflow-y-auto rounded-3xl p-6 sm:p-8">
+        <DialogTitle className="pr-8 text-xl sm:text-3xl">
           Prenota una seduta con {coachFirstName}
         </DialogTitle>
         <DialogDescription>
           {remaining === null
-            ? 'Scegli il giorno e l’ora.'
+            ? 'Scegli il giorno e l’ora che preferisci.'
             : remaining === 0
               ? 'Hai finito le sedute di questo periodo.'
-              : `Ti ${remaining === 1 ? 'resta' : 'restano'} ${remaining} ${remaining === 1 ? 'seduta' : 'sedute'}: scegli il giorno e l’ora.`}
+              : `Ti ${remaining === 1 ? 'resta' : 'restano'} ${remaining} ${remaining === 1 ? 'seduta' : 'sedute'}. Scegli il giorno e l’ora che preferisci.`}
         </DialogDescription>
 
         {notice && (
@@ -79,11 +88,16 @@ export function BookSessionDialog({
 
         {!noDays && (
           <div className="mt-4">
-            <BookingRequest
+            <SessionBookingForm
               slug={slug}
+              coachName={coachName}
               coachFirstName={coachFirstName}
+              coachAvatarUrl={coachAvatarUrl}
+              coachHeadline={coachHeadline}
               services={services}
               bookableDays={bookableDays}
+              remaining={remaining}
+              total={total}
             />
           </div>
         )}

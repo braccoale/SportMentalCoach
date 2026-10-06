@@ -257,7 +257,12 @@ export default async function CoachesPage({
   const bookingNow = new Date();
   const bookingAccessByProvider = new Map<
     number,
-    { days: BookableDay[]; notice: string | null; remaining: number | null }
+    {
+      days: BookableDay[];
+      notice: string | null;
+      remaining: number | null;
+      total: number | null;
+    }
   >();
   for (const id of cardProviderIds) {
     const context = creditContexts.get(id);
@@ -286,6 +291,7 @@ export default async function CoachesPage({
           : credits.remainingNow === null
             ? null
             : credits.remainingNow + credits.extraSessions,
+      total: credits ? credits.total + credits.extraSessions : null,
     });
   }
 

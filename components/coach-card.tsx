@@ -96,6 +96,7 @@ export function CoachCard({
     days: CardBookableDay[];
     notice: string | null;
     remaining: number | null;
+    total: number | null;
   } | null;
   /** Email di chi guarda la card, per il pilota chiuso del prezzo
    * (`canSeeCoachPricing`) — vedi lib/core/flags.ts. */
@@ -285,7 +286,10 @@ export function CoachCard({
             ) : bookingAccess ? (
               <BookSessionDialog
                 slug={coach.slug}
+                coachName={name}
                 coachFirstName={firstName}
+                coachAvatarUrl={coach.avatarUrl}
+                coachHeadline={coach.headline}
                 services={(coach.services ?? []).map((service) => ({
                   id: service.id,
                   title: service.title,
@@ -294,6 +298,7 @@ export function CoachCard({
                 bookableDays={bookingAccess.days}
                 notice={bookingAccess.notice}
                 remaining={bookingAccess.remaining}
+                total={bookingAccess.total}
                 singlePriceLabel={singleSessionPriceLabel ?? null}
               />
             ) : planOffers && planOffers.length > 0 ? (
