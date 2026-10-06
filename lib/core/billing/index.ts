@@ -36,6 +36,12 @@ import { deriveBillingProfileFromStripeAccount } from './stripe-account-status';
 import { sessionUsageForPeriod, type SessionUsage, type UsageBooking } from './session-usage';
 import { paymentMethodLabel } from './payment-method';
 import {
+  DEFAULT_SINGLE_SESSION_LIMITS,
+  SINGLE_SESSION_LIMIT_CONFIG_KEYS,
+  validateSingleSessionPrice,
+  type SingleSessionLimits,
+} from './single-session';
+import {
   creditPeriods,
   decideBookingAccess,
   type BookingAccess,
@@ -61,6 +67,7 @@ export * from './purchase-notice';
 export * from './session-usage';
 export * from './booking-credits';
 export * from './payment-method';
+export * from './single-session';
 
 export async function getCoachBillingProfile(
   coachUserId: number
@@ -1177,4 +1184,43 @@ export async function getPaymentMethodLabels(
     })
   );
   return labels;
+}
+
+export async function getSingleSessionLimits(): Promise<SingleSessionLimits> {
+  const keys = SINGLE_SESSION_LIMIT_CONFIG_KEYS;
+  const [minPriceCents, maxPriceCents] = await Promise.all([
+    getSystemConfigNumber(keys.minPriceCents, DEFAULT_SINGLE_SESSION_LIMITS.minPriceCents),
+    getSystemConfigNumber(keys.maxPriceCents, DEFAULT_SINGLE_SESSION_LIMITS.maxPriceCents),
+  ]);
+  return { minPriceCents, maxPriceCents };
+}
+
+/**
+ * Il coach imposta (o toglie) il prezzo della seduta singola. Vale per il
+ * profilo pagamenti che già esiste: senza pagamenti attivati non c'è niente da
+ * configurare. Il prezzo non cambia le sedute già acquistate: ognuna ha il suo.
+ */
+export async function setCoachSingleSessionPrice(params: {
+  coachUserId: number;
+  input: string;
+}): Promise<Result<{ priceCents: number | null }>> {
+  const profile = await getCoachBillingProfile(params.coachUserId);
+  if (!profile || !profile.paymentsEnabled) {
+    return { ok: false, error: 'I pagamenti non sono attivi per il tuo profilo.' };
+  }
+  const validation = validateSingleSessionPrice(
+    params.input,
+    await getSingleSessionLimits()
+  );
+  if (!validation.ok) return { ok: false, error: validation.error };
+
+  await db
+    .update(coachBillingProfiles)
+    .set({
+      singleSessionPriceCents: validation.priceCents,
+      updatedAt: new Date(),
+      updatedBy: params.coachUserId,
+    })
+    .where(eq(coachBillingProfiles.coachUserId, params.coachUserId));
+  return { ok: true, priceCents: validation.priceCents };
 }

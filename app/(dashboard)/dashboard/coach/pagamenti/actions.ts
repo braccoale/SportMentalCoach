@@ -9,6 +9,7 @@ import {
   getCoachPaymentsState,
   setCoachPlanRecommended,
   setCoachSessionPlanStatus,
+  setCoachSingleSessionPrice,
   syncCoachStripeStatus,
 } from '@/lib/core/billing';
 import type { ActionState } from '@/lib/auth/middleware';
@@ -107,4 +108,28 @@ export async function toggleRecommendedPlanAction(formData: FormData) {
     recommended: formData.get('value') === '1',
   });
   revalidatePath('/dashboard/coach/pagamenti');
+}
+
+/** Imposta o toglie il prezzo della seduta singola (campo vuoto = non la vendo). */
+export async function saveSingleSessionPriceAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const user = await requireRole('coach');
+  if (!coachCanEditPlans(await getCoachPaymentsState(user.id))) {
+    return { error: 'I pagamenti non sono attivi per il tuo profilo.' };
+  }
+  const result = await setCoachSingleSessionPrice({
+    coachUserId: user.id,
+    input: String(formData.get('singleSessionPrice') ?? ''),
+  });
+  if (!result.ok) return { error: result.error };
+
+  revalidatePath('/dashboard/coach/pagamenti');
+  return {
+    success:
+      result.priceCents === null
+        ? 'Seduta singola disattivata: gli atleti non la vedono più.'
+        : 'Prezzo della seduta singola salvato.',
+  };
 }

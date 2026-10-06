@@ -9,6 +9,7 @@ import {
   formatEuroCents,
   getCoachBillingProfile,
   getPlanLimits,
+  getSingleSessionLimits,
   listCoachSessionPlans,
   perSessionCents,
   syncCoachStripeStatus,
@@ -23,6 +24,7 @@ import {
 import { EarningsPanel } from './earnings-panel';
 import { OnboardingPanel } from './onboarding-panel';
 import { PlanForm } from './plan-form';
+import { SingleSessionForm } from './single-session-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,9 +58,10 @@ export default async function CoachPaymentsPage({
   // Pagamenti spenti: la pagina semplicemente non esiste per questo coach.
   if (!coachCanEditPlans(state) || state === 'off') notFound();
 
-  const [plans, limits] = await Promise.all([
+  const [plans, limits, singleLimits] = await Promise.all([
     listCoachSessionPlans(user.id),
     getPlanLimits(),
+    getSingleSessionLimits(),
   ]);
   const visiblePlans = plans.filter((plan) => plan.status !== 'archived');
   const archivedPlans = plans.filter((plan) => plan.status === 'archived');
@@ -233,6 +236,25 @@ export default async function CoachPaymentsPage({
             {archivedPlans.length === 1 ? 'piano archiviato' : 'piani archiviati'}.
           </p>
         )}
+      </div>
+
+      <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <h3 className="text-sm font-semibold text-gray-900">Seduta singola</h3>
+        <p className="mt-1 text-sm text-gray-600">
+          Una seduta acquistata a parte, senza abbonamento. Serve anche a chi ha
+          già un abbonamento e ha finito le sedute del mese: può aggiungerne una.
+        </p>
+        <div className="mt-4">
+          <SingleSessionForm
+            currentPrice={
+              profile?.singleSessionPriceCents
+                ? formatEuroCents(profile.singleSessionPriceCents).replace(' €', '')
+                : ''
+            }
+            minLabel={formatEuroCents(singleLimits.minPriceCents)}
+            maxLabel={formatEuroCents(singleLimits.maxPriceCents)}
+          />
+        </div>
       </div>
 
       <div className="rounded-lg border border-gray-200 bg-white p-4">
