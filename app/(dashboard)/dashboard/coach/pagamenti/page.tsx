@@ -76,13 +76,6 @@ export default async function CoachPaymentsPage({
         </p>
       </header>
 
-      <OnboardingPanel
-        state={state}
-        hasAccount={Boolean(profile?.stripeAccountId)}
-        missing={describeRequirements(profile?.requirementsDue ?? [])}
-        publishableKey={process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? null}
-      />
-
       {state === 'active' && process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY && (
         <EarningsPanel
           publishableKey={process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
@@ -238,24 +231,15 @@ export default async function CoachPaymentsPage({
         )}
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <h3 className="text-sm font-semibold text-gray-900">Seduta singola</h3>
-        <p className="mt-1 text-sm text-gray-600">
-          Una seduta acquistata a parte, senza abbonamento. Serve anche a chi ha
-          già un abbonamento e ha finito le sedute del mese: può aggiungerne una.
-        </p>
-        <div className="mt-4">
-          <SingleSessionForm
-            currentPrice={
-              profile?.singleSessionPriceCents
-                ? formatEuroCents(profile.singleSessionPriceCents).replace(' €', '')
-                : ''
-            }
-            minLabel={formatEuroCents(singleLimits.minPriceCents)}
-            maxLabel={formatEuroCents(singleLimits.maxPriceCents)}
-          />
-        </div>
-      </div>
+      <SingleSessionForm
+        currentPrice={
+          profile?.singleSessionPriceCents
+            ? formatEuroCents(profile.singleSessionPriceCents).replace(' €', '')
+            : ''
+        }
+        minLabel={formatEuroCents(singleLimits.minPriceCents)}
+        maxLabel={formatEuroCents(singleLimits.maxPriceCents)}
+      />
 
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         <h3 className="mb-4 text-sm font-semibold text-gray-900">Nuovo piano</h3>
@@ -268,6 +252,13 @@ export default async function CoachPaymentsPage({
           {formatEuroCents(limits.maxPriceCents)} al mese.
         </p>
       </div>
+
+      <OnboardingPanel
+        state={state}
+        hasAccount={Boolean(profile?.stripeAccountId)}
+        missing={describeRequirements(profile?.requirementsDue ?? [])}
+        publishableKey={process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? null}
+      />
     </section>
   );
 }
