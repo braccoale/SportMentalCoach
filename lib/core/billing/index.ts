@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, asc, desc, eq, gte, inArray, lt, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, ne, sql } from 'drizzle-orm';
 import { db, type DbOrTx } from '@/lib/db/drizzle';
 import {
   bookings,
@@ -9,6 +9,7 @@ import {
   planSubscriptions,
   profiles,
   providerProfiles,
+  sessionCredits,
   userRoles,
   users,
   type CoachBillingProfile,
@@ -37,6 +38,7 @@ import { sessionUsageForPeriod, type SessionUsage, type UsageBooking } from './s
 import { paymentMethodLabel } from './payment-method';
 import {
   DEFAULT_SINGLE_SESSION_LIMITS,
+  FREEING_BOOKING_STATUSES,
   SINGLE_SESSION_LIMIT_CONFIG_KEYS,
   validateSingleSessionPrice,
   type SingleSessionLimits,
@@ -48,6 +50,7 @@ import {
   type BookingViewer,
 } from './booking-credits';
 import { checkoutEligibility, type CheckoutRefusal } from './checkout-eligibility';
+import { formatLongDateRome } from './subscription-status';
 import {
   DEFAULT_PLAN_LIMITS,
   PLAN_LIMIT_CONFIG_KEYS,
@@ -909,12 +912,15 @@ export async function getSessionUsageForSubscriptions(
     })
     .from(bookings)
     .innerJoin(providerProfiles, eq(providerProfiles.id, bookings.providerId))
+    // Una seduta pagata a parte non pesa sulle sedute del piano.
+    .leftJoin(sessionCredits, eq(sessionCredits.bookingId, bookings.id))
     .where(
       and(
         eq(bookings.clientId, athleteUserId),
         inArray(providerProfiles.userId, coachUserIds),
         gte(bookings.scheduledFor, from),
-        lt(bookings.scheduledFor, to)
+        lt(bookings.scheduledFor, to),
+        isNull(sessionCredits.id)
       )
     );
 
@@ -995,6 +1001,27 @@ export async function checkBookingCredits(
   const required = await coachesRequiringSubscription(executor, [params.coachUserId]);
   if (!required.has(params.coachUserId)) return { ok: true };
 
+  // Una prenotazione che si sposta e che già tiene una seduta acquistata resta
+  // su quella: vale finché la seduta non scade, e non passa al piano.
+  if (params.excludeBookingId !== undefined) {
+    const [held] = await executor
+      .select({ expiresAt: sessionCredits.expiresAt })
+      .from(sessionCredits)
+      .where(eq(sessionCredits.bookingId, params.excludeBookingId))
+      .limit(1);
+    if (held?.expiresAt) {
+      if (held.expiresAt.getTime() > params.scheduledFor.getTime()) {
+        return { ok: true, usesCredit: true };
+      }
+      const athlete = (params.viewer ?? 'athlete') === 'athlete';
+      return {
+        ok: false,
+        reason: 'TOO_FAR',
+        message: `${athlete ? 'La seduta che hai acquistato' : 'La seduta acquistata dall’atleta'} scade il ${formatLongDateRome(held.expiresAt)}: scegli una data prima.`,
+      };
+    }
+  }
+
   const [subscription] = await executor
     .select()
     .from(planSubscriptions)
@@ -1013,12 +1040,14 @@ export async function checkBookingCredits(
     ? await executor
         .select({ status: bookings.status, scheduledFor: bookings.scheduledFor })
         .from(bookings)
+        .leftJoin(sessionCredits, eq(sessionCredits.bookingId, bookings.id))
         .where(
           and(
             eq(bookings.clientId, params.clientUserId),
             eq(bookings.providerId, params.providerId),
             gte(bookings.scheduledFor, periods.current.start),
             lt(bookings.scheduledFor, periods.next.end),
+            isNull(sessionCredits.id),
             params.excludeBookingId !== undefined
               ? ne(bookings.id, params.excludeBookingId)
               : undefined
@@ -1033,7 +1062,116 @@ export async function checkBookingCredits(
     scheduledFor: params.scheduledFor,
     bookings: rows,
     viewer: params.viewer,
+    credits: await getAvailableSessionCredits(executor, {
+      athleteUserId: params.clientUserId,
+      coachUserId: params.coachUserId,
+    }),
   });
+}
+
+/** Condizione SQL: la seduta pagata non è tenuta da una prenotazione viva. */
+const creditIsFreeSql = sql`(${sessionCredits.bookingId} is null or exists (
+  select 1 from bookings held
+  where held.id = ${sessionCredits.bookingId}
+    and held.status in (${sql.raw(FREEING_BOOKING_STATUSES.map((s) => `'${s}'`).join(', '))})
+))`;
+
+export type AvailableSessionCredit = { id: number; expiresAt: Date };
+
+/**
+ * Le sedute acquistate a parte che un atleta può ancora prenotare con un coach:
+ * pagate, non scadute e non tenute da una prenotazione viva (regola pura:
+ * `isCreditFree`). Dalla più vicina alla scadenza.
+ */
+export async function getAvailableSessionCredits(
+  executor: DbOrTx,
+  params: { athleteUserId: number; coachUserId: number; now?: Date }
+): Promise<AvailableSessionCredit[]> {
+  const map = await getAvailableCreditsByCoach(executor, {
+    athleteUserId: params.athleteUserId,
+    coachUserIds: [params.coachUserId],
+    now: params.now,
+  });
+  return map.get(params.coachUserId) ?? [];
+}
+
+export async function getAvailableCreditsByCoach(
+  executor: DbOrTx,
+  params: { athleteUserId: number; coachUserIds: number[]; now?: Date }
+): Promise<Map<number, AvailableSessionCredit[]>> {
+  const result = new Map<number, AvailableSessionCredit[]>();
+  if (params.coachUserIds.length === 0) return result;
+  const rows = await executor
+    .select({
+      id: sessionCredits.id,
+      coachUserId: sessionCredits.coachUserId,
+      expiresAt: sessionCredits.expiresAt,
+    })
+    .from(sessionCredits)
+    .where(
+      and(
+        eq(sessionCredits.athleteUserId, params.athleteUserId),
+        inArray(sessionCredits.coachUserId, params.coachUserIds),
+        eq(sessionCredits.status, 'granted'),
+        gt(sessionCredits.expiresAt, params.now ?? new Date()),
+        creditIsFreeSql
+      )
+    )
+    .orderBy(asc(sessionCredits.expiresAt), asc(sessionCredits.id));
+  for (const row of rows) {
+    if (!row.expiresAt) continue;
+    const list = result.get(row.coachUserId) ?? [];
+    list.push({ id: row.id, expiresAt: row.expiresAt });
+    result.set(row.coachUserId, list);
+  }
+  return result;
+}
+
+/**
+ * Lega una seduta acquistata alla prenotazione appena creata, dentro la stessa
+ * transazione. Prende la più vicina alla scadenza che sia ancora valida alla
+ * data scelta. Se la prenotazione ne tiene già una (spostamento) non fa nulla.
+ * Restituisce `false` se non ce n'è nessuna: il chiamante annulla la transazione.
+ */
+export async function reserveSessionCredit(
+  tx: DbOrTx,
+  params: {
+    athleteUserId: number;
+    coachUserId: number;
+    bookingId: number;
+    scheduledFor: Date;
+  }
+): Promise<boolean> {
+  const [already] = await tx
+    .select({ id: sessionCredits.id })
+    .from(sessionCredits)
+    .where(eq(sessionCredits.bookingId, params.bookingId))
+    .limit(1);
+  if (already) return true;
+
+  const [candidate] = await tx
+    .select({ id: sessionCredits.id })
+    .from(sessionCredits)
+    .where(
+      and(
+        eq(sessionCredits.athleteUserId, params.athleteUserId),
+        eq(sessionCredits.coachUserId, params.coachUserId),
+        eq(sessionCredits.status, 'granted'),
+        gt(sessionCredits.expiresAt, new Date()),
+        gt(sessionCredits.expiresAt, params.scheduledFor),
+        creditIsFreeSql
+      )
+    )
+    .orderBy(asc(sessionCredits.expiresAt), asc(sessionCredits.id))
+    .limit(1)
+    .for('update', { skipLocked: true });
+  if (!candidate) return false;
+
+  await tx
+    .update(sessionCredits)
+    .set({ bookingId: params.bookingId, updatedAt: new Date() })
+    .where(eq(sessionCredits.id, candidate.id));
+  return true;
 }
 
 /** I coach (profili) con cui l'atleta ha un abbonamento vivo. */
@@ -1053,13 +1191,29 @@ export async function getSubscribedProviderIds(
         inArray(planSubscriptions.status, ['active', 'past_due'])
       )
     );
-  return [...new Set(rows.map((row) => row.providerId))];
+  const withCredits = await db
+    .select({ providerId: providerProfiles.id, coachUserId: sessionCredits.coachUserId })
+    .from(sessionCredits)
+    .innerJoin(providerProfiles, eq(providerProfiles.userId, sessionCredits.coachUserId))
+    .where(
+      and(
+        eq(sessionCredits.athleteUserId, athleteUserId),
+        eq(sessionCredits.status, 'granted'),
+        gt(sessionCredits.expiresAt, new Date()),
+        creditIsFreeSql
+      )
+    );
+  return [
+    ...new Set([...rows, ...withCredits].map((row) => row.providerId)),
+  ];
 }
 
 export type BookingCreditContext = {
   requiresSubscription: boolean;
   subscription: PlanSubscription | null;
   bookings: UsageBooking[];
+  /** Sedute acquistate a parte, ancora libere, con questo coach. */
+  credits: AvailableSessionCredit[];
 };
 
 /**
@@ -1080,8 +1234,9 @@ export async function getBookingCreditContexts(
     .where(inArray(providerProfiles.id, providerIds));
   const coachUserIds = providers.map((p) => p.userId);
 
-  const [required, subs] = await Promise.all([
+  const [required, creditsByCoach, subs] = await Promise.all([
     coachesRequiringSubscription(db, coachUserIds),
+    getAvailableCreditsByCoach(db, { athleteUserId, coachUserIds }),
     db
       .select()
       .from(planSubscriptions)
@@ -1113,8 +1268,10 @@ export async function getBookingCreditContexts(
             scheduledFor: bookings.scheduledFor,
           })
           .from(bookings)
+          .leftJoin(sessionCredits, eq(sessionCredits.bookingId, bookings.id))
           .where(
             and(
+              isNull(sessionCredits.id),
               eq(bookings.clientId, athleteUserId),
               inArray(bookings.providerId, providerIds),
               gte(
@@ -1133,6 +1290,7 @@ export async function getBookingCreditContexts(
       requiresSubscription: required.has(provider.userId),
       subscription: subByCoach.get(provider.userId) ?? null,
       bookings: rows.filter((row) => row.providerId === provider.id),
+      credits: creditsByCoach.get(provider.userId) ?? [],
     });
   }
   return contexts;
@@ -1158,7 +1316,21 @@ export async function getSubscriberUserIdsIfRequired(
         inArray(planSubscriptions.status, ['active', 'past_due'])
       )
     );
-  return new Set(rows.map((row) => row.athleteUserId));
+  // Chi ha comprato una seduta e non l'ha ancora usata è «pagato» quanto un abbonato.
+  const withCredits = await db
+    .selectDistinct({ athleteUserId: sessionCredits.athleteUserId })
+    .from(sessionCredits)
+    .where(
+      and(
+        eq(sessionCredits.coachUserId, coachUserId),
+        eq(sessionCredits.status, 'granted'),
+        gt(sessionCredits.expiresAt, new Date()),
+        creditIsFreeSql
+      )
+    );
+  return new Set(
+    [...rows, ...withCredits].map((row) => row.athleteUserId)
+  );
 }
 
 /**
@@ -1223,4 +1395,31 @@ export async function setCoachSingleSessionPrice(params: {
     })
     .where(eq(coachBillingProfiles.coachUserId, params.coachUserId));
   return { ok: true, priceCents: validation.priceCents };
+}
+
+/**
+ * Le sedute extra libere di un atleta, per coach: quante sono e quando scade la
+ * prima. Alimentano la scheda dell'abbonamento e l'elenco «sedute acquistate».
+ */
+export async function getAthleteExtraSessions(
+  athleteUserId: number
+): Promise<Map<number, { count: number; nextExpiry: Date }>> {
+  const rows = await db
+    .select({ coachUserId: sessionCredits.coachUserId })
+    .from(sessionCredits)
+    .where(
+      and(
+        eq(sessionCredits.athleteUserId, athleteUserId),
+        eq(sessionCredits.status, 'granted')
+      )
+    );
+  const coachUserIds = [...new Set(rows.map((row) => row.coachUserId))];
+  const free = await getAvailableCreditsByCoach(db, { athleteUserId, coachUserIds });
+  const result = new Map<number, { count: number; nextExpiry: Date }>();
+  for (const [coachUserId, list] of free) {
+    if (list.length > 0) {
+      result.set(coachUserId, { count: list.length, nextExpiry: list[0].expiresAt });
+    }
+  }
+  return result;
 }

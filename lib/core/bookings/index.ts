@@ -5,6 +5,7 @@ import {
   creditsSummary,
   decideBookingAccess,
   getBookingCreditContexts,
+  reserveSessionCredit,
   getSubscribedProviderIds,
   getSubscriberUserIdsIfRequired,
   type BookingCreditContext,
@@ -512,6 +513,12 @@ export async function createBookingRequest(params: {
         decidedAt: params.startingNow ? new Date() : null,
       })
       .returning({ id: bookings.id });
+    await holdPurchasedSession(tx, credits, {
+      athleteUserId: params.clientUserId,
+      coachUserId: provider.userId,
+      bookingId: created.id,
+      scheduledFor: params.scheduledFor ?? new Date(),
+    });
     return { ok: true as const, bookingId: created.id };
   });
   if (!creation.ok) return creation;
@@ -688,6 +695,8 @@ export type RelationshipCredits = {
   renewalLabel: string | null;
   cancelAtPeriodEnd: boolean;
   pastDue: boolean;
+  /** Sedute acquistate a parte, ancora da usare. */
+  extraSessions: number;
 };
 
 /**
@@ -705,7 +714,11 @@ export function applyBookingCredits<
   now: Date
 ): T & { credits: RelationshipCredits | null; creditsNotice: string | null } {
   const subscription = context?.subscription ?? null;
-  if (!context || !context.requiresSubscription || !subscription) {
+  if (
+    !context ||
+    !context.requiresSubscription ||
+    (!subscription && context.credits.length === 0)
+  ) {
     return { ...coach, credits: null, creditsNotice: null };
   }
 
@@ -716,6 +729,7 @@ export function applyBookingCredits<
       subscription,
       scheduledFor: at,
       bookings: context.bookings,
+      credits: context.credits,
     });
 
   const days = coach.bookableDays
@@ -728,7 +742,9 @@ export function applyBookingCredits<
     }))
     .filter((day) => day.times.length > 0);
 
-  const summary = creditsSummary(subscription, context.bookings);
+  const summary = subscription
+    ? creditsSummary(subscription, context.bookings)
+    : { total: 0, remainingNow: null, remainingNext: null, renewalLabel: null };
   let creditsNotice: string | null = null;
   if (days.length === 0 && coach.bookableDays.length > 0) {
     // Nessuna data ammessa: la ragione è quella del primo orario che avremmo
@@ -737,7 +753,7 @@ export function applyBookingCredits<
     const at = parseRomeLocalDateTime(`${firstDay.value}T${firstDay.times[0]}`);
     const decision = at ? check(at) : null;
     creditsNotice = decision && !decision.ok ? decision.message : null;
-  } else if (subscription.status === 'past_due') {
+  } else if (subscription?.status === 'past_due') {
     creditsNotice = check(now).ok ? null : (check(now) as { message: string }).message;
   } else if (summary.remainingNow === 0 && summary.renewalLabel) {
     creditsNotice = `Hai già usato tutte le ${summary.total} sedute di questo periodo: puoi prenotare a partire dal ${summary.renewalLabel}.`;
@@ -752,8 +768,9 @@ export function applyBookingCredits<
       remainingNow: summary.remainingNow,
       remainingNext: summary.remainingNext,
       renewalLabel: summary.renewalLabel,
-      cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
-      pastDue: subscription.status === 'past_due',
+      cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? false,
+      pastDue: subscription?.status === 'past_due',
+      extraSessions: context.credits.length,
     },
     creditsNotice,
   };
@@ -890,7 +907,11 @@ export async function getAthleteRelationshipCoaches(
     // strada è «Abbonati» (o la sessione conoscitiva gratuita dalla scheda).
     .filter((c) => {
       const context = creditContexts.get(c.id);
-      return !(context?.requiresSubscription && !context.subscription);
+      return !(
+        context?.requiresSubscription &&
+        !context.subscription &&
+        context.credits.length === 0
+      );
     })
     .map((c) => ({
       _providerId: c.id,
@@ -1230,6 +1251,12 @@ export async function createCoachBookingRequest(params: {
         decidedAt: new Date(),
       })
       .returning({ id: bookings.id });
+    await holdPurchasedSession(tx, credits, {
+      athleteUserId: params.clientUserId,
+      coachUserId: params.coachUserId,
+      bookingId: created.id,
+      scheduledFor: params.scheduledFor ?? new Date(),
+    });
     return { ok: true as const, bookingId: created.id };
   });
   if (!creation.ok) return creation;
@@ -1970,6 +1997,14 @@ export async function rescheduleBooking(params: {
         )
       )
       .returning({ id: bookings.id });
+    if (changed.length > 0) {
+      await holdPurchasedSession(tx, credits, {
+        athleteUserId: row.clientId,
+        coachUserId: row.coachUserId,
+        bookingId: row.id,
+        scheduledFor: params.scheduledFor,
+      });
+    }
     return changed.length > 0;
   });
 
@@ -1993,4 +2028,25 @@ export async function rescheduleBooking(params: {
   });
 
   return { ok: true };
+}
+
+/**
+ * Se la prenotazione è pagata con una seduta acquistata a parte, la lega.
+ * Dentro la transazione di prenotazione: se non c'è più nessuna seduta libera
+ * (non dovrebbe accadere, il controllo è appena passato sotto lo stesso
+ * blocco) si annulla tutto invece di lasciare una seduta gratis.
+ */
+async function holdPurchasedSession(
+  tx: DbOrTx,
+  access: { ok: boolean; usesCredit?: boolean },
+  params: {
+    athleteUserId: number;
+    coachUserId: number;
+    bookingId: number;
+    scheduledFor: Date;
+  }
+): Promise<void> {
+  if (!access.usesCredit) return;
+  const held = await reserveSessionCredit(tx, params);
+  if (!held) throw new Error('SESSION_CREDIT_UNAVAILABLE');
 }

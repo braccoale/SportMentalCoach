@@ -80,3 +80,24 @@ export function isCreditUsable(
     credit.expiresAt.getTime() > now.getTime()
   );
 }
+
+/** Gli stati di una prenotazione che liberano di nuovo la seduta che teneva. */
+export const FREEING_BOOKING_STATUSES = ['cancelled', 'declined', 'expired'] as const;
+
+/**
+ * Se una seduta pagata è prenotabile adesso: pagata, non scaduta, e senza una
+ * prenotazione viva che la tiene. Lo stato si deriva dalla prenotazione
+ * collegata, non si memorizza: così chi cambia lo stato di una prenotazione
+ * non deve ricordarsi del registro.
+ */
+export function isCreditFree(
+  credit: { status: string; expiresAt: Date | null },
+  linkedBookingStatus: string | null,
+  now: Date
+): boolean {
+  if (!isCreditUsable(credit, now)) return false;
+  return (
+    linkedBookingStatus === null ||
+    (FREEING_BOOKING_STATUSES as readonly string[]).includes(linkedBookingStatus)
+  );
+}

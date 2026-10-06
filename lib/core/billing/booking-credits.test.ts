@@ -216,3 +216,64 @@ describe('decideBookingAccess: il messaggio parla a chi prenota', () => {
     assert.equal(reason({ viewer: 'coach', bookings: full, scheduledFor: day('2026-11-10') }), 'OK');
   });
 });
+
+describe('decideBookingAccess — sedute acquistate a parte', () => {
+  const credit = (iso: string) => ({ expiresAt: new Date(`${iso}T10:00:00Z`) });
+
+  it('copre un atleta senza abbonamento', () => {
+    const result = access({ subscription: null, credits: [credit('2026-12-01')] });
+    assert.deepEqual(result, { ok: true, usesCredit: true });
+  });
+
+  it('senza abbonamento e senza sedute resta il rifiuto di sempre', () => {
+    assert.equal(reason({ subscription: null, credits: [] }), 'NO_SUBSCRIPTION');
+  });
+
+  it('prima si usa il piano: la seduta extra non viene toccata', () => {
+    const result = access({ credits: [credit('2026-12-01')] });
+    assert.deepEqual(result, { ok: true });
+  });
+
+  it('a sedute del piano finite entra la seduta acquistata', () => {
+    const full = [1, 2, 3].map((n) => ({
+      status: 'accepted',
+      scheduledFor: day(`2026-10-1${n}`),
+    }));
+    const result = access({ bookings: full, credits: [credit('2026-12-01')] });
+    assert.deepEqual(result, { ok: true, usesCredit: true });
+  });
+
+  it('una seduta scaduta prima della data scelta non copre', () => {
+    assert.equal(
+      reason({ subscription: null, credits: [credit('2026-10-10')] }),
+      'NO_SUBSCRIPTION'
+    );
+  });
+
+  it('copre anche un pagamento in ritardo del piano', () => {
+    const result = access({
+      subscription: { ...live, status: 'past_due' },
+      credits: [credit('2026-12-01')],
+    });
+    assert.deepEqual(result, { ok: true, usesCredit: true });
+  });
+
+  it('non rimedia a un abbonamento ancora da confermare', () => {
+    assert.equal(
+      reason({
+        subscription: { ...live, currentPeriodStart: null, currentPeriodEnd: null },
+        credits: [credit('2026-12-01')],
+      }),
+      'PERIOD_UNKNOWN'
+    );
+  });
+
+  it('un coach senza pagamenti resta libero e non consuma niente', () => {
+    const result = access({
+      requiresSubscription: false,
+      subscription: null,
+      credits: [credit('2026-12-01')],
+    });
+    assert.deepEqual(result, { ok: true });
+  });
+});

@@ -76,7 +76,8 @@ export type BookingAccessRefusal =
   | 'NO_CREDITS';
 
 export type BookingAccess =
-  | { ok: true }
+  /** `usesCredit`: la seduta non esce dal piano ma da una acquistata a parte. */
+  | { ok: true; usesCredit?: boolean }
   | { ok: false; reason: BookingAccessRefusal; message: string };
 
 export type BookingViewer = 'athlete' | 'coach';
@@ -95,6 +96,11 @@ export type BookingAccessInput = {
    * stessa, la frase no. Se manca, è l'atleta.
    */
   viewer?: BookingViewer;
+  /**
+   * Le sedute acquistate a parte ancora libere (pagate, non scadute, non già
+   * legate a una prenotazione viva). Coprono ciò che il piano non copre.
+   */
+  credits?: { expiresAt: Date }[];
 };
 
 type MessageContext = {
@@ -145,7 +151,36 @@ function refusalMessage(
   }
 }
 
+/**
+ * Rifiuti che una seduta acquistata a parte risolve: niente abbonamento, un
+ * pagamento in ritardo, il piano a fine corsa o le sedute del periodo finite.
+ * Non risolve invece una data nel passato né un abbonamento ancora da
+ * confermare: lì non è questione di sedute.
+ */
+const COVERED_BY_PURCHASED_SESSION: ReadonlySet<BookingAccessRefusal> = new Set([
+  'NO_SUBSCRIPTION',
+  'SUBSCRIPTION_PAST_DUE',
+  'AFTER_END',
+  'TOO_FAR',
+  'NO_CREDITS',
+]);
+
+/**
+ * La regola completa: prima il piano; se il piano non basta, una seduta
+ * acquistata a parte, a patto che sia ancora valida **alla data scelta**. Le
+ * sedute extra si consumano così dopo quelle del piano, mai prima.
+ */
 export function decideBookingAccess(input: BookingAccessInput): BookingAccess {
+  const plan = decidePlanAccess(input);
+  if (plan.ok || !COVERED_BY_PURCHASED_SESSION.has(plan.reason)) return plan;
+  const at = input.scheduledFor.getTime();
+  const covered = (input.credits ?? []).some(
+    (credit) => credit.expiresAt.getTime() > at
+  );
+  return covered ? { ok: true, usesCredit: true } : plan;
+}
+
+function decidePlanAccess(input: BookingAccessInput): BookingAccess {
   const viewer = input.viewer ?? 'athlete';
   const refuse = (
     reason: BookingAccessRefusal,

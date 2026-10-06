@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   DEFAULT_SINGLE_SESSION_LIMITS,
   SINGLE_SESSION_VALIDITY_DAYS,
+  isCreditFree,
   isCreditUsable,
   singleSessionExpiresAt,
   validateSingleSessionPrice,
@@ -63,5 +64,29 @@ describe('isCreditUsable', () => {
     assert.equal(isCreditUsable({ status: 'revoked', expiresAt: future }, now), false);
     assert.equal(isCreditUsable({ status: 'granted', expiresAt: now }, now), false);
     assert.equal(isCreditUsable({ status: 'granted', expiresAt: new Date('2026-10-01T00:00:00Z') }, now), false);
+  });
+});
+
+describe('isCreditFree', () => {
+  const now = new Date('2026-10-10T10:00:00Z');
+  const valid = { status: 'granted', expiresAt: new Date('2026-12-01T00:00:00Z') };
+
+  it('è libera senza prenotazione collegata', () => {
+    assert.equal(isCreditFree(valid, null, now), true);
+  });
+  it('è tenuta da una prenotazione richiesta, accettata o completata', () => {
+    for (const status of ['requested', 'accepted', 'completed']) {
+      assert.equal(isCreditFree(valid, status, now), false, status);
+    }
+  });
+  it('si libera se la prenotazione è annullata, rifiutata o scaduta', () => {
+    for (const status of ['cancelled', 'declined', 'expired']) {
+      assert.equal(isCreditFree(valid, status, now), true, status);
+    }
+  });
+  it('scaduta o non pagata non è mai libera', () => {
+    assert.equal(isCreditFree({ ...valid, expiresAt: new Date('2026-10-01T00:00:00Z') }, null, now), false);
+    assert.equal(isCreditFree({ status: 'pending', expiresAt: null }, null, now), false);
+    assert.equal(isCreditFree({ ...valid, status: 'revoked' }, null, now), false);
   });
 });
