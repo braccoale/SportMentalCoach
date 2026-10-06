@@ -177,3 +177,42 @@ describe('creditsSummary', () => {
     assert.equal(summary.renewalLabel, null);
   });
 });
+
+describe('decideBookingAccess: il messaggio parla a chi prenota', () => {
+  const full = ['2026-10-10', '2026-10-15', '2026-10-25'].map((d) => ({
+    status: 'accepted',
+    scheduledFor: day(d),
+  }));
+
+  it('lo stesso rifiuto ha la stessa ragione ma frasi diverse per atleta e coach', () => {
+    const asAthlete = access({ subscription: null });
+    const asCoach = access({ subscription: null, viewer: 'coach' });
+    assert.equal(asAthlete.ok, false);
+    assert.equal(asCoach.ok, false);
+    if (!asAthlete.ok && !asCoach.ok) {
+      assert.equal(asAthlete.reason, asCoach.reason);
+      assert.match(asAthlete.message, /Abbonati dalla sua scheda/);
+      assert.match(asCoach.message, /solo con atleti che hanno un abbonamento con te/);
+      assert.doesNotMatch(asCoach.message, /Abbonati/);
+    }
+  });
+
+  it('al coach non si dice «hai usato»: si parla dell’atleta', () => {
+    const result = access({ bookings: full, viewer: 'coach' });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.match(result.message, /Questo atleta ha già usato tutte le 3 sedute/);
+      assert.match(result.message, /6 novembre 2026/);
+      assert.doesNotMatch(result.message, /\bHai\b/);
+    }
+  });
+
+  it('anche per il coach la sessione conoscitiva e un coach non a pagamento passano', () => {
+    assert.equal(reason({ viewer: 'coach', isIntro: true, subscription: null }), 'OK');
+    assert.equal(reason({ viewer: 'coach', requiresSubscription: false, subscription: null }), 'OK');
+  });
+
+  it('le date dopo il rinnovo si possono fissare anche per il coach', () => {
+    assert.equal(reason({ viewer: 'coach', bookings: full, scheduledFor: day('2026-11-10') }), 'OK');
+  });
+});

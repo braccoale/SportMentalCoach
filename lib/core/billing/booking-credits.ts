@@ -79,6 +79,8 @@ export type BookingAccess =
   | { ok: true }
   | { ok: false; reason: BookingAccessRefusal; message: string };
 
+export type BookingViewer = 'athlete' | 'coach';
+
 export type BookingAccessInput = {
   /** Il coach ha i pagamenti attivi e almeno un piano acquistabile. */
   requiresSubscription: boolean;
@@ -87,56 +89,93 @@ export type BookingAccessInput = {
   scheduledFor: Date;
   /** Le prenotazioni di questo atleta con questo coach nei due periodi. */
   bookings: UsageBooking[];
+  /**
+   * Chi sta prenotando: il messaggio parla a lui. Un coach che fissa una
+   * sessione non deve leggere «abbonati dalla sua scheda»: la regola è la
+   * stessa, la frase no. Se manca, è l'atleta.
+   */
+  viewer?: BookingViewer;
 };
 
+type MessageContext = {
+  total?: number;
+  renewal?: string;
+  nextStart?: string;
+  lastBookable?: string;
+};
+
+function refusalMessage(
+  reason: BookingAccessRefusal,
+  viewer: BookingViewer,
+  ctx: MessageContext
+): string {
+  const athlete = viewer === 'athlete';
+  switch (reason) {
+    case 'NO_SUBSCRIPTION':
+      return athlete
+        ? 'Per prenotare con questo coach serve un abbonamento. Abbonati dalla sua scheda.'
+        : 'Con i pagamenti attivi puoi fissare una sessione solo con atleti che hanno un abbonamento con te. Questo atleta non ne ha uno (la sessione conoscitiva gratuita ne è esente).';
+    case 'SUBSCRIPTION_PAST_DUE':
+      return athlete
+        ? 'L’ultimo pagamento del tuo abbonamento non è andato a buon fine: sistemalo per prenotare nuove sedute.'
+        : 'L’ultimo pagamento di questo atleta non è andato a buon fine: non puoi fissare nuove sessioni finché non lo sistema.';
+    case 'PERIOD_UNKNOWN':
+      return athlete
+        ? 'Stiamo ancora confermando il tuo abbonamento: riprova tra poco.'
+        : 'Stiamo ancora confermando l’abbonamento di questo atleta: riprova tra poco.';
+    case 'BEFORE_PERIOD':
+      return 'Scegli una data a partire da oggi.';
+    case 'TOO_FAR':
+      return athlete
+        ? `Puoi prenotare fino al ${ctx.lastBookable}: oltre, il tuo abbonamento non si è ancora rinnovato.`
+        : `Puoi fissare sessioni fino al ${ctx.lastBookable}: oltre, l’abbonamento dell’atleta non si è ancora rinnovato.`;
+    case 'AFTER_END':
+      return athlete
+        ? `Il tuo abbonamento termina il ${ctx.renewal}: dopo quella data non puoi prenotare. Puoi riattivarlo dalla pagina Abbonamenti.`
+        : `L’abbonamento di questo atleta termina il ${ctx.renewal}: dopo quella data non puoi fissare sessioni.`;
+    case 'NO_CREDITS':
+      if (ctx.nextStart) {
+        return athlete
+          ? `Hai già prenotato tutte le ${ctx.total} sedute del periodo che inizia il ${ctx.nextStart}.`
+          : `Questo atleta ha già tutte le ${ctx.total} sedute del periodo che inizia il ${ctx.nextStart} fissate.`;
+      }
+      return athlete
+        ? `Hai già usato tutte le ${ctx.total} sedute di questo periodo. Il prossimo rinnovo è il ${ctx.renewal}: da quella data puoi prenotare le nuove sedute.`
+        : `Questo atleta ha già usato tutte le ${ctx.total} sedute di questo periodo. Il prossimo rinnovo è il ${ctx.renewal}: da quella data puoi fissare le nuove sedute.`;
+  }
+}
+
 export function decideBookingAccess(input: BookingAccessInput): BookingAccess {
-  const refuse = (reason: BookingAccessRefusal, message: string): BookingAccess => ({
+  const viewer = input.viewer ?? 'athlete';
+  const refuse = (
+    reason: BookingAccessRefusal,
+    ctx: MessageContext = {}
+  ): BookingAccess => ({
     ok: false,
     reason,
-    message,
+    message: refusalMessage(reason, viewer, ctx),
   });
 
   if (!input.requiresSubscription || input.isIntro) return { ok: true };
 
   const subscription = input.subscription;
-  if (!subscription) {
-    return refuse(
-      'NO_SUBSCRIPTION',
-      'Per prenotare con questo coach serve un abbonamento. Abbonati dalla sua scheda.'
-    );
-  }
-  if (subscription.status === 'past_due') {
-    return refuse(
-      'SUBSCRIPTION_PAST_DUE',
-      'L’ultimo pagamento del tuo abbonamento non è andato a buon fine: sistemalo per prenotare nuove sedute.'
-    );
-  }
+  if (!subscription) return refuse('NO_SUBSCRIPTION');
+  if (subscription.status === 'past_due') return refuse('SUBSCRIPTION_PAST_DUE');
 
   const periods = creditPeriods(subscription);
-  if (!periods) {
-    return refuse(
-      'PERIOD_UNKNOWN',
-      'Stiamo ancora confermando il tuo abbonamento: riprova tra poco.'
-    );
-  }
+  if (!periods) return refuse('PERIOD_UNKNOWN');
 
   const at = input.scheduledFor.getTime();
   const { current, next } = periods;
 
-  if (at < current.start.getTime()) {
-    return refuse('BEFORE_PERIOD', 'Scegli una data a partire da oggi.');
-  }
+  if (at < current.start.getTime()) return refuse('BEFORE_PERIOD');
   if (at >= next.end.getTime()) {
-    return refuse(
-      'TOO_FAR',
-      `Puoi prenotare fino al ${formatLongDateRome(new Date(next.end.getTime() - 1))}: oltre, il tuo abbonamento non si è ancora rinnovato.`
-    );
+    return refuse('TOO_FAR', {
+      lastBookable: formatLongDateRome(new Date(next.end.getTime() - 1)),
+    });
   }
   if (at >= current.end.getTime() && subscription.cancelAtPeriodEnd) {
-    return refuse(
-      'AFTER_END',
-      `Il tuo abbonamento termina il ${formatLongDateRome(current.end)}: dopo quella data non puoi prenotare. Puoi riattivarlo dalla pagina Abbonamenti.`
-    );
+    return refuse('AFTER_END', { renewal: formatLongDateRome(current.end) });
   }
 
   const period = at < current.end.getTime() ? current : next;
@@ -148,14 +187,14 @@ export function decideBookingAccess(input: BookingAccessInput): BookingAccess {
   });
   if (usage.known && usage.remaining <= 0) {
     return period.index === 0
-      ? refuse(
-          'NO_CREDITS',
-          `Hai già usato tutte le ${usage.total} sedute di questo periodo. Il prossimo rinnovo è il ${formatLongDateRome(current.end)}: da quella data puoi prenotare le nuove sedute.`
-        )
-      : refuse(
-          'NO_CREDITS',
-          `Hai già prenotato tutte le ${usage.total} sedute del periodo che inizia il ${formatLongDateRome(next.start)}.`
-        );
+      ? refuse('NO_CREDITS', {
+          total: usage.total,
+          renewal: formatLongDateRome(current.end),
+        })
+      : refuse('NO_CREDITS', {
+          total: usage.total,
+          nextStart: formatLongDateRome(next.start),
+        });
   }
 
   return { ok: true };

@@ -6,6 +6,7 @@ import {
   decideBookingAccess,
   getBookingCreditContexts,
   getSubscribedProviderIds,
+  getSubscriberUserIdsIfRequired,
   type BookingCreditContext,
 } from '@/lib/core/billing';
 import { ensureIntroService, hasUsedIntroSession } from '@/lib/core/services/intro-booking';
@@ -1041,7 +1042,12 @@ export async function getAllAthletes(
     .leftJoin(profiles, eq(profiles.userId, users.id))
     .where(and(isNull(users.deletedAt), eq(users.isDemo, false)));
 
+  // Un coach con i pagamenti attivi pianifica solo con i propri abbonati: gli
+  // altri atleti non si offrono, perché il server rifiuterebbe la sessione.
+  const subscribers = await getSubscriberUserIdsIfRequired(viewerUserId);
+
   return rows
+    .filter((r) => !subscribers || subscribers.has(r.userId))
     .map((r) => ({
       userId: r.userId,
       name: resolveDisplayName(r.name, r.email),
@@ -1193,6 +1199,21 @@ export async function createCoachBookingRequest(params: {
           ? 'Hai già una sessione in corso in questo momento.'
           : 'Questo orario è già occupato. Scegli uno degli orari disponibili.',
       };
+    }
+
+    // Con i pagamenti attivi il coach fissa sessioni solo con atleti abbonati
+    // e con una seduta nel periodo della data: la stessa regola dell'atleta,
+    // nella stessa transazione. La sessione conoscitiva gratuita ne è esente.
+    const credits = await checkBookingCredits(tx, {
+      coachUserId: params.coachUserId,
+      providerId: provider.id,
+      clientUserId: params.clientUserId,
+      scheduledFor: params.scheduledFor ?? new Date(),
+      isIntro: Boolean(svc.isIntro),
+      viewer: 'coach',
+    });
+    if (!credits.ok) {
+      return { ok: false as const, error: credits.message };
     }
 
     const [created] = await tx
@@ -1916,6 +1937,20 @@ export async function rescheduleBooking(params: {
       return false;
     }
 
+    // Spostare in un altro periodo cambia quale seduta si usa: la regola dei
+    // crediti vale anche per la nuova data. La sessione che si sposta non conta
+    // contro sé stessa, e la sessione conoscitiva gratuita ne è esente.
+    const credits = await checkBookingCredits(tx, {
+      coachUserId: row.coachUserId,
+      providerId: row.providerId,
+      clientUserId: row.clientId,
+      scheduledFor: params.scheduledFor,
+      isIntro: Boolean(row.isIntro),
+      viewer: params.userId === row.coachUserId ? 'coach' : 'athlete',
+      excludeBookingId: row.id,
+    });
+    if (!credits.ok) return credits.message;
+
     const changed = await tx
       .update(bookings)
       .set({
@@ -1938,6 +1973,8 @@ export async function rescheduleBooking(params: {
     return changed.length > 0;
   });
 
+  // Una stringa è il motivo del rifiuto dei crediti, già scritto per chi sposta.
+  if (typeof updated === 'string') return { ok: false, error: updated };
   if (!updated) {
     return {
       ok: false,

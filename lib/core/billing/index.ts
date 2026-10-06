@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, asc, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lt, ne, sql } from 'drizzle-orm';
 import { db, type DbOrTx } from '@/lib/db/drizzle';
 import {
   bookings,
@@ -37,6 +37,7 @@ import {
   creditPeriods,
   decideBookingAccess,
   type BookingAccess,
+  type BookingViewer,
 } from './booking-credits';
 import { checkoutEligibility, type CheckoutRefusal } from './checkout-eligibility';
 import {
@@ -971,6 +972,13 @@ export async function checkBookingCredits(
     clientUserId: number;
     scheduledFor: Date;
     isIntro: boolean;
+    /** Chi prenota: il messaggio parla a lui. Se manca, l'atleta. */
+    viewer?: BookingViewer;
+    /**
+     * Una sessione che si sta spostando non pesa sul conteggio: se la si
+     * conta, spostarla in un altro periodo sembrerebbe «usare» due sedute.
+     */
+    excludeBookingId?: number;
   }
 ): Promise<BookingAccess> {
   if (params.isIntro) return { ok: true };
@@ -1000,7 +1008,10 @@ export async function checkBookingCredits(
             eq(bookings.clientId, params.clientUserId),
             eq(bookings.providerId, params.providerId),
             gte(bookings.scheduledFor, periods.current.start),
-            lt(bookings.scheduledFor, periods.next.end)
+            lt(bookings.scheduledFor, periods.next.end),
+            params.excludeBookingId !== undefined
+              ? ne(bookings.id, params.excludeBookingId)
+              : undefined
           )
         )
     : [];
@@ -1011,6 +1022,7 @@ export async function checkBookingCredits(
     subscription: subscription ?? null,
     scheduledFor: params.scheduledFor,
     bookings: rows,
+    viewer: params.viewer,
   });
 }
 
@@ -1114,4 +1126,27 @@ export async function getBookingCreditContexts(
     });
   }
   return contexts;
+}
+
+/**
+ * Gli atleti con un abbonamento vivo con questo coach, **solo se il coach
+ * richiede un abbonamento**; `null` se non lo richiede (nessun filtro). Serve
+ * al menu «Nuovo appuntamento» del coach: lì si offrono soltanto gli atleti con
+ * cui il server lo lascerebbe fissare una sessione.
+ */
+export async function getSubscriberUserIdsIfRequired(
+  coachUserId: number
+): Promise<Set<number> | null> {
+  const required = await coachesRequiringSubscription(db, [coachUserId]);
+  if (!required.has(coachUserId)) return null;
+  const rows = await db
+    .select({ athleteUserId: planSubscriptions.athleteUserId })
+    .from(planSubscriptions)
+    .where(
+      and(
+        eq(planSubscriptions.coachUserId, coachUserId),
+        inArray(planSubscriptions.status, ['active', 'past_due'])
+      )
+    );
+  return new Set(rows.map((row) => row.athleteUserId));
 }
