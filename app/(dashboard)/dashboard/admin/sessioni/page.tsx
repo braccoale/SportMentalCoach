@@ -1,5 +1,12 @@
 import Link from 'next/link';
-import { Activity, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  Activity,
+  ArrowRight,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  X,
+} from 'lucide-react';
 import { requireRole } from '@/lib/core/auth';
 import {
   formatRomeDateValue,
@@ -15,6 +22,7 @@ import {
 import { romeDayValueToInstant } from '@/lib/core/admin/period';
 import { upcomingDayName } from '@/lib/core/admin/upcoming';
 import type { TranscriptionOutcomeKind } from '@/lib/core/admin/transcription-outcome';
+import type { ParticipantPresence } from '@/lib/core/admin/session-presence';
 import { SectionHeader, EmptyBlock } from '@/components/admin/control-room';
 import { LiveSessionDot } from '@/components/admin/live-session-dot';
 import { RefreshButton } from '@/components/admin/refresh-button';
@@ -195,7 +203,7 @@ export default async function AdminSessionsPage({
         ) : (
           <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left text-sm">
+              <table className="w-full min-w-[1180px] text-left text-sm">
                 <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
                   <tr>
                     <th scope="col" className="px-4 py-3">Orario</th>
@@ -216,13 +224,19 @@ export default async function AdminSessionsPage({
                       <td className="whitespace-nowrap px-4 py-3 font-semibold tabular-nums text-gray-950">
                         {formatTime(session.scheduledFor)}
                       </td>
-                      <td className="px-4 py-3 text-gray-800">
-                        {session.coachName}
+                      <td className="px-4 py-3">
+                        <PersonCell
+                          name={session.coachName}
+                          presence={session.coach}
+                        />
                       </td>
-                      <td className="px-4 py-3 text-gray-800">
-                        {session.athleteName}
+                      <td className="px-4 py-3">
+                        <PersonCell
+                          name={session.athleteName}
+                          presence={session.athlete}
+                        />
                       </td>
-                      <td className="px-4 py-3 text-gray-600">
+                      <td className="whitespace-nowrap px-4 py-3 text-gray-600">
                         {session.serviceTitle ?? 'Sessione KaiPai'}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 tabular-nums text-gray-600">
@@ -295,6 +309,23 @@ export default async function AdminSessionsPage({
           </div>
         )}
       </div>
+
+      {sessions.length > 0 ? (
+        <p className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-gray-600">
+          <span>
+            <span className="font-semibold text-emerald-700">Nome in verde</span>
+            : è entrato in sessione
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <Check className="h-3.5 w-3.5 text-emerald-600" aria-hidden="true" />
+            ha accettato la trascrizione AI
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <X className="h-3.5 w-3.5 text-red-600" aria-hidden="true" />
+            l’ha rifiutata o revocata
+          </span>
+        </p>
+      ) : null}
 
       <p className="mt-4 text-xs text-gray-500">
         Lo storico completo delle prenotazioni non è in questa pagina: richiede
@@ -384,5 +415,52 @@ function Tile({
         {value}
       </p>
     </div>
+  );
+}
+
+/**
+ * Il nome di una persona con ciò che si sa di lei in quella seduta: in verde se
+ * è entrata, con una spunta se ha accettato la trascrizione AI e una croce se
+ * l'ha rifiutata o revocata. Il colore non è l'unico segnale: ogni stato ha
+ * anche un testo per chi usa uno screen reader e un'etichetta al passaggio del
+ * mouse.
+ */
+function PersonCell({
+  name,
+  presence,
+}: {
+  name: string;
+  presence: ParticipantPresence;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+      <span
+        className={
+          presence.joined ? 'font-semibold text-emerald-700' : 'text-gray-800'
+        }
+        title={presence.joined ? 'È entrato in sessione' : undefined}
+      >
+        {name}
+      </span>
+      {presence.joined ? <span className="sr-only">(è entrato in sessione)</span> : null}
+      {presence.consent === 'accepted' ? (
+        <span
+          className="inline-flex"
+          title="Ha accettato la trascrizione AI"
+        >
+          <Check className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+          <span className="sr-only">ha accettato la trascrizione AI</span>
+        </span>
+      ) : null}
+      {presence.consent === 'declined' ? (
+        <span
+          className="inline-flex"
+          title="Ha rifiutato o revocato la trascrizione AI"
+        >
+          <X className="h-4 w-4 text-red-600" aria-hidden="true" />
+          <span className="sr-only">ha rifiutato o revocato la trascrizione AI</span>
+        </span>
+      ) : null}
+    </span>
   );
 }
