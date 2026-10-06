@@ -163,15 +163,21 @@ export function SessionBookingForm({
     );
   }
 
-  const monthLabel = day
-    ? capitalise(
-        new Intl.DateTimeFormat('it-IT', {
-          timeZone: 'Europe/Rome',
-          month: 'long',
-          year: 'numeric',
-        }).format(atNoon(day))
-      )
-    : '';
+  // Il mese (o i due mesi) dei giorni che si vedono, non quello del giorno
+  // scelto: sfogliando in avanti l'etichetta deve seguire la pagina.
+  const monthOf = (value: string, month: 'long' | 'short') =>
+    new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', month }).format(atNoon(value));
+  const yearOf = (value: string) =>
+    new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', year: 'numeric' }).format(atNoon(value));
+  const firstShown = visibleDays[0]?.value;
+  const lastShown = visibleDays[visibleDays.length - 1]?.value;
+  const monthLabel = !firstShown || !lastShown
+    ? ''
+    : monthOf(firstShown, 'long') === monthOf(lastShown, 'long')
+      ? `${capitalise(monthOf(firstShown, 'long'))} ${yearOf(firstShown)}`
+      : yearOf(firstShown) === yearOf(lastShown)
+        ? `${capitalise(monthOf(firstShown, 'short'))} – ${capitalise(monthOf(lastShown, 'short'))} ${yearOf(lastShown)}`
+        : `${capitalise(monthOf(firstShown, 'short'))} ${yearOf(firstShown)} – ${capitalise(monthOf(lastShown, 'short'))} ${yearOf(lastShown)}`;
   const dayLong = day
     ? `${capitalise(
         new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', weekday: 'long' }).format(atNoon(day))
