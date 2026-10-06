@@ -178,11 +178,31 @@ const COVERED_BY_PURCHASED_SESSION: ReadonlySet<BookingAccessRefusal> = new Set(
 export function decideBookingAccess(input: BookingAccessInput): BookingAccess {
   const plan = decidePlanAccess(input);
   if (plan.ok || !COVERED_BY_PURCHASED_SESSION.has(plan.reason)) return plan;
+  // Prima si prenotano le sedute del piano, dentro il periodo e la tolleranza:
+  // la seduta extra non apre date più lontane finché al piano ne restano.
+  if (plan.reason === 'TOO_FAR' && planSessionsLeft(input) > 0) return plan;
   const at = input.scheduledFor.getTime();
   const covered = (input.credits ?? []).some(
     (credit) => credit.expiresAt.getTime() > at
   );
   return covered ? { ok: true, usesCredit: true } : plan;
+}
+
+/** Le sedute del piano ancora da fissare nel periodo (con la tolleranza); 0 se non si sa. */
+function planSessionsLeft(input: BookingAccessInput): number {
+  const subscription = input.subscription;
+  const periods = subscription ? creditPeriods(subscription) : null;
+  if (!subscription || !periods) return 0;
+  const limit = new Date(
+    periods.current.end.getTime() + BOOKING_GRACE_DAYS_AFTER_PERIOD * 24 * 60 * 60 * 1000
+  );
+  const usage = sessionUsageForPeriod({
+    sessionsPerMonth: subscription.sessionsPerMonth,
+    periodStart: periods.current.start,
+    periodEnd: limit,
+    bookings: input.bookings,
+  });
+  return usage.known ? usage.remaining : 0;
 }
 
 function decidePlanAccess(input: BookingAccessInput): BookingAccess {

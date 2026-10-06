@@ -281,3 +281,35 @@ describe('decideBookingAccess — sedute acquistate a parte', () => {
     assert.deepEqual(result, { ok: true });
   });
 });
+
+describe('decideBookingAccess — l’extra dopo il piano', () => {
+  const credit = [{ expiresAt: new Date('2026-12-05T10:00:00Z') }];
+  const far = day('2026-12-03');
+  const planBooked = (n: number) =>
+    ['2026-10-10', '2026-10-15', '2026-10-25'].slice(0, n).map((d) => ({
+      status: 'accepted',
+      scheduledFor: day(d),
+    }));
+
+  it('finché al piano restano sedute, una data lontana non si apre con l’extra', () => {
+    for (const n of [0, 1, 2]) {
+      assert.equal(reason({ credits: credit, scheduledFor: far, bookings: planBooked(n) }), 'TOO_FAR', `${n}`);
+    }
+  });
+
+  it('esaurito il piano, l’extra arriva fino alla sua scadenza', () => {
+    const result = access({ credits: credit, scheduledFor: far, bookings: planBooked(3) });
+    assert.deepEqual(result, { ok: true, usesCredit: true });
+    assert.equal(
+      reason({ credits: credit, scheduledFor: day('2026-12-06'), bookings: planBooked(3) }),
+      'TOO_FAR'
+    );
+  });
+
+  it('senza abbonamento l’extra arriva fino alla scadenza', () => {
+    assert.deepEqual(access({ subscription: null, credits: credit, scheduledFor: far }), {
+      ok: true,
+      usesCredit: true,
+    });
+  });
+});
