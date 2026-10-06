@@ -10,7 +10,11 @@ import {
   TEAMS_FAQ,
 } from '@/components/landing/audience-paths/audience-faqs';
 import type { FaqItem } from '@/components/landing/audience-paths/audience-faq';
-import { SupportFaq, type SupportFaqGroup } from '@/components/support-faq';
+import {
+  SupportFaq,
+  type SupportFaqGroup,
+  type SupportFaqLabels,
+} from '@/components/support-faq';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,11 +64,29 @@ export default async function SupportoPage() {
     })),
   }));
 
+  // Frasi già pronte per il browser: `raw` lascia intatti i segnaposto che il
+  // componente sostituisce da sé ({query}, {count}).
+  const labels: SupportFaqLabels = {
+    title: t('title'),
+    forYou: t('forYou'),
+    searchLabel: t('searchLabel'),
+    searchPlaceholder: t('searchPlaceholder'),
+    clearSearch: t('clearSearch'),
+    contactCta: t('contactCta'),
+    contact: t('contact'),
+    notFound: t('notFound'),
+    noResults: t.raw('noResults') as string,
+    noResultsHint: t('noResultsHint'),
+    resultsNone: t('resultsNone'),
+    resultsOne: t('resultsOne'),
+    resultsMany: t.raw('resultsMany') as string,
+  };
+
   return (
     <section className="mx-auto w-full max-w-3xl p-6">
       <h1 className="text-2xl font-semibold text-gray-900">{t('title')}</h1>
       <p className="mt-1 text-gray-600">{t('intro')}</p>
-      <SupportFaq groups={groups} />
+      <SupportFaq groups={groups} labels={labels} />
     </section>
   );
 }

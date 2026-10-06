@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { useTranslations } from 'next-intl';
 import { ChevronDown, Search, X } from 'lucide-react';
 import { DemoRequestButton } from '@/components/landing/demo-request-button';
 import { filterFaqs, searchTerms } from '@/lib/core/support/faq-search';
@@ -11,6 +10,33 @@ export type SupportFaqItem = {
   q: string;
   a: string;
   link?: { href: string; label: string };
+};
+
+/**
+ * Le frasi arrivano **già pronte dal server**. Al browser passano solo alcuni
+ * gruppi di messaggi (vedi `lib/i18n/client-messages.ts`) e `Support` non è tra
+ * questi: un `useTranslations('Support')` qui dentro mostrava i codici
+ * (`Support.searchPlaceholder`) invece del testo. I due segnaposto, `{query}`
+ * e `{count}`, si sostituiscono qui.
+ */
+export type SupportFaqLabels = {
+  title: string;
+  forYou: string;
+  searchLabel: string;
+  searchPlaceholder: string;
+  clearSearch: string;
+  /** Il pulsante in alto: «Supporto». */
+  contactCta: string;
+  /** In fondo e nel pannello «nessun risultato»: «Scrivici». */
+  contact: string;
+  notFound: string;
+  /** Contiene `{query}`. */
+  noResults: string;
+  noResultsHint: string;
+  resultsNone: string;
+  resultsOne: string;
+  /** Contiene `{count}`. */
+  resultsMany: string;
 };
 
 export type SupportFaqGroup = {
@@ -27,8 +53,13 @@ export type SupportFaqGroup = {
  * si filtrano soltanto. Il pulsante «Contatta il supporto» sta in alto, sempre
  * visibile, e riusa il modulo contatti già in uso: nessun secondo canale.
  */
-export function SupportFaq({ groups }: { groups: SupportFaqGroup[] }) {
-  const t = useTranslations('Support');
+export function SupportFaq({
+  groups,
+  labels,
+}: {
+  groups: SupportFaqGroup[];
+  labels: SupportFaqLabels;
+}) {
   const [query, setQuery] = useState('');
 
   const searching = searchTerms(query).length > 0;
@@ -54,30 +85,36 @@ export function SupportFaq({ groups }: { groups: SupportFaqGroup[] }) {
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder={t('searchPlaceholder')}
-            aria-label={t('searchLabel')}
+            placeholder={labels.searchPlaceholder}
+            aria-label={labels.searchLabel}
             className="h-11 w-full rounded-full border border-gray-200 bg-white pl-10 pr-10 text-sm text-gray-900 placeholder:text-gray-400 focus-visible:border-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/10"
           />
           {query && (
             <button
               type="button"
               onClick={() => setQuery('')}
-              aria-label={t('clearSearch')}
+              aria-label={labels.clearSearch}
               className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900"
             >
               <X className="h-4 w-4" aria-hidden />
             </button>
           )}
         </div>
-        <DemoRequestButton label={t('contactCta')} className="!px-5 !py-2.5 text-sm" />
+        <DemoRequestButton label={labels.contactCta} className="!px-5 !py-2.5 text-sm" />
       </div>
 
       <p className="sr-only" role="status" aria-live="polite">
-        {searching ? t('resultsCount', { count: total }) : ''}
+        {searching
+          ? total === 0
+            ? labels.resultsNone
+            : total === 1
+              ? labels.resultsOne
+              : labels.resultsMany.replace('{count}', String(total))
+          : ''}
       </p>
 
       {visible.length > 0 && (
-        <nav className="mt-4 flex flex-wrap gap-2" aria-label={t('title')}>
+        <nav className="mt-4 flex flex-wrap gap-2" aria-label={labels.title}>
           {visible.map((group) => (
             <Link
               key={group.key}
@@ -85,7 +122,7 @@ export function SupportFaq({ groups }: { groups: SupportFaqGroup[] }) {
               className="rounded-full border border-gray-200 bg-white px-3 py-1 text-sm font-medium text-gray-700 transition-colors hover:border-gray-300 hover:text-gray-950"
             >
               {group.label}
-              {group.isMine ? ` · ${t('forYou')}` : ''}
+              {group.isMine ? ` · ${labels.forYou}` : ''}
             </Link>
           ))}
         </nav>
@@ -94,11 +131,11 @@ export function SupportFaq({ groups }: { groups: SupportFaqGroup[] }) {
       {visible.length === 0 ? (
         <div className="mt-8 rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center">
           <p className="font-semibold text-gray-900">
-            {t('noResults', { query: query.trim() })}
+            {labels.noResults.replace('{query}', query.trim())}
           </p>
-          <p className="mt-1 text-sm text-gray-600">{t('noResultsHint')}</p>
+          <p className="mt-1 text-sm text-gray-600">{labels.noResultsHint}</p>
           <div className="mt-4 flex justify-center">
-            <DemoRequestButton label={t('contactCta')} className="!px-5 !py-2.5 text-sm" />
+            <DemoRequestButton label={labels.contact} className="!px-5 !py-2.5 text-sm" />
           </div>
         </div>
       ) : (
@@ -140,8 +177,8 @@ export function SupportFaq({ groups }: { groups: SupportFaqGroup[] }) {
 
       {visible.length > 0 && (
         <div className="mt-12 flex flex-col items-start gap-4 rounded-xl border border-gray-200 bg-white p-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="font-semibold text-gray-900">{t('notFound')}</p>
-          <DemoRequestButton label={t('contact')} />
+          <p className="font-semibold text-gray-900">{labels.notFound}</p>
+          <DemoRequestButton label={labels.contact} />
         </div>
       )}
     </>
