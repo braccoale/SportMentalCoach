@@ -146,6 +146,7 @@ export function AiSessionNotesControl({
   // Chiudere la sessione è irreversibile: la conferma è in linea perché un
   // `window.confirm` bloccherebbe la videochiamata sotto l'overlay.
   const [confirmingClose, setConfirmingClose] = useState(false);
+  const [confirmingRevoke, setConfirmingRevoke] = useState(false);
   // Il segnalibro deve dare un riscontro immediato e sparire: se il coach
   // deve leggere una conferma, l'attenzione e' gia' andata via dall'atleta.
   const [bookmarked, setBookmarked] = useState(false);
@@ -573,18 +574,72 @@ export function AiSessionNotesControl({
             )}
           </div>
         )}
-        <button
-          type="button"
-          className="mt-2 text-xs font-medium text-white underline"
-          disabled={loading}
-          onClick={() =>
-            void mutate(`/api/ai-session-notes/${session.id}/consent`, {
-              decision: 'revoked',
-            })
-          }
-        >
-          {loading ? 'Revoca in corso…' : 'Revoca il mio consenso'}
-        </button>
+        {/* La revoca è l'azione più pesante del pannello: ferma la
+            registrazione e annulla la sessione, senza ritorno. Per questo non
+            sta accanto a "Fine sessione" (che invece conclude bene) e chiede
+            conferma, dicendo che cosa si perde. Il focus parte su "Annulla":
+            un tocco distratto non deve bastare. */}
+        <div className="mt-3 border-t border-white/20 pt-2">
+          {confirmingRevoke ? (
+            <div
+              role="group"
+              aria-label="Conferma revoca del consenso"
+              className="text-xs text-emerald-100"
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') setConfirmingRevoke(false);
+              }}
+            >
+              <p className="font-semibold text-white">
+                Vuoi davvero revocare il consenso?
+              </p>
+              <p className="mt-1">
+                La registrazione si ferma subito e la sessione viene annullata:{' '}
+                <strong className="text-white">
+                  non verrà prodotta nessuna trascrizione AI e nessun riepilogo
+                </strong>
+                , per nessuno dei due partecipanti. Non si può annullare.
+              </p>
+              {session.viewerRole === 'coach' && (
+                <p className="mt-1">
+                  Se volevi solo terminare la sessione, usa «Fine sessione».
+                </p>
+              )}
+              <div className="mt-2 flex flex-wrap items-center gap-4">
+                <button
+                  type="button"
+                  autoFocus
+                  className="font-semibold text-white underline"
+                  disabled={loading}
+                  onClick={() => setConfirmingRevoke(false)}
+                >
+                  Annulla, continua la registrazione
+                </button>
+                <button
+                  type="button"
+                  className="text-white/80 underline"
+                  disabled={loading}
+                  onClick={() => {
+                    setConfirmingRevoke(false);
+                    void mutate(`/api/ai-session-notes/${session.id}/consent`, {
+                      decision: 'revoked',
+                    });
+                  }}
+                >
+                  {loading ? 'Revoca in corso…' : 'Sì, revoca il consenso'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="text-xs font-medium text-white/80 underline"
+              disabled={loading}
+              onClick={() => setConfirmingRevoke(true)}
+            >
+              Revoca il mio consenso
+            </button>
+          )}
+        </div>
         {error && <p className="mt-1 text-xs text-red-300">{error}</p>}
         </div>
       </CollapsibleOverlay>
