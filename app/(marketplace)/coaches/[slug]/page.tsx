@@ -30,6 +30,17 @@ import { getUser } from '@/lib/db/queries';
 import { getAllSports, getAllSpecialties } from '@/lib/core/taxonomies';
 import { hasRole } from '@/lib/core/auth';
 import { canSeeCoachPricing } from '@/lib/core/flags';
+import {
+  formatEuroCents,
+  formatLongDateRome,
+  getAthleteSubscriptionForCoach,
+  getPlansVisibleToAthlete,
+  perSessionCents,
+  purchaseNoticeFor,
+  subscribedOn,
+} from '@/lib/core/billing';
+import { PlanPicker } from '@/components/plan-picker';
+import { SubscriptionCard } from '@/components/subscription-card';
 import { CoachAvatar, CertifiedBadge } from '@/components/coach-visuals';
 import { CoachExperienceStats } from '@/components/coach-experience-stats';
 import { FavoriteButton } from '@/components/favorite-button';
@@ -142,12 +153,13 @@ export default async function CoachDetailPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ richiesta?: string }>;
+  searchParams: Promise<{ richiesta?: string; abbonamento?: string }>;
 }) {
   const { slug } = await params;
   // After a booking request the user lands back here with ?richiesta=ok and
   // the booking box shows a clear confirmation instead of the form.
-  const justRequested = (await searchParams).richiesta === 'ok';
+  const query = await searchParams;
+  const justRequested = query.richiesta === 'ok';
   const user = await getUser();
   const coach = await getCoachBySlug(slug, { viewerUserId: user?.id });
   if (!coach) {
@@ -172,6 +184,26 @@ export default async function CoachDetailPage({
       user ? getFavoriteProviderIds(user.id) : Promise.resolve(new Set<number>()),
     ]);
   const isAthlete = user ? await hasRole(user.id, 'athlete') : false;
+  // I piani mensili sono visibili solo a un atleta con un account e solo se il
+  // coach può incassare. `showPricing` non cambia: alimenta anche i dati
+  // strutturati per i motori di ricerca, dove questi prezzi non devono finire.
+  const plans = await getPlansVisibleToAthlete({
+    providerId: coach.providerId,
+    viewerIsAthlete: isAthlete,
+  });
+  const showHourlyRate = showPricing || plans.length > 0;
+  const subscription =
+    user && isAthlete && plans.length > 0
+      ? await getAthleteSubscriptionForCoach({
+          athleteUserId: user.id,
+          providerId: coach.providerId,
+        })
+      : null;
+  // Il testo dell'esito lo sceglie il modulo dal codice: il parametro
+  // dell'indirizzo non può mai far comparire una frase scritta da altri.
+  const purchaseNotice = purchaseNoticeFor(query.abbonamento, {
+    subscriptionActive: subscription?.status === 'active',
+  });
   const isDemo = user?.isDemo ?? false;
 
   const config = getVerticalConfig();
@@ -524,6 +556,77 @@ export default async function CoachDetailPage({
             </section>
           )}
 
+          {/* Percorsi mensili: solo per un atleta con un account e un coach
+              che può incassare (vedi `getPlansVisibleToAthlete`). */}
+          {plans.length > 0 && (
+            <section
+              id="percorsi"
+              className="mt-10 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7"
+              aria-labelledby="percorsi-titolo"
+            >
+              <h2 id="percorsi-titolo" className="text-xl font-semibold text-gray-900">
+                Percorsi mensili con {firstName}
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Un abbonamento mensile con un numero fisso di sedute. Paghi con
+                carta e l&apos;importo va direttamente a {firstName}.
+              </p>
+              {purchaseNotice && (
+                <p
+                  role={purchaseNotice.tone === 'error' ? 'alert' : 'status'}
+                  className={
+                    purchaseNotice.tone === 'error'
+                      ? 'mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800'
+                      : purchaseNotice.tone === 'ok'
+                        ? 'mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800'
+                        : 'mt-4 rounded-xl bg-blue-50 px-4 py-3 text-sm text-gray-700'
+                  }
+                >
+                  {purchaseNotice.text}
+                </p>
+              )}
+              {subscription?.status === 'active' || subscription?.status === 'past_due' ? (
+                <div className="mt-4">
+                  <SubscriptionCard
+                    slug={slug}
+                    coachFirstName={firstName}
+                    subscription={{
+                      id: subscription.id,
+                      planName: subscription.planName,
+                      sessionsPerMonth: subscription.sessionsPerMonth,
+                      priceLabel: formatEuroCents(subscription.monthlyPriceCents),
+                      perSessionLabel: formatEuroCents(
+                        perSessionCents(
+                          subscription.monthlyPriceCents,
+                          subscription.sessionsPerMonth
+                        )
+                      ),
+                      sinceLabel: formatLongDateRome(subscribedOn(subscription)),
+                      status: subscription.status,
+                      cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+                      periodEndLabel: subscription.currentPeriodEnd
+                        ? formatDate(subscription.currentPeriodEnd)
+                        : null,
+                    }}
+                  />
+                </div>
+              ) : (
+                <PlanPicker
+                  slug={slug}
+                  coachFirstName={firstName}
+                  plans={plans.map((plan) => ({
+                    id: plan.id,
+                    name: plan.name,
+                    description: plan.description,
+                    isRecommended: plan.isRecommended,
+                    sessionsPerMonth: plan.sessionsPerMonth,
+                    monthlyPriceCents: plan.monthlyPriceCents,
+                  }))}
+                />
+              )}
+            </section>
+          )}
+
           {/* Booking card: calendario, obiettivo, invio. Niente più campo
               servizio/durata da scegliere — la durata di riferimento è
               quella del servizio principale del coach (vedi
@@ -535,7 +638,7 @@ export default async function CoachDetailPage({
                   <CardTitle className="text-lg">
                     Inizia il tuo percorso con {firstName}
                   </CardTitle>
-                  {showPricing && coach.hourlyRate != null && (
+                  {showHourlyRate && coach.hourlyRate != null && (
                     <p className="text-sm text-muted-foreground">
                       a partire da{' '}
                       <span className="font-semibold text-gray-900">

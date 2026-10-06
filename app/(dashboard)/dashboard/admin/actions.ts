@@ -8,6 +8,7 @@ import {
   type VerificationField,
 } from '@/lib/core/admin';
 import { recordAdminAudit } from '@/lib/core/admin/audit-log';
+import { setCoachPaymentsEnabled } from '@/lib/core/billing';
 import type { ActionState } from '@/lib/auth/middleware';
 
 /**
@@ -105,4 +106,35 @@ export async function toggleIdentityVerifiedAction(formData: FormData) {
 
 export async function toggleCertificationsVerifiedAction(formData: FormData) {
   await setVerification(formData, 'certifications');
+}
+
+/**
+ * Attiva o spegne i pagamenti di un coach. Spento = il coach e i suoi atleti
+ * vedono la piattaforma com'era; acceso = il coach vede la sezione Pagamenti e
+ * può fare la verifica d'identità con Stripe. Gli atleti vedranno i prezzi solo
+ * a verifica completata.
+ */
+export async function toggleCoachPaymentsAction(formData: FormData) {
+  const admin = await requireRole('admin');
+  const providerId = Number(formData.get('providerId'));
+  const enabled = formData.get('value') === '1';
+  if (!Number.isInteger(providerId)) return;
+
+  const result = await setCoachPaymentsEnabled({
+    providerId,
+    enabled,
+    actorUserId: admin.id,
+  });
+
+  await recordAdminAudit({
+    actor: { id: admin.id, email: admin.email },
+    action: 'coach_payments_toggled',
+    subjectType: 'provider_profile',
+    subjectId: providerId,
+    outcome: result.ok ? 'ok' : 'fallita',
+    detail: { attivo: enabled },
+  });
+
+  revalidatePath('/dashboard/admin/coach');
+  revalidatePath('/dashboard/coach', 'layout');
 }

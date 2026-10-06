@@ -14,6 +14,7 @@ import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/lib/db/drizzle';
 import {
   providerProfiles,
+  coachBillingProfiles,
   profiles,
   clientProfiles,
   bookings,
@@ -28,6 +29,10 @@ import { ageFromBirthDate, requiresGuardian } from '@/lib/core/guardians';
 import { buildCoachRosters, type CoachRoster } from './coach-roster';
 import { buildTodaySessions, type AdminTodaySession } from './today-sessions';
 import { getSystemConfigNumber } from '@/lib/core/system-config';
+import {
+  coachPaymentsState,
+  type CoachPaymentsState,
+} from '@/lib/core/billing/coach-payments';
 import type { AdminBookingRow } from './booking-rows';
 import {
   computeCoachOnboarding,
@@ -40,6 +45,10 @@ import { MAX_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
 
 export type ProviderReviewItem = {
   id: number;
+  /** L'utente coach: serve a collegare ciò che non è nel profilo pubblico. */
+  userId: number;
+  /** Stato dei pagamenti decisi dall'admin e verificati da Stripe. */
+  paymentsState: CoachPaymentsState;
   slug: string | null;
   displayName: string | null;
   email: string;
@@ -92,6 +101,7 @@ export async function getProviderProfilesForReview(): Promise<
   const rows = await db
     .select({
       id: providerProfiles.id,
+      userId: providerProfiles.userId,
       slug: providerProfiles.slug,
       displayName: profiles.displayName,
       email: users.email,
@@ -115,10 +125,18 @@ export async function getProviderProfilesForReview(): Promise<
       reviewedAt: providerProfiles.reviewedAt,
       registeredAt: users.createdAt,
       submittedAt: providerProfiles.submittedAt,
+      paymentsEnabled: coachBillingProfiles.paymentsEnabled,
+      onboardingStatus: coachBillingProfiles.onboardingStatus,
+      chargesEnabled: coachBillingProfiles.chargesEnabled,
+      payoutsEnabled: coachBillingProfiles.payoutsEnabled,
     })
     .from(providerProfiles)
     .innerJoin(users, eq(providerProfiles.userId, users.id))
     .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
+    .leftJoin(
+      coachBillingProfiles,
+      eq(coachBillingProfiles.coachUserId, providerProfiles.userId)
+    )
     .leftJoin(reviewer, eq(reviewer.id, providerProfiles.reviewedBy))
     .where(NOT_DEMO)
     .orderBy(desc(users.createdAt));
@@ -146,8 +164,21 @@ export async function getProviderProfilesForReview(): Promise<
     serviceCounts.map((row) => [row.providerId, row.value])
   );
 
-  return rows.map(({ description, ...row }) => ({
+  return rows.map(
+    ({
+      description,
+      paymentsEnabled,
+      onboardingStatus,
+      chargesEnabled,
+      payoutsEnabled,
+      ...row
+    }) => ({
     ...row,
+    paymentsState: coachPaymentsState(
+      paymentsEnabled === null
+        ? null
+        : { paymentsEnabled, onboardingStatus: onboardingStatus ?? 'not_started', chargesEnabled: chargesEnabled ?? false, payoutsEnabled: payoutsEnabled ?? false }
+    ),
     onboarding: computeCoachOnboarding(
       {
         headline: row.headline,
@@ -158,7 +189,8 @@ export async function getProviderProfilesForReview(): Promise<
       },
       serviceCountByProvider.get(row.id) ?? 0
     ),
-  }));
+    })
+  );
 }
 
 export type AthleteAdminItem = {

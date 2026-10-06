@@ -34,6 +34,7 @@ import {
 import { getSystemConfigNumber } from '@/lib/core/system-config';
 import { usedIntroSessionProviderIds } from '@/lib/core/services/intro-booking';
 import { CoachCard } from '@/components/coach-card';
+import { getPlanOffersForCoaches } from '@/lib/core/billing';
 import { CoachesFilterForm } from '@/components/coaches-filter-form';
 import {
   athleteNeeds,
@@ -202,7 +203,14 @@ export default async function CoachesPage({
   const cardProviderIds = [
     ...new Set([...coaches, ...fallback].map((c) => c.providerId)),
   ];
-  const [availByProvider, busyByProvider, stepMinutes, daysAhead, introUsedIds] =
+  const [
+    availByProvider,
+    busyByProvider,
+    stepMinutes,
+    daysAhead,
+    introUsedIds,
+    planOffers,
+  ] =
     await Promise.all([
       getCoachAvailabilityByProviderIds(cardProviderIds),
       getCoachBusyIntervalsByProviderIds(cardProviderIds),
@@ -211,6 +219,13 @@ export default async function CoachesPage({
       user && isAthlete
         ? usedIntroSessionProviderIds(user.id, cardProviderIds)
         : Promise.resolve(new Set<number>()),
+      // I piani da offrire sulle schede: una lettura per tutti i coach, solo
+      // per un atleta e solo per chi può incassare (vedi la funzione).
+      getPlanOffersForCoaches({
+        providerIds: cardProviderIds,
+        viewerUserId: user?.id ?? null,
+        viewerIsAthlete: isAthlete,
+      }),
     ]);
   const bookableDaysByProvider = new Map<number, BookableDay[]>(
     cardProviderIds.map((id) => [
@@ -527,6 +542,7 @@ export default async function CoachesPage({
             selectedNeeds={selectedNeeds}
             bookableDaysByProvider={bookableDaysByProvider}
             introUsedIds={introUsedIds}
+            planOffers={planOffers}
             isDemo={isDemo}
             viewerEmail={user?.email}
           />
@@ -541,6 +557,7 @@ export default async function CoachesPage({
                 sportsList={categories}
                 bookableDays={bookableDaysByProvider.get(coach.providerId) ?? []}
                 introAlreadyUsed={introUsedIds.has(coach.providerId)}
+                planOffers={planOffers.get(coach.providerId)}
                 isDemo={isDemo}
                 viewerEmail={user?.email}
               />
@@ -646,6 +663,7 @@ function NoResults({
   selectedNeeds,
   bookableDaysByProvider,
   introUsedIds,
+  planOffers,
   isDemo,
   viewerEmail,
 }: {
@@ -657,6 +675,7 @@ function NoResults({
   selectedNeeds: AthleteNeed[];
   bookableDaysByProvider: Map<number, BookableDay[]>;
   introUsedIds: Set<number>;
+  planOffers: Awaited<ReturnType<typeof getPlanOffersForCoaches>>;
   isDemo: boolean;
   viewerEmail?: string | null;
 }) {
@@ -702,6 +721,7 @@ function NoResults({
                 sportsList={categories}
                 bookableDays={bookableDaysByProvider.get(coach.providerId) ?? []}
                 introAlreadyUsed={introUsedIds.has(coach.providerId)}
+                planOffers={planOffers.get(coach.providerId)}
                 isDemo={isDemo}
                 viewerEmail={viewerEmail}
               />

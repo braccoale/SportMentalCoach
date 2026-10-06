@@ -1,5 +1,13 @@
 import 'server-only';
 import { INTRO_SESSION, isIntroDurationValid } from '@/lib/core/services/introduction';
+import {
+  checkBookingCredits,
+  creditsSummary,
+  decideBookingAccess,
+  getBookingCreditContexts,
+  getSubscribedProviderIds,
+  type BookingCreditContext,
+} from '@/lib/core/billing';
 import { ensureIntroService, hasUsedIntroSession } from '@/lib/core/services/intro-booking';
 import {
   and,
@@ -53,6 +61,7 @@ import {
   describeAvailability,
   getBookableDays,
   getCoachBusyIntervalsByProviderIds,
+  parseRomeLocalDateTime,
   type BookableDay,
 } from '@/lib/core/availability';
 import { getSystemConfigNumber } from '@/lib/core/system-config';
@@ -473,6 +482,21 @@ export async function createBookingRequest(params: {
       };
     }
 
+    // Con un coach a pagamento servono un abbonamento e una seduta disponibile
+    // nel periodo della data scelta. Il controllo sta qui, nella stessa
+    // transazione e sotto lo stesso blocco: due richieste simultanee non
+    // possono superare le sedute. La sessione conoscitiva gratuita ne è esente.
+    const credits = await checkBookingCredits(tx, {
+      coachUserId: provider.userId,
+      providerId: provider.id,
+      clientUserId: params.clientUserId,
+      scheduledFor: params.scheduledFor ?? new Date(),
+      isIntro: Boolean(svc.isIntro),
+    });
+    if (!credits.ok) {
+      return { ok: false as const, error: credits.message };
+    }
+
     const [created] = await tx
       .insert(bookings)
       .values({
@@ -643,7 +667,96 @@ export type RelationshipCoach = {
   canCallNow: boolean;
   /** Whether the athlete has this coach among their favourites. */
   isFavorite: boolean;
+  /**
+   * Le sedute dell'abbonamento con questo coach, se è un coach a pagamento con
+   * cui l'atleta è abbonato. `null` per tutti gli altri: nessun cambiamento.
+   */
+  credits: RelationshipCredits | null;
+  /**
+   * Perché la lista di date è vuota o ristretta, quando dipende dalle sedute:
+   * già scritto in italiano dal server, che è chi decide.
+   */
+  creditsNotice: string | null;
 };
+
+export type RelationshipCredits = {
+  total: number;
+  remainingNow: number | null;
+  remainingNext: number | null;
+  /** «6 novembre 2026»: quando arrivano le nuove sedute. */
+  renewalLabel: string | null;
+  cancelAtPeriodEnd: boolean;
+  pastDue: boolean;
+};
+
+/**
+ * Applica a un coach della lista la regola delle sedute. Il coach a pagamento
+ * senza abbonamento è già stato tolto prima. Per un coach abbonato si offrono
+ * solo le date che `createBookingRequest` accetterebbe, con la stessa funzione
+ * (`decideBookingAccess`): offrire ciò che il server poi rifiuta sembra un
+ * guasto.
+ */
+function applyBookingCredits<
+  T extends { bookableDays: BookableDay[]; canCallNow: boolean }
+>(
+  coach: T,
+  context: BookingCreditContext | undefined,
+  now: Date
+): T & { credits: RelationshipCredits | null; creditsNotice: string | null } {
+  const subscription = context?.subscription ?? null;
+  if (!context || !context.requiresSubscription || !subscription) {
+    return { ...coach, credits: null, creditsNotice: null };
+  }
+
+  const check = (at: Date) =>
+    decideBookingAccess({
+      requiresSubscription: true,
+      isIntro: false,
+      subscription,
+      scheduledFor: at,
+      bookings: context.bookings,
+    });
+
+  const days = coach.bookableDays
+    .map((day) => ({
+      ...day,
+      times: day.times.filter((time) => {
+        const at = parseRomeLocalDateTime(`${day.value}T${time}`);
+        return at ? check(at).ok : false;
+      }),
+    }))
+    .filter((day) => day.times.length > 0);
+
+  const summary = creditsSummary(subscription, context.bookings);
+  let creditsNotice: string | null = null;
+  if (days.length === 0 && coach.bookableDays.length > 0) {
+    // Nessuna data ammessa: la ragione è quella del primo orario che avremmo
+    // offerto, la stessa che darebbe il server.
+    const firstDay = coach.bookableDays[0];
+    const at = parseRomeLocalDateTime(`${firstDay.value}T${firstDay.times[0]}`);
+    const decision = at ? check(at) : null;
+    creditsNotice = decision && !decision.ok ? decision.message : null;
+  } else if (subscription.status === 'past_due') {
+    creditsNotice = check(now).ok ? null : (check(now) as { message: string }).message;
+  } else if (summary.remainingNow === 0 && summary.renewalLabel) {
+    creditsNotice = `Hai già usato tutte le ${summary.total} sedute di questo periodo: puoi prenotare a partire dal ${summary.renewalLabel}.`;
+  }
+
+  return {
+    ...coach,
+    bookableDays: days,
+    canCallNow: coach.canCallNow && check(now).ok,
+    credits: {
+      total: summary.total,
+      remainingNow: summary.remainingNow,
+      remainingNext: summary.remainingNext,
+      renewalLabel: summary.renewalLabel,
+      cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+      pastDue: subscription.status === 'past_due',
+    },
+    creditsNotice,
+  };
+}
 
 /**
  * Approved coaches an athlete already has a relationship with — coaches they
@@ -663,7 +776,7 @@ export async function getAthleteRelationshipCoaches(
   if (!viewer || viewer.isDemo) return [];
 
   // Providers from prior bookings (with recency) ∪ favourites.
-  const [booked, faved] = await Promise.all([
+  const [booked, faved, subscribedIds] = await Promise.all([
     db
       .select({
         providerId: bookings.providerId,
@@ -676,6 +789,8 @@ export async function getAthleteRelationshipCoaches(
       .select({ providerId: favorites.providerId })
       .from(favorites)
       .where(eq(favorites.userId, userId)),
+    // Un coach con cui ho un abbonamento è «noto» anche se non ho mai prenotato.
+    getSubscribedProviderIds(userId),
   ]);
 
   // Most-recent booking time per provider, to surface the last-followed coach first.
@@ -689,6 +804,7 @@ export async function getAthleteRelationshipCoaches(
     ...new Set([
       ...booked.map((r) => r.providerId),
       ...faved.map((r) => r.providerId),
+      ...subscribedIds,
     ]),
   ];
   if (providerIds.length === 0) return [];
@@ -761,14 +877,22 @@ export async function getAthleteRelationshipCoaches(
   // Un solo istante per tutti i coach della lista: due letture dell'orologio
   // potrebbero cadere a cavallo di un minuto e rendere la lista incoerente.
   const now = new Date();
-  const [stepMinutes, daysAhead] = await Promise.all([
+  const [stepMinutes, daysAhead, creditContexts] = await Promise.all([
     getSystemConfigNumber('AVAILABILITY_BOOKING_START_STEP_MINUTES', 10),
     getSystemConfigNumber('AVAILABILITY_BOOKING_DAYS_AHEAD', 90),
+    getBookingCreditContexts(userId, providerIds),
   ]);
 
   return coaches
     .filter((c) => c.slug)
+    // Un coach a pagamento senza abbonamento non si prenota da qui: la sua
+    // strada è «Abbonati» (o la sessione conoscitiva gratuita dalla scheda).
+    .filter((c) => {
+      const context = creditContexts.get(c.id);
+      return !(context?.requiresSubscription && !context.subscription);
+    })
     .map((c) => ({
+      _providerId: c.id,
       slug: c.slug!,
       name: c.name ?? 'Coach',
       avatarUrl: c.avatarUrl,
@@ -803,6 +927,9 @@ export async function getAthleteRelationshipCoaches(
       _favorite: favedIds.has(c.id),
       _recency: lastByProvider.get(c.id) ?? 0,
     }))
+    .map(({ _providerId, ...coach }) =>
+      applyBookingCredits(coach, creditContexts.get(_providerId), now)
+    )
     // Favourited coaches float to the top; then last-followed first;
     // favourited-only coaches (no booking) alphabetically after that.
     .sort(

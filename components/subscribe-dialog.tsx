@@ -1,0 +1,56 @@
+'use client';
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { PlanPicker, type PickerPlan } from '@/components/plan-picker';
+
+/**
+ * «Abbonati» sulla scheda del coach: apre i percorsi in una finestra, senza
+ * far passare dal profilo. La scelta e il pagamento sono gli stessi del
+ * profilo (`PlanPicker` e la sua azione): una sola regola, due ingressi.
+ */
+export function SubscribeDialog({
+  slug,
+  coachFirstName,
+  plans,
+}: {
+  slug: string;
+  coachFirstName: string;
+  plans: PickerPlan[];
+}) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+        >
+          Abbonati
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-5xl rounded-3xl p-6 sm:p-8">
+        <DialogTitle className="text-xl font-bold sm:text-3xl">
+          Percorsi mensili con {coachFirstName}
+        </DialogTitle>
+        <DialogDescription>
+          Un abbonamento mensile con un numero fisso di sedute. Paghi con carta
+          e l&apos;importo va direttamente a {coachFirstName}.
+        </DialogDescription>
+        <PlanPicker
+          slug={slug}
+          coachFirstName={coachFirstName}
+          plans={plans}
+          variant="dialog"
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Esportato per chi vuole riusare il tipo senza importare il picker.
+export type { PickerPlan };

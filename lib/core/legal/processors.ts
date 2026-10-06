@@ -7,9 +7,10 @@
  * JSX drifts silently. When you add or drop an integration, update this array
  * and bump `LEGAL_LAST_UPDATED`.
  *
- * Only services that are actually wired up belong here. Notably absent:
- *   - Stripe — the dependency and key exist, but billing is off
- *     (`BILLING_ENABLED` unset), so no payment data is processed today.
+ * Only services that are actually wired up belong here. Stripe joined the list
+ * with the coach payments (card subscriptions and the identity check of the
+ * coaches who receive them). The old team-subscription billing of the starter
+ * template (`BILLING_ENABLED`) is a separate thing and stays off.
  *
  * Deepgram and OpenAI joined the list when the AI session notes shipped: until
  * then the policy said audio was never recorded, which stopped being true the
@@ -65,6 +66,15 @@ export const SUB_PROCESSORS: SubProcessor[] = [
     location: 'Stati Uniti (clausole contrattuali standard)',
   },
   {
+    name: 'Stripe (Stripe Payments Europe, Ltd.)',
+    purpose:
+      'Pagamenti con carta degli abbonamenti ai percorsi dei coach e verifica d’identità dei coach che li ricevono',
+    data:
+      'Per chi paga: email, nome e dati della carta, che si inseriscono direttamente su Stripe e che KaiPai non conserva. Per i coach: dati d’identità, indirizzo, codice fiscale e coordinate bancarie richiesti per la verifica',
+    location:
+      'Unione Europea e Stati Uniti (clausole contrattuali standard)',
+  },
+  {
     name: 'Resend',
     purpose: 'Invio delle email di servizio (conferme, promemoria, avvisi)',
     data: 'Indirizzo email, nome e contenuto della notifica',
@@ -101,7 +111,7 @@ export const SUB_PROCESSORS: SubProcessor[] = [
  * different dates for the same revision looks like an oversight, because it
  * usually is one.
  */
-export const LEGAL_LAST_UPDATED = '18 agosto 2026';
+export const LEGAL_LAST_UPDATED = '6 ottobre 2026';
 
 /**
  * The address cited across every legal document — informativa, Termini and

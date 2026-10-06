@@ -7,8 +7,8 @@ import {
   LayoutDashboard,
   CalendarDays,
   MessageSquare,
-  UserRound,
   LifeBuoy,
+  Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -25,10 +25,15 @@ const TABS = [
     icon: MessageSquare,
   },
   {
-    href: '/dashboard/athlete/profile',
-    label: 'Profilo',
-    icon: UserRound,
-  },  {
+    // Prende il posto di «Profilo», che ora è nel menu in alto a destra.
+    // Compare solo per chi ha già un abbonamento: gli altri non vedono niente
+    // di nuovo.
+    href: '/dashboard/athlete/abbonamenti',
+    label: 'Abbonamenti',
+    icon: Wallet,
+    requiresSubscriptions: true,
+  },
+  {
     href: '/dashboard/supporto',
     label: 'Supporto',
     icon: LifeBuoy,
@@ -38,8 +43,11 @@ const TABS = [
 export function AthleteNav({
   unreadMessages = 0,
   athleteName,
+  hasSubscriptions = false,
 }: {
   unreadMessages?: number;
+  /** L'atleta ha o ha avuto un abbonamento: mostra il tab «Abbonamenti». */
+  hasSubscriptions?: boolean;
   /** Shown next to the area title. */
   athleteName?: string | null;
 }) {
@@ -76,7 +84,9 @@ export function AthleteNav({
       </div>
 
       <nav className="mt-4 flex gap-1 overflow-x-auto px-4">
-        {TABS.map((tab) => {
+        {TABS.filter(
+          (tab) => !('requiresSubscriptions' in tab) || hasSubscriptions
+        ).map((tab) => {
           const active =
             tab.href === '/dashboard/athlete'
               ? pathname === tab.href

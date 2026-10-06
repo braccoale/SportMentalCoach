@@ -617,6 +617,34 @@
       "when": 1789749605192,
       "tag": "0087_silent_leper_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1791293356226,
+      "tag": "0088_pagamenti_coach_fase1",
+      "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1791298625011,
+      "tag": "0089_abbonamenti_atleta_webhook",
+      "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1791299437518,
+      "tag": "0090_piani_descrizione_consigliato",
+      "breakpoints": true
+    },
+    {
+      "idx": 91,
+      "version": "7",
+      "when": 1791302344634,
+      "tag": "0091_abbonamento_data_sottoscrizione",
+      "breakpoints": true
     }
   ]
 }
