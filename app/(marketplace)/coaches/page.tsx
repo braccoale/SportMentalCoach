@@ -34,7 +34,13 @@ import {
 import { getSystemConfigNumber } from '@/lib/core/system-config';
 import { usedIntroSessionProviderIds } from '@/lib/core/services/intro-booking';
 import { CoachCard } from '@/components/coach-card';
-import { getPlanOffersForCoaches } from '@/lib/core/billing';
+import {
+  formatEuroCents,
+  getBookingCreditContexts,
+  getPlanOffersForCoaches,
+  getSingleSessionOffersByProvider,
+} from '@/lib/core/billing';
+import { applyBookingCredits } from '@/lib/core/bookings';
 import { CoachesFilterForm } from '@/components/coaches-filter-form';
 import {
   athleteNeeds,
@@ -210,6 +216,8 @@ export default async function CoachesPage({
     daysAhead,
     introUsedIds,
     planOffers,
+    creditContexts,
+    singleOffers,
   ] =
     await Promise.all([
       getCoachAvailabilityByProviderIds(cardProviderIds),
@@ -226,6 +234,14 @@ export default async function CoachesPage({
         viewerUserId: user?.id ?? null,
         viewerIsAthlete: isAthlete,
       }),
+      // Chi ha già pagato (abbonamento o seduta acquistata) trova sulla scheda
+      // «Prenota una seduta», non «Abbonati»: il contesto dice chi è.
+      user && isAthlete && !isDemo
+        ? getBookingCreditContexts(user.id, cardProviderIds)
+        : Promise.resolve(new Map()),
+      user && isAthlete && !isDemo
+        ? getSingleSessionOffersByProvider(cardProviderIds)
+        : Promise.resolve(new Map<number, number>()),
     ]);
   const bookableDaysByProvider = new Map<number, BookableDay[]>(
     cardProviderIds.map((id) => [
@@ -237,6 +253,41 @@ export default async function CoachesPage({
       }),
     ])
   );
+
+  const bookingNow = new Date();
+  const bookingAccessByProvider = new Map<
+    number,
+    { days: BookableDay[]; notice: string | null; remaining: number | null }
+  >();
+  for (const id of cardProviderIds) {
+    const context = creditContexts.get(id);
+    if (
+      !context ||
+      !context.requiresSubscription ||
+      (!context.subscription && context.credits.length === 0)
+    ) {
+      continue;
+    }
+    // Le stesse date che accetterebbe il server: offrire e poi negare sembra
+    // un guasto (vedi `applyBookingCredits`).
+    const view = applyBookingCredits(
+      { bookableDays: bookableDaysByProvider.get(id) ?? [], canCallNow: true },
+      context,
+      bookingNow
+    );
+    const credits = view.credits;
+    bookingAccessByProvider.set(id, {
+      days: view.bookableDays,
+      notice: view.creditsNotice,
+      remaining: !credits
+        ? null
+        : credits.total === 0
+          ? credits.extraSessions
+          : credits.remainingNow === null
+            ? null
+            : credits.remainingNow + credits.extraSessions,
+    });
+  }
 
   const resultsTitle =
     selectedNeeds.length === 1
@@ -558,6 +609,12 @@ export default async function CoachesPage({
                 bookableDays={bookableDaysByProvider.get(coach.providerId) ?? []}
                 introAlreadyUsed={introUsedIds.has(coach.providerId)}
                 planOffers={planOffers.get(coach.providerId)}
+                singleSessionPriceLabel={
+                  singleOffers.has(coach.providerId)
+                    ? formatEuroCents(singleOffers.get(coach.providerId)!)
+                    : null
+                }
+                bookingAccess={bookingAccessByProvider.get(coach.providerId) ?? null}
                 isDemo={isDemo}
                 viewerEmail={user?.email}
               />

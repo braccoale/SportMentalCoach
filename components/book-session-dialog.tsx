@@ -1,0 +1,99 @@
+'use client';
+
+import { ArrowRight } from 'lucide-react';
+import { BookingRequest } from '@/app/(marketplace)/coaches/[slug]/booking-request';
+import { BuySessionButton } from '@/components/buy-session-button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import type { BookableDay } from '@/lib/core/availability';
+
+/**
+ * «Prenota una seduta · 2 rimaste»: per l'atleta che ha già pagato (un
+ * abbonamento o una seduta acquistata). Apre il modulo di prenotazione in una
+ * finestra, senza passare dal profilo. Le date sono già quelle che il server
+ * accetterebbe (`applyBookingCredits`): qui non si decide niente.
+ *
+ * Se le sedute sono finite e il coach vende una seduta singola, la finestra la
+ * offre invece di un calendario vuoto che direbbe «il coach non è libero».
+ */
+export function BookSessionDialog({
+  slug,
+  coachFirstName,
+  services,
+  bookableDays,
+  notice,
+  remaining,
+  singlePriceLabel,
+}: {
+  slug: string;
+  coachFirstName: string;
+  services: { id: number; title: string | null; durationMin: number | null }[];
+  bookableDays: BookableDay[];
+  /** Perché le date sono poche o nessuna, già scritto dal server. */
+  notice: string | null;
+  /** Sedute ancora disponibili adesso (piano + extra); `null` se non si sa. */
+  remaining: number | null;
+  singlePriceLabel: string | null;
+}) {
+  const label =
+    remaining === null
+      ? 'Prenota una seduta'
+      : `Prenota una seduta · ${remaining} ${remaining === 1 ? 'rimasta' : 'rimaste'}`;
+  const noDays = bookableDays.length === 0;
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+        >
+          {label} <ArrowRight className="h-4 w-4" aria-hidden />
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto rounded-3xl p-6">
+        <DialogTitle className="pr-8 text-xl">
+          Prenota una seduta con {coachFirstName}
+        </DialogTitle>
+        <DialogDescription>
+          {remaining === null
+            ? 'Scegli il giorno e l’ora.'
+            : remaining === 0
+              ? 'Hai finito le sedute di questo periodo.'
+              : `Ti ${remaining === 1 ? 'resta' : 'restano'} ${remaining} ${remaining === 1 ? 'seduta' : 'sedute'}: scegli il giorno e l’ora.`}
+        </DialogDescription>
+
+        {notice && (
+          <p
+            role="status"
+            className="mt-4 rounded-md bg-blue-50 px-3 py-2 text-sm text-gray-700"
+          >
+            {notice}
+          </p>
+        )}
+
+        {!noDays && (
+          <div className="mt-4">
+            <BookingRequest
+              slug={slug}
+              coachFirstName={coachFirstName}
+              services={services}
+              bookableDays={bookableDays}
+            />
+          </div>
+        )}
+
+        {singlePriceLabel && (remaining === 0 || noDays) && (
+          <div className="mt-4">
+            <BuySessionButton slug={slug} priceLabel={singlePriceLabel} />
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}

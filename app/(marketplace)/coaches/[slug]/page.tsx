@@ -37,6 +37,7 @@ import {
   getBookingCreditContexts,
   getPaymentMethodLabels,
   getSessionUsageForSubscriptions,
+  getSingleSessionOffersByProvider,
   getPlansVisibleToAthlete,
   perSessionCents,
   purchaseNoticeFor,
@@ -276,11 +277,23 @@ export default async function CoachDetailPage({
           coach.providerId
         )
       : undefined;
+  // Chi ha comprato una seduta a parte può prenotarla anche senza abbonamento.
+  const hasPurchasedSessions = (creditContext?.credits.length ?? 0) > 0;
   const needsSubscription = Boolean(
-    creditContext?.requiresSubscription && !creditContext.subscription
+    creditContext?.requiresSubscription &&
+      !creditContext.subscription &&
+      !hasPurchasedSessions
   );
+  const singleCents =
+    user && isAthlete && !isDemo
+      ? ((await getSingleSessionOffersByProvider([coach.providerId])).get(
+          coach.providerId
+        ) ?? null)
+      : null;
+  const singlePriceLabel = singleCents ? formatEuroCents(singleCents) : null;
   const creditView =
-    creditContext?.requiresSubscription && creditContext.subscription
+    creditContext?.requiresSubscription &&
+    (creditContext.subscription || hasPurchasedSessions)
       ? applyBookingCredits(
           { bookableDays, canCallNow: true },
           creditContext,
@@ -655,6 +668,16 @@ export default async function CoachDetailPage({
                         : null,
                       usage: subscriptionUsage ?? { known: false },
                       paymentMethodLabel: subscriptionPaymentMethod,
+                      singleSessionPriceLabel: singlePriceLabel,
+                      extraSessions:
+                        creditContext && creditContext.credits.length > 0
+                          ? {
+                              count: creditContext.credits.length,
+                              expiryLabel: formatLongDateRome(
+                                creditContext.credits[0].expiresAt
+                              ),
+                            }
+                          : null,
                     }}
                   />
                 </div>
@@ -662,6 +685,7 @@ export default async function CoachDetailPage({
                 <PlanPicker
                   slug={slug}
                   coachFirstName={firstName}
+                  single={singlePriceLabel ? { priceLabel: singlePriceLabel } : null}
                   plans={plans.map((plan) => ({
                     id: plan.id,
                     name: plan.name,

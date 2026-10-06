@@ -62,3 +62,24 @@ export const PLAN_TERMS: readonly PlanTerm[] = [
 export function definedTermCount(): number {
   return PLAN_TERMS.filter((term) => term.text !== null).length;
 }
+
+/**
+ * Le condizioni di UNA seduta acquistata a parte. Stesse regole di
+ * `PLAN_TERMS`: un testo solo per ciò che il prodotto mantiene davvero, il
+ * resto «Da definire». La validità di 60 giorni è vera (la scrive il webhook
+ * e la rispetta la prenotazione); rimborso e recesso restano da decidere.
+ */
+export const SINGLE_SESSION_TERMS: readonly PlanTerm[] = [
+  {
+    key: 'pagamento',
+    title: 'Pagamento',
+    text: 'Un solo pagamento con carta, su Stripe. L’importo va direttamente al coach. Nessun rinnovo.',
+  },
+  {
+    key: 'utilizzo_sedute',
+    title: 'Validità',
+    text: 'La seduta si può prenotare entro 60 giorni dal pagamento.',
+  },
+  { key: 'disdetta_seduta', title: 'Disdetta di una seduta', text: null },
+  { key: 'rimborsi_recesso', title: 'Rimborsi e recesso', text: null },
+];

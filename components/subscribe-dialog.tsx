@@ -18,10 +18,12 @@ export function SubscribeDialog({
   slug,
   coachFirstName,
   plans,
+  single,
 }: {
   slug: string;
   coachFirstName: string;
   plans: PickerPlan[];
+  single?: { priceLabel: string } | null;
 }) {
   return (
     <Dialog>
@@ -45,6 +47,7 @@ export function SubscribeDialog({
           slug={slug}
           coachFirstName={coachFirstName}
           plans={plans}
+          single={single}
           variant="dialog"
         />
       </DialogContent>

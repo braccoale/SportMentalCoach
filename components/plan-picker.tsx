@@ -28,10 +28,15 @@ import {
 } from '@/lib/core/billing/session-plan';
 import {
   PLAN_TERMS,
+  SINGLE_SESSION_TERMS,
   UNDEFINED_TERM_LABEL,
+  type PlanTerm,
   type PlanTermKey,
 } from '@/lib/core/billing/plan-terms';
-import { startPlanCheckoutAction } from '@/app/(marketplace)/coaches/subscribe-actions';
+import {
+  buySingleSessionAction,
+  startPlanCheckoutAction,
+} from '@/app/(marketplace)/coaches/subscribe-actions';
 
 export type PickerPlan = {
   id: number;
@@ -84,10 +89,16 @@ function SubscribeButton({
  * Le condizioni del piano, voce per voce. Una voce non ancora decisa o
  * costruita dice «Da definire»: mai una promessa che il prodotto non mantiene.
  */
-function TermsList({ tinted }: { tinted?: boolean }) {
+function TermsList({
+  tinted,
+  terms = PLAN_TERMS,
+}: {
+  tinted?: boolean;
+  terms?: readonly PlanTerm[];
+}) {
   return (
     <ul className="flex flex-col gap-3">
-      {PLAN_TERMS.map((term) => {
+      {terms.map((term) => {
         const Icon = TERM_ICON[term.key];
         const defined = term.text !== null;
         return (
@@ -140,11 +151,14 @@ export function PlanPicker({
   slug,
   coachFirstName,
   variant = 'page',
+  single,
 }: {
   plans: PickerPlan[];
   slug: string;
   coachFirstName: string;
   variant?: 'page' | 'dialog';
+  /** Il prezzo di una seduta singola, già formattato; assente = non si vende. */
+  single?: { priceLabel: string } | null;
 }) {
   const [selectedId, setSelectedId] = useState<number | null>(
     defaultSelectedPlanId(plans)
@@ -153,14 +167,25 @@ export function PlanPicker({
   // chiudono ripremendo il piano già scelto. Serve uno stato a parte: un radio
   // già selezionato non emette nessun evento di cambio.
   const [detailsOpen, setDetailsOpen] = useState(true);
+  // «Una sola seduta» è una scelta a parte: non è un piano e non si rinnova.
+  const [singleSelected, setSingleSelected] = useState(false);
   const selected = plans.find((plan) => plan.id === selectedId) ?? plans[0];
   const dialog = variant === 'dialog';
 
   function choose(planId: number) {
-    if (planId === selected.id) {
+    if (!singleSelected && planId === selected.id) {
       setDetailsOpen((open) => !open);
     } else {
+      setSingleSelected(false);
       setSelectedId(planId);
+      setDetailsOpen(true);
+    }
+  }
+  function chooseSingle() {
+    if (singleSelected) {
+      setDetailsOpen((open) => !open);
+    } else {
+      setSingleSelected(true);
       setDetailsOpen(true);
     }
   }
@@ -170,7 +195,7 @@ export function PlanPicker({
 
   const rows = plans.map((plan, index) => {
     const accent = ACCENT[planAccentForPosition(index)];
-    const isSelected = plan.id === selected.id;
+    const isSelected = !singleSelected && plan.id === selected.id;
     const perSession = formatEuroCents(
       perSessionCents(plan.monthlyPriceCents, plan.sessionsPerMonth)
     );
@@ -297,6 +322,75 @@ export function PlanPicker({
     );
   });
 
+  const singleRow = single ? (
+    <li key="single" className="@container">
+      <label
+        className={cn(
+          'flex cursor-pointer items-center justify-between gap-3 rounded-2xl border transition-colors focus-within:ring-2 focus-within:ring-emerald-600 focus-within:ring-offset-2',
+          dialog ? 'px-3.5 py-2.5' : 'px-4 py-3 @[38rem]:px-5 @[38rem]:py-4',
+          singleSelected
+            ? 'border-emerald-500 bg-emerald-50/60'
+            : 'border-dashed border-gray-300 bg-white hover:border-gray-400'
+        )}
+      >
+        <input
+          type="radio"
+          name="planId"
+          value="single"
+          checked={singleSelected}
+          onClick={chooseSingle}
+          onChange={() => undefined}
+          className="sr-only"
+        />
+        <span className="min-w-0">
+          <span
+            className={cn(
+              'block font-semibold',
+              dialog ? 'text-base' : 'text-lg',
+              singleSelected ? 'text-emerald-600' : 'text-gray-900'
+            )}
+          >
+            Una sola seduta
+          </span>
+          <span className="block text-xs text-gray-600">
+            Senza abbonamento · valida 60 giorni
+          </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-3">
+          <span className="text-right leading-tight">
+            <span className="block text-base font-bold text-gray-900">
+              {single.priceLabel}
+            </span>
+            <span className="block text-xs text-gray-500">una tantum</span>
+          </span>
+          <span
+            aria-hidden
+            className={cn(
+              'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2',
+              singleSelected ? 'border-emerald-600' : 'border-gray-300'
+            )}
+          >
+            {singleSelected && <span className="h-2.5 w-2.5 rounded-full bg-emerald-600" />}
+          </span>
+        </span>
+      </label>
+      {!dialog && singleSelected && detailsOpen && (
+        <div className="mt-2 rounded-2xl border border-emerald-100 bg-white px-5 py-4">
+          <h3 className="mb-3 text-sm font-semibold text-gray-900">
+            Condizioni della seduta singola
+          </h3>
+          <TermsList terms={SINGLE_SESSION_TERMS} />
+        </div>
+      )}
+    </li>
+  ) : null;
+
+  const allRows = [...rows, singleRow];
+  const submitAction = singleSelected ? buySingleSessionAction : startPlanCheckoutAction;
+  const submitLabel = singleSelected
+    ? `Compra una seduta · ${single?.priceLabel ?? ''}`
+    : null;
+
   const payNote = (
     <p className="flex items-center gap-2 text-sm text-gray-500">
       <Lock className="h-4 w-4 shrink-0" aria-hidden />
@@ -307,22 +401,40 @@ export function PlanPicker({
 
   if (dialog) {
     return (
-      <form action={startPlanCheckoutAction} className="mt-5">
+      <form action={submitAction} className="mt-5">
         <input type="hidden" name="slug" value={slug} />
         <div className="grid gap-5 lg:grid-cols-[1.15fr_1fr]">
           <div className="flex min-w-0 flex-col gap-4">
             <fieldset>
               <legend className="sr-only">Scegli il tuo percorso mensile</legend>
-              <ul className="flex flex-col gap-2.5">{rows}</ul>
+              <ul className="flex flex-col gap-2.5">{allRows}</ul>
             </fieldset>
             <SubscribeButton
-              label="Vai al pagamento"
+              label={submitLabel ?? 'Vai al pagamento'}
               withArrow
               className="h-12 w-full rounded-xl text-base"
             />
             {payNote}
           </div>
 
+          {singleSelected && single ? (
+            <aside
+              aria-label="La tua seduta singola"
+              className="rounded-2xl bg-emerald-50/70 p-5"
+            >
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                La tua seduta singola
+              </p>
+              <h3 className="mt-2 text-2xl font-bold text-gray-900">Una sola seduta</h3>
+              <p className="mt-1 text-sm text-gray-700">
+                1 seduta con {coachFirstName} a {single.priceLabel}, senza
+                abbonamento
+              </p>
+              <div className="mt-4 border-t border-emerald-100 pt-4">
+                <TermsList tinted terms={SINGLE_SESSION_TERMS} />
+              </div>
+            </aside>
+          ) : (
           <aside
             aria-label="Il tuo piano di abbonamento"
             className="rounded-2xl bg-emerald-50/70 p-5"
@@ -359,22 +471,23 @@ export function PlanPicker({
               <TermsList tinted />
             </div>
           </aside>
+          )}
         </div>
       </form>
     );
   }
 
   return (
-    <form action={startPlanCheckoutAction} className="mt-4">
+    <form action={submitAction} className="mt-4">
       <input type="hidden" name="slug" value={slug} />
       <fieldset>
         <legend className="sr-only">Scegli il tuo percorso mensile</legend>
-        <ul className="flex flex-col gap-3">{rows}</ul>
+        <ul className="flex flex-col gap-3">{allRows}</ul>
       </fieldset>
 
       <div className="mt-4 flex flex-col items-start gap-2">
         <SubscribeButton
-          label={`Abbonati a ${selected.name}`}
+          label={submitLabel ?? `Abbonati a ${selected.name}`}
           className="w-full rounded-full sm:w-auto"
         />
         {payNote}

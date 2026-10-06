@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   PLAN_TERMS,
+  SINGLE_SESSION_TERMS,
   UNDEFINED_TERM_LABEL,
   definedTermCount,
 } from './plan-terms';
@@ -35,5 +36,19 @@ describe('PLAN_TERMS', () => {
       assert.equal(PLAN_TERMS.find((t) => t.key === key)?.text, null, key);
     }
     assert.equal(definedTermCount(), 3);
+  });
+});
+
+describe('SINGLE_SESSION_TERMS', () => {
+  it('dice la validità vera e lascia da definire ciò che non è deciso', () => {
+    const validity = SINGLE_SESSION_TERMS.find((t) => t.key === 'utilizzo_sedute');
+    assert.match(validity?.text ?? '', /60 giorni/);
+    for (const key of ['disdetta_seduta', 'rimborsi_recesso']) {
+      assert.equal(SINGLE_SESSION_TERMS.find((t) => t.key === key)?.text, null, key);
+    }
+  });
+  it('ogni voce ha chiave unica e titolo', () => {
+    const keys = SINGLE_SESSION_TERMS.map((t) => t.key);
+    assert.equal(new Set(keys).size, keys.length);
   });
 });

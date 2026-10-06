@@ -11,7 +11,9 @@ import { FavoriteButton } from '@/components/favorite-button';
 import { CoachChatButton } from '@/components/coach-chat-button';
 import { ShareCoachButton } from '@/components/share-coach-button';
 import { IntroSessionButton } from '@/components/intro-session-button';
+import { BookSessionDialog } from '@/components/book-session-dialog';
 import { SubscribeDialog } from '@/components/subscribe-dialog';
+import type { BookableDay as CardBookableDay } from '@/lib/core/availability';
 import { StatMedal } from '@/components/coach-experience-stats';
 import { canSeeCoachPricing } from '@/lib/core/flags';
 import { DEMO_READONLY_MESSAGE } from '@/lib/auth/demo-readonly';
@@ -56,6 +58,8 @@ export function CoachCard({
   introAlreadyUsed,
   isDemo = false,
   planOffers,
+  singleSessionPriceLabel,
+  bookingAccess,
   viewerEmail,
 }: {
   coach: DiscoveryCoach;
@@ -81,6 +85,18 @@ export function CoachCard({
     sessionsPerMonth: number;
     monthlyPriceCents: number;
   }>;
+  /** Il prezzo di una seduta singola, già formattato; assente se il coach non la vende. */
+  singleSessionPriceLabel?: string | null;
+  /**
+   * Presente se l'atleta ha già pagato (abbonamento o seduta acquistata): il
+   * pulsante diventa «Prenota una seduta · N rimaste» e apre il modulo con le
+   * date che il server accetterebbe.
+   */
+  bookingAccess?: {
+    days: CardBookableDay[];
+    notice: string | null;
+    remaining: number | null;
+  } | null;
   /** Email di chi guarda la card, per il pilota chiuso del prezzo
    * (`canSeeCoachPricing`) — vedi lib/core/flags.ts. */
   viewerEmail?: string | null;
@@ -266,6 +282,20 @@ export function CoachCard({
               >
                 Prenota un incontro <ArrowRight className="h-4 w-4" />
               </span>
+            ) : bookingAccess ? (
+              <BookSessionDialog
+                slug={coach.slug}
+                coachFirstName={firstName}
+                services={(coach.services ?? []).map((service) => ({
+                  id: service.id,
+                  title: service.title,
+                  durationMin: service.durationMin,
+                }))}
+                bookableDays={bookingAccess.days}
+                notice={bookingAccess.notice}
+                remaining={bookingAccess.remaining}
+                singlePriceLabel={singleSessionPriceLabel ?? null}
+              />
             ) : planOffers && planOffers.length > 0 ? (
               // Con dei piani acquistabili il pulsante della scheda è
               // «Abbonati», che apre i percorsi: «Prenota un incontro» porta
@@ -284,6 +314,11 @@ export function CoachCard({
                   sessionsPerMonth: plan.sessionsPerMonth,
                   monthlyPriceCents: plan.monthlyPriceCents,
                 }))}
+                single={
+                  singleSessionPriceLabel
+                    ? { priceLabel: singleSessionPriceLabel }
+                    : null
+                }
               />
             ) : (
               <Link

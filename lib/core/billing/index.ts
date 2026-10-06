@@ -1611,3 +1611,21 @@ export async function getStandaloneCreditHolders(
     };
   });
 }
+
+/** Come `getSingleSessionOffers`, ma per profilo coach (`provider_profiles.id`). */
+export async function getSingleSessionOffersByProvider(
+  providerIds: number[]
+): Promise<Map<number, number>> {
+  const result = new Map<number, number>();
+  if (providerIds.length === 0) return result;
+  const providers = await db
+    .select({ id: providerProfiles.id, userId: providerProfiles.userId })
+    .from(providerProfiles)
+    .where(inArray(providerProfiles.id, providerIds));
+  const offers = await getSingleSessionOffers(providers.map((p) => p.userId));
+  for (const provider of providers) {
+    const cents = offers.get(provider.userId);
+    if (cents) result.set(provider.id, cents);
+  }
+  return result;
+}
