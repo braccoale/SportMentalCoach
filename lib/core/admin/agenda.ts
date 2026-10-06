@@ -4,6 +4,8 @@ import { db } from '@/lib/db/drizzle';
 import { formatRomeDateValue } from '@/lib/core/format';
 import { ageFromBirthDate, requiresGuardian } from '@/lib/core/guardians';
 import { buildDaySessions, type AdminTodaySession } from './today-sessions';
+import { participantPresence } from './session-presence';
+import { videoParticipantReference } from '@/lib/core/video/technical-events-server';
 import { getSystemConfigNumber } from '@/lib/core/system-config';
 import type { AdminBookingRow } from './booking-rows';
 import { romeDayStart, romeDayStartShifted, romeDayValueToInstant } from './period';
@@ -45,6 +47,7 @@ type RawDayRow = {
   requested_at: Date | string;
   session_started_at: Date | string | null;
   session_ended_at: Date | string | null;
+  coach_user_id: number;
   client_name: string | null;
   client_email: string;
   athlete_birth_date: string | null;
@@ -90,6 +93,7 @@ export async function getAdminDaySessions(
       b.requested_at,
       b.session_started_at,
       b.session_ended_at,
+      pp.user_id AS coach_user_id,
       nullif(trim(concat(coalesce(atleta.name, ''), ' ', coalesce(atleta.last_name, ''))), '') AS client_name,
       atleta.email AS client_email,
       cp.birth_date AS athlete_birth_date,
@@ -135,9 +139,73 @@ export async function getAdminDaySessions(
    * e' un minore, non quando compie gli anni. Stessa regola di
    * `getAdminBookingRows`.
    */
+  // Chi è entrato e chi ha accettato la trascrizione: due letture per tutta la
+  // giornata, non due per riga.
+  const bookingIds = rows.map((row) => Number(row.id));
+  const joinedByBooking = new Map<number, Set<string>>();
+  // Per ogni prenotazione, il consenso di ciascun utente nell'ULTIMA sessione di
+  // appunti: una chiamata riaperta o annullata non deve mostrare il consenso di
+  // un tentativo precedente.
+  const consentByBooking = new Map<number, Map<number, string>>();
+  if (bookingIds.length > 0) {
+    const ids = sql.join(
+      bookingIds.map((id) => sql`${id}`),
+      sql`, `
+    );
+    const [joined, consents] = await Promise.all([
+      db.execute(sql`
+        SELECT DISTINCT booking_id, participant_ref
+        FROM video_session_events
+        WHERE booking_id IN (${ids})
+          AND event_type = 'participant_joined'
+          AND participant_kind = 'authenticated'
+          AND participant_ref IS NOT NULL
+      `) as unknown as Promise<{ booking_id: number; participant_ref: string }[]>,
+      db.execute(sql`
+        SELECT san.booking_id, c.user_id, c.consent_status
+        FROM session_ai_consents c
+        JOIN session_ai_notes san ON san.id = c.session_ai_notes_id
+        WHERE san.booking_id IN (${ids})
+          AND san.id = (
+            SELECT max(latest.id) FROM session_ai_notes latest
+            WHERE latest.booking_id = san.booking_id
+          )
+      `) as unknown as Promise<
+        { booking_id: number; user_id: number; consent_status: string }[]
+      >,
+    ]);
+    for (const row of joined) {
+      const key = Number(row.booking_id);
+      const set = joinedByBooking.get(key) ?? new Set<string>();
+      set.add(row.participant_ref);
+      joinedByBooking.set(key, set);
+    }
+    for (const row of consents) {
+      const key = Number(row.booking_id);
+      const map = consentByBooking.get(key) ?? new Map<number, string>();
+      map.set(Number(row.user_id), row.consent_status);
+      consentByBooking.set(key, map);
+    }
+  }
+
   const bookingRows: AdminBookingRow[] = rows.map((row) => {
     const age = ageFromBirthDate(row.athlete_birth_date);
+    const bookingId = Number(row.id);
+    const joinedRefs = joinedByBooking.get(bookingId) ?? new Set<string>();
+    const consents = consentByBooking.get(bookingId);
+    const coachUserId = Number(row.coach_user_id);
+    const athleteUserId = Number(row.client_id);
     return {
+      coachPresence: participantPresence({
+        joinedRefs,
+        ref: videoParticipantReference(`user-${coachUserId}`),
+        consentStatus: consents?.get(coachUserId),
+      }),
+      athletePresence: participantPresence({
+        joinedRefs,
+        ref: videoParticipantReference(`user-${athleteUserId}`),
+        consentStatus: consents?.get(athleteUserId),
+      }),
       id: Number(row.id),
       clientId: Number(row.client_id),
       providerId: Number(row.provider_id),

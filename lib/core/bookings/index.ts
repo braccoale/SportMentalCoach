@@ -11,6 +11,8 @@ import {
   type BookingCreditContext,
 } from '@/lib/core/billing';
 import { ensureIntroService, hasUsedIntroSession } from '@/lib/core/services/intro-booking';
+import { coachPickerAthleteIds } from './coach-picker';
+import { ACTIVE_STATUSES } from './coach-athletes';
 import {
   and,
   asc,
@@ -35,6 +37,7 @@ import {
   favorites,
   messages,
   providerProfiles,
+  referrals,
   profiles,
   sessionAudioRecordings,
   sessionAiNotes,
@@ -1031,14 +1034,17 @@ export async function getCoachRelationshipAthletes(
 }
 
 /**
- * Every athlete registered on the platform — all users holding the `athlete`
- * role, regardless of whether this coach has worked with them before. Powers
- * the coach-side "Nuovo appuntamento" picker so a coach can open a session with
- * any athlete, not only prior clients. Safeguarding is still enforced at
- * booking time: `createCoachBookingRequest` rejects minors without a confirmed
- * guardian.
+ * Gli atleti con cui un coach può fissare una sessione dal menu «Nuovo
+ * appuntamento»: quelli che ha **portato lui** (registrati con il suo link di
+ * invito) e quelli **non portati da lui ma già «in percorso»** con lui, cioè
+ * con almeno una prenotazione aperta. La regola è `coachPickerAthleteIds`.
+ *
+ * Prima elencava tutti gli atleti della piattaforma: un coach vedeva persone
+ * che non aveva mai incontrato. La protezione resta quella di sempre al
+ * momento della prenotazione: `createCoachBookingRequest` rifiuta un
+ * minorenne senza autorizzazione del tutore e chi non è un atleta.
  */
-export async function getAllAthletes(
+export async function getCoachSchedulableAthletes(
   viewerUserId: number
 ): Promise<RelationshipAthlete[]> {
   const [viewer] = await db
@@ -1047,6 +1053,29 @@ export async function getAllAthletes(
     .where(eq(users.id, viewerUserId))
     .limit(1);
   if (!viewer || viewer.isDemo) return [];
+
+  const [referred, inProgress] = await Promise.all([
+    db
+      .select({ athleteUserId: referrals.referredUserId })
+      .from(referrals)
+      .where(eq(referrals.inviterUserId, viewerUserId)),
+    db
+      .selectDistinct({ athleteUserId: bookings.clientId })
+      .from(bookings)
+      .innerJoin(providerProfiles, eq(providerProfiles.id, bookings.providerId))
+      .where(
+        and(
+          eq(providerProfiles.userId, viewerUserId),
+          inArray(bookings.status, ACTIVE_STATUSES)
+        )
+      ),
+  ]);
+
+  const ids = coachPickerAthleteIds({
+    referredIds: referred.map((row) => row.athleteUserId),
+    inProgressIds: inProgress.map((row) => row.athleteUserId),
+  }).filter((id) => id !== viewerUserId);
+  if (ids.length === 0) return [];
 
   const rows = await db
     .select({
@@ -1061,12 +1090,21 @@ export async function getAllAthletes(
       and(eq(userRoles.userId, users.id), eq(userRoles.roleKey, 'athlete'))
     )
     .leftJoin(profiles, eq(profiles.userId, users.id))
-    .where(and(isNull(users.deletedAt), eq(users.isDemo, false)));
+    .where(
+      and(
+        inArray(users.id, ids),
+        isNull(users.deletedAt),
+        eq(users.isDemo, false)
+      )
+    );
 
-  // Un coach con i pagamenti attivi pianifica solo con i propri abbonati: gli
-  // altri atleti non si offrono, perché il server rifiuterebbe la sessione.
+  // Un coach con i pagamenti attivi pianifica solo con chi ha già pagato (un
+  // abbonamento o una seduta acquistata): gli altri non si offrono, perché il
+  // server rifiuterebbe la sessione.
   const subscribers = await getSubscriberUserIdsIfRequired(viewerUserId);
 
+  // Ordine: prima i portati da lui, poi gli altri; a parità, alfabetico.
+  const rank = new Map(ids.map((id, index) => [id, index]));
   return rows
     .filter((r) => !subscribers || subscribers.has(r.userId))
     .map((r) => ({
@@ -1074,7 +1112,11 @@ export async function getAllAthletes(
       name: resolveDisplayName(r.name, r.email),
       avatarUrl: r.avatarUrl,
     }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort(
+      (a, b) =>
+        (rank.get(a.userId) ?? 0) - (rank.get(b.userId) ?? 0) ||
+        a.name.localeCompare(b.name)
+    );
 }
 
 /**

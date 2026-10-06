@@ -31,7 +31,14 @@ const finishedRoomEvents = alias(
   'history_room_finished_events'
 );
 
-function participantReference(identity: string | undefined): string | null {
+/**
+ * Il riferimento con cui un partecipante compare negli eventi tecnici: una
+ * firma (HMAC) della sua identità, non l'identità. Chi legge gli eventi lo
+ * ricalcola con lo stesso segreto per riconoscere una persona.
+ */
+export function videoParticipantReference(
+  identity: string | undefined
+): string | null {
   if (!identity) return null;
   const secret =
     process.env.AUTH_SECRET ?? process.env.LIVEKIT_API_SECRET ?? 'kaipai';
@@ -351,7 +358,7 @@ export async function recordLiveKitWebhookEvent(
       eventType: event.event,
       roomName: roomName!,
       roomSid: asOptionalString(event.room?.sid),
-      participantRef: participantReference(participantIdentity),
+      participantRef: videoParticipantReference(participantIdentity),
       participantKind: participantTechnicalKind(participantIdentity),
       participantSid: asOptionalString(event.participant?.sid),
       trackKind: asOptionalString(event.track?.type, 24),
@@ -418,7 +425,7 @@ export async function recordClientVideoEvent(
     source: 'client',
     eventType,
     roomName: `booking-${bookingId}`,
-    participantRef: participantReference(`user-${userId}`),
+    participantRef: videoParticipantReference(`user-${userId}`),
     participantKind: 'authenticated',
     details: sanitizeTechnicalEventDetails(rawDetails),
     occurredAt: new Date(),

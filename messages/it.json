@@ -109,6 +109,15 @@
     "academy": "Academy",
     "teams": "Società sportive",
     "notFound": "Non trovi la risposta? Contattaci:",
-    "contact": "Scrivici"
+    "contact": "Scrivici",
+    "contactCta": "Supporto",
+    "searchLabel": "Cerca nel supporto",
+    "searchPlaceholder": "Cerca una domanda…",
+    "clearSearch": "Cancella la ricerca",
+    "resultsNone": "Nessun risultato",
+    "resultsOne": "1 risultato",
+    "resultsMany": "{count} risultati",
+    "noResults": "Nessun risultato per «{query}».",
+    "noResultsHint": "Prova con altre parole, oppure scrivici: ti rispondiamo noi."
   }
 }

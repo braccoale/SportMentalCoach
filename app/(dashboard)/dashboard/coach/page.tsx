@@ -18,7 +18,7 @@ import {
   bookingStatusLabel,
   bookingStatusTone,
   getCoachBookings,
-  getAllAthletes,
+  getCoachSchedulableAthletes,
   type CoachBooking,
 } from '@/lib/core/bookings';
 import { lastServiceByAthlete } from '@/lib/core/bookings/coach-athletes';
@@ -149,7 +149,7 @@ export default async function CoachDashboardPage() {
     getProviderProfileByUser(user.id),
     getCoachBookings(user.id),
     getUnreadCountForType(user.id, 'new_message'),
-    getAllAthletes(user.id),
+    getCoachSchedulableAthletes(user.id),
     getCoachServices(user.id),
     getCoachAvailability(user.id),
     hasFeatureEntitlement(user.id, FEATURE_CODES.AI_SESSION_NOTES),
