@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
-  UserRound,
   Briefcase,
   CalendarDays,
   GraduationCap,
@@ -22,7 +21,6 @@ const TABS = [
   { href: '/dashboard/coach/calendar', label: 'Calendario', icon: CalendarDays },
   { href: '/dashboard/coach/academy', label: 'Academy', icon: GraduationCap },
   { href: '/dashboard/coach/messages', label: 'Messaggi', icon: MessageSquare },
-  { href: '/dashboard/coach/profile', label: 'Profilo', icon: UserRound },
   { href: '/dashboard/coach/services', label: 'Servizi', icon: Briefcase },
   // Solo se l'admin ha attivato i pagamenti per questo coach.
   {

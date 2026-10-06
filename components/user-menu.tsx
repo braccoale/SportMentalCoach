@@ -54,8 +54,8 @@ export function UserMenu({
   );
   const isAdmin = rolesData?.roles?.includes('admin') ?? false;
   // Il profilo dell'atleta sta qui e non più nella barra a tab, dove ora c'è
-  // «Abbonamenti». Chi è anche coach ha già il proprio «Profilo» nei tab
-  // dell'area coach: qui la voce dice di quale profilo si tratta.
+  // «Abbonamenti»; quello del coach non è più un tab dell'area coach. Chi ha
+  // entrambi i ruoli trova due voci, e l'etichetta dice di quale profilo si tratta.
   const isAthlete = rolesData?.roles?.includes('athlete') ?? false;
   const isCoach = rolesData?.roles?.includes('coach') ?? false;
 
@@ -99,6 +99,14 @@ export function UserMenu({
               <Link href="/dashboard/athlete/profile" onClick={closeMenu}>
                 <UserRound className="size-4" />
                 <span>{isCoach ? t('athleteProfile') : t('profile')}</span>
+              </Link>
+            </DropdownMenuItem>
+          )}
+          {isCoach && (
+            <DropdownMenuItem asChild className="cursor-pointer" onSelect={closeMenu}>
+              <Link href="/dashboard/coach/profile" onClick={closeMenu}>
+                <UserRound className="size-4" />
+                <span>{isAthlete ? t('coachProfile') : t('profile')}</span>
               </Link>
             </DropdownMenuItem>
           )}
