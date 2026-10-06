@@ -12,7 +12,12 @@ import type { CoachAthleteBooking } from '@/lib/core/bookings/coach-athletes';
  * serve entrambe: una lettura sola del database, due letture diverse degli
  * stessi fatti.
  */
+import type { ParticipantPresence } from './session-presence';
+
 export type AdminBookingRow = CoachAthleteBooking & {
+  /** Chi è entrato e chi ha accettato la trascrizione, per coach e atleta. */
+  coachPresence?: ParticipantPresence;
+  athletePresence?: ParticipantPresence;
   /** Il profilo coach a cui la prenotazione appartiene. */
   providerId: number;
   /** Già risolto lato server: nome del profilo, nome e cognome, o email. */

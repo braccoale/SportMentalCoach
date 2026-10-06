@@ -2,6 +2,7 @@ import { athleteDisplayName } from '@/lib/core/bookings/coach-athletes';
 import { formatRomeDateValue } from '@/lib/core/format';
 import { isSessionLive } from './live-session-state';
 import { callSpan, type CallSpan } from './call-span';
+import { NOBODY, type ParticipantPresence } from './session-presence';
 import type { AdminBookingRow } from './booking-rows';
 import {
   transcriptionOutcome,
@@ -53,6 +54,10 @@ export type AdminTodaySession = {
   transcription: TranscriptionOutcome;
   /** Inizio, fine e durata reali della videochiamata (vedi `call-span.ts`). */
   call: CallSpan;
+  /** Il coach: è entrato? ha accettato la trascrizione? */
+  coach: ParticipantPresence;
+  /** L'atleta: stesse due domande. */
+  athlete: ParticipantPresence;
 };
 
 /**
@@ -123,6 +128,8 @@ export function buildDaySessions(
         isLive,
         now,
       }),
+      coach: row.coachPresence ?? NOBODY,
+      athlete: row.athletePresence ?? NOBODY,
       };
     });
 }
