@@ -113,7 +113,6 @@ export default async function AthleteSubscriptionsPage({
               <li key={subscription.id}>
                 <SubscriptionCard
                   slug={coach.slug ?? ''}
-                  coachFirstName={coach.firstName}
                   coachName={coach.name}
                   coachAvatarUrl={coach.avatarUrl}
                   profileHref={coach.slug ? `/coaches/${coach.slug}` : null}

@@ -49,12 +49,11 @@ export type SubscriptionCardData = {
 
 type Props = {
   slug: string;
-  coachFirstName: string;
   subscription: SubscriptionCardData;
   /** `abbonamenti` = si torna alla pagina dell'atleta invece che al profilo. */
   returnTo?: 'abbonamenti';
-  /** Se presente, la scheda è quella della pagina dell'atleta. */
-  coachName?: string;
+  /** Il nome del coach: la scheda dice con chi è l'abbonamento. */
+  coachName: string;
   coachAvatarUrl?: string | null;
   profileHref?: string | null;
 };
@@ -246,14 +245,13 @@ function InfoItem({
  * L'annullamento vale **a fine periodo**, non subito: ha già pagato fino a
  * quella data. Chiede conferma e dice che cosa succede.
  *
- * Due forme, stessa logica: la scheda piccola sul profilo del coach e la scheda
- * della pagina «Abbonamenti» dell'atleta (quando c'è `coachName`), con le
- * sedute fatte e rimaste, il rinnovo, il prossimo pagamento e il metodo di
- * pagamento.
+ * Una sola scheda, usata sia nella pagina «Abbonamenti» dell'atleta sia sul
+ * profilo del coach: sedute fatte e rimaste, rinnovo, prossimo pagamento e
+ * metodo di pagamento. Prima il profilo ne aveva una versione piccola e
+ * diversa: due schede per la stessa cosa invecchiano in modo diverso.
  */
 export function SubscriptionCard({
   slug,
-  coachFirstName,
   subscription,
   returnTo,
   coachName,
@@ -266,202 +264,157 @@ export function SubscriptionCard({
     ? `fino al ${periodEndLabel}`
     : 'fino alla fine del periodo già pagato';
 
-  // ---- Scheda della pagina dell'atleta ----
-  if (coachName) {
-    const pill = pastDue
-      ? { label: 'Pagamento da sistemare', tone: 'bg-amber-100 text-amber-800', dot: 'bg-amber-500', warn: true }
-      : cancelAtPeriodEnd
-        ? { label: 'Annullato', tone: 'bg-amber-100 text-amber-800', dot: 'bg-amber-500', warn: true }
-        : { label: 'Piano attivo', tone: 'bg-emerald-100 text-emerald-800', dot: 'bg-emerald-600', warn: false };
-    const usage = subscription.usage;
-    const sessionWord = (n: number, one: string, many: string) => (n === 1 ? one : many);
+  const pill = pastDue
+    ? { label: 'Pagamento da sistemare', tone: 'bg-amber-100 text-amber-800', dot: 'bg-amber-500', warn: true }
+    : cancelAtPeriodEnd
+      ? { label: 'Annullato', tone: 'bg-amber-100 text-amber-800', dot: 'bg-amber-500', warn: true }
+      : { label: 'Piano attivo', tone: 'bg-emerald-100 text-emerald-800', dot: 'bg-emerald-600', warn: false };
+  const usage = subscription.usage;
+  const sessionWord = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
-    return (
-      <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-white via-white to-emerald-50/80 p-4">
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_250px]">
-          {/* Sinistra: chi, quanto, e le sedute */}
-          <div className="flex min-w-0 flex-col gap-3.5">
-            <div className="flex items-center gap-3">
-              <CoachAvatar
-                name={coachName}
-                src={coachAvatarUrl ?? null}
-                className="size-11 shrink-0"
-              />
-              <div className="min-w-0">
-                <h3 className="text-lg font-bold tracking-tight text-gray-900">
-                  Abbonamento con{' '}
-                  {profileHref ? (
-                    <a
-                      href={profileHref}
-                      className="underline-offset-4 hover:underline"
-                    >
-                      {coachName}
-                    </a>
-                  ) : (
-                    coachName
-                  )}
-                </h3>
-                <p className="text-sm text-gray-600">
-                  <span className="font-semibold text-emerald-700">
-                    {subscription.planName}
-                  </span>
-                  {' · '}
-                  {subscription.sessionsPerMonth}{' '}
-                  {sessionWord(subscription.sessionsPerMonth, 'seduta', 'sedute')} al
-                  mese · {subscription.priceLabel} al mese
-                  {subscription.sinceLabel
-                    ? ` · dal ${subscription.sinceLabel}`
-                    : ''}
-                </p>
-              </div>
-            </div>
-
-            {usage?.known && (
-              <div className="grid gap-2.5 sm:grid-cols-2">
-                <UsageTile
-                  icon={CalendarCheck}
-                  value={usage.done}
-                  label={sessionWord(usage.done, 'seduta fatta', 'sedute fatte')}
-                  caption={`su ${usage.total} questo mese`}
-                  total={usage.total}
-                  filled={usage.done}
-                />
-                <UsageTile
-                  icon={CalendarDays}
-                  value={usage.remaining}
-                  label={sessionWord(usage.remaining, 'seduta rimasta', 'sedute rimaste')}
-                  caption={
-                    usage.booked > 0
-                      ? `su ${usage.total} questo mese · ${usage.booked} già ${sessionWord(usage.booked, 'prenotata', 'prenotate')}`
-                      : `su ${usage.total} questo mese`
-                  }
-                  total={usage.total}
-                  filled={usage.remaining}
-                  tinted
-                />
-              </div>
-            )}
-            {usage?.known && usage.overBooked && (
-              <p className="-mt-1.5 text-xs text-amber-800">
-                Hai fissato più sedute di quelle incluse nel piano.
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-white via-white to-emerald-50/80 p-4">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_250px]">
+        {/* Sinistra: chi, quanto, e le sedute */}
+        <div className="flex min-w-0 flex-col gap-3.5">
+          <div className="flex items-center gap-3">
+            <CoachAvatar
+              name={coachName}
+              src={coachAvatarUrl ?? null}
+              className="size-11 shrink-0"
+            />
+            <div className="min-w-0">
+              <h3 className="text-lg font-bold tracking-tight text-gray-900">
+                Abbonamento con{' '}
+                {profileHref ? (
+                  <a
+                    href={profileHref}
+                    className="underline-offset-4 hover:underline"
+                  >
+                    {coachName}
+                  </a>
+                ) : (
+                  coachName
+                )}
+              </h3>
+              <p className="text-sm text-gray-600">
+                <span className="font-semibold text-emerald-700">
+                  {subscription.planName}
+                </span>
+                {' · '}
+                {subscription.sessionsPerMonth}{' '}
+                {sessionWord(subscription.sessionsPerMonth, 'seduta', 'sedute')} al
+                mese · {subscription.priceLabel} al mese
+                {subscription.sinceLabel
+                  ? ` · dal ${subscription.sinceLabel}`
+                  : ''}
               </p>
-            )}
-
-            <div className="grid gap-3 border-t border-emerald-100 pt-3 sm:grid-cols-3">
-              <InfoItem
-                icon={CalendarDays}
-                label={cancelAtPeriodEnd ? 'Termina' : 'Rinnovo'}
-                value={periodEndLabel ? `il ${periodEndLabel}` : '—'}
-              />
-              <InfoItem
-                icon={CreditCard}
-                label="Prossimo pagamento"
-                value={cancelAtPeriodEnd ? 'Nessuno' : subscription.priceLabel}
-              />
-              <InfoItem
-                icon={Percent}
-                label="Costo a seduta"
-                value={`circa ${subscription.perSessionLabel}`}
-              />
             </div>
           </div>
 
-          {/* Destra: stato, metodo di pagamento, gestione */}
-          <div className="relative flex flex-col gap-3 lg:border-l lg:border-emerald-100 lg:pl-4">
-            <div
-              aria-hidden
-              className="pointer-events-none absolute -top-1 right-0 hidden h-16 w-20 sm:block"
-            >
-              <SubscriptionIllustration className="h-full w-full" />
-            </div>
-
-            <span
-              className={cn(
-                'inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold',
-                pill.tone
-              )}
-            >
-              {pill.warn ? (
-                <TriangleAlert className="h-3.5 w-3.5" aria-hidden />
-              ) : (
-                <span className={cn('h-2 w-2 rounded-full', pill.dot)} aria-hidden />
-              )}
-              {pill.label}
-            </span>
-
-            {subscription.paymentMethodLabel && (
-              <InfoItem
-                icon={CreditCard}
-                label="Metodo di pagamento"
-                value={subscription.paymentMethodLabel}
+          {usage?.known && (
+            <div className="grid gap-2.5 sm:grid-cols-2">
+              <UsageTile
+                icon={CalendarCheck}
+                value={usage.done}
+                label={sessionWord(usage.done, 'seduta fatta', 'sedute fatte')}
+                caption={`su ${usage.total} questo mese`}
+                total={usage.total}
+                filled={usage.done}
               />
-            )}
-
-            {pastDue && (
-              <p className="text-xs text-amber-800">
-                L&apos;ultimo pagamento non è andato a buon fine: controlla il
-                metodo di pagamento.
-              </p>
-            )}
-            {cancelAtPeriodEnd && (
-              <p className="text-xs text-gray-700">
-                Resta attivo {until}, poi non viene più addebitato nulla.
-              </p>
-            )}
-
-            <div className="mt-auto pt-1">
-              <ManageActions
-                slug={slug}
-                subscription={subscription}
-                returnTo={returnTo}
-                until={until}
-                block
+              <UsageTile
+                icon={CalendarDays}
+                value={usage.remaining}
+                label={sessionWord(usage.remaining, 'seduta rimasta', 'sedute rimaste')}
+                caption={
+                  usage.booked > 0
+                    ? `su ${usage.total} questo mese · ${usage.booked} già ${sessionWord(usage.booked, 'prenotata', 'prenotate')}`
+                    : `su ${usage.total} questo mese`
+                }
+                total={usage.total}
+                filled={usage.remaining}
+                tinted
               />
             </div>
+          )}
+          {usage?.known && usage.overBooked && (
+            <p className="-mt-1.5 text-xs text-amber-800">
+              Hai fissato più sedute di quelle incluse nel piano.
+            </p>
+          )}
+
+          <div className="grid gap-3 border-t border-emerald-100 pt-3 sm:grid-cols-3">
+            <InfoItem
+              icon={CalendarDays}
+              label={cancelAtPeriodEnd ? 'Termina' : 'Rinnovo'}
+              value={periodEndLabel ? `il ${periodEndLabel}` : '—'}
+            />
+            <InfoItem
+              icon={CreditCard}
+              label="Prossimo pagamento"
+              value={cancelAtPeriodEnd ? 'Nessuno' : subscription.priceLabel}
+            />
+            <InfoItem
+              icon={Percent}
+              label="Costo a seduta"
+              value={`circa ${subscription.perSessionLabel}`}
+            />
           </div>
         </div>
-      </div>
-    );
-  }
 
-  // ---- Scheda piccola (profilo del coach) ----
-  return (
-    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 px-5 py-4">
-      <p className="text-sm font-semibold text-emerald-800">
-        Hai un abbonamento con {coachFirstName}
-      </p>
-      <p className="mt-1 text-sm text-gray-700">
-        {subscription.planName}: {subscription.sessionsPerMonth}{' '}
-        {subscription.sessionsPerMonth === 1 ? 'seduta' : 'sedute'} al mese ·{' '}
-        {subscription.priceLabel} al mese
-      </p>
+        {/* Destra: stato, metodo di pagamento, gestione */}
+        <div className="relative flex flex-col gap-3 lg:border-l lg:border-emerald-100 lg:pl-4">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -top-1 right-0 hidden h-16 w-20 sm:block"
+          >
+            <SubscriptionIllustration className="h-full w-full" />
+          </div>
 
-      {pastDue && (
-        <p className="mt-1 text-sm text-amber-800">
-          L&apos;ultimo pagamento non è andato a buon fine: controlla il metodo di
-          pagamento.
-        </p>
-      )}
+          <span
+            className={cn(
+              'inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold',
+              pill.tone
+            )}
+          >
+            {pill.warn ? (
+              <TriangleAlert className="h-3.5 w-3.5" aria-hidden />
+            ) : (
+              <span className={cn('h-2 w-2 rounded-full', pill.dot)} aria-hidden />
+            )}
+            {pill.label}
+          </span>
 
-      {subscription.sinceLabel && (
-        <p className="mt-1 text-sm text-gray-600">
-          Sottoscritto il {subscription.sinceLabel}
-        </p>
-      )}
-      <p className="mt-2 text-sm text-gray-700">
-        {cancelAtPeriodEnd
-          ? `Annullato: resta attivo ${until} e poi non viene più addebitato nulla.`
-          : periodEndLabel
-            ? `Si rinnova il ${periodEndLabel}.`
-            : ''}
-      </p>
-      <div className="mt-3">
-        <ManageActions
-          slug={slug}
-          subscription={subscription}
-          returnTo={returnTo}
-          until={until}
-        />
+          {subscription.paymentMethodLabel && (
+            <InfoItem
+              icon={CreditCard}
+              label="Metodo di pagamento"
+              value={subscription.paymentMethodLabel}
+            />
+          )}
+
+          {pastDue && (
+            <p className="text-xs text-amber-800">
+              L&apos;ultimo pagamento non è andato a buon fine: controlla il
+              metodo di pagamento.
+            </p>
+          )}
+          {cancelAtPeriodEnd && (
+            <p className="text-xs text-gray-700">
+              Resta attivo {until}, poi non viene più addebitato nulla.
+            </p>
+          )}
+
+          <div className="mt-auto pt-1">
+            <ManageActions
+              slug={slug}
+              subscription={subscription}
+              returnTo={returnTo}
+              until={until}
+              block
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

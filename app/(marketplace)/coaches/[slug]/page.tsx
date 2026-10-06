@@ -35,6 +35,8 @@ import {
   formatLongDateRome,
   getAthleteSubscriptionForCoach,
   getBookingCreditContexts,
+  getPaymentMethodLabels,
+  getSessionUsageForSubscriptions,
   getPlansVisibleToAthlete,
   perSessionCents,
   purchaseNoticeFor,
@@ -201,6 +203,24 @@ export default async function CoachDetailPage({
           providerId: coach.providerId,
         })
       : null;
+  // La scheda è la stessa del tab Abbonamenti: sedute fatte e rimaste e metodo
+  // di pagamento si leggono qui, una volta, solo per chi ha un abbonamento vivo.
+  const liveSubscription =
+    subscription &&
+    (subscription.status === 'active' || subscription.status === 'past_due')
+      ? subscription
+      : null;
+  const [subscriptionUsage, subscriptionPaymentMethod] =
+    user && liveSubscription
+      ? await Promise.all([
+          getSessionUsageForSubscriptions(user.id, [liveSubscription]).then(
+            (usage) => usage.get(liveSubscription.id)
+          ),
+          getPaymentMethodLabels([liveSubscription]).then(
+            (labels) => labels.get(liveSubscription.id) ?? null
+          ),
+        ])
+      : [undefined, null];
   // Il testo dell'esito lo sceglie il modulo dal codice: il parametro
   // dell'indirizzo non può mai far comparire una frase scritta da altri.
   const purchaseNotice = purchaseNoticeFor(query.abbonamento, {
@@ -614,7 +634,8 @@ export default async function CoachDetailPage({
                 <div className="mt-4">
                   <SubscriptionCard
                     slug={slug}
-                    coachFirstName={firstName}
+                    coachName={name}
+                    coachAvatarUrl={coach.avatarUrl}
                     subscription={{
                       id: subscription.id,
                       planName: subscription.planName,
@@ -632,6 +653,8 @@ export default async function CoachDetailPage({
                       periodEndLabel: subscription.currentPeriodEnd
                         ? formatDate(subscription.currentPeriodEnd)
                         : null,
+                      usage: subscriptionUsage ?? { known: false },
+                      paymentMethodLabel: subscriptionPaymentMethod,
                     }}
                   />
                 </div>
