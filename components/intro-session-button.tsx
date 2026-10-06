@@ -4,12 +4,12 @@ import { Dialog } from 'radix-ui';
 import Link from 'next/link';
 import { CalendarCheck, CheckCircle2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { BookingRequest } from '@/app/(marketplace)/coaches/[slug]/booking-request';
+import { SessionBookingForm } from '@/components/session-booking-form';
 import type { BookableDay } from '@/lib/core/availability';
 import { DEMO_READONLY_MESSAGE } from '@/lib/auth/demo-readonly';
 
-export function IntroSessionButton({ slug, coachFirstName, loggedIn, isAthlete, bookableDays, alreadyUsed, isDemo = false }: {
-  slug: string; coachFirstName: string; loggedIn: boolean; isAthlete: boolean; bookableDays: BookableDay[];
+export function IntroSessionButton({ slug, coachName, coachFirstName, coachAvatarUrl = null, coachHeadline = null, loggedIn, isAthlete, bookableDays, alreadyUsed, isDemo = false }: {
+  slug: string; coachName: string; coachFirstName: string; coachAvatarUrl?: string | null; coachHeadline?: string | null; loggedIn: boolean; isAthlete: boolean; bookableDays: BookableDay[];
   /**
    * Un atleta ha una sola sessione conoscitiva gratuita per coach — altrimenti
    * la si potrebbe rifare ogni giorno. Quando è già stata usata (o è ancora
@@ -69,11 +69,11 @@ export function IntroSessionButton({ slug, coachFirstName, loggedIn, isAthlete, 
     <Dialog.Trigger asChild><Button type="button" variant="outline" className="w-full rounded-full border-green-600 text-green-600 hover:bg-green-50 hover:text-green-700 sm:w-auto"><CalendarCheck />Sessione conoscitiva (gratis)</Button></Dialog.Trigger>
     <Dialog.Portal>
       <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" />
-      <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-3xl bg-white p-6 shadow-xl focus:outline-none">
-        <Dialog.Title className="pr-8 text-xl font-semibold">Sessione conoscitiva con {coachFirstName}</Dialog.Title>
+      <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[92dvh] w-[calc(100%-2rem)] max-w-4xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-3xl bg-white p-6 shadow-xl focus:outline-none sm:p-8">
+        <Dialog.Title className="pr-8 text-xl font-semibold sm:text-3xl">Sessione conoscitiva con {coachFirstName}</Dialog.Title>
         <Dialog.Description className="mb-5 mt-2 text-sm text-gray-600">20 minuti gratuiti per conoscervi e parlare dei tuoi obiettivi.</Dialog.Description>
         <Dialog.Close asChild><Button type="button" variant="ghost" size="icon" className="absolute right-3 top-3 rounded-full" aria-label="Chiudi"><X /></Button></Dialog.Close>
-        {!loggedIn ? <Button asChild className="w-full rounded-full"><Link href={`/sign-in?redirect=${encodeURIComponent(`/coaches/${slug}?intro=1`)}`}>Accedi per prenotare</Link></Button> : isAthlete ? <BookingRequest slug={slug} coachFirstName={coachFirstName} services={[]} bookableDays={bookableDays} introductory /> : <p className="text-sm text-gray-600">Accedi con un account atleta per richiedere la sessione.</p>}
+        {!loggedIn ? <Button asChild className="w-full rounded-full"><Link href={`/sign-in?redirect=${encodeURIComponent(`/coaches/${slug}?intro=1`)}`}>Accedi per prenotare</Link></Button> : isAthlete ? <SessionBookingForm slug={slug} coachName={coachName} coachFirstName={coachFirstName} coachAvatarUrl={coachAvatarUrl} coachHeadline={coachHeadline} services={[]} bookableDays={bookableDays} introductory isDemo={isDemo} submitLabel="Richiedi la sessione conoscitiva" /> : <p className="text-sm text-gray-600">Accedi con un account atleta per richiedere la sessione.</p>}
       </Dialog.Content>
     </Dialog.Portal>
   </Dialog.Root>;

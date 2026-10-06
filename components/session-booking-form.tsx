@@ -12,6 +12,8 @@ import {
   Lock,
 } from 'lucide-react';
 import { CoachAvatar } from '@/components/coach-visuals';
+import { ProductTour } from '@/components/product-tour';
+import { DEMO_READONLY_MESSAGE } from '@/lib/auth/demo-readonly';
 import { requestBooking } from '@/app/(marketplace)/coaches/[slug]/actions';
 import type { ActionState } from '@/lib/auth/middleware';
 import type { BookableDay } from '@/lib/core/availability';
@@ -28,6 +30,7 @@ import { cn } from '@/lib/utils';
 
 const DAYS_PER_PAGE = 7;
 const NOTE_MAX = 500;
+const INTRO_DURATION_MIN = 20;
 
 type ServiceOption = {
   id: number;
@@ -66,11 +69,15 @@ function addMinutes(time: string, minutes: number): string {
 }
 
 /**
- * Il modulo «Prenota una seduta» per chi ha già pagato: giorno, orario,
- * obiettivi e, a destra, il riepilogo con le sedute rimaste. Stessi campi e
- * stessa azione del modulo del profilo (`requestBooking`), quindi stessa
- * regola lato server: qui si sceglie soltanto tra giorni e orari che il server
- * accetterebbe (le date arrivano già filtrate da `applyBookingCredits`).
+ * L'unico modulo di prenotazione: giorno, orario, obiettivi e, a destra, il
+ * riepilogo. Lo usano la finestra «Prenota una seduta» (con le sedute rimaste),
+ * la «Sessione conoscitiva» gratuita e il profilo del coach: stessi campi e
+ * stessa azione (`requestBooking`), quindi stessa regola lato server. Si sceglie
+ * soltanto tra giorni e orari che il server accetterebbe (le date arrivano già
+ * filtrate, anche da `applyBookingCredits`).
+ *
+ * Si adatta alla larghezza del contenitore, non dello schermo: nel profilo la
+ * colonna è stretta anche su un monitor largo.
  */
 export function SessionBookingForm({
   slug,
@@ -80,8 +87,13 @@ export function SessionBookingForm({
   coachHeadline,
   services,
   bookableDays,
-  remaining,
-  total,
+  remaining = null,
+  total = null,
+  introductory = false,
+  isDemo = false,
+  tourAlreadySeen = true,
+  showTour = false,
+  submitLabel,
 }: {
   slug: string;
   coachName: string;
@@ -91,18 +103,28 @@ export function SessionBookingForm({
   services: ServiceOption[];
   bookableDays: BookableDay[];
   /** Sedute prenotabili adesso (piano + extra); `null` se non si sa. */
-  remaining: number | null;
+  remaining?: number | null;
   /** Il totale con cui confrontarle (sedute del piano + extra). */
-  total: number | null;
+  total?: number | null;
+  /** Sessione conoscitiva gratuita: 20 minuti, nessun servizio da scegliere. */
+  introductory?: boolean;
+  /** Account demo: il server rifiuta comunque la scrittura, qui lo si dice subito. */
+  isDemo?: boolean;
+  tourAlreadySeen?: boolean;
+  /** Mostra il tour guidato del calendario (solo sul profilo). */
+  showTour?: boolean;
+  /** Il testo del pulsante; se manca, «Conferma la prenotazione». */
+  submitLabel?: string;
 }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(requestBooking, {
     error: '',
   });
 
   const primaryService = services[0];
-  const baseDurationMin =
-    largestFittingDuration(primaryService?.durationMin ?? DEFAULT_SESSION_DURATION_MIN) ??
-    DEFAULT_SESSION_DURATION_MIN;
+  const baseDurationMin = introductory
+    ? INTRO_DURATION_MIN
+    : (largestFittingDuration(primaryService?.durationMin ?? DEFAULT_SESSION_DURATION_MIN) ??
+      DEFAULT_SESSION_DURATION_MIN);
 
   const [day, setDay] = useState(bookableDays[0]?.value ?? '');
   const [time, setTime] = useState(firstFreeTime(bookableDays[0], baseDurationMin));
@@ -132,7 +154,7 @@ export function SessionBookingForm({
     setDurationMin(slot.fitsDurationMin ?? baseDurationMin);
   }
 
-  if (services.length === 0) {
+  if (!introductory && services.length === 0) {
     return (
       <p className="rounded-md bg-amber-50 px-3 py-3 text-sm text-amber-800">
         Questo coach non ha ancora configurato un servizio con una durata. La
@@ -157,16 +179,32 @@ export function SessionBookingForm({
     : '';
 
   return (
-    <form action={formAction} className="flex flex-col gap-5">
+    <form action={formAction} className="@container flex flex-col gap-5">
       <input type="hidden" name="slug" value={slug} />
       <input type="hidden" name="scheduledFor" value={scheduledFor} />
-      <input type="hidden" name="serviceId" value={primaryService.id} />
-      <input type="hidden" name="durationMin" value={durationMin} />
+      {introductory ? (
+        <input type="hidden" name="introductory" value="true" />
+      ) : (
+        <>
+          <input type="hidden" name="serviceId" value={primaryService?.id ?? ''} />
+          <input type="hidden" name="durationMin" value={durationMin} />
+        </>
+      )}
+      {showTour && bookableDays.length > 0 && (
+        <ProductTour tourKey="athlete_booking" alreadySeen={tourAlreadySeen} />
+      )}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <div className="grid gap-6 @[46rem]:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         {/* Sinistra: giorno e orario */}
         <div className="flex min-w-0 flex-col gap-6">
-          <section aria-labelledby="sb-day">
+          {bookableDays.length === 0 ? (
+            <p className="rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-600">
+              {coachFirstName} non ha ancora pubblicato la sua disponibilità:
+              racconta il tuo obiettivo e concorderete insieme un orario.
+            </p>
+          ) : (
+          <>
+          <section aria-labelledby="sb-day" data-tour="athlete-booking-calendar">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 id="sb-day" className="flex items-center gap-2.5 text-base font-semibold text-gray-900">
                 <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">
@@ -278,6 +316,8 @@ export function SessionBookingForm({
               </span>
             </p>
           </section>
+          </>
+          )}
         </div>
 
         {/* Destra: riepilogo e obiettivi */}
@@ -285,7 +325,9 @@ export function SessionBookingForm({
           <div className="flex items-center gap-3">
             <CoachAvatar name={coachName} src={coachAvatarUrl} className="size-12 shrink-0" />
             <div className="min-w-0">
-              <p className="truncate font-semibold text-gray-900">Seduta con {coachFirstName}</p>
+              <p className="truncate font-semibold text-gray-900">
+                {introductory ? 'Sessione conoscitiva con' : 'Seduta con'} {coachFirstName}
+              </p>
               {coachHeadline && <p className="truncate text-sm text-gray-500">{coachHeadline}</p>}
             </div>
           </div>
@@ -309,6 +351,13 @@ export function SessionBookingForm({
               )}
             </div>
           </div>
+
+          {introductory && (
+            <p className="rounded-xl bg-white p-3.5 text-sm text-gray-700 shadow-sm">
+              <span className="font-semibold text-gray-900">Gratuita · {INTRO_DURATION_MIN} minuti.</span>{' '}
+              Per conoscervi e parlare dei tuoi obiettivi, senza impegno.
+            </p>
+          )}
 
           {remaining !== null && total !== null && total > 0 && (
             <div className="rounded-xl bg-white p-3.5 shadow-sm">
@@ -356,11 +405,12 @@ export function SessionBookingForm({
           {state.error}
         </p>
       )}
+      {isDemo && <p className="text-sm text-gray-500">{DEMO_READONLY_MESSAGE}</p>}
 
       <div className="flex flex-col items-center gap-2 border-t border-gray-100 pt-4">
         <button
           type="submit"
-          disabled={pending || !scheduledFor}
+          disabled={isDemo || pending || (bookableDays.length > 0 && !scheduledFor)}
           className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-emerald-600 text-base font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {pending ? (
@@ -371,7 +421,7 @@ export function SessionBookingForm({
           ) : (
             <>
               <CalendarDays className="h-5 w-5" aria-hidden />
-              Conferma la prenotazione
+              {submitLabel ?? 'Conferma la prenotazione'}
               <ArrowRight className="h-5 w-5" aria-hidden />
             </>
           )}

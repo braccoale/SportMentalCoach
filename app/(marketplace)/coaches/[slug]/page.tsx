@@ -69,7 +69,7 @@ import {
   metaDescription,
   coachPageTitle,
 } from '@/lib/core/seo';
-import { BookingRequest } from './booking-request';
+import { SessionBookingForm } from '@/components/session-booking-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -460,6 +460,9 @@ export default async function CoachDetailPage({
               <div className="shrink-0">
                 <IntroSessionButton
                   slug={slug}
+                  coachName={name}
+                  coachAvatarUrl={coach.avatarUrl}
+                  coachHeadline={coach.headline}
                   coachFirstName={firstName}
                   loggedIn={Boolean(user)}
                   isAthlete={isAthlete}
@@ -784,9 +787,12 @@ export default async function CoachDetailPage({
                         la spiega: un calendario vuoto accanto direbbe che il
                         coach non è disponibile, e non è vero. */}
                     {!(creditView && bookingDays.length === 0) && (
-                      <BookingRequest
+                      <SessionBookingForm
                         slug={slug}
+                        coachName={name}
                         coachFirstName={firstName}
+                        coachAvatarUrl={coach.avatarUrl}
+                        coachHeadline={coach.headline}
                         services={coach.services.map((s) => ({
                           id: s.id,
                           title: s.title,
@@ -795,6 +801,8 @@ export default async function CoachDetailPage({
                         bookableDays={bookingDays}
                         isDemo={isDemo}
                         tourAlreadySeen={bookingTourSeen}
+                        showTour
+                        submitLabel={`Invia la richiesta a ${firstName}`}
                       />
                     )}
                   </>

@@ -269,7 +269,10 @@ export function CoachCard({
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             <IntroSessionButton
               slug={coach.slug}
+              coachName={name}
               coachFirstName={firstName}
+              coachAvatarUrl={coach.avatarUrl}
+              coachHeadline={coach.headline}
               loggedIn={loggedIn}
               isAthlete={isAthlete}
               bookableDays={bookableDays}
