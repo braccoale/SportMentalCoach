@@ -22,6 +22,7 @@ import {
   createAccountSession,
   createCoachConnectedAccount,
   createPlanCheckoutSession,
+  getSubscriptionPaymentMethod,
   retrieveConnectedAccount,
   setSubscriptionCancelAtPeriodEnd,
 } from '@/lib/payments/connect';
@@ -33,6 +34,7 @@ import {
 } from './coach-payments';
 import { deriveBillingProfileFromStripeAccount } from './stripe-account-status';
 import { sessionUsageForPeriod, type SessionUsage, type UsageBooking } from './session-usage';
+import { paymentMethodLabel } from './payment-method';
 import {
   creditPeriods,
   decideBookingAccess,
@@ -58,6 +60,7 @@ export * from './subscription-status';
 export * from './purchase-notice';
 export * from './session-usage';
 export * from './booking-credits';
+export * from './payment-method';
 
 export async function getCoachBillingProfile(
   coachUserId: number
@@ -1149,4 +1152,29 @@ export async function getSubscriberUserIdsIfRequired(
       )
     );
   return new Set(rows.map((row) => row.athleteUserId));
+}
+
+/**
+ * Il nome del metodo di pagamento di ciascun abbonamento, per le schede
+ * dell'atleta. Le letture partono insieme e ognuna ha un tempo limite: se
+ * Stripe non risponde il riquadro semplicemente non compare.
+ */
+export async function getPaymentMethodLabels(
+  subscriptions: PlanSubscription[]
+): Promise<Map<number, string | null>> {
+  const labels = new Map<number, string | null>();
+  await Promise.all(
+    subscriptions.map(async (sub) => {
+      if (!sub.stripeSubscriptionId) {
+        labels.set(sub.id, null);
+        return;
+      }
+      const method = await getSubscriptionPaymentMethod({
+        connectedAccountId: sub.stripeAccountId,
+        subscriptionId: sub.stripeSubscriptionId,
+      });
+      labels.set(sub.id, paymentMethodLabel(method));
+    })
+  );
+  return labels;
 }

@@ -283,3 +283,45 @@ export async function setSubscriptionCancelAtPeriodEnd(params: {
   const body = await parse<{ cancel_at_period_end?: boolean }>(response);
   return { cancelAtPeriodEnd: Boolean(body.cancel_at_period_end) };
 }
+
+/**
+ * Il metodo di pagamento dell'abbonamento, letto da Stripe per mostrarlo
+ * all'atleta («Carta •••• 4242»). Non si salva: marca e ultime cifre restano a
+ * Stripe. Tempo limite breve e nessun errore verso l'alto: è un dettaglio della
+ * scheda, e una scheda non deve fallire perché Stripe è lento.
+ */
+export async function getSubscriptionPaymentMethod(params: {
+  connectedAccountId: string;
+  subscriptionId: string;
+}): Promise<{
+  type?: string;
+  card?: { brand?: string | null; last4?: string | null } | null;
+  sepa_debit?: { last4?: string | null } | null;
+} | null> {
+  try {
+    const response = await fetch(
+      `${STRIPE_API}/v1/subscriptions/${encodeURIComponent(
+        params.subscriptionId
+      )}?expand[]=default_payment_method`,
+      {
+        headers: {
+          Authorization: `Bearer ${secretKey()}`,
+          'Stripe-Account': params.connectedAccountId,
+        },
+        signal: AbortSignal.timeout(3000),
+        cache: 'no-store',
+      }
+    );
+    if (!response.ok) return null;
+    const body = (await response.json()) as {
+      default_payment_method?: {
+        type?: string;
+        card?: { brand?: string | null; last4?: string | null } | null;
+        sepa_debit?: { last4?: string | null } | null;
+      } | null;
+    };
+    return body.default_payment_method ?? null;
+  } catch {
+    return null;
+  }
+}

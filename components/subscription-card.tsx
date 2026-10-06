@@ -1,6 +1,14 @@
 'use client';
 
-import { CalendarDays, CheckCircle2, Coins, CreditCard, TriangleAlert } from 'lucide-react';
+import {
+  Ban,
+  CalendarCheck,
+  CalendarDays,
+  CheckCircle2,
+  CreditCard,
+  Percent,
+  TriangleAlert,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CoachAvatar } from '@/components/coach-visuals';
 import { SubscriptionIllustration } from '@/components/subscription-illustration';
@@ -35,6 +43,8 @@ export type SubscriptionCardData = {
   sinceLabel: string | null;
   /** Sedute fatte, prenotate e rimaste nel periodo; assente sulla scheda piccola. */
   usage?: SessionUsage;
+  /** «Carta •••• 4242», letto da Stripe e mai salvato; assente se non si sa. */
+  paymentMethodLabel?: string | null;
 };
 
 type Props = {
@@ -55,11 +65,14 @@ function ManageActions({
   subscription,
   returnTo,
   until,
+  block,
 }: {
   slug: string;
   subscription: SubscriptionCardData;
   returnTo?: 'abbonamenti';
   until: string;
+  /** Pulsante largo (scheda della pagina dell'atleta) invece del link di testo. */
+  block?: boolean;
 }) {
   const hidden = (
     <>
@@ -71,9 +84,13 @@ function ManageActions({
 
   if (subscription.cancelAtPeriodEnd) {
     return (
-      <form action={resumeSubscriptionAction}>
+      <form action={resumeSubscriptionAction} className={block ? 'w-full' : undefined}>
         {hidden}
-        <Button type="submit" variant="outline" size="sm" className="rounded-full">
+        <Button
+          type="submit"
+          variant="outline"
+          className={cn('rounded-xl', block && 'h-12 w-full text-base')}
+        >
           Riattiva l&apos;abbonamento
         </Button>
       </form>
@@ -83,12 +100,25 @@ function ManageActions({
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <button
-          type="button"
-          className="text-sm font-medium text-gray-700 underline underline-offset-2 hover:text-gray-900"
-        >
-          Annulla abbonamento
-        </button>
+        {block ? (
+          // Niente pulsanti rossi su KaiPai: bordo e testo neutri, l'icona del
+          // divieto dice già che è un'azione di chiusura.
+          <Button
+            type="button"
+            variant="outline"
+            className="h-12 w-full gap-2 rounded-xl border-gray-300 text-base font-semibold text-gray-800 hover:bg-gray-50"
+          >
+            <Ban className="h-5 w-5" aria-hidden />
+            Annulla abbonamento
+          </Button>
+        ) : (
+          <button
+            type="button"
+            className="text-sm font-medium text-gray-700 underline underline-offset-2 hover:text-gray-900"
+          >
+            Annulla abbonamento
+          </button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogTitle className="text-xl">Annullare l&apos;abbonamento?</DialogTitle>
@@ -115,85 +145,94 @@ function ManageActions({
   );
 }
 
-function Stat({
+/** Una barra a segmenti: uno per seduta del piano, i primi `filled` pieni. */
+function SegmentBar({ total, filled }: { total: number; filled: number }) {
+  if (total > 12) {
+    return (
+      <span className="flex h-2.5 w-full overflow-hidden rounded-full bg-gray-200">
+        <span
+          className="bg-emerald-600"
+          style={{ width: `${Math.min(100, (filled / total) * 100)}%` }}
+        />
+      </span>
+    );
+  }
+  return (
+    <span aria-hidden className="flex gap-1.5">
+      {Array.from({ length: total }, (_, index) => (
+        <span
+          key={index}
+          className={cn(
+            'h-2.5 flex-1 rounded-full',
+            index < filled ? 'bg-emerald-600' : 'bg-gray-200'
+          )}
+        />
+      ))}
+    </span>
+  );
+}
+
+function UsageTile({
   icon: Icon,
   value,
   label,
+  caption,
+  total,
+  filled,
+  tinted,
 }: {
   icon: typeof CalendarDays;
-  value: string;
+  value: number;
   label: string;
+  caption: string;
+  total: number;
+  filled: number;
+  tinted?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2.5">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100/80 text-emerald-700">
-        <Icon className="h-[18px] w-[18px]" aria-hidden />
-      </span>
-      <span className="leading-tight">
-        <span className="block text-base font-bold text-gray-900">{value}</span>
-        <span className="block text-xs text-gray-600">{label}</span>
-      </span>
+    <div
+      className={cn(
+        'rounded-2xl border p-4',
+        tinted
+          ? 'border-emerald-100 bg-emerald-50/70'
+          : 'border-gray-100 bg-white shadow-sm'
+      )}
+    >
+      <div className="flex items-center gap-3">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-100/80 text-emerald-700">
+          <Icon className="h-6 w-6" aria-hidden />
+        </span>
+        <span className="leading-tight">
+          <span className="block text-3xl font-bold text-gray-900">{value}</span>
+          <span className="block text-base text-gray-900">{label}</span>
+          <span className="block text-sm text-gray-500">{caption}</span>
+        </span>
+      </div>
+      <div className="mt-3">
+        <SegmentBar total={total} filled={filled} />
+      </div>
     </div>
   );
 }
 
-/**
- * La mini dashboard delle sedute: un segmento per seduta del piano, scuro per
- * le fatte, chiaro per le prenotate, vuoto per quelle rimaste. Sotto, i tre
- * numeri. Se il periodo non è noto non si disegna niente: meglio nessun numero
- * che un numero inventato.
- */
-function UsageDashboard({ usage }: { usage: SessionUsage }) {
-  if (!usage.known) return null;
-  const { total, done, booked, remaining, overBooked } = usage;
-  const segments = total <= 12 ? total : 0;
-  const label = `Sedute di questo periodo: ${done} fatte, ${booked} prenotate, ${remaining} rimaste su ${total}.`;
-
+function InfoItem({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof CalendarDays;
+  label: string;
+  value: string;
+}) {
   return (
-    <div>
-      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
-        Sedute di questo periodo
-      </p>
-      <div role="img" aria-label={label} className="flex gap-1">
-        {segments > 0 ? (
-          Array.from({ length: segments }, (_, index) => (
-            <span
-              key={index}
-              className={cn(
-                'h-2.5 flex-1 rounded-full',
-                index < done
-                  ? 'bg-emerald-600'
-                  : index < done + booked
-                    ? 'bg-emerald-300'
-                    : 'bg-gray-200'
-              )}
-            />
-          ))
-        ) : (
-          <span className="flex h-2.5 w-full overflow-hidden rounded-full bg-gray-200">
-            <span className="bg-emerald-600" style={{ width: `${(done / total) * 100}%` }} />
-            <span className="bg-emerald-300" style={{ width: `${(booked / total) * 100}%` }} />
-          </span>
-        )}
-      </div>
-      <p className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-gray-700">
-        <span>
-          <b className="text-gray-900">{done}</b> {done === 1 ? 'fatta' : 'fatte'}
-        </span>
-        <span>
-          <b className="text-gray-900">{booked}</b>{' '}
-          {booked === 1 ? 'prenotata' : 'prenotate'}
-        </span>
-        <span>
-          <b className="text-gray-900">{remaining}</b>{' '}
-          {remaining === 1 ? 'rimasta' : 'rimaste'}
-        </span>
-      </p>
-      {overBooked && (
-        <p className="mt-1 text-xs text-amber-800">
-          Hai fissato più sedute di quelle incluse nel piano.
-        </p>
-      )}
+    <div className="flex items-center gap-3">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100/70 text-emerald-700">
+        <Icon className="h-5 w-5" aria-hidden />
+      </span>
+      <span className="leading-tight">
+        <span className="block text-sm font-medium text-gray-900">{label}</span>
+        <span className="block text-sm text-gray-600">{value}</span>
+      </span>
     </div>
   );
 }
@@ -204,7 +243,9 @@ function UsageDashboard({ usage }: { usage: SessionUsage }) {
  * quella data. Chiede conferma e dice che cosa succede.
  *
  * Due forme, stessa logica: la scheda piccola sul profilo del coach e la scheda
- * della pagina «Abbonamenti» dell'atleta (quando c'è `coachName`).
+ * grande della pagina «Abbonamenti» dell'atleta (quando c'è `coachName`), con
+ * le sedute fatte e rimaste, il rinnovo, il prossimo pagamento e il metodo di
+ * pagamento.
  */
 export function SubscriptionCard({
   slug,
@@ -224,124 +265,166 @@ export function SubscriptionCard({
   // ---- Scheda della pagina dell'atleta ----
   if (coachName) {
     const pill = pastDue
-      ? { label: 'Pagamento da sistemare', tone: 'bg-amber-100 text-amber-800', warn: true }
+      ? { label: 'Pagamento da sistemare', tone: 'bg-amber-100 text-amber-800', dot: 'bg-amber-500', warn: true }
       : cancelAtPeriodEnd
-        ? { label: 'Annullato', tone: 'bg-amber-100 text-amber-800', warn: true }
-        : { label: 'Piano attivo', tone: 'bg-emerald-100 text-emerald-800', warn: false };
-    const PillIcon = pill.warn ? TriangleAlert : CheckCircle2;
+        ? { label: 'Annullato', tone: 'bg-amber-100 text-amber-800', dot: 'bg-amber-500', warn: true }
+        : { label: 'Piano attivo', tone: 'bg-emerald-100 text-emerald-800', dot: 'bg-emerald-600', warn: false };
+    const usage = subscription.usage;
+    const sessionWord = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
     return (
-      <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
-        <div className="relative z-10 flex flex-col gap-3.5 md:max-w-[70%]">
-          <div className="flex items-center gap-3">
-            <CoachAvatar
-              name={coachName}
-              src={coachAvatarUrl ?? null}
-              className="size-10 shrink-0"
-            />
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold',
-                    pill.tone
+      <div className="relative overflow-hidden rounded-3xl border border-emerald-200 bg-gradient-to-br from-white via-white to-emerald-50/80 p-5 sm:p-6">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+          {/* Sinistra: chi, quanto, e le sedute */}
+          <div className="flex min-w-0 flex-col gap-5">
+            <div className="flex items-center gap-4">
+              <CoachAvatar
+                name={coachName}
+                src={coachAvatarUrl ?? null}
+                className="size-14 shrink-0"
+              />
+              <div className="min-w-0">
+                <h3 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">
+                  Abbonamento con{' '}
+                  {profileHref ? (
+                    <a
+                      href={profileHref}
+                      className="underline-offset-4 hover:underline"
+                    >
+                      {coachName}
+                    </a>
+                  ) : (
+                    coachName
                   )}
-                >
-                  <PillIcon className="h-3.5 w-3.5" aria-hidden />
-                  {pill.label}
-                </span>
-                {subscription.sinceLabel && (
-                  <span className="text-xs text-gray-600">
-                    Sottoscritto il {subscription.sinceLabel}
+                </h3>
+                <p className="mt-0.5 text-sm text-gray-600">
+                  <span className="font-semibold text-emerald-700">
+                    {subscription.planName}
                   </span>
+                  {' · '}
+                  {subscription.sessionsPerMonth}{' '}
+                  {sessionWord(subscription.sessionsPerMonth, 'seduta', 'sedute')} al
+                  mese · {subscription.priceLabel} al mese
+                </p>
+                {subscription.sinceLabel && (
+                  <p className="text-xs text-gray-500">
+                    Sottoscritto il {subscription.sinceLabel}
+                  </p>
                 )}
               </div>
-              <h3 className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-xl font-bold tracking-tight text-gray-900">
-                {subscription.planName}
-                <span className="text-sm font-normal text-gray-600">
-                  con {coachName}
-                  {profileHref && (
-                    <>
-                      {' · '}
-                      <a
-                        href={profileHref}
-                        className="underline underline-offset-2 hover:text-gray-900"
-                      >
-                        profilo
-                      </a>
-                    </>
-                  )}
-                </span>
-              </h3>
             </div>
-          </div>
 
-          <div className="grid gap-3 sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-emerald-200/70">
-            <div className="sm:pr-4">
-              <Stat
+            {usage?.known && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <UsageTile
+                  icon={CalendarCheck}
+                  value={usage.done}
+                  label={sessionWord(usage.done, 'seduta fatta', 'sedute fatte')}
+                  caption={`su ${usage.total} questo mese`}
+                  total={usage.total}
+                  filled={usage.done}
+                />
+                <UsageTile
+                  icon={CalendarDays}
+                  value={usage.remaining}
+                  label={sessionWord(usage.remaining, 'seduta rimasta', 'sedute rimaste')}
+                  caption={
+                    usage.booked > 0
+                      ? `su ${usage.total} questo mese · ${usage.booked} già ${sessionWord(usage.booked, 'prenotata', 'prenotate')}`
+                      : `su ${usage.total} questo mese`
+                  }
+                  total={usage.total}
+                  filled={usage.remaining}
+                  tinted
+                />
+              </div>
+            )}
+            {usage?.known && usage.overBooked && (
+              <p className="-mt-2 text-xs text-amber-800">
+                Hai fissato più sedute di quelle incluse nel piano.
+              </p>
+            )}
+
+            <div className="grid gap-4 border-t border-emerald-100 pt-5 sm:grid-cols-3">
+              <InfoItem
                 icon={CalendarDays}
-                value={String(subscription.sessionsPerMonth)}
-                label={
-                  subscription.sessionsPerMonth === 1
-                    ? 'seduta al mese'
-                    : 'sedute al mese'
-                }
+                label={cancelAtPeriodEnd ? 'Termina' : 'Rinnovo'}
+                value={periodEndLabel ? `il ${periodEndLabel}` : '—'}
               />
-            </div>
-            <div className="sm:px-4">
-              <Stat icon={CreditCard} value={subscription.priceLabel} label="al mese" />
-            </div>
-            <div className="sm:pl-4">
-              <Stat
-                icon={Coins}
-                value={subscription.perSessionLabel}
-                label="a seduta (circa)"
+              <InfoItem
+                icon={CreditCard}
+                label="Prossimo pagamento"
+                value={cancelAtPeriodEnd ? 'Nessuno' : subscription.priceLabel}
+              />
+              <InfoItem
+                icon={Percent}
+                label="Costo a seduta"
+                value={`circa ${subscription.perSessionLabel}`}
               />
             </div>
           </div>
 
-          {subscription.usage && <UsageDashboard usage={subscription.usage} />}
-
-          {pastDue && (
-            <p className="text-sm text-amber-800">
-              L&apos;ultimo pagamento non è andato a buon fine: controlla il
-              metodo di pagamento.
-            </p>
-          )}
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-            <p className="text-sm text-gray-700">
-              {cancelAtPeriodEnd
-                ? `Annullato: resta attivo ${until} e poi non viene più addebitato nulla.`
-                : periodEndLabel
-                  ? `Si rinnova il ${periodEndLabel}.`
-                  : 'Si rinnova ogni mese.'}
-            </p>
-            <ManageActions
-              slug={slug}
-              subscription={subscription}
-              returnTo={returnTo}
-              until={until}
-            />
-          </div>
-        </div>
-
-        {/* Decorazione: solo da schermi larghi, non toglie spazio al resto. */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-y-0 right-0 hidden w-[30%] items-center justify-center md:flex"
-        >
-          <div className="absolute -right-20 top-1/2 h-[150%] w-full -translate-y-1/2 rounded-full bg-emerald-100/60" />
-          <SubscriptionIllustration className="relative h-28 w-auto" />
-          {!pastDue && !cancelAtPeriodEnd && (
-            <span
-              className="absolute right-3 top-3 -rotate-6 text-center text-xs italic leading-tight text-emerald-700"
-              style={{ fontFamily: '"Segoe Script", "Bradley Hand", "Comic Sans MS", cursive' }}
+          {/* Destra: stato, metodo di pagamento, gestione */}
+          <div className="relative flex flex-col gap-4 lg:border-l lg:border-emerald-100 lg:pl-6">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -top-1 right-0 hidden h-24 w-28 sm:block"
             >
-              Piano attivo,
-              <br />
-              tutto pronto!
+              <SubscriptionIllustration className="h-full w-full" />
+            </div>
+
+            <span
+              className={cn(
+                'inline-flex w-fit items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-semibold',
+                pill.tone
+              )}
+            >
+              {pill.warn ? (
+                <TriangleAlert className="h-4 w-4" aria-hidden />
+              ) : (
+                <span className={cn('h-2.5 w-2.5 rounded-full', pill.dot)} aria-hidden />
+              )}
+              {pill.label}
             </span>
-          )}
+
+            {subscription.paymentMethodLabel && (
+              <div className="flex items-center gap-3 sm:max-w-[60%] lg:max-w-none">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100/70 text-emerald-700">
+                  <CreditCard className="h-5 w-5" aria-hidden />
+                </span>
+                <span className="leading-tight">
+                  <span className="block text-sm font-medium text-gray-900">
+                    Metodo di pagamento
+                  </span>
+                  <span className="block text-sm text-gray-600">
+                    {subscription.paymentMethodLabel}
+                  </span>
+                </span>
+              </div>
+            )}
+
+            {pastDue && (
+              <p className="text-sm text-amber-800">
+                L&apos;ultimo pagamento non è andato a buon fine: controlla il
+                metodo di pagamento.
+              </p>
+            )}
+            {cancelAtPeriodEnd && (
+              <p className="text-sm text-gray-700">
+                Resta attivo {until}, poi non viene più addebitato nulla.
+              </p>
+            )}
+
+            <div className="mt-auto pt-2">
+              <ManageActions
+                slug={slug}
+                subscription={subscription}
+                returnTo={returnTo}
+                until={until}
+                block
+              />
+            </div>
+          </div>
         </div>
       </div>
     );

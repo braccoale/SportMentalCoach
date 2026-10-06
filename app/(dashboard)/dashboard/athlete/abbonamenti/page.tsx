@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/core/auth';
 import {
   formatEuroCents,
   formatLongDateRome,
+  getPaymentMethodLabels,
   getSessionUsageForSubscriptions,
   listAthleteSubscriptions,
   perSessionCents,
@@ -37,10 +38,11 @@ export default async function AthleteSubscriptionsPage({
   const user = await requireRole('athlete');
   const { abbonamento } = await searchParams;
   const { live, ended, confirming } = await listAthleteSubscriptions(user.id);
-  const usageBySubscription = await getSessionUsageForSubscriptions(
-    user.id,
-    live.map((item) => item.subscription)
-  );
+  const liveSubscriptions = live.map((item) => item.subscription);
+  const [usageBySubscription, paymentMethods] = await Promise.all([
+    getSessionUsageForSubscriptions(user.id, liveSubscriptions),
+    getPaymentMethodLabels(liveSubscriptions),
+  ]);
 
   // Appena tornati da Stripe l'abbonamento può non essere ancora attivo: la
   // pagina lo dice e si aggiorna da sola.
@@ -53,11 +55,11 @@ export default async function AthleteSubscriptionsPage({
     <section className="m-4 flex flex-col gap-5 rounded-3xl bg-white p-5 shadow-sm sm:m-6 sm:p-8">
       <header>
         <h2 className="text-2xl font-semibold tracking-tight text-gray-900">
-          I tuoi piani mensili
+          I tuoi abbonamenti
         </h2>
-        <p className="mt-1 max-w-2xl text-sm text-gray-600">
-          Qui trovi cosa hai attivo, con chi, da quando, quando si rinnova e come
-          annullarlo.
+        <p className="mt-1 max-w-3xl text-sm text-gray-600">
+          Qui trovi cosa hai attivo, con chi, quante sedute hai già fatto, quante
+          ti restano, quando si rinnova e come annullarlo.
         </p>
       </header>
 
@@ -100,6 +102,7 @@ export default async function AthleteSubscriptionsPage({
               ),
               sinceLabel: formatLongDateRome(subscribedOn(subscription)),
               usage: usageBySubscription.get(subscription.id) ?? { known: false },
+              paymentMethodLabel: paymentMethods.get(subscription.id) ?? null,
               status: subscription.status === 'past_due' ? 'past_due' : 'active',
               cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
               periodEndLabel: subscription.currentPeriodEnd
