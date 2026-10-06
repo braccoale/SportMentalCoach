@@ -645,6 +645,13 @@
       "when": 1791302344634,
       "tag": "0091_abbonamento_data_sottoscrizione",
       "breakpoints": true
+    },
+    {
+      "idx": 92,
+      "version": "7",
+      "when": 1791306410505,
+      "tag": "0092_seduta_singola_registro",
+      "breakpoints": true
     }
   ]
 }

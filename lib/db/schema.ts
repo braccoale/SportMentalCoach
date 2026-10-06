@@ -4177,6 +4177,10 @@ export const coachBillingProfiles = pgTable(
       .references(() => users.id, { onDelete: 'restrict' }),
     paymentsEnabled: boolean('payments_enabled').notNull().default(false),
     paymentsEnabledAt: timestamp('payments_enabled_at', { withTimezone: true }),
+    // Il prezzo di UNA seduta acquistata a parte (centesimi), deciso dal coach.
+    // Vuoto = il coach non la vende. Vale anche come «seduta extra» per chi ha
+    // già un abbonamento.
+    singleSessionPriceCents: integer('single_session_price_cents'),
     stripeAccountId: varchar('stripe_account_id', { length: 255 }).unique(),
     stripeAccountNamespace: varchar('stripe_account_namespace', { length: 16 }),
     onboardingStatus: varchar('onboarding_status', { length: 24 })
@@ -4197,6 +4201,10 @@ export const coachBillingProfiles = pgTable(
     check(
       'coach_billing_profiles_onboarding_status_check',
       sql`${table.onboardingStatus} in ('not_started', 'pending', 'active', 'restricted', 'disabled')`
+    ),
+    check(
+      'coach_billing_profiles_single_price_check',
+      sql`${table.singleSessionPriceCents} is null or ${table.singleSessionPriceCents} > 0`
     ),
     check(
       'coach_billing_profiles_account_namespace_check',
@@ -4350,3 +4358,66 @@ export const stripeWebhookEvents = pgTable(
 export type PlanSubscription = typeof planSubscriptions.$inferSelect;
 export type NewPlanSubscription = typeof planSubscriptions.$inferInsert;
 export type StripeWebhookEvent = typeof stripeWebhookEvents.$inferSelect;
+
+/**
+ * Il registro delle sedute acquistate a parte (singole o extra): una riga per
+ * seduta. Le sedute di un abbonamento NON stanno qui: si calcolano contando le
+ * prenotazioni del periodo. Qui c'è solo ciò che non si può calcolare, cioè un
+ * acquisto con la sua scadenza.
+ *
+ * Stato scritto: `pending` (Checkout aperto, non pagato), `granted` (pagata dal
+ * webhook), `revoked` (rimborsata). Lo stato *di utilizzo* non si scrive:
+ * si deriva dalla prenotazione collegata (`booking_id`) —
+ *   nessuna prenotazione, o annullata/rifiutata/scaduta → disponibile;
+ *   richiesta o accettata → riservata;  completata → consumata.
+ * Così nessun punto che cambia lo stato di una prenotazione deve ricordarsi di
+ * aggiornare anche il registro: se se ne dimenticasse uno, la seduta resterebbe
+ * «riservata» per sempre.
+ *
+ * Una prenotazione tiene al massimo una seduta (indice parziale).
+ */
+export const sessionCredits = pgTable(
+  'session_credits',
+  {
+    id: serial('id').primaryKey(),
+    athleteUserId: integer('athlete_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    coachUserId: integer('coach_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    kind: varchar('kind', { length: 12 }).notNull(),
+    status: varchar('status', { length: 12 }).notNull().default('pending'),
+    priceCents: integer('price_cents').notNull(),
+    currency: varchar('currency', { length: 3 }).notNull().default('EUR'),
+    stripeAccountId: varchar('stripe_account_id', { length: 255 }).notNull(),
+    stripeCheckoutSessionId: varchar('stripe_checkout_session_id', { length: 255 }).unique(),
+    stripePaymentIntentId: varchar('stripe_payment_intent_id', { length: 255 }),
+    grantedAt: timestamp('granted_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    bookingId: integer('booking_id').references(() => bookings.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    ...audit,
+  },
+  (table) => [
+    uniqueIndex('session_credits_one_per_booking_idx')
+      .on(table.bookingId)
+      .where(sql`${table.bookingId} is not null`),
+    index('session_credits_pair_idx').on(table.athleteUserId, table.coachUserId, table.status),
+    check('session_credits_kind_check', sql`${table.kind} in ('single', 'extra')`),
+    check('session_credits_status_check', sql`${table.status} in ('pending', 'granted', 'revoked')`),
+    check('session_credits_price_check', sql`${table.priceCents} > 0`),
+    check('session_credits_currency_check', sql`${table.currency} = 'EUR'`),
+    check(
+      'session_credits_distinct_people_check',
+      sql`${table.athleteUserId} <> ${table.coachUserId}`
+    ),
+    check(
+      'session_credits_granted_shape_check',
+      sql`(${table.status} = 'pending' and ${table.grantedAt} is null and ${table.expiresAt} is null and ${table.bookingId} is null) or (${table.status} <> 'pending' and ${table.grantedAt} is not null and ${table.expiresAt} is not null and ${table.expiresAt} > ${table.grantedAt})`
+    ),
+  ]
+);
+
+export type SessionCredit = typeof sessionCredits.$inferSelect;
