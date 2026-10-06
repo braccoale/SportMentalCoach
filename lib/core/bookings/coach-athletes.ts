@@ -46,7 +46,8 @@ export type CoachAthleteBooking = Pick<
   Partial<Pick<CoachBooking, 'aiNotesStatus' | 'aiReportStatus'>>;
 
 /** Stati che indicano una sessione realmente avvenuta o concordata. */
-const ACTIVE_STATUSES = ['requested', 'accepted'];
+/** Prenotazione «aperta»: richiesta o confermata. Definisce «in percorso». */
+export const ACTIVE_STATUSES = ['requested', 'accepted'];
 /**
  * Una sessione si e' svolta se si e' svolta, non se qualcuno l'ha archiviata.
  *
