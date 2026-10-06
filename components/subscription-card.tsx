@@ -89,7 +89,7 @@ function ManageActions({
         <Button
           type="submit"
           variant="outline"
-          className={cn('rounded-xl', block && 'h-12 w-full text-base')}
+          className={cn('rounded-xl', block && 'h-10 w-full text-sm')}
         >
           Riattiva l&apos;abbonamento
         </Button>
@@ -101,14 +101,16 @@ function ManageActions({
     <Dialog>
       <DialogTrigger asChild>
         {block ? (
-          // Niente pulsanti rossi su KaiPai: bordo e testo neutri, l'icona del
-          // divieto dice già che è un'azione di chiusura.
+          // Eccezione voluta alla regola «niente pulsanti rossi»: è l'unica
+          // azione distruttiva della scheda e il disegno la vuole rossa. Resta
+          // un riempimento tenue con bordo e testo rossi, non un rosso pieno;
+          // la conferma che segue è neutra.
           <Button
             type="button"
             variant="outline"
-            className="h-12 w-full gap-2 rounded-xl border-gray-300 text-base font-semibold text-gray-800 hover:bg-gray-50"
+            className="h-10 w-full gap-2 rounded-xl border-red-200 bg-red-50 text-sm font-semibold text-red-700 hover:border-red-300 hover:bg-red-100 hover:text-red-800"
           >
-            <Ban className="h-5 w-5" aria-hidden />
+            <Ban className="h-4 w-4" aria-hidden />
             Annulla abbonamento
           </Button>
         ) : (
@@ -149,7 +151,7 @@ function ManageActions({
 function SegmentBar({ total, filled }: { total: number; filled: number }) {
   if (total > 12) {
     return (
-      <span className="flex h-2.5 w-full overflow-hidden rounded-full bg-gray-200">
+      <span className="flex h-2 w-full overflow-hidden rounded-full bg-gray-200">
         <span
           className="bg-emerald-600"
           style={{ width: `${Math.min(100, (filled / total) * 100)}%` }}
@@ -158,12 +160,12 @@ function SegmentBar({ total, filled }: { total: number; filled: number }) {
     );
   }
   return (
-    <span aria-hidden className="flex gap-1.5">
+    <span aria-hidden className="flex gap-1">
       {Array.from({ length: total }, (_, index) => (
         <span
           key={index}
           className={cn(
-            'h-2.5 flex-1 rounded-full',
+            'h-2 flex-1 rounded-full',
             index < filled ? 'bg-emerald-600' : 'bg-gray-200'
           )}
         />
@@ -192,23 +194,25 @@ function UsageTile({
   return (
     <div
       className={cn(
-        'rounded-2xl border p-4',
+        'rounded-xl border p-3',
         tinted
           ? 'border-emerald-100 bg-emerald-50/70'
           : 'border-gray-100 bg-white shadow-sm'
       )}
     >
-      <div className="flex items-center gap-3">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-100/80 text-emerald-700">
-          <Icon className="h-6 w-6" aria-hidden />
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100/80 text-emerald-700">
+          <Icon className="h-[18px] w-[18px]" aria-hidden />
         </span>
         <span className="leading-tight">
-          <span className="block text-3xl font-bold text-gray-900">{value}</span>
-          <span className="block text-base text-gray-900">{label}</span>
-          <span className="block text-sm text-gray-500">{caption}</span>
+          <span className="flex items-baseline gap-1.5">
+            <span className="text-xl font-bold text-gray-900">{value}</span>
+            <span className="text-sm text-gray-900">{label}</span>
+          </span>
+          <span className="block text-xs text-gray-500">{caption}</span>
         </span>
       </div>
-      <div className="mt-3">
+      <div className="mt-2">
         <SegmentBar total={total} filled={filled} />
       </div>
     </div>
@@ -225,13 +229,13 @@ function InfoItem({
   value: string;
 }) {
   return (
-    <div className="flex items-center gap-3">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100/70 text-emerald-700">
-        <Icon className="h-5 w-5" aria-hidden />
+    <div className="flex items-center gap-2.5">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100/70 text-emerald-700">
+        <Icon className="h-4 w-4" aria-hidden />
       </span>
       <span className="leading-tight">
-        <span className="block text-sm font-medium text-gray-900">{label}</span>
-        <span className="block text-sm text-gray-600">{value}</span>
+        <span className="block text-xs font-medium text-gray-900">{label}</span>
+        <span className="block text-xs text-gray-600">{value}</span>
       </span>
     </div>
   );
@@ -243,8 +247,8 @@ function InfoItem({
  * quella data. Chiede conferma e dice che cosa succede.
  *
  * Due forme, stessa logica: la scheda piccola sul profilo del coach e la scheda
- * grande della pagina «Abbonamenti» dell'atleta (quando c'è `coachName`), con
- * le sedute fatte e rimaste, il rinnovo, il prossimo pagamento e il metodo di
+ * della pagina «Abbonamenti» dell'atleta (quando c'è `coachName`), con le
+ * sedute fatte e rimaste, il rinnovo, il prossimo pagamento e il metodo di
  * pagamento.
  */
 export function SubscriptionCard({
@@ -273,18 +277,18 @@ export function SubscriptionCard({
     const sessionWord = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
     return (
-      <div className="relative overflow-hidden rounded-3xl border border-emerald-200 bg-gradient-to-br from-white via-white to-emerald-50/80 p-5 sm:p-6">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-white via-white to-emerald-50/80 p-4">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_250px]">
           {/* Sinistra: chi, quanto, e le sedute */}
-          <div className="flex min-w-0 flex-col gap-5">
-            <div className="flex items-center gap-4">
+          <div className="flex min-w-0 flex-col gap-3.5">
+            <div className="flex items-center gap-3">
               <CoachAvatar
                 name={coachName}
                 src={coachAvatarUrl ?? null}
-                className="size-14 shrink-0"
+                className="size-11 shrink-0"
               />
               <div className="min-w-0">
-                <h3 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">
+                <h3 className="text-lg font-bold tracking-tight text-gray-900">
                   Abbonamento con{' '}
                   {profileHref ? (
                     <a
@@ -297,7 +301,7 @@ export function SubscriptionCard({
                     coachName
                   )}
                 </h3>
-                <p className="mt-0.5 text-sm text-gray-600">
+                <p className="text-sm text-gray-600">
                   <span className="font-semibold text-emerald-700">
                     {subscription.planName}
                   </span>
@@ -305,17 +309,15 @@ export function SubscriptionCard({
                   {subscription.sessionsPerMonth}{' '}
                   {sessionWord(subscription.sessionsPerMonth, 'seduta', 'sedute')} al
                   mese · {subscription.priceLabel} al mese
+                  {subscription.sinceLabel
+                    ? ` · dal ${subscription.sinceLabel}`
+                    : ''}
                 </p>
-                {subscription.sinceLabel && (
-                  <p className="text-xs text-gray-500">
-                    Sottoscritto il {subscription.sinceLabel}
-                  </p>
-                )}
               </div>
             </div>
 
             {usage?.known && (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-2.5 sm:grid-cols-2">
                 <UsageTile
                   icon={CalendarCheck}
                   value={usage.done}
@@ -340,12 +342,12 @@ export function SubscriptionCard({
               </div>
             )}
             {usage?.known && usage.overBooked && (
-              <p className="-mt-2 text-xs text-amber-800">
+              <p className="-mt-1.5 text-xs text-amber-800">
                 Hai fissato più sedute di quelle incluse nel piano.
               </p>
             )}
 
-            <div className="grid gap-4 border-t border-emerald-100 pt-5 sm:grid-cols-3">
+            <div className="grid gap-3 border-t border-emerald-100 pt-3 sm:grid-cols-3">
               <InfoItem
                 icon={CalendarDays}
                 label={cancelAtPeriodEnd ? 'Termina' : 'Rinnovo'}
@@ -365,57 +367,49 @@ export function SubscriptionCard({
           </div>
 
           {/* Destra: stato, metodo di pagamento, gestione */}
-          <div className="relative flex flex-col gap-4 lg:border-l lg:border-emerald-100 lg:pl-6">
+          <div className="relative flex flex-col gap-3 lg:border-l lg:border-emerald-100 lg:pl-4">
             <div
               aria-hidden
-              className="pointer-events-none absolute -top-1 right-0 hidden h-24 w-28 sm:block"
+              className="pointer-events-none absolute -top-1 right-0 hidden h-16 w-20 sm:block"
             >
               <SubscriptionIllustration className="h-full w-full" />
             </div>
 
             <span
               className={cn(
-                'inline-flex w-fit items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-semibold',
+                'inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold',
                 pill.tone
               )}
             >
               {pill.warn ? (
-                <TriangleAlert className="h-4 w-4" aria-hidden />
+                <TriangleAlert className="h-3.5 w-3.5" aria-hidden />
               ) : (
-                <span className={cn('h-2.5 w-2.5 rounded-full', pill.dot)} aria-hidden />
+                <span className={cn('h-2 w-2 rounded-full', pill.dot)} aria-hidden />
               )}
               {pill.label}
             </span>
 
             {subscription.paymentMethodLabel && (
-              <div className="flex items-center gap-3 sm:max-w-[60%] lg:max-w-none">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100/70 text-emerald-700">
-                  <CreditCard className="h-5 w-5" aria-hidden />
-                </span>
-                <span className="leading-tight">
-                  <span className="block text-sm font-medium text-gray-900">
-                    Metodo di pagamento
-                  </span>
-                  <span className="block text-sm text-gray-600">
-                    {subscription.paymentMethodLabel}
-                  </span>
-                </span>
-              </div>
+              <InfoItem
+                icon={CreditCard}
+                label="Metodo di pagamento"
+                value={subscription.paymentMethodLabel}
+              />
             )}
 
             {pastDue && (
-              <p className="text-sm text-amber-800">
+              <p className="text-xs text-amber-800">
                 L&apos;ultimo pagamento non è andato a buon fine: controlla il
                 metodo di pagamento.
               </p>
             )}
             {cancelAtPeriodEnd && (
-              <p className="text-sm text-gray-700">
+              <p className="text-xs text-gray-700">
                 Resta attivo {until}, poi non viene più addebitato nulla.
               </p>
             )}
 
-            <div className="mt-auto pt-2">
+            <div className="mt-auto pt-1">
               <ManageActions
                 slug={slug}
                 subscription={subscription}

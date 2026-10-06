@@ -52,9 +52,9 @@ export default async function AthleteSubscriptionsPage({
     : purchaseNoticeFor(abbonamento, { subscriptionActive: live.length > 0 });
 
   return (
-    <section className="m-4 flex flex-col gap-5 rounded-3xl bg-white p-5 shadow-sm sm:m-6 sm:p-8">
+    <section className="m-4 flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm sm:m-6 sm:p-5">
       <header>
-        <h2 className="text-2xl font-semibold tracking-tight text-gray-900">
+        <h2 className="text-xl font-semibold tracking-tight text-gray-900">
           I tuoi abbonamenti
         </h2>
         <p className="mt-1 max-w-3xl text-sm text-gray-600">
