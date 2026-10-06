@@ -11,10 +11,12 @@
  *    prima: nessun abbonamento richiesto;
  *  - la sessione conoscitiva gratuita non consuma niente e non richiede niente;
  *  - per un coach a pagamento serve un abbonamento vivo con quel coach;
- *  - le sedute si contano nel periodo in cui sono **fissate**: si può prenotare
- *    dopo il rinnovo con le sedute del periodo nuovo, ma al massimo di UN
- *    rinnovo avanti (oltre, il rinnovo non è ancora avvenuto e non si sa se
- *    avverrà);
+ *  - si prenota **dentro il periodo pagato**, più una tolleranza di
+ *    `BOOKING_GRACE_DAYS_AFTER_PERIOD` giorni dopo la fine (una seduta il 7
+ *    novembre per chi si rinnova il 6). Oltre non si sa se il rinnovo avverrà,
+ *    quindi non si fissa niente: dopo il rinnovo il periodo nuovo apre le sue
+ *    date. Le sedute fissate nella tolleranza si contano contro le sedute del
+ *    periodo che sta finendo;
  *  - un abbonamento annullato a fine periodo non dà sedute oltre la fine;
  *  - un pagamento in ritardo ferma le nuove prenotazioni.
  *
@@ -33,6 +35,9 @@ export type CreditSubscription = {
 };
 
 export type CreditPeriod = { index: 0 | 1; start: Date; end: Date };
+
+/** Quanti giorni dopo la fine del periodo pagato si può ancora fissare una seduta. */
+export const BOOKING_GRACE_DAYS_AFTER_PERIOD = 7;
 
 /** «Un mese dopo», con il giorno ridotto se il mese dopo è più corto (31 gen → 28 feb). */
 export function addOneMonthUtc(date: Date): Date {
@@ -201,35 +206,34 @@ function decidePlanAccess(input: BookingAccessInput): BookingAccess {
   if (!periods) return refuse('PERIOD_UNKNOWN');
 
   const at = input.scheduledFor.getTime();
-  const { current, next } = periods;
+  const { current } = periods;
 
   if (at < current.start.getTime()) return refuse('BEFORE_PERIOD');
-  if (at >= next.end.getTime()) {
-    return refuse('TOO_FAR', {
-      lastBookable: formatLongDateRome(new Date(next.end.getTime() - 1)),
-    });
-  }
   if (at >= current.end.getTime() && subscription.cancelAtPeriodEnd) {
     return refuse('AFTER_END', { renewal: formatLongDateRome(current.end) });
   }
+  const limit = new Date(
+    current.end.getTime() + BOOKING_GRACE_DAYS_AFTER_PERIOD * 24 * 60 * 60 * 1000
+  );
+  if (at >= limit.getTime()) {
+    return refuse('TOO_FAR', {
+      lastBookable: formatLongDateRome(new Date(limit.getTime() - 1)),
+    });
+  }
 
-  const period = at < current.end.getTime() ? current : next;
+  // La tolleranza usa le sedute del periodo che sta finendo: si conta tutto
+  // ciò che è fissato da inizio periodo fino al limite.
   const usage = sessionUsageForPeriod({
     sessionsPerMonth: subscription.sessionsPerMonth,
-    periodStart: period.start,
-    periodEnd: period.end,
+    periodStart: current.start,
+    periodEnd: limit,
     bookings: input.bookings,
   });
   if (usage.known && usage.remaining <= 0) {
-    return period.index === 0
-      ? refuse('NO_CREDITS', {
-          total: usage.total,
-          renewal: formatLongDateRome(current.end),
-        })
-      : refuse('NO_CREDITS', {
-          total: usage.total,
-          nextStart: formatLongDateRome(next.start),
-        });
+    return refuse('NO_CREDITS', {
+      total: usage.total,
+      renewal: formatLongDateRome(current.end),
+    });
   }
 
   return { ok: true };

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  BOOKING_GRACE_DAYS_AFTER_PERIOD,
   addOneMonthUtc,
   creditPeriods,
   creditsSummary,
@@ -106,22 +107,15 @@ describe('decideBookingAccess: sedute', () => {
     }
   });
 
-  it('con zero sedute oggi, una data DOPO il rinnovo si può prenotare', () => {
-    assert.equal(reason({ bookings: fullPeriod, scheduledFor: day('2026-11-10') }), 'OK');
+  it('nella tolleranza dopo la fine si usano le sedute del periodo che finisce', () => {
+    // Tre sedute già fissate in ottobre: il 10 novembre (dentro i 7 giorni) non c'è posto.
+    assert.equal(reason({ bookings: fullPeriod, scheduledFor: day('2026-11-10') }), 'NO_CREDITS');
+    // Con posto libero, la stessa data si prenota.
+    assert.equal(reason({ bookings: fullPeriod.slice(0, 2), scheduledFor: day('2026-11-10') }), 'OK');
   });
 
-  it('l’istante del rinnovo appartiene al periodo nuovo', () => {
-    assert.equal(reason({ bookings: fullPeriod, scheduledFor: end }), 'OK');
-  });
-
-  it('anche il periodo nuovo ha il suo tetto', () => {
-    const nextFull = ['2026-11-10', '2026-11-12', '2026-11-20'].map((d) => ({
-      status: 'requested',
-      scheduledFor: day(d),
-    }));
-    const result = access({ bookings: nextFull, scheduledFor: day('2026-11-25') });
-    assert.equal(result.ok, false);
-    if (!result.ok) assert.match(result.message, /periodo che inizia il 6 novembre 2026/);
+  it('il giorno del rinnovo è già dentro la tolleranza', () => {
+    assert.equal(reason({ scheduledFor: end }), 'OK');
   });
 
   it('le sedute annullate o rifiutate restituiscono il posto', () => {
@@ -129,21 +123,29 @@ describe('decideBookingAccess: sedute', () => {
     assert.equal(reason({ bookings: released }), 'OK');
   });
 
-  it('le sedute del periodo nuovo non consumano quelle del periodo corrente', () => {
-    const nextOnly = ['2026-11-10', '2026-11-12', '2026-11-20'].map((d) => ({
+  it('una seduta fissata nella tolleranza pesa sulle sedute del periodo', () => {
+    const inGrace = ['2026-11-07', '2026-11-08', '2026-11-09'].map((d) => ({
       status: 'accepted',
       scheduledFor: day(d),
     }));
-    assert.equal(reason({ bookings: nextOnly, scheduledFor: day('2026-10-20') }), 'OK');
+    assert.equal(reason({ bookings: inGrace, scheduledFor: day('2026-10-20') }), 'NO_CREDITS');
   });
 });
 
 describe('decideBookingAccess: limiti nel tempo', () => {
-  it('oltre UN rinnovo avanti non si prenota', () => {
-    const result = access({ scheduledFor: nextEnd });
+  it('oltre la fine del periodo più 7 giorni non si prenota', () => {
+    const limit = new Date(end.getTime() + BOOKING_GRACE_DAYS_AFTER_PERIOD * 86_400_000);
+    const result = access({ scheduledFor: limit });
     assert.equal(result.ok, false);
-    if (!result.ok) assert.equal(result.reason, 'TOO_FAR');
-    assert.equal(reason({ scheduledFor: new Date(nextEnd.getTime() - 1000) }), 'OK');
+    if (!result.ok) {
+      assert.equal(result.reason, 'TOO_FAR');
+      assert.match(result.message, /fino al 13 novembre 2026/);
+    }
+    assert.equal(reason({ scheduledFor: new Date(limit.getTime() - 1000) }), 'OK');
+  });
+
+  it('la tolleranza è di 7 giorni', () => {
+    assert.equal(BOOKING_GRACE_DAYS_AFTER_PERIOD, 7);
   });
 
   it('un abbonamento annullato a fine periodo non dà sedute oltre la fine', () => {
@@ -212,8 +214,10 @@ describe('decideBookingAccess: il messaggio parla a chi prenota', () => {
     assert.equal(reason({ viewer: 'coach', requiresSubscription: false, subscription: null }), 'OK');
   });
 
-  it('le date dopo il rinnovo si possono fissare anche per il coach', () => {
-    assert.equal(reason({ viewer: 'coach', bookings: full, scheduledFor: day('2026-11-10') }), 'OK');
+  it('la tolleranza vale anche per il coach, con le stesse sedute', () => {
+    assert.equal(reason({ viewer: 'coach', scheduledFor: day('2026-11-10') }), 'OK');
+    assert.equal(reason({ viewer: 'coach', bookings: full, scheduledFor: day('2026-11-10') }), 'NO_CREDITS');
+    assert.equal(reason({ viewer: 'coach', scheduledFor: day('2026-11-20') }), 'TOO_FAR');
   });
 });
 

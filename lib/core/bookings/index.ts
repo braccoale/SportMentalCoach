@@ -759,7 +759,7 @@ export function applyBookingCredits<
   } else if (subscription?.status === 'past_due') {
     creditsNotice = check(now).ok ? null : (check(now) as { message: string }).message;
   } else if (summary.remainingNow === 0 && summary.renewalLabel) {
-    creditsNotice = `Hai già usato tutte le ${summary.total} sedute di questo periodo: puoi prenotare a partire dal ${summary.renewalLabel}.`;
+    creditsNotice = `Hai già usato tutte le ${summary.total} sedute di questo periodo: potrai prenotare le nuove sedute dopo il rinnovo del ${summary.renewalLabel}.`;
   }
 
   return {
