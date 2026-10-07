@@ -422,6 +422,8 @@ export default async function AppointmentDetailPage({
                     currentDay={formatRomeDateValue(booking.scheduledFor)}
                     currentTime={formatTime(booking.scheduledFor)}
                     durationMin={booking.durationMin ?? DEFAULT_SERVICE_DURATION_MIN}
+                    counterpartName={counterpart}
+                    perspective={booking.viewerRole}
                   />
                 ) : null}
                 <AddToGoogleCalendarButton

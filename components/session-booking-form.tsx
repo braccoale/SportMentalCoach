@@ -105,6 +105,10 @@ export function SessionBookingForm({
   durationSelect = false,
   tourKey = 'athlete_booking',
   calendarTourId = 'athlete-booking-calendar',
+  initial,
+  serviceless = false,
+  summaryTitle,
+  hint,
 }: {
   slug: string;
   coachName: string;
@@ -158,6 +162,21 @@ export function SessionBookingForm({
   /** Il tour guidato del calendario e il suo bersaglio (il coach ha il proprio). */
   tourKey?: 'athlete_booking' | 'coach_create_appointment';
   calendarTourId?: string;
+  /**
+   * Giorno, ora e durata da cui partire: la modifica di un appuntamento si
+   * apre sulla sessione com'è, non sul primo orario libero. Se il giorno o
+   * l'ora non sono più tra le opzioni si riparte dal primo libero.
+   */
+  initial?: { day: string; time: string; durationMin: number };
+  /**
+   * Senza servizio: lo spostamento di una sessione già esistente non sceglie
+   * né manda un servizio (la sessione ce l'ha già), solo data, ora e durata.
+   */
+  serviceless?: boolean;
+  /** Sostituisce «Seduta con …» sopra il riepilogo (es. «Appuntamento con …»). */
+  summaryTitle?: string;
+  /** Il messaggio sotto il pulsante, al posto di quello della prenotazione. */
+  hint?: string;
 }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(action, {
     error: '',
@@ -169,7 +188,7 @@ export function SessionBookingForm({
   const primaryService = [...services].sort((a, b) => a.id - b.id)[0] ?? null;
   // La durata voluta: dal servizio, oppure scelta a mano (coach).
   const [preferredDuration, setPreferredDuration] = useState<number>(
-    DEFAULT_SESSION_DURATION_MIN
+    initial?.durationMin ?? DEFAULT_SESSION_DURATION_MIN
   );
   const baseDurationMin = introductory
     ? INTRO_DURATION_MIN
@@ -195,10 +214,21 @@ export function SessionBookingForm({
     }
   }
 
-  const [day, setDay] = useState(bookableDays[0]?.value ?? '');
-  const [time, setTime] = useState(firstFreeTime(bookableDays[0], baseDurationMin));
+  // Si parte dalla sessione com'è, se esiste ancora tra le opzioni.
+  const initialDayIndex = initial
+    ? bookableDays.findIndex((d) => d.value === initial.day)
+    : -1;
+  const startDay = initialDayIndex >= 0 ? bookableDays[initialDayIndex] : bookableDays[0];
+  const startTime =
+    initial && initialDayIndex >= 0 && startDay?.times.includes(initial.time)
+      ? initial.time
+      : firstFreeTime(startDay, baseDurationMin);
+  const [day, setDay] = useState(startDay?.value ?? '');
+  const [time, setTime] = useState(startTime);
   const [durationMin, setDurationMin] = useState<number>(baseDurationMin);
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(
+    initialDayIndex >= 0 ? Math.floor(initialDayIndex / DAYS_PER_PAGE) : 0
+  );
   const [note, setNote] = useState('');
 
   const selectedDay = useMemo(() => bookableDays.find((d) => d.value === day), [bookableDays, day]);
@@ -223,7 +253,7 @@ export function SessionBookingForm({
     setDurationMin(slot.fitsDurationMin ?? baseDurationMin);
   }
 
-  if (!introductory && services.length === 0) {
+  if (!introductory && !serviceless && services.length === 0) {
     return (
       <p className="rounded-md bg-amber-50 px-3 py-3 text-sm text-amber-800">
         Questo coach non ha ancora configurato un servizio con una durata. La
@@ -264,7 +294,9 @@ export function SessionBookingForm({
         <input type="hidden" name="introductory" value="true" />
       ) : (
         <>
-          <input type="hidden" name="serviceId" value={primaryService?.id ?? ''} />
+          {!serviceless && (
+            <input type="hidden" name="serviceId" value={primaryService?.id ?? ''} />
+          )}
           <input type="hidden" name="durationMin" value={durationMin} />
         </>
       )}
@@ -421,8 +453,8 @@ export function SessionBookingForm({
             <CoachAvatar name={coachName} src={coachAvatarUrl} className="size-12 shrink-0" />
             <div className="min-w-0">
               <p className="truncate font-semibold text-gray-900">
-                {introductory ? 'Sessione conoscitiva con' : perspective === 'coach' ? 'Sessione con' : 'Seduta con'}{' '}
-                {coachFirstName}
+                {summaryTitle ??
+                  `${introductory ? 'Sessione conoscitiva con' : perspective === 'coach' ? 'Sessione con' : 'Seduta con'} ${coachFirstName}`}
               </p>
               {coachHeadline && <p className="truncate text-sm text-gray-500">{coachHeadline}</p>}
             </div>
@@ -512,7 +544,7 @@ export function SessionBookingForm({
             isDemo ||
             pending ||
             (bookableDays.length > 0 && !scheduledFor) ||
-            (!introductory && !primaryService)
+            (!introductory && !serviceless && !primaryService)
           }
           className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-emerald-600 text-base font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -531,9 +563,10 @@ export function SessionBookingForm({
         </button>
         <p className="flex items-center gap-1.5 text-xs text-gray-500">
           <Lock className="h-3.5 w-3.5" aria-hidden />
-          {perspective === 'coach'
-            ? `${coachFirstName} riceve subito una notifica.`
-            : `${coachFirstName} conferma la richiesta e ricevi una notifica.`}
+          {hint ??
+            (perspective === 'coach'
+              ? `${coachFirstName} riceve subito una notifica.`
+              : `${coachFirstName} conferma la richiesta e ricevi una notifica.`)}
         </p>
         {startNow && (
           <div className="mt-2 w-full border-t border-gray-100 pt-4">
