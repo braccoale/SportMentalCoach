@@ -35,7 +35,22 @@ export function SubscribeDialog({
           Abbonati
         </button>
       </DialogTrigger>
-      <DialogContent className="max-w-5xl rounded-3xl p-6 sm:p-8">
+      <DialogContent
+        className="max-w-5xl rounded-3xl p-6 sm:p-8"
+        // Il focus iniziale va al piano già selezionato (il consigliato), non al
+        // primo della lista: di default Radix lo dà al primo elemento
+        // raggiungibile, e il bordo di «Starter» sembrava la scelta.
+        onOpenAutoFocus={(event) => {
+          const container = event.target as HTMLElement | null;
+          const selected = container?.querySelector<HTMLInputElement>(
+            'input[name="planId"]:checked'
+          );
+          if (selected) {
+            event.preventDefault();
+            selected.focus();
+          }
+        }}
+      >
         <DialogTitle className="text-xl font-bold sm:text-3xl">
           Percorsi mensili con {coachFirstName}
         </DialogTitle>
