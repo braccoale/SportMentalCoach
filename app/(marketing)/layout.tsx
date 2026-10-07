@@ -1,16 +1,24 @@
 import type { Metadata } from 'next';
-import { Space_Grotesk, Inter, JetBrains_Mono } from 'next/font/google';
+import localFont from 'next/font/local';
 
-const display = Space_Grotesk({
-  subsets: ['latin'],
+// Font ospitati nel progetto (vedi app/fonts/README.md): la build non scarica più nulla da Google.
+const display = localFont({
+  src: '../fonts/space-grotesk-latin-wght-normal.woff2',
   variable: '--font-kp-display',
-  weight: ['500', '600', '700'],
+  weight: '300 700',
+  display: 'swap',
 });
-const body = Inter({ subsets: ['latin'], variable: '--font-kp-body' });
-const mono = JetBrains_Mono({
-  subsets: ['latin'],
+const body = localFont({
+  src: '../fonts/inter-latin-wght-normal.woff2',
+  variable: '--font-kp-body',
+  weight: '100 900',
+  display: 'swap',
+});
+const mono = localFont({
+  src: '../fonts/jetbrains-mono-latin-wght-normal.woff2',
   variable: '--font-kp-mono',
-  weight: ['400', '500'],
+  weight: '100 800',
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
