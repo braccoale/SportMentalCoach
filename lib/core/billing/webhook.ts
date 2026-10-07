@@ -4,6 +4,8 @@ import type Stripe from 'stripe';
 import { db } from '@/lib/db/drizzle';
 import { planSubscriptions, sessionCredits, stripeWebhookEvents } from '@/lib/db/schema';
 import { getSystemConfigNumber } from '@/lib/core/system-config';
+import { notifyPaymentFailed } from './payment-failed-notify';
+import { shouldNotifyPaymentFailed } from './payment-failed-content';
 import {
   DEFAULT_SINGLE_SESSION_VALIDITY_DAYS,
   SINGLE_SESSION_VALIDITY_CONFIG_KEY,
@@ -135,6 +137,13 @@ async function applyStatus(
       throw new RetryableError('DUPLICATE_ACTIVE');
     }
     throw error;
+  }
+
+  // L'avviso parte quando l'abbonamento DIVENTA «in ritardo», non a ogni
+  // evento che lo trova già così (vedi `shouldNotifyPaymentFailed`). Non
+  // solleva: una mail che non parte non deve far ripetere l'evento a Stripe.
+  if (shouldNotifyPaymentFailed(row.status, next)) {
+    await notifyPaymentFailed(rowId);
   }
 }
 

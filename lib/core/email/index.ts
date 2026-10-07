@@ -25,6 +25,7 @@ import {
 import { DEFAULT_LOCALE, resolveTemplate } from './templates';
 import { buildWelcomeEmailContent } from './welcome-content';
 import type { OutcomeEmailSummary } from '@/lib/core/ai-session-notes/session-outcome-report';
+import type { PaymentFailedContent } from '@/lib/core/billing/payment-failed-content';
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 
@@ -568,6 +569,49 @@ export async function sendSessionOutcomeEmail(input: {
         label: input.summary.actionLabel,
         url: `${actionBase}/dashboard/admin/ai/${input.summary.sessionId}`,
       },
+      preferencesUrl: null,
+    }),
+  });
+}
+
+/**
+ * L'avviso di un rinnovo non andato a buon fine, ad atleta o a coach. È una
+ * email operativa: non nasce dal catalogo delle notifiche e non ha il link alle
+ * preferenze, perché non si può disattivare (chi non sa che il pagamento è
+ * fallito non può rimediare). Il testo lo decide `buildPaymentFailedContent`.
+ */
+export async function sendPaymentFailedEmail(input: {
+  to: string;
+  content: PaymentFailedContent;
+}): Promise<SendResult> {
+  const { content } = input;
+  const { privacyUrl, baseUrl } = footerUrls();
+  const actionUrl = absoluteUrl(content.actionPath);
+  const action = actionUrl ? { label: content.actionLabel, url: actionUrl } : null;
+  const card: DetailsCard = { rows: content.rows };
+
+  return sendEmail({
+    to: input.to,
+    subject: content.subject,
+    html: wrapEmailHtml({
+      preview: content.preview,
+      eyebrow: content.eyebrow,
+      title: escapeHtml(content.title),
+      bodyHtml: content.paragraphs
+        .map((p) => `<p style="margin:0 0 14px">${escapeHtml(p)}</p>`)
+        .join('\n'),
+      card,
+      action,
+      preferencesUrl: null,
+      privacyUrl,
+      baseUrl,
+    }),
+    text: wrapEmailText({
+      eyebrow: content.eyebrow,
+      title: content.title,
+      bodyText: content.paragraphs.join('\n\n'),
+      card,
+      action,
       preferencesUrl: null,
     }),
   });
