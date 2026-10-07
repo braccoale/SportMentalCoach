@@ -23,7 +23,7 @@ export function SubscribeDialog({
   slug: string;
   coachFirstName: string;
   plans: PickerPlan[];
-  single?: { priceLabel: string } | null;
+  single?: { priceLabel: string; validityDays: number } | null;
 }) {
   return (
     <Dialog>

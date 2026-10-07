@@ -38,6 +38,7 @@ import {
   getPaymentMethodLabels,
   getSessionUsageForSubscriptions,
   getSingleSessionOffersByProvider,
+  getSingleSessionValidityDays,
   getPlansVisibleToAthlete,
   perSessionCents,
   purchaseNoticeFor,
@@ -291,6 +292,7 @@ export default async function CoachDetailPage({
         ) ?? null)
       : null;
   const singlePriceLabel = singleCents ? formatEuroCents(singleCents) : null;
+  const singleValidityDays = singleCents ? await getSingleSessionValidityDays() : 0;
   const creditView =
     creditContext?.requiresSubscription &&
     (creditContext.subscription || hasPurchasedSessions)
@@ -688,7 +690,11 @@ export default async function CoachDetailPage({
                 <PlanPicker
                   slug={slug}
                   coachFirstName={firstName}
-                  single={singlePriceLabel ? { priceLabel: singlePriceLabel } : null}
+                  single={
+                    singlePriceLabel
+                      ? { priceLabel: singlePriceLabel, validityDays: singleValidityDays }
+                      : null
+                  }
                   plans={plans.map((plan) => ({
                     id: plan.id,
                     name: plan.name,

@@ -652,6 +652,13 @@
       "when": 1791306410505,
       "tag": "0092_seduta_singola_registro",
       "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1791361081133,
+      "tag": "0093_durata_sedute_singole",
+      "breakpoints": true
     }
   ]
 }

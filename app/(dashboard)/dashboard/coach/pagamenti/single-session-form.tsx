@@ -15,11 +15,14 @@ export function SingleSessionForm({
   currentPrice,
   minLabel,
   maxLabel,
+  validityLabel,
 }: {
   /** Già formattato dal server («100,00»), o vuoto se non è impostato. */
   currentPrice: string;
   minLabel: string;
   maxLabel: string;
+  /** «60 giorni»: la durata decisa dalla piattaforma, non dal coach. */
+  validityLabel: string;
 }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     saveSingleSessionPriceAction,
@@ -140,7 +143,7 @@ export function SingleSessionForm({
           </span>
           <span className="inline-flex items-center gap-1.5">
             <CalendarDays className="h-4 w-4" aria-hidden />
-            Una seduta acquistata vale 60 giorni.
+            Una seduta acquistata vale {validityLabel}.
           </span>
         </div>
         <div role="status" aria-live="polite">

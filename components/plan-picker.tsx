@@ -28,11 +28,12 @@ import {
 } from '@/lib/core/billing/session-plan';
 import {
   PLAN_TERMS,
-  SINGLE_SESSION_TERMS,
+  singleSessionTerms,
   UNDEFINED_TERM_LABEL,
   type PlanTerm,
   type PlanTermKey,
 } from '@/lib/core/billing/plan-terms';
+import { formatValidityDays } from '@/lib/core/billing/single-session';
 import {
   buySingleSessionAction,
   startPlanCheckoutAction,
@@ -158,7 +159,7 @@ export function PlanPicker({
   coachFirstName: string;
   variant?: 'page' | 'dialog';
   /** Il prezzo di una seduta singola, già formattato; assente = non si vende. */
-  single?: { priceLabel: string } | null;
+  single?: { priceLabel: string; validityDays: number } | null;
 }) {
   const [selectedId, setSelectedId] = useState<number | null>(
     defaultSelectedPlanId(plans)
@@ -353,7 +354,7 @@ export function PlanPicker({
             Una sola seduta
           </span>
           <span className="block text-xs text-gray-600">
-            Senza abbonamento · valida 60 giorni
+            Senza abbonamento · valida {formatValidityDays(single.validityDays)}
           </span>
         </span>
         <span className="flex shrink-0 items-center gap-3">
@@ -379,7 +380,7 @@ export function PlanPicker({
           <h3 className="mb-3 text-sm font-semibold text-gray-900">
             Condizioni della seduta singola
           </h3>
-          <TermsList terms={SINGLE_SESSION_TERMS} />
+          <TermsList terms={singleSessionTerms(single.validityDays)} />
         </div>
       )}
     </li>
@@ -431,7 +432,7 @@ export function PlanPicker({
                 abbonamento
               </p>
               <div className="mt-4 border-t border-emerald-100 pt-4">
-                <TermsList tinted terms={SINGLE_SESSION_TERMS} />
+                <TermsList tinted terms={singleSessionTerms(single.validityDays)} />
               </div>
             </aside>
           ) : (

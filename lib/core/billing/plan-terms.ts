@@ -14,6 +14,8 @@
  * Modulo puro.
  */
 
+import { formatValidityDays } from './single-session';
+
 export type PlanTermKey =
   | 'pagamento'
   | 'rinnovo'
@@ -66,10 +68,11 @@ export function definedTermCount(): number {
 /**
  * Le condizioni di UNA seduta acquistata a parte. Stesse regole di
  * `PLAN_TERMS`: un testo solo per ciò che il prodotto mantiene davvero, il
- * resto «Da definire». La validità di 60 giorni è vera (la scrive il webhook
+ * resto «Da definire». La validità è vera (la scrive il webhook, dal parametro
  * e la rispetta la prenotazione); rimborso e recesso restano da decidere.
  */
-export const SINGLE_SESSION_TERMS: readonly PlanTerm[] = [
+export function singleSessionTerms(validityDays: number): readonly PlanTerm[] {
+  return [
   {
     key: 'pagamento',
     title: 'Pagamento',
@@ -78,8 +81,9 @@ export const SINGLE_SESSION_TERMS: readonly PlanTerm[] = [
   {
     key: 'utilizzo_sedute',
     title: 'Validità',
-    text: 'La seduta si può prenotare entro 60 giorni dal pagamento.',
+    text: `La seduta si può prenotare entro ${formatValidityDays(validityDays)} dal pagamento.`,
   },
   { key: 'disdetta_seduta', title: 'Disdetta di una seduta', text: null },
   { key: 'rimborsi_recesso', title: 'Rimborsi e recesso', text: null },
-];
+  ];
+}

@@ -3,7 +3,13 @@ import { and, eq, sql } from 'drizzle-orm';
 import type Stripe from 'stripe';
 import { db } from '@/lib/db/drizzle';
 import { planSubscriptions, sessionCredits, stripeWebhookEvents } from '@/lib/db/schema';
-import { singleSessionExpiresAt } from './single-session';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
+import {
+  DEFAULT_SINGLE_SESSION_VALIDITY_DAYS,
+  SINGLE_SESSION_VALIDITY_CONFIG_KEY,
+  normalizeValidityDays,
+  singleSessionExpiresAt,
+} from './single-session';
 import {
   nextPlanSubscriptionStatus,
   ownRowId,
@@ -135,7 +141,9 @@ async function applyStatus(
 /**
  * Una seduta acquistata a parte diventa prenotabile solo qui, a pagamento
  * incassato. Ripetibile: una riga già concessa non si tocca, quindi la
- * scadenza dei 60 giorni non si sposta se Stripe rimanda l'evento.
+ * scadenza non si sposta se Stripe rimanda l'evento. La durata è il parametro
+ * di sistema `BILLING_SINGLE_SESSION_VALIDITY_DAYS` letto adesso: cambiarlo
+ * non tocca le sedute già concesse, ognuna ha la sua scadenza scritta.
  */
 async function onSessionPurchased(
   session: Stripe.Checkout.Session,
@@ -170,7 +178,15 @@ async function onSessionPurchased(
     .set({
       status: 'granted',
       grantedAt,
-      expiresAt: singleSessionExpiresAt(grantedAt),
+      expiresAt: singleSessionExpiresAt(
+        grantedAt,
+        normalizeValidityDays(
+          await getSystemConfigNumber(
+            SINGLE_SESSION_VALIDITY_CONFIG_KEY,
+            DEFAULT_SINGLE_SESSION_VALIDITY_DAYS
+          )
+        )
+      ),
       stripeCheckoutSessionId: session.id,
       stripePaymentIntentId: paymentIntentId,
       updatedAt: grantedAt,
