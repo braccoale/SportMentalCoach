@@ -43,6 +43,15 @@ What is actually installed. Check `package.json` before adding to this list, and
 
 **The `.vercel.app` alias is production.** Pushing a branch creates a Preview at a different URL; it does not update the alias.
 
+## Costi Vercel
+
+Ogni push su un branch crea una build di anteprima, ogni merge in `main` una di produzione: è la voce più grossa della spesa (≈ 0,3 $/giorno nei giorni intensi di ottobre 2026). Quindi:
+
+- **Un solo push per PR**, dopo aver verificato in locale (`tsc`, `npm test`, app). Non si pusha per «vedere cosa succede».
+- Il progetto Vercel **salta la build delle anteprime senza pull request** (`commandForIgnoringBuildStep`); la produzione si costruisce sempre. Se serve un'anteprima, aprire la PR e poi pushare.
+- Solo documentazione o memoria: aspettare il prossimo rilascio, non fare un merge a sé.
+- Le correzioni urgenti non si accorpano a rilasci grandi: il risparmio è di centesimi, il rischio no.
+
 ## Tests
 
 `npm test` runs the pure-logic suite through `tsx --test` — around seventy files, mostly `lib/core/`, including one mobile module. Scripts named `test:ai-notes:*` reach real infrastructure (RLS, schema, live pipeline) and are not part of the default run; they cost real calls and touch the production project.
