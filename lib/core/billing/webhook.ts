@@ -2,9 +2,16 @@ import 'server-only';
 import { and, eq, sql } from 'drizzle-orm';
 import type Stripe from 'stripe';
 import { db } from '@/lib/db/drizzle';
-import { planSubscriptions, sessionCredits, stripeWebhookEvents } from '@/lib/db/schema';
+import {
+  coachBillingProfiles,
+  planSubscriptions,
+  sessionCredits,
+  stripeWebhookEvents,
+} from '@/lib/db/schema';
 import { getSystemConfigNumber } from '@/lib/core/system-config';
 import { notifyPaymentFailed } from './payment-failed-notify';
+import { cancelUnpaidPeriodSessions } from './unpaid-period';
+import { syncCoachStripeStatus } from './index';
 import { shouldNotifyPaymentFailed } from './payment-failed-content';
 import {
   notifySinglePurchased,
@@ -150,7 +157,18 @@ async function applyStatus(
   // evento che lo trova già così (vedi `shouldNotifyPaymentFailed`). Non
   // solleva: una mail che non parte non deve far ripetere l'evento a Stripe.
   if (shouldNotifyPaymentFailed(row.status, next)) {
-    await notifyPaymentFailed(rowId);
+    // Un periodo non pagato non ha sedute: quelle già fissate si annullano e
+    // l'avviso dice quante. Il guasto qui non deve far perdere l'avviso.
+    let cancelled = 0;
+    try {
+      cancelled = await cancelUnpaidPeriodSessions(rowId);
+    } catch (error) {
+      console.error('[payments] sedute del periodo non pagato non annullate', {
+        subscriptionId: rowId,
+        reason: error instanceof Error ? error.message : 'sconosciuto',
+      });
+    }
+    await notifyPaymentFailed(rowId, cancelled);
   }
 
   // Le conferme di ciclo di vita: solo ciò che è cambiato davvero rispetto a
@@ -294,6 +312,30 @@ async function onSubscriptionChanged(
   return 'processed';
 }
 
+/**
+ * L'account del coach è cambiato su Stripe (verifica completata, documento
+ * richiesto, incassi sospesi…): si rilegge lo stato da Stripe e lo si salva, in
+ * modo che la pagina Pagamenti e la regola «può incassare» non aspettino che il
+ * coach riapra la pagina. Si rilegge invece di fidarsi del contenuto
+ * dell'evento: la forma dell'account cambia con la versione dell'API, e lo
+ * stato che conta è quello che legge `syncCoachStripeStatus`.
+ */
+async function onAccountUpdated(accountId: string): Promise<'processed' | 'ignored'> {
+  const [profile] = await db
+    .select({ coachUserId: coachBillingProfiles.coachUserId })
+    .from(coachBillingProfiles)
+    .where(eq(coachBillingProfiles.stripeAccountId, accountId))
+    .limit(1);
+  // Un account che non è di un nostro coach non è affar nostro.
+  if (!profile) return 'ignored';
+  try {
+    await syncCoachStripeStatus(profile.coachUserId);
+  } catch {
+    throw new RetryableError('ACCOUNT_SYNC_FAILED');
+  }
+  return 'processed';
+}
+
 /** Elabora un evento già verificato nella firma. Non solleva: riporta l'esito. */
 export async function processStripeEvent(
   event: Stripe.Event
@@ -334,6 +376,9 @@ export async function processStripeEvent(
           true,
           event.id
         );
+        break;
+      case 'account.updated':
+        outcome = await onAccountUpdated(accountId);
         break;
       default:
         outcome = 'ignored';

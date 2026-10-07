@@ -1252,7 +1252,9 @@ function archiveReason(
       // sessione consumata (vedi lib/core/bookings, `wouldBeLateCancellation`).
       const who = cancelledBy === 'coach' ? 'da te' : "dall'atleta";
       const when = cancelledAt ? ` il ${formatDateTime(cancelledAt)}` : '';
-      return lateCancellation
+      // Se ha annullato il coach la seduta non si consuma mai
+      // (`lib/core/billing/late-cancellation.ts`).
+      return lateCancellation && cancelledBy !== 'coach'
         ? `Sessione annullata ${who}${when}, sotto il preavviso minimo: conteggiata come effettuata.`
         : `Sessione annullata ${who}${when}.`;
     }

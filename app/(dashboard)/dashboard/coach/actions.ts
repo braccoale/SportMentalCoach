@@ -107,11 +107,9 @@ export async function cancelBookingAction(
   const base = sendCancellationMessage
     ? 'Appuntamento annullato e messaggio inviato.'
     : 'Appuntamento annullato.';
-  return {
-    success: result.lateCancellation
-      ? `${base} Era sotto il preavviso minimo: conta comunque come sessione effettuata.`
-      : base,
-  };
+  // Quando annulla il coach la seduta dell'atleta non si consuma mai, anche
+  // sotto il preavviso: non c'è niente da dire sul conteggio.
+  return { success: base };
 }
 
 /**

@@ -30,7 +30,10 @@ import { formatLongDateRome } from './subscription-status';
  * («perché non l'ho ricevuta?» ha una risposta). Nel log: id, ruolo, esito —
  * mai l'indirizzo.
  */
-export async function notifyPaymentFailed(subscriptionId: number): Promise<void> {
+export async function notifyPaymentFailed(
+  subscriptionId: number,
+  cancelledSessions = 0
+): Promise<void> {
   try {
     const [sub] = await db
       .select({
@@ -115,6 +118,7 @@ export async function notifyPaymentFailed(subscriptionId: number): Promise<void>
           periodEndLabel: sub.currentPeriodEnd
             ? formatLongDateRome(sub.currentPeriodEnd)
             : null,
+          cancelledSessions,
         });
         const sent = await sendPaymentFailedEmail({ to: person.email, content });
         if (sent.ok) {
