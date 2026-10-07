@@ -22,12 +22,12 @@ const TABS = [
   { href: '/dashboard/coach/academy', label: 'Academy', icon: GraduationCap },
   { href: '/dashboard/coach/messages', label: 'Messaggi', icon: MessageSquare },
   { href: '/dashboard/coach/services', label: 'Servizi', icon: Briefcase },
-  // Solo se l'admin ha attivato i pagamenti per questo coach.
+  // Sempre visibile: se l'admin non ha ancora attivato i pagamenti la pagina
+  // lo spiega, invece di far credere al coach che la sezione non esista.
   {
     href: '/dashboard/coach/pagamenti',
     label: 'Pagamenti',
     icon: Wallet,
-    requiresPayments: true,
   },
   { href: '/dashboard/supporto', label: 'Supporto', icon: CircleHelp },
 ];
@@ -37,7 +37,6 @@ export function CoachNav({
   unreadMessages = 0,
   academyCourseCount = 0,
   coachName,
-  paymentsVisible = false,
 }: {
   pendingCount?: number;
   unreadMessages?: number;
@@ -45,8 +44,6 @@ export function CoachNav({
   academyCourseCount?: number;
   /** Printed on the hanging badge. */
   coachName?: string | null;
-  /** Pagamenti attivati dall'admin per questo coach: mostra la voce Pagamenti. */
-  paymentsVisible?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -75,7 +72,7 @@ export function CoachNav({
       </div>
 
       <nav className="mt-4 flex gap-1 overflow-x-auto px-4">
-        {TABS.filter((tab) => !('requiresPayments' in tab) || paymentsVisible).map((tab) => {
+        {TABS.map((tab) => {
           // Exact match for the dashboard root, prefix match for sub-sections.
           const active =
             tab.href === '/dashboard/coach'

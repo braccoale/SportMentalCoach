@@ -861,51 +861,6 @@ export async function listAthleteSubscriptions(
 }
 
 /**
- * L'atleta ha mai comprato qualcosa: un abbonamento **o** una sessione singola
- * già pagata? Decide se il tab «Abbonamenti» compare nel menu: chi non ha mai
- * comprato niente non vede nulla di nuovo.
- *
- * Prima contava solo l'abbonamento, e chi comprava una sessione singola non
- * trovava il tab dove vedere cosa aveva pagato, la scadenza e come prenotarla.
- * Si contano le sedute **pagate** (`granted`), non quelle solo avviate: chi apre
- * il pagamento e lo abbandona non deve vedere comparire il tab.
- */
-export async function athleteHasPurchases(
-  athleteUserId: number
-): Promise<boolean> {
-  try {
-    const [subscription] = await db
-      .select({ id: planSubscriptions.id })
-      .from(planSubscriptions)
-      .where(
-        and(
-          eq(planSubscriptions.athleteUserId, athleteUserId),
-          inArray(planSubscriptions.status, ['active', 'past_due', 'canceled'])
-        )
-      )
-      .limit(1);
-    if (subscription) return true;
-    const [credit] = await db
-      .select({ id: sessionCredits.id })
-      .from(sessionCredits)
-      .where(
-        and(
-          eq(sessionCredits.athleteUserId, athleteUserId),
-          eq(sessionCredits.status, 'granted')
-        )
-      )
-      .limit(1);
-    return Boolean(credit);
-  } catch (error) {
-    console.error('[billing] abbonamenti non letti', {
-      athleteUserId,
-      reason: error instanceof Error ? error.message : 'sconosciuto',
-    });
-    return false;
-  }
-}
-
-/**
  * Quante sedute hanno fatto, prenotato e ancora da usare, per ciascun
  * abbonamento vivo di un atleta. Una sola lettura delle prenotazioni per tutti
  * gli abbonamenti, poi il conteggio per periodo (regola pura in

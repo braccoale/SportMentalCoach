@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { requireRole } from '@/lib/core/auth';
@@ -57,8 +57,37 @@ export default async function CoachPaymentsPage({
     }
   }
   const state = coachPaymentsState(profile);
-  // Pagamenti spenti: la pagina semplicemente non esiste per questo coach.
-  if (!coachCanEditPlans(state) || state === 'off') notFound();
+  // Pagamenti non ancora attivati dall'admin: la voce c'è, e dice come stanno
+  // le cose, invece di una pagina «non trovata».
+  if (!coachCanEditPlans(state) || state === 'off') {
+    return (
+      <section className="flex flex-col gap-6 p-6">
+        <header>
+          <h2 className="text-lg font-semibold text-gray-900">Pagamenti</h2>
+          <p className="mt-1 max-w-2xl text-sm text-gray-600">
+            Qui decidi quanto costa il tuo percorso e ricevi i pagamenti dei tuoi
+            atleti.
+          </p>
+        </header>
+        <div className="max-w-2xl rounded-2xl border border-dashed border-gray-300 bg-white p-8">
+          <p className="font-medium text-gray-900">
+            I pagamenti non sono ancora attivi sul tuo profilo.
+          </p>
+          <p className="mt-1 text-sm text-gray-600">
+            Per ora gli atleti prenotano con te senza pagare sulla piattaforma.
+            L&apos;attivazione la gestisce KaiPai: quando sarà pronta troverai
+            qui i piani, il prezzo della seduta singola e i tuoi incassi.
+          </p>
+          <Link
+            href="/dashboard/supporto"
+            className="mt-4 inline-flex rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
+          >
+            Scrivi al supporto
+          </Link>
+        </div>
+      </section>
+    );
+  }
 
   const [plans, limits, singleLimits] = await Promise.all([
     listCoachSessionPlans(user.id),

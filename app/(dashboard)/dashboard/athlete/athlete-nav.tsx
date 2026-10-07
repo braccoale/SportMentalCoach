@@ -26,12 +26,12 @@ const TABS = [
   },
   {
     // Prende il posto di «Profilo», che ora è nel menu in alto a destra.
-    // Compare solo per chi ha già un abbonamento: gli altri non vedono niente
-    // di nuovo.
+    // Sempre visibile: chi non ha comprato niente trova scritto che non ci
+    // sono abbonamenti né sessioni, e da dove cominciare, invece di non sapere
+    // che questa sezione esiste.
     href: '/dashboard/athlete/abbonamenti',
     label: 'Abbonamenti',
     icon: Wallet,
-    requiresSubscriptions: true,
   },
   {
     href: '/dashboard/supporto',
@@ -43,11 +43,8 @@ const TABS = [
 export function AthleteNav({
   unreadMessages = 0,
   athleteName,
-  hasSubscriptions = false,
 }: {
   unreadMessages?: number;
-  /** L'atleta ha o ha avuto un abbonamento: mostra il tab «Abbonamenti». */
-  hasSubscriptions?: boolean;
   /** Shown next to the area title. */
   athleteName?: string | null;
 }) {
@@ -84,9 +81,7 @@ export function AthleteNav({
       </div>
 
       <nav className="mt-4 flex gap-1 overflow-x-auto px-4">
-        {TABS.filter(
-          (tab) => !('requiresSubscriptions' in tab) || hasSubscriptions
-        ).map((tab) => {
+        {TABS.map((tab) => {
           const active =
             tab.href === '/dashboard/athlete'
               ? pathname === tab.href
