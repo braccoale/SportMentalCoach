@@ -1,6 +1,7 @@
 'use server';
 
 import { passwordResetOutcome } from '@/lib/core/auth/password-reset';
+import { originFromHeaders } from '@/lib/core/auth/request-origin';
 import { z } from 'zod';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
@@ -554,7 +555,19 @@ export const requestPasswordReset = validatedAction(
   resetRequestSchema,
   async (data) => {
     const supabase = await createSupabaseServer();
-    const baseUrl = process.env.BASE_URL ?? 'http://localhost:3000';
+    // Il link nella mail deve tornare sul sito da cui è partita la richiesta: il
+    // codice segreto del flusso PKCE sta in un cookie legato a quell'indirizzo.
+    // `BASE_URL` resta il ripiego se le intestazioni non dicono niente.
+    const incoming = await headers();
+    const baseUrl =
+      originFromHeaders({
+        origin: incoming.get('origin'),
+        forwardedHost: incoming.get('x-forwarded-host'),
+        host: incoming.get('host'),
+        forwardedProto: incoming.get('x-forwarded-proto'),
+      }) ??
+      process.env.BASE_URL ??
+      'http://localhost:3000';
     const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
       redirectTo: `${baseUrl}/auth/callback?next=/reset-password/update`
     });
