@@ -177,6 +177,15 @@ export function renderAgreementText(
     // ma stesse sezioni produrrebbe lo stesso hash, il che vanificherebbe la
     // proprietà "l'hash cambia se il documento cambia".
     `Commissione ${agreement.commissionPercent}% — Non concorrenza ${agreement.nonCircumventionMonths} mesi — Penale €${agreement.penaltyAmountEur} — Buyout ${agreement.buyoutMonths} mensilità — Preavviso ${agreement.noticeDays} giorni`,
+    // The art. 1341 c.c. checkbox approves a specific list of clauses. That
+    // list must be part of what the hash covers: flipping a `vexatious` flag
+    // without touching any text must still change the hash, or an existing
+    // acceptance would keep matching a document whose vexatious-clause list
+    // it never actually saw. Derived via `vexatiousSections`, never
+    // hand-written, for the same reason as the economic parameters above.
+    `Clausole vessatorie ex art. 1341 c.c.: ${vexatiousSections(agreement)
+      .map((s) => s.id)
+      .join(', ')}`,
   ];
   const body = agreement.sections.map((s) =>
     [s.title, ...s.body].join('\n')

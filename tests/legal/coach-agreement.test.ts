@@ -53,3 +53,28 @@ test('hashAgreement è stabile e cambia se il documento cambia', () => {
   };
   assert.notEqual(hashAgreement(modified), a);
 });
+
+test('hashAgreement cambia se cambia solo il flag vexatious di una sezione, a parità di testo', () => {
+  const a = hashAgreement();
+
+  const flippedIndex = COACH_AGREEMENT.sections.findIndex(
+    (s) => s.id === 'natura-del-rapporto'
+  );
+  assert.ok(flippedIndex >= 0, 'sezione di riferimento non trovata');
+  assert.equal(
+    COACH_AGREEMENT.sections[flippedIndex].vexatious,
+    false,
+    'la sezione di riferimento deve partire da vexatious: false'
+  );
+
+  const modified = {
+    ...COACH_AGREEMENT,
+    sections: COACH_AGREEMENT.sections.map((s, i) =>
+      i === flippedIndex ? { ...s, vexatious: true } : s
+    ),
+  };
+
+  // Same version, same economic parameters, same title/body text everywhere
+  // — only the vexatious-clause list (art. 1341) differs.
+  assert.notEqual(hashAgreement(modified), a);
+});
