@@ -605,6 +605,16 @@ export async function schedulePlanChange(params: {
     );
   }
 
+  // Le fasi di una programmazione vogliono un prodotto esistente, non un nome:
+  // se ne crea uno per il piano nuovo sul conto del coach.
+  const product = await v1Post<{ id?: string }>(params.accountId, '/v1/products', {
+    name: params.target.planName,
+  });
+  if (!product.id) {
+    await releaseSubscriptionSchedule(params.accountId, created.id).catch(() => undefined);
+    throw new StripeConnectError('STRIPE_NO_PRODUCT', 'Stripe non ha creato il prodotto.');
+  }
+
   const marks = (planId: number) => ({
     kaipai_plan_subscription_id: String(params.subscriptionRowId),
     kaipai_plan_id: String(planId),
@@ -629,7 +639,7 @@ export async function schedulePlanChange(params: {
                 currency: 'eur',
                 unit_amount: params.target.monthlyPriceCents,
                 recurring: { interval: 'month' },
-                product_data: { name: params.target.planName },
+                product: product.id,
               },
             },
           },
