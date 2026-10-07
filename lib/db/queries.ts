@@ -24,10 +24,23 @@ const getCachedUser = cache(async () => {
   let authUserId: string | null = null;
   try {
     const supabase = await createSupabaseServer();
-    const {
-      data: { user: authUser },
-    } = await supabase.auth.getUser();
-    authUserId = authUser?.id ?? null;
+    // La sessione è già stata verificata da Supabase Auth nel middleware, nella
+    // stessa richiesta (`getUser()` di rete, che controlla anche le revoche) e
+    // il suo cookie rinnovato è quello che leggiamo qui. Rifare la stessa
+    // chiamata di rete a ogni pagina costava un viaggio in più per ogni
+    // navigazione: qui basta verificare la firma del token, in locale (chiavi
+    // asimmetriche del progetto, `getClaims`). Se non si riesce a leggere
+    // un'identità si ricade sulla verifica di rete, come prima.
+    const { data: claimsData } = await supabase.auth.getClaims();
+    const sub = claimsData?.claims?.sub;
+    if (typeof sub === 'string' && sub) {
+      authUserId = sub;
+    } else {
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
+      authUserId = authUser?.id ?? null;
+    }
   } catch (error) {
     // Next.js internal signals (dynamic rendering, redirects) must propagate.
     unstable_rethrow(error);
