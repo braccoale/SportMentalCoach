@@ -14,6 +14,7 @@ import {
   subscribedOn,
 } from '@/lib/core/billing';
 import { formatDate } from '@/lib/core/format';
+import { getAthleteRelationshipCoaches } from '@/lib/core/bookings';
 import { ConfirmingPayment } from '@/components/confirming-payment';
 import {
   SingleSessionsSection,
@@ -54,6 +55,21 @@ export default async function AthleteSubscriptionsPage({
       listAthleteSingleSessions(user.id),
       getSingleSessionValidityDays(),
     ]);
+  // Per «Prenota» su una seduta già pagata: si apre la finestra di prenotazione
+  // con il coach giusto, non il suo profilo. Se il calcolo fallisce resta il
+  // collegamento al profilo (la pagina non si rompe).
+  const relationshipCoaches = singles.some((s) => s.state === 'available')
+    ? await getAthleteRelationshipCoaches(user.id).catch((error) => {
+        console.error('[payments] coach per la prenotazione non letti', {
+          athleteUserId: user.id,
+          reason: error instanceof Error ? error.message : 'sconosciuto',
+        });
+        return [];
+      })
+    : [];
+  const coachesBySlug = Object.fromEntries(
+    relationshipCoaches.map((coach) => [coach.slug, coach])
+  );
 
   // Dove si può comprare una sessione: i coach con cui c'è un abbonamento o
   // una seduta già acquistata, se il coach ha impostato il prezzo.
@@ -172,6 +188,7 @@ export default async function AthleteSubscriptionsPage({
         sessions={singles}
         offers={offers}
         validityDays={validityDays}
+        coachesBySlug={coachesBySlug}
       />
 
       {ended.length > 0 && (
