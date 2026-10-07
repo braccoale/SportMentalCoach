@@ -25,4 +25,8 @@ export type AdminBookingRow = CoachAthleteBooking & {
    * altrove (es. l'elenco atleti per coach), dove non serve.
    */
   aiTranscriptionActivated?: boolean;
+  /** Stato dell'ultima riga `session_ai_notes` della prenotazione, o null. Stesse viste di sopra. */
+  aiTranscriptionStatus?: string | null;
+  /** Segmenti di trascrizione di quell'ultima riga. */
+  aiTranscriptSegments?: number;
 };

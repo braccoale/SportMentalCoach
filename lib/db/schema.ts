@@ -4145,3 +4145,405 @@ export const academySessionRecordings = pgTable(
 
 export type AcademySessionRecording = typeof academySessionRecordings.$inferSelect;
 export type NewAcademySessionRecording = typeof academySessionRecordings.$inferInsert;
+
+/**
+ * Contatore a finestra fissa per il rate limiting del login reale (email +
+ * password) — l'unico che oggi non ne aveva uno production-safe: l'unico
+ * limiter esistente (`app/api/demo/login/route.ts`) è in-memory per istanza,
+ * quindi su Vercel (più istanze serverless, nessuno stato condiviso) non
+ * limita nulla di reale. Una riga per (bucket, finestra): `count` si
+ * incrementa con un `INSERT ... ON CONFLICT DO UPDATE`, atomico anche con
+ * richieste concorrenti da istanze diverse, perché la concorrenza la risolve
+ * Postgres stesso, non il processo Node. `bucket` combina l'IP con l'email
+ * tentata, così un attacco distribuito su molte email dalla stessa rete e un
+ * attacco su una sola email da tante reti restano entrambi limitati.
+ */
+export const authRateLimitWindows = pgTable(
+  'auth_rate_limit_windows',
+  {
+    id: serial('id').primaryKey(),
+    bucketKey: varchar('bucket_key', { length: 200 }).notNull(),
+    windowStart: timestamp('window_start', { withTimezone: true }).notNull(),
+    count: integer('count').notNull().default(1),
+  },
+  (table) => [
+    unique('auth_rate_limit_windows_bucket_window_unique').on(table.bucketKey, table.windowStart),
+    index('auth_rate_limit_windows_window_start_idx').on(table.windowStart),
+  ]
+);
+
+export type AuthRateLimitWindow = typeof authRateLimitWindows.$inferSelect;
+
+// ---------------------------------------------------------------------------
+// KaiPai commercial MVP — persistence only (payment execution arrives later).
+// Monetary amounts are integer euro cents; commission rates are basis points.
+// ---------------------------------------------------------------------------
+
+export const coachBillingProfiles = pgTable(
+  'coach_billing_profiles',
+  {
+    id: serial('id').primaryKey(),
+    coachUserId: integer('coach_user_id')
+      .notNull()
+      .unique()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    stripeAccountId: varchar('stripe_account_id', { length: 255 }).unique(),
+    stripeAccountNamespace: varchar('stripe_account_namespace', { length: 16 }),
+    onboardingStatus: varchar('onboarding_status', { length: 24 })
+      .notNull()
+      .default('not_started'),
+    chargesEnabled: boolean('charges_enabled').notNull().default(false),
+    payoutsEnabled: boolean('payouts_enabled').notNull().default(false),
+    requirementsDue: jsonb('requirements_due')
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    ...audit,
+  },
+  (table) => [
+    check(
+      'coach_billing_profiles_onboarding_status_check',
+      sql`${table.onboardingStatus} in ('not_started', 'pending', 'active', 'restricted', 'disabled')`
+    ),
+    check(
+      'coach_billing_profiles_account_namespace_check',
+      sql`${table.stripeAccountNamespace} is null or ${table.stripeAccountNamespace} in ('v1', 'v2')`
+    ),
+  ]
+);
+
+export const coachAthleteCommercialRelationships = pgTable(
+  'coach_athlete_commercial_relationships',
+  {
+    id: serial('id').primaryKey(),
+    coachUserId: integer('coach_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    athleteUserId: integer('athlete_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    source: varchar('source', { length: 24 }).notNull(),
+    commissionBps: integer('commission_bps').notNull(),
+    evidenceReferralId: integer('evidence_referral_id').references(
+      () => referrals.id,
+      { onDelete: 'restrict' }
+    ),
+    attributedAt: timestamp('attributed_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lockedAt: timestamp('locked_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    ...audit,
+  },
+  (table) => [
+    unique('commercial_relationship_coach_athlete_unique').on(
+      table.coachUserId,
+      table.athleteUserId
+    ),
+    index('commercial_relationship_athlete_idx').on(table.athleteUserId),
+    index('commercial_relationship_referral_idx').on(table.evidenceReferralId),
+    check(
+      'commercial_relationship_source_check',
+      sql`${table.source} in ('KAIPAI_SOURCED', 'COACH_SOURCED')`
+    ),
+    check(
+      'commercial_relationship_commission_check',
+      sql`(${table.source} = 'KAIPAI_SOURCED' and ${table.commissionBps} = 3000) or (${table.source} = 'COACH_SOURCED' and ${table.commissionBps} = 1000)`
+    ),
+    check(
+      'commercial_relationship_evidence_check',
+      sql`(${table.source} = 'COACH_SOURCED' and ${table.evidenceReferralId} is not null) or (${table.source} = 'KAIPAI_SOURCED' and ${table.evidenceReferralId} is null)`
+    ),
+    check(
+      'commercial_relationship_distinct_people_check',
+      sql`${table.coachUserId} <> ${table.athleteUserId}`
+    ),
+  ]
+);
+
+export const billingCustomers = pgTable(
+  'billing_customers',
+  {
+    id: serial('id').primaryKey(),
+    beneficiaryUserId: integer('beneficiary_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    payerUserId: integer('payer_user_id').references(() => users.id, {
+      onDelete: 'restrict',
+    }),
+    payerGuardianId: integer('payer_guardian_id').references(
+      () => athleteGuardians.id,
+      { onDelete: 'restrict' }
+    ),
+    stripeCustomerId: varchar('stripe_customer_id', { length: 255 }).unique(),
+    emailSnapshot: varchar('email_snapshot', { length: 255 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    ...audit,
+  },
+  (table) => [
+    uniqueIndex('billing_customers_beneficiary_user_unique')
+      .on(table.beneficiaryUserId, table.payerUserId)
+      .where(sql`${table.payerUserId} is not null`),
+    uniqueIndex('billing_customers_beneficiary_guardian_unique')
+      .on(table.beneficiaryUserId, table.payerGuardianId)
+      .where(sql`${table.payerGuardianId} is not null`),
+    index('billing_customers_payer_user_idx').on(table.payerUserId),
+    index('billing_customers_payer_guardian_idx').on(table.payerGuardianId),
+    check(
+      'billing_customers_exactly_one_payer_check',
+      sql`num_nonnulls(${table.payerUserId}, ${table.payerGuardianId}) = 1`
+    ),
+  ]
+);
+
+export const billingOrders = pgTable(
+  'billing_orders',
+  {
+    id: serial('id').primaryKey(),
+    commercialRelationshipId: integer('commercial_relationship_id')
+      .notNull()
+      .references(() => coachAthleteCommercialRelationships.id, {
+        onDelete: 'restrict',
+      }),
+    billingCustomerId: integer('billing_customer_id')
+      .notNull()
+      .references(() => billingCustomers.id, { onDelete: 'restrict' }),
+    coachUserId: integer('coach_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    athleteUserId: integer('athlete_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    productType: varchar('product_type', { length: 24 }).notNull(),
+    billingMode: varchar('billing_mode', { length: 16 }).notNull(),
+    status: varchar('status', { length: 24 }).notNull().default('pending'),
+    coachRateCents: integer('coach_rate_cents').notNull(),
+    sessionQuantity: integer('session_quantity').notNull(),
+    grossAmountCents: integer('gross_amount_cents').notNull(),
+    platformCommissionBps: integer('platform_commission_bps').notNull(),
+    platformFeeCents: integer('platform_fee_cents').notNull(),
+    coachCompensationCents: integer('coach_compensation_cents').notNull(),
+    currency: varchar('currency', { length: 3 }).notNull().default('EUR'),
+    acquisitionSource: varchar('acquisition_source', { length: 24 }).notNull(),
+    paymentStrategy: varchar('payment_strategy', { length: 24 }),
+    externalCheckoutSessionId: varchar('external_checkout_session_id', {
+      length: 255,
+    }).unique(),
+    idempotencyKey: varchar('idempotency_key', { length: 160 }).notNull().unique(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    ...audit,
+  },
+  (table) => [
+    index('billing_orders_relationship_idx').on(table.commercialRelationshipId),
+    index('billing_orders_athlete_created_idx').on(table.athleteUserId, table.createdAt),
+    index('billing_orders_coach_created_idx').on(table.coachUserId, table.createdAt),
+    index('billing_orders_customer_idx').on(table.billingCustomerId),
+    check('billing_orders_product_check', sql`${table.productType} in ('single', 'essential', 'performance', 'extra')`),
+    check('billing_orders_mode_check', sql`${table.billingMode} in ('one_off', 'subscription')`),
+    check('billing_orders_status_check', sql`${table.status} in ('pending', 'paid', 'failed', 'cancelled', 'refunded', 'partially_refunded')`),
+    check('billing_orders_amounts_positive_check', sql`${table.coachRateCents} > 0 and ${table.sessionQuantity} > 0 and ${table.grossAmountCents} > 0`),
+    check('billing_orders_snapshot_total_check', sql`${table.grossAmountCents} = ${table.coachRateCents} * ${table.sessionQuantity}`),
+    check('billing_orders_split_total_check', sql`${table.grossAmountCents} = ${table.platformFeeCents} + ${table.coachCompensationCents}`),
+    check('billing_orders_split_percentage_check', sql`${table.platformFeeCents} = round((${table.grossAmountCents}::numeric * ${table.platformCommissionBps}) / 10000)::integer`),
+    check('billing_orders_split_nonnegative_check', sql`${table.platformFeeCents} >= 0 and ${table.coachCompensationCents} >= 0`),
+    check('billing_orders_commission_check', sql`(${table.acquisitionSource} = 'KAIPAI_SOURCED' and ${table.platformCommissionBps} = 3000) or (${table.acquisitionSource} = 'COACH_SOURCED' and ${table.platformCommissionBps} = 1000)`),
+    check('billing_orders_product_shape_check', sql`(${table.productType} in ('single', 'extra') and ${table.billingMode} = 'one_off' and ${table.sessionQuantity} = 1) or (${table.productType} = 'essential' and ${table.billingMode} = 'subscription' and ${table.sessionQuantity} = 2) or (${table.productType} = 'performance' and ${table.billingMode} = 'subscription' and ${table.sessionQuantity} = 4)`),
+    check('billing_orders_payment_strategy_check', sql`${table.paymentStrategy} is null or ${table.paymentStrategy} in ('direct', 'destination', 'separate_transfer')`),
+  ]
+);
+
+export const billingSubscriptions = pgTable(
+  'billing_subscriptions',
+  {
+    id: serial('id').primaryKey(),
+    initialOrderId: integer('initial_order_id')
+      .notNull()
+      .unique()
+      .references(() => billingOrders.id, { onDelete: 'restrict' }),
+    commercialRelationshipId: integer('commercial_relationship_id')
+      .notNull()
+      .references(() => coachAthleteCommercialRelationships.id, { onDelete: 'restrict' }),
+    billingCustomerId: integer('billing_customer_id')
+      .notNull()
+      .references(() => billingCustomers.id, { onDelete: 'restrict' }),
+    coachUserId: integer('coach_user_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+    athleteUserId: integer('athlete_user_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+    plan: varchar('plan', { length: 24 }).notNull(),
+    nextPlan: varchar('next_plan', { length: 24 }),
+    status: varchar('status', { length: 24 }).notNull().default('pending'),
+    stripeSubscriptionId: varchar('stripe_subscription_id', { length: 255 }).unique(),
+    currentPeriodStart: timestamp('current_period_start', { withTimezone: true }),
+    currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }),
+    cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
+    cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    ...audit,
+  },
+  (table) => [
+    index('billing_subscriptions_relationship_idx').on(table.commercialRelationshipId),
+    index('billing_subscriptions_athlete_status_idx').on(table.athleteUserId, table.status),
+    index('billing_subscriptions_coach_status_idx').on(table.coachUserId, table.status),
+    index('billing_subscriptions_customer_idx').on(table.billingCustomerId),
+    check('billing_subscriptions_plan_check', sql`${table.plan} in ('essential', 'performance')`),
+    check('billing_subscriptions_next_plan_check', sql`${table.nextPlan} is null or ${table.nextPlan} in ('essential', 'performance')`),
+    check('billing_subscriptions_status_check', sql`${table.status} in ('pending', 'active', 'past_due', 'cancelled', 'unpaid')`),
+    check('billing_subscriptions_period_check', sql`${table.currentPeriodEnd} is null or ${table.currentPeriodStart} is null or ${table.currentPeriodEnd} > ${table.currentPeriodStart}`),
+  ]
+);
+
+export const billingTransactions = pgTable(
+  'billing_transactions',
+  {
+    id: serial('id').primaryKey(),
+    orderId: integer('order_id').notNull().references(() => billingOrders.id, { onDelete: 'restrict' }),
+    subscriptionId: integer('subscription_id').references(() => billingSubscriptions.id, { onDelete: 'restrict' }),
+    coachUserId: integer('coach_user_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+    athleteUserId: integer('athlete_user_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+    type: varchar('type', { length: 24 }).notNull(),
+    status: varchar('status', { length: 24 }).notNull(),
+    grossAmountCents: integer('gross_amount_cents').notNull(),
+    platformFeeCents: integer('platform_fee_cents').notNull(),
+    coachCompensationCents: integer('coach_compensation_cents').notNull(),
+    processorFeeCents: integer('processor_fee_cents'),
+    currency: varchar('currency', { length: 3 }).notNull().default('EUR'),
+    paymentStrategy: varchar('payment_strategy', { length: 24 }),
+    externalInvoiceId: varchar('external_invoice_id', { length: 255 }).unique(),
+    externalPaymentIntentId: varchar('external_payment_intent_id', { length: 255 }),
+    externalChargeId: varchar('external_charge_id', { length: 255 }),
+    idempotencyKey: varchar('idempotency_key', { length: 160 }).notNull().unique(),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    ...audit,
+  },
+  (table) => [
+    index('billing_transactions_order_idx').on(table.orderId),
+    index('billing_transactions_subscription_idx').on(table.subscriptionId),
+    index('billing_transactions_athlete_occurred_idx').on(table.athleteUserId, table.occurredAt),
+    index('billing_transactions_coach_occurred_idx').on(table.coachUserId, table.occurredAt),
+    index('billing_transactions_payment_intent_idx').on(table.externalPaymentIntentId),
+    index('billing_transactions_charge_idx').on(table.externalChargeId),
+    check('billing_transactions_type_check', sql`${table.type} in ('purchase', 'renewal', 'refund', 'chargeback')`),
+    check('billing_transactions_status_check', sql`${table.status} in ('pending', 'succeeded', 'failed', 'reversed')`),
+    check('billing_transactions_amounts_check', sql`${table.grossAmountCents} >= 0 and ${table.platformFeeCents} >= 0 and ${table.coachCompensationCents} >= 0 and (${table.processorFeeCents} is null or ${table.processorFeeCents} >= 0)`),
+    check('billing_transactions_split_check', sql`${table.grossAmountCents} = ${table.platformFeeCents} + ${table.coachCompensationCents}`),
+    check('billing_transactions_strategy_check', sql`${table.paymentStrategy} is null or ${table.paymentStrategy} in ('direct', 'destination', 'separate_transfer')`),
+  ]
+);
+
+export const sessionCredits = pgTable(
+  'session_credits',
+  {
+    id: serial('id').primaryKey(),
+    orderId: integer('order_id').notNull().references(() => billingOrders.id, { onDelete: 'restrict' }),
+    transactionId: integer('transaction_id').references(() => billingTransactions.id, { onDelete: 'restrict' }),
+    subscriptionId: integer('subscription_id').references(() => billingSubscriptions.id, { onDelete: 'restrict' }),
+    athleteUserId: integer('athlete_user_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+    coachUserId: integer('coach_user_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+    productType: varchar('product_type', { length: 24 }).notNull(),
+    periodStart: timestamp('period_start', { withTimezone: true }),
+    periodEnd: timestamp('period_end', { withTimezone: true }),
+    rolloverGeneration: integer('rollover_generation').notNull().default(0),
+    rolledFromCreditId: integer('rolled_from_credit_id').references(
+      (): AnyPgColumn => sessionCredits.id,
+      { onDelete: 'restrict' }
+    ),
+    status: varchar('status', { length: 20 }).notNull().default('available'),
+    grantedAt: timestamp('granted_at', { withTimezone: true }).notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    reservedAt: timestamp('reserved_at', { withTimezone: true }),
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    bookingId: integer('booking_id').references(() => bookings.id, { onDelete: 'restrict' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    ...audit,
+  },
+  (table) => [
+    uniqueIndex('session_credits_booking_unique').on(table.bookingId).where(sql`${table.bookingId} is not null`),
+    uniqueIndex('session_credits_rollover_source_unique').on(table.rolledFromCreditId).where(sql`${table.rolledFromCreditId} is not null`),
+    index('session_credits_athlete_available_idx').on(table.athleteUserId, table.coachUserId, table.status, table.expiresAt),
+    index('session_credits_order_idx').on(table.orderId),
+    index('session_credits_transaction_idx').on(table.transactionId),
+    index('session_credits_subscription_period_idx').on(table.subscriptionId, table.periodStart),
+    check('session_credits_product_check', sql`${table.productType} in ('single', 'essential', 'performance', 'extra')`),
+    check('session_credits_status_check', sql`${table.status} in ('available', 'reserved', 'consumed', 'expired', 'revoked')`),
+    check('session_credits_expiration_check', sql`${table.expiresAt} > ${table.grantedAt}`),
+    check('session_credits_period_check', sql`${table.periodEnd} is null or ${table.periodStart} is null or ${table.periodEnd} > ${table.periodStart}`),
+    check('session_credits_rollover_check', sql`(${table.rolloverGeneration} = 0 and ${table.rolledFromCreditId} is null) or (${table.rolloverGeneration} = 1 and ${table.rolledFromCreditId} is not null)`),
+    check('session_credits_lifecycle_shape_check', sql`
+      (${table.status} = 'available' and ${table.bookingId} is null and ${table.reservedAt} is null and ${table.consumedAt} is null)
+      or (${table.status} = 'reserved' and ${table.bookingId} is not null and ${table.reservedAt} is not null and ${table.consumedAt} is null)
+      or (${table.status} = 'consumed' and ${table.bookingId} is not null and ${table.reservedAt} is not null and ${table.consumedAt} is not null)
+      or (${table.status} in ('expired', 'revoked') and ${table.bookingId} is null and ${table.reservedAt} is null and ${table.consumedAt} is null)
+    `),
+    check('session_credits_reservation_before_expiry_check', sql`${table.reservedAt} is null or ${table.reservedAt} < ${table.expiresAt}`),
+  ]
+);
+
+export const stripeWebhookEvents = pgTable(
+  'stripe_webhook_events',
+  {
+    id: serial('id').primaryKey(),
+    stripeEventId: varchar('stripe_event_id', { length: 255 }).notNull().unique(),
+    eventType: varchar('event_type', { length: 120 }).notNull(),
+    stripeAccountId: varchar('stripe_account_id', { length: 255 }),
+    apiVersion: varchar('api_version', { length: 40 }),
+    payloadDigest: varchar('payload_digest', { length: 64 }).notNull(),
+    status: varchar('status', { length: 20 }).notNull().default('received'),
+    attempts: integer('attempts').notNull().default(0),
+    lastErrorCode: varchar('last_error_code', { length: 80 }),
+    receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+    processedAt: timestamp('processed_at', { withTimezone: true }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('stripe_webhook_events_status_received_idx').on(table.status, table.receivedAt),
+    check('stripe_webhook_events_status_check', sql`${table.status} in ('received', 'processing', 'processed', 'failed', 'ignored')`),
+    check('stripe_webhook_events_attempts_check', sql`${table.attempts} >= 0`),
+    check('stripe_webhook_events_digest_check', sql`length(${table.payloadDigest}) = 64`),
+  ]
+);
+
+export const businessEvents = pgTable(
+  'business_events',
+  {
+    id: serial('id').primaryKey(),
+    eventName: varchar('event_name', { length: 64 }).notNull(),
+    idempotencyKey: varchar('idempotency_key', { length: 180 }).notNull().unique(),
+    actorUserId: integer('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+    athleteUserId: integer('athlete_user_id').references(() => users.id, { onDelete: 'set null' }),
+    coachUserId: integer('coach_user_id').references(() => users.id, { onDelete: 'set null' }),
+    orderId: integer('order_id').references(() => billingOrders.id, { onDelete: 'set null' }),
+    subscriptionId: integer('subscription_id').references(() => billingSubscriptions.id, { onDelete: 'set null' }),
+    bookingId: integer('booking_id').references(() => bookings.id, { onDelete: 'set null' }),
+    source: varchar('source', { length: 24 }).notNull(),
+    metadata: jsonb('metadata').$type<Record<string, string | number | boolean | null>>().notNull().default({}),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('business_events_name_occurred_idx').on(table.eventName, table.occurredAt),
+    index('business_events_athlete_idx').on(table.athleteUserId, table.occurredAt),
+    index('business_events_coach_idx').on(table.coachUserId, table.occurredAt),
+    index('business_events_order_idx').on(table.orderId),
+    index('business_events_subscription_idx').on(table.subscriptionId),
+    index('business_events_booking_idx').on(table.bookingId),
+    check('business_events_source_check', sql`${table.source} in ('server', 'stripe_webhook', 'reconciliation')`),
+  ]
+);
+
+export type CoachBillingProfile = typeof coachBillingProfiles.$inferSelect;
+export type CoachAthleteCommercialRelationship = typeof coachAthleteCommercialRelationships.$inferSelect;
+export type BillingCustomer = typeof billingCustomers.$inferSelect;
+export type BillingOrder = typeof billingOrders.$inferSelect;
+export type BillingSubscription = typeof billingSubscriptions.$inferSelect;
+export type BillingTransaction = typeof billingTransactions.$inferSelect;
+export type SessionCredit = typeof sessionCredits.$inferSelect;
+export type StripeWebhookEvent = typeof stripeWebhookEvents.$inferSelect;
+export type BusinessEvent = typeof businessEvents.$inferSelect;

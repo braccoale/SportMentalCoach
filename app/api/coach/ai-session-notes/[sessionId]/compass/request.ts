@@ -50,6 +50,9 @@ function statusFor(code: SessionCompassError['code']): number {
     case 'COMPASS_RATE_LIMITED':
       return 429;
     case 'COMPASS_UNAVAILABLE':
+    // Credito del provider esaurito: come una configurazione mancante, riprovare
+    // subito non serve — deve intervenire una persona.
+    case 'COMPASS_QUOTA_EXHAUSTED':
       return 503;
     /*
      * Il report e' stato generato ma non ha superato i nostri controlli: il

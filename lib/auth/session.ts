@@ -1,25 +1,20 @@
 import { compare, hash } from 'bcryptjs';
-import { SignJWT, jwtVerify } from 'jose';
-import { cookies } from 'next/headers';
-import { NewUser } from '@/lib/db/schema';
 
 const SALT_ROUNDS = 10;
 
 /**
- * Returns the encoded signing key, validating AUTH_SECRET on first use. A
- * missing/short secret otherwise produces an opaque "Zero-length key" crypto
- * error that breaks every server action and auth flow — fail loudly instead.
+ * Solo per `lib/db/seed.ts`: gli account demo/admin seminati ricevono un
+ * `passwordHash` nella colonna omonima, ma **nessun percorso di login reale
+ * lo legge più** — l'identità vera è Supabase Auth (`lib/auth/supabase.ts`),
+ * non questa tabella. Fino al 2026-09-19 questo file portava anche un
+ * meccanismo di sessione JWT/cookie parallelo (`getSession`/`setSession`,
+ * cookie `session`), avanzo del Next.js SaaS Starter da cui è nato il
+ * progetto: `getSession()` non aveva più nessun chiamante e l'unica chiamata
+ * a `setSession()` (in `app/api/stripe/checkout/route.ts`) scriveva un
+ * cookie che nulla rileggeva più — una seconda via di autenticazione, morta,
+ * accanto a quella vera. Rimossa nell'hardening di produzione; vedi
+ * `docs/SECURITY_ARCHITECTURE.md`.
  */
-function getAuthKey(): Uint8Array {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret || secret.length < 16) {
-    throw new Error(
-      'AUTH_SECRET is missing or too short. Set AUTH_SECRET (32+ random chars, e.g. `openssl rand -hex 32`) in your environment; authentication cannot run without it.'
-    );
-  }
-  return new TextEncoder().encode(secret);
-}
-
 export async function hashPassword(password: string) {
   return hash(password, SALT_ROUNDS);
 }
@@ -29,45 +24,4 @@ export async function comparePasswords(
   hashedPassword: string
 ) {
   return compare(plainTextPassword, hashedPassword);
-}
-
-type SessionData = {
-  user: { id: number };
-  expires: string;
-};
-
-export async function signToken(payload: SessionData) {
-  return await new SignJWT(payload)
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setExpirationTime('1 day from now')
-    .sign(getAuthKey());
-}
-
-export async function verifyToken(input: string) {
-  const { payload } = await jwtVerify(input, getAuthKey(), {
-    algorithms: ['HS256'],
-  });
-  return payload as SessionData;
-}
-
-export async function getSession() {
-  const session = (await cookies()).get('session')?.value;
-  if (!session) return null;
-  return await verifyToken(session);
-}
-
-export async function setSession(user: NewUser) {
-  const expiresInOneDay = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  const session: SessionData = {
-    user: { id: user.id! },
-    expires: expiresInOneDay.toISOString(),
-  };
-  const encryptedSession = await signToken(session);
-  (await cookies()).set('session', encryptedSession, {
-    expires: expiresInOneDay,
-    httpOnly: true,
-    secure: true,
-    sameSite: 'lax',
-  });
 }

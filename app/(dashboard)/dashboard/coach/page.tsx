@@ -73,6 +73,7 @@ import {
 } from './actions';
 import { CoachNewAppointmentButton } from './new-appointment-button';
 import { InviteFriendButton } from '@/components/invite/invite-friend-button';
+import { countReferredAthletes } from '@/lib/core/referrals';
 import { computeCoachOnboarding } from '@/lib/core/onboarding';
 import { submitForReviewAction } from './profile-actions';
 import { AddToGoogleCalendarButton } from '@/components/add-to-google-calendar-button';
@@ -143,6 +144,7 @@ export default async function CoachDashboardPage() {
     coachAvailability,
     hasAiSessionNotes,
     academySessions,
+    referredAthletes,
   ] = await Promise.all([
     getProviderProfileByUser(user.id),
     getCoachBookings(user.id),
@@ -152,6 +154,7 @@ export default async function CoachDashboardPage() {
     getCoachAvailability(user.id),
     hasFeatureEntitlement(user.id, FEATURE_CODES.AI_SESSION_NOTES),
     listSessionsForUser(user.id),
+    countReferredAthletes(user.id),
   ]);
 
   const upcomingAcademySessions = academySessions.filter((session) =>
@@ -417,6 +420,13 @@ export default async function CoachDashboardPage() {
           <InviteFriendButton />
         </div>
       </div>
+      <p className="-mt-4 text-sm text-gray-500 sm:text-right">
+        {referredAthletes === 0
+          ? 'Nessun atleta si è ancora registrato con il tuo link.'
+          : referredAthletes === 1
+            ? '1 atleta si è registrato con il tuo link.'
+            : `${referredAthletes} atleti si sono registrati con il tuo link.`}
+      </p>
 
       {/* Approval gate: not yet submitted (draft/rejected) → prompt to send. */}
       {provider && !isApproved && !isPending && (

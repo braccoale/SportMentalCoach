@@ -142,6 +142,10 @@ export async function runAudioRetention(params?: {
       and(
         lte(sessionAudioRecordings.retentionUntil, now),
         isNull(sessionAudioRecordings.deletedAt),
+        // `transcription_failed` e' chiuso apposta: l'audio e' l'unica copia da
+        // cui si puo' ancora recuperare la trascrizione, quindi la retention
+        // non lo tocca finche' un umano non decide.
+        sql`${sessionAiNotes.status} <> 'transcription_failed'`,
         notInArray(sessionAudioRecordings.status, [
           'pending',
           'starting',

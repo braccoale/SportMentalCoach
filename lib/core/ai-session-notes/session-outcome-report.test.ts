@@ -5,6 +5,7 @@ import {
   buildOutcomeEmail,
   buildOutcomeReport,
   classifySessionOutcome,
+  describeFailureReason,
   transcriptionStatus,
   type SessionOutcomeSnapshot,
 } from './session-outcome-report';
@@ -125,4 +126,29 @@ test('se il consenso manca, la mail spiega che Appunti AI non è partito', () =>
   assert.match(email.subject, /consenso non fornito/);
   assert.equal(transcriptionStatus(rifiutata), 'Non eseguita: consenso non fornito');
   assert.match(email.nextStep, /non è stato avviato/);
+});
+
+test('una sessione fallita dice il motivo, e il credito esaurito indica il rimedio', () => {
+  const email = buildOutcomeEmail(
+    snapshot({
+      status: 'report_failed',
+      reportId: null,
+      reportThemesCount: null,
+      errorCode: null,
+      failureCode: 'COMPASS_QUOTA_EXHAUSTED',
+    })
+  );
+  const reason = email.details.find((row) => row.label === 'Motivo');
+  assert.ok(reason);
+  assert.match(reason.value, /Credito OpenAI esaurito.*Ricarica/);
+});
+
+test('il codice del guasto si legge anche con il suffisso del provider', () => {
+  assert.match(describeFailureReason('COMPASS_FAILED:RATE_LIMITED') ?? '', /errore/);
+  assert.equal(describeFailureReason(null), null);
+});
+
+test('una sessione riuscita non ha la riga Motivo', () => {
+  const email = buildOutcomeEmail(snapshot({ failureCode: 'COMPASS_RATE_LIMITED' }));
+  assert.equal(email.details.some((row) => row.label === 'Motivo'), false);
 });

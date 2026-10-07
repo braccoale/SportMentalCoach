@@ -1,12 +1,13 @@
 import 'server-only';
 import { getSystemConfigNumber } from '@/lib/core/system-config';
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/lib/db/drizzle';
 import {
   bookings,
   profiles,
   providerProfiles,
+  sessionAiAuditEvents,
   sessionAiNotes,
   sessionAiReports,
   sessionAudioRecordings,
@@ -131,6 +132,22 @@ async function loadSnapshot(
     .where(eq(sessionAiReports.sessionAiNotesId, sessionId))
     .limit(1);
 
+  // Il codice vero dell'ultimo guasto del riepilogo: la riga di sessione puo'
+  // averlo nullo (vedi `sanitizeFailure`), la traccia di audit no.
+  const [lastFailure] = await db
+    .select({
+      code: sql<string | null>`${sessionAiAuditEvents.eventMetadata}->>'code'`,
+    })
+    .from(sessionAiAuditEvents)
+    .where(
+      and(
+        eq(sessionAiAuditEvents.sessionAiNotesId, sessionId),
+        eq(sessionAiAuditEvents.eventType, 'compass_report_failed')
+      )
+    )
+    .orderBy(desc(sessionAiAuditEvents.createdDate))
+    .limit(1);
+
   const seconds = sessionSeconds(row.startedAt, row.endedAt);
   const partialCoverageThreshold = await getSystemConfigNumber(
     'AI_NOTES_PARTIAL_COVERAGE_THRESHOLD',
@@ -159,6 +176,7 @@ async function loadSnapshot(
     athleteName: row.athleteName ?? '—',
     status: row.status,
     errorCode: row.errorCode,
+    failureCode: lastFailure?.code ?? null,
     scheduledFor: row.scheduledFor,
     startedAt: row.startedAt,
     endedAt: row.endedAt,

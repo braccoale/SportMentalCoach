@@ -1,0 +1,1 @@
+ALTER TABLE "billing_orders" ADD CONSTRAINT "billing_orders_split_percentage_check" CHECK ("billing_orders"."platform_fee_cents" = round(("billing_orders"."gross_amount_cents"::numeric * "billing_orders"."platform_commission_bps") / 10000)::integer);

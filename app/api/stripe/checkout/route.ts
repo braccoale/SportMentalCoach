@@ -1,12 +1,19 @@
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { users, teams, teamMembers } from '@/lib/db/schema';
-import { setSession } from '@/lib/auth/session';
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/payments/stripe';
 import { BILLING_ENABLED } from '@/lib/core/flags';
 import Stripe from 'stripe';
 
+/**
+ * Starter-template `teams` subscription billing — NOT the KaiPai product.
+ * Not linked from any real nav (`/pricing` has zero `href` references in the
+ * app), fails closed by default (`BILLING_ENABLED` defaults to false, this
+ * route 404s). Kept, not deleted, because a future business-model sprint may
+ * decide to build on it or replace it outright — see
+ * `docs/SECURITY_ARCHITECTURE.md` for the full reasoning.
+ */
 export async function GET(request: NextRequest) {
   if (!BILLING_ENABLED) {
     return new NextResponse('Not found', { status: 404 });
@@ -93,7 +100,6 @@ export async function GET(request: NextRequest) {
       })
       .where(eq(teams.id, userTeam[0].teamId));
 
-    await setSession(user[0]);
     return NextResponse.redirect(new URL('/dashboard', request.url));
   } catch (error) {
     console.error('Error handling successful checkout:', error);

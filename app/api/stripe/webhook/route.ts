@@ -3,6 +3,12 @@ import { handleSubscriptionChange, stripe } from '@/lib/payments/stripe';
 import { BILLING_ENABLED } from '@/lib/core/flags';
 import { NextRequest, NextResponse } from 'next/server';
 
+/**
+ * Starter-template `teams` subscription webhook — NOT the KaiPai product.
+ * Fails closed by default (`BILLING_ENABLED` defaults to false, this route
+ * 404s before even checking the signature). See `app/api/stripe/checkout/route.ts`
+ * and `docs/SECURITY_ARCHITECTURE.md` for the full reasoning.
+ */
 export async function POST(request: NextRequest) {
   if (!BILLING_ENABLED) {
     return new NextResponse('Not found', { status: 404 });

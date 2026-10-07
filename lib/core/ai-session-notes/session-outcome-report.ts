@@ -24,6 +24,12 @@ export type SessionOutcomeSnapshot = {
   athleteName: string;
   status: string;
   errorCode: string | null;
+  /**
+   * Il codice vero dell'ultimo guasto, letto dalla traccia di audit. La riga di
+   * sessione puo' averlo nullo anche dopo un fallimento: e' gia' successo, e la
+   * mail non diceva perche'.
+   */
+  failureCode?: string | null;
   scheduledFor: Date | null;
   startedAt: Date | null;
   endedAt: Date | null;
@@ -98,6 +104,34 @@ export function aiSummaryStatus(snapshot: SessionOutcomeSnapshot): string {
   return 'Non disponibile';
 }
 
+/**
+ * Il perche' di un fallimento, in una riga per chi tiene su il sistema e con
+ * il rimedio quando e' noto. Solo codici: mai testo del provider, che potrebbe
+ * contenere frasi della seduta.
+ */
+export function describeFailureReason(code: string | null | undefined): string | null {
+  if (!code) return null;
+  const base = code.split(':')[0];
+  switch (base) {
+    case 'COMPASS_QUOTA_EXHAUSTED':
+      return 'Credito OpenAI esaurito. Ricarica il credito su platform.openai.com (Billing), poi riapri la sessione.';
+    case 'COMPASS_RATE_LIMITED':
+      return 'OpenAI ha limitato le richieste (troppe in poco tempo). Si riprova da solo.';
+    case 'COMPASS_TIMEOUT':
+      return 'Il riepilogo ha richiesto troppo tempo. Si riprova su un worker più lungo.';
+    case 'COMPASS_UNAVAILABLE':
+      return "Configurazione OpenAI non disponibile (chiave o modello).";
+    case 'COMPASS_INVALID':
+      return 'Il riepilogo non ha superato i controlli di verifica.';
+    case 'COMPASS_FAILED':
+      return 'OpenAI ha risposto con un errore.';
+    case 'NO_AUDIO_RECORDED':
+      return 'Nessun audio registrato.';
+    default:
+      return `Codice errore: ${base}`;
+  }
+}
+
 function recordingStatus(snapshot: SessionOutcomeSnapshot): string {
   if (snapshot.status === 'consent_rejected') return 'Non avviata';
   if (snapshot.coverage.length === 0) return 'Non disponibile';
@@ -129,6 +163,10 @@ export function buildOutcomeEmail(snapshot: SessionOutcomeSnapshot): OutcomeEmai
   const verdict = classifySessionOutcome(snapshot);
   const subject = `[KaiPai] ${snapshot.coachName} con ${snapshot.athleteName}: ${subjectEnding(snapshot, verdict)}`;
   const intro = `${snapshot.coachName} ha svolto una sessione con ${snapshot.athleteName}. Ecco l'esito di Appunti AI.`;
+  const reason =
+    verdict === 'fallita'
+      ? describeFailureReason(snapshot.failureCode ?? snapshot.errorCode)
+      : null;
   return {
     subject,
     title: verdict === 'ok' ? 'Appunti AI ha completato la sessione' : "Controlla l'esito della sessione",
@@ -142,6 +180,7 @@ export function buildOutcomeEmail(snapshot: SessionOutcomeSnapshot): OutcomeEmai
       { label: 'Registrazione', value: recordingStatus(snapshot), separatorBefore: true },
       { label: 'Trascrizione AI', value: transcriptionStatus(snapshot) },
       { label: 'Riepilogo AI', value: aiSummaryStatus(snapshot) },
+      ...(reason ? [{ label: 'Motivo', value: reason, emphasis: true }] : []),
     ],
     nextStep: nextStep(snapshot, verdict),
     actionLabel: snapshot.reportId ? 'Apri il riepilogo' : 'Apri Appunti AI',

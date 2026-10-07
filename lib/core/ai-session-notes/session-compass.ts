@@ -234,6 +234,7 @@ export type SessionCompassErrorCode =
   | 'COMPASS_UNAVAILABLE'
   | 'COMPASS_TIMEOUT'
   | 'COMPASS_RATE_LIMITED'
+  | 'COMPASS_QUOTA_EXHAUSTED'
   | 'COMPASS_INVALID'
   | 'COMPASS_FAILED';
 
@@ -1027,6 +1028,9 @@ function generationError(error: unknown): SessionCompassError {
   }
   if (providerCode === 'AUTHENTICATION_FAILED' || providerCode === 'CONFIGURATION') {
     return new SessionCompassError('COMPASS_UNAVAILABLE', 'La configurazione del riepilogo sessione non è disponibile.');
+  }
+  if (providerCode === 'QUOTA_EXHAUSTED') {
+    return new SessionCompassError('COMPASS_QUOTA_EXHAUSTED', 'Il servizio AI non è disponibile al momento.');
   }
   if (providerCode === 'RATE_LIMITED') {
     return new SessionCompassError('COMPASS_RATE_LIMITED', 'Il servizio AI è temporaneamente occupato. Riprova tra poco.');

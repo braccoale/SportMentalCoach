@@ -6,7 +6,6 @@ import {
   sessionTranscriptSegments,
   sessionTranscriptionRequests,
 } from '@/lib/db/schema';
-import { enqueueNormalizationIfReady } from './processing';
 import { isCallbackTokenWellFormed } from './stt-callback-policy';
 import { logPipeline } from './pipeline-log';
 import type { AiSessionNotesDependencies } from './dependencies';
@@ -230,6 +229,12 @@ export async function ingestTranscriptionCallback(
 
   const advanced = await advanceJobAfterCallback(request.jobId, dependencies);
   if (advanced === 'completed') {
+    // Import dinamico, non in cima al file: processing.ts importa (via
+    // transcription-dispatch.ts) da questo stesso modulo, e un import statico
+    // qui chiuderebbe un ciclo reale fra i tre file. Il comportamento è
+    // identico — resta un `await` sulla stessa funzione — cambia solo quando
+    // il grafo dei moduli lo risolve.
+    const { enqueueNormalizationIfReady } = await import('./processing');
     await enqueueNormalizationIfReady(recording.sessionId, dependencies);
   }
   logPipeline({

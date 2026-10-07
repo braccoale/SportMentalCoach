@@ -8,6 +8,13 @@ import { SubmitButton } from './submit-button';
 // Prices are fresh for one hour max
 export const revalidate = 3600;
 
+/**
+ * Starter-template `teams` subscription pricing page — NOT the KaiPai
+ * product ("Base"/"Plus" per-workspace-member plans are Vercel SaaS Starter
+ * boilerplate). Not linked from any real nav. 404s unless `BILLING_ENABLED`
+ * is set. Kept for a future business-model sprint to decide on; see
+ * `docs/SECURITY_ARCHITECTURE.md`.
+ */
 export default async function PricingPage() {
   if (!BILLING_ENABLED) {
     notFound();

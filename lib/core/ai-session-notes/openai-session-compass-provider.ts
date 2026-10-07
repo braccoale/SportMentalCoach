@@ -160,8 +160,33 @@ export type OpenAiSessionCompassErrorCode =
   | 'TIMEOUT'
   | 'AUTHENTICATION_FAILED'
   | 'RATE_LIMITED'
+  | 'QUOTA_EXHAUSTED'
   | 'PROVIDER_FAILED'
   | 'MALFORMED_OUTPUT';
+
+/**
+ * Un 429 di OpenAI puo' voler dire due cose opposte: «troppe richieste, riprova
+ * fra poco» oppure «il credito e' finito, nessun riprovare serve». Il codice di
+ * stato e' lo stesso; la differenza sta solo nel corpo. Tutto era letto come
+ * «rate limit», e una mattina il credito esaurito e' stato indagato come un
+ * limite di velocita'.
+ *
+ * Si legge solo il codice dell'errore, mai il messaggio: non entra nei log.
+ */
+async function isQuotaExhausted(response: Response): Promise<boolean> {
+  try {
+    const body = (await response.json()) as {
+      error?: { code?: unknown; type?: unknown };
+    };
+    return (
+      body?.error?.code === 'credit_balance_exhausted' ||
+      body?.error?.code === 'insufficient_quota' ||
+      body?.error?.type === 'insufficient_quota'
+    );
+  } catch {
+    return false;
+  }
+}
 
 /** Errore sanificato: non espone mai il payload del provider. */
 export class OpenAiSessionCompassError extends Error {
@@ -249,6 +274,9 @@ export class OpenAiCompassHttpClient implements OpenAiCompassClient {
       throw new OpenAiSessionCompassError('AUTHENTICATION_FAILED', 'Autorizzazione OpenAI non valida.');
     }
     if (response.status === 429) {
+      if (await isQuotaExhausted(response)) {
+        throw new OpenAiSessionCompassError('QUOTA_EXHAUSTED', 'Credito OpenAI esaurito.');
+      }
       throw new OpenAiSessionCompassError('RATE_LIMITED', 'Richiesta OpenAI limitata.');
     }
     if (!response.ok) {

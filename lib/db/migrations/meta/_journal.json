@@ -617,6 +617,34 @@
       "when": 1789749605192,
       "tag": "0087_silent_leper_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1789890766982,
+      "tag": "0088_same_professor_monster",
+      "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1790012629629,
+      "tag": "0089_quiet_titania",
+      "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1790012771481,
+      "tag": "0090_long_lady_deathstrike",
+      "breakpoints": true
+    },
+    {
+      "idx": 91,
+      "version": "7",
+      "when": 1790014534919,
+      "tag": "0091_odd_leper_queen",
+      "breakpoints": true
     }
   ]
 }
