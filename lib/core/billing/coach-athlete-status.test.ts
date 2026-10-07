@@ -3,7 +3,11 @@ import { describe, it } from 'node:test';
 import {
   RENEWAL_SOON_DAYS,
   athleteBillingSignals,
+  COACH_ATHLETE_FILTERS,
   daysUntil,
+  matchesCoachAthleteFilter,
+  parseCoachAthleteFilter,
+  summarizeCoachAthletes,
   signalsAttentionScore,
   type CoachAthleteBilling,
 } from './coach-athlete-status';
@@ -139,5 +143,80 @@ describe('signalsAttentionScore', () => {
     const info = athleteBillingSignals(billing({ booked: 0, remaining: 3 }), now);
     assert.ok(signalsAttentionScore(warn) > signalsAttentionScore(info));
     assert.equal(signalsAttentionScore([]), 0);
+  });
+});
+
+describe('summarizeCoachAthletes', () => {
+  it('conta abbonati, sedute da pianificare, ritardi e atleti che richiedono attenzione', () => {
+    const a = billing({ remaining: 2, booked: 1 }); // in regola
+    const b = billing({ status: 'past_due', remaining: 1, booked: 2 }); // in ritardo
+    const c = billing({ noPlan: true, singles: { toPlan: 1, nextExpiry: day(40) } });
+    const summary = summarizeCoachAthletes([a, b, c], now);
+    assert.deepEqual(summary, {
+      subscribers: 2,
+      toPlan: 2 + 1 + 1,
+      pastDue: 1,
+      needAttention: 1,
+    });
+  });
+
+  it('senza atleti è tutto zero', () => {
+    assert.deepEqual(summarizeCoachAthletes([], now), {
+      subscribers: 0,
+      toPlan: 0,
+      pastDue: 0,
+      needAttention: 0,
+    });
+  });
+});
+
+describe('filtri della lista', () => {
+  it('accetta solo i valori noti e ignora il resto', () => {
+    for (const f of COACH_ATHLETE_FILTERS) assert.equal(parseCoachAthleteFilter(f), f);
+    for (const bad of ['', 'x', '<script>', undefined, null]) {
+      assert.equal(parseCoachAthleteFilter(bad as never), null);
+    }
+    assert.equal(parseCoachAthleteFilter(['in-ritardo', 'x']), 'in-ritardo');
+  });
+
+  it('da pianificare: sedute del piano o sessioni singole ancora da usare', () => {
+    assert.equal(matchesCoachAthleteFilter(billing({ remaining: 1 }), 'da-pianificare', now), true);
+    assert.equal(
+      matchesCoachAthleteFilter(billing({ remaining: 0, booked: 3 }), 'da-pianificare', now),
+      false
+    );
+    assert.equal(
+      matchesCoachAthleteFilter(
+        billing({ noPlan: true, singles: { toPlan: 1, nextExpiry: day(30) } }),
+        'da-pianificare',
+        now
+      ),
+      true
+    );
+  });
+
+  it('in ritardo: solo i pagamenti falliti', () => {
+    assert.equal(matchesCoachAthleteFilter(billing({ status: 'past_due' }), 'in-ritardo', now), true);
+    assert.equal(matchesCoachAthleteFilter(billing({}), 'in-ritardo', now), false);
+  });
+
+  it('in scadenza: rinnovo vicino con sedute, abbonamento che termina o sessione singola in scadenza', () => {
+    assert.equal(matchesCoachAthleteFilter(billing({ daysToEnd: 3 }), 'in-scadenza', now), true);
+    assert.equal(matchesCoachAthleteFilter(billing({ cancel: true }), 'in-scadenza', now), true);
+    assert.equal(
+      matchesCoachAthleteFilter(
+        billing({ noPlan: true, singles: { toPlan: 1, nextExpiry: day(5) } }),
+        'in-scadenza',
+        now
+      ),
+      true
+    );
+    assert.equal(matchesCoachAthleteFilter(billing({}), 'in-scadenza', now), false);
+  });
+
+  it('un atleta senza dati di pagamento non compare in nessun filtro', () => {
+    for (const f of COACH_ATHLETE_FILTERS) {
+      assert.equal(matchesCoachAthleteFilter(undefined, f, now), false);
+    }
   });
 });

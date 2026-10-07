@@ -15,11 +15,15 @@ import {
   type CoachAthleteSummary,
 } from '@/lib/core/bookings/coach-athletes';
 import { AthleteBillingStatus } from '@/components/athlete-billing-status';
+import { CoachBillingSummary } from '@/components/coach-billing-summary';
 import { CoachAvatar } from '@/components/coach-visuals';
 import {
   athleteBillingSignals,
   getCoachAthletesBilling,
+  matchesCoachAthleteFilter,
+  parseCoachAthleteFilter,
   signalsAttentionScore,
+  summarizeCoachAthletes,
   type CoachAthleteBilling,
 } from '@/lib/core/billing';
 import { formatDate, formatDateTime } from '@/lib/core/format';
@@ -172,8 +176,13 @@ function AthleteRow({
   );
 }
 
-export default async function CoachAthletesPage() {
+export default async function CoachAthletesPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const user = await requireRole('coach');
+  const filter = parseCoachAthleteFilter((await searchParams).filtro);
   const config = getVerticalConfig();
 
   const [bookings, hasAiSessionNotes] = await Promise.all([
@@ -200,10 +209,16 @@ export default async function CoachAthletesPage() {
     const billing = billingByAthlete.get(athleteId);
     return billing ? signalsAttentionScore(athleteBillingSignals(billing, now)) : 0;
   };
+  const summary = summarizeCoachAthletes(billingByAthlete.values(), now);
   const athletes = summaries
     .map((athlete, index) => ({ athlete, index, score: score(athlete.userId) }))
     .sort((a, b) => b.score - a.score || a.index - b.index)
-    .map((entry) => entry.athlete);
+    .map((entry) => entry.athlete)
+    .filter(
+      (athlete) =>
+        !filter ||
+        matchesCoachAthleteFilter(billingByAthlete.get(athlete.userId), filter, now)
+    );
 
   return (
     <section className="p-6">
@@ -214,7 +229,21 @@ export default async function CoachAthletesPage() {
         percorso mentale.
       </p>
 
-      {athletes.length === 0 ? (
+      {billingByAthlete.size > 0 && (
+        <CoachBillingSummary summary={summary} active={filter} />
+      )}
+
+      {athletes.length === 0 && filter ? (
+        <div className="mt-6 rounded-2xl border border-dashed border-gray-300 p-8 text-center">
+          <p className="font-medium text-gray-700">
+            Nessun atleta corrisponde a questo filtro.
+          </p>
+          <p className="mt-1 text-sm text-gray-500">
+            È una buona notizia: non c&apos;è niente da seguire in questa
+            categoria.
+          </p>
+        </div>
+      ) : athletes.length === 0 ? (
         <div className="mt-6 rounded-2xl border border-dashed border-gray-300 p-8 text-center">
           <p className="font-medium text-gray-700">
             Non hai ancora nessun atleta.

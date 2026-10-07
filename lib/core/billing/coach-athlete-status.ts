@@ -145,3 +145,79 @@ export function athleteBillingSignals(
 export function signalsAttentionScore(signals: AthleteSignal[]): number {
   return signals.reduce((sum, s) => sum + (s.tone === 'warn' ? 2 : 0), 0);
 }
+
+export type CoachAthletesSummary = {
+  /** Atleti con un abbonamento vivo. */
+  subscribers: number;
+  /** Sedute da pianificare: quelle del piano più le sessioni singole. */
+  toPlan: number;
+  /** Abbonamenti con il pagamento in ritardo. */
+  pastDue: number;
+  /** Atleti con almeno un segnale che chiede un'azione. */
+  needAttention: number;
+};
+
+export function summarizeCoachAthletes(
+  billings: Iterable<CoachAthleteBilling>,
+  now: Date
+): CoachAthletesSummary {
+  const summary: CoachAthletesSummary = {
+    subscribers: 0,
+    toPlan: 0,
+    pastDue: 0,
+    needAttention: 0,
+  };
+  for (const billing of billings) {
+    if (billing.plan) {
+      summary.subscribers++;
+      if (billing.plan.status === 'past_due') summary.pastDue++;
+      if (billing.plan.usage.known) summary.toPlan += billing.plan.usage.remaining;
+    }
+    summary.toPlan += billing.singles.toPlan;
+    if (athleteBillingSignals(billing, now).some((s) => s.tone === 'warn')) {
+      summary.needAttention++;
+    }
+  }
+  return summary;
+}
+
+export const COACH_ATHLETE_FILTERS = [
+  'da-pianificare',
+  'in-ritardo',
+  'in-scadenza',
+] as const;
+export type CoachAthleteFilter = (typeof COACH_ATHLETE_FILTERS)[number];
+
+/** Il filtro dall'indirizzo: solo valori noti, mai un'eco di ciò che arriva. */
+export function parseCoachAthleteFilter(
+  value: string | string[] | undefined | null
+): CoachAthleteFilter | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return (COACH_ATHLETE_FILTERS as readonly string[]).includes(raw ?? '')
+    ? (raw as CoachAthleteFilter)
+    : null;
+}
+
+export function matchesCoachAthleteFilter(
+  billing: CoachAthleteBilling | undefined,
+  filter: CoachAthleteFilter,
+  now: Date
+): boolean {
+  if (!billing) return false;
+  switch (filter) {
+    case 'da-pianificare':
+      return (
+        (billing.plan?.usage.known ? billing.plan.usage.remaining > 0 : false) ||
+        billing.singles.toPlan > 0
+      );
+    case 'in-ritardo':
+      return billing.plan?.status === 'past_due';
+    case 'in-scadenza':
+      return athleteBillingSignals(billing, now).some(
+        (s) =>
+          s.code === 'RENEWAL_SOON' ||
+          s.code === 'ENDING' ||
+          s.code === 'SINGLE_EXPIRING'
+      );
+  }
+}

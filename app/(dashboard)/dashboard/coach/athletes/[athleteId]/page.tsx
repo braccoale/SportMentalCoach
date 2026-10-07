@@ -45,6 +45,8 @@ import {
   setPathStatusAction,
 } from './actions';
 import { findPath } from '@/lib/core/paths/path-store';
+import { AthleteSubscriptionPanel } from '@/components/athlete-subscription-panel';
+import { getCoachAthleteBillingDetail } from '@/lib/core/billing';
 import { AthleteHeader } from '@/components/session-compass/athlete-header';
 import {
   JourneyTimelineSection,
@@ -158,6 +160,16 @@ export default async function CoachAthletePage({
     }));
 
   const goalLinks = await listGoalSessionLinks(storedGoals.map((g) => g.id));
+  // Abbonamento e sedute di questo atleta: un guasto qui non toglie la scheda.
+  const billingDetail = await getCoachAthleteBillingDetail(user.id, targetId).catch(
+    (error) => {
+      console.error('[payments] abbonamento atleta non letto', {
+        coachUserId: user.id,
+        reason: error instanceof Error ? error.message : 'sconosciuto',
+      });
+      return null;
+    }
+  );
 
   const athletePath = `/dashboard/coach/athletes/${athlete.userId}`;
   /*
@@ -223,6 +235,10 @@ export default async function CoachAthletePage({
           }
         />
       </div>
+
+      {billingDetail && (
+        <AthleteSubscriptionPanel detail={billingDetail} now={now} />
+      )}
 
       {/* Chiusura e riapertura del percorso coach-atleta (`coach_athlete_paths`
           — se arrivano nuove azioni/prove da questo atleta), raggiungibili da
