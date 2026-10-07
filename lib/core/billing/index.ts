@@ -22,6 +22,7 @@ import { getAppBaseUrl } from '@/lib/core/app-url';
 import {
   createAccountSession,
   createCoachConnectedAccount,
+  createBillingPortalSession,
   createPlanCheckoutSession,
   createSingleSessionCheckoutSession,
   getSubscriptionPaymentMethod,
@@ -1990,4 +1991,40 @@ export async function getCoachAthleteBillingDetail(
       ];
     }),
   };
+}
+
+/**
+ * Apre il portale di Stripe in cui l'atleta cambia il metodo di pagamento del
+ * suo abbonamento. Dal browser arriva solo l'id della riga: l'abbonamento deve
+ * essere **dell'atleta che lo chiede** (un id altrui non apre il portale di un
+ * altro), vivo, e collegato a un cliente Stripe.
+ */
+export async function startPaymentMethodPortal(params: {
+  athleteUserId: number;
+  subscriptionRowId: number;
+}): Promise<Result<{ url: string }>> {
+  const [sub] = await db
+    .select({
+      stripeCustomerId: planSubscriptions.stripeCustomerId,
+      stripeAccountId: planSubscriptions.stripeAccountId,
+    })
+    .from(planSubscriptions)
+    .where(
+      and(
+        eq(planSubscriptions.id, params.subscriptionRowId),
+        eq(planSubscriptions.athleteUserId, params.athleteUserId),
+        inArray(planSubscriptions.status, ['active', 'past_due'])
+      )
+    )
+    .limit(1);
+  if (!sub || !sub.stripeCustomerId) {
+    return { ok: false, error: 'Abbonamento non trovato.' };
+  }
+  const base = getAppBaseUrl() ?? CANONICAL_APP_URL;
+  const { url } = await createBillingPortalSession({
+    connectedAccountId: sub.stripeAccountId,
+    customerId: sub.stripeCustomerId,
+    returnUrl: `${base}/dashboard/athlete/abbonamenti`,
+  });
+  return { ok: true, url };
 }

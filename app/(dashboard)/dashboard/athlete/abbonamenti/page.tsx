@@ -144,6 +144,7 @@ export default async function AthleteSubscriptionsPage({
               sinceLabel: formatLongDateRome(subscribedOn(subscription)),
               usage: usageBySubscription.get(subscription.id) ?? { known: false },
               paymentMethodLabel: paymentMethods.get(subscription.id) ?? null,
+              canChangePaymentMethod: Boolean(subscription.stripeCustomerId),
               status: subscription.status === 'past_due' ? 'past_due' : 'active',
               cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
               periodEndLabel: subscription.currentPeriodEnd

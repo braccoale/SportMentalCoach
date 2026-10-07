@@ -2,7 +2,10 @@
 
 import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/db/queries';
-import { setAthleteSubscriptionCancellation } from '@/lib/core/billing';
+import {
+  setAthleteSubscriptionCancellation,
+  startPaymentMethodPortal,
+} from '@/lib/core/billing';
 
 const ATHLETE_TAB = '/dashboard/athlete/abbonamenti';
 
@@ -60,4 +63,40 @@ export async function cancelSubscriptionAction(formData: FormData): Promise<void
 /** Toglie l'annullamento programmato, prima che il periodo finisca. */
 export async function resumeSubscriptionAction(formData: FormData): Promise<void> {
   await change(formData, false);
+}
+
+/**
+ * Porta l'atleta al portale di Stripe per cambiare la carta. `redirect`
+ * solleva un'eccezione per funzionare: va fuori dal `try`.
+ */
+export async function openPaymentMethodPortalAction(
+  formData: FormData
+): Promise<void> {
+  const { path: profilePath, anchor } = returnPath(formData);
+  const user = await getUser();
+  if (!user) redirect(`/sign-in?redirect=${encodeURIComponent(profilePath)}`);
+
+  const subscriptionRowId = Number(formData.get('subscriptionId'));
+  if (!Number.isInteger(subscriptionRowId) || subscriptionRowId <= 0) {
+    redirect(`${profilePath}?abbonamento=errore${anchor}`);
+  }
+
+  let destination: string;
+  try {
+    const result = await startPaymentMethodPortal({
+      athleteUserId: user.id,
+      subscriptionRowId,
+    });
+    destination = result.ok
+      ? result.url
+      : `${profilePath}?abbonamento=errore${anchor}`;
+  } catch (error) {
+    console.error('[payments] portale del metodo di pagamento non aperto', {
+      athleteUserId: user.id,
+      subscriptionRowId,
+      reason: error instanceof Error ? error.message : 'sconosciuto',
+    });
+    destination = `${profilePath}?abbonamento=errore${anchor}`;
+  }
+  redirect(destination);
 }

@@ -386,3 +386,98 @@ export async function createSingleSessionCheckoutSession(
   }
   return { id: body.id, url: body.url };
 }
+
+const PORTAL_CONFIG_MARK = 'v1';
+
+/**
+ * La configurazione del portale clienti sull'account del coach, creata alla
+ * prima richiesta e riconosciuta dal segno `kaipai_portal` nei metadati (un
+ * account può averne altre, o nessuna: in modalità live il portale non si apre
+ * senza una configurazione).
+ *
+ * Il portale serve a **una sola cosa**: cambiare il metodo di pagamento e
+ * vedere le fatture. L'annullamento e il cambio piano restano nel nostro sito,
+ * dove si applicano le regole (fine periodo, sedute): se fossero nel portale
+ * l'atleta potrebbe annullare saltandole.
+ */
+export async function ensureBillingPortalConfiguration(
+  connectedAccountId: string
+): Promise<string> {
+  const headers = {
+    Authorization: `Bearer ${secretKey()}`,
+    'Stripe-Account': connectedAccountId,
+  };
+  const listed = await parse<{
+    data?: { id: string; metadata?: Record<string, string> | null }[];
+  }>(
+    await fetch(`${STRIPE_API}/v1/billing_portal/configurations?limit=20&active=true`, {
+      headers,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      cache: 'no-store',
+    })
+  );
+  const existing = listed.data?.find(
+    (config) => config.metadata?.kaipai_portal === PORTAL_CONFIG_MARK
+  );
+  if (existing) return existing.id;
+
+  const form = new URLSearchParams({
+    'business_profile[headline]': 'KaiPai: gestisci il tuo metodo di pagamento',
+    'features[payment_method_update][enabled]': 'true',
+    'features[invoice_history][enabled]': 'true',
+    'features[customer_update][enabled]': 'false',
+    'features[subscription_cancel][enabled]': 'false',
+    'features[subscription_update][enabled]': 'false',
+    'metadata[kaipai_portal]': PORTAL_CONFIG_MARK,
+  });
+  const created = await parse<{ id?: string }>(
+    await fetch(`${STRIPE_API}/v1/billing_portal/configurations`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      cache: 'no-store',
+    })
+  );
+  if (!created.id) {
+    throw new StripeConnectError(
+      'STRIPE_NO_PORTAL_CONFIGURATION',
+      'Stripe non ha restituito la configurazione del portale.'
+    );
+  }
+  return created.id;
+}
+
+/** Apre il portale clienti sull'account del coach per quel cliente. */
+export async function createBillingPortalSession(params: {
+  connectedAccountId: string;
+  customerId: string;
+  returnUrl: string;
+}): Promise<{ url: string }> {
+  const configuration = await ensureBillingPortalConfiguration(
+    params.connectedAccountId
+  );
+  const response = await fetch(`${STRIPE_API}/v1/billing_portal/sessions`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${secretKey()}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Stripe-Account': params.connectedAccountId,
+    },
+    body: new URLSearchParams({
+      customer: params.customerId,
+      configuration,
+      return_url: params.returnUrl,
+    }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    cache: 'no-store',
+  });
+  const body = await parse<{ url?: string }>(response);
+  if (!body.url) {
+    throw new StripeConnectError(
+      'STRIPE_NO_PORTAL_URL',
+      'Stripe non ha restituito il collegamento al portale.'
+    );
+  }
+  return { url: body.url };
+}

@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import {
   cancelSubscriptionAction,
+  openPaymentMethodPortalAction,
   resumeSubscriptionAction,
 } from '@/app/(marketplace)/coaches/subscription-actions';
 import type { SessionUsage } from '@/lib/core/billing/session-usage';
@@ -54,6 +55,8 @@ export type SubscriptionCardData = {
   singleSessionPriceLabel?: string | null;
   /** Sedute acquistate a parte e ancora da usare. */
   extraSessions?: { count: number; expiryLabel: string } | null;
+  /** L'abbonamento ha un cliente Stripe: si può aprire il portale per cambiare la carta. */
+  canChangePaymentMethod?: boolean;
 };
 
 type Props = {
@@ -419,10 +422,31 @@ export function SubscriptionCard({
             />
           )}
 
+          {subscription.canChangePaymentMethod && (
+            <form action={openPaymentMethodPortalAction}>
+              <input type="hidden" name="slug" value={slug} />
+              {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
+              <input type="hidden" name="subscriptionId" value={subscription.id} />
+              <Button
+                type="submit"
+                variant="outline"
+                className={cn(
+                  'h-9 w-full gap-2 rounded-xl text-sm font-semibold',
+                  pastDue
+                    ? 'border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100'
+                    : 'border-gray-200 text-gray-700'
+                )}
+              >
+                <CreditCard className="h-4 w-4" aria-hidden />
+                {pastDue ? 'Aggiorna il metodo di pagamento' : 'Cambia metodo di pagamento'}
+              </Button>
+            </form>
+          )}
+
           {pastDue && (
             <p className="text-xs text-amber-800">
-              L&apos;ultimo pagamento non è andato a buon fine: controlla il
-              metodo di pagamento.
+              L&apos;ultimo pagamento non è andato a buon fine: aggiorna il metodo
+              di pagamento e il sistema potrà ritentare l&apos;addebito.
             </p>
           )}
           {cancelAtPeriodEnd && (
