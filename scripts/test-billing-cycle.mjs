@@ -122,6 +122,7 @@ async function newSubscription({ athlete, coach, plan, clockId, paymentMethod })
 }
 
 let clockId = null;
+const testBookings = [];
 try {
   const people = await sql`
     select id, email, name from users
@@ -157,6 +158,10 @@ try {
   const a1 = await waitFor('A attivo', () => rowOf(a.rowId), (r) => r.status === 'active' && r.subscribed_at && r.current_period_end);
   record('il primo pagamento rende attivo l’abbonamento e scrive la data', a1.ok, a1.value?.status);
   const firstEnd = a1.value?.current_period_end;
+  // La ricevuta: la fattura ospitata da Stripe, quella che apre
+  // /api/payments/receipt (stessa chiamata di `latestSubscriptionReceiptUrl`).
+  const invoices = await stripe('GET', `/v1/invoices?subscription=${a.subscription.id}&status=paid&limit=1`);
+  record('Stripe dà il collegamento alla ricevuta del primo pagamento', typeof invoices.data?.[0]?.hosted_invoice_url === 'string');
 
   await advance(clockId, t0 + 32 * DAY);
   const a2 = await waitFor('A rinnovo', () => rowOf(a.rowId), (r) => r.status === 'active' && r.current_period_end > firstEnd);
@@ -181,11 +186,31 @@ try {
   const b = await newSubscription({ athlete, coach, plan, clockId, paymentMethod: 'pm_card_visa' });
   const b1 = await waitFor('B attivo', () => rowOf(b.rowId), (r) => r.status === 'active');
   record('il secondo abbonamento parte attivo', b1.ok);
+  // Due sedute fissate: una nel periodo già pagato, una in quello che non
+  // verrà pagato. Dopo il rinnovo fallito deve restare la prima e saltare la
+  // seconda (sistema, non consuma).
+  const [provider] = await sql`select id from provider_profiles where user_id = ${coach.id} limit 1`;
+  const at = (days) => new Date((t0 + days * DAY) * 1000);
+  const insertBooking = async (days) =>
+    (await sql`insert into bookings (client_id, provider_id, status, scheduled_for, duration_min)
+               values (${athlete.id}, ${provider.id}, 'accepted', ${at(days)}, 60) returning id`)[0].id;
+  const paidBooking = await insertBooking(70);
+  const unpaidBooking = await insertBooking(99);
+  testBookings.push(paidBooking, unpaidBooking);
   const bad = await stripe('POST', '/v1/payment_methods/pm_card_chargeCustomerFail/attach', { customer: b.customer.id });
   await stripe('POST', `/v1/customers/${b.customer.id}`, { invoice_settings: { default_payment_method: bad.id } });
   await advance(clockId, t0 + 100 * DAY);
   const b2 = await waitFor('B ritardo', () => rowOf(b.rowId), (r) => r.status === 'past_due');
   record('con la carta che rifiuta l’abbonamento passa a «in ritardo»', b2.ok, b2.value?.status);
+  const afterwards = await waitFor(
+    'sedute',
+    async () => (await sql`select id, status, late_cancellation, updated_by from bookings where id in (${paidBooking}, ${unpaidBooking})`),
+    (rows) => rows.find((r) => r.id === unpaidBooking)?.status === 'cancelled',
+    60000
+  );
+  const byId = (id) => afterwards.value?.find((r) => r.id === id);
+  record('la seduta del periodo non pagato è annullata dal sistema', afterwards.ok && byId(unpaidBooking)?.updated_by === null && byId(unpaidBooking)?.late_cancellation === false);
+  record('la seduta del periodo già pagato resta', byId(paidBooking)?.status === 'accepted');
 
   // ── Email e webhook ─────────────────────────────────────────────────────
   await new Promise((r) => setTimeout(r, 8000));
@@ -211,6 +236,9 @@ try {
   console.error('\nInterrotto:', error instanceof Error ? error.message : error);
   results.push({ name: 'esecuzione', ok: false });
 } finally {
+  if (apply && testBookings.length) {
+    await sql`delete from bookings where id in ${sql(testBookings)}`;
+  }
   if (apply && clockId) {
     // Prima l'orologio (porta via clienti e abbonamenti di prova), poi si
     // lascia al webhook il tempo di registrare le chiusure.

@@ -23,8 +23,8 @@ describe('buildPaymentFailedContent', () => {
     const text = c.paragraphs.join(' ');
     assert.match(text, /Ciao Alessandro,/);
     assert.match(text, /Daniela Chiappara/);
-    assert.match(text, /non puoi prenotare nuove sedute del piano/);
-    assert.match(text, /già fissate restano valide/);
+    assert.match(text, /non puoi prenotare sedute del piano/);
+    assert.doesNotMatch(text, /già fissate restano valide/);
   });
 
   it('il coach sa chi è e trova il link alla scheda di quell’atleta', () => {
@@ -36,7 +36,7 @@ describe('buildPaymentFailedContent', () => {
     });
     assert.equal(c.subject, 'Pagamento in ritardo: Alessandro Bracco');
     assert.equal(c.actionPath, '/dashboard/coach/athletes/68');
-    assert.match(c.paragraphs.join(' '), /non puoi fissare nuove sedute del piano/);
+    assert.match(c.paragraphs.join(' '), /non puoi fissare sedute del piano/);
   });
 
   it('la tabella dei dettagli ha piano, importo e data del rinnovo', () => {
@@ -106,5 +106,18 @@ describe('paymentFailedIdempotencyKey', () => {
   });
   it('non contiene date del giorno: un secondo fallimento di un altro mese è un altro invio', () => {
     assert.match(key(), /^v1:payment_failed:email:68:sub5-athlete-p\d+$/);
+  });
+});
+
+describe('sedute annullate dal sistema', () => {
+  it('l’atleta e il coach sanno quante sedute del periodo non pagato sono saltate', () => {
+    const a = buildPaymentFailedContent({ ...base, role: 'athlete', cancelledSessions: 2 });
+    assert.match(a.paragraphs.join(' '), /2 sedute fissate per il periodo non pagato sono state annullate/);
+    const c = buildPaymentFailedContent({ ...base, role: 'coach', cancelledSessions: 1 });
+    assert.match(c.paragraphs.join(' '), /1 seduta fissata con lui per il periodo non pagato è stata annullata/);
+  });
+  it('senza sedute annullate non ne parla', () => {
+    const a = buildPaymentFailedContent({ ...base, role: 'athlete' });
+    assert.doesNotMatch(a.paragraphs.join(' '), /annullat/);
   });
 });

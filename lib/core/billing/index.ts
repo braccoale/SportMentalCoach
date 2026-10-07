@@ -888,7 +888,7 @@ export async function getSessionUsageForSubscriptions(
   const rows = await db
     .select({
       coachUserId: providerProfiles.userId,
-      status: bookings.status,
+      status: usageStatusSql,
       scheduledFor: bookings.scheduledFor,
     })
     .from(bookings)
@@ -1019,7 +1019,7 @@ export async function checkBookingCredits(
   const periods = subscription ? creditPeriods(subscription) : null;
   const rows: UsageBooking[] = periods
     ? await executor
-        .select({ status: bookings.status, scheduledFor: bookings.scheduledFor })
+        .select({ status: usageStatusSql, scheduledFor: bookings.scheduledFor })
         .from(bookings)
         .leftJoin(sessionCredits, eq(sessionCredits.bookingId, bookings.id))
         .where(
@@ -1050,11 +1050,24 @@ export async function checkBookingCredits(
   });
 }
 
+/**
+ * Lo stato con cui una prenotazione pesa su un abbonamento o su una seduta
+ * acquistata: una disdetta tardiva dell'atleta pesa come una seduta fatta
+ * (`late-cancellation.ts`, stessa regola in forma pura).
+ */
+const usageStatusSql = sql<string>`(case
+  when ${bookings.status} = 'cancelled'
+    and ${bookings.lateCancellation}
+    and ${bookings.updatedBy} = ${bookings.clientId}
+  then 'completed' else ${bookings.status} end)`;
+
 /** Condizione SQL: la seduta pagata non è tenuta da una prenotazione viva. */
 const creditIsFreeSql = sql`(${sessionCredits.bookingId} is null or exists (
   select 1 from bookings held
   where held.id = ${sessionCredits.bookingId}
     and held.status in (${sql.raw(FREEING_BOOKING_STATUSES.map((s) => `'${s}'`).join(', '))})
+    and not (held.status = 'cancelled' and held.late_cancellation
+             and held.updated_by = held.client_id)
 ))`;
 
 export type AvailableSessionCredit = { id: number; expiresAt: Date };
@@ -1245,7 +1258,7 @@ export async function getBookingCreditContexts(
       : await db
           .select({
             providerId: bookings.providerId,
-            status: bookings.status,
+            status: usageStatusSql,
             scheduledFor: bookings.scheduledFor,
           })
           .from(bookings)
@@ -1643,7 +1656,7 @@ export async function listAthleteSingleSessions(
       priceCents: sessionCredits.priceCents,
       grantedAt: sessionCredits.grantedAt,
       expiresAt: sessionCredits.expiresAt,
-      bookingStatus: bookings.status,
+      bookingStatus: usageStatusSql,
       scheduledFor: bookings.scheduledFor,
       coachName: profiles.displayName,
       coachSlug: providerProfiles.slug,
@@ -1750,7 +1763,7 @@ export async function getCoachAthletesBilling(
         athleteUserId: sessionCredits.athleteUserId,
         status: sessionCredits.status,
         expiresAt: sessionCredits.expiresAt,
-        bookingStatus: bookings.status,
+        bookingStatus: usageStatusSql,
       })
       .from(sessionCredits)
       .leftJoin(bookings, eq(bookings.id, sessionCredits.bookingId))
@@ -1779,7 +1792,7 @@ export async function getCoachAthletesBilling(
       : await db
           .select({
             clientId: bookings.clientId,
-            status: bookings.status,
+            status: usageStatusSql,
             scheduledFor: bookings.scheduledFor,
           })
           .from(bookings)
@@ -1916,7 +1929,7 @@ export async function getCoachAthleteBillingDetail(
         priceCents: sessionCredits.priceCents,
         grantedAt: sessionCredits.grantedAt,
         expiresAt: sessionCredits.expiresAt,
-        bookingStatus: bookings.status,
+        bookingStatus: usageStatusSql,
         scheduledFor: bookings.scheduledFor,
       })
       .from(sessionCredits)

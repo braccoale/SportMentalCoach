@@ -481,3 +481,44 @@ export async function createBillingPortalSession(params: {
   }
   return { url: body.url };
 }
+
+async function v1Get<T>(accountId: string, path: string): Promise<T> {
+  const response = await fetch(`${STRIPE_API}${path}`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${secretKey()}`,
+      'Stripe-Account': accountId,
+    },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    cache: 'no-store',
+  });
+  return parse<T>(response);
+}
+
+/**
+ * Il collegamento alla ricevuta dell'ultimo pagamento di un abbonamento: la
+ * fattura ospitata da Stripe sul conto del coach (con il PDF). Non la
+ * emettiamo noi e non ne teniamo copia: si chiede a Stripe al momento del clic.
+ */
+export async function latestSubscriptionReceiptUrl(
+  accountId: string,
+  subscriptionId: string
+): Promise<string | null> {
+  const list = await v1Get<{ data?: { hosted_invoice_url?: string | null }[] }>(
+    accountId,
+    `/v1/invoices?subscription=${encodeURIComponent(subscriptionId)}&status=paid&limit=1`
+  );
+  return list.data?.[0]?.hosted_invoice_url ?? null;
+}
+
+/** La ricevuta di un pagamento singolo (seduta acquistata a parte). */
+export async function paymentReceiptUrl(
+  accountId: string,
+  paymentIntentId: string
+): Promise<string | null> {
+  const intent = await v1Get<{ latest_charge?: { receipt_url?: string | null } | null }>(
+    accountId,
+    `/v1/payment_intents/${encodeURIComponent(paymentIntentId)}?expand[]=latest_charge`
+  );
+  return intent.latest_charge?.receipt_url ?? null;
+}

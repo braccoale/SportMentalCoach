@@ -48,7 +48,15 @@ export function buildPaymentFailedContent(input: {
   amountLabel: string;
   /** Già formattato: «6 novembre 2026», o null se non si sa. */
   periodEndLabel: string | null;
+  /**
+   * Quante sedute fissate nel periodo non pagato sono state annullate dal
+   * sistema (`cancelUnpaidPeriodSessions`). Un periodo non pagato non ha sedute.
+   */
+  cancelledSessions?: number;
 }): PaymentFailedContent {
+  const cancelled = input.cancelledSessions ?? 0;
+  const cancelledWord = cancelled === 1 ? 'seduta fissata' : 'sedute fissate';
+  const cancelledVerb = cancelled === 1 ? 'è stata annullata' : 'sono state annullate';
   const rows = [
     { label: 'Piano', value: input.planName },
     { label: 'Importo', value: input.amountLabel },
@@ -69,7 +77,9 @@ export function buildPaymentFailedContent(input: {
         greeting,
         `Non siamo riusciti a incassare il rinnovo del tuo abbonamento con ${input.counterpartName}.`,
         'Il sistema di pagamento può ritentare l’addebito nei prossimi giorni. Controlla intanto che la carta sia valida e abbia fondi sufficienti.',
-        'Finché il pagamento non va a buon fine non puoi prenotare nuove sedute del piano; quelle già fissate restano valide.',
+        cancelled > 0
+          ? `Finché il pagamento non va a buon fine non puoi prenotare sedute del piano. ${cancelled} ${cancelledWord} per il periodo non pagato ${cancelledVerb}: potrai prenotarle di nuovo quando il pagamento andrà a buon fine.`
+          : 'Finché il pagamento non va a buon fine non puoi prenotare sedute del piano.',
         'Se il problema persiste, scrivi al tuo coach o al supporto di KaiPai.',
       ],
       rows,
@@ -86,7 +96,9 @@ export function buildPaymentFailedContent(input: {
     paragraphs: [
       greeting,
       `Il rinnovo dell’abbonamento di ${input.counterpartName} non è stato incassato.`,
-      'Finché il pagamento non va a buon fine non puoi fissare nuove sedute del piano con lui; quelle già in agenda restano. Il sistema di pagamento può ritentare l’addebito.',
+      cancelled > 0
+        ? `Finché il pagamento non va a buon fine non puoi fissare sedute del piano con lui. ${cancelled} ${cancelledWord} con lui per il periodo non pagato ${cancelledVerb}: lo trovi nel tuo calendario. Il sistema di pagamento può ritentare l’addebito.`
+        : 'Finché il pagamento non va a buon fine non puoi fissare sedute del piano con lui. Il sistema di pagamento può ritentare l’addebito.',
       'Se lo ritieni utile, scrivigli: spesso basta una carta scaduta.',
     ],
     rows,

@@ -443,6 +443,17 @@ export function SubscriptionCard({
             </form>
           )}
 
+          {/* La ricevuta è di Stripe sul conto del coach: il collegamento la
+              cerca al clic, quindi funziona dal primo pagamento in poi. */}
+          <a
+            href={`/api/payments/receipt?tipo=abbonamento&id=${subscription.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-fit text-xs font-medium text-gray-600 underline underline-offset-2 hover:text-gray-900"
+          >
+            Ricevuta dell&apos;ultimo pagamento
+          </a>
+
           {pastDue && (
             <p className="text-xs text-amber-800">
               L&apos;ultimo pagamento non è andato a buon fine: aggiorna il metodo

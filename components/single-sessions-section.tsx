@@ -154,6 +154,15 @@ export function SingleSessionsSection({
                     {' · '}
                     {formatEuroCents(session.priceCents)}
                     {session.kind === 'extra' ? ' · extra al piano' : ''}
+                    {' · '}
+                    <a
+                      href={`/api/payments/receipt?tipo=seduta&id=${session.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline underline-offset-2 hover:text-gray-900"
+                    >
+                      Ricevuta
+                    </a>
                   </p>
                 </div>
                 <StateChip
