@@ -1,5 +1,6 @@
 'use server';
 
+import { passwordResetOutcome } from '@/lib/core/auth/password-reset';
 import { z } from 'zod';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
@@ -554,13 +555,20 @@ export const requestPasswordReset = validatedAction(
   async (data) => {
     const supabase = await createSupabaseServer();
     const baseUrl = process.env.BASE_URL ?? 'http://localhost:3000';
-    await supabase.auth.resetPasswordForEmail(data.email, {
+    const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
       redirectTo: `${baseUrl}/auth/callback?next=/reset-password/update`
     });
-    return {
-      success:
-        'Se l’email è registrata riceverai un link per reimpostare la password. Controlla la posta (anche lo spam).'
-    };
+    // Un errore è del servizio di invio, mai dell'indirizzo (vedi
+    // `passwordResetOutcome`): si dice, invece di promettere una mail che non
+    // arriverà. Nel log restano codice e stato, senza l'indirizzo.
+    if (error) {
+      console.error('[auth] email di recupero password non inviata', {
+        status: error.status,
+        code: error.code
+      });
+    }
+    const outcome = passwordResetOutcome(error);
+    return outcome.ok ? { success: outcome.message } : { error: outcome.message };
   }
 );
 
