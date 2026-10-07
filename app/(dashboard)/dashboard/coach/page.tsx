@@ -730,6 +730,7 @@ export default async function CoachDashboardPage() {
                   />
                   <ShareButton bookingId={booking.id} menuItem />
                   {booking.sessionStartedAt ? (
+                    <>
                     <ActionForm action={completeBookingAction} className="w-full">
                       <input type="hidden" name="bookingId" value={booking.id} />
                       <button type="submit" className="flex w-full">
@@ -738,6 +739,16 @@ export default async function CoachDashboardPage() {
                         </DropdownMenuItem>
                       </button>
                     </ActionForm>
+                    <ActionForm action={completeBookingAction} className="w-full">
+                      <input type="hidden" name="bookingId" value={booking.id} />
+                      <input type="hidden" name="athleteNoShow" value="1" />
+                      <button type="submit" className="flex w-full">
+                        <DropdownMenuItem className="w-full flex-1 cursor-pointer">
+                          Atleta non presentato
+                        </DropdownMenuItem>
+                      </button>
+                    </ActionForm>
+                    </>
                   ) : (
                     <DropdownMenuItem disabled>
                       Completabile dopo la videochiamata
@@ -915,6 +926,7 @@ function ArchiveSection({
                 overflowActions={
                   booking.status === 'accepted' ? (
                     booking.sessionStartedAt ? (
+                      <>
                       <ActionForm action={completeBookingAction} className="w-full">
                         <input type="hidden" name="bookingId" value={booking.id} />
                         <button type="submit" className="flex w-full">
@@ -923,6 +935,16 @@ function ArchiveSection({
                           </DropdownMenuItem>
                         </button>
                       </ActionForm>
+                      <ActionForm action={completeBookingAction} className="w-full">
+                        <input type="hidden" name="bookingId" value={booking.id} />
+                        <input type="hidden" name="athleteNoShow" value="1" />
+                        <button type="submit" className="flex w-full">
+                          <DropdownMenuItem className="w-full flex-1 cursor-pointer">
+                            Atleta non presentato
+                          </DropdownMenuItem>
+                        </button>
+                      </ActionForm>
+                      </>
                     ) : (
                       <DropdownMenuItem disabled>
                         Nessuna videochiamata registrata

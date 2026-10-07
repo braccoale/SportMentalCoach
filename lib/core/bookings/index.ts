@@ -89,6 +89,7 @@ import {
   type SessionDurationMin,
 } from './duration';
 import { buildCancellationMessage } from './cancellation-message';
+import { NO_SHOW_MESSAGE } from './no-show';
 
 async function hasOpenBookingConflict(
   exec: DbOrTx,
@@ -1710,6 +1711,12 @@ export async function decideBooking(params: {
 export async function completeBooking(params: {
   bookingId: number;
   coachUserId: number;
+  /**
+   * L'atleta non si è presentato: la seduta si chiude come fatta (e quindi
+   * consuma la seduta, come una disdetta tardiva) e nella chat della
+   * prenotazione resta la nota `NO_SHOW_MESSAGE`.
+   */
+  athleteNoShow?: boolean;
 }, liveKit: LiveKitSessionControl): Promise<Result> {
   const [provider] = await db
     .select({ id: providerProfiles.id })
@@ -1767,17 +1774,30 @@ export async function completeBooking(params: {
   const safeEnd =
     end.getTime() > start.getTime() ? end : new Date(start.getTime() + durationMs);
 
-  await db
-    .update(bookings)
-    .set({
-      status: 'completed',
-      completedAt: now,
-      sessionStartedAt: start,
-      sessionEndedAt: safeEnd,
-      updatedAt: now,
-      updatedBy: params.coachUserId,
-    })
-    .where(eq(bookings.id, params.bookingId));
+  await db.transaction(async (tx) => {
+    await tx
+      .update(bookings)
+      .set({
+        status: 'completed',
+        completedAt: now,
+        sessionStartedAt: start,
+        sessionEndedAt: safeEnd,
+        updatedAt: now,
+        updatedBy: params.coachUserId,
+      })
+      .where(eq(bookings.id, params.bookingId));
+    if (params.athleteNoShow) {
+      await tx.insert(messages).values({
+        bookingId: booking.id,
+        senderId: params.coachUserId,
+        body: NO_SHOW_MESSAGE,
+        createdAt: now,
+        updatedAt: now,
+        createdBy: params.coachUserId,
+        updatedBy: params.coachUserId,
+      });
+    }
+  });
 
   await stopBookingAiNotesRecordings({
     bookingId: params.bookingId,
