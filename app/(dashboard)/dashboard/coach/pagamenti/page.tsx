@@ -10,6 +10,8 @@ import {
   getCoachBillingProfile,
   getPlanLimits,
   getSingleSessionLimits,
+  getSingleSessionValidityDays,
+  formatValidityDays,
   listCoachSessionPlans,
   perSessionCents,
   syncCoachStripeStatus,
@@ -239,6 +241,7 @@ export default async function CoachPaymentsPage({
         }
         minLabel={formatEuroCents(singleLimits.minPriceCents)}
         maxLabel={formatEuroCents(singleLimits.maxPriceCents)}
+        validityLabel={formatValidityDays(await getSingleSessionValidityDays())}
       />
 
       <div className="rounded-lg border border-gray-200 bg-white p-4">

@@ -3,8 +3,8 @@
  * coach, e quanto dura una seduta acquistata a parte.
  *
  * Le sedute di un abbonamento si calcolano contando le prenotazioni; una seduta
- * acquistata a parte, invece, ha una scadenza propria (60 giorni
- * dall'acquisto) e per questo sta in un registro (`session_credits`).
+ * acquistata a parte, invece, ha una scadenza propria (di norma 60 giorni
+ * dall'acquisto, parametro di sistema) e per questo sta in un registro (`session_credits`).
  *
  * Il prezzo vale sia per chi non ha un abbonamento («una sola seduta») sia per
  * chi ce l'ha e ha finito le sedute del mese («aggiungi una seduta»). Vuoto =
@@ -15,8 +15,30 @@
 
 import { parseEuroToCents, formatEuroCents } from './session-plan';
 
-/** Per quanti giorni una seduta acquistata a parte si può prenotare. */
-export const SINGLE_SESSION_VALIDITY_DAYS = 60;
+/**
+ * Per quanti giorni una seduta acquistata a parte si può prenotare. È un
+ * **parametro di sistema** (`BILLING_SINGLE_SESSION_VALIDITY_DAYS`, modificabile
+ * dal pannello admin): questo è il valore di ripiego, usato anche se la riga
+ * manca o contiene un valore non valido.
+ */
+export const DEFAULT_SINGLE_SESSION_VALIDITY_DAYS = 60;
+export const SINGLE_SESSION_VALIDITY_CONFIG_KEY = 'BILLING_SINGLE_SESSION_VALIDITY_DAYS';
+export const MIN_SINGLE_SESSION_VALIDITY_DAYS = 1;
+export const MAX_SINGLE_SESSION_VALIDITY_DAYS = 365;
+
+/**
+ * Un valore dal pannello admin diventa una durata usabile solo se è un numero
+ * intero dentro i limiti; altrimenti vale il ripiego. Chi sbaglia a scrivere
+ * «0» o «60.5» non deve far scadere subito le sedute già pagate.
+ */
+export function normalizeValidityDays(value: unknown): number {
+  return typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= MIN_SINGLE_SESSION_VALIDITY_DAYS &&
+    value <= MAX_SINGLE_SESSION_VALIDITY_DAYS
+    ? value
+    : DEFAULT_SINGLE_SESSION_VALIDITY_DAYS;
+}
 
 export type SingleSessionLimits = {
   minPriceCents: number;
@@ -61,11 +83,14 @@ export function validateSingleSessionPrice(
   return { ok: true, priceCents: cents };
 }
 
-/** Quando scade una seduta acquistata a parte. Istante + 60 giorni, senza fusi. */
-export function singleSessionExpiresAt(grantedAt: Date): Date {
+/** Quando scade una seduta acquistata a parte. Istante + N giorni, senza fusi. */
+export function singleSessionExpiresAt(
+  grantedAt: Date,
+  validityDays: number = DEFAULT_SINGLE_SESSION_VALIDITY_DAYS
+): Date {
   if (Number.isNaN(grantedAt.getTime())) throw new Error('INVALID_GRANTED_AT');
   return new Date(
-    grantedAt.getTime() + SINGLE_SESSION_VALIDITY_DAYS * 24 * 60 * 60 * 1000
+    grantedAt.getTime() + normalizeValidityDays(validityDays) * 24 * 60 * 60 * 1000
   );
 }
 
@@ -127,4 +152,9 @@ export function creditDisplayState(
     return 'planned';
   }
   return isCreditUsable(credit, now) ? 'available' : 'expired';
+}
+
+/** «1 giorno» / «60 giorni». */
+export function formatValidityDays(days: number): string {
+  return days === 1 ? '1 giorno' : `${days} giorni`;
 }

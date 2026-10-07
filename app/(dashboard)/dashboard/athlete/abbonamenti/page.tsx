@@ -6,6 +6,7 @@ import {
   getPaymentMethodLabels,
   getSessionUsageForSubscriptions,
   getSingleSessionOffers,
+  getSingleSessionValidityDays,
   listAthleteSingleSessions,
   listAthleteSubscriptions,
   perSessionCents,
@@ -46,11 +47,13 @@ export default async function AthleteSubscriptionsPage({
   const { abbonamento } = await searchParams;
   const { live, ended, confirming } = await listAthleteSubscriptions(user.id);
   const liveSubscriptions = live.map((item) => item.subscription);
-  const [usageBySubscription, paymentMethods, singles] = await Promise.all([
-    getSessionUsageForSubscriptions(user.id, liveSubscriptions),
-    getPaymentMethodLabels(liveSubscriptions),
-    listAthleteSingleSessions(user.id),
-  ]);
+  const [usageBySubscription, paymentMethods, singles, validityDays] =
+    await Promise.all([
+      getSessionUsageForSubscriptions(user.id, liveSubscriptions),
+      getPaymentMethodLabels(liveSubscriptions),
+      listAthleteSingleSessions(user.id),
+      getSingleSessionValidityDays(),
+    ]);
 
   // Dove si può comprare una sessione: i coach con cui c'è un abbonamento o
   // una seduta già acquistata, se il coach ha impostato il prezzo.
@@ -164,7 +167,11 @@ export default async function AthleteSubscriptionsPage({
         </ul>
       )}
 
-      <SingleSessionsSection sessions={singles} offers={offers} />
+      <SingleSessionsSection
+        sessions={singles}
+        offers={offers}
+        validityDays={validityDays}
+      />
 
       {ended.length > 0 && (
         <div>

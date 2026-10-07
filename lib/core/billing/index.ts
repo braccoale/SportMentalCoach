@@ -39,7 +39,10 @@ import { sessionUsageForPeriod, type SessionUsage, type UsageBooking } from './s
 import { paymentMethodLabel } from './payment-method';
 import {
   DEFAULT_SINGLE_SESSION_LIMITS,
+  DEFAULT_SINGLE_SESSION_VALIDITY_DAYS,
   FREEING_BOOKING_STATUSES,
+  SINGLE_SESSION_VALIDITY_CONFIG_KEY,
+  normalizeValidityDays,
   creditDisplayState,
   type CreditDisplayState,
   SINGLE_SESSION_LIMIT_CONFIG_KEYS,
@@ -1527,6 +1530,7 @@ export async function startSingleSessionCheckout(params: {
       creditRowId: row.id,
       priceCents,
       coachName: coach?.displayName ?? 'il coach',
+      validityDays: await getSingleSessionValidityDays(),
       athleteEmail: athlete.email,
       successUrl: `${base}/dashboard/athlete/abbonamenti?abbonamento=seduta-ok`,
       cancelUrl: `${profileUrl}?abbonamento=annullato`,
@@ -1716,5 +1720,19 @@ export async function listAthleteSingleSessions(
       : live(a)
         ? a.expiresAt.getTime() - b.expiresAt.getTime()
         : b.grantedAt.getTime() - a.grantedAt.getTime()
+  );
+}
+
+/**
+ * Per quanti giorni vale una seduta acquistata a parte: parametro di sistema,
+ * modificabile dal pannello admin. Una riga mancante o un valore non valido
+ * danno il ripiego (60), mai un errore.
+ */
+export async function getSingleSessionValidityDays(): Promise<number> {
+  return normalizeValidityDays(
+    await getSystemConfigNumber(
+      SINGLE_SESSION_VALIDITY_CONFIG_KEY,
+      DEFAULT_SINGLE_SESSION_VALIDITY_DAYS
+    )
   );
 }

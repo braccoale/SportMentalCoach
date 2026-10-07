@@ -331,6 +331,8 @@ export type SingleSessionCheckoutParams = {
   creditRowId: number;
   priceCents: number;
   coachName: string;
+  /** Per quanti giorni vale la seduta: compare nella descrizione del pagamento. */
+  validityDays: number;
   athleteEmail: string;
   successUrl: string;
   cancelUrl: string;
@@ -356,7 +358,7 @@ export async function createSingleSessionCheckoutSession(
     'line_items[0][price_data][unit_amount]': String(params.priceCents),
     'line_items[0][price_data][product_data][name]': `Seduta singola con ${params.coachName}`,
     'line_items[0][price_data][product_data][description]':
-      'Una seduta, valida 60 giorni dal pagamento',
+      `Una seduta, valida ${params.validityDays} ${params.validityDays === 1 ? 'giorno' : 'giorni'} dal pagamento`,
     'metadata[kaipai_session_credit_id]': String(params.creditRowId),
     'payment_intent_data[metadata][kaipai_session_credit_id]': String(
       params.creditRowId

@@ -39,7 +39,7 @@ export function purchaseNoticeFor(
     case 'seduta-ok':
       return {
         tone: 'ok',
-        text: 'Pagamento ricevuto. La seduta compare qui sotto appena è confermata: puoi prenotarla entro 60 giorni.',
+        text: 'Pagamento ricevuto. La seduta compare qui sotto appena è confermata: puoi prenotarla entro la scadenza indicata.',
       };
     case 'annullato':
       return {

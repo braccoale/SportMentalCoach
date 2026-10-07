@@ -37,6 +37,7 @@ import { CoachCard } from '@/components/coach-card';
 import {
   formatEuroCents,
   getBookingCreditContexts,
+  getSingleSessionValidityDays,
   getPlanOffersForCoaches,
   getSingleSessionOffersByProvider,
 } from '@/lib/core/billing';
@@ -254,6 +255,7 @@ export default async function CoachesPage({
     ])
   );
 
+  const singleValidityDays = await getSingleSessionValidityDays();
   const bookingNow = new Date();
   const bookingAccessByProvider = new Map<
     number,
@@ -620,6 +622,7 @@ export default async function CoachesPage({
                     ? formatEuroCents(singleOffers.get(coach.providerId)!)
                     : null
                 }
+                singleSessionValidityDays={singleValidityDays}
                 bookingAccess={bookingAccessByProvider.get(coach.providerId) ?? null}
                 isDemo={isDemo}
                 viewerEmail={user?.email}

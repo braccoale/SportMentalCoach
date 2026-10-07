@@ -2,9 +2,7 @@
 
 import {
   Ban,
-  CalendarCheck,
   CalendarDays,
-  CheckCircle2,
   CreditCard,
   Percent,
   Plus,
@@ -27,6 +25,11 @@ import {
   resumeSubscriptionAction,
 } from '@/app/(marketplace)/coaches/subscription-actions';
 import type { SessionUsage } from '@/lib/core/billing/session-usage';
+import {
+  SessionStateBar,
+  SessionStateLegend,
+  type SessionSegment,
+} from '@/components/session-states';
 import { cn } from '@/lib/utils';
 
 export type SubscriptionCardData = {
@@ -157,73 +160,80 @@ function ManageActions({
   );
 }
 
-/** Una barra a segmenti: uno per seduta del piano, i primi `filled` pieni. */
-function SegmentBar({ total, filled }: { total: number; filled: number }) {
-  if (total > 12) {
-    return (
-      <span className="flex h-2 w-full overflow-hidden rounded-full bg-gray-200">
-        <span
-          className="bg-emerald-600"
-          style={{ width: `${Math.min(100, (filled / total) * 100)}%` }}
-        />
-      </span>
-    );
-  }
-  return (
-    <span aria-hidden className="flex gap-1">
-      {Array.from({ length: total }, (_, index) => (
-        <span
-          key={index}
-          className={cn(
-            'h-2 flex-1 rounded-full',
-            index < filled ? 'bg-emerald-600' : 'bg-gray-200'
-          )}
-        />
-      ))}
-    </span>
-  );
-}
-
-function UsageTile({
-  icon: Icon,
-  value,
-  label,
-  caption,
-  total,
-  filled,
-  tinted,
+/**
+ * Le sedute del piano nel periodo, per stato: quante fatte, quante già
+ * pianificate (prenotate, richieste o confermate) e quante ancora da
+ * pianificare. Una barra con un segmento per seduta, dello stesso colore degli
+ * stati nell'elenco delle sessioni singole, e una legenda con i numeri; ogni
+ * segmento e ogni voce spiegano che cosa significano al passaggio del mouse o
+ * da tastiera.
+ */
+function PlanSessions({
+  usage,
+  renewalLabel,
+  cancelAtPeriodEnd,
 }: {
-  icon: typeof CalendarDays;
-  value: number;
-  label: string;
-  caption: string;
-  total: number;
-  filled: number;
-  tinted?: boolean;
+  usage: Extract<SessionUsage, { known: true }>;
+  renewalLabel: string | null;
+  cancelAtPeriodEnd: boolean;
 }) {
+  const toPlanNote = cancelAtPeriodEnd
+    ? 'Ancora da prenotare. L’abbonamento non si rinnova: le sedute non prenotate si perdono alla sua fine.'
+    : `Ancora da prenotare${renewalLabel ? ` entro il ${renewalLabel}` : ''}. Le sedute del piano non si riportano al rinnovo.`;
+  const segments: SessionSegment[] = [
+    ...Array.from({ length: usage.done }, () => ({
+      kind: 'done' as const,
+      tooltip: 'Seduta fatta.',
+    })),
+    ...Array.from({ length: usage.booked }, () => ({
+      kind: 'planned' as const,
+      tooltip:
+        'Seduta pianificata: già prenotata (richiesta o confermata), non ancora svolta.',
+    })),
+    ...Array.from({ length: usage.remaining }, () => ({
+      kind: 'toPlan' as const,
+      tooltip: `Seduta da pianificare. ${toPlanNote}`,
+    })),
+  ];
+  const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
+
   return (
-    <div
-      className={cn(
-        'rounded-xl border p-3',
-        tinted
-          ? 'border-emerald-100 bg-emerald-50/70'
-          : 'border-gray-100 bg-white shadow-sm'
-      )}
-    >
-      <div className="flex items-center gap-2.5">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100/80 text-emerald-700">
-          <Icon className="h-[18px] w-[18px]" aria-hidden />
-        </span>
-        <span className="leading-tight">
-          <span className="flex items-baseline gap-1.5">
-            <span className="text-xl font-bold text-gray-900">{value}</span>
-            <span className="text-sm text-gray-900">{label}</span>
-          </span>
-          <span className="block text-xs text-gray-500">{caption}</span>
-        </span>
+    <div className="rounded-xl border border-gray-100 bg-white p-3.5 shadow-sm">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+        <p className="text-sm font-semibold text-gray-900">
+          Sedute del piano questo mese
+        </p>
+        <p className="text-xs text-gray-500">
+          {usage.total} {plural(usage.total, 'inclusa', 'incluse')}
+        </p>
       </div>
-      <div className="mt-2">
-        <SegmentBar total={total} filled={filled} />
+      <div className="mt-2.5">
+        <SessionStateBar segments={segments} />
+      </div>
+      <div className="mt-3">
+        <SessionStateLegend
+          items={[
+            {
+              kind: 'done',
+              count: usage.done,
+              label: plural(usage.done, 'fatta', 'fatte'),
+              tooltip: 'Sedute già svolte in questo periodo.',
+            },
+            {
+              kind: 'planned',
+              count: usage.booked,
+              label: plural(usage.booked, 'pianificata', 'pianificate'),
+              tooltip:
+                'Già prenotate (richieste o confermate), non ancora svolte. Se ne annulli una, torna da pianificare.',
+            },
+            {
+              kind: 'toPlan',
+              count: usage.remaining,
+              label: 'da pianificare',
+              tooltip: toPlanNote,
+            },
+          ]}
+        />
       </div>
     </div>
   );
@@ -329,29 +339,11 @@ export function SubscriptionCard({
           </div>
 
           {usage?.known && (
-            <div className="grid gap-2.5 sm:grid-cols-2">
-              <UsageTile
-                icon={CalendarCheck}
-                value={usage.done}
-                label={sessionWord(usage.done, 'seduta fatta', 'sedute fatte')}
-                caption={`su ${usage.total} questo mese`}
-                total={usage.total}
-                filled={usage.done}
-              />
-              <UsageTile
-                icon={CalendarDays}
-                value={usage.remaining}
-                label={sessionWord(usage.remaining, 'seduta rimasta', 'sedute rimaste')}
-                caption={
-                  usage.booked > 0
-                    ? `su ${usage.total} questo mese · ${usage.booked} già ${sessionWord(usage.booked, 'prenotata', 'prenotate')}`
-                    : `su ${usage.total} questo mese`
-                }
-                total={usage.total}
-                filled={usage.remaining}
-                tinted
-              />
-            </div>
+            <PlanSessions
+              usage={usage}
+              renewalLabel={periodEndLabel}
+              cancelAtPeriodEnd={cancelAtPeriodEnd}
+            />
           )}
           {subscription.extraSessions && (
             <p className="flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-sm text-gray-800">

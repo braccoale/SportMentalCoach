@@ -3,7 +3,9 @@ import { describe, it } from 'node:test';
 import {
   DEFAULT_SINGLE_SESSION_LIMITS,
   creditDisplayState,
-  SINGLE_SESSION_VALIDITY_DAYS,
+  DEFAULT_SINGLE_SESSION_VALIDITY_DAYS,
+  formatValidityDays,
+  normalizeValidityDays,
   isCreditFree,
   isCreditUsable,
   singleSessionExpiresAt,
@@ -45,7 +47,7 @@ describe('validateSingleSessionPrice', () => {
 
 describe('singleSessionExpiresAt', () => {
   it('scade dopo 60 giorni esatti', () => {
-    assert.equal(SINGLE_SESSION_VALIDITY_DAYS, 60);
+    assert.equal(DEFAULT_SINGLE_SESSION_VALIDITY_DAYS, 60);
     const granted = new Date('2026-10-06T15:00:00Z');
     assert.equal(singleSessionExpiresAt(granted).toISOString(), '2026-12-05T15:00:00.000Z');
   });
@@ -116,5 +118,35 @@ describe('creditDisplayState', () => {
   it('scaduta senza essere usata è scaduta', () => {
     assert.equal(creditDisplayState(past, null, now), 'expired');
     assert.equal(creditDisplayState(past, 'cancelled', now), 'expired');
+  });
+});
+
+describe('durata di validità come parametro', () => {
+  it('il ripiego è 60 giorni', () => {
+    assert.equal(DEFAULT_SINGLE_SESSION_VALIDITY_DAYS, 60);
+    const at = new Date('2026-10-07T10:00:00Z');
+    assert.equal(
+      singleSessionExpiresAt(at).getTime() - at.getTime(),
+      60 * 86_400_000
+    );
+  });
+  it('la scadenza segue il parametro', () => {
+    const at = new Date('2026-10-07T10:00:00Z');
+    assert.equal(singleSessionExpiresAt(at, 30).getTime() - at.getTime(), 30 * 86_400_000);
+    assert.equal(singleSessionExpiresAt(at, 90).getTime() - at.getTime(), 90 * 86_400_000);
+  });
+  it('un valore non valido non fa scadere subito le sedute: vale il ripiego', () => {
+    for (const bad of [0, -5, 60.5, 366, NaN, '60', null, undefined]) {
+      assert.equal(normalizeValidityDays(bad), 60, String(bad));
+    }
+    assert.equal(normalizeValidityDays(1), 1);
+    assert.equal(normalizeValidityDays(365), 365);
+  });
+});
+
+describe('formatValidityDays', () => {
+  it('singolare e plurale', () => {
+    assert.equal(formatValidityDays(1), '1 giorno');
+    assert.equal(formatValidityDays(60), '60 giorni');
   });
 });

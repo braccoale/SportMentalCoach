@@ -12,6 +12,7 @@ import { CoachChatButton } from '@/components/coach-chat-button';
 import { ShareCoachButton } from '@/components/share-coach-button';
 import { IntroSessionButton } from '@/components/intro-session-button';
 import { BookSessionDialog } from '@/components/book-session-dialog';
+import { DEFAULT_SINGLE_SESSION_VALIDITY_DAYS } from '@/lib/core/billing/single-session';
 import { SubscribeDialog } from '@/components/subscribe-dialog';
 import type { BookableDay as CardBookableDay } from '@/lib/core/availability';
 import { StatMedal } from '@/components/coach-experience-stats';
@@ -59,6 +60,7 @@ export function CoachCard({
   isDemo = false,
   planOffers,
   singleSessionPriceLabel,
+  singleSessionValidityDays,
   bookingAccess,
   viewerEmail,
 }: {
@@ -87,6 +89,8 @@ export function CoachCard({
   }>;
   /** Il prezzo di una seduta singola, già formattato; assente se il coach non la vende. */
   singleSessionPriceLabel?: string | null;
+  /** Per quanti giorni vale la seduta singola (parametro di sistema). */
+  singleSessionValidityDays?: number;
   /**
    * Presente se l'atleta ha già pagato (abbonamento o seduta acquistata): il
    * pulsante diventa «Prenota una seduta · N rimaste» e apre il modulo con le
@@ -324,7 +328,12 @@ export function CoachCard({
                 }))}
                 single={
                   singleSessionPriceLabel
-                    ? { priceLabel: singleSessionPriceLabel }
+                    ? {
+                        priceLabel: singleSessionPriceLabel,
+                        validityDays:
+                          singleSessionValidityDays ??
+                          DEFAULT_SINGLE_SESSION_VALIDITY_DAYS,
+                      }
                     : null
                 }
               />
