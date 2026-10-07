@@ -69,14 +69,20 @@ export async function completeBookingAction(
   if (!Number.isInteger(bookingId)) return { error: 'Richiesta non valida.' };
 
   const dependencies = createProductionAiSessionNotesDependencies();
+  const athleteNoShow = String(formData.get('athleteNoShow') ?? '') === '1';
   const result = await completeBooking(
-    { bookingId, coachUserId: user.id },
+    { bookingId, coachUserId: user.id, athleteNoShow },
     dependencies.liveKit
   );
   if (!result.ok) return { error: result.error };
 
   revalidateBookings();
-  return { success: 'Sessione completata.' };
+  revalidatePath(`/dashboard/appointments/${bookingId}`);
+  return {
+    success: athleteNoShow
+      ? 'Sessione chiusa: atleta non presentato.'
+      : 'Sessione completata.',
+  };
 }
 
 export async function cancelBookingAction(

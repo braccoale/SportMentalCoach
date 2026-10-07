@@ -368,12 +368,15 @@ function ConnectedVideoRoom({
     window.location.reload();
   }
 
-  async function finish(markCompleted: boolean) {
+  async function finish(markCompleted: boolean, athleteNoShow = false) {
     if (markCompleted) {
       setPending(true);
       try {
         const fd = new FormData();
         fd.set('bookingId', String(bookingId));
+        // Il coach chiude la seduta segnalando che l'atleta non c'era: conta
+        // come fatta e resta una nota nella chat (`lib/core/bookings/no-show.ts`).
+        if (athleteNoShow) fd.set('athleteNoShow', '1');
         await completeBookingAction({}, fd);
       } catch {
         // best-effort: navigate back regardless
@@ -592,6 +595,17 @@ function ConnectedVideoRoom({
                 </Button>
               )}
             </div>
+            {viewerIsCoach && (
+              <Button
+                type="button"
+                variant="ghost"
+                className="mt-2 w-full rounded-full text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                disabled={pending}
+                onClick={() => finish(true, true)}
+              >
+                L&apos;atleta non si è presentato
+              </Button>
+            )}
           </div>
         </div>
       )}
