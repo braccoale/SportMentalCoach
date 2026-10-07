@@ -536,6 +536,9 @@ function AcceptedAppointments({
                           b.durationMin ??
                           DEFAULT_SERVICE_DURATION_MIN
                         }
+                        counterpartName={b.coachName ?? 'Coach'}
+                        counterpartAvatarUrl={b.coachAvatarUrl ?? null}
+                        perspective="athlete"
                         compact
                       />
                     )}

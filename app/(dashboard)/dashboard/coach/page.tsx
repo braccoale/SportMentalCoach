@@ -699,6 +699,8 @@ export default async function CoachDashboardPage() {
                           booking.durationMin ??
                           DEFAULT_SERVICE_DURATION_MIN
                         }
+                        counterpartName={booking.clientName ?? 'Atleta'}
+                        perspective="coach"
                         compact
                       />
                     )}
