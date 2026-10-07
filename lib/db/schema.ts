@@ -4298,6 +4298,12 @@ export const planSubscriptions = pgTable(
     subscribedAt: timestamp('subscribed_at', { withTimezone: true }),
     cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
     canceledAt: timestamp('canceled_at', { withTimezone: true }),
+    // Cambio piano programmato: il piano che arriva al prossimo rinnovo e la
+    // programmazione su Stripe che lo porta (vedi migrazione 0094).
+    pendingPlanId: integer('pending_plan_id').references(() => coachSessionPlans.id, {
+      onDelete: 'set null',
+    }),
+    pendingScheduleId: varchar('pending_schedule_id', { length: 255 }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     ...audit,

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requireRole } from '@/lib/core/auth';
 import {
+  canOfferPlanChange,
   formatEuroCents,
   formatLongDateRome,
   getPaymentMethodLabels,
@@ -8,6 +9,7 @@ import {
   getSingleSessionOffers,
   getSingleSessionValidityDays,
   listAthleteSingleSessions,
+  listChangeablePlans,
   listAthleteSubscriptions,
   perSessionCents,
   purchaseNoticeFor,
@@ -55,6 +57,20 @@ export default async function AthleteSubscriptionsPage({
       listAthleteSingleSessions(user.id),
       getSingleSessionValidityDays(),
     ]);
+  // I piani tra cui scegliere per cambiare, per ogni coach con un abbonamento
+  // che si può cambiare. Un guasto qui toglie il pulsante, non la pagina.
+  const plansByCoach = new Map<number, Awaited<ReturnType<typeof listChangeablePlans>>>();
+  await Promise.all(
+    [...new Set(liveSubscriptions.filter(canOfferPlanChange).map((s) => s.coachUserId))].map(
+      async (coachUserId) => {
+        try {
+          plansByCoach.set(coachUserId, await listChangeablePlans(coachUserId));
+        } catch (error) {
+          console.error('[payments] piani per il cambio non letti', { coachUserId, error });
+        }
+      }
+    )
+  );
   // Per «Prenota» su una seduta già pagata: si apre la finestra di prenotazione
   // con il coach giusto, non il suo profilo. Se il calcolo fallisce resta il
   // collegamento al profilo (la pagina non si rompe).
@@ -169,6 +185,24 @@ export default async function AthleteSubscriptionsPage({
               cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
               periodEndLabel: subscription.currentPeriodEnd
                 ? formatDate(subscription.currentPeriodEnd)
+                : null,
+              planChange: canOfferPlanChange(subscription)
+                ? {
+                    options: (plansByCoach.get(subscription.coachUserId) ?? []).map(
+                      (plan) => ({
+                        id: plan.id,
+                        name: plan.name,
+                        sessionsPerMonth: plan.sessionsPerMonth,
+                        priceLabel: formatEuroCents(plan.monthlyPriceCents),
+                        current: plan.id === subscription.planId,
+                        pending: plan.id === subscription.pendingPlanId,
+                      })
+                    ),
+                    pendingName:
+                      (plansByCoach.get(subscription.coachUserId) ?? []).find(
+                        (plan) => plan.id === subscription.pendingPlanId
+                      )?.name ?? null,
+                  }
                 : null,
             };
             return (

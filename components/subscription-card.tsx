@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { BuySessionButton } from '@/components/buy-session-button';
 import { CoachAvatar } from '@/components/coach-visuals';
 import { SubscriptionIllustration } from '@/components/subscription-illustration';
+import { ChangePlanDialog, type PlanChangeOption } from '@/components/change-plan-dialog';
 import {
   Dialog,
   DialogClose,
@@ -57,6 +58,15 @@ export type SubscriptionCardData = {
   extraSessions?: { count: number; expiryLabel: string } | null;
   /** L'abbonamento ha un cliente Stripe: si può aprire il portale per cambiare la carta. */
   canChangePaymentMethod?: boolean;
+  /**
+   * Cambio piano dal prossimo rinnovo: i piani tra cui scegliere (assente se
+   * non si può cambiare: vedi `canOfferPlanChange`) e, se già programmato,
+   * quale arriva.
+   */
+  planChange?: {
+    options: PlanChangeOption[];
+    pendingName: string | null;
+  } | null;
 };
 
 type Props = {
@@ -466,6 +476,13 @@ export function SubscriptionCard({
             </p>
           )}
 
+          {subscription.planChange?.pendingName && (
+            <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-gray-700">
+              {periodEndLabel ? `Dal ${periodEndLabel}` : 'Dal prossimo rinnovo'}{' '}
+              passi al piano <strong>{subscription.planChange.pendingName}</strong>.
+            </p>
+          )}
+
           {singleOffer && usage?.known && usage.remaining === 0 && (
             <p className="text-xs text-gray-700">
               Hai finito le sedute di questo mese. Puoi aggiungerne una subito,
@@ -480,6 +497,15 @@ export function SubscriptionCard({
                 priceLabel={subscription.singleSessionPriceLabel!}
                 label="Aggiungi una sessione"
                 showPrice={false}
+              />
+            )}
+            {subscription.planChange && subscription.planChange.options.length > 1 && (
+              <ChangePlanDialog
+                slug={slug}
+                returnTo={returnTo}
+                subscriptionId={subscription.id}
+                options={subscription.planChange.options}
+                effectiveLabel={periodEndLabel}
               />
             )}
             <ManageActions

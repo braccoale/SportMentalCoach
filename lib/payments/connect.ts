@@ -522,3 +522,133 @@ export async function paymentReceiptUrl(
   );
   return intent.latest_charge?.receipt_url ?? null;
 }
+
+function encodeForm(params: Record<string, unknown>, prefix = ''): [string, string][] {
+  const out: [string, string][] = [];
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null) continue;
+    const name = prefix ? `${prefix}[${key}]` : key;
+    if (typeof value === 'object') out.push(...encodeForm(value as Record<string, unknown>, name));
+    else out.push([name, String(value)]);
+  }
+  return out;
+}
+
+async function v1Post<T>(
+  accountId: string,
+  path: string,
+  params: Record<string, unknown> = {}
+): Promise<T> {
+  const response = await fetch(`${STRIPE_API}${path}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${secretKey()}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Stripe-Account': accountId,
+    },
+    body: new URLSearchParams(encodeForm(params)),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    cache: 'no-store',
+  });
+  return parse<T>(response);
+}
+
+export type PlanChangeTarget = {
+  planId: number;
+  planName: string;
+  sessionsPerMonth: number;
+  monthlyPriceCents: number;
+};
+
+/**
+ * Programma il cambio piano **dal prossimo rinnovo**, senza calcolo
+ * proporzionale: una programmazione (subscription schedule) con due fasi, la
+ * prima è l'abbonamento com'è fino a fine periodo, la seconda ha il prezzo del
+ * piano nuovo per un mese e poi si rilascia, tornando un abbonamento normale.
+ *
+ * Ogni fase porta i segni che riconoscono l'abbonamento come nostro (la chiave
+ * `kaipai_plan_subscription_id`): senza, il webhook ignorerebbe gli eventi
+ * dopo il cambio. Il piano in arrivo sta in `kaipai_plan_id`: quando la fase
+ * nuova parte, il webhook lo legge e riscrive piano, sedute e prezzo.
+ *
+ * Restituisce l'id della programmazione, da conservare per poterla annullare.
+ */
+export async function schedulePlanChange(params: {
+  accountId: string;
+  stripeSubscriptionId: string;
+  subscriptionRowId: number;
+  currentPlanId: number;
+  target: PlanChangeTarget;
+}): Promise<{ scheduleId: string }> {
+  const subscription = await v1Get<{
+    items?: { data?: { price?: { id?: string } }[] };
+  }>(params.accountId, `/v1/subscriptions/${encodeURIComponent(params.stripeSubscriptionId)}`);
+  const currentPriceId = subscription.items?.data?.[0]?.price?.id;
+  if (!currentPriceId) {
+    throw new StripeConnectError(
+      'STRIPE_NO_PRICE',
+      'Non trovo il prezzo corrente dell’abbonamento su Stripe.'
+    );
+  }
+
+  const created = await v1Post<{
+    id?: string;
+    phases?: { start_date?: number; end_date?: number }[];
+  }>(params.accountId, '/v1/subscription_schedules', {
+    from_subscription: params.stripeSubscriptionId,
+  });
+  const phase = created.phases?.[0];
+  if (!created.id || !phase?.start_date || !phase.end_date) {
+    throw new StripeConnectError(
+      'STRIPE_NO_SCHEDULE',
+      'Stripe non ha creato la programmazione del cambio.'
+    );
+  }
+
+  const marks = (planId: number) => ({
+    kaipai_plan_subscription_id: String(params.subscriptionRowId),
+    kaipai_plan_id: String(planId),
+  });
+  try {
+    await v1Post(params.accountId, `/v1/subscription_schedules/${created.id}`, {
+      end_behavior: 'release',
+      proration_behavior: 'none',
+      phases: {
+        0: {
+          start_date: phase.start_date,
+          end_date: phase.end_date,
+          items: { 0: { price: currentPriceId, quantity: 1 } },
+          metadata: marks(params.currentPlanId),
+        },
+        1: {
+          duration: { interval: 'month', interval_count: 1 },
+          items: {
+            0: {
+              quantity: 1,
+              price_data: {
+                currency: 'eur',
+                unit_amount: params.target.monthlyPriceCents,
+                recurring: { interval: 'month' },
+                product_data: { name: params.target.planName },
+              },
+            },
+          },
+          metadata: marks(params.target.planId),
+        },
+      },
+    });
+  } catch (error) {
+    // Una programmazione a metà non deve restare agganciata all'abbonamento.
+    await releaseSubscriptionSchedule(params.accountId, created.id).catch(() => undefined);
+    throw error;
+  }
+  return { scheduleId: created.id };
+}
+
+/** Annulla il cambio programmato: l'abbonamento torna a un abbonamento normale. */
+export async function releaseSubscriptionSchedule(
+  accountId: string,
+  scheduleId: string
+): Promise<void> {
+  await v1Post(accountId, `/v1/subscription_schedules/${encodeURIComponent(scheduleId)}/release`);
+}

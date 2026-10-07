@@ -26,7 +26,9 @@ import {
   createPlanCheckoutSession,
   createSingleSessionCheckoutSession,
   getSubscriptionPaymentMethod,
+  releaseSubscriptionSchedule,
   retrieveConnectedAccount,
+  schedulePlanChange,
   setSubscriptionCancelAtPeriodEnd,
 } from '@/lib/payments/connect';
 import type { Result } from '@/lib/core/result';
@@ -38,6 +40,7 @@ import {
 import { deriveBillingProfileFromStripeAccount } from './stripe-account-status';
 import { sessionUsageForPeriod, type SessionUsage, type UsageBooking } from './session-usage';
 import { paymentMethodLabel } from './payment-method';
+import { decidePlanChange } from './plan-change';
 import type { CoachAthleteBilling } from './coach-athlete-status';
 import {
   DEFAULT_SINGLE_SESSION_LIMITS,
@@ -80,6 +83,7 @@ export * from './booking-credits';
 export * from './payment-method';
 export * from './single-session';
 export * from './coach-athlete-status';
+export { canOfferPlanChange, decidePlanChange } from './plan-change';
 
 export async function getCoachBillingProfile(
   coachUserId: number
@@ -758,6 +762,19 @@ export async function setAthleteSubscriptionCancellation(params: {
   }
   if (row.cancelAtPeriodEnd === params.cancelAtPeriodEnd) return { ok: true };
 
+  // Un cambio piano programmato tiene l'abbonamento agganciato a una
+  // programmazione di Stripe, che non accetta modifiche dirette: se il rinnovo
+  // sta per essere annullato il cambio non ha più senso, si rilascia prima.
+  if (params.cancelAtPeriodEnd && row.pendingScheduleId) {
+    await releaseSubscriptionSchedule(row.stripeAccountId, row.pendingScheduleId).catch(
+      () => undefined
+    );
+    await db
+      .update(planSubscriptions)
+      .set({ pendingPlanId: null, pendingScheduleId: null, updatedAt: new Date() })
+      .where(eq(planSubscriptions.id, row.id));
+  }
+
   const result = await setSubscriptionCancelAtPeriodEnd({
     connectedAccountId: row.stripeAccountId,
     subscriptionId: row.stripeSubscriptionId,
@@ -774,6 +791,113 @@ export async function setAthleteSubscriptionCancellation(params: {
     })
     .where(eq(planSubscriptions.id, row.id));
   return { ok: true };
+}
+
+/**
+ * L'atleta sceglie un altro piano del suo coach, dal prossimo rinnovo. La
+ * regola è `decidePlanChange`; qui si legge lo stato vero dal database (l'id
+ * arriva dal browser e non basta a toccare l'abbonamento di un altro), si
+ * programma su Stripe e si ricorda ciò che Stripe ha confermato.
+ *
+ * Tornare al piano attuale annulla il cambio programmato.
+ */
+export async function changeAthletePlan(params: {
+  athleteUserId: number;
+  subscriptionRowId: number;
+  newPlanId: number;
+}): Promise<Result<{ effectiveLabel: string | null; cancelled: boolean }>> {
+  const [row] = await db
+    .select()
+    .from(planSubscriptions)
+    .where(
+      and(
+        eq(planSubscriptions.id, params.subscriptionRowId),
+        eq(planSubscriptions.athleteUserId, params.athleteUserId)
+      )
+    )
+    .limit(1);
+  if (!row) return { ok: false, error: 'Abbonamento non trovato.' };
+  if (!row.stripeSubscriptionId) {
+    return { ok: false, error: 'Abbonamento non ancora confermato: riprova tra poco.' };
+  }
+
+  const [target] = await db
+    .select()
+    .from(coachSessionPlans)
+    .where(eq(coachSessionPlans.id, params.newPlanId))
+    .limit(1);
+  if (!target) return { ok: false, error: 'Il piano scelto non è più disponibile.' };
+
+  const decision = decidePlanChange(
+    {
+      status: row.status,
+      cancelAtPeriodEnd: row.cancelAtPeriodEnd,
+      coachUserId: row.coachUserId,
+      planId: row.planId,
+      pendingPlanId: row.pendingPlanId,
+    },
+    { id: target.id, coachUserId: target.coachUserId, status: target.status }
+  );
+  if (!decision.ok) return { ok: false, error: decision.message };
+
+  // Un cambio alla volta: quello nuovo (o l'annullo) sostituisce il precedente.
+  if (row.pendingScheduleId) {
+    await releaseSubscriptionSchedule(row.stripeAccountId, row.pendingScheduleId);
+    await db
+      .update(planSubscriptions)
+      .set({ pendingPlanId: null, pendingScheduleId: null, updatedAt: new Date() })
+      .where(eq(planSubscriptions.id, row.id));
+  }
+  if (decision.action === 'cancel_pending') {
+    return { ok: true, effectiveLabel: null, cancelled: true };
+  }
+
+  const { scheduleId } = await schedulePlanChange({
+    accountId: row.stripeAccountId,
+    stripeSubscriptionId: row.stripeSubscriptionId,
+    subscriptionRowId: row.id,
+    currentPlanId: row.planId,
+    target: {
+      planId: target.id,
+      planName: target.name,
+      sessionsPerMonth: target.sessionsPerMonth,
+      monthlyPriceCents: target.monthlyPriceCents,
+    },
+  });
+  await db
+    .update(planSubscriptions)
+    .set({
+      pendingPlanId: target.id,
+      pendingScheduleId: scheduleId,
+      updatedAt: new Date(),
+      updatedBy: params.athleteUserId,
+    })
+    .where(eq(planSubscriptions.id, row.id));
+  return {
+    ok: true,
+    effectiveLabel: row.currentPeriodEnd ? formatLongDateRome(row.currentPeriodEnd) : null,
+    cancelled: false,
+  };
+}
+
+/** I piani tra cui un atleta può scegliere per cambiare, di un coach. */
+export async function listChangeablePlans(coachUserId: number) {
+  return db
+    .select({
+      id: coachSessionPlans.id,
+      name: coachSessionPlans.name,
+      sessionsPerMonth: coachSessionPlans.sessionsPerMonth,
+      monthlyPriceCents: coachSessionPlans.monthlyPriceCents,
+      description: coachSessionPlans.description,
+    })
+    .from(coachSessionPlans)
+    .where(
+      and(
+        eq(coachSessionPlans.coachUserId, coachUserId),
+        eq(coachSessionPlans.status, 'active')
+      )
+    )
+    .orderBy(asc(coachSessionPlans.sessionsPerMonth), asc(coachSessionPlans.id));
 }
 
 export type AthleteSubscriptionItem = {
