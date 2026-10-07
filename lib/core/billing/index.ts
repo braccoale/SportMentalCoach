@@ -57,7 +57,7 @@ import {
   type BookingViewer,
 } from './booking-credits';
 import { checkoutEligibility, type CheckoutRefusal } from './checkout-eligibility';
-import { formatLongDateRome } from './subscription-status';
+import { formatLongDateRome, subscribedOn } from './subscription-status';
 import {
   DEFAULT_PLAN_LIMITS,
   PLAN_LIMIT_CONFIG_KEYS,
@@ -1889,4 +1889,105 @@ export async function getCoachAthletesBilling(
     });
   }
   return result;
+}
+
+export type CoachAthleteBillingDetail = {
+  billing: CoachAthleteBilling | null;
+  subscription: {
+    planName: string;
+    monthlyPriceCents: number;
+    status: 'active' | 'past_due';
+    subscribedAt: Date | null;
+  } | null;
+  /** Tutte le sedute acquistate a parte da questo atleta con questo coach, dalla più recente. */
+  singles: {
+    id: number;
+    kind: 'single' | 'extra';
+    priceCents: number;
+    grantedAt: Date;
+    expiresAt: Date;
+    state: CreditDisplayState;
+    scheduledFor: Date | null;
+  }[];
+};
+
+/**
+ * Per la scheda di un atleta del coach: lo stesso stato della lista, più da
+ * quando è abbonato e lo storico delle sedute acquistate a parte. Non si
+ * inventa uno storico dei rinnovi: oggi non è registrato, e non lo si scrive
+ * finché non lo è.
+ */
+export async function getCoachAthleteBillingDetail(
+  coachUserId: number,
+  athleteUserId: number
+): Promise<CoachAthleteBillingDetail> {
+  const [billing, [subscription], credits] = await Promise.all([
+    getCoachAthletesBilling(coachUserId, [athleteUserId]),
+    db
+      .select()
+      .from(planSubscriptions)
+      .where(
+        and(
+          eq(planSubscriptions.coachUserId, coachUserId),
+          eq(planSubscriptions.athleteUserId, athleteUserId),
+          inArray(planSubscriptions.status, ['active', 'past_due'])
+        )
+      )
+      .orderBy(desc(planSubscriptions.createdAt))
+      .limit(1),
+    db
+      .select({
+        id: sessionCredits.id,
+        kind: sessionCredits.kind,
+        status: sessionCredits.status,
+        priceCents: sessionCredits.priceCents,
+        grantedAt: sessionCredits.grantedAt,
+        expiresAt: sessionCredits.expiresAt,
+        bookingStatus: bookings.status,
+        scheduledFor: bookings.scheduledFor,
+      })
+      .from(sessionCredits)
+      .leftJoin(bookings, eq(bookings.id, sessionCredits.bookingId))
+      .where(
+        and(
+          eq(sessionCredits.coachUserId, coachUserId),
+          eq(sessionCredits.athleteUserId, athleteUserId),
+          eq(sessionCredits.status, 'granted')
+        )
+      )
+      .orderBy(desc(sessionCredits.grantedAt)),
+  ]);
+
+  const now = new Date();
+  return {
+    billing: billing.get(athleteUserId) ?? null,
+    subscription: subscription
+      ? {
+          planName: subscription.planName,
+          monthlyPriceCents: subscription.monthlyPriceCents,
+          status: subscription.status === 'past_due' ? 'past_due' : 'active',
+          subscribedAt: subscribedOn(subscription),
+        }
+      : null,
+    singles: credits.flatMap((credit) => {
+      if (!credit.grantedAt || !credit.expiresAt) return [];
+      const state = creditDisplayState(
+        { status: credit.status, expiresAt: credit.expiresAt },
+        credit.bookingStatus,
+        now
+      );
+      return [
+        {
+          id: credit.id,
+          kind: credit.kind === 'extra' ? ('extra' as const) : ('single' as const),
+          priceCents: credit.priceCents,
+          grantedAt: credit.grantedAt,
+          expiresAt: credit.expiresAt,
+          state,
+          scheduledFor:
+            state === 'planned' || state === 'used' ? credit.scheduledFor : null,
+        },
+      ];
+    }),
+  };
 }
