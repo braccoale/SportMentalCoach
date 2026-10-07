@@ -7,7 +7,7 @@ import {
   LayoutDashboard,
   CalendarDays,
   MessageSquare,
-  LifeBuoy,
+  CircleHelp,
   Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -36,7 +36,7 @@ const TABS = [
   {
     href: '/dashboard/supporto',
     label: 'Supporto',
-    icon: LifeBuoy,
+    icon: CircleHelp,
   },
 ];
 

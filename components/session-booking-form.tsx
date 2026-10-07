@@ -24,6 +24,7 @@ import {
 } from '@/lib/core/availability/validation';
 import {
   DEFAULT_SESSION_DURATION_MIN,
+  SESSION_DURATION_OPTIONS,
   largestFittingDuration,
 } from '@/lib/core/bookings/duration';
 import { formatLongDateRome } from '@/lib/core/billing/subscription-status';
@@ -99,6 +100,12 @@ export function SessionBookingForm({
   hiddenFields,
   onSuccess,
   startNow,
+  perspective = 'athlete',
+  showNote = true,
+  durationSelect = false,
+  initialServiceId,
+  tourKey = 'athlete_booking',
+  calendarTourId = 'athlete-booking-calendar',
 }: {
   slug: string;
   coachName: string;
@@ -135,18 +142,45 @@ export function SessionBookingForm({
    * orario. `enabled` dice se il coach è raggiungibile adesso; `hint` spiega.
    */
   startNow?: { enabled: boolean; hint: string } | null;
+  /**
+   * Da chi si guarda il modulo. `athlete`: chi prenota è l'atleta e l'altra
+   * persona è il coach. `coach`: chi crea la sessione è il coach e `coachName`
+   * & co. descrivono l'**atleta** (i testi cambiano: nessun «ti confermerà»).
+   */
+  perspective?: 'athlete' | 'coach';
+  /** Il campo «obiettivi». Il coach che fissa una sessione non lo compila. */
+  showNote?: boolean;
+  /**
+   * La durata si sceglie sulla sessione e non segue il servizio: lo stesso
+   * servizio dura 30 minuti con un atleta e 60 con un altro, ed è la durata
+   * della sessione a decidere quali orari restano liberi.
+   */
+  durationSelect?: boolean;
+  /** Il servizio da preselezionare; `null` obbliga a sceglierlo (nessun valore di ripiego). */
+  initialServiceId?: number | null;
+  /** Il tour guidato del calendario e il suo bersaglio (il coach ha il proprio). */
+  tourKey?: 'athlete_booking' | 'coach_create_appointment';
+  calendarTourId?: string;
 }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(action, {
     error: '',
   });
 
   // Un coach può avere più servizi: si sceglie, e la durata segue il servizio.
-  const [serviceId, setServiceId] = useState<number | null>(services[0]?.id ?? null);
-  const primaryService = services.find((s) => s.id === serviceId) ?? services[0];
+  const [serviceId, setServiceId] = useState<number | null>(
+    initialServiceId === undefined ? (services[0]?.id ?? null) : initialServiceId
+  );
+  const primaryService = services.find((s) => s.id === serviceId) ?? null;
+  // La durata voluta: dal servizio, oppure scelta a mano (coach).
+  const [preferredDuration, setPreferredDuration] = useState<number>(
+    DEFAULT_SESSION_DURATION_MIN
+  );
   const baseDurationMin = introductory
     ? INTRO_DURATION_MIN
-    : (largestFittingDuration(primaryService?.durationMin ?? DEFAULT_SESSION_DURATION_MIN) ??
-      DEFAULT_SESSION_DURATION_MIN);
+    : durationSelect
+      ? preferredDuration
+      : (largestFittingDuration(primaryService?.durationMin ?? DEFAULT_SESSION_DURATION_MIN) ??
+        DEFAULT_SESSION_DURATION_MIN);
 
   // L'esito senza errore (una richiesta creata) si passa a chi ha aperto il modulo.
   useEffect(() => {
@@ -156,8 +190,19 @@ export function SessionBookingForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
+  function pickDuration(next: number) {
+    setPreferredDuration(next);
+    setDurationMin(next);
+    const current = bookableDays.find((d) => d.value === day);
+    if (current && isStartBusyForDuration(current.maxDurationMin, time, next)) {
+      setTime(firstFreeTime(current, next));
+    }
+  }
+
   function chooseService(next: number) {
     setServiceId(next);
+    // La durata scelta a mano non cambia con il servizio.
+    if (durationSelect) return;
     const service = services.find((s) => s.id === next);
     const base =
       largestFittingDuration(service?.durationMin ?? DEFAULT_SESSION_DURATION_MIN) ??
@@ -240,20 +285,26 @@ export function SessionBookingForm({
         </>
       )}
       {showTour && bookableDays.length > 0 && (
-        <ProductTour tourKey="athlete_booking" alreadySeen={tourAlreadySeen} />
+        <ProductTour tourKey={tourKey} alreadySeen={tourAlreadySeen} />
       )}
 
       <div className="grid gap-6 @[46rem]:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         {/* Sinistra: giorno e orario */}
         <div className="flex min-w-0 flex-col gap-6">
-          {!introductory && services.length > 1 && (
+          {!introductory && (services.length > 1 || initialServiceId === null) && (
             <label className="flex flex-col gap-1.5">
               <span className="text-sm font-semibold text-gray-900">Servizio</span>
               <select
                 value={serviceId ?? ''}
                 onChange={(e) => chooseService(Number(e.target.value))}
+                required
                 className="rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900"
               >
+                {serviceId === null && (
+                  <option value="" disabled>
+                    Seleziona un servizio
+                  </option>
+                )}
                 {services.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.title ?? 'Sessione'}
@@ -263,14 +314,31 @@ export function SessionBookingForm({
               </select>
             </label>
           )}
+          {!introductory && durationSelect && (
+            <label className="flex flex-col gap-1.5">
+              <span className="text-sm font-semibold text-gray-900">Durata</span>
+              <select
+                value={preferredDuration}
+                onChange={(e) => pickDuration(Number(e.target.value))}
+                className="rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900"
+              >
+                {SESSION_DURATION_OPTIONS.map((minutes) => (
+                  <option key={minutes} value={minutes}>
+                    {minutes} minuti
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {bookableDays.length === 0 ? (
             <p className="rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-600">
-              {coachFirstName} non ha ancora pubblicato la sua disponibilità:
-              racconta il tuo obiettivo e concorderete insieme un orario.
+              {perspective === 'coach'
+                ? 'Non hai ancora pubblicato la tua disponibilità: puoi comunque avviare la sessione adesso o concordare l’orario con l’atleta.'
+                : `${coachFirstName} non ha ancora pubblicato la sua disponibilità: racconta il tuo obiettivo e concorderete insieme un orario.`}
             </p>
           ) : (
           <>
-          <section aria-labelledby="sb-day" data-tour="athlete-booking-calendar">
+          <section aria-labelledby="sb-day" data-tour={calendarTourId}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 id="sb-day" className="flex items-center gap-2.5 text-base font-semibold text-gray-900">
                 <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">
@@ -392,7 +460,8 @@ export function SessionBookingForm({
             <CoachAvatar name={coachName} src={coachAvatarUrl} className="size-12 shrink-0" />
             <div className="min-w-0">
               <p className="truncate font-semibold text-gray-900">
-                {introductory ? 'Sessione conoscitiva con' : 'Seduta con'} {coachFirstName}
+                {introductory ? 'Sessione conoscitiva con' : perspective === 'coach' ? 'Sessione con' : 'Seduta con'}{' '}
+                {coachFirstName}
               </p>
               {coachHeadline && <p className="truncate text-sm text-gray-500">{coachHeadline}</p>}
             </div>
@@ -442,6 +511,7 @@ export function SessionBookingForm({
             </div>
           )}
 
+          {showNote && (
           <div className="flex flex-col">
             <label htmlFor="sb-note" className="font-semibold text-gray-900">
               Raccontami i tuoi obiettivi
@@ -463,6 +533,7 @@ export function SessionBookingForm({
               {note.length}/{NOTE_MAX}
             </span>
           </div>
+          )}
         </aside>
       </div>
 
@@ -476,7 +547,12 @@ export function SessionBookingForm({
       <div className="flex flex-col items-center gap-2 border-t border-gray-100 pt-4">
         <button
           type="submit"
-          disabled={isDemo || pending || (bookableDays.length > 0 && !scheduledFor)}
+          disabled={
+            isDemo ||
+            pending ||
+            (bookableDays.length > 0 && !scheduledFor) ||
+            (!introductory && !primaryService)
+          }
           className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-emerald-600 text-base font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {pending ? (
@@ -494,7 +570,9 @@ export function SessionBookingForm({
         </button>
         <p className="flex items-center gap-1.5 text-xs text-gray-500">
           <Lock className="h-3.5 w-3.5" aria-hidden />
-          {coachFirstName} conferma la richiesta e ricevi una notifica.
+          {perspective === 'coach'
+            ? `${coachFirstName} riceve subito una notifica.`
+            : `${coachFirstName} conferma la richiesta e ricevi una notifica.`}
         </p>
         {startNow && (
           <div className="mt-2 w-full border-t border-gray-100 pt-4">
