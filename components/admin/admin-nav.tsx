@@ -6,6 +6,7 @@ import {
   Activity,
   BrainCircuit,
   CalendarClock,
+  CreditCard,
   GraduationCap,
   LayoutDashboard,
   Package,
@@ -46,9 +47,12 @@ type NavItem = {
 export function AdminNav({
   pendingCoaches,
   attentionCount,
+  paymentsAttention = 0,
 }: {
   pendingCoaches: number;
   attentionCount: number;
+  /** Eventi Stripe falliti + pagamenti in ritardo. */
+  paymentsAttention?: number;
 }) {
   const pathname = usePathname();
 
@@ -70,6 +74,12 @@ export function AdminNav({
       href: '/dashboard/admin/sessioni',
       label: 'Sessioni',
       icon: CalendarClock,
+    },
+    {
+      href: '/dashboard/admin/pagamenti',
+      label: 'Pagamenti',
+      icon: CreditCard,
+      badge: paymentsAttention || undefined,
     },
     {
       href: '/dashboard/admin/ai',

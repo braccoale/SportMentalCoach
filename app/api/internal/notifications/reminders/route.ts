@@ -1,6 +1,7 @@
 import 'server-only';
 import { timingSafeEqual } from 'node:crypto';
 import { sendAllDueReminders } from '@/lib/core/notifications/reminders';
+import { sendRenewalReminders } from '@/lib/core/billing/renewal-reminders';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -34,7 +35,14 @@ export async function GET(request: Request) {
 
   try {
     const results = await sendAllDueReminders();
-    return Response.json({ ok: true, results });
+    // Il promemoria di rinnovo dell'abbonamento passa dallo stesso cron: un
+    // guasto qui non deve fermare i promemoria degli appuntamenti, né il
+    // contrario.
+    const renewals = await sendRenewalReminders().catch((error) => {
+      console.error('[reminders] promemoria di rinnovo non riusciti:', error);
+      return null;
+    });
+    return Response.json({ ok: true, results, renewals });
   } catch (error) {
     console.error('[reminders] run failed:', error);
     return Response.json(

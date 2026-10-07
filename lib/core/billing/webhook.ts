@@ -7,6 +7,11 @@ import { getSystemConfigNumber } from '@/lib/core/system-config';
 import { notifyPaymentFailed } from './payment-failed-notify';
 import { shouldNotifyPaymentFailed } from './payment-failed-content';
 import {
+  notifySinglePurchased,
+  notifySubscriptionEvent,
+} from './billing-events-notify';
+import { billingEventsForTransition } from './billing-events-content';
+import {
   DEFAULT_SINGLE_SESSION_VALIDITY_DAYS,
   SINGLE_SESSION_VALIDITY_CONFIG_KEY,
   normalizeValidityDays,
@@ -93,7 +98,8 @@ async function applyStatus(
   accountId: string,
   incoming: PlanSubscriptionStatus,
   extra: Partial<typeof planSubscriptions.$inferInsert> = {},
-  confirmedAt?: Date
+  confirmedAt?: Date,
+  eventId?: string
 ) {
   const [row] = await db
     .select({
@@ -101,6 +107,7 @@ async function applyStatus(
       status: planSubscriptions.status,
       stripeAccountId: planSubscriptions.stripeAccountId,
       subscribedAt: planSubscriptions.subscribedAt,
+      cancelAtPeriodEnd: planSubscriptions.cancelAtPeriodEnd,
     })
     .from(planSubscriptions)
     .where(eq(planSubscriptions.id, rowId))
@@ -144,6 +151,27 @@ async function applyStatus(
   // solleva: una mail che non parte non deve far ripetere l'evento a Stripe.
   if (shouldNotifyPaymentFailed(row.status, next)) {
     await notifyPaymentFailed(rowId);
+  }
+
+  // Le conferme di ciclo di vita: solo ciò che è cambiato davvero rispetto a
+  // quanto già sapevamo, quindi un evento ripetuto o fuori ordine non avvisa
+  // due volte (e la chiave del registro è l'ultima difesa).
+  const events = billingEventsForTransition({
+    previousStatus: row.status,
+    nextStatus: next,
+    previousCancelAtPeriodEnd: row.cancelAtPeriodEnd,
+    nextCancelAtPeriodEnd: extra.cancelAtPeriodEnd ?? row.cancelAtPeriodEnd,
+    firstConfirmation: Object.keys(stampSubscribedAt).length > 0,
+  });
+  for (const event of events) {
+    const once = event === 'subscription_started' || event === 'subscription_ended';
+    await notifySubscriptionEvent({
+      event,
+      subscriptionId: rowId,
+      // Cominciato e terminato accadono una volta nella vita; annullare e
+      // riattivare il rinnovo possono ripetersi, e ogni passaggio è un evento.
+      scope: once || !eventId ? `sub${rowId}` : `sub${rowId}-${eventId}`,
+    });
   }
 }
 
@@ -201,12 +229,15 @@ async function onSessionPurchased(
       updatedAt: grantedAt,
     })
     .where(and(eq(sessionCredits.id, creditId), eq(sessionCredits.status, 'pending')));
+  // Solo a concessione appena avvenuta (il ramo sopra esce se già concessa).
+  await notifySinglePurchased(creditId);
   return 'processed';
 }
 
 async function onCheckoutCompleted(
   session: Stripe.Checkout.Session,
-  accountId: string
+  accountId: string,
+  eventId: string
 ): Promise<'processed' | 'ignored'> {
   if (session.mode === 'payment') return onSessionPurchased(session, accountId);
   if (session.mode !== 'subscription') return 'ignored';
@@ -230,14 +261,15 @@ async function onCheckoutCompleted(
     stripeCheckoutSessionId: session.id,
     ...(subscriptionId ? { stripeSubscriptionId: subscriptionId } : {}),
     ...(customerId ? { stripeCustomerId: customerId } : {}),
-  }, new Date(session.created * 1000));
+  }, new Date(session.created * 1000), eventId);
   return 'processed';
 }
 
 async function onSubscriptionChanged(
   subscription: Stripe.Subscription,
   accountId: string,
-  deleted: boolean
+  deleted: boolean,
+  eventId: string
 ): Promise<'processed' | 'ignored'> {
   const rowId = ownRowId(subscription.metadata);
   if (rowId === null) return 'ignored';
@@ -258,7 +290,7 @@ async function onSubscriptionChanged(
     currentPeriodEnd: update.currentPeriodEnd,
     cancelAtPeriodEnd: update.cancelAtPeriodEnd,
     canceledAt: deleted ? new Date() : update.canceledAt,
-  }, subscription.start_date ? new Date(subscription.start_date * 1000) : undefined);
+  }, subscription.start_date ? new Date(subscription.start_date * 1000) : undefined, eventId);
   return 'processed';
 }
 
@@ -282,7 +314,8 @@ export async function processStripeEvent(
       case 'checkout.session.completed':
         outcome = await onCheckoutCompleted(
           event.data.object as Stripe.Checkout.Session,
-          accountId
+          accountId,
+          event.id
         );
         break;
       case 'customer.subscription.created':
@@ -290,14 +323,16 @@ export async function processStripeEvent(
         outcome = await onSubscriptionChanged(
           event.data.object as Stripe.Subscription,
           accountId,
-          false
+          false,
+          event.id
         );
         break;
       case 'customer.subscription.deleted':
         outcome = await onSubscriptionChanged(
           event.data.object as Stripe.Subscription,
           accountId,
-          true
+          true,
+          event.id
         );
         break;
       default:

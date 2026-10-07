@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { requireRole } from '@/lib/core/auth';
 import { db } from '@/lib/db/drizzle';
 import { AdminNav, EnvironmentBadge } from '@/components/admin/admin-nav';
+import { getAdminPaymentsAttentionCount } from '@/lib/core/admin/payments-overview';
 
 /**
  * Il guscio della Control Room.
@@ -32,6 +33,9 @@ export default async function AdminLayout({
           AND createddate > now() - interval '30 days') AS failed_sessions
   `)) as unknown as { pending_coaches: number; failed_sessions: number }[];
 
+  // Il badge dei pagamenti non deve mai rompere la navigazione.
+  const paymentsAttention = await getAdminPaymentsAttentionCount().catch(() => 0);
+
   const environment = process.env.VERCEL_ENV ?? 'sviluppo locale';
 
   return (
@@ -49,6 +53,7 @@ export default async function AdminLayout({
         <AdminNav
           pendingCoaches={Number(counts?.pending_coaches ?? 0)}
           attentionCount={Number(counts?.failed_sessions ?? 0)}
+          paymentsAttention={paymentsAttention}
         />
         <div className="mt-3 hidden lg:block">
           <EnvironmentBadge environment={environment} />

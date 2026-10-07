@@ -616,3 +616,15 @@ export async function sendPaymentFailedEmail(input: {
     }),
   });
 }
+
+/**
+ * Le email sul ciclo di vita di un acquisto (abbonamento cominciato, seduta
+ * acquistata, rinnovo annullato, promemoria…): stessa forma e stessa veste di
+ * quella del pagamento fallito, quindi la stessa funzione.
+ */
+export async function sendBillingEventEmail(input: {
+  to: string;
+  content: PaymentFailedContent;
+}): Promise<SendResult> {
+  return sendPaymentFailedEmail(input);
+}
