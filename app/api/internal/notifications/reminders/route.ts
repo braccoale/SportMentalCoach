@@ -2,6 +2,7 @@ import 'server-only';
 import { timingSafeEqual } from 'node:crypto';
 import { sendAllDueReminders } from '@/lib/core/notifications/reminders';
 import { sendRenewalReminders } from '@/lib/core/billing/renewal-reminders';
+import { syncCoachAccountsDue } from '@/lib/core/billing/account-sync';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -42,7 +43,13 @@ export async function GET(request: Request) {
       console.error('[reminders] promemoria di rinnovo non riusciti:', error);
       return null;
     });
-    return Response.json({ ok: true, results, renewals });
+    // Lo stato di verifica dei coach su Stripe passa dallo stesso cron, con la
+    // stessa regola: un guasto qui non ferma il resto.
+    const accounts = await syncCoachAccountsDue().catch((error) => {
+      console.error('[reminders] allineamento account coach non riuscito:', error);
+      return null;
+    });
+    return Response.json({ ok: true, results, renewals, accounts });
   } catch (error) {
     console.error('[reminders] run failed:', error);
     return Response.json(
