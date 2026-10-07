@@ -14,7 +14,14 @@ import {
   buildCoachAthletes,
   type CoachAthleteSummary,
 } from '@/lib/core/bookings/coach-athletes';
+import { AthleteBillingStatus } from '@/components/athlete-billing-status';
 import { CoachAvatar } from '@/components/coach-visuals';
+import {
+  athleteBillingSignals,
+  getCoachAthletesBilling,
+  signalsAttentionScore,
+  type CoachAthleteBilling,
+} from '@/lib/core/billing';
 import { formatDate, formatDateTime } from '@/lib/core/format';
 import { getVerticalConfig, findTaxonomyItem } from '@/lib/core/config';
 
@@ -27,8 +34,12 @@ function AthleteRow({
   sportLabel,
   levelLabel,
   canOpenCompass,
+  billing,
+  now,
 }: {
   athlete: CoachAthleteSummary;
+  billing: CoachAthleteBilling | undefined;
+  now: Date;
   sportLabel: string | null;
   levelLabel: string | null;
   canOpenCompass: boolean;
@@ -39,7 +50,8 @@ function AthleteRow({
           stessa riga: il pulsante non si restringe e lascia al nome uno
           spazio in cui "Edoardo Martini" diventa "E…" e la data va a capo
           una parola per riga. Sotto sm si impila. */}
-      <div className="flex flex-col items-stretch gap-3 rounded-2xl border border-gray-200 bg-white p-4 transition hover:border-blue-300 hover:shadow-sm sm:flex-row sm:items-center">
+      <div className="rounded-2xl border border-gray-200 bg-white transition hover:border-blue-300 hover:shadow-sm">
+      <div className="flex flex-col items-stretch gap-3 p-4 sm:flex-row sm:items-center">
         <Link
           href={`/dashboard/coach/athletes/${athlete.userId}`}
           className="flex min-w-0 flex-1 items-center gap-4"
@@ -150,6 +162,12 @@ function AthleteRow({
           </Link>
         ) : null}
       </div>
+      {billing && (
+        <div className="px-4 pb-4">
+          <AthleteBillingStatus billing={billing} now={now} />
+        </div>
+      )}
+      </div>
     </li>
   );
 }
@@ -162,7 +180,30 @@ export default async function CoachAthletesPage() {
     getCoachBookings(user.id),
     hasFeatureEntitlement(user.id, FEATURE_CODES.AI_SESSION_NOTES),
   ]);
-  const athletes = buildCoachAthletes(bookings);
+  const summaries = buildCoachAthletes(bookings);
+  // Stato degli abbonamenti, solo per chi ne ha uno o ha comprato sedute a
+  // parte. Chi richiede attenzione sale in cima; a parità resta l'ordine di prima.
+  // Un guasto nel calcolo dei pagamenti non deve togliere al coach la lista:
+  // senza stato l'elenco resta quello di prima.
+  const billingByAthlete = await getCoachAthletesBilling(
+    user.id,
+    summaries.map((athlete) => athlete.userId)
+  ).catch((error) => {
+    console.error('[payments] stato abbonamenti degli atleti non letto', {
+      coachUserId: user.id,
+      reason: error instanceof Error ? error.message : 'sconosciuto',
+    });
+    return new Map<number, CoachAthleteBilling>();
+  });
+  const now = new Date();
+  const score = (athleteId: number) => {
+    const billing = billingByAthlete.get(athleteId);
+    return billing ? signalsAttentionScore(athleteBillingSignals(billing, now)) : 0;
+  };
+  const athletes = summaries
+    .map((athlete, index) => ({ athlete, index, score: score(athlete.userId) }))
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map((entry) => entry.athlete);
 
   return (
     <section className="p-6">
@@ -190,6 +231,8 @@ export default async function CoachAthletesPage() {
               key={athlete.userId}
               athlete={athlete}
               canOpenCompass={hasAiSessionNotes}
+              billing={billingByAthlete.get(athlete.userId)}
+              now={now}
               levelLabel={
                 athlete.level
                   ? (findTaxonomyItem(
