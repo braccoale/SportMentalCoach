@@ -860,6 +860,12 @@ export async function getAthleteRelationshipCoaches(
         and(
           inArray(services.providerId, providerIds),
           eq(services.isActive, true),
+          // La sessione conoscitiva gratuita ha il suo pulsante e la sua regola
+          // (una sola per coach): non è un servizio fra cui scegliere da «Nuovo
+          // appuntamento». Con la finestra unica il primo servizio si
+          // preselezionava, e prenotare una seduta già pagata creava invece la
+          // conoscitiva, consumando quella gratuita.
+          eq(services.isIntro, false),
           gt(services.durationMin, 0),
           lte(services.durationMin, MAX_SERVICE_DURATION_MIN)
         )
