@@ -6,6 +6,8 @@ import { db } from '@/lib/db/drizzle';
 import { users, userOnboarding } from '@/lib/db/schema';
 import { REQUEST_METHOD_HEADER } from '@/lib/auth/demo-readonly';
 import { COMPLETE_SIGNUP_PATH } from '@/lib/core/auth/signup-completion';
+import { canonicalRedirectTarget } from '@/lib/core/auth/canonical-host';
+import { CANONICAL_APP_URL } from '@/lib/core/site';
 
 const protectedRoutes = '/dashboard';
 
@@ -17,6 +19,18 @@ const protectedRoutes = '/dashboard';
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // L'indirizzo interno di Vercel porta sul dominio vero (solo pagine, solo in produzione).
+  const canonical = canonicalRedirectTarget({
+    host: request.headers.get('host'),
+    pathname,
+    search: request.nextUrl.search,
+    method: request.method,
+    vercelEnv: process.env.VERCEL_ENV,
+    canonicalOrigin: CANONICAL_APP_URL,
+  });
+  if (canonical) return NextResponse.redirect(canonical, 308);
+
   const isProtectedRoute = pathname.startsWith(protectedRoutes);
   const signInUrl = new URL('/sign-in', request.url);
   signInUrl.searchParams.set(
