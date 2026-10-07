@@ -3,63 +3,45 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { CalendarPlus, Video, X } from 'lucide-react';
+import { CalendarPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ActionForm } from '@/components/action-form';
-import { ProductTour } from '@/components/product-tour';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { SessionBookingForm } from '@/components/session-booking-form';
 import type { RelationshipAthlete } from '@/lib/core/bookings';
-import {
-  DEFAULT_SESSION_DURATION_MIN,
-  SESSION_DURATION_OPTIONS,
-} from '@/lib/core/bookings/duration';
 import type { BookableDay } from '@/lib/core/availability';
-import {
-  dropPastStarts,
-  isStartBusyForDuration,
-  slotPresentation,
-} from '@/lib/core/availability/validation';
-import { SLOT_TONE_CLASS, SLOT_TONE_STYLE } from '@/components/slot-tone';
+import { dropPastStarts } from '@/lib/core/availability/validation';
 import { createCoachBookingAction } from './actions';
 
 type ServiceOption = { id: number; title: string; durationMin: number };
 
-function firstFreeTime(
-  day: BookableDay | undefined,
-  durationMin: number | null
-): string {
-  return (
-    day?.times.find(
-      (time) => !isStartBusyForDuration(day.maxDurationMin, time, durationMin)
-    ) ?? ''
-  );
-}
-
 /**
- * Coach-side "Nuovo appuntamento": lets the coach create an already-accepted
- * session directly with any registered athlete using one of the coach's
- * services. Stays visible even when there are no athletes at all
- * (disabled, with an explanatory hint) rather than disappearing. Safeguarding
- * is enforced server-side: minors without a confirmed guardian are rejected.
+ * «Nuovo appuntamento» del coach: crea una sessione già accettata con uno dei
+ * suoi atleti. Stessa finestra e stesso modulo di tutto il sito
+ * (`SessionBookingForm`), visti dalla parte del coach: la persona a destra è
+ * l'**atleta**, non c'è il campo obiettivi, e durata e servizio si scelgono
+ * sulla sessione.
  *
- * The "when" field is the same constrained day+time picker the athlete gets:
- * options are pre-computed server-side in Rome time, so what the coach picks
- * is exactly what `parseRomeLocalDateTime` reads back. A free
- * `datetime-local` here would be interpreted in the *browser's* timezone and
- * silently shift for a coach travelling outside Italy.
+ *  - Il servizio parte da quello usato per ultimo con quell'atleta: con la
+ *    stessa persona un coach ripete quasi sempre lo stesso servizio. Senza
+ *    storico (o con un servizio non più offerto) si chiede, invece di
+ *    mostrare un valore vecchio.
+ *  - La durata è della sessione, non del servizio: lo stesso servizio dura 30
+ *    minuti con uno e 60 con un altro, ed è la durata a decidere quali orari
+ *    restano liberi.
+ *  - Giorni e orari sono calcolati dal server in ora di Roma: un campo libero
+ *    `datetime-local` verrebbe letto nel fuso del browser e slitterebbe per un
+ *    coach all'estero.
+ *  - «Avvia sessione ora» è la stessa creazione con l'inizio impostato dal
+ *    server: la sessione parte adesso, l'app dell'atleta squilla appena il
+ *    coach entra nella stanza, e giorno e ora scelti non si usano.
  *
- * The service starts pre-selected on the last one used with the chosen
- * athlete: with the same person a coach almost always repeats the same
- * service, so that is the default worth saving them a click on.
- *
- * Duration is chosen per session rather than inherited from the service: the
- * same service runs 30 minutes with one athlete and 60 with another, and it is
- * the session's length — not the service's — that decides which slots are
- * still free.
- *
- * "Avvia sessione ora" is the same creation, with the start set server-side to
- * now: the session is created, the athlete's app rings via the incoming-call
- * popup as soon as the coach lands in the room, and the day/time picker is
- * simply not consulted.
+ * La protezione dei minori sta sul server: senza l'autorizzazione di un
+ * tutore la sessione viene rifiutata.
  */
 export function CoachNewAppointmentButton({
   athletes,
@@ -70,114 +52,34 @@ export function CoachNewAppointmentButton({
 }: {
   athletes: RelationshipAthlete[];
   services: ServiceOption[];
-  /** Selectable days/times from the coach's own weekly availability; empty if none set. */
+  /** Giorni e orari dalla disponibilità settimanale del coach; vuoto se non c'è. */
   bookableDays: BookableDay[];
-  /** Athlete user id → service id of their most recent booking with this coach. */
+  /** Id dell'atleta → id del servizio della sua ultima prenotazione con questo coach. */
   lastServiceByAthlete?: Record<number, number>;
-  /** Whether the coach has already seen the `coach_create_appointment` tour. */
+  /** Se il coach ha già visto il tour `coach_create_appointment`. */
   tourAlreadySeen?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [clientUserId, setClientUserId] = useState(
-    () => athletes[0]?.userId ?? 0
-  );
-  const [serviceId, setServiceId] = useState('');
-  const [durationMin, setDurationMin] = useState<number>(
-    DEFAULT_SESSION_DURATION_MIN
-  );
-  /**
-   * La durata che il coach vuole davvero, distinta da quella in vigore.
-   *
-   * Scegliere un orario stretto abbassa la seconda; questa resta ferma, ed è
-   * il valore a cui tornare appena un orario torna a contenerla.
-   */
-  const [preferredDurationMin, setPreferredDurationMin] = useState<number>(
-    DEFAULT_SESSION_DURATION_MIN
-  );
-  // Le opzioni arrivano calcolate dal server: si ripuliscono dagli orari nel
-  // frattempo scaduti a ogni apertura del dialog, non qui, perché al primo
-  // render devono coincidere con l'HTML del server (idratazione).
-  const [days, setDays] = useState(bookableDays);
-  const [day, setDay] = useState(bookableDays[0]?.value ?? '');
-  const [time, setTime] = useState(
-    firstFreeTime(bookableDays[0], DEFAULT_SESSION_DURATION_MIN)
+  const [clientUserId, setClientUserId] = useState(() => athletes[0]?.userId ?? 0);
+  // Gli orari già passati si tolgono all'apertura, mai al primo render
+  // (idratazione): una pagina rimasta aperta proporrebbe un orario rifiutato.
+  const [openedAt, setOpenedAt] = useState<Date | null>(null);
+  const days = useMemo(
+    () => (openedAt ? dropPastStarts(bookableDays, openedAt) : bookableDays),
+    [bookableDays, openedAt]
   );
 
-  const selectedDay = useMemo(
-    () => days.find((d) => d.value === day),
-    [days, day]
-  );
+  const athlete = athletes.find((a) => a.userId === clientUserId) ?? athletes[0];
 
-  /**
-   * Last service used with `athleteUserId`, as a `<select>` value — empty when
-   * there is no history or that service is no longer offered (deleted or
-   * deactivated), so the coach is asked rather than shown a stale default.
-   */
-  function defaultServiceFor(athleteUserId: number): string {
+  function defaultServiceFor(athleteUserId: number): number | null {
     const last = lastServiceByAthlete[athleteUserId];
-    return services.some((s) => s.id === last) ? String(last) : '';
+    return services.some((s) => s.id === last) ? last : null;
   }
 
-  // Combined value the server parses as Rome wall-clock time.
-  const scheduledFor = day && time ? `${day}T${time}` : '';
-
-  /**
-   * Switch duration and keep the start valid: a longer session may no longer
-   * fit the chosen start, so fall back to the first one that does.
-   */
-  function pickDuration(next: number) {
-    setDurationMin(next);
-    // Una durata scelta a mano è un'intenzione, non un valore di passaggio:
-    // è quella a cui tornare quando un orario tornerà a permetterla.
-    setPreferredDurationMin(next);
-    if (
-      selectedDay &&
-      isStartBusyForDuration(selectedDay.maxDurationMin, time, next)
-    ) {
-      setTime(firstFreeTime(selectedDay, next));
-    }
-  }
-
-  /**
-   * Sceglie l'orario e adatta la durata, in entrambe le direzioni.
-   *
-   * La regola è una sola: si prova sempre a mettere la durata **voluta**, e la
-   * si accorcia solo se in quell'orario non ci sta. Così scegliere uno slot
-   * stretto abbassa la durata — «Solo 30 min» dice già cosa comporta — e
-   * tornare su un orario libero la rialza a quella di prima, invece di
-   * lasciarla accorciata per il resto della compilazione.
-   *
-   * Si valuta rispetto alla durata voluta e non a quella corrente, altrimenti
-   * ogni accorciamento sarebbe definitivo: una volta scesi a venti minuti,
-   * nessun orario successivo avrebbe più motivo di farla risalire.
-   */
-  function chooseTime(next: string) {
-    setTime(next);
-    if (!selectedDay) return;
-    const slot = slotPresentation(
-      selectedDay.maxDurationMin,
-      next,
-      preferredDurationMin,
-      true
-    );
-    setDurationMin(slot.fitsDurationMin ?? preferredDurationMin);
-  }
-
-  // Re-anchor on the first option each time the dialog opens, so a page left
-  // sitting open doesn't start on a slot that has since passed. Gli orari già
-  // passati vanno tolti davvero dalla lista: ri-ancorarsi alla prima opzione
-  // di un elenco vecchio significa proporre un orario che il server rifiuta.
   function openDialog() {
-    const athleteUserId = athletes[0]?.userId ?? 0;
-    const freshDays = dropPastStarts(bookableDays, new Date());
-    setClientUserId(athleteUserId);
-    setServiceId(defaultServiceFor(athleteUserId));
-    setDurationMin(DEFAULT_SESSION_DURATION_MIN);
-    setPreferredDurationMin(DEFAULT_SESSION_DURATION_MIN);
-    setDays(freshDays);
-    setDay(freshDays[0]?.value ?? '');
-    setTime(firstFreeTime(freshDays[0], DEFAULT_SESSION_DURATION_MIN));
+    setOpenedAt(new Date());
+    setClientUserId(athletes[0]?.userId ?? 0);
     setOpen(true);
   }
 
@@ -217,6 +119,8 @@ export function CoachNewAppointmentButton({
     );
   }
 
+  const firstName = athlete?.name.split(' ')[0] ?? 'l’atleta';
+
   return (
     <>
       <Button
@@ -229,52 +133,66 @@ export function CoachNewAppointmentButton({
         Nuovo appuntamento
       </Button>
 
-      {open && (
-        <>
-          <ProductTour
-            tourKey="coach_create_appointment"
-            alreadySeen={tourAlreadySeen}
-          />
-          <div
-            className="fixed inset-0 z-[95]"
-            role="dialog"
-            aria-modal="true"
-          >
-            <button
-              type="button"
-              aria-label="Chiudi"
-              onClick={() => setOpen(false)}
-              className="absolute inset-0 cursor-default bg-black/40"
-            />
-            {/* Il pannello scorre: su telefono il form è più alto dello schermo,
-                e senza scroll i pulsanti e il messaggio di errore restano
-                irraggiungibili. */}
-            <div className="absolute left-1/2 top-1/2 max-h-[90vh] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto overscroll-contain rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    Nuovo appuntamento
-                  </h2>
-                  <p className="mt-0.5 text-sm text-gray-500">
-                    Crea una sessione con uno dei tuoi atleti.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  aria-label="Chiudi"
-                  className="rounded-full p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-h-[92dvh] max-w-4xl overflow-y-auto rounded-3xl p-6 sm:p-8">
+          <DialogTitle className="pr-8 text-xl sm:text-3xl">
+            Nuovo appuntamento
+          </DialogTitle>
+          <DialogDescription>
+            Crea una sessione con uno dei tuoi atleti.
+          </DialogDescription>
 
-              <ActionForm
+          <label className="mt-4 flex max-w-sm flex-col gap-1.5">
+            <span className="text-sm font-semibold text-gray-900">Atleta</span>
+            <select
+              value={clientUserId}
+              onChange={(e) => setClientUserId(Number(e.target.value))}
+              required
+              className="rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900"
+            >
+              {athletes.map((a) => (
+                <option key={a.userId} value={a.userId}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {athlete && (
+            <div className="mt-4">
+              {/* Il modulo riparte da zero cambiando atleta: il servizio di
+                  default è quello di quella persona, e giorno e orario scelti
+                  per uno non valgono per l'altro. */}
+              <SessionBookingForm
+                key={athlete.userId}
+                slug=""
+                coachName={athlete.name}
+                coachFirstName={firstName}
+                coachAvatarUrl={athlete.avatarUrl}
+                coachHeadline={null}
+                services={services}
+                bookableDays={days}
+                perspective="coach"
+                showNote={false}
+                durationSelect
+                initialServiceId={defaultServiceFor(athlete.userId)}
+                showTour
+                tourKey="coach_create_appointment"
+                calendarTourId="coach-booking-datetime"
+                tourAlreadySeen={tourAlreadySeen}
+                submitLabel="Crea la sessione"
                 action={createCoachBookingAction}
-                messageFirst
-                className="mt-5 flex flex-col gap-4"
+                hiddenFields={{ clientUserId: String(athlete.userId) }}
+                // Avvia ora ignora giorno e ora scelti: la sessione parte adesso
+                // e l'orario lo mette il server, quindi resta utilizzabile anche
+                // quando non c'è nessuno slot libero.
+                startNow={{
+                  enabled: true,
+                  hint: 'Crea la sessione con inizio adesso e apre la videochiamata: giorno e ora qui sopra non vengono usati.',
+                }}
                 onSuccess={(state) => {
                   if (typeof state.bookingId !== 'number') return;
+                  setOpen(false);
                   // Sessione avviata ora: si entra direttamente nella stanza, ed
                   // è l'ingresso del coach a far squillare l'app dell'atleta.
                   router.push(
@@ -283,198 +201,11 @@ export function CoachNewAppointmentButton({
                       : `/dashboard/appointments/${state.bookingId}?created=1`
                   );
                 }}
-              >
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-sm font-medium text-gray-700">Atleta</span>
-                  <select
-                    name="clientUserId"
-                    value={clientUserId}
-                    onChange={(e) => {
-                      const nextAthlete = Number(e.target.value);
-                      setClientUserId(nextAthlete);
-                      // Ogni atleta porta con sé il proprio default: senza
-                      // storico si lascia in piedi la scelta già fatta.
-                      const nextServiceId = defaultServiceFor(nextAthlete);
-                      if (nextServiceId) setServiceId(nextServiceId);
-                    }}
-                    required
-                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-                  >
-                    {athletes.map((a) => (
-                      <option key={a.userId} value={a.userId}>
-                        {a.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-sm font-medium text-gray-700">
-                    Servizio
-                  </span>
-                  <select
-                    name="serviceId"
-                    value={serviceId}
-                    onChange={(e) => setServiceId(e.target.value)}
-                    required
-                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-                  >
-                    <option value="" disabled>
-                      Seleziona un servizio
-                    </option>
-                    {services.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.title} · {s.durationMin} min
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <input type="hidden" name="scheduledFor" value={scheduledFor} />
-
-                {days.length > 0 ? (
-                  <div
-                    className="flex flex-col gap-1.5"
-                    data-tour="coach-booking-datetime"
-                  >
-                    <span className="text-sm font-medium text-gray-700">
-                      Data e ora
-                    </span>
-                    <div className="grid grid-cols-2 gap-2">
-                      <label className="flex flex-col gap-1">
-                        <span className="text-xs text-gray-500">Giorno</span>
-                        <select
-                          value={day}
-                          onChange={(e) => {
-                            const nextDay = e.target.value;
-                            setDay(nextDay);
-                            setTime(
-                              firstFreeTime(
-                                days.find((d) => d.value === nextDay),
-                                durationMin
-                              )
-                            );
-                          }}
-                          className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-                        >
-                          {days.map((d) => (
-                            <option key={d.value} value={d.value}>
-                              {d.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="flex flex-col gap-1">
-                        <span className="text-xs text-gray-500">Ora</span>
-                        <select
-                          value={time}
-                          onChange={(e) => chooseTime(e.target.value)}
-                          required
-                          className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-                        >
-                          {!time && (
-                            <option value="" disabled>
-                              Nessun orario libero
-                            </option>
-                          )}
-                          {selectedDay?.times.map((t) => {
-                            const slot = slotPresentation(
-                              selectedDay.maxDurationMin,
-                              t,
-                              durationMin,
-                              true
-                            );
-                            return (
-                              <option
-                                key={t}
-                                value={t}
-                                disabled={!slot.selectable}
-                                className={SLOT_TONE_CLASS[slot.tone]}
-                                style={SLOT_TONE_STYLE[slot.tone]}
-                              >
-                                {t}
-                                {slot.suffix}
-                              </option>
-                            );
-                          })}
-                        </select>
-                      </label>
-                    </div>
-                  </div>
-                ) : bookableDays.length > 0 ? (
-                  <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                    Gli orari proposti sono nel frattempo passati. Ricarica la
-                    pagina per vedere quelli ancora disponibili.
-                  </p>
-                ) : (
-                  <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-600">
-                    Non hai ancora impostato la tua disponibilità settimanale: la
-                    sessione verrà creata senza orario, da concordare in chat.
-                  </p>
-                )}
-
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-sm font-medium text-gray-700">Durata</span>
-                  <select
-                    name="durationMin"
-                    value={durationMin}
-                    onChange={(e) => pickDuration(Number(e.target.value))}
-                    required
-                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-                  >
-                    {SESSION_DURATION_OPTIONS.map((minutes) => (
-                      <option key={minutes} value={minutes}>
-                        {minutes} minuti
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <div className="mt-1 flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setOpen(false)}
-                    className="rounded-full"
-                  >
-                    Annulla
-                  </Button>
-                  {/* Primo submit del form, quindi anche quello che scatta
-                      premendo Invio in un campo: deve essere l'azione normale,
-                      non l'avvio di una chiamata. */}
-                  <Button
-                    type="submit"
-                    disabled={bookableDays.length > 0 && !scheduledFor}
-                    className="rounded-full bg-green-600 text-white hover:bg-green-700"
-                  >
-                    Crea sessione
-                  </Button>
-                </div>
-
-                {/* Avvia ora ignora giorno e ora scelti: la sessione parte
-                    adesso e l'orario lo mette il server. Resta quindi
-                    utilizzabile anche quando non c'è nessuno slot libero. */}
-                <div className="border-t border-gray-100 pt-4">
-                  <Button
-                    type="submit"
-                    name="startNow"
-                    value="1"
-                    variant="outline"
-                    className="w-full rounded-full border-green-600 text-green-700 hover:bg-green-50 hover:text-green-800"
-                  >
-                    <Video className="mr-2 h-4 w-4" />
-                    Avvia sessione ora
-                  </Button>
-                  <p className="mt-2 text-center text-xs text-gray-500">
-                    Crea la sessione con inizio adesso e apre la videochiamata:
-                    giorno e ora qui sopra non vengono usati.
-                  </p>
-                </div>
-              </ActionForm>
+              />
             </div>
-          </div>
-        </>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
