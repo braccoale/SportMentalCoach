@@ -9,6 +9,9 @@ import {
   type CoachAvailability,
 } from '@/lib/db/schema';
 import type { Result } from '@/lib/core/result';
+import { makeRomeDayConverter, parseRomeLocalDateTime } from './rome-time';
+
+export { parseRomeLocalDateTime };
 import {
   WEEKDAY_LABELS,
   formatDateTime,
@@ -50,16 +53,6 @@ const ROME_DAY_LABEL_FORMATTER = new Intl.DateTimeFormat('it-IT', {
   weekday: 'long',
   day: 'numeric',
   month: 'short',
-});
-const ROME_OFFSET_FORMATTER = new Intl.DateTimeFormat('en-US', {
-  timeZone: 'Europe/Rome',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-  hourCycle: 'h23',
 });
 
 export type AvailabilitySlot = Pick<
@@ -197,42 +190,6 @@ function romeDayAt(from: Date, offset: number): RomeDay {
     weekday: at.getUTCDay(),
     at,
   };
-}
-
-/**
- * Parses a `datetime-local` string (e.g. "2026-07-21T08:39") as Rome
- * wall-clock time and returns the corresponding UTC `Date`. Plain
- * `new Date(str)` interprets the string in the *server* timezone (UTC on
- * Vercel), silently shifting the intended time by the Rome offset — this fixes
- * that so "08:39" the athlete typed means 08:39 in Italy.
- */
-export function parseRomeLocalDateTime(value: string): Date | null {
-  const m = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
-  if (!m) return null;
-  const [, y, mo, d, h, mi] = m.map(Number);
-  const asUtc = Date.UTC(y, mo - 1, d, h, mi);
-  // Rome's offset can differ side-of-DST; resolve against the tentative
-  // instant, then re-check once in case the guess landed across a transition.
-  const offset1 = romeOffsetMinutes(new Date(asUtc));
-  let result = new Date(asUtc - offset1 * 60_000);
-  const offset2 = romeOffsetMinutes(result);
-  if (offset2 !== offset1) result = new Date(asUtc - offset2 * 60_000);
-  return result;
-}
-
-/** Minutes Europe/Rome is ahead of UTC at the given instant (60 in winter, 120 in summer). */
-function romeOffsetMinutes(at: Date): number {
-  const parts = ROME_OFFSET_FORMATTER.formatToParts(at);
-  const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
-  const asUtc = Date.UTC(
-    Number(map.year),
-    Number(map.month) - 1,
-    Number(map.day),
-    Number(map.hour),
-    Number(map.minute),
-    Number(map.second)
-  );
-  return Math.round((asUtc - at.getTime()) / 60_000);
 }
 
 /**
@@ -377,11 +334,14 @@ export function getBookableDays(
     const value = `${d.year}-${d.month}-${d.day}`;
     const uniqueTimes = [...new Set(times)];
     const maxDurationMin: Record<string, number> = {};
-    for (const time of uniqueTimes) {
-      const candidate = parseRomeLocalDateTime(`${value}T${time}`);
-      if (!candidate) continue;
-      const max = maxSessionMinutesAt(candidate, busyIntervals);
-      if (max !== null) maxDurationMin[time] = max;
+    // Senza sedute fissate non c'è niente da misurare: nessun orario ha un
+    // tetto, e non serve convertire nemmeno un orario.
+    if (busyIntervals.length > 0) {
+      const toInstant = makeRomeDayConverter(value);
+      for (const time of uniqueTimes) {
+        const max = maxSessionMinutesAt(toInstant(time), busyIntervals);
+        if (max !== null) maxDurationMin[time] = max;
+      }
     }
 
     days.push({

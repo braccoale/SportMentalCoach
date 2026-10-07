@@ -113,9 +113,13 @@ export default async function CoachesPage({
   const sp = await searchParams;
   const config = getVerticalConfig();
   const { levels } = config.taxonomies;
-  const [categories, specialties] = await Promise.all([
+  // Letture indipendenti: partono insieme invece di una dopo l'altra (ognuna
+  // è un viaggio al database, e in fila si sommano).
+  const [categories, specialties, priceRange, user] = await Promise.all([
     getActiveSports(),
     getActiveSpecialties(),
+    getCoachPriceRangeCents(),
+    getUser(),
   ]);
 
   const selectedNeedIds = parseSelectedNeedIds(sp.need);
@@ -139,7 +143,6 @@ export default async function CoachesPage({
 
   // Bounds in whole euros, dal prezzo minimo/massimo dei servizi attivi (non
   // intro) dei coach approvati — null se nessuno ha ancora un servizio.
-  const priceRange = await getCoachPriceRangeCents();
   const priceRangeMinEur = priceRange ? Math.floor(priceRange.minCents / 100) : null;
   const priceRangeMaxEur = priceRange ? Math.ceil(priceRange.maxCents / 100) : null;
   const priceMinEur = priceMinParam ? Number(priceMinParam) : undefined;
@@ -163,11 +166,11 @@ export default async function CoachesPage({
   };
   const onlyFav = favorite === '1';
 
-  const user = await getUser();
   const loggedIn = !!user;
-  const favoriteIds = user
-    ? await getFavoriteProviderIds(user.id)
-    : new Set<number>();
+  const [favoriteIds, isAthlete] = await Promise.all([
+    user ? getFavoriteProviderIds(user.id) : Promise.resolve(new Set<number>()),
+    user ? hasRole(user.id, 'athlete') : Promise.resolve(false),
+  ]);
 
   let coaches = await getCoachDiscovery(filters, { favoriteIds });
   if (onlyFav && loggedIn) coaches = coaches.filter((c) => c.isFavorite);
@@ -202,7 +205,6 @@ export default async function CoachesPage({
         ).slice(0, 3)
       : [];
 
-  const isAthlete = user ? await hasRole(user.id, 'athlete') : false;
   const isDemo = user?.isDemo ?? false;
   // Il widget "Sessione conoscitiva (gratis)" nella card usa lo stesso
   // calendario cliccabile della scheda coach — una query per campo, per
@@ -219,6 +221,7 @@ export default async function CoachesPage({
     planOffers,
     creditContexts,
     singleOffers,
+    singleValidityDays,
   ] =
     await Promise.all([
       getCoachAvailabilityByProviderIds(cardProviderIds),
@@ -243,6 +246,7 @@ export default async function CoachesPage({
       user && isAthlete && !isDemo
         ? getSingleSessionOffersByProvider(cardProviderIds)
         : Promise.resolve(new Map<number, number>()),
+      getSingleSessionValidityDays(),
     ]);
   const bookableDaysByProvider = new Map<number, BookableDay[]>(
     cardProviderIds.map((id) => [
@@ -255,7 +259,6 @@ export default async function CoachesPage({
     ])
   );
 
-  const singleValidityDays = await getSingleSessionValidityDays();
   const bookingNow = new Date();
   const bookingAccessByProvider = new Map<
     number,
