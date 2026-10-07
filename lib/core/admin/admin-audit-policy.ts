@@ -138,6 +138,7 @@ export const ADMIN_AUDIT_ACTION_LABEL: Record<AdminAuditAction, string> = {
   coach_approved: 'Coach approvato',
   coach_rejected: 'Coach rifiutato',
   coach_verification_changed: 'Verifica coach modificata',
+  coach_payments_toggled: 'Pagamenti del coach attivati o spenti',
   user_role_changed: 'Ruolo modificato',
   ai_notes_entitlement_granted: 'Appunti AI abilitati',
   ai_notes_entitlement_revoked: 'Appunti AI revocati',

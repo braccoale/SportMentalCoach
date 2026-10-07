@@ -4,6 +4,7 @@ import {
   CalendarDays,
   CheckCircle2,
   CircleAlert,
+  CreditCard,
   Send,
   ShieldCheck,
 } from 'lucide-react';
@@ -13,6 +14,7 @@ import type { TaxonomyItem } from '@/lib/core/config/types';
 import { DemoBadge } from '@/components/demo-badge';
 import { getVerticalConfig, findTaxonomyItem, t } from '@/lib/core/config';
 import { formatDate, formatDateTime } from '@/lib/core/format';
+import { COACH_PAYMENTS_STATE_LABEL } from '@/lib/core/billing/coach-payments';
 import { Button } from '@/components/ui/button';
 import { ActionForm } from '@/components/action-form';
 import { CoachAvatar } from '@/components/coach-visuals';
@@ -23,6 +25,7 @@ import {
   rejectProviderAction,
   toggleIdentityVerifiedAction,
   toggleCertificationsVerifiedAction,
+  toggleCoachPaymentsAction,
 } from '@/app/(dashboard)/dashboard/admin/actions';
 
 /**
@@ -205,6 +208,26 @@ export function ProviderRow({
               >
                 <Award className="h-3.5 w-3.5" /> Certificazioni{' '}
                 {p.certificationsVerified ? '✓' : '—'}
+              </button>
+            </form>
+            <form action={toggleCoachPaymentsAction}>
+              <input type="hidden" name="providerId" value={p.id} />
+              <input
+                type="hidden"
+                name="value"
+                value={p.paymentsState === 'off' ? '1' : '0'}
+              />
+              <button
+                type="submit"
+                className={verifyChip(p.paymentsState !== 'off')}
+                title={
+                  p.paymentsState === 'off'
+                    ? 'Attiva i pagamenti per questo coach'
+                    : 'Spegni i pagamenti per questo coach'
+                }
+              >
+                <CreditCard className="h-3.5 w-3.5" /> Pagamenti{' '}
+                {COACH_PAYMENTS_STATE_LABEL[p.paymentsState]}
               </button>
             </form>
           </div>

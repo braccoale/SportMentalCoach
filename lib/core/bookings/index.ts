@@ -1,5 +1,15 @@
 import 'server-only';
 import { INTRO_SESSION, isIntroDurationValid } from '@/lib/core/services/introduction';
+import {
+  checkBookingCredits,
+  creditsSummary,
+  decideBookingAccess,
+  getBookingCreditContexts,
+  reserveSessionCredit,
+  getSubscribedProviderIds,
+  getSubscriberUserIdsIfRequired,
+  type BookingCreditContext,
+} from '@/lib/core/billing';
 import { ensureIntroService, hasUsedIntroSession } from '@/lib/core/services/intro-booking';
 import { coachPickerAthleteIds } from './coach-picker';
 import { ACTIVE_STATUSES } from './coach-athletes';
@@ -56,6 +66,7 @@ import {
   describeAvailability,
   getBookableDays,
   getCoachBusyIntervalsByProviderIds,
+  parseRomeLocalDateTime,
   type BookableDay,
 } from '@/lib/core/availability';
 import { getSystemConfigNumber } from '@/lib/core/system-config';
@@ -476,6 +487,21 @@ export async function createBookingRequest(params: {
       };
     }
 
+    // Con un coach a pagamento servono un abbonamento e una seduta disponibile
+    // nel periodo della data scelta. Il controllo sta qui, nella stessa
+    // transazione e sotto lo stesso blocco: due richieste simultanee non
+    // possono superare le sedute. La sessione conoscitiva gratuita ne è esente.
+    const credits = await checkBookingCredits(tx, {
+      coachUserId: provider.userId,
+      providerId: provider.id,
+      clientUserId: params.clientUserId,
+      scheduledFor: params.scheduledFor ?? new Date(),
+      isIntro: Boolean(svc.isIntro),
+    });
+    if (!credits.ok) {
+      return { ok: false as const, error: credits.message };
+    }
+
     const [created] = await tx
       .insert(bookings)
       .values({
@@ -490,6 +516,12 @@ export async function createBookingRequest(params: {
         decidedAt: params.startingNow ? new Date() : null,
       })
       .returning({ id: bookings.id });
+    await holdPurchasedSession(tx, credits, {
+      athleteUserId: params.clientUserId,
+      coachUserId: provider.userId,
+      bookingId: created.id,
+      scheduledFor: params.scheduledFor ?? new Date(),
+    });
     return { ok: true as const, bookingId: created.id };
   });
   if (!creation.ok) return creation;
@@ -646,7 +678,106 @@ export type RelationshipCoach = {
   canCallNow: boolean;
   /** Whether the athlete has this coach among their favourites. */
   isFavorite: boolean;
+  /**
+   * Le sedute dell'abbonamento con questo coach, se è un coach a pagamento con
+   * cui l'atleta è abbonato. `null` per tutti gli altri: nessun cambiamento.
+   */
+  credits: RelationshipCredits | null;
+  /**
+   * Perché la lista di date è vuota o ristretta, quando dipende dalle sedute:
+   * già scritto in italiano dal server, che è chi decide.
+   */
+  creditsNotice: string | null;
 };
+
+export type RelationshipCredits = {
+  total: number;
+  remainingNow: number | null;
+  remainingNext: number | null;
+  /** «6 novembre 2026»: quando arrivano le nuove sedute. */
+  renewalLabel: string | null;
+  cancelAtPeriodEnd: boolean;
+  pastDue: boolean;
+  /** Sedute acquistate a parte, ancora da usare. */
+  extraSessions: number;
+};
+
+/**
+ * Applica a un coach della lista la regola delle sedute. Il coach a pagamento
+ * senza abbonamento è già stato tolto prima. Per un coach abbonato si offrono
+ * solo le date che `createBookingRequest` accetterebbe, con la stessa funzione
+ * (`decideBookingAccess`): offrire ciò che il server poi rifiuta sembra un
+ * guasto.
+ */
+export function applyBookingCredits<
+  T extends { bookableDays: BookableDay[]; canCallNow: boolean }
+>(
+  coach: T,
+  context: BookingCreditContext | undefined,
+  now: Date
+): T & { credits: RelationshipCredits | null; creditsNotice: string | null } {
+  const subscription = context?.subscription ?? null;
+  if (
+    !context ||
+    !context.requiresSubscription ||
+    (!subscription && context.credits.length === 0)
+  ) {
+    return { ...coach, credits: null, creditsNotice: null };
+  }
+
+  const check = (at: Date) =>
+    decideBookingAccess({
+      requiresSubscription: true,
+      isIntro: false,
+      subscription,
+      scheduledFor: at,
+      bookings: context.bookings,
+      credits: context.credits,
+    });
+
+  const days = coach.bookableDays
+    .map((day) => ({
+      ...day,
+      times: day.times.filter((time) => {
+        const at = parseRomeLocalDateTime(`${day.value}T${time}`);
+        return at ? check(at).ok : false;
+      }),
+    }))
+    .filter((day) => day.times.length > 0);
+
+  const summary = subscription
+    ? creditsSummary(subscription, context.bookings)
+    : { total: 0, remainingNow: null, remainingNext: null, renewalLabel: null };
+  let creditsNotice: string | null = null;
+  if (days.length === 0 && coach.bookableDays.length > 0) {
+    // Nessuna data ammessa: la ragione è quella del primo orario che avremmo
+    // offerto, la stessa che darebbe il server.
+    const firstDay = coach.bookableDays[0];
+    const at = parseRomeLocalDateTime(`${firstDay.value}T${firstDay.times[0]}`);
+    const decision = at ? check(at) : null;
+    creditsNotice = decision && !decision.ok ? decision.message : null;
+  } else if (subscription?.status === 'past_due') {
+    creditsNotice = check(now).ok ? null : (check(now) as { message: string }).message;
+  } else if (summary.remainingNow === 0 && summary.renewalLabel) {
+    creditsNotice = `Hai già usato tutte le ${summary.total} sedute di questo periodo: potrai prenotare le nuove sedute dopo il rinnovo del ${summary.renewalLabel}.`;
+  }
+
+  return {
+    ...coach,
+    bookableDays: days,
+    canCallNow: coach.canCallNow && check(now).ok,
+    credits: {
+      total: summary.total,
+      remainingNow: summary.remainingNow,
+      remainingNext: summary.remainingNext,
+      renewalLabel: summary.renewalLabel,
+      cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? false,
+      pastDue: subscription?.status === 'past_due',
+      extraSessions: context.credits.length,
+    },
+    creditsNotice,
+  };
+}
 
 /**
  * Approved coaches an athlete already has a relationship with — coaches they
@@ -666,7 +797,7 @@ export async function getAthleteRelationshipCoaches(
   if (!viewer || viewer.isDemo) return [];
 
   // Providers from prior bookings (with recency) ∪ favourites.
-  const [booked, faved] = await Promise.all([
+  const [booked, faved, subscribedIds] = await Promise.all([
     db
       .select({
         providerId: bookings.providerId,
@@ -679,6 +810,8 @@ export async function getAthleteRelationshipCoaches(
       .select({ providerId: favorites.providerId })
       .from(favorites)
       .where(eq(favorites.userId, userId)),
+    // Un coach con cui ho un abbonamento è «noto» anche se non ho mai prenotato.
+    getSubscribedProviderIds(userId),
   ]);
 
   // Most-recent booking time per provider, to surface the last-followed coach first.
@@ -692,6 +825,7 @@ export async function getAthleteRelationshipCoaches(
     ...new Set([
       ...booked.map((r) => r.providerId),
       ...faved.map((r) => r.providerId),
+      ...subscribedIds,
     ]),
   ];
   if (providerIds.length === 0) return [];
@@ -764,14 +898,26 @@ export async function getAthleteRelationshipCoaches(
   // Un solo istante per tutti i coach della lista: due letture dell'orologio
   // potrebbero cadere a cavallo di un minuto e rendere la lista incoerente.
   const now = new Date();
-  const [stepMinutes, daysAhead] = await Promise.all([
+  const [stepMinutes, daysAhead, creditContexts] = await Promise.all([
     getSystemConfigNumber('AVAILABILITY_BOOKING_START_STEP_MINUTES', 10),
     getSystemConfigNumber('AVAILABILITY_BOOKING_DAYS_AHEAD', 90),
+    getBookingCreditContexts(userId, providerIds),
   ]);
 
   return coaches
     .filter((c) => c.slug)
+    // Un coach a pagamento senza abbonamento non si prenota da qui: la sua
+    // strada è «Abbonati» (o la sessione conoscitiva gratuita dalla scheda).
+    .filter((c) => {
+      const context = creditContexts.get(c.id);
+      return !(
+        context?.requiresSubscription &&
+        !context.subscription &&
+        context.credits.length === 0
+      );
+    })
     .map((c) => ({
+      _providerId: c.id,
       slug: c.slug!,
       name: c.name ?? 'Coach',
       avatarUrl: c.avatarUrl,
@@ -806,6 +952,9 @@ export async function getAthleteRelationshipCoaches(
       _favorite: favedIds.has(c.id),
       _recency: lastByProvider.get(c.id) ?? 0,
     }))
+    .map(({ _providerId, ...coach }) =>
+      applyBookingCredits(coach, creditContexts.get(_providerId), now)
+    )
     // Favourited coaches float to the top; then last-followed first;
     // favourited-only coaches (no booking) alphabetically after that.
     .sort(
@@ -949,9 +1098,15 @@ export async function getCoachSchedulableAthletes(
       )
     );
 
+  // Un coach con i pagamenti attivi pianifica solo con chi ha già pagato (un
+  // abbonamento o una seduta acquistata): gli altri non si offrono, perché il
+  // server rifiuterebbe la sessione.
+  const subscribers = await getSubscriberUserIdsIfRequired(viewerUserId);
+
   // Ordine: prima i portati da lui, poi gli altri; a parità, alfabetico.
   const rank = new Map(ids.map((id, index) => [id, index]));
   return rows
+    .filter((r) => !subscribers || subscribers.has(r.userId))
     .map((r) => ({
       userId: r.userId,
       name: resolveDisplayName(r.name, r.email),
@@ -1109,6 +1264,21 @@ export async function createCoachBookingRequest(params: {
       };
     }
 
+    // Con i pagamenti attivi il coach fissa sessioni solo con atleti abbonati
+    // e con una seduta nel periodo della data: la stessa regola dell'atleta,
+    // nella stessa transazione. La sessione conoscitiva gratuita ne è esente.
+    const credits = await checkBookingCredits(tx, {
+      coachUserId: params.coachUserId,
+      providerId: provider.id,
+      clientUserId: params.clientUserId,
+      scheduledFor: params.scheduledFor ?? new Date(),
+      isIntro: Boolean(svc.isIntro),
+      viewer: 'coach',
+    });
+    if (!credits.ok) {
+      return { ok: false as const, error: credits.message };
+    }
+
     const [created] = await tx
       .insert(bookings)
       .values({
@@ -1123,6 +1293,12 @@ export async function createCoachBookingRequest(params: {
         decidedAt: new Date(),
       })
       .returning({ id: bookings.id });
+    await holdPurchasedSession(tx, credits, {
+      athleteUserId: params.clientUserId,
+      coachUserId: params.coachUserId,
+      bookingId: created.id,
+      scheduledFor: params.scheduledFor ?? new Date(),
+    });
     return { ok: true as const, bookingId: created.id };
   });
   if (!creation.ok) return creation;
@@ -1830,6 +2006,20 @@ export async function rescheduleBooking(params: {
       return false;
     }
 
+    // Spostare in un altro periodo cambia quale seduta si usa: la regola dei
+    // crediti vale anche per la nuova data. La sessione che si sposta non conta
+    // contro sé stessa, e la sessione conoscitiva gratuita ne è esente.
+    const credits = await checkBookingCredits(tx, {
+      coachUserId: row.coachUserId,
+      providerId: row.providerId,
+      clientUserId: row.clientId,
+      scheduledFor: params.scheduledFor,
+      isIntro: Boolean(row.isIntro),
+      viewer: params.userId === row.coachUserId ? 'coach' : 'athlete',
+      excludeBookingId: row.id,
+    });
+    if (!credits.ok) return credits.message;
+
     const changed = await tx
       .update(bookings)
       .set({
@@ -1849,9 +2039,19 @@ export async function rescheduleBooking(params: {
         )
       )
       .returning({ id: bookings.id });
+    if (changed.length > 0) {
+      await holdPurchasedSession(tx, credits, {
+        athleteUserId: row.clientId,
+        coachUserId: row.coachUserId,
+        bookingId: row.id,
+        scheduledFor: params.scheduledFor,
+      });
+    }
     return changed.length > 0;
   });
 
+  // Una stringa è il motivo del rifiuto dei crediti, già scritto per chi sposta.
+  if (typeof updated === 'string') return { ok: false, error: updated };
   if (!updated) {
     return {
       ok: false,
@@ -1870,4 +2070,25 @@ export async function rescheduleBooking(params: {
   });
 
   return { ok: true };
+}
+
+/**
+ * Se la prenotazione è pagata con una seduta acquistata a parte, la lega.
+ * Dentro la transazione di prenotazione: se non c'è più nessuna seduta libera
+ * (non dovrebbe accadere, il controllo è appena passato sotto lo stesso
+ * blocco) si annulla tutto invece di lasciare una seduta gratis.
+ */
+async function holdPurchasedSession(
+  tx: DbOrTx,
+  access: { ok: boolean; usesCredit?: boolean },
+  params: {
+    athleteUserId: number;
+    coachUserId: number;
+    bookingId: number;
+    scheduledFor: Date;
+  }
+): Promise<void> {
+  if (!access.usesCredit) return;
+  const held = await reserveSessionCredit(tx, params);
+  if (!held) throw new Error('SESSION_CREDIT_UNAVAILABLE');
 }

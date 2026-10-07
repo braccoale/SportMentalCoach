@@ -3336,6 +3336,7 @@ export const ADMIN_AUDIT_ACTIONS = [
   'coach_approved',
   'coach_rejected',
   'coach_verification_changed',
+  'coach_payments_toggled',
   'user_role_changed',
   'ai_notes_entitlement_granted',
   'ai_notes_entitlement_revoked',
@@ -3423,7 +3424,7 @@ export const adminAuditEvents = pgTable(
     index('admin_audit_events_action_idx').on(table.action, table.createdDate),
     check(
       'admin_audit_events_action_check',
-      sql`${table.action} in ('coach_approved', 'coach_rejected', 'coach_verification_changed', 'user_role_changed', 'ai_notes_entitlement_granted', 'ai_notes_entitlement_revoked', 'ai_notes_session_reopened', 'ai_notes_worker_run', 'ai_notes_guidelines_saved', 'ai_notes_callback_probed', 'sensitive_content_accessed', 'data_exported', 'data_deleted', 'configuration_changed', 'package_created', 'package_features_updated', 'user_package_assigned', 'user_package_revoked', 'academy_course_created', 'academy_course_status_changed', 'academy_course_edition_created', 'academy_module_saved', 'academy_instructor_nominated', 'academy_instructor_removed', 'academy_course_assigned', 'academy_course_assignment_removed', 'academy_session_created', 'academy_session_cancelled', 'academy_session_completed', 'academy_recap_generated', 'academy_recap_edited', 'academy_recording_consent_given', 'academy_recording_consent_declined', 'academy_material_uploaded', 'academy_material_published', 'academy_module_completed', 'academy_module_completion_corrected')`
+      sql`${table.action} in ('coach_approved', 'coach_rejected', 'coach_verification_changed', 'coach_payments_toggled', 'user_role_changed', 'ai_notes_entitlement_granted', 'ai_notes_entitlement_revoked', 'ai_notes_session_reopened', 'ai_notes_worker_run', 'ai_notes_guidelines_saved', 'ai_notes_callback_probed', 'sensitive_content_accessed', 'data_exported', 'data_deleted', 'configuration_changed', 'package_created', 'package_features_updated', 'user_package_assigned', 'user_package_revoked', 'academy_course_created', 'academy_course_status_changed', 'academy_course_edition_created', 'academy_module_saved', 'academy_instructor_nominated', 'academy_instructor_removed', 'academy_course_assigned', 'academy_course_assignment_removed', 'academy_session_created', 'academy_session_cancelled', 'academy_session_completed', 'academy_recap_generated', 'academy_recap_edited', 'academy_recording_consent_given', 'academy_recording_consent_declined', 'academy_material_uploaded', 'academy_material_published', 'academy_module_completed', 'academy_module_completion_corrected')`
     ),
     check(
       'admin_audit_events_subject_type_check',
@@ -4145,3 +4146,278 @@ export const academySessionRecordings = pgTable(
 
 export type AcademySessionRecording = typeof academySessionRecordings.$inferSelect;
 export type NewAcademySessionRecording = typeof academySessionRecordings.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Pagamenti del coach (fase 1: addebiti diretti sull'account Stripe del coach,
+// commissione KaiPai a zero — il denaro non transita mai da KaiPai).
+// Importi in centesimi di euro.
+//
+// Attenzione al nome: `packages` / `user_packages` sono i bundle di
+// FUNZIONALITÀ che l'admin assegna agli utenti. Quello che il coach vende
+// all'atleta si chiama qui "piano di sedute" (`coach_session_plans`), anche se
+// in italiano, all'atleta, resta «pacchetto».
+// ---------------------------------------------------------------------------
+
+/**
+ * Profilo pagamenti di un coach. La riga esiste solo se l'admin ha toccato i
+ * pagamenti di quel coach: nessuna riga = pagamenti spenti, come oggi.
+ *
+ * `paymentsEnabled` lo decide l'admin e basta. `chargesEnabled`,
+ * `payoutsEnabled` e `requirementsDue` li decide Stripe e li copiamo dal
+ * webhook: sono due cose diverse e non si fondono (un coach può avere la
+ * verifica completa e restare spento per scelta nostra).
+ */
+export const coachBillingProfiles = pgTable(
+  'coach_billing_profiles',
+  {
+    id: serial('id').primaryKey(),
+    coachUserId: integer('coach_user_id')
+      .notNull()
+      .unique()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    paymentsEnabled: boolean('payments_enabled').notNull().default(false),
+    paymentsEnabledAt: timestamp('payments_enabled_at', { withTimezone: true }),
+    // Il prezzo di UNA seduta acquistata a parte (centesimi), deciso dal coach.
+    // Vuoto = il coach non la vende. Vale anche come «seduta extra» per chi ha
+    // già un abbonamento.
+    singleSessionPriceCents: integer('single_session_price_cents'),
+    stripeAccountId: varchar('stripe_account_id', { length: 255 }).unique(),
+    stripeAccountNamespace: varchar('stripe_account_namespace', { length: 16 }),
+    onboardingStatus: varchar('onboarding_status', { length: 24 })
+      .notNull()
+      .default('not_started'),
+    chargesEnabled: boolean('charges_enabled').notNull().default(false),
+    payoutsEnabled: boolean('payouts_enabled').notNull().default(false),
+    requirementsDue: jsonb('requirements_due')
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    ...audit,
+  },
+  (table) => [
+    check(
+      'coach_billing_profiles_onboarding_status_check',
+      sql`${table.onboardingStatus} in ('not_started', 'pending', 'active', 'restricted', 'disabled')`
+    ),
+    check(
+      'coach_billing_profiles_single_price_check',
+      sql`${table.singleSessionPriceCents} is null or ${table.singleSessionPriceCents} > 0`
+    ),
+    check(
+      'coach_billing_profiles_account_namespace_check',
+      sql`${table.stripeAccountNamespace} is null or ${table.stripeAccountNamespace} in ('v1', 'v2')`
+    ),
+  ]
+);
+
+/**
+ * Un piano di sedute mensile deciso dal coach: quante sedute al mese e a che
+ * prezzo. I limiti (min/max sedute e prezzo) non stanno qui ma in
+ * `system_config`: cambiarli non deve richiedere una migrazione.
+ */
+export const coachSessionPlans = pgTable(
+  'coach_session_plans',
+  {
+    id: serial('id').primaryKey(),
+    coachUserId: integer('coach_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    name: varchar('name', { length: 80 }).notNull(),
+    sessionsPerMonth: integer('sessions_per_month').notNull(),
+    monthlyPriceCents: integer('monthly_price_cents').notNull(),
+    currency: varchar('currency', { length: 3 }).notNull().default('EUR'),
+    // Frase breve sotto il nome, scritta dal coach («Ideale per iniziare»).
+    description: varchar('description', { length: 120 }),
+    // Il piano che il coach consiglia: al massimo uno per coach.
+    isRecommended: boolean('is_recommended').notNull().default(false),
+    status: varchar('status', { length: 16 }).notNull().default('draft'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    ...audit,
+  },
+  (table) => [
+    index('coach_session_plans_coach_status_idx').on(table.coachUserId, table.status),
+    uniqueIndex('coach_session_plans_one_recommended_idx')
+      .on(table.coachUserId)
+      .where(sql`${table.isRecommended}`),
+    check('coach_session_plans_sessions_check', sql`${table.sessionsPerMonth} > 0`),
+    check('coach_session_plans_price_check', sql`${table.monthlyPriceCents} > 0`),
+    check('coach_session_plans_currency_check', sql`${table.currency} = 'EUR'`),
+    check(
+      'coach_session_plans_status_check',
+      sql`${table.status} in ('draft', 'active', 'archived')`
+    ),
+  ]
+);
+
+export type CoachBillingProfile = typeof coachBillingProfiles.$inferSelect;
+export type CoachSessionPlan = typeof coachSessionPlans.$inferSelect;
+export type NewCoachSessionPlan = typeof coachSessionPlans.$inferInsert;
+
+/**
+ * L'abbonamento mensile di un atleta a un piano di un coach.
+ *
+ * Il piano è **copiato** qui (nome, sedute, prezzo): se il coach cambia o
+ * archivia il piano, ciò che l'atleta ha comprato resta quello che ha
+ * comprato. Lo stato lo scrive il webhook di Stripe, mai la pagina di ritorno:
+ * tornare da Checkout non prova che il pagamento sia andato a buon fine.
+ *
+ * `incomplete` = il Checkout è stato aperto e non ancora pagato. Se ne possono
+ * avere molti (carrelli abbandonati). Un solo abbonamento `active`/`past_due`
+ * per coppia atleta-coach è imposto dal database, non dall'applicazione.
+ */
+export const planSubscriptions = pgTable(
+  'plan_subscriptions',
+  {
+    id: serial('id').primaryKey(),
+    athleteUserId: integer('athlete_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    coachUserId: integer('coach_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    planId: integer('plan_id')
+      .notNull()
+      .references(() => coachSessionPlans.id, { onDelete: 'restrict' }),
+    planName: varchar('plan_name', { length: 80 }).notNull(),
+    sessionsPerMonth: integer('sessions_per_month').notNull(),
+    monthlyPriceCents: integer('monthly_price_cents').notNull(),
+    currency: varchar('currency', { length: 3 }).notNull().default('EUR'),
+    status: varchar('status', { length: 16 }).notNull().default('incomplete'),
+    stripeAccountId: varchar('stripe_account_id', { length: 255 }).notNull(),
+    stripeCheckoutSessionId: varchar('stripe_checkout_session_id', { length: 255 }).unique(),
+    stripeSubscriptionId: varchar('stripe_subscription_id', { length: 255 }).unique(),
+    stripeCustomerId: varchar('stripe_customer_id', { length: 255 }),
+    currentPeriodStart: timestamp('current_period_start', { withTimezone: true }),
+    currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }),
+    // Il momento in cui Stripe ha confermato l'abbonamento: è il «sottoscritto
+    // il» che l'atleta legge. Lo scrive il webhook, una volta sola.
+    subscribedAt: timestamp('subscribed_at', { withTimezone: true }),
+    cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
+    canceledAt: timestamp('canceled_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    ...audit,
+  },
+  (table) => [
+    uniqueIndex('plan_subscriptions_one_live_per_pair_idx')
+      .on(table.athleteUserId, table.coachUserId)
+      .where(sql`${table.status} in ('active', 'past_due')`),
+    index('plan_subscriptions_athlete_status_idx').on(table.athleteUserId, table.status),
+    index('plan_subscriptions_coach_status_idx').on(table.coachUserId, table.status),
+    check(
+      'plan_subscriptions_status_check',
+      sql`${table.status} in ('incomplete', 'active', 'past_due', 'canceled')`
+    ),
+    check('plan_subscriptions_sessions_check', sql`${table.sessionsPerMonth} > 0`),
+    check('plan_subscriptions_price_check', sql`${table.monthlyPriceCents} > 0`),
+    check('plan_subscriptions_currency_check', sql`${table.currency} = 'EUR'`),
+    check(
+      'plan_subscriptions_distinct_people_check',
+      sql`${table.athleteUserId} <> ${table.coachUserId}`
+    ),
+    check(
+      'plan_subscriptions_period_check',
+      sql`${table.currentPeriodEnd} is null or ${table.currentPeriodStart} is null or ${table.currentPeriodEnd} > ${table.currentPeriodStart}`
+    ),
+  ]
+);
+
+/**
+ * Gli eventi Stripe già visti. Stripe può consegnare lo stesso evento più
+ * volte e fuori ordine: la riga con `stripe_event_id` unico è ciò che rende
+ * innocua la seconda consegna.
+ */
+export const stripeWebhookEvents = pgTable(
+  'stripe_webhook_events',
+  {
+    id: serial('id').primaryKey(),
+    stripeEventId: varchar('stripe_event_id', { length: 255 }).notNull().unique(),
+    eventType: varchar('event_type', { length: 120 }).notNull(),
+    stripeAccountId: varchar('stripe_account_id', { length: 255 }),
+    status: varchar('status', { length: 16 }).notNull().default('received'),
+    attempts: integer('attempts').notNull().default(0),
+    lastErrorCode: varchar('last_error_code', { length: 80 }),
+    receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+    processedAt: timestamp('processed_at', { withTimezone: true }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('stripe_webhook_events_status_received_idx').on(table.status, table.receivedAt),
+    check(
+      'stripe_webhook_events_status_check',
+      sql`${table.status} in ('received', 'processed', 'failed', 'ignored')`
+    ),
+    check('stripe_webhook_events_attempts_check', sql`${table.attempts} >= 0`),
+  ]
+);
+
+export type PlanSubscription = typeof planSubscriptions.$inferSelect;
+export type NewPlanSubscription = typeof planSubscriptions.$inferInsert;
+export type StripeWebhookEvent = typeof stripeWebhookEvents.$inferSelect;
+
+/**
+ * Il registro delle sedute acquistate a parte (singole o extra): una riga per
+ * seduta. Le sedute di un abbonamento NON stanno qui: si calcolano contando le
+ * prenotazioni del periodo. Qui c'è solo ciò che non si può calcolare, cioè un
+ * acquisto con la sua scadenza.
+ *
+ * Stato scritto: `pending` (Checkout aperto, non pagato), `granted` (pagata dal
+ * webhook), `revoked` (rimborsata). Lo stato *di utilizzo* non si scrive:
+ * si deriva dalla prenotazione collegata (`booking_id`) —
+ *   nessuna prenotazione, o annullata/rifiutata/scaduta → disponibile;
+ *   richiesta o accettata → riservata;  completata → consumata.
+ * Così nessun punto che cambia lo stato di una prenotazione deve ricordarsi di
+ * aggiornare anche il registro: se se ne dimenticasse uno, la seduta resterebbe
+ * «riservata» per sempre.
+ *
+ * Una prenotazione tiene al massimo una seduta (indice parziale).
+ */
+export const sessionCredits = pgTable(
+  'session_credits',
+  {
+    id: serial('id').primaryKey(),
+    athleteUserId: integer('athlete_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    coachUserId: integer('coach_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    kind: varchar('kind', { length: 12 }).notNull(),
+    status: varchar('status', { length: 12 }).notNull().default('pending'),
+    priceCents: integer('price_cents').notNull(),
+    currency: varchar('currency', { length: 3 }).notNull().default('EUR'),
+    stripeAccountId: varchar('stripe_account_id', { length: 255 }).notNull(),
+    stripeCheckoutSessionId: varchar('stripe_checkout_session_id', { length: 255 }).unique(),
+    stripePaymentIntentId: varchar('stripe_payment_intent_id', { length: 255 }),
+    grantedAt: timestamp('granted_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    bookingId: integer('booking_id').references(() => bookings.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    ...audit,
+  },
+  (table) => [
+    uniqueIndex('session_credits_one_per_booking_idx')
+      .on(table.bookingId)
+      .where(sql`${table.bookingId} is not null`),
+    index('session_credits_pair_idx').on(table.athleteUserId, table.coachUserId, table.status),
+    check('session_credits_kind_check', sql`${table.kind} in ('single', 'extra')`),
+    check('session_credits_status_check', sql`${table.status} in ('pending', 'granted', 'revoked')`),
+    check('session_credits_price_check', sql`${table.priceCents} > 0`),
+    check('session_credits_currency_check', sql`${table.currency} = 'EUR'`),
+    check(
+      'session_credits_distinct_people_check',
+      sql`${table.athleteUserId} <> ${table.coachUserId}`
+    ),
+    check(
+      'session_credits_granted_shape_check',
+      sql`(${table.status} = 'pending' and ${table.grantedAt} is null and ${table.expiresAt} is null and ${table.bookingId} is null) or (${table.status} <> 'pending' and ${table.grantedAt} is not null and ${table.expiresAt} is not null and ${table.expiresAt} > ${table.grantedAt})`
+    ),
+  ]
+);
+
+export type SessionCredit = typeof sessionCredits.$inferSelect;

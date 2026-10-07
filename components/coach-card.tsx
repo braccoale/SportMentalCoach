@@ -11,6 +11,9 @@ import { FavoriteButton } from '@/components/favorite-button';
 import { CoachChatButton } from '@/components/coach-chat-button';
 import { ShareCoachButton } from '@/components/share-coach-button';
 import { IntroSessionButton } from '@/components/intro-session-button';
+import { BookSessionDialog } from '@/components/book-session-dialog';
+import { SubscribeDialog } from '@/components/subscribe-dialog';
+import type { BookableDay as CardBookableDay } from '@/lib/core/availability';
 import { StatMedal } from '@/components/coach-experience-stats';
 import { canSeeCoachPricing } from '@/lib/core/flags';
 import { DEMO_READONLY_MESSAGE } from '@/lib/auth/demo-readonly';
@@ -54,6 +57,9 @@ export function CoachCard({
   bookableDays,
   introAlreadyUsed,
   isDemo = false,
+  planOffers,
+  singleSessionPriceLabel,
+  bookingAccess,
   viewerEmail,
 }: {
   coach: DiscoveryCoach;
@@ -70,6 +76,28 @@ export function CoachCard({
   /** Account demo: prenotazione e sessione conoscitiva restano visibili ma
    * disabilitate, invece di far scoprire il blocco server-side al submit. */
   isDemo?: boolean;
+  /** Piani che questo atleta può acquistare da questo coach (vuoto = nessuna offerta). */
+  planOffers?: Array<{
+    id: number;
+    name: string;
+    description: string | null;
+    isRecommended: boolean;
+    sessionsPerMonth: number;
+    monthlyPriceCents: number;
+  }>;
+  /** Il prezzo di una seduta singola, già formattato; assente se il coach non la vende. */
+  singleSessionPriceLabel?: string | null;
+  /**
+   * Presente se l'atleta ha già pagato (abbonamento o seduta acquistata): il
+   * pulsante diventa «Prenota una seduta · N rimaste» e apre il modulo con le
+   * date che il server accetterebbe.
+   */
+  bookingAccess?: {
+    days: CardBookableDay[];
+    notice: string | null;
+    remaining: number | null;
+    total: number | null;
+  } | null;
   /** Email di chi guarda la card, per il pilota chiuso del prezzo
    * (`canSeeCoachPricing`) — vedi lib/core/flags.ts. */
   viewerEmail?: string | null;
@@ -241,7 +269,10 @@ export function CoachCard({
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             <IntroSessionButton
               slug={coach.slug}
+              coachName={name}
               coachFirstName={firstName}
+              coachAvatarUrl={coach.avatarUrl}
+              coachHeadline={coach.headline}
               loggedIn={loggedIn}
               isAthlete={isAthlete}
               bookableDays={bookableDays}
@@ -255,6 +286,48 @@ export function CoachCard({
               >
                 Prenota un incontro <ArrowRight className="h-4 w-4" />
               </span>
+            ) : bookingAccess ? (
+              <BookSessionDialog
+                slug={coach.slug}
+                coachName={name}
+                coachFirstName={firstName}
+                coachAvatarUrl={coach.avatarUrl}
+                coachHeadline={coach.headline}
+                services={(coach.services ?? []).map((service) => ({
+                  id: service.id,
+                  title: service.title,
+                  durationMin: service.durationMin,
+                }))}
+                bookableDays={bookingAccess.days}
+                notice={bookingAccess.notice}
+                remaining={bookingAccess.remaining}
+                total={bookingAccess.total}
+                singlePriceLabel={singleSessionPriceLabel ?? null}
+              />
+            ) : planOffers && planOffers.length > 0 ? (
+              // Con dei piani acquistabili il pulsante della scheda è
+              // «Abbonati», che apre i percorsi: «Prenota un incontro» porta
+              // allo stesso indirizzo di un clic sulla scheda, quindi qui
+              // sarebbe un doppione. Chi non ha piani lo ritrova com'era.
+              <SubscribeDialog
+                slug={coach.slug}
+                coachFirstName={firstName}
+                // Al browser arrivano solo i campi che la scelta mostra: il resto
+                // della riga (identificativi, date) resta sul server.
+                plans={planOffers.map((plan) => ({
+                  id: plan.id,
+                  name: plan.name,
+                  description: plan.description,
+                  isRecommended: plan.isRecommended,
+                  sessionsPerMonth: plan.sessionsPerMonth,
+                  monthlyPriceCents: plan.monthlyPriceCents,
+                }))}
+                single={
+                  singleSessionPriceLabel
+                    ? { priceLabel: singleSessionPriceLabel }
+                    : null
+                }
+              />
             ) : (
               <Link
                 href={`/coaches/${coach.slug}`}

@@ -8,6 +8,7 @@ import {
   Home,
   LogOut,
   Settings,
+  UserRound,
   UserPlus,
   ShieldCheck,
   LifeBuoy,
@@ -52,6 +53,11 @@ export function UserMenu({
     fetcher
   );
   const isAdmin = rolesData?.roles?.includes('admin') ?? false;
+  // Il profilo dell'atleta sta qui e non più nella barra a tab, dove ora c'è
+  // «Abbonamenti»; quello del coach non è più un tab dell'area coach. Chi ha
+  // entrambi i ruoli trova due voci, e l'etichetta dice di quale profilo si tratta.
+  const isAthlete = rolesData?.roles?.includes('athlete') ?? false;
+  const isCoach = rolesData?.roles?.includes('coach') ?? false;
 
   function closeMenu() {
     setIsMenuOpen(false);
@@ -88,6 +94,22 @@ export function UserMenu({
               <span>{t('dashboard')}</span>
             </Link>
           </DropdownMenuItem>
+          {isAthlete && (
+            <DropdownMenuItem asChild className="cursor-pointer" onSelect={closeMenu}>
+              <Link href="/dashboard/athlete/profile" onClick={closeMenu}>
+                <UserRound className="size-4" />
+                <span>{isCoach ? t('athleteProfile') : t('profile')}</span>
+              </Link>
+            </DropdownMenuItem>
+          )}
+          {isCoach && (
+            <DropdownMenuItem asChild className="cursor-pointer" onSelect={closeMenu}>
+              <Link href="/dashboard/coach/profile" onClick={closeMenu}>
+                <UserRound className="size-4" />
+                <span>{isAthlete ? t('coachProfile') : t('profile')}</span>
+              </Link>
+            </DropdownMenuItem>
+          )}
           {isDemo ? (
             <DropdownMenuItem
               disabled

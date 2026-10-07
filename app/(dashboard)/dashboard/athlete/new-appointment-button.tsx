@@ -233,6 +233,11 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                   {coaches.map((c) => (
                     <option key={c.slug} value={c.slug}>
                       {c.isFavorite ? `♥ ${c.name}` : c.name}
+                      {c.credits && c.credits.remainingNow !== null
+                        ? ` · ${c.credits.remainingNow} ${
+                            c.credits.remainingNow === 1 ? 'rimasta' : 'rimaste'
+                          } su ${c.credits.total}`
+                        : ''}
                     </option>
                   ))}
                 </select>
@@ -267,6 +272,12 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
               </label>
 
               <input type="hidden" name="scheduledFor" value={scheduledFor} />
+
+              {days.length > 0 && selected?.creditsNotice && (
+                <p className="rounded-md bg-blue-50 px-3 py-2 text-sm text-gray-700">
+                  {selected.creditsNotice}
+                </p>
+              )}
 
               {days.length > 0 ? (
                 <div className="flex flex-col gap-1.5">
@@ -334,6 +345,13 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                     </label>
                   </div>
                 </div>
+              ) : selected?.creditsNotice ? (
+                <p
+                  role="status"
+                  className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800"
+                >
+                  {selected.creditsNotice}
+                </p>
               ) : (selected?.bookableDays.length ?? 0) > 0 ? (
                 <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
                   Gli orari proposti sono nel frattempo passati. Ricarica la
@@ -411,7 +429,9 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
                   Avvia sessione ora
                 </Button>
                 <p className="mt-2 text-center text-xs text-gray-500">
-                  {selected && !selected.canCallNow
+                  {selected && !selected.canCallNow && selected.credits && selected.creditsNotice
+                    ? selected.creditsNotice
+                    : selected && !selected.canCallNow
                     ? `${selected.name} non è disponibile in questo momento${
                         selected.availabilityHint
                           ? `: ${selected.availabilityHint}`

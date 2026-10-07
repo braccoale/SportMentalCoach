@@ -1,7 +1,7 @@
 import 'server-only';
 import { and, asc, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
-import { directConversations, directMessages, notifications, profiles, providerProfiles, userRoles, users } from '@/lib/db/schema';
+import { bookings, directConversations, directMessages, favorites, notifications, profiles, providerProfiles, userRoles, users } from '@/lib/db/schema';
 import { notify } from '@/lib/core/notifications';
 import type { Result } from '@/lib/core/result';
 import type { Conversation } from './index';
@@ -99,4 +99,39 @@ export async function getDirectConversations(userId: number): Promise<Conversati
     serviceTitle: 'Chat diretta', scheduledFor: null, lastBody: row.lastBody,
     lastAt: row.updatedAt, lastFromMe: row.lastSenderId === userId, unread: row.unread, readOnly: row.readOnly,
   }));
+}
+
+/**
+ * I coach a cui un atleta può scrivere da «Nuovo messaggio»: quelli con cui ha
+ * già una prenotazione (di qualunque stato) o che ha tra i preferiti, purché
+ * approvati e reali. Non passa per le regole dei pagamenti: scrivere a un coach
+ * non richiede un abbonamento. `openDirectConversation` ricontrolla tutto.
+ */
+export async function getMessageableCoaches(
+  userId: number
+): Promise<{ slug: string; name: string; avatarUrl: string | null }[]> {
+  const [booked, faved] = await Promise.all([
+    db.selectDistinct({ providerId: bookings.providerId }).from(bookings)
+      .where(eq(bookings.clientId, userId)),
+    db.select({ providerId: favorites.providerId }).from(favorites)
+      .where(eq(favorites.userId, userId)),
+  ]);
+  const ids = [...new Set([...booked, ...faved].map((row) => row.providerId))];
+  if (ids.length === 0) return [];
+  const rows = await db
+    .select({ slug: providerProfiles.slug, name: profiles.displayName, avatarUrl: profiles.avatarUrl })
+    .from(providerProfiles)
+    .innerJoin(users, eq(users.id, providerProfiles.userId))
+    .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
+    .where(and(
+      inArray(providerProfiles.id, ids),
+      eq(providerProfiles.status, 'approved'),
+      eq(users.isDemo, false),
+      isNull(users.deletedAt),
+      sql`${providerProfiles.userId} <> ${userId}`,
+    ));
+  return rows
+    .filter((row): row is typeof row & { slug: string } => Boolean(row.slug))
+    .map((row) => ({ slug: row.slug, name: row.name ?? 'Coach', avatarUrl: row.avatarUrl }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }

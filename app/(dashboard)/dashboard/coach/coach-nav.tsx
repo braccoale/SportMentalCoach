@@ -4,13 +4,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
-  UserRound,
   Briefcase,
   CalendarDays,
   GraduationCap,
   MessageSquare,
   Users2,
   LifeBuoy,
+  Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CoachBadge } from '@/components/coach-badge';
@@ -21,8 +21,14 @@ const TABS = [
   { href: '/dashboard/coach/calendar', label: 'Calendario', icon: CalendarDays },
   { href: '/dashboard/coach/academy', label: 'Academy', icon: GraduationCap },
   { href: '/dashboard/coach/messages', label: 'Messaggi', icon: MessageSquare },
-  { href: '/dashboard/coach/profile', label: 'Profilo', icon: UserRound },
   { href: '/dashboard/coach/services', label: 'Servizi', icon: Briefcase },
+  // Solo se l'admin ha attivato i pagamenti per questo coach.
+  {
+    href: '/dashboard/coach/pagamenti',
+    label: 'Pagamenti',
+    icon: Wallet,
+    requiresPayments: true,
+  },
   { href: '/dashboard/supporto', label: 'Supporto', icon: LifeBuoy },
 ];
 
@@ -31,6 +37,7 @@ export function CoachNav({
   unreadMessages = 0,
   academyCourseCount = 0,
   coachName,
+  paymentsVisible = false,
 }: {
   pendingCount?: number;
   unreadMessages?: number;
@@ -38,6 +45,8 @@ export function CoachNav({
   academyCourseCount?: number;
   /** Printed on the hanging badge. */
   coachName?: string | null;
+  /** Pagamenti attivati dall'admin per questo coach: mostra la voce Pagamenti. */
+  paymentsVisible?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -66,7 +75,7 @@ export function CoachNav({
       </div>
 
       <nav className="mt-4 flex gap-1 overflow-x-auto px-4">
-        {TABS.map((tab) => {
+        {TABS.filter((tab) => !('requiresPayments' in tab) || paymentsVisible).map((tab) => {
           // Exact match for the dashboard root, prefix match for sub-sections.
           const active =
             tab.href === '/dashboard/coach'

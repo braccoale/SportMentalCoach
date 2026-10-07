@@ -30,6 +30,22 @@ import { getUser } from '@/lib/db/queries';
 import { getAllSports, getAllSpecialties } from '@/lib/core/taxonomies';
 import { hasRole } from '@/lib/core/auth';
 import { canSeeCoachPricing } from '@/lib/core/flags';
+import {
+  formatEuroCents,
+  formatLongDateRome,
+  getAthleteSubscriptionForCoach,
+  getBookingCreditContexts,
+  getPaymentMethodLabels,
+  getSessionUsageForSubscriptions,
+  getSingleSessionOffersByProvider,
+  getPlansVisibleToAthlete,
+  perSessionCents,
+  purchaseNoticeFor,
+  subscribedOn,
+} from '@/lib/core/billing';
+import { PlanPicker } from '@/components/plan-picker';
+import { applyBookingCredits } from '@/lib/core/bookings';
+import { SubscriptionCard } from '@/components/subscription-card';
 import { CoachAvatar, CertifiedBadge } from '@/components/coach-visuals';
 import { CoachExperienceStats } from '@/components/coach-experience-stats';
 import { FavoriteButton } from '@/components/favorite-button';
@@ -53,7 +69,7 @@ import {
   metaDescription,
   coachPageTitle,
 } from '@/lib/core/seo';
-import { BookingRequest } from './booking-request';
+import { SessionBookingForm } from '@/components/session-booking-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -142,12 +158,13 @@ export default async function CoachDetailPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ richiesta?: string }>;
+  searchParams: Promise<{ richiesta?: string; abbonamento?: string }>;
 }) {
   const { slug } = await params;
   // After a booking request the user lands back here with ?richiesta=ok and
   // the booking box shows a clear confirmation instead of the form.
-  const justRequested = (await searchParams).richiesta === 'ok';
+  const query = await searchParams;
+  const justRequested = query.richiesta === 'ok';
   const user = await getUser();
   const coach = await getCoachBySlug(slug, { viewerUserId: user?.id });
   if (!coach) {
@@ -172,6 +189,44 @@ export default async function CoachDetailPage({
       user ? getFavoriteProviderIds(user.id) : Promise.resolve(new Set<number>()),
     ]);
   const isAthlete = user ? await hasRole(user.id, 'athlete') : false;
+  // I piani mensili sono visibili solo a un atleta con un account e solo se il
+  // coach può incassare. `showPricing` non cambia: alimenta anche i dati
+  // strutturati per i motori di ricerca, dove questi prezzi non devono finire.
+  const plans = await getPlansVisibleToAthlete({
+    providerId: coach.providerId,
+    viewerIsAthlete: isAthlete,
+  });
+  const showHourlyRate = showPricing || plans.length > 0;
+  const subscription =
+    user && isAthlete && plans.length > 0
+      ? await getAthleteSubscriptionForCoach({
+          athleteUserId: user.id,
+          providerId: coach.providerId,
+        })
+      : null;
+  // La scheda è la stessa del tab Abbonamenti: sedute fatte e rimaste e metodo
+  // di pagamento si leggono qui, una volta, solo per chi ha un abbonamento vivo.
+  const liveSubscription =
+    subscription &&
+    (subscription.status === 'active' || subscription.status === 'past_due')
+      ? subscription
+      : null;
+  const [subscriptionUsage, subscriptionPaymentMethod] =
+    user && liveSubscription
+      ? await Promise.all([
+          getSessionUsageForSubscriptions(user.id, [liveSubscription]).then(
+            (usage) => usage.get(liveSubscription.id)
+          ),
+          getPaymentMethodLabels([liveSubscription]).then(
+            (labels) => labels.get(liveSubscription.id) ?? null
+          ),
+        ])
+      : [undefined, null];
+  // Il testo dell'esito lo sceglie il modulo dal codice: il parametro
+  // dell'indirizzo non può mai far comparire una frase scritta da altri.
+  const purchaseNotice = purchaseNoticeFor(query.abbonamento, {
+    subscriptionActive: subscription?.status === 'active',
+  });
   const isDemo = user?.isDemo ?? false;
 
   const config = getVerticalConfig();
@@ -211,6 +266,41 @@ export default async function CoachDetailPage({
     user && isAthlete
       ? await hasUsedIntroSession(coach.providerId, user.id)
       : false;
+  // Con un coach a pagamento si prenota con un abbonamento. Lo decide il
+  // server, non il form: chi non ce l'ha non vede un calendario che poi
+  // rifiuterebbe (stessa regola di `createBookingRequest`); chi ce l'ha vede
+  // solo le date ammesse e quante sedute gli restano. Un account demo non
+  // compra e non prenota davvero: per lui il form resta com'è.
+  const creditContext =
+    user && isAthlete && !isDemo
+      ? (await getBookingCreditContexts(user.id, [coach.providerId])).get(
+          coach.providerId
+        )
+      : undefined;
+  // Chi ha comprato una seduta a parte può prenotarla anche senza abbonamento.
+  const hasPurchasedSessions = (creditContext?.credits.length ?? 0) > 0;
+  const needsSubscription = Boolean(
+    creditContext?.requiresSubscription &&
+      !creditContext.subscription &&
+      !hasPurchasedSessions
+  );
+  const singleCents =
+    user && isAthlete && !isDemo
+      ? ((await getSingleSessionOffersByProvider([coach.providerId])).get(
+          coach.providerId
+        ) ?? null)
+      : null;
+  const singlePriceLabel = singleCents ? formatEuroCents(singleCents) : null;
+  const creditView =
+    creditContext?.requiresSubscription &&
+    (creditContext.subscription || hasPurchasedSessions)
+      ? applyBookingCredits(
+          { bookableDays, canCallNow: true },
+          creditContext,
+          new Date()
+        )
+      : null;
+  const bookingDays = creditView?.bookableDays ?? bookableDays;
   // Niente tour per un visitatore non loggato o un coach che guarda il
   // proprio stesso profilo: il calendario di prenotazione (bersaglio del
   // tour) non è in pagina per loro.
@@ -370,6 +460,9 @@ export default async function CoachDetailPage({
               <div className="shrink-0">
                 <IntroSessionButton
                   slug={slug}
+                  coachName={name}
+                  coachAvatarUrl={coach.avatarUrl}
+                  coachHeadline={coach.headline}
                   coachFirstName={firstName}
                   loggedIn={Boolean(user)}
                   isAthlete={isAthlete}
@@ -524,6 +617,91 @@ export default async function CoachDetailPage({
             </section>
           )}
 
+          {/* Percorsi mensili: solo per un atleta con un account e un coach
+              che può incassare (vedi `getPlansVisibleToAthlete`). */}
+          {plans.length > 0 && (
+            <section
+              id="percorsi"
+              className="mt-10 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7"
+              aria-labelledby="percorsi-titolo"
+            >
+              <h2 id="percorsi-titolo" className="text-xl font-semibold text-gray-900">
+                Percorsi mensili con {firstName}
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Un abbonamento mensile con un numero fisso di sedute. Paghi con
+                carta e l&apos;importo va direttamente a {firstName}.
+              </p>
+              {purchaseNotice && (
+                <p
+                  role={purchaseNotice.tone === 'error' ? 'alert' : 'status'}
+                  className={
+                    purchaseNotice.tone === 'error'
+                      ? 'mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800'
+                      : purchaseNotice.tone === 'ok'
+                        ? 'mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800'
+                        : 'mt-4 rounded-xl bg-blue-50 px-4 py-3 text-sm text-gray-700'
+                  }
+                >
+                  {purchaseNotice.text}
+                </p>
+              )}
+              {subscription?.status === 'active' || subscription?.status === 'past_due' ? (
+                <div className="mt-4">
+                  <SubscriptionCard
+                    slug={slug}
+                    coachName={name}
+                    coachAvatarUrl={coach.avatarUrl}
+                    subscription={{
+                      id: subscription.id,
+                      planName: subscription.planName,
+                      sessionsPerMonth: subscription.sessionsPerMonth,
+                      priceLabel: formatEuroCents(subscription.monthlyPriceCents),
+                      perSessionLabel: formatEuroCents(
+                        perSessionCents(
+                          subscription.monthlyPriceCents,
+                          subscription.sessionsPerMonth
+                        )
+                      ),
+                      sinceLabel: formatLongDateRome(subscribedOn(subscription)),
+                      status: subscription.status,
+                      cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+                      periodEndLabel: subscription.currentPeriodEnd
+                        ? formatDate(subscription.currentPeriodEnd)
+                        : null,
+                      usage: subscriptionUsage ?? { known: false },
+                      paymentMethodLabel: subscriptionPaymentMethod,
+                      singleSessionPriceLabel: singlePriceLabel,
+                      extraSessions:
+                        creditContext && creditContext.credits.length > 0
+                          ? {
+                              count: creditContext.credits.length,
+                              expiryLabel: formatLongDateRome(
+                                creditContext.credits[0].expiresAt
+                              ),
+                            }
+                          : null,
+                    }}
+                  />
+                </div>
+              ) : (
+                <PlanPicker
+                  slug={slug}
+                  coachFirstName={firstName}
+                  single={singlePriceLabel ? { priceLabel: singlePriceLabel } : null}
+                  plans={plans.map((plan) => ({
+                    id: plan.id,
+                    name: plan.name,
+                    description: plan.description,
+                    isRecommended: plan.isRecommended,
+                    sessionsPerMonth: plan.sessionsPerMonth,
+                    monthlyPriceCents: plan.monthlyPriceCents,
+                  }))}
+                />
+              )}
+            </section>
+          )}
+
           {/* Booking card: calendario, obiettivo, invio. Niente più campo
               servizio/durata da scegliere — la durata di riferimento è
               quella del servizio principale del coach (vedi
@@ -535,7 +713,7 @@ export default async function CoachDetailPage({
                   <CardTitle className="text-lg">
                     Inizia il tuo percorso con {firstName}
                   </CardTitle>
-                  {showPricing && coach.hourlyRate != null && (
+                  {showHourlyRate && coach.hourlyRate != null && (
                     <p className="text-sm text-muted-foreground">
                       a partire da{' '}
                       <span className="font-semibold text-gray-900">
@@ -578,26 +756,63 @@ export default async function CoachDetailPage({
                       </Link>
                     </Button>
                   </div>
+                ) : isAthlete && needsSubscription ? (
+                  <div className="flex flex-col gap-3">
+                    <p className="text-sm leading-relaxed text-gray-700">
+                      Con {firstName} prenoti con un{' '}
+                      <strong>abbonamento mensile</strong>: scegli il tuo
+                      percorso e le sedute sono tue da prenotare quando vuoi.
+                    </p>
+                    <Button asChild size="lg" className="rounded-full">
+                      <a href="#percorsi">Vedi i percorsi</a>
+                    </Button>
+                    {!introAlreadyUsed && (
+                      <p className="text-xs text-gray-500">
+                        Vuoi prima conoscerlo? Usa «Sessione conoscitiva
+                        (gratis)» in alto: non richiede l&apos;abbonamento.
+                      </p>
+                    )}
+                  </div>
                 ) : isAthlete ? (
-                  <BookingRequest
-                    slug={slug}
-                    coachFirstName={firstName}
-                    services={coach.services.map((s) => ({
-                      id: s.id,
-                      title: s.title,
-                      durationMin: s.durationMin,
-                    }))}
-                    bookableDays={bookableDays}
-                    isDemo={isDemo}
-                    tourAlreadySeen={bookingTourSeen}
-                  />
+                  <>
+                    {creditView?.creditsNotice && (
+                      <p
+                        role="status"
+                        className="rounded-md bg-blue-50 px-3 py-2 text-sm text-gray-700"
+                      >
+                        {creditView.creditsNotice}
+                      </p>
+                    )}
+                    {/* Se le sedute non lasciano nessuna data, l'avviso sopra
+                        la spiega: un calendario vuoto accanto direbbe che il
+                        coach non è disponibile, e non è vero. */}
+                    {!(creditView && bookingDays.length === 0) && (
+                      <SessionBookingForm
+                        slug={slug}
+                        coachName={name}
+                        coachFirstName={firstName}
+                        coachAvatarUrl={coach.avatarUrl}
+                        coachHeadline={coach.headline}
+                        services={coach.services.map((s) => ({
+                          id: s.id,
+                          title: s.title,
+                          durationMin: s.durationMin,
+                        }))}
+                        bookableDays={bookingDays}
+                        isDemo={isDemo}
+                        tourAlreadySeen={bookingTourSeen}
+                        showTour
+                        submitLabel={`Invia la richiesta a ${firstName}`}
+                      />
+                    )}
+                  </>
                 ) : (
                   <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-800">
                     Solo gli atleti possono richiedere una sessione.
                   </p>
                 )}
 
-                {!justRequested && (
+                {!justRequested && !needsSubscription && (
                   <>
                     {/* Cosa succede adesso? — 4 rassicurazioni in 4 righe */}
                     <div className="border-t border-gray-100 pt-3">

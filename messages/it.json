@@ -31,6 +31,9 @@
   "UserMenu": {
     "dashboard": "Dashboard",
     "settings": "Impostazioni",
+    "profile": "Profilo",
+    "athleteProfile": "Profilo atleta",
+    "coachProfile": "Profilo coach",
     "admin": "Admin",
     "support": "Supporto",
     "inviteFriend": "Invita un amico",

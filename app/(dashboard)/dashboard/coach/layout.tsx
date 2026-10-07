@@ -3,6 +3,10 @@ import { getPendingRequestCount } from '@/lib/core/bookings';
 import { getUnreadCountForType } from '@/lib/core/notifications';
 import { listSessionsForUser } from '@/lib/core/academy/sessions';
 import { countCoursesWithUpcomingSessions } from '@/lib/core/academy/upcoming-sessions';
+import {
+  coachSeesPaymentsSection,
+  getCoachPaymentsState,
+} from '@/lib/core/billing';
 import { CoachNav } from './coach-nav';
 
 // Il badge Academy deve riflettere lo stato reale a ogni apertura — non solo
@@ -20,13 +24,14 @@ export default async function CoachAreaLayout({
   // Tab badges: pending requests (Dashboard) + unread messages (Messaggi) +
   // corsi Academy con almeno una sessione futura pianificata.
   const user = await getUser();
-  const [pendingCount, unreadMessages, academySessions] = user
+  const [pendingCount, unreadMessages, academySessions, paymentsState] = user
     ? await Promise.all([
         getPendingRequestCount(user.id),
         getUnreadCountForType(user.id, 'new_message'),
         listSessionsForUser(user.id),
+        getCoachPaymentsState(user.id),
       ])
-    : [0, 0, []];
+    : [0, 0, [], 'off' as const];
   const academyCourseCount = countCoursesWithUpcomingSessions(academySessions);
 
   return (
@@ -35,6 +40,7 @@ export default async function CoachAreaLayout({
         pendingCount={pendingCount}
         unreadMessages={unreadMessages}
         academyCourseCount={academyCourseCount}
+        paymentsVisible={coachSeesPaymentsSection(paymentsState)}
         coachName={
           user
             ? [user.name, user.lastName].filter(Boolean).join(' ') || null
