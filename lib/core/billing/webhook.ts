@@ -4,6 +4,7 @@ import type Stripe from 'stripe';
 import { db } from '@/lib/db/drizzle';
 import {
   coachBillingProfiles,
+  coachSessionPlans,
   planSubscriptions,
   sessionCredits,
   stripeWebhookEvents,
@@ -18,6 +19,7 @@ import {
   notifySubscriptionEvent,
 } from './billing-events-notify';
 import { billingEventsForTransition } from './billing-events-content';
+import { planToApplyFromMetadata } from './plan-change';
 import {
   DEFAULT_SINGLE_SESSION_VALIDITY_DAYS,
   SINGLE_SESSION_VALIDITY_CONFIG_KEY,
@@ -283,6 +285,41 @@ async function onCheckoutCompleted(
   return 'processed';
 }
 
+/**
+ * Il cambio piano programmato è arrivato: Stripe ha fatto partire la fase del
+ * piano nuovo e l'abbonamento porta il segno `kaipai_plan_id`. Si riscrive la
+ * fotografia della riga (nome, sedute, prezzo) e si azzera il cambio in
+ * attesa. Il piano deve essere dello stesso coach: un segno che punta altrove
+ * si ignora.
+ */
+async function planChangeFromSubscription(
+  rowId: number,
+  metadata: Record<string, string> | null | undefined
+): Promise<Partial<typeof planSubscriptions.$inferInsert>> {
+  const [row] = await db
+    .select({ planId: planSubscriptions.planId, coachUserId: planSubscriptions.coachUserId })
+    .from(planSubscriptions)
+    .where(eq(planSubscriptions.id, rowId))
+    .limit(1);
+  if (!row) return {};
+  const newPlanId = planToApplyFromMetadata(metadata, row.planId);
+  if (newPlanId === null) return {};
+  const [plan] = await db
+    .select()
+    .from(coachSessionPlans)
+    .where(eq(coachSessionPlans.id, newPlanId))
+    .limit(1);
+  if (!plan || plan.coachUserId !== row.coachUserId) return {};
+  return {
+    planId: plan.id,
+    planName: plan.name,
+    sessionsPerMonth: plan.sessionsPerMonth,
+    monthlyPriceCents: plan.monthlyPriceCents,
+    pendingPlanId: null,
+    pendingScheduleId: null,
+  };
+}
+
 async function onSubscriptionChanged(
   subscription: Stripe.Subscription,
   accountId: string,
@@ -299,7 +336,12 @@ async function onSubscriptionChanged(
     ? 'canceled'
     : planSubscriptionStatusFromStripe(subscription.status);
 
+  const planChange = deleted
+    ? {}
+    : await planChangeFromSubscription(rowId, subscription.metadata);
+
   await applyStatus(rowId, accountId, incoming, {
+    ...planChange,
     stripeSubscriptionId: subscription.id,
     ...(typeof subscription.customer === 'string'
       ? { stripeCustomerId: subscription.customer }

@@ -56,6 +56,21 @@ export function purchaseNoticeFor(
         tone: 'ok',
         text: 'Abbonamento riattivato: continuerà a rinnovarsi ogni mese.',
       };
+    case 'piano-programmato':
+      return {
+        tone: 'ok',
+        text: 'Cambio piano programmato: dal prossimo rinnovo avrai il piano scelto. Fino ad allora non cambia niente.',
+      };
+    case 'cambio-annullato':
+      return {
+        tone: 'ok',
+        text: 'Cambio piano annullato: resti sul piano attuale.',
+      };
+    case 'cambio-errore':
+      return {
+        tone: 'error',
+        text: 'Non siamo riusciti a cambiare il piano. Riprova tra poco.',
+      };
     default:
       // `hasOwn`, non `in`: «constructor» o «toString» sono nell'oggetto per
       // eredità e non sono codici di rifiuto.

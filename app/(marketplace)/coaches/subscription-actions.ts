@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/db/queries';
 import {
+  changeAthletePlan,
   setAthleteSubscriptionCancellation,
   startPaymentMethodPortal,
 } from '@/lib/core/billing';
@@ -51,6 +52,47 @@ async function change(formData: FormData, cancel: boolean): Promise<void> {
       reason: error instanceof Error ? error.message : 'sconosciuto',
     });
     outcome = 'errore';
+  }
+  redirect(`${profilePath}?abbonamento=${outcome}${anchor}`);
+}
+
+/**
+ * Cambia piano dal prossimo rinnovo (o annulla il cambio, se si sceglie di
+ * nuovo il piano attuale). La regola sta in `decidePlanChange`.
+ */
+export async function changePlanAction(formData: FormData): Promise<void> {
+  const { path: profilePath, anchor } = returnPath(formData);
+  const user = await getUser();
+  if (!user) redirect(`/sign-in?redirect=${encodeURIComponent(profilePath)}`);
+
+  const subscriptionRowId = Number(formData.get('subscriptionId'));
+  const newPlanId = Number(formData.get('planId'));
+  if (
+    !Number.isInteger(subscriptionRowId) || subscriptionRowId <= 0 ||
+    !Number.isInteger(newPlanId) || newPlanId <= 0
+  ) {
+    redirect(`${profilePath}?abbonamento=cambio-errore${anchor}`);
+  }
+
+  let outcome: 'piano-programmato' | 'cambio-annullato' | 'cambio-errore';
+  try {
+    const result = await changeAthletePlan({
+      athleteUserId: user.id,
+      subscriptionRowId,
+      newPlanId,
+    });
+    outcome = result.ok
+      ? result.cancelled
+        ? 'cambio-annullato'
+        : 'piano-programmato'
+      : 'cambio-errore';
+  } catch (error) {
+    console.error('[payments] cambio piano non applicato', {
+      athleteUserId: user.id,
+      subscriptionRowId,
+      reason: error instanceof Error ? error.message : 'sconosciuto',
+    });
+    outcome = 'cambio-errore';
   }
   redirect(`${profilePath}?abbonamento=${outcome}${anchor}`);
 }
