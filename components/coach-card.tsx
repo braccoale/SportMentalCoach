@@ -71,9 +71,9 @@ export function CoachCard({
   isAthlete: boolean;
   /** DB taxonomy rows for label resolution; falls back to the static config. */
   sportsList?: TaxonomyItem[];
-  /** Calendario del coach, calcolato una volta per tutta la pagina — vedi
-   * app/(marketplace)/coaches/page.tsx. */
-  bookableDays: BookableDay[];
+  /** Calendario del coach, se la pagina lo porta. L'elenco dei coach no: le
+   * date si chiedono al server quando la finestra si apre. */
+  bookableDays?: BookableDay[];
   introAlreadyUsed: boolean;
   /** Account demo: prenotazione e sessione conoscitiva restano visibili ma
    * disabilitate, invece di far scoprire il blocco server-side al submit. */
@@ -97,7 +97,9 @@ export function CoachCard({
    * date che il server accetterebbe.
    */
   bookingAccess?: {
-    days: CardBookableDay[];
+    /** Assenti nell'elenco: si chiedono all'apertura, `hasDays` dice se ce ne sono. */
+    days?: CardBookableDay[];
+    hasDays?: boolean;
     notice: string | null;
     remaining: number | null;
     total: number | null;
@@ -303,6 +305,7 @@ export function CoachCard({
                   durationMin: service.durationMin,
                 }))}
                 bookableDays={bookingAccess.days}
+                hasDays={bookingAccess.hasDays}
                 notice={bookingAccess.notice}
                 remaining={bookingAccess.remaining}
                 total={bookingAccess.total}

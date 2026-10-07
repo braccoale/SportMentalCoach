@@ -248,22 +248,29 @@ export default async function CoachesPage({
         : Promise.resolve(new Map<number, number>()),
       getSingleSessionValidityDays(),
     ]);
+  // Le date delle schede NON viaggiano nella pagina: pesavano ~530 KB per 4
+  // coach. Le chiede la finestra di prenotazione quando si apre
+  // (`/api/coaches/<slug>/calendar`, `LazyBookingCalendar`). Qui si calcolano
+  // solo per chi ha già pagato, e solo per sapere se ce ne sono e cosa scrivere
+  // sul pulsante («N rimaste»): le stesse date che poi arriveranno al clic.
   const bookableDaysByProvider = new Map<number, BookableDay[]>(
-    cardProviderIds.map((id) => [
-      id,
-      getBookableDays(availByProvider.get(id) ?? [], {
-        busyIntervals: busyByProvider.get(id) ?? [],
-        stepMinutes,
-        daysAhead,
-      }),
-    ])
+    cardProviderIds
+      .filter((id) => creditContexts.has(id))
+      .map((id) => [
+        id,
+        getBookableDays(availByProvider.get(id) ?? [], {
+          busyIntervals: busyByProvider.get(id) ?? [],
+          stepMinutes,
+          daysAhead,
+        }),
+      ])
   );
 
   const bookingNow = new Date();
   const bookingAccessByProvider = new Map<
     number,
     {
-      days: BookableDay[];
+      hasDays: boolean;
       notice: string | null;
       remaining: number | null;
       total: number | null;
@@ -287,7 +294,7 @@ export default async function CoachesPage({
     );
     const credits = view.credits;
     bookingAccessByProvider.set(id, {
-      days: view.bookableDays,
+      hasDays: view.bookableDays.length > 0,
       notice: view.creditsNotice,
       remaining: !credits
         ? null
@@ -602,7 +609,6 @@ export default async function CoachesPage({
             isAthlete={isAthlete}
             categories={categories}
             selectedNeeds={selectedNeeds}
-            bookableDaysByProvider={bookableDaysByProvider}
             introUsedIds={introUsedIds}
             planOffers={planOffers}
             isDemo={isDemo}
@@ -617,7 +623,6 @@ export default async function CoachesPage({
                 loggedIn={loggedIn}
                 isAthlete={isAthlete}
                 sportsList={categories}
-                bookableDays={bookableDaysByProvider.get(coach.providerId) ?? []}
                 introAlreadyUsed={introUsedIds.has(coach.providerId)}
                 planOffers={planOffers.get(coach.providerId)}
                 singleSessionPriceLabel={
@@ -730,7 +735,6 @@ function NoResults({
   isAthlete,
   categories,
   selectedNeeds,
-  bookableDaysByProvider,
   introUsedIds,
   planOffers,
   isDemo,
@@ -742,7 +746,6 @@ function NoResults({
   isAthlete: boolean;
   categories: { key: string; label: string }[];
   selectedNeeds: AthleteNeed[];
-  bookableDaysByProvider: Map<number, BookableDay[]>;
   introUsedIds: Set<number>;
   planOffers: Awaited<ReturnType<typeof getPlanOffersForCoaches>>;
   isDemo: boolean;
@@ -788,7 +791,6 @@ function NoResults({
                 loggedIn={loggedIn}
                 isAthlete={isAthlete}
                 sportsList={categories}
-                bookableDays={bookableDaysByProvider.get(coach.providerId) ?? []}
                 introAlreadyUsed={introUsedIds.has(coach.providerId)}
                 planOffers={planOffers.get(coach.providerId)}
                 isDemo={isDemo}
