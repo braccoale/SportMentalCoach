@@ -3,6 +3,7 @@
 import { ArrowRight } from 'lucide-react';
 import { SessionBookingForm } from '@/components/session-booking-form';
 import { BuySessionButton } from '@/components/buy-session-button';
+import { LazyBookingCalendar } from '@/components/lazy-booking-calendar';
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,7 @@ export function BookSessionDialog({
   coachHeadline,
   services,
   bookableDays,
+  hasDays,
   notice,
   remaining,
   total,
@@ -40,7 +42,14 @@ export function BookSessionDialog({
   coachAvatarUrl: string | null;
   coachHeadline: string | null;
   services: { id: number; title: string | null; durationMin: number | null }[];
-  bookableDays: BookableDay[];
+  /**
+   * Le date, se la pagina le ha già. Se mancano (l'elenco dei coach non le
+   * porta, pesano) si chiedono al server quando la finestra si apre, e
+   * `hasDays` dice se ce ne sono per decidere cosa mostrare.
+   */
+  bookableDays?: BookableDay[];
+  /** Ci sono date prenotabili? Serve quando `bookableDays` non c'è. */
+  hasDays?: boolean;
   /** Perché le date sono poche o nessuna, già scritto dal server. */
   notice: string | null;
   /** Sedute ancora disponibili adesso (piano + extra); `null` se non si sa. */
@@ -53,7 +62,20 @@ export function BookSessionDialog({
     remaining === null
       ? 'Prenota una seduta'
       : `Prenota una seduta · ${remaining} ${remaining === 1 ? 'rimasta' : 'rimaste'}`;
-  const noDays = bookableDays.length === 0;
+  const form = (days: BookableDay[]) => (
+    <SessionBookingForm
+      slug={slug}
+      coachName={coachName}
+      coachFirstName={coachFirstName}
+      coachAvatarUrl={coachAvatarUrl}
+      coachHeadline={coachHeadline}
+      services={services}
+      bookableDays={days}
+      remaining={remaining}
+      total={total}
+    />
+  );
+  const noDays = bookableDays ? bookableDays.length === 0 : hasDays === false;
 
   return (
     <Dialog>
@@ -88,17 +110,13 @@ export function BookSessionDialog({
 
         {!noDays && (
           <div className="mt-4">
-            <SessionBookingForm
-              slug={slug}
-              coachName={coachName}
-              coachFirstName={coachFirstName}
-              coachAvatarUrl={coachAvatarUrl}
-              coachHeadline={coachHeadline}
-              services={services}
-              bookableDays={bookableDays}
-              remaining={remaining}
-              total={total}
-            />
+            {bookableDays ? (
+              form(bookableDays)
+            ) : (
+              <LazyBookingCalendar slug={slug} kind="book">
+                {({ days }) => form(days)}
+              </LazyBookingCalendar>
+            )}
           </div>
         )}
 
