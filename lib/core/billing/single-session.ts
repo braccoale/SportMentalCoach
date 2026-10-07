@@ -101,3 +101,30 @@ export function isCreditFree(
     (FREEING_BOOKING_STATUSES as readonly string[]).includes(linkedBookingStatus)
   );
 }
+
+export type CreditDisplayState =
+  /** Pagata e non ancora fissata: si può prenotare fino alla scadenza. */
+  | 'available'
+  /** Fissata: c'è una prenotazione richiesta o accettata. */
+  | 'planned'
+  /** Fatta: la prenotazione collegata è completata. */
+  | 'used'
+  /** Scaduta senza essere stata usata. */
+  | 'expired';
+
+/**
+ * Come si legge una seduta acquistata, per l'atleta. Deriva dalla prenotazione
+ * collegata (come `isCreditFree`): una prenotazione annullata, rifiutata o
+ * scaduta rimette la seduta in «da pianificare», se ancora valida.
+ */
+export function creditDisplayState(
+  credit: { status: string; expiresAt: Date | null },
+  linkedBookingStatus: string | null,
+  now: Date
+): CreditDisplayState {
+  if (linkedBookingStatus === 'completed') return 'used';
+  if (linkedBookingStatus === 'requested' || linkedBookingStatus === 'accepted') {
+    return 'planned';
+  }
+  return isCreditUsable(credit, now) ? 'available' : 'expired';
+}

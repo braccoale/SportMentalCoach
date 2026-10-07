@@ -62,6 +62,11 @@ type Props = {
   coachName: string;
   coachAvatarUrl?: string | null;
   profileHref?: string | null;
+  /**
+   * Mostra «Aggiungi una sessione» nella scheda. Nel tab Abbonamenti le sedute
+   * acquistate a parte hanno la loro sezione e il pulsante sta lì.
+   */
+  showSingleOffer?: boolean;
 };
 
 /** Annullare e riattivare: stessa logica, in qualunque scheda. */
@@ -263,6 +268,7 @@ export function SubscriptionCard({
   coachName,
   coachAvatarUrl,
   profileHref,
+  showSingleOffer = true,
 }: Props) {
   const { cancelAtPeriodEnd, periodEndLabel } = subscription;
   const pastDue = subscription.status === 'past_due';
@@ -276,11 +282,10 @@ export function SubscriptionCard({
       ? { label: 'Annullato', tone: 'bg-amber-100 text-amber-800', dot: 'bg-amber-500', warn: true }
       : { label: 'Piano attivo', tone: 'bg-emerald-100 text-emerald-800', dot: 'bg-emerald-600', warn: false };
   const usage = subscription.usage;
-  // Le sedute extra si sommano a quelle rimaste del piano: è ciò che si può prenotare.
-  const extraCount = subscription.extraSessions?.count ?? 0;
   // Aggiungere una seduta a un abbonamento che sta per finire non ha senso:
   // si compra, se serve, dopo averlo riattivato.
-  const singleOffer = Boolean(subscription.singleSessionPriceLabel) && !cancelAtPeriodEnd;
+  const singleOffer =
+    showSingleOffer && Boolean(subscription.singleSessionPriceLabel) && !cancelAtPeriodEnd;
   const sessionWord = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
   return (
@@ -335,19 +340,15 @@ export function SubscriptionCard({
               />
               <UsageTile
                 icon={CalendarDays}
-                value={usage.remaining + extraCount}
-                label={sessionWord(usage.remaining + extraCount, 'seduta rimasta', 'sedute rimaste')}
-                caption={[
-                  `su ${usage.total} questo mese`,
-                  extraCount > 0 ? `+ ${extraCount} ${sessionWord(extraCount, 'extra', 'extra')}` : null,
+                value={usage.remaining}
+                label={sessionWord(usage.remaining, 'seduta rimasta', 'sedute rimaste')}
+                caption={
                   usage.booked > 0
-                    ? `${usage.booked} già ${sessionWord(usage.booked, 'prenotata', 'prenotate')}`
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-                total={usage.total + extraCount}
-                filled={usage.remaining + extraCount}
+                    ? `su ${usage.total} questo mese · ${usage.booked} già ${sessionWord(usage.booked, 'prenotata', 'prenotate')}`
+                    : `su ${usage.total} questo mese`
+                }
+                total={usage.total}
+                filled={usage.remaining}
                 tinted
               />
             </div>
@@ -438,7 +439,7 @@ export function SubscriptionCard({
             </p>
           )}
 
-          {singleOffer && usage?.known && usage.remaining + extraCount === 0 && (
+          {singleOffer && usage?.known && usage.remaining === 0 && (
             <p className="text-xs text-gray-700">
               Hai finito le sedute di questo mese. Puoi aggiungerne una subito,
               senza aspettare il rinnovo.
