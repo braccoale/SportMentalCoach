@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   DEFAULT_SINGLE_SESSION_LIMITS,
+  creditDisplayState,
   SINGLE_SESSION_VALIDITY_DAYS,
   isCreditFree,
   isCreditUsable,
@@ -88,5 +89,32 @@ describe('isCreditFree', () => {
     assert.equal(isCreditFree({ ...valid, expiresAt: new Date('2026-10-01T00:00:00Z') }, null, now), false);
     assert.equal(isCreditFree({ status: 'pending', expiresAt: null }, null, now), false);
     assert.equal(isCreditFree({ ...valid, status: 'revoked' }, null, now), false);
+  });
+});
+
+describe('creditDisplayState', () => {
+  const now = new Date('2026-10-10T10:00:00Z');
+  const valid = { status: 'granted', expiresAt: new Date('2026-12-01T00:00:00Z') };
+  const past = { status: 'granted', expiresAt: new Date('2026-10-01T00:00:00Z') };
+
+  it('senza prenotazione è da pianificare', () => {
+    assert.equal(creditDisplayState(valid, null, now), 'available');
+  });
+  it('con una prenotazione richiesta o accettata è pianificata', () => {
+    assert.equal(creditDisplayState(valid, 'requested', now), 'planned');
+    assert.equal(creditDisplayState(valid, 'accepted', now), 'planned');
+  });
+  it('con la prenotazione completata è usata, anche a scadenza passata', () => {
+    assert.equal(creditDisplayState(valid, 'completed', now), 'used');
+    assert.equal(creditDisplayState(past, 'completed', now), 'used');
+  });
+  it('una prenotazione annullata, rifiutata o scaduta la rimette da pianificare', () => {
+    for (const status of ['cancelled', 'declined', 'expired']) {
+      assert.equal(creditDisplayState(valid, status, now), 'available', status);
+    }
+  });
+  it('scaduta senza essere usata è scaduta', () => {
+    assert.equal(creditDisplayState(past, null, now), 'expired');
+    assert.equal(creditDisplayState(past, 'cancelled', now), 'expired');
   });
 });

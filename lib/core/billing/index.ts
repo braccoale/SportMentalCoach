@@ -40,6 +40,8 @@ import { paymentMethodLabel } from './payment-method';
 import {
   DEFAULT_SINGLE_SESSION_LIMITS,
   FREEING_BOOKING_STATUSES,
+  creditDisplayState,
+  type CreditDisplayState,
   SINGLE_SESSION_LIMIT_CONFIG_KEYS,
   validateSingleSessionPrice,
   type SingleSessionLimits,
@@ -1628,4 +1630,91 @@ export async function getSingleSessionOffersByProvider(
     if (cents) result.set(provider.id, cents);
   }
   return result;
+}
+
+export type AthleteSingleSession = {
+  id: number;
+  coachUserId: number;
+  coachName: string;
+  coachSlug: string | null;
+  coachAvatarUrl: string | null;
+  kind: 'single' | 'extra';
+  priceCents: number;
+  grantedAt: Date;
+  expiresAt: Date;
+  state: CreditDisplayState;
+  /** Quando è fissata, se `state === 'planned'` (o la data della seduta fatta). */
+  scheduledFor: Date | null;
+};
+
+/**
+ * Le sedute acquistate a parte da un atleta, con il loro stato: da pianificare
+ * (con la scadenza), pianificate (con la data), fatte, scadute. Prima quelle
+ * ancora utili, per scadenza; poi lo storico, dalla più recente.
+ */
+export async function listAthleteSingleSessions(
+  athleteUserId: number
+): Promise<AthleteSingleSession[]> {
+  const rows = await db
+    .select({
+      id: sessionCredits.id,
+      coachUserId: sessionCredits.coachUserId,
+      kind: sessionCredits.kind,
+      status: sessionCredits.status,
+      priceCents: sessionCredits.priceCents,
+      grantedAt: sessionCredits.grantedAt,
+      expiresAt: sessionCredits.expiresAt,
+      bookingStatus: bookings.status,
+      scheduledFor: bookings.scheduledFor,
+      coachName: profiles.displayName,
+      coachSlug: providerProfiles.slug,
+      coachAvatarUrl: profiles.avatarUrl,
+    })
+    .from(sessionCredits)
+    .leftJoin(bookings, eq(bookings.id, sessionCredits.bookingId))
+    .leftJoin(providerProfiles, eq(providerProfiles.userId, sessionCredits.coachUserId))
+    .leftJoin(profiles, eq(profiles.userId, sessionCredits.coachUserId))
+    .where(
+      and(
+        eq(sessionCredits.athleteUserId, athleteUserId),
+        eq(sessionCredits.status, 'granted')
+      )
+    );
+
+  const now = new Date();
+  const items: AthleteSingleSession[] = [];
+  for (const row of rows) {
+    if (!row.grantedAt || !row.expiresAt) continue;
+    const state = creditDisplayState(
+      { status: row.status, expiresAt: row.expiresAt },
+      row.bookingStatus,
+      now
+    );
+    items.push({
+      id: row.id,
+      coachUserId: row.coachUserId,
+      coachName: row.coachName ?? 'Coach',
+      coachSlug: row.coachSlug,
+      coachAvatarUrl: row.coachAvatarUrl,
+      kind: row.kind === 'extra' ? 'extra' : 'single',
+      priceCents: row.priceCents,
+      grantedAt: row.grantedAt,
+      expiresAt: row.expiresAt,
+      state,
+      scheduledFor:
+        state === 'planned' || state === 'used' ? row.scheduledFor : null,
+    });
+  }
+
+  const live = (item: AthleteSingleSession) =>
+    item.state === 'available' || item.state === 'planned';
+  return items.sort((a, b) =>
+    live(a) !== live(b)
+      ? live(a)
+        ? -1
+        : 1
+      : live(a)
+        ? a.expiresAt.getTime() - b.expiresAt.getTime()
+        : b.grantedAt.getTime() - a.grantedAt.getTime()
+  );
 }

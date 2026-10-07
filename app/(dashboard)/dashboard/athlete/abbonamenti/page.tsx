@@ -3,20 +3,21 @@ import { requireRole } from '@/lib/core/auth';
 import {
   formatEuroCents,
   formatLongDateRome,
-  getAthleteExtraSessions,
   getPaymentMethodLabels,
   getSessionUsageForSubscriptions,
   getSingleSessionOffers,
-  getStandaloneCreditHolders,
+  listAthleteSingleSessions,
   listAthleteSubscriptions,
   perSessionCents,
   purchaseNoticeFor,
   subscribedOn,
 } from '@/lib/core/billing';
 import { formatDate } from '@/lib/core/format';
-import { BuySessionButton } from '@/components/buy-session-button';
-import { CoachAvatar } from '@/components/coach-visuals';
 import { ConfirmingPayment } from '@/components/confirming-payment';
+import {
+  SingleSessionsSection,
+  type SingleSessionOffer,
+} from '@/components/single-sessions-section';
 import {
   SubscriptionCard,
   type SubscriptionCardData,
@@ -31,9 +32,10 @@ const NOTICE_TONE = {
 } as const;
 
 /**
- * Gli abbonamenti dell'atleta: dove si atterra dopo il pagamento e dove si
- * torna ogni mese. Il blocco dei crediti non c'è ancora e **non si finge**:
- * comparirà quando le sedute saranno davvero legate alle prenotazioni.
+ * Abbonamenti e sessioni singole dell'atleta, in due sezioni separate: le
+ * sedute del piano (si contano nel mese e non si riportano) e quelle comprate a
+ * parte (hanno una scadenza propria di 60 giorni). Mescolarle in un solo
+ * numero nascondeva quali scadono e quali no.
  */
 export default async function AthleteSubscriptionsPage({
   searchParams,
@@ -44,20 +46,39 @@ export default async function AthleteSubscriptionsPage({
   const { abbonamento } = await searchParams;
   const { live, ended, confirming } = await listAthleteSubscriptions(user.id);
   const liveSubscriptions = live.map((item) => item.subscription);
-  const [usageBySubscription, paymentMethods, extras, standalone] =
-    await Promise.all([
-      getSessionUsageForSubscriptions(user.id, liveSubscriptions),
-      getPaymentMethodLabels(liveSubscriptions),
-      getAthleteExtraSessions(user.id),
-      getStandaloneCreditHolders(
-        user.id,
-        liveSubscriptions.map((sub) => sub.coachUserId)
-      ),
-    ]);
-  const offers = await getSingleSessionOffers([
-    ...liveSubscriptions.map((sub) => sub.coachUserId),
-    ...standalone.map((holder) => holder.coachUserId),
+  const [usageBySubscription, paymentMethods, singles] = await Promise.all([
+    getSessionUsageForSubscriptions(user.id, liveSubscriptions),
+    getPaymentMethodLabels(liveSubscriptions),
+    listAthleteSingleSessions(user.id),
   ]);
+
+  // Dove si può comprare una sessione: i coach con cui c'è un abbonamento o
+  // una seduta già acquistata, se il coach ha impostato il prezzo.
+  const coachInfo = new Map<number, { name: string; slug: string | null }>();
+  for (const { subscription, coach } of live) {
+    coachInfo.set(subscription.coachUserId, { name: coach.name, slug: coach.slug });
+  }
+  for (const session of singles) {
+    if (!coachInfo.has(session.coachUserId)) {
+      coachInfo.set(session.coachUserId, {
+        name: session.coachName,
+        slug: session.coachSlug,
+      });
+    }
+  }
+  const prices = await getSingleSessionOffers([...coachInfo.keys()]);
+  const offers: SingleSessionOffer[] = [];
+  for (const [coachUserId, info] of coachInfo) {
+    const cents = prices.get(coachUserId);
+    if (cents && info.slug) {
+      offers.push({
+        coachUserId,
+        coachName: info.name,
+        coachSlug: info.slug,
+        priceLabel: formatEuroCents(cents),
+      });
+    }
+  }
 
   // Appena tornati da Stripe l'abbonamento può non essere ancora attivo: la
   // pagina lo dice e si aggiorna da sola.
@@ -65,11 +86,11 @@ export default async function AthleteSubscriptionsPage({
   const notice = waitingForWebhook
     ? null
     : purchaseNoticeFor(abbonamento, {
-        subscriptionActive: live.length > 0 || standalone.length > 0,
+        subscriptionActive: live.length > 0 || singles.length > 0,
       });
 
   return (
-    <section className="m-4 flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm sm:m-6 sm:p-5">
+    <section className="m-4 flex flex-col gap-6 rounded-2xl bg-white p-4 shadow-sm sm:m-6 sm:p-5">
       <header>
         <h2 className="text-xl font-semibold tracking-tight text-gray-900">
           I tuoi abbonamenti
@@ -90,7 +111,7 @@ export default async function AthleteSubscriptionsPage({
         </p>
       )}
 
-      {live.length === 0 && standalone.length === 0 && !waitingForWebhook ? (
+      {live.length === 0 && !waitingForWebhook ? (
         <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center">
           <p className="font-medium text-gray-800">Non hai abbonamenti attivi.</p>
           <p className="mt-1 text-sm text-gray-500">
@@ -105,48 +126,6 @@ export default async function AthleteSubscriptionsPage({
         </div>
       ) : (
         <ul className="flex flex-col gap-4">
-          {standalone.map((holder) => (
-            <li
-              key={`credit-${holder.coachUserId}`}
-              className="flex flex-wrap items-center gap-4 rounded-2xl border border-emerald-200 bg-gradient-to-br from-white to-emerald-50/80 p-4"
-            >
-              <CoachAvatar
-                name={holder.name}
-                src={holder.avatarUrl}
-                className="size-11 shrink-0"
-              />
-              <div className="min-w-0 flex-1">
-                <h3 className="text-lg font-bold tracking-tight text-gray-900">
-                  {holder.count === 1
-                    ? '1 seduta'
-                    : `${holder.count} sedute`}{' '}
-                  con {holder.name}
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Acquistate senza abbonamento · valide fino al{' '}
-                  {formatLongDateRome(holder.nextExpiry)}
-                </p>
-              </div>
-              <div className="flex w-full flex-col gap-2 sm:w-56">
-                {holder.slug && (
-                  <Link
-                    href={`/coaches/${holder.slug}`}
-                    className="inline-flex h-10 items-center justify-center rounded-xl bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-700"
-                  >
-                    Prenota una seduta
-                  </Link>
-                )}
-                {holder.slug && offers.has(holder.coachUserId) && (
-                  <BuySessionButton
-                    slug={holder.slug}
-                    priceLabel={formatEuroCents(offers.get(holder.coachUserId)!)}
-                    label="Aggiungine un'altra"
-                    className="border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50"
-                  />
-                )}
-              </div>
-            </li>
-          ))}
           {live.map(({ subscription, coach }) => {
             const data: SubscriptionCardData = {
               id: subscription.id,
@@ -162,17 +141,6 @@ export default async function AthleteSubscriptionsPage({
               sinceLabel: formatLongDateRome(subscribedOn(subscription)),
               usage: usageBySubscription.get(subscription.id) ?? { known: false },
               paymentMethodLabel: paymentMethods.get(subscription.id) ?? null,
-              singleSessionPriceLabel: offers.has(subscription.coachUserId)
-                ? formatEuroCents(offers.get(subscription.coachUserId)!)
-                : null,
-              extraSessions: extras.has(subscription.coachUserId)
-                ? {
-                    count: extras.get(subscription.coachUserId)!.count,
-                    expiryLabel: formatLongDateRome(
-                      extras.get(subscription.coachUserId)!.nextExpiry
-                    ),
-                  }
-                : null,
               status: subscription.status === 'past_due' ? 'past_due' : 'active',
               cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
               periodEndLabel: subscription.currentPeriodEnd
@@ -187,6 +155,7 @@ export default async function AthleteSubscriptionsPage({
                   coachAvatarUrl={coach.avatarUrl}
                   profileHref={coach.slug ? `/coaches/${coach.slug}` : null}
                   returnTo="abbonamenti"
+                  showSingleOffer={false}
                   subscription={data}
                 />
               </li>
@@ -194,6 +163,8 @@ export default async function AthleteSubscriptionsPage({
           })}
         </ul>
       )}
+
+      <SingleSessionsSection sessions={singles} offers={offers} />
 
       {ended.length > 0 && (
         <div>
