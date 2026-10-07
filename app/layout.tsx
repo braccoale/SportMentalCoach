@@ -1,6 +1,6 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
-import { Manrope } from 'next/font/google';
+import localFont from 'next/font/local';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages, getTranslations } from 'next-intl/server';
 import { getSessionUser } from '@/lib/db/queries';
@@ -32,7 +32,12 @@ export const viewport: Viewport = {
   maximumScale: 1
 };
 
-const manrope = Manrope({ subsets: ['latin'] });
+// Font ospitato nel progetto (vedi app/fonts/README.md): la build non scarica più nulla da Google.
+const manrope = localFont({
+  src: './fonts/manrope-latin-wght-normal.woff2',
+  weight: '200 800',
+  display: 'swap',
+});
 
 const googleAnalyticsId =
   process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID?.trim() ||
