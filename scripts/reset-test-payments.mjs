@@ -84,7 +84,7 @@ try {
     order by id
   `;
   const credits = await sql`
-    select id, kind, status, price_cents, booking_id, stripe_payment_intent_id
+    select id, kind, status, price_cents, booking_id, stripe_payment_intent_id, stripe_account_id
     from session_credits
     where athlete_user_id = ${athlete.id} and coach_user_id = ${coach.id}
     order by id
@@ -109,7 +109,12 @@ try {
 
   // Clienti Stripe da togliere: quelli registrati sulle righe e quelli creati
   // dal Checkout con l'email dell'atleta sullo stesso account del coach.
-  const accounts = [...new Set(subs.map((s) => s.stripe_account_id).filter(Boolean))];
+  // Anche chi ha comprato solo una seduta singola ha un cliente sul conto del coach.
+  const accounts = [
+    ...new Set(
+      [...subs, ...credits].map((row) => row.stripe_account_id).filter(Boolean)
+    ),
+  ];
   const customersToDelete = [];
   if (withStripe) {
     for (const accountId of accounts) {
