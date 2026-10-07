@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { BuySessionButton } from '@/components/buy-session-button';
+import { NewAppointmentButton } from '@/app/(dashboard)/dashboard/athlete/new-appointment-button';
+import type { RelationshipCoach } from '@/lib/core/bookings';
 import { CoachAvatar } from '@/components/coach-visuals';
 import {
   SessionStateLegend,
@@ -39,10 +41,13 @@ export function SingleSessionsSection({
   sessions,
   offers,
   validityDays,
+  coachesBySlug,
 }: {
   sessions: AthleteSingleSession[];
   offers: SingleSessionOffer[];
   validityDays: number;
+  /** I coach con cui l'atleta può prenotare, per aprire la finestra di prenotazione già sul coach giusto. */
+  coachesBySlug: Record<string, RelationshipCoach>;
 }) {
   if (sessions.length === 0 && offers.length === 0) return null;
 
@@ -164,14 +169,23 @@ export function SingleSessionsSection({
                   }
                   tooltip={tooltip}
                 />
-                {session.state === 'available' && session.coachSlug && (
-                  <Link
-                    href={`/coaches/${session.coachSlug}`}
-                    className="inline-flex h-9 items-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700"
-                  >
-                    Prenota
-                  </Link>
-                )}
+                {session.state === 'available' &&
+                  session.coachSlug &&
+                  (coachesBySlug[session.coachSlug] ? (
+                    // La finestra di prenotazione si apre qui, sul coach giusto.
+                    <NewAppointmentButton
+                      coaches={[coachesBySlug[session.coachSlug]]}
+                      label="Prenota"
+                      compact
+                    />
+                  ) : (
+                    <Link
+                      href={`/coaches/${session.coachSlug}`}
+                      className="inline-flex h-9 items-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700"
+                    >
+                      Prenota
+                    </Link>
+                  ))}
               </li>
             );
           })}

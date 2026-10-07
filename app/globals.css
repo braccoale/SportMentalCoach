@@ -121,6 +121,23 @@
   }
 }
 
+/*
+ * Tailwind 4 toglie ai pulsanti la manina (`cursor: default`): senza questa
+ * regola un pulsante cliccabile non sembra cliccabile. Una sola regola per
+ * tutto il sito, invece di `cursor-pointer` su ogni componente. I pulsanti
+ * disabilitati restano com'erano.
+ */
+@layer base {
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='switch']:not(:disabled),
+  summary,
+  select:not(:disabled),
+  label[for] {
+    cursor: pointer;
+  }
+}
+
 @layer utilities {
   body {
     font-family: "Manrope", Arial, Helvetica, sans-serif;

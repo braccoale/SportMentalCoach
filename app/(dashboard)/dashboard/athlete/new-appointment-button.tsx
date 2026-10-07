@@ -25,7 +25,17 @@ import { createBookingRequestAction } from './actions';
  *
  * Con nessun coach conosciuto resta il collegamento «Trova un coach».
  */
-export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[] }) {
+export function NewAppointmentButton({
+  coaches,
+  label = 'Nuovo appuntamento',
+  compact = false,
+}: {
+  coaches: RelationshipCoach[];
+  /** Il testo del pulsante che apre la finestra. */
+  label?: string;
+  /** Pulsante piccolo, per una riga di elenco (es. «Prenota» su una seduta già pagata). */
+  compact?: boolean;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   // Si parte dall'ultimo coach seguito (la lista è già ordinata per recente).
@@ -90,10 +100,14 @@ export function NewAppointmentButton({ coaches }: { coaches: RelationshipCoach[]
       <Button
         type="button"
         onClick={openDialog}
-        className="rounded-full bg-green-600 text-white hover:bg-green-700"
+        className={
+          compact
+            ? 'h-9 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700'
+            : 'rounded-full bg-green-600 text-white hover:bg-green-700'
+        }
       >
-        <CalendarPlus className="mr-2 h-4 w-4" />
-        Nuovo appuntamento
+        {!compact && <CalendarPlus className="mr-2 h-4 w-4" />}
+        {label}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
