@@ -9,16 +9,28 @@
 - il filtro si deve applicare quando seleziono qualcosa nella drop dow e deve avere la X per cancellare il contenuto e il filtro deve essere allo stesso livello della header.
 - finestra di login deve avere l'occhio per vedere la psswor d e la x per cancellare
 - come caricare la foto profilo è da rivedere non va bene il campo di test deve essere il button carica.
+- coach deve vedere se il suo profilo è statao visitato (Il dato principale dovrebbe essere semplice:
+	Il dato principale dovrebbe essere semplice:
+	- visite al profilo negli ultimi 30 giorni;
+	- andamento rispetto al periodo precedente;
+	- quante visite hanno prodotto una richiesta di sessione;
+	- provenienza interna: ricerca, categoria, preferiti o link condiviso.
+	La metrica davvero importante non è il numero assoluto delle visite, ma la conversione:
+	120 visite → 9 contatti → 4 prenotazioni
+	Questo aiuta il coach a capire se deve migliorare fotografia, descrizione, servizi o disponibilità.
+- kaipai in lingua straniera
+- mail notifica la tua sessione inizia tra un'ora personaizzata con logo dello sport, con preparati alla call per i coach e qlc altro per l'atleta
+- l'ai puo capire dalla trascrizione se si sono messi d'accordo per la prossima sessione e se non trova dopo un po la sessione creata manda un reminder al coach ricordandoglielo.
+- nella mail autoamtica di sessione conclusa mandare qlc di utile altriemnti non mandarla proprio è spam.
+- nelle mail si notifica qualsiasi.. il nome e congonome devono inziare per maiuscola ede essere in grassetto
 
-
-
-domande:
+Domande:
 	- nella card del coach serve mettere l'età? e il luogo di dove si trova?
 	- filtro per prezzo? in unobravo ogniuno mette il suo prezzo, noi invece avremmo degli abbonamenti ? giusto?
 	- la parte dell'accademy? che deve fare.. i coach si possono iscrivere? se si che cosa fa l'accademy per loro.. loro pagano per accedere e ricevere corsi come funziona?
 
 
-da fare
+Da fare
 	- crare skill seo e altre
 	- webcam stanze e chat
 	- notifiche
