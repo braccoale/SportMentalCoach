@@ -132,9 +132,13 @@ export default async function AthleteSubscriptionsPage({
 
       {live.length === 0 && !waitingForWebhook ? (
         <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center">
-          <p className="font-medium text-gray-800">Non hai abbonamenti attivi.</p>
+          <p className="font-medium text-gray-800">
+            Non hai abbonamenti né sessioni acquistate.
+          </p>
           <p className="mt-1 text-sm text-gray-500">
-            Scegli un coach e un percorso mensile dalla sua scheda.
+            Quando ne comprerai uno, lo troverai qui con le sedute rimaste, la
+            scadenza e come prenotarle. Per cominciare, scegli un coach e un
+            percorso dalla sua scheda.
           </p>
           <Link
             href="/coaches"
