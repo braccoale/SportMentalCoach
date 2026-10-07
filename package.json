@@ -38,6 +38,7 @@
     "ai-notes:retention": "node --conditions=react-server --import tsx scripts/retain-ai-notes-audio.ts",
     "ai-notes:process": "node --conditions=react-server --import tsx scripts/process-ai-notes-jobs.ts",
     "ai-notes:process-reports": "node --conditions=react-server --import tsx scripts/process-ai-notes-reports.ts",
+    "pagamenti:reset-prove": "node --env-file=.env.local scripts/reset-test-payments.mjs",
     "ai-notes:reopen": "node --conditions=react-server --import tsx scripts/reopen-ai-notes-session.ts",
     "ai-notes:diagnose-transcription": "node --conditions=react-server --import tsx scripts/diagnose-ai-notes-transcription.ts",
     "email:preview": "node --conditions=react-server --import tsx scripts/preview-emails.ts",
