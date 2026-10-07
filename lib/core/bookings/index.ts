@@ -1483,15 +1483,15 @@ export async function getCoachBookings(
   userId: number
 ): Promise<CoachBooking[]> {
   await expireStaleRequests();
-  const minNoticeMinutes = await getSystemConfigNumber(
-    'BOOKING_CANCELLATION_MIN_NOTICE_MINUTES',
-    0
-  );
-  const [provider] = await db
-    .select({ id: providerProfiles.id })
-    .from(providerProfiles)
-    .where(eq(providerProfiles.userId, userId))
-    .limit(1);
+  // Due letture indipendenti: insieme invece che una dopo l'altra.
+  const [minNoticeMinutes, [provider]] = await Promise.all([
+    getSystemConfigNumber('BOOKING_CANCELLATION_MIN_NOTICE_MINUTES', 0),
+    db
+      .select({ id: providerProfiles.id })
+      .from(providerProfiles)
+      .where(eq(providerProfiles.userId, userId))
+      .limit(1),
+  ]);
 
   if (!provider) return [];
 
