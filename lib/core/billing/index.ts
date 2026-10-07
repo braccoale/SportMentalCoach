@@ -37,6 +37,7 @@ import {
 import { deriveBillingProfileFromStripeAccount } from './stripe-account-status';
 import { sessionUsageForPeriod, type SessionUsage, type UsageBooking } from './session-usage';
 import { paymentMethodLabel } from './payment-method';
+import type { CoachAthleteBilling } from './coach-athlete-status';
 import {
   DEFAULT_SINGLE_SESSION_LIMITS,
   DEFAULT_SINGLE_SESSION_VALIDITY_DAYS,
@@ -77,6 +78,7 @@ export * from './session-usage';
 export * from './booking-credits';
 export * from './payment-method';
 export * from './single-session';
+export * from './coach-athlete-status';
 
 export async function getCoachBillingProfile(
   coachUserId: number
@@ -1735,4 +1737,156 @@ export async function getSingleSessionValidityDays(): Promise<number> {
       DEFAULT_SINGLE_SESSION_VALIDITY_DAYS
     )
   );
+}
+
+/**
+ * Per la lista «I miei atleti» del coach: per ciascun atleta con un abbonamento
+ * vivo o con sedute acquistate a parte, lo stato delle sedute. Poche letture
+ * per tutta la lista (abbonamenti, prenotazioni, registro), poi i conteggi si
+ * fanno in memoria con le stesse regole dell'atleta. Gli atleti senza niente
+ * non compaiono nella mappa: per loro la lista resta com'era.
+ */
+export async function getCoachAthletesBilling(
+  coachUserId: number,
+  athleteUserIds: number[]
+): Promise<Map<number, CoachAthleteBilling>> {
+  const result = new Map<number, CoachAthleteBilling>();
+  if (athleteUserIds.length === 0) return result;
+
+  const [provider] = await db
+    .select({ id: providerProfiles.id })
+    .from(providerProfiles)
+    .where(eq(providerProfiles.userId, coachUserId))
+    .limit(1);
+  if (!provider) return result;
+
+  const [subs, credits] = await Promise.all([
+    db
+      .select()
+      .from(planSubscriptions)
+      .where(
+        and(
+          eq(planSubscriptions.coachUserId, coachUserId),
+          inArray(planSubscriptions.athleteUserId, athleteUserIds),
+          inArray(planSubscriptions.status, ['active', 'past_due'])
+        )
+      )
+      .orderBy(desc(planSubscriptions.createdAt)),
+    db
+      .select({
+        athleteUserId: sessionCredits.athleteUserId,
+        status: sessionCredits.status,
+        expiresAt: sessionCredits.expiresAt,
+        bookingStatus: bookings.status,
+      })
+      .from(sessionCredits)
+      .leftJoin(bookings, eq(bookings.id, sessionCredits.bookingId))
+      .where(
+        and(
+          eq(sessionCredits.coachUserId, coachUserId),
+          inArray(sessionCredits.athleteUserId, athleteUserIds),
+          eq(sessionCredits.status, 'granted')
+        )
+      ),
+  ]);
+
+  const subByAthlete = new Map<number, PlanSubscription>();
+  for (const sub of subs) {
+    if (!subByAthlete.has(sub.athleteUserId)) subByAthlete.set(sub.athleteUserId, sub);
+  }
+
+  // Le prenotazioni dei soli atleti con un abbonamento, nel periodo di ciascuno.
+  // Una seduta pagata a parte non pesa sul piano (stessa regola dell'atleta).
+  const withPeriod = [...subByAthlete.values()].filter(
+    (sub) => sub.currentPeriodStart && sub.currentPeriodEnd
+  );
+  const bookingRows =
+    withPeriod.length === 0
+      ? []
+      : await db
+          .select({
+            clientId: bookings.clientId,
+            status: bookings.status,
+            scheduledFor: bookings.scheduledFor,
+          })
+          .from(bookings)
+          .leftJoin(sessionCredits, eq(sessionCredits.bookingId, bookings.id))
+          .where(
+            and(
+              eq(bookings.providerId, provider.id),
+              inArray(
+                bookings.clientId,
+                withPeriod.map((sub) => sub.athleteUserId)
+              ),
+              gte(
+                bookings.scheduledFor,
+                new Date(Math.min(...withPeriod.map((s) => s.currentPeriodStart!.getTime())))
+              ),
+              lt(
+                bookings.scheduledFor,
+                new Date(Math.max(...withPeriod.map((s) => s.currentPeriodEnd!.getTime())))
+              ),
+              isNull(sessionCredits.id)
+            )
+          );
+
+  const now = new Date();
+  const singlesByAthlete = new Map<
+    number,
+    { toPlan: number; planned: number; nextExpiry: Date | null }
+  >();
+  for (const credit of credits) {
+    const state = creditDisplayState(
+      { status: credit.status, expiresAt: credit.expiresAt },
+      credit.bookingStatus,
+      now
+    );
+    if (state !== 'available' && state !== 'planned') continue;
+    const entry = singlesByAthlete.get(credit.athleteUserId) ?? {
+      toPlan: 0,
+      planned: 0,
+      nextExpiry: null,
+    };
+    if (state === 'available') {
+      entry.toPlan++;
+      if (
+        credit.expiresAt &&
+        (!entry.nextExpiry || credit.expiresAt < entry.nextExpiry)
+      ) {
+        entry.nextExpiry = credit.expiresAt;
+      }
+    } else {
+      entry.planned++;
+    }
+    singlesByAthlete.set(credit.athleteUserId, entry);
+  }
+
+  for (const athleteId of athleteUserIds) {
+    const sub = subByAthlete.get(athleteId);
+    const singles = singlesByAthlete.get(athleteId) ?? {
+      toPlan: 0,
+      planned: 0,
+      nextExpiry: null,
+    };
+    if (!sub && singles.toPlan === 0 && singles.planned === 0) continue;
+    result.set(athleteId, {
+      plan: sub
+        ? {
+            name: sub.planName,
+            sessionsPerMonth: sub.sessionsPerMonth,
+            status: sub.status === 'past_due' ? 'past_due' : 'active',
+            cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
+            periodEnd: sub.currentPeriodEnd,
+            usage: sessionUsageForPeriod({
+              sessionsPerMonth: sub.sessionsPerMonth,
+              periodStart: sub.currentPeriodStart,
+              periodEnd: sub.currentPeriodEnd,
+              bookings: bookingRows.filter((row) => row.clientId === athleteId),
+            }),
+          }
+        : null,
+      singles,
+    });
+  }
+  return result;
 }
