@@ -861,14 +861,20 @@ export async function listAthleteSubscriptions(
 }
 
 /**
- * L'atleta ha mai avuto un abbonamento? Decide se il tab «Abbonamenti» compare
- * nel menu: chi non ha mai comprato niente non vede nulla di nuovo.
+ * L'atleta ha mai comprato qualcosa: un abbonamento **o** una sessione singola
+ * già pagata? Decide se il tab «Abbonamenti» compare nel menu: chi non ha mai
+ * comprato niente non vede nulla di nuovo.
+ *
+ * Prima contava solo l'abbonamento, e chi comprava una sessione singola non
+ * trovava il tab dove vedere cosa aveva pagato, la scadenza e come prenotarla.
+ * Si contano le sedute **pagate** (`granted`), non quelle solo avviate: chi apre
+ * il pagamento e lo abbandona non deve vedere comparire il tab.
  */
-export async function athleteHasSubscriptions(
+export async function athleteHasPurchases(
   athleteUserId: number
 ): Promise<boolean> {
   try {
-    const [row] = await db
+    const [subscription] = await db
       .select({ id: planSubscriptions.id })
       .from(planSubscriptions)
       .where(
@@ -878,7 +884,18 @@ export async function athleteHasSubscriptions(
         )
       )
       .limit(1);
-    return Boolean(row);
+    if (subscription) return true;
+    const [credit] = await db
+      .select({ id: sessionCredits.id })
+      .from(sessionCredits)
+      .where(
+        and(
+          eq(sessionCredits.athleteUserId, athleteUserId),
+          eq(sessionCredits.status, 'granted')
+        )
+      )
+      .limit(1);
+    return Boolean(credit);
   } catch (error) {
     console.error('[billing] abbonamenti non letti', {
       athleteUserId,

@@ -1,6 +1,6 @@
 import { getUser } from '@/lib/core/auth';
 import { getUnreadCountForType } from '@/lib/core/notifications';
-import { athleteHasSubscriptions } from '@/lib/core/billing';
+import { athleteHasPurchases } from '@/lib/core/billing';
 import { AthleteNav } from './athlete-nav';
 
 export default async function AthleteAreaLayout({
@@ -12,7 +12,7 @@ export default async function AthleteAreaLayout({
   const [unreadMessages, hasSubscriptions] = user
     ? await Promise.all([
         getUnreadCountForType(user.id, 'new_message'),
-        athleteHasSubscriptions(user.id),
+        athleteHasPurchases(user.id),
       ])
     : [0, false];
 
