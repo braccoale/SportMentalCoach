@@ -26,10 +26,8 @@ type ServiceOption = { id: number; title: string; durationMin: number };
  * l'**atleta**, non c'è il campo obiettivi, e durata e servizio si scelgono
  * sulla sessione.
  *
- *  - Il servizio parte da quello usato per ultimo con quell'atleta: con la
- *    stessa persona un coach ripete quasi sempre lo stesso servizio. Senza
- *    storico (o con un servizio non più offerto) si chiede, invece di
- *    mostrare un valore vecchio.
+ *  - Nessuna scelta del servizio: ogni sessione è una «Sessione online», sul
+ *    servizio principale del coach (la conoscitiva ha il suo pulsante).
  *  - La durata è della sessione, non del servizio: lo stesso servizio dura 30
  *    minuti con uno e 60 con un altro, ed è la durata a decidere quali orari
  *    restano liberi.
@@ -47,15 +45,12 @@ export function CoachNewAppointmentButton({
   athletes,
   services,
   bookableDays,
-  lastServiceByAthlete = {},
   tourAlreadySeen = true,
 }: {
   athletes: RelationshipAthlete[];
   services: ServiceOption[];
   /** Giorni e orari dalla disponibilità settimanale del coach; vuoto se non c'è. */
   bookableDays: BookableDay[];
-  /** Id dell'atleta → id del servizio della sua ultima prenotazione con questo coach. */
-  lastServiceByAthlete?: Record<number, number>;
   /** Se il coach ha già visto il tour `coach_create_appointment`. */
   tourAlreadySeen?: boolean;
 }) {
@@ -71,11 +66,6 @@ export function CoachNewAppointmentButton({
   );
 
   const athlete = athletes.find((a) => a.userId === clientUserId) ?? athletes[0];
-
-  function defaultServiceFor(athleteUserId: number): number | null {
-    const last = lastServiceByAthlete[athleteUserId];
-    return services.some((s) => s.id === last) ? last : null;
-  }
 
   function openDialog() {
     setOpenedAt(new Date());
@@ -175,7 +165,6 @@ export function CoachNewAppointmentButton({
                 perspective="coach"
                 showNote={false}
                 durationSelect
-                initialServiceId={defaultServiceFor(athlete.userId)}
                 showTour
                 tourKey="coach_create_appointment"
                 calendarTourId="coach-booking-datetime"

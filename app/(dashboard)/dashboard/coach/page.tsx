@@ -21,7 +21,6 @@ import {
   getCoachSchedulableAthletes,
   type CoachBooking,
 } from '@/lib/core/bookings';
-import { lastServiceByAthlete } from '@/lib/core/bookings/coach-athletes';
 import { getCoachServices } from '@/lib/core/services';
 import { DEFAULT_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
 import {
@@ -389,6 +388,8 @@ export default async function CoachDashboardPage() {
                 .filter(
                   (s) =>
                     s.isActive &&
+                    // La conoscitiva gratuita ha il suo pulsante: qui non è un servizio.
+                    !s.isIntro &&
                     s.title &&
                     Number.isInteger(s.durationMin) &&
                     (s.durationMin ?? 0) > 0
@@ -399,7 +400,6 @@ export default async function CoachDashboardPage() {
                   durationMin: s.durationMin as number,
                 }))}
               bookableDays={bookableDays}
-              lastServiceByAthlete={lastServiceByAthlete(allBookings)}
               tourAlreadySeen={createAppointmentTourSeen}
             />
           ) : (

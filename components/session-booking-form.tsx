@@ -103,7 +103,6 @@ export function SessionBookingForm({
   perspective = 'athlete',
   showNote = true,
   durationSelect = false,
-  initialServiceId,
   tourKey = 'athlete_booking',
   calendarTourId = 'athlete-booking-calendar',
 }: {
@@ -156,8 +155,6 @@ export function SessionBookingForm({
    * della sessione a decidere quali orari restano liberi.
    */
   durationSelect?: boolean;
-  /** Il servizio da preselezionare; `null` obbliga a sceglierlo (nessun valore di ripiego). */
-  initialServiceId?: number | null;
   /** Il tour guidato del calendario e il suo bersaglio (il coach ha il proprio). */
   tourKey?: 'athlete_booking' | 'coach_create_appointment';
   calendarTourId?: string;
@@ -166,11 +163,10 @@ export function SessionBookingForm({
     error: '',
   });
 
-  // Un coach può avere più servizi: si sceglie, e la durata segue il servizio.
-  const [serviceId, setServiceId] = useState<number | null>(
-    initialServiceId === undefined ? (services[0]?.id ?? null) : initialServiceId
-  );
-  const primaryService = services.find((s) => s.id === serviceId) ?? null;
+  // Nessuna scelta del servizio: ogni prenotazione è una «Sessione online»
+  // (la conoscitiva ha il suo pulsante e il suo modulo). Si usa il servizio
+  // principale del coach, il primo che ha creato, e la durata ne discende.
+  const primaryService = [...services].sort((a, b) => a.id - b.id)[0] ?? null;
   // La durata voluta: dal servizio, oppure scelta a mano (coach).
   const [preferredDuration, setPreferredDuration] = useState<number>(
     DEFAULT_SESSION_DURATION_MIN
@@ -197,18 +193,6 @@ export function SessionBookingForm({
     if (current && isStartBusyForDuration(current.maxDurationMin, time, next)) {
       setTime(firstFreeTime(current, next));
     }
-  }
-
-  function chooseService(next: number) {
-    setServiceId(next);
-    // La durata scelta a mano non cambia con il servizio.
-    if (durationSelect) return;
-    const service = services.find((s) => s.id === next);
-    const base =
-      largestFittingDuration(service?.durationMin ?? DEFAULT_SESSION_DURATION_MIN) ??
-      DEFAULT_SESSION_DURATION_MIN;
-    setDurationMin(base);
-    setTime(firstFreeTime(bookableDays.find((d) => d.value === day), base));
   }
 
   const [day, setDay] = useState(bookableDays[0]?.value ?? '');
@@ -291,29 +275,6 @@ export function SessionBookingForm({
       <div className="grid gap-6 @[46rem]:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         {/* Sinistra: giorno e orario */}
         <div className="flex min-w-0 flex-col gap-6">
-          {!introductory && (services.length > 1 || initialServiceId === null) && (
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-semibold text-gray-900">Servizio</span>
-              <select
-                value={serviceId ?? ''}
-                onChange={(e) => chooseService(Number(e.target.value))}
-                required
-                className="rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900"
-              >
-                {serviceId === null && (
-                  <option value="" disabled>
-                    Seleziona un servizio
-                  </option>
-                )}
-                {services.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.title ?? 'Sessione'}
-                    {s.durationMin ? ` · ${s.durationMin} min` : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
           {!introductory && durationSelect && (
             <label className="flex flex-col gap-1.5">
               <span className="text-sm font-semibold text-gray-900">Durata</span>

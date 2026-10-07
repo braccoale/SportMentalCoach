@@ -869,7 +869,8 @@ export async function getAthleteRelationshipCoaches(
           gt(services.durationMin, 0),
           lte(services.durationMin, MAX_SERVICE_DURATION_MIN)
         )
-      ),
+      )
+      .orderBy(asc(services.id)),
     db
       .select({
         providerId: coachAvailability.providerId,
