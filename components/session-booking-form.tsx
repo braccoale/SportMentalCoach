@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useMemo, useState } from 'react';
+import { useActionState, useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
   CalendarDays,
@@ -10,6 +10,7 @@ import {
   Info,
   Loader2,
   Lock,
+  Video,
 } from 'lucide-react';
 import { CoachAvatar } from '@/components/coach-visuals';
 import { ProductTour } from '@/components/product-tour';
@@ -94,6 +95,10 @@ export function SessionBookingForm({
   tourAlreadySeen = true,
   showTour = false,
   submitLabel,
+  action = requestBooking,
+  hiddenFields,
+  onSuccess,
+  startNow,
 }: {
   slug: string;
   coachName: string;
@@ -115,16 +120,51 @@ export function SessionBookingForm({
   showTour?: boolean;
   /** Il testo del pulsante; se manca, «Conferma la prenotazione». */
   submitLabel?: string;
+  /**
+   * L'azione del server che riceve il modulo. Di norma `requestBooking` (la
+   * richiesta dal profilo del coach); «Nuovo appuntamento» usa la sua, che
+   * riconosce anche l'avvio immediato. I campi sono gli stessi.
+   */
+  action?: (prev: ActionState, formData: FormData) => Promise<ActionState>;
+  /** Campi nascosti in più che la sua azione si aspetta (es. `coachSlug`). */
+  hiddenFields?: Record<string, string>;
+  /** Chiamata quando l'azione restituisce un esito senza errore (per navigare). */
+  onSuccess?: (state: ActionState) => void;
+  /**
+   * «Avvia sessione ora»: un secondo pulsante di invio, che non usa giorno e
+   * orario. `enabled` dice se il coach è raggiungibile adesso; `hint` spiega.
+   */
+  startNow?: { enabled: boolean; hint: string } | null;
 }) {
-  const [state, formAction, pending] = useActionState<ActionState, FormData>(requestBooking, {
+  const [state, formAction, pending] = useActionState<ActionState, FormData>(action, {
     error: '',
   });
 
-  const primaryService = services[0];
+  // Un coach può avere più servizi: si sceglie, e la durata segue il servizio.
+  const [serviceId, setServiceId] = useState<number | null>(services[0]?.id ?? null);
+  const primaryService = services.find((s) => s.id === serviceId) ?? services[0];
   const baseDurationMin = introductory
     ? INTRO_DURATION_MIN
     : (largestFittingDuration(primaryService?.durationMin ?? DEFAULT_SESSION_DURATION_MIN) ??
       DEFAULT_SESSION_DURATION_MIN);
+
+  // L'esito senza errore (una richiesta creata) si passa a chi ha aperto il modulo.
+  useEffect(() => {
+    if (onSuccess && state && !state.error && Object.keys(state).some((k) => k !== 'error')) {
+      onSuccess(state);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
+  function chooseService(next: number) {
+    setServiceId(next);
+    const service = services.find((s) => s.id === next);
+    const base =
+      largestFittingDuration(service?.durationMin ?? DEFAULT_SESSION_DURATION_MIN) ??
+      DEFAULT_SESSION_DURATION_MIN;
+    setDurationMin(base);
+    setTime(firstFreeTime(bookableDays.find((d) => d.value === day), base));
+  }
 
   const [day, setDay] = useState(bookableDays[0]?.value ?? '');
   const [time, setTime] = useState(firstFreeTime(bookableDays[0], baseDurationMin));
@@ -187,6 +227,9 @@ export function SessionBookingForm({
   return (
     <form action={formAction} className="@container flex flex-col gap-5">
       <input type="hidden" name="slug" value={slug} />
+      {Object.entries(hiddenFields ?? {}).map(([name, value]) => (
+        <input key={name} type="hidden" name={name} value={value} />
+      ))}
       <input type="hidden" name="scheduledFor" value={scheduledFor} />
       {introductory ? (
         <input type="hidden" name="introductory" value="true" />
@@ -203,6 +246,23 @@ export function SessionBookingForm({
       <div className="grid gap-6 @[46rem]:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         {/* Sinistra: giorno e orario */}
         <div className="flex min-w-0 flex-col gap-6">
+          {!introductory && services.length > 1 && (
+            <label className="flex flex-col gap-1.5">
+              <span className="text-sm font-semibold text-gray-900">Servizio</span>
+              <select
+                value={serviceId ?? ''}
+                onChange={(e) => chooseService(Number(e.target.value))}
+                className="rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900"
+              >
+                {services.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.title ?? 'Sessione'}
+                    {s.durationMin ? ` · ${s.durationMin} min` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {bookableDays.length === 0 ? (
             <p className="rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-600">
               {coachFirstName} non ha ancora pubblicato la sua disponibilità:
@@ -436,6 +496,21 @@ export function SessionBookingForm({
           <Lock className="h-3.5 w-3.5" aria-hidden />
           {coachFirstName} conferma la richiesta e ricevi una notifica.
         </p>
+        {startNow && (
+          <div className="mt-2 w-full border-t border-gray-100 pt-4">
+            <button
+              type="submit"
+              name="startNow"
+              value="1"
+              disabled={isDemo || pending || !startNow.enabled}
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-emerald-600 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Video className="h-4 w-4" aria-hidden />
+              Avvia sessione ora
+            </button>
+            <p className="mt-2 text-center text-xs text-gray-500">{startNow.hint}</p>
+          </div>
+        )}
       </div>
     </form>
   );
