@@ -673,6 +673,7 @@ export default async function CoachDetailPage({
                         : null,
                       usage: subscriptionUsage ?? { known: false },
                       paymentMethodLabel: subscriptionPaymentMethod,
+                      canChangePaymentMethod: Boolean(subscription.stripeCustomerId),
                       singleSessionPriceLabel: singlePriceLabel,
                       extraSessions:
                         creditContext && creditContext.credits.length > 0
