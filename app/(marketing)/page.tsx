@@ -131,8 +131,8 @@ export default async function KaiPaiLanding() {
         className="kp-snap"
         title="Tutto quello che ci" emphasis="chiedono"
         faq={HOME_FAQ}
+        tone="light"
       />
-      <FinalCta />
       <SiteFooter />
 
       {/* La landing e' lunga per scelta: dopo l'ultima sezione tornare in
@@ -325,81 +325,6 @@ function TrustHowItWorks() {
             <MessageSquare className="h-4 w-4" /> Prenoti, parli in chat, ti alleni
             in videochiamata <Video className="h-4 w-4" /> — tutto in un posto.
           </p>
-        </Reveal>
-      </div>
-    </section>
-  );
-}
-
-/* ── 14 · Final CTA ── */
-function FinalCta() {
-  return (
-    <section className="kp-snap kp-grain relative flex min-h-svh items-center overflow-hidden py-24 sm:py-32">
-      <ImageSlot
-        src="/vision-background.jpeg"
-        position="center 68%"
-        placeholder="none"
-        label="Una persona legge affacciata sul porto"
-        imageClassName="scale-110 opacity-55 blur-2xl"
-        className="absolute inset-0"
-      >
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage: "url('/vision-background.jpeg')",
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-            backgroundSize: 'contain',
-          }}
-        />
-        <div className="absolute inset-0 bg-kp-ink/62" />
-        <div className="absolute inset-0 bg-gradient-to-b from-kp-ink/55 via-kp-ink/30 to-kp-ink/75" />
-        <div className="kp-vignette absolute inset-0" />
-      </ImageSlot>
-      <div className="kp-red-glow absolute left-1/2 top-1/2 h-[40rem] w-[40rem] -translate-x-1/2 -translate-y-1/2 opacity-60" />
-      <div className={`${WRAP} relative z-10 text-center`}>
-        <Reveal>
-          <p className="text-sm text-kp-mid">
-            Rendere l'allenamento mentale normale quanto quello fisico.
-          </p>
-        </Reveal>
-        <Reveal delay={0.05}>
-          <h2 className="kp-display mx-auto mt-5 max-w-3xl text-[clamp(2.2rem,6vw,4.5rem)] text-kp-hi">
-            Il futuro dello sport si allena{' '}
-            <span className="text-kp-red">con la testa</span>.
-          </h2>
-        </Reveal>
-        <Reveal delay={0.1}>
-          <p className="mt-6 text-lg text-kp-mid">
-            Inizia il tuo percorso. Entra nel movimento.
-          </p>
-        </Reveal>
-        <Reveal delay={0.15}>
-          <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <a
-              href="#percorsi"
-              className="group inline-flex items-center gap-2 rounded-full bg-green-600 px-8 py-4 font-semibold text-white transition-colors hover:bg-green-700"
-            >
-              Inizia il tuo percorso
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </a>
-            <Link
-              href="/coaches"
-              className="inline-flex items-center rounded-full border border-kp-line px-7 py-4 font-medium text-kp-hi hover:border-kp-hi/30"
-            >
-              Scegli un coach
-            </Link>
-          </div>
-        </Reveal>
-        <Reveal delay={0.2}>
-          <div className="mt-8 flex items-center justify-center gap-6 text-sm text-kp-low">
-            <Link href="/sign-up" className="kp-link-wipe hover:text-kp-hi">
-              Sei un coach?
-            </Link>
-            <Link href="/sign-up" className="kp-link-wipe hover:text-kp-hi">
-              Sei una società?
-            </Link>
-          </div>
         </Reveal>
       </div>
     </section>

@@ -1129,7 +1129,9 @@
 }
 
 /* Una sezione che resta chiara anche dove l'alternanza la farebbe scura. */
-.kp-alt > section.kp-force-light {
+.kp-alt > section.kp-force-light,
+/* Anche nella home, che non usa `.kp-alt` ma ha le sue sezioni dirette in <main>. */
+main > section.kp-force-light {
   --color-kp-ink: #ffffff;
   --color-kp-ink2: var(--color-kp2-day2);
   --color-kp-surface: #ffffff;
