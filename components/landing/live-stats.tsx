@@ -10,7 +10,6 @@ type Item = {
   icon: LucideIcon;
   value: number;
   label: string;
-  caption: string;
   suffix?: string;
   /** Quanto anello resta acceso: decorativo, dà ritmo alla fila. */
   fill: number;
@@ -33,28 +32,24 @@ export function LiveStats({ stats }: { stats: LandingStats }) {
       icon: UserCheck,
       value: stats.coaches,
       label: 'Coach iscritti',
-      caption: 'Totale Coach',
       fill: 0.72,
     },
     {
       icon: Users,
       value: stats.athletes,
       label: 'Atleti',
-      caption: 'Persone in percorso',
       fill: 0.8,
     },
     {
       icon: Video,
       value: stats.sessions,
       label: 'Totale sessioni svolte',
-      caption: 'Incontri portati a termine',
       fill: 0.66,
     },
     {
       icon: Clock,
       value: stats.coachingHours,
       label: 'Ore di coaching erogate',
-      caption: 'Di percorsi Assieme',
       suffix: 'h',
       fill: 0.86,
     },
@@ -100,13 +95,10 @@ function StatTile({ item, index }: { item: Item; index: number }) {
   const Icon = item.icon;
 
   return (
-    // Ogni scheda occupa due righe della griglia, ereditate dalle altre
-    // (`subgrid`): la riga del numero ha l'altezza della scheda con l'etichetta
-    // più lunga e la riga della didascalia parte alla stessa altezza in tutte,
-    // qualunque sia il numero di righe in cui va a capo l'etichetta. Prima il
-    // contenuto era centrato scheda per scheda e icone, numeri e didascalie
-    // finivano ognuno a un'altezza diversa.
-    <div className="kp-stat kp-glass row-span-2 grid h-full grid-rows-subgrid gap-y-3 rounded-2xl px-3.5 py-3.5 sm:px-4 sm:gap-y-4">
+    // Niente didascalia sotto il numero: ripeteva l'etichetta. Icona e numero
+    // partono dall'alto in tutte le schede, così non si spostano a seconda di
+    // quante righe occupa l'etichetta.
+    <div className="kp-stat kp-glass h-full rounded-2xl px-3.5 py-3.5 sm:px-4">
       <div className="flex items-start gap-3">
         <span className="relative inline-flex h-11 w-11 shrink-0 items-center justify-center">
           {/* alone rosso che ruota piano dietro l'anello */}
@@ -160,9 +152,6 @@ function StatTile({ item, index }: { item: Item; index: number }) {
           </p>
         </div>
       </div>
-      <p className="text-[0.7rem] leading-snug text-kp-low">
-        {item.caption}
-      </p>
     </div>
   );
 }
