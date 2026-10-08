@@ -100,8 +100,14 @@ function StatTile({ item, index }: { item: Item; index: number }) {
   const Icon = item.icon;
 
   return (
-    <div className="kp-stat kp-glass h-full rounded-2xl px-3.5 py-3.5 sm:px-4">
-      <div className="flex items-center gap-3">
+    // Ogni scheda occupa due righe della griglia, ereditate dalle altre
+    // (`subgrid`): la riga del numero ha l'altezza della scheda con l'etichetta
+    // più lunga e la riga della didascalia parte alla stessa altezza in tutte,
+    // qualunque sia il numero di righe in cui va a capo l'etichetta. Prima il
+    // contenuto era centrato scheda per scheda e icone, numeri e didascalie
+    // finivano ognuno a un'altezza diversa.
+    <div className="kp-stat kp-glass row-span-2 grid h-full grid-rows-subgrid gap-y-3 rounded-2xl px-3.5 py-3.5 sm:px-4 sm:gap-y-4">
+      <div className="flex items-start gap-3">
         <span className="relative inline-flex h-11 w-11 shrink-0 items-center justify-center">
           {/* alone rosso che ruota piano dietro l'anello */}
           <span
@@ -154,7 +160,7 @@ function StatTile({ item, index }: { item: Item; index: number }) {
           </p>
         </div>
       </div>
-      <p className="mt-3 text-[0.7rem] leading-snug text-kp-low">
+      <p className="text-[0.7rem] leading-snug text-kp-low">
         {item.caption}
       </p>
     </div>
