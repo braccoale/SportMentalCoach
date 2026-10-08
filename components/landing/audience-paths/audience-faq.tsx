@@ -44,8 +44,11 @@ export function AudienceFaq({
      * `bleed` (predefinito): foto larga che sborda fino al bordo sinistro.
      * `portrait`: un oggetto in verticale (il badge dell’Academy), dentro la
      * colonna, con i bordi sfumati nel fondo.
+     * `scene`: una foto a tutta scena su fondo bianco (3:2) che sborda a
+     * sinistra; il bianco della foto si fonde con lo sfondo della sezione
+     * (`mix-blend-multiply`), quindi non serve ritagliarla né sfumarla ai lati.
      */
-    layout?: 'bleed' | 'portrait';
+    layout?: 'bleed' | 'portrait' | 'scene';
   };
   id?: string;
   /** Classi in più per la sezione (in home: `kp-snap`, vedi SnapScroll). */
@@ -88,7 +91,21 @@ export function AudienceFaq({
           {action ? <div className="mt-8">{action}</div> : null}
           {secondary ? <div className="mt-5">{secondary}</div> : null}
           {/* La foto segue il testo, subito sotto il collegamento. */}
-          {photo?.layout === 'portrait' ? (
+          {photo?.layout === 'scene' ? (
+            <div
+              aria-hidden
+              className="pointer-events-none relative mt-6 hidden aspect-[3/2] lg:-ml-[max(2rem,calc((100vw-80rem)/2+2rem))] lg:block"
+            >
+              <Image
+                src={photo.src}
+                alt=""
+                fill
+                sizes="(min-width: 1280px) 50vw, 60vw"
+                className="object-cover object-bottom mix-blend-multiply"
+              />
+              <div className="absolute inset-x-0 bottom-0 h-1/6 bg-gradient-to-t from-kp-ink2 to-transparent" />
+            </div>
+          ) : photo?.layout === 'portrait' ? (
             <div
               aria-hidden
               className="pointer-events-none relative mt-6 hidden aspect-[900/1080] w-full max-w-[22rem] lg:block"

@@ -132,6 +132,7 @@ export default async function KaiPaiLanding() {
         title="Tutto quello che ci" emphasis="chiedono"
         faq={HOME_FAQ}
         tone="light"
+        photo={{ src: '/ragazza.png', alt: '', layout: 'scene' }}
       />
       <SiteFooter />
 
