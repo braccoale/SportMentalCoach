@@ -86,6 +86,7 @@ import { buildAiSessionArchiveIndicator, coachArchiveReportHref } from '@/lib/co
 import { isPendingAiNotesStatus } from '@/lib/core/ai-session-notes/worker-nudge';
 import { runAiNotesQueueAfterResponse } from '@/lib/core/ai-session-notes/queue-runner';
 import { getPipelineHealth } from '@/lib/core/ai-session-notes/pipeline-health';
+import { ttlMemo } from '@/lib/core/cache/ttl-memo';
 import { triggerAiNotesWorker } from '@/lib/core/ai-session-notes/worker-trigger';
 import { hasSeenTour } from '@/lib/core/tours/state';
 import { ProductTour } from '@/components/product-tour';
@@ -126,6 +127,8 @@ function HintPill({ children }: { children: ReactNode }) {
 }
 
 export const dynamic = 'force-dynamic';
+
+const getPipelineHealthRecent = ttlMemo(() => getPipelineHealth(), 60_000);
 
 export default async function CoachDashboardPage() {
   const user = await requireRole('coach');
@@ -241,7 +244,6 @@ export default async function CoachDashboardPage() {
     ])
   );
 
-  const reviews = provider ? await getCoachReviews(provider.id) : [];
 
   // Review/publication gate. Appointments unlock only once the ADMIN APPROVES
   // the profile — not merely when it's been submitted (pending still counts as
@@ -259,16 +261,19 @@ export default async function CoachDashboardPage() {
     : null;
   const isApproved = provider?.status === 'approved';
   const isPending = provider?.status === 'pending';
-  // Niente tour finché il profilo non è approvato: il bottone "Nuovo
-  // appuntamento" (primo bersaglio del tour) non è ancora in pagina.
-  const tourSeen = isApproved
-    ? await hasSeenTour(user.id, 'coach_dashboard_intro')
-    : true;
-  // Stesso motivo: il tour del dialog "Nuovo appuntamento" non ha senso
-  // finché il bottone che lo apre non è in pagina.
-  const createAppointmentTourSeen = isApproved
-    ? await hasSeenTour(user.id, 'coach_create_appointment')
-    : true;
+  // Quattro letture indipendenti, insieme invece di una dopo l'altra (erano
+  // otto viaggi al database in fila a ogni apertura della home).
+  //  - Niente tour finché il profilo non è approvato: il bottone "Nuovo
+  //    appuntamento" (primo bersaglio del tour) non è ancora in pagina, e il
+  //    tour del suo dialog non ha senso finché il bottone che lo apre manca.
+  //  - Lo stato della coda AI descrive il sistema, non questo coach: si ricorda
+  //    per un minuto (`ttlMemo`) invece di ricalcolarlo a ogni visita.
+  const [reviews, tourSeen, createAppointmentTourSeen, pipeline] = await Promise.all([
+    provider ? getCoachReviews(provider.id) : Promise.resolve([]),
+    isApproved ? hasSeenTour(user.id, 'coach_dashboard_intro') : Promise.resolve(true),
+    isApproved ? hasSeenTour(user.id, 'coach_create_appointment') : Promise.resolve(true),
+    getPipelineHealthRecent(),
+  ]);
 
   const pending = allBookings.filter((b) => b.status === 'requested');
   const accepted = allBookings.filter((b) => b.status === 'accepted');
@@ -305,7 +310,6 @@ export default async function CoachDashboardPage() {
    * continuo: è la sveglia più frequente che abbiamo, e finora era l'unica a
    * non essere usata per questo.
    */
-  const pipeline = await getPipelineHealth();
   if (
     allBookings.some((b) => isPendingAiNotesStatus(b.aiNotesStatus)) ||
     pipeline.verdict === 'stuck'
