@@ -49,11 +49,14 @@ export function Hero({ stats }: { stats: LandingStats }) {
       </ParallaxGroup>
 
       {/* Content */}
-      <div className="pointer-events-none relative z-10 mx-auto flex min-h-[100svh] max-w-7xl flex-col justify-center px-5 pb-16 pt-24 sm:px-8 [&_a]:pointer-events-auto [&_button]:pointer-events-auto">
+      <div className="pointer-events-none relative z-10 mx-auto flex min-h-[100svh] max-w-7xl flex-col justify-start px-5 pb-16 pt-20 sm:px-8 sm:pt-24 [&_a]:pointer-events-auto [&_button]:pointer-events-auto">
         <div className="max-w-xl">
           {/* Il logo era alto 22rem e spingeva il titolo a metà schermo. Ora
               è dimensionato per lasciare il titolo nella parte alta della
-              hero, che è quello che si deve leggere per primo. */}
+              hero, che è quello che si deve leggere per primo. 
+              Il blocco parte subito sotto la barra (`justify-start`) e non più
+              centrato nell'altezza: dal logo ai numeri sta tutto più in alto,
+              e i numeri restano nella prima schermata. */}
           <img
             src="/logo-transparent-clean.png"
             alt="KaiPai — Mental Coaching"
