@@ -33,7 +33,7 @@ export function LiveStats({ stats }: { stats: LandingStats }) {
       icon: UserCheck,
       value: stats.coaches,
       label: 'Coach iscritti',
-      caption: 'Guide certificate KaiPai',
+      caption: 'Totale Coach',
       fill: 0.72,
     },
     {
@@ -54,7 +54,7 @@ export function LiveStats({ stats }: { stats: LandingStats }) {
       icon: Clock,
       value: stats.coachingHours,
       label: 'Ore di coaching erogate',
-      caption: 'Una accanto all’altra',
+      caption: 'Di percorsi Assieme',
       suffix: 'h',
       fill: 0.86,
     },
