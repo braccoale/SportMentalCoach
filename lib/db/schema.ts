@@ -256,6 +256,10 @@ export const sports = pgTable('sports', {
   label: varchar('label', { length: 120 }).notNull(),
   active: boolean('active').notNull().default(true),
   sortOrder: integer('sort_order').notNull().default(0),
+  // Le due immagini della dashboard dell'atleta, una per genere: percorsi sotto
+  // `/athlete-hero/` (migrazione 0095). Nulli = si usano quelle di riserva.
+  heroImageMale: text('hero_image_male'),
+  heroImageFemale: text('hero_image_female'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
   ...audit,
@@ -330,6 +334,10 @@ export const clientProfiles = pgTable('client_profiles', {
   goals: text('goals'),
   city: varchar('city', { length: 120 }),
   birthDate: date('birth_date'),
+  // Genere dichiarato (`male` | `female` | `undisclosed`), facoltativo: serve
+  // soltanto a scegliere l'immagine in alto nella dashboard dell'atleta
+  // (lib/core/athlete-hero). Vedi migrazione 0095.
+  gender: varchar('gender', { length: 16 }),
   orgId: integer('org_id').references(() => teams.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),

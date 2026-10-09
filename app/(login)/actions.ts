@@ -48,6 +48,7 @@ import {
 } from '@/lib/core/auth/account-provisioning';
 import { safeRedirectPath } from '@/lib/core/auth/safe-redirect';
 import { passwordRejectionMessage } from '@/lib/core/auth/password-rejection';
+import { normalizeGender } from '@/lib/core/profiles/gender';
 
 const signInSchema = z.object({
   email: z.string().email().min(3).max(255),
@@ -149,6 +150,10 @@ const signUpSchema = z.object({
   // Required for athletes: the platform is offered from 15 up, and between 15
   // and 17 a guardian has to authorise. Neither rule can be applied without it.
   birthDate: z.string().optional(),
+  // Facoltativo: sceglie l'immagine della dashboard dell'atleta. Un valore
+  // sconosciuto diventa `null` (`normalizeGender`), mai un errore: non deve
+  // poter bloccare una registrazione.
+  gender: z.string().optional(),
   // Legal: the two required acceptances arrive as 'on' from the checkboxes.
   // Marketing is optional and never blocks registration.
   acceptTerms: z.string().optional(),
@@ -316,6 +321,7 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
     marketing,
     marketplaceRole,
     birthDate: birthDate ?? null,
+    gender: isAthleteSignup ? normalizeGender(data.gender) : null,
     isAthleteSignup,
     isProfessional,
     invitation,

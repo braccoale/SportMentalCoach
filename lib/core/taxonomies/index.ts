@@ -3,6 +3,7 @@ import { asc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { sports, specialties } from '@/lib/db/schema';
 import type { TaxonomyItem } from '@/lib/core/config/types';
+import type { SportHeroImages } from '@/lib/core/athlete-hero';
 
 /**
  * DB-backed taxonomy master data (anagrafiche). Sports and specialties live
@@ -38,6 +39,23 @@ export async function getAllSports(): Promise<TaxonomyItem[]> {
     .select({ key: sports.key, label: sports.label })
     .from(sports)
     .orderBy(asc(sports.sortOrder), asc(sports.label));
+}
+
+/**
+ * Le due immagini della dashboard per uno sport (una per genere), o `null` se
+ * lo sport non esiste o l'atleta non ne ha scelto uno. Si legge anche da uno
+ * sport disattivato: l'atleta che lo aveva scelto continua a vederlo.
+ */
+export async function getSportHeroImages(
+  key: string | null | undefined
+): Promise<SportHeroImages | null> {
+  if (!key) return null;
+  const [row] = await db
+    .select({ heroImageMale: sports.heroImageMale, heroImageFemale: sports.heroImageFemale })
+    .from(sports)
+    .where(eq(sports.key, key))
+    .limit(1);
+  return row ?? null;
 }
 
 /** All specialties (including inactive) — for label resolution only. */

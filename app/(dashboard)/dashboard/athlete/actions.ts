@@ -6,6 +6,7 @@ import { cancelBooking, createBookingRequest } from '@/lib/core/bookings';
 import { parseSessionDuration } from '@/lib/core/bookings/duration';
 import { parseRomeLocalDateTime } from '@/lib/core/availability';
 import { getClientProfile, updateClientProfile } from '@/lib/core/profiles';
+import { normalizeGender } from '@/lib/core/profiles/gender';
 import { normalizeSportKey } from '@/lib/core/profiles/sport-key';
 import { canSelfEditBirthDate, inviteGuardian } from '@/lib/core/guardians';
 import { LEGAL_CONTACT_EMAIL } from '@/lib/core/legal/processors';
@@ -163,6 +164,8 @@ export async function updateAthleteProfileAction(
     goals,
     city,
     birthDate,
+    // Facoltativo: un valore sconosciuto diventa `null`, mai un errore.
+    gender: normalizeGender(formData.get('gender')),
   });
 
   revalidatePath('/dashboard/athlete/profile');

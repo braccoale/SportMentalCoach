@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db, type DbOrTx } from '@/lib/db/drizzle';
 import { resolveDisplayName, yearsSince } from '@/lib/core/format';
 import { notify } from '@/lib/core/notifications';
+import { normalizeGender, type AthleteGender } from './gender';
 import { CONTACT_INBOX_FALLBACK } from '@/lib/core/email';
 import {
   profiles,
@@ -198,6 +199,8 @@ export type AthleteProfileFields = {
   city: string | null;
   /** ISO date `YYYY-MM-DD`, or null. */
   birthDate: string | null;
+  /** Genere dichiarato, facoltativo: sceglie l'immagine della dashboard. */
+  gender: AthleteGender | null;
 };
 
 /** Athlete's sport profile fields, or nulls if unset. */
@@ -211,6 +214,7 @@ export async function getClientProfile(
       goals: clientProfiles.goals,
       city: clientProfiles.city,
       birthDate: clientProfiles.birthDate,
+      gender: clientProfiles.gender,
     })
     .from(clientProfiles)
     .where(eq(clientProfiles.userId, userId))
@@ -221,13 +225,16 @@ export async function getClientProfile(
     goals: row?.goals ?? null,
     city: row?.city ?? null,
     birthDate: row?.birthDate ?? null,
+    gender: normalizeGender(row?.gender),
   };
 }
 
 /** Upserts the athlete's profile fields (creates the row if missing). */
 export async function updateClientProfile(
   userId: number,
-  fields: AthleteProfileFields
+  // `gender` assente = lascia com'è (l'onboarding non lo chiede e non deve
+  // cancellarlo); `null` = l'atleta lo ha tolto.
+  fields: Omit<AthleteProfileFields, 'gender'> & { gender?: AthleteGender | null }
 ): Promise<void> {
   await ensureClientProfile(userId);
   await db
@@ -238,6 +245,7 @@ export async function updateClientProfile(
       goals: fields.goals,
       city: fields.city,
       birthDate: fields.birthDate,
+      ...(fields.gender !== undefined ? { gender: fields.gender } : {}),
       updatedAt: new Date(),
       updatedBy: userId,
     })

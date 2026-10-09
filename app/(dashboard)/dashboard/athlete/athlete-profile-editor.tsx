@@ -10,6 +10,7 @@ import type { AthleteProfileFields } from '@/lib/core/profiles';
 import { normalizeSportKey } from '@/lib/core/profiles/sport-key';
 import { AGE_OF_MAJORITY, ageFromBirthDate } from '@/lib/core/guardians/age';
 import { sports } from '@/lib/verticals/sport-mental-coach/taxonomies';
+import { GenderField } from '@/components/gender-field';
 import { updateAthleteProfileAction } from './actions';
 
 const LEVELS = [
@@ -119,6 +120,8 @@ export function AthleteProfileEditor({ profile }: { profile: AthleteProfileField
               )}
             </div>
           </div>
+
+          <GenderField defaultValue={profile.gender} />
 
           <div className="space-y-1.5">
             <Label htmlFor="goals">Obiettivi</Label>
