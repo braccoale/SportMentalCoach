@@ -3,7 +3,7 @@ import {
   getAvatarUrl,
   getProviderProfileByUser,
 } from '@/lib/core/profiles';
-import { getCoachServices, hasActiveIntroSession } from '@/lib/core/services';
+import { getCoachServices } from '@/lib/core/services';
 import { getCoachAvailability } from '@/lib/core/availability';
 import { computeProfileCompleteness } from '@/lib/core/coach-profile/completeness';
 import { CoachProfileCompleteness } from '@/components/coach-profile-completeness';
@@ -46,12 +46,11 @@ export default async function CoachProfilePage() {
   const user = await requireRole('coach');
   const config = getVerticalConfig();
 
-  const [provider, services, avatarUrl, availability, hasIntro] = await Promise.all([
+  const [provider, services, avatarUrl, availability] = await Promise.all([
     getProviderProfileByUser(user.id),
     getCoachServices(user.id),
     getAvatarUrl(user.id),
     getCoachAvailability(user.id),
-    hasActiveIntroSession(user.id),
   ]);
 
   const onboarding = provider
@@ -100,14 +99,12 @@ export default async function CoachProfilePage() {
     coachSince: provider.coachSince,
     yearsExperience: provider.yearsExperience,
     certifications: provider.certifications,
-    certificationsVerified: provider.certificationsVerified,
     hasVideo: !!provider.videoUrl,
     hasService: activeServices.some((s) => (s.durationMin ?? 0) > 0),
     hasPricedService: activeServices.some(
       (s) => (s.durationMin ?? 0) > 0 && (s.price ?? 0) > 0
     ),
     hasAvailability: availability.length > 0,
-    hasIntroSession: hasIntro,
   });
 
   return (
