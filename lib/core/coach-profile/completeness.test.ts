@@ -17,18 +17,16 @@ const empty: CoachProfileInput = {
   coachSince: null,
   yearsExperience: null,
   certifications: null,
-  certificationsVerified: false,
   hasVideo: false,
   hasService: false,
   hasPricedService: false,
   hasAvailability: false,
-  hasIntroSession: false,
 };
 
 const full: CoachProfileInput = {
   hasPhoto: true,
   headline: 'Mental coach per tennisti e giovani agonisti',
-  description: 'x'.repeat(300),
+  description: 'x'.repeat(350),
   categories: ['tennis'],
   specialties: ['ansia', 'concentrazione'],
   athleteLevels: ['agonista'],
@@ -36,13 +34,14 @@ const full: CoachProfileInput = {
   coachSince: '2018-01-01',
   yearsExperience: null,
   certifications: ['Master in psicologia dello sport'],
-  certificationsVerified: true,
   hasVideo: true,
   hasService: true,
   hasPricedService: true,
   hasAvailability: true,
-  hasIntroSession: true,
 };
+
+const item = (input: CoachProfileInput, key: string) =>
+  computeProfileCompleteness(input).items.find((i) => i.key === key)!;
 
 describe('computeProfileCompleteness', () => {
   it('i pesi sommano a 100', () => {
@@ -56,40 +55,32 @@ describe('computeProfileCompleteness', () => {
     assert.equal(c.level, 'completo');
     assert.equal(c.nextSteps.length, 0);
   });
-  it('una bio breve vale la metà, una lunga il pieno', () => {
-    const bio = (n: number) =>
-      computeProfileCompleteness({ ...empty, description: 'x'.repeat(n) }).items.find(
-        (i) => i.key === 'bio'
-      )!;
-    assert.equal(bio(50).state, 'missing');
-    assert.equal(bio(150).state, 'partial');
-    assert.equal(bio(150).earned, 6);
+  it('solo ciò che il coach può fare da solo conta: niente verifica dei titoli né sessione conoscitiva', () => {
+    const keys = computeProfileCompleteness(full).items.map((i) => i.key);
+    assert.ok(!keys.includes('certifications_verified'));
+    assert.ok(!keys.includes('intro'));
+  });
+  it('la struttura pesa meno del contenuto', () => {
+    const items = computeProfileCompleteness(full).items;
+    const structure = ['photo', 'sports', 'specialties', 'levels', 'languages', 'service', 'availability'];
+    const structureWeight = items.filter((i) => structure.includes(i.key)).reduce((s, i) => s + i.weight, 0);
+    assert.equal(structureWeight, 42);
+    assert.equal(100 - structureWeight, 58);
+  });
+  it('una presentazione corta vale metà, una lunga il pieno, una cortissima niente', () => {
+    const bio = (n: number) => item({ ...empty, description: 'x'.repeat(n) }, 'bio');
+    assert.equal(bio(100).state, 'missing');
+    assert.equal(bio(200).state, 'partial');
+    assert.equal(bio(200).earned, 9);
     assert.equal(bio(300).state, 'done');
   });
-  it('una sola specialità vale la metà', () => {
-    const s = computeProfileCompleteness({ ...empty, specialties: ['ansia'] }).items.find(
-      (i) => i.key === 'specialties'
-    )!;
+  it('una sola specialità vale metà', () => {
+    const s = item({ ...empty, specialties: ['ansia'] }, 'specialties');
     assert.equal(s.earned, 4);
     assert.equal(s.state, 'partial');
   });
-  it('i titoli dichiarati valgono, e di più se verificati', () => {
-    const dichiarati = computeProfileCompleteness({ ...empty, certifications: ['Master'] });
-    const verificati = computeProfileCompleteness({
-      ...empty,
-      certifications: ['Master'],
-      certificationsVerified: true,
-    });
-    assert.equal(dichiarati.score, 8);
-    assert.equal(verificati.score, 12);
-    // Verificati ma nessun titolo scritto: niente.
-    assert.equal(computeProfileCompleteness({ ...empty, certificationsVerified: true }).score, 0);
-  });
   it('il servizio vale metà senza prezzo', () => {
-    const s = computeProfileCompleteness({ ...empty, hasService: true }).items.find(
-      (i) => i.key === 'service'
-    )!;
-    assert.equal(s.earned, 4);
+    assert.equal(item({ ...empty, hasService: true }, 'service').earned, 3);
   });
   it('stringhe vuote o spazi non contano come informazione', () => {
     const c = computeProfileCompleteness({
@@ -103,23 +94,64 @@ describe('computeProfileCompleteness', () => {
   it('i passi successivi sono quelli che fanno guadagnare di più, al massimo quattro', () => {
     const c = computeProfileCompleteness({ ...empty, hasPhoto: true });
     assert.equal(c.nextSteps.length, 4);
-    assert.equal(c.nextSteps[0].key, 'bio'); // 12 punti, il più pesante rimasto
+    assert.equal(c.nextSteps[0].key, 'bio'); // 18 punti, il più pesante rimasto
+    assert.equal(c.nextSteps[1].key, 'video');
     for (const step of c.nextSteps) assert.notEqual(step.state, 'done');
   });
   it('una voce parziale resta tra i passi con i punti che mancano', () => {
-    const c = computeProfileCompleteness({ ...full, description: 'x'.repeat(120) });
+    const c = computeProfileCompleteness({ ...full, description: 'x'.repeat(200) });
     assert.equal(c.nextSteps[0].key, 'bio');
-    assert.equal(c.score, 94);
+    assert.equal(c.score, 91);
+  });
+});
+
+// La taratura sui quattro profili veri di ottobre 2026: un profilo con tutta la
+// struttura ma presentazione cortissima, niente titoli e niente video NON deve
+// risultare «buono» (prima, con i pesi di struttura più alti, arrivava al 61%).
+describe('taratura sui profili reali', () => {
+  const base = {
+    hasPhoto: true,
+    athleteLevels: ['a'],
+    languages: ['it'],
+    coachSince: '2020-01-01',
+    yearsExperience: null,
+    hasVideo: false,
+    hasService: true,
+    hasPricedService: true,
+    hasAvailability: true,
+  };
+  it('struttura completa ma contenuto scarso: livello base', () => {
+    const scarso = computeProfileCompleteness({
+      ...base,
+      headline: 'Mental coach',
+      description: 'Breve presentazione di una riga.',
+      categories: ['a', 'b'],
+      specialties: ['x', 'y', 'z'],
+      certifications: null,
+    });
+    assert.equal(scarso.level, 'base');
+    assert.ok(scarso.score < 55, `punteggio ${scarso.score}`);
+  });
+  it('contenuto buono (presentazione, titolo, titoli) senza video: ottimo', () => {
+    const buono = computeProfileCompleteness({
+      ...base,
+      headline: 'Mental coach sportivo per giovani atleti',
+      description: 'x'.repeat(420),
+      categories: ['a'],
+      specialties: ['x', 'y', 'z'],
+      certifications: ['Master', 'Corso'],
+    });
+    assert.equal(buono.level, 'ottimo');
   });
 });
 
 describe('completenessLevel', () => {
-  it('le soglie sono 40, 70 e 90', () => {
+  it('le soglie sono 55, 75 e 90', () => {
     assert.equal(completenessLevel(0), 'base');
-    assert.equal(completenessLevel(39), 'base');
-    assert.equal(completenessLevel(40), 'buono');
-    assert.equal(completenessLevel(69), 'buono');
-    assert.equal(completenessLevel(70), 'ottimo');
+    assert.equal(completenessLevel(54), 'base');
+    assert.equal(completenessLevel(55), 'buono');
+    assert.equal(completenessLevel(74), 'buono');
+    assert.equal(completenessLevel(75), 'ottimo');
     assert.equal(completenessLevel(89), 'ottimo');
     assert.equal(completenessLevel(90), 'completo');
   });

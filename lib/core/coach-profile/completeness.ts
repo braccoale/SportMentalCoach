@@ -15,8 +15,13 @@
  *    sentirsi a zero;
  *  - niente numeri sulle conseguenze che non abbiamo misurato: i motivi sono
  *    quelli che il prodotto fa davvero (i filtri, la scheda, le richieste);
- *  - i titoli dichiarati valgono, e di più se li ha verificati il team: così
- *    non si premia chi ne scrive di inventati.
+ *  - contano solo cose che **il coach può fare da solo**: la verifica dei
+ *    titoli da parte del team e la sessione conoscitiva gratuita (decisa dalla
+ *    piattaforma) non entrano nel punteggio;
+ *  - le voci «di struttura» (foto, sport, lingue, servizio, orari…) pesano
+ *    meno di quelle di contenuto (presentazione, video, titoli, esperienza):
+ *    averle è il minimo per funzionare, non un merito, e un profilo con tutta
+ *    la struttura ma senza contenuto non deve sembrare «buono».
  *
  * Modulo puro, senza `server-only`: lo leggono la pagina del profilo e
  * l'elenco dei coach.
@@ -33,16 +38,12 @@ export type CoachProfileInput = {
   coachSince: string | null;
   yearsExperience: number | null;
   certifications: string[] | null;
-  /** Il team ha verificato i titoli dichiarati. */
-  certificationsVerified: boolean;
   hasVideo: boolean;
   /** Almeno un servizio attivo, non conoscitivo, con una durata. */
   hasService: boolean;
   /** … e con anche un prezzo. */
   hasPricedService: boolean;
   hasAvailability: boolean;
-  /** La sessione conoscitiva gratuita è attiva. */
-  hasIntroSession: boolean;
 };
 
 export type CompletenessState = 'done' | 'partial' | 'missing';
@@ -78,11 +79,11 @@ export const COMPLETENESS_LEVEL_LABEL: Record<CompletenessLevel, string> = {
   completo: 'Completo',
 };
 
-/** Soglie del livello: da 90 in su è «Completo», da 70 «Ottimo», da 40 «Buono». */
+/** Soglie del livello: da 90 in su è «Completo», da 75 «Ottimo», da 55 «Buono». */
 export function completenessLevel(score: number): CompletenessLevel {
   if (score >= 90) return 'completo';
-  if (score >= 70) return 'ottimo';
-  if (score >= 40) return 'buono';
+  if (score >= 75) return 'ottimo';
+  if (score >= 55) return 'buono';
   return 'base';
 }
 
@@ -101,6 +102,7 @@ type Spec = {
 };
 
 const SPECS: Spec[] = [
+  // ── Struttura: il minimo per funzionare (42 punti) ──────────────────────
   {
     key: 'photo',
     label: 'Foto del profilo',
@@ -110,25 +112,9 @@ const SPECS: Spec[] = [
     fraction: (p) => (p.hasPhoto ? 1 : 0),
   },
   {
-    key: 'headline',
-    label: 'Titolo',
-    weight: 5,
-    hint: 'Scrivi una frase che dica chi sei e con chi lavori (almeno 15 caratteri).',
-    why: 'Compare sulla tua scheda nell’elenco, sotto il nome.',
-    fraction: (p) => (len(p.headline) >= 15 ? 1 : 0),
-  },
-  {
-    key: 'bio',
-    label: 'Presentazione',
-    weight: 12,
-    hint: 'Racconta come lavori, con chi e su cosa: almeno 250 caratteri per un testo che convince.',
-    why: 'È il testo che si legge prima di chiedere la sessione conoscitiva. Più è chiaro, meno domande restano all’atleta.',
-    fraction: (p) => (len(p.description) >= 250 ? 1 : len(p.description) >= 100 ? 0.5 : 0),
-  },
-  {
     key: 'sports',
     label: 'Sport che segui',
-    weight: 8,
+    weight: 6,
     hint: 'Scegli almeno uno sport.',
     why: 'Senza uno sport non compari quando un atleta filtra per sport.',
     fraction: (p) => (count(p.categories) >= 1 ? 1 : 0),
@@ -144,7 +130,7 @@ const SPECS: Spec[] = [
   {
     key: 'levels',
     label: 'Livelli degli atleti',
-    weight: 5,
+    weight: 4,
     hint: 'Indica con quali livelli lavori (amatori, agonisti, élite…).',
     why: 'Serve al filtro «lavora con»: chi cerca un coach per il proprio livello ti trova.',
     fraction: (p) => (count(p.athleteLevels) >= 1 ? 1 : 0),
@@ -152,47 +138,15 @@ const SPECS: Spec[] = [
   {
     key: 'languages',
     label: 'Lingue',
-    weight: 5,
+    weight: 4,
     hint: 'Aggiungi le lingue in cui puoi fare le sedute.',
     why: 'Senza lingue non compari quando un atleta filtra per la propria lingua.',
     fraction: (p) => (count(p.languages) >= 1 ? 1 : 0),
   },
   {
-    key: 'experience',
-    label: 'Esperienza',
-    weight: 7,
-    hint: 'Indica da quando fai il coach.',
-    why: 'Gli anni di attività sono un segnale di fiducia mostrato sulla tua scheda.',
-    fraction: (p) => (p.coachSince || (p.yearsExperience ?? 0) > 0 ? 1 : 0),
-  },
-  {
-    key: 'certifications',
-    label: 'Titoli e formazione',
-    weight: 8,
-    hint: 'Elenca i titoli e i percorsi di formazione che hai davvero.',
-    why: 'Rendono credibile il profilo. Scrivi solo ciò che puoi dimostrare: il team può verificarli.',
-    fraction: (p) => (count(p.certifications) >= 1 ? 1 : 0),
-  },
-  {
-    key: 'certifications_verified',
-    label: 'Titoli verificati',
-    weight: 4,
-    hint: 'Quando i tuoi titoli sono verificati dal team, il profilo vale di più.',
-    why: 'Un titolo verificato pesa più di uno solo dichiarato, e lo si vede sulla scheda.',
-    fraction: (p) => (count(p.certifications) >= 1 && p.certificationsVerified ? 1 : 0),
-  },
-  {
-    key: 'video',
-    label: 'Video di presentazione',
-    weight: 10,
-    hint: 'Registra un video breve in cui ti presenti.',
-    why: 'Fa sentire la tua voce e il tuo modo di parlare prima della sessione conoscitiva.',
-    fraction: (p) => (p.hasVideo ? 1 : 0),
-  },
-  {
     key: 'service',
     label: 'Servizio con durata e prezzo',
-    weight: 8,
+    weight: 6,
     hint: 'Crea almeno un servizio attivo con la durata e il prezzo.',
     why: 'Senza un servizio con una durata nessuno può chiederti una seduta; con il prezzo compari anche nel filtro prezzo.',
     fraction: (p) => (p.hasPricedService ? 1 : p.hasService ? 0.5 : 0),
@@ -200,18 +154,51 @@ const SPECS: Spec[] = [
   {
     key: 'availability',
     label: 'Disponibilità settimanale',
-    weight: 6,
+    weight: 4,
     hint: 'Pubblica i giorni e gli orari in cui ricevi.',
     why: 'Senza orari pubblicati l’atleta non può scegliere uno spazio e chiederti una seduta.',
     fraction: (p) => (p.hasAvailability ? 1 : 0),
   },
+  // ── Contenuto: ciò che convince a sceglierti (58 punti) ─────────────────
   {
-    key: 'intro',
-    label: 'Sessione conoscitiva gratuita',
-    weight: 4,
-    hint: 'Tieni attiva la sessione conoscitiva.',
-    why: 'Abbassa la soglia per chi non ti conosce: provare costa venti minuti e niente altro.',
-    fraction: (p) => (p.hasIntroSession ? 1 : 0),
+    key: 'headline',
+    label: 'Titolo',
+    weight: 7,
+    hint: 'Scrivi una frase che dica chi sei e con chi lavori (almeno 15 caratteri).',
+    why: 'Compare sulla tua scheda nell’elenco, sotto il nome.',
+    fraction: (p) => (len(p.headline) >= 15 ? 1 : 0),
+  },
+  {
+    key: 'bio',
+    label: 'Presentazione',
+    weight: 18,
+    hint: 'Racconta come lavori, con chi e su cosa: almeno 300 caratteri per un testo che convince.',
+    why: 'È il testo che si legge prima di chiedere la sessione conoscitiva. Più è chiaro, meno domande restano all’atleta.',
+    fraction: (p) => (len(p.description) >= 300 ? 1 : len(p.description) >= 150 ? 0.5 : 0),
+  },
+  {
+    key: 'experience',
+    label: 'Esperienza',
+    weight: 8,
+    hint: 'Indica da quando fai il coach.',
+    why: 'Gli anni di attività sono un segnale di fiducia mostrato sulla tua scheda.',
+    fraction: (p) => (p.coachSince || (p.yearsExperience ?? 0) > 0 ? 1 : 0),
+  },
+  {
+    key: 'certifications',
+    label: 'Titoli e formazione',
+    weight: 10,
+    hint: 'Elenca i titoli e i percorsi di formazione che hai davvero.',
+    why: 'Rendono credibile il profilo. Scrivi solo ciò che puoi dimostrare.',
+    fraction: (p) => (count(p.certifications) >= 1 ? 1 : 0),
+  },
+  {
+    key: 'video',
+    label: 'Video di presentazione',
+    weight: 15,
+    hint: 'Registra un video breve in cui ti presenti.',
+    why: 'Fa sentire la tua voce e il tuo modo di parlare prima della sessione conoscitiva.',
+    fraction: (p) => (p.hasVideo ? 1 : 0),
   },
 ];
 

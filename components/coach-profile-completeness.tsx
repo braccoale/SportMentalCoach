@@ -10,7 +10,6 @@ import {
 const HREF_BY_KEY: Record<string, string> = {
   service: '/dashboard/coach/services',
   availability: '/dashboard/coach/services',
-  intro: '/dashboard/coach/services',
 };
 
 const LEVEL_TONE: Record<string, string> = {

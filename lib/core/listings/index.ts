@@ -353,7 +353,6 @@ export async function getCoachDiscovery(
       // Per il punteggio di completezza (non escono dalla funzione).
       description: providerProfiles.description,
       certifications: providerProfiles.certifications,
-      certificationsVerified: providerProfiles.certificationsVerified,
       coachSince: providerProfiles.coachSince,
     })
     .from(providerProfiles)
@@ -362,7 +361,7 @@ export async function getCoachDiscovery(
     .where(and(...conditions));
 
   const providerIds = rows.map((r) => r.providerId);
-  const [ratings, experience, serviceRows, introRows, availabilityRows, completenessWeightRaw] =
+  const [ratings, experience, serviceRows, availabilityRows, completenessWeightRaw] =
     await Promise.all([
     getRatingSummaries(rows.map((r) => r.providerId)),
     getCoachExperienceStats(rows.map((r) => r.providerId)),
@@ -387,20 +386,8 @@ export async function getCoachDiscovery(
         )
       )
       .orderBy(services.id),
-    // Chi ha la sessione conoscitiva attiva e chi ha orari pubblicati: due
-    // sole domande «esiste?», per il punteggio di completezza.
-    providerIds.length === 0
-      ? Promise.resolve([] as { providerId: number }[])
-      : db
-          .selectDistinct({ providerId: services.providerId })
-          .from(services)
-          .where(
-            and(
-              inArray(services.providerId, providerIds),
-              eq(services.isActive, true),
-              eq(services.isIntro, true)
-            )
-          ),
+    // Chi ha orari pubblicati: una sola domanda «esiste?», per il punteggio
+    // di completezza.
     providerIds.length === 0
       ? Promise.resolve([] as { providerId: number }[])
       : db
@@ -410,7 +397,6 @@ export async function getCoachDiscovery(
     getSystemConfigNumber(COMPLETENESS_WEIGHT_CONFIG_KEY, DEFAULT_COMPLETENESS_WEIGHT),
   ]);
   const completenessWeight = normalizeCompletenessWeight(completenessWeightRaw);
-  const withIntro = new Set(introRows.map((r) => r.providerId));
   const withAvailability = new Set(availabilityRows.map((r) => r.providerId));
   const servicesByProvider = new Map<number, typeof serviceRows>();
   for (const s of serviceRows) {
@@ -446,14 +432,12 @@ export async function getCoachDiscovery(
       coachSince: r.coachSince,
       yearsExperience: r.yearsExperience,
       certifications: r.certifications,
-      certificationsVerified: r.certificationsVerified,
       hasVideo,
       hasService: providerServices.some((s) => (s.durationMin ?? 0) > 0),
       hasPricedService: providerServices.some(
         (s) => (s.durationMin ?? 0) > 0 && (s.price ?? 0) > 0
       ),
       hasAvailability: withAvailability.has(r.providerId),
-      hasIntroSession: withIntro.has(r.providerId),
     }).score;
     const rankScore = discoveryRankScore(
       {
