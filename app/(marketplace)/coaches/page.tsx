@@ -479,24 +479,6 @@ export default async function CoachesPage({
         </div>
 
         <div className="mt-5 space-y-3">
-          {showMatchHelper && (
-            <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-semibold text-gray-900">
-                  Non sai da dove partire?
-                </p>
-                <p className="mt-1 text-sm text-gray-500">
-                  Rispondi a poche domande e ti proponiamo i coach più adatti a te.
-                </p>
-              </div>
-            <CoachMatchDialog
-              sports={categories.map((s) => ({ key: s.key, label: s.label }))}
-              levels={(levels ?? []).map((l) => ({ key: l.key, label: l.label }))}
-              known={knownProfile}
-              askBudget={SHOW_COACH_HOURLY_RATE}
-            />
-            </div>
-          )}
         <details
           className="group rounded-2xl border border-gray-200 bg-white"
         >
@@ -520,6 +502,19 @@ export default async function CoachesPage({
           </summary>
 
           <div className="border-t border-gray-100 px-5 pb-5 pt-4">
+            {showMatchHelper && (
+              <div className="mb-4 flex flex-col gap-3 rounded-xl bg-gray-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-gray-600">
+                  Preferisci non scegliere i filtri? Rispondi a poche domande e ti proponiamo i coach più adatti a te.
+                </p>
+                <CoachMatchDialog
+                  sports={categories.map((s) => ({ key: s.key, label: s.label }))}
+                  levels={(levels ?? []).map((l) => ({ key: l.key, label: l.label }))}
+                  known={knownProfile}
+                  askBudget={SHOW_COACH_HOURLY_RATE}
+                />
+              </div>
+            )}
             <CoachesFilterForm className="flex flex-wrap items-end gap-3">
               {selectedNeedIds.map((needId) => (
                 <input key={needId} type="hidden" name="need" value={needId} />
