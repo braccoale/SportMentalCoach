@@ -61,7 +61,8 @@ export default async function CoachProfilePage() {
             service.isActive &&
             Number.isInteger(service.durationMin) &&
             (service.durationMin ?? 0) > 0
-        ).length
+        ).length,
+        !!avatarUrl
       )
     : null;
 

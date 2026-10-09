@@ -187,7 +187,8 @@ export async function getProviderProfilesForReview(): Promise<
         specialties: row.specialties,
         status: row.status,
       },
-      serviceCountByProvider.get(row.id) ?? 0
+      serviceCountByProvider.get(row.id) ?? 0,
+      !!row.avatarUrl
     ),
     })
   );

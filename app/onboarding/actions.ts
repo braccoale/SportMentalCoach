@@ -16,7 +16,17 @@ import {
 import {
   saveOnboardingStep,
   completeOnboarding,
+  getCoachOnboarding,
 } from '@/lib/core/onboarding';
+import { revalidatePath } from 'next/cache';
+import { getAvatarUrl } from '@/lib/core/profiles';
+import { getCoachServices } from '@/lib/core/services';
+import { addAvailabilitySlot, getCoachAvailability } from '@/lib/core/availability';
+import { slotsToAdd } from '@/lib/core/onboarding/coach-wizard';
+import {
+  COMPLETENESS_LEVEL_LABEL,
+  computeProfileCompleteness,
+} from '@/lib/core/coach-profile/completeness';
 
 export type AthleteOnboardingInput = {
   name?: string;
@@ -101,6 +111,9 @@ export type CoachOnboardingInput = {
   categories?: string[];
   specialties?: string[];
   athleteLevels?: string[];
+  /** «Coach dal» (YYYY-MM-DD), calcolato dagli anni di esperienza dichiarati. */
+  coachSince?: string | null;
+  certifications?: string[];
 };
 
 /**
@@ -120,10 +133,10 @@ async function persistCoachFields(
     categories: input.categories ?? p?.categories ?? [],
     specialties: input.specialties ?? p?.specialties ?? [],
     videoUrl: p?.videoUrl ?? null,
-    coachSince: p?.coachSince ?? null,
+    coachSince: input.coachSince !== undefined ? input.coachSince : p?.coachSince ?? null,
     yearsExperience: input.yearsExperience ?? p?.yearsExperience ?? null,
     languages: input.languages ?? p?.languages ?? [],
-    certifications: p?.certifications ?? [],
+    certifications: input.certifications ?? p?.certifications ?? [],
     athleteLevels: input.athleteLevels ?? p?.athleteLevels ?? [],
   });
 }
@@ -139,17 +152,103 @@ export async function saveCoachStep(
 
 /**
  * Completes the coach wizard (dashboard access needs only name + surname).
- * `submitForReview` optionally sends the profile to the admin queue — but only
- * the existing server gate decides eligibility; the wizard never auto-publishes.
+ * `submitForReview` optionally sends the profile to the admin queue, ma solo se
+ * il server lo consente: profilo, foto, sport e specializzazioni, servizio. Il
+ * pulsante nel browser non basta, e il wizard non pubblica mai da solo.
  */
 export async function completeCoachOnboarding(
   input: CoachOnboardingInput & { submitForReview?: boolean }
-): Promise<never> {
+): Promise<{ ok: false; error: string } | never> {
   const user = await requireRole('coach');
   await persistCoachFields(user.id, input);
   if (input.submitForReview) {
+    const onboarding = await getCoachOnboarding(user.id);
+    if (!onboarding?.canSubmit) {
+      const missing = (onboarding?.steps ?? [])
+        .filter((s) => s.key !== 'submit' && !s.done)
+        .map((s) => s.label.toLowerCase());
+      return {
+        ok: false,
+        error: missing.length
+          ? `Per inviare il profilo manca: ${missing.join(', ')}.`
+          : 'Il profilo non si può inviare in questo momento.',
+      };
+    }
     await submitProviderForReview(user.id);
   }
   await completeOnboarding(user.id);
   redirect('/dashboard/coach');
+}
+
+/** Applica i modelli di orario scelti, saltando le fasce che il coach ha già. */
+export async function applyAvailabilityPresets(
+  presetKeys: string[]
+): Promise<{ ok: true; added: number } | { ok: false; error: string }> {
+  const user = await requireRole('coach');
+  const existing = await getCoachAvailability(user.id);
+  const toAdd = slotsToAdd(
+    existing.map((s) => ({ weekday: s.weekday, startMinute: s.startMinute, endMinute: s.endMinute })),
+    presetKeys.filter((k) => typeof k === 'string').slice(0, 5)
+  );
+  let added = 0;
+  for (const slot of toAdd) {
+    const result = await addAvailabilitySlot(user.id, slot);
+    if (!result.ok) return { ok: false, error: result.error };
+    added += 1;
+  }
+  revalidatePath('/dashboard/coach');
+  revalidatePath('/coaches');
+  return { ok: true, added };
+}
+
+export type CoachWizardSummary = {
+  name: string;
+  headline: string | null;
+  avatarUrl: string | null;
+  score: number;
+  levelLabel: string;
+  /** Cosa manca per poter inviare il profilo (vuoto = si può inviare). */
+  blockers: string[];
+  canSubmit: boolean;
+  /** I passi più utili ancora da fare, per il punteggio (non bloccano l'invio). */
+  suggestions: { key: string; label: string; hint: string }[];
+};
+
+/** Il riepilogo dell'ultimo passo: com'è il profilo adesso e cosa serve per inviarlo. */
+export async function getCoachWizardSummary(): Promise<CoachWizardSummary> {
+  const user = await requireRole('coach');
+  const [provider, services, availability, avatarUrl, onboarding] = await Promise.all([
+    getProviderProfileByUser(user.id),
+    getCoachServices(user.id),
+    getCoachAvailability(user.id),
+    getAvatarUrl(user.id),
+    getCoachOnboarding(user.id),
+  ]);
+  const active = services.filter((s) => s.isActive && (s.durationMin ?? 0) > 0);
+  const completeness = computeProfileCompleteness({
+    hasPhoto: !!avatarUrl,
+    headline: provider?.headline ?? null,
+    description: provider?.description ?? null,
+    categories: provider?.categories ?? null,
+    specialties: provider?.specialties ?? null,
+    athleteLevels: provider?.athleteLevels ?? null,
+    languages: provider?.languages ?? null,
+    coachSince: provider?.coachSince ?? null,
+    yearsExperience: provider?.yearsExperience ?? null,
+    certifications: provider?.certifications ?? null,
+    hasVideo: !!provider?.videoUrl,
+    hasService: active.length > 0,
+    hasPricedService: active.some((s) => (s.price ?? 0) > 0),
+    hasAvailability: availability.length > 0,
+  });
+  return {
+    name: [user.name, user.lastName].filter(Boolean).join(' '),
+    headline: provider?.headline ?? null,
+    avatarUrl,
+    score: completeness.score,
+    levelLabel: COMPLETENESS_LEVEL_LABEL[completeness.level],
+    blockers: (onboarding?.steps ?? []).filter((s) => s.key !== 'submit' && !s.done).map((s) => s.label),
+    canSubmit: !!onboarding?.canSubmit,
+    suggestions: completeness.nextSteps.map((i) => ({ key: i.key, label: i.label, hint: i.hint })),
+  };
 }

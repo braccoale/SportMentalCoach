@@ -1,40 +1,12 @@
 import 'server-only';
 import { and, count, eq, gt, lte } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
-import {
-  providerProfiles,
-  services,
-  type ProviderProfile,
-} from '@/lib/db/schema';
+import { profiles, providerProfiles, services } from '@/lib/db/schema';
 import { MAX_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
+import { computeCoachOnboarding, type CoachOnboarding } from './compute';
 
 export * from './state';
-
-export type OnboardingStep = {
-  key: 'profile' | 'taxonomies' | 'services' | 'submit';
-  label: string;
-  description: string;
-  anchor?: string; // in-page id of the related editor section
-  done: boolean;
-};
-
-export type CoachOnboarding = {
-  status: string;
-  steps: OnboardingStep[];
-  completedCount: number;
-  totalSteps: number;
-  /** First incomplete content step (1–3), or the submit step, or null. */
-  nextStep: OnboardingStep | null;
-  /** Steps 1–3 done AND status is draft/rejected (eligible to submit). */
-  canSubmit: boolean;
-  /** Status is no longer draft (it has been submitted at least once). */
-  isSubmitted: boolean;
-};
-
-export type CoachOnboardingProfile = Pick<
-  ProviderProfile,
-  'headline' | 'description' | 'categories' | 'specialties' | 'status'
->;
+export * from './compute';
 
 /**
  * Derives the coach's onboarding progress from existing data — no extra
@@ -66,72 +38,12 @@ export async function getCoachOnboarding(
       )
     );
 
-  return computeCoachOnboarding(provider, serviceCount);
+  const [photo] = await db
+    .select({ avatarUrl: profiles.avatarUrl })
+    .from(profiles)
+    .where(eq(profiles.userId, userId))
+    .limit(1);
+
+  return computeCoachOnboarding(provider, serviceCount, !!photo?.avatarUrl);
 }
 
-/**
- * Pure onboarding computation from already-loaded data. Use this when the
- * caller already has the provider row and service count (e.g. the coach
- * dashboard) to avoid re-querying.
- */
-export function computeCoachOnboarding(
-  provider: CoachOnboardingProfile,
-  serviceCount: number
-): CoachOnboarding {
-  const profileDone =
-    !!provider.headline?.trim() && !!provider.description?.trim();
-  const taxonomiesDone =
-    (provider.categories?.length ?? 0) > 0 &&
-    (provider.specialties?.length ?? 0) > 0;
-  const servicesDone = serviceCount > 0;
-  const submitDone = provider.status !== 'draft';
-
-  const steps: OnboardingStep[] = [
-    {
-      key: 'profile',
-      label: 'Profilo base',
-      description: 'Aggiungi un titolo (headline) e una bio.',
-      anchor: '#onboarding-profilo',
-      done: profileDone,
-    },
-    {
-      key: 'taxonomies',
-      label: 'Sport e specializzazioni',
-      description: 'Seleziona almeno uno sport e una specializzazione.',
-      anchor: '#onboarding-profilo',
-      done: taxonomiesDone,
-    },
-    {
-      key: 'services',
-      label: 'Servizi',
-      description: 'Crea almeno un servizio attivo con titolo e durata.',
-      anchor: '/dashboard/coach/services',
-      done: servicesDone,
-    },
-    {
-      key: 'submit',
-      label: 'Invia per la revisione',
-      description: 'Invia il profilo all’admin per l’approvazione.',
-      done: submitDone,
-    },
-  ];
-
-  const contentDone = profileDone && taxonomiesDone && servicesDone;
-  const canSubmit =
-    contentDone &&
-    (provider.status === 'draft' || provider.status === 'rejected');
-
-  const nextStep =
-    steps.find((s) => s.key !== 'submit' && !s.done) ??
-    (canSubmit ? steps[3] : null);
-
-  return {
-    status: provider.status,
-    steps,
-    completedCount: steps.filter((s) => s.done).length,
-    totalSteps: steps.length,
-    nextStep,
-    canSubmit,
-    isSubmitted: submitDone,
-  };
-}
