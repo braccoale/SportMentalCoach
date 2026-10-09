@@ -9,10 +9,12 @@ import {
 } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  CalendarDays,
   CalendarPlus,
   Clock3,
   Loader2,
   Pencil,
+  Plus,
   Trash2,
   X,
 } from 'lucide-react';
@@ -135,77 +137,88 @@ export function AvailabilityEditor({ slots }: { slots: AvailabilitySlot[] }) {
   }
 
   return (
-    <section className="rounded-lg border border-gray-200 p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="text-lg font-medium text-gray-900">
-            Disponibilità settimanale
-          </h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Aggiungi o modifica una fascia: ogni conferma viene salvata subito.
-          </p>
+    <section className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:px-5">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-green-50 text-green-700">
+          <CalendarDays className="h-6 w-6" aria-hidden />
+        </span>
+        <div className="mr-auto min-w-0">
+          <h2 className="text-xl font-semibold text-gray-950">Disponibilità settimanale</h2>
+          <p className="mt-0.5 text-sm text-gray-600">Modifica rapidamente i tuoi orari settimanali.</p>
+          <p className="text-xs text-gray-400">Ogni modifica viene salvata automaticamente.</p>
         </div>
+        {orderedSlots.length > 0 && (
+          <span className="inline-flex items-center gap-2 rounded-full bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700">
+            <span className="h-2 w-2 rounded-full bg-green-500" aria-hidden />
+            {orderedSlots.length} {orderedSlots.length === 1 ? 'fascia attiva' : 'fasce attive'}
+          </span>
+        )}
         <Button
           type="button"
           onClick={openAddDialog}
           disabled={saving || deletingId !== null}
-          className="rounded-full"
+          className="rounded-xl"
           aria-haspopup="dialog"
         >
-          <CalendarPlus className="h-4 w-4" />
-          Aggiungi giorno o fascia
+          <Plus className="h-4 w-4" />
+          Aggiungi fascia
         </Button>
       </div>
 
       {orderedSlots.length === 0 ? (
-        <div className="mt-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center">
+        <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 py-8 text-center">
           <p className="text-sm text-gray-600">
-            Nessuna disponibilità configurata.
+            Non hai ancora indicato quando ricevi. Senza fasce gli atleti non possono prenotare.
           </p>
-          <Button
-            type="button"
-            onClick={openAddDialog}
-            className="mt-3 rounded-full"
-          >
+          <Button type="button" onClick={openAddDialog} className="mt-3 rounded-full">
             <CalendarPlus className="h-4 w-4" />
             Aggiungi il primo giorno
           </Button>
         </div>
       ) : (
-        <ul className="mt-4 flex flex-col gap-3">
+        <ul className="flex flex-col gap-3">
           {orderedSlots.map((slot, index) => (
             <li
               key={slot.id}
-              className="grid gap-3 rounded-xl border border-gray-200 bg-gray-50/70 p-3 sm:grid-cols-[1.2fr_1fr_1fr_auto] sm:items-end"
+              className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm sm:px-5"
             >
-              <div>
-                <p className="text-xs font-medium text-gray-600">Giorno</p>
-                <p className="mt-1 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900">
-                  {WEEKDAY_LABELS[slot.weekday]}
-                </p>
+              <span
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-green-50 text-xs font-bold text-green-800"
+                aria-hidden
+              >
+                {WEEKDAY_LABELS[slot.weekday].slice(0, 3).toUpperCase()}
+              </span>
+              <p className="min-w-[6.5rem] text-base font-semibold text-gray-950 sm:w-32">
+                {WEEKDAY_LABELS[slot.weekday]}
+              </p>
+              <div className="flex flex-1 flex-wrap items-end gap-3">
+                <div className="min-w-[7rem] flex-1">
+                  <p className="text-xs text-gray-500">Inizio</p>
+                  <p className="mt-0.5 flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900">
+                    <Clock3 className="h-4 w-4 text-gray-400" aria-hidden />
+                    {formatMinutesOfDay(slot.startMinute)}
+                  </p>
+                </div>
+                <div className="min-w-[7rem] flex-1">
+                  <p className="text-xs text-gray-500">Fine</p>
+                  <p className="mt-0.5 flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900">
+                    <Clock3 className="h-4 w-4 text-gray-400" aria-hidden />
+                    {formatMinutesOfDay(slot.endMinute)}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-medium text-gray-600">Inizio</p>
-                <p className="mt-1 flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900">
-                  {formatMinutesOfDay(slot.startMinute)}
-                  <Clock3 className="h-4 w-4 text-gray-400" />
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-gray-600">Fine</p>
-                <p className="mt-1 flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900">
-                  {formatMinutesOfDay(slot.endMinute)}
-                  <Clock3 className="h-4 w-4 text-gray-400" />
-                </p>
-              </div>
-              <div className="flex gap-2">
+              <span className="hidden items-center gap-2 rounded-full bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700 md:inline-flex">
+                <span className="h-2 w-2 rounded-full bg-green-500" aria-hidden />
+                Attivo
+              </span>
+              <div className="ml-auto flex gap-2">
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
                   onClick={() => openEditDialog(slot)}
                   disabled={saving || deletingId !== null}
-                  className="text-green-700 hover:border-green-300 hover:bg-green-50 hover:text-green-800"
+                  className="rounded-xl text-gray-700 hover:border-green-300 hover:bg-green-50 hover:text-green-800"
                   aria-label={`Modifica fascia ${index + 1}`}
                 >
                   <Pencil className="h-4 w-4" />
@@ -216,7 +229,7 @@ export function AvailabilityEditor({ slots }: { slots: AvailabilitySlot[] }) {
                   size="icon"
                   onClick={() => setSlotToDelete(slot)}
                   disabled={saving || deletingId !== null}
-                  className="text-red-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+                  className="rounded-xl text-red-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
                   aria-label={`Elimina fascia ${index + 1}`}
                 >
                   {deletingId === slot.id ? (
