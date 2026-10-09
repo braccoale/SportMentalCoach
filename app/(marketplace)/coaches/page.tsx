@@ -464,6 +464,7 @@ export default async function CoachesPage({
 
 
       <section className="mt-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="max-w-3xl">
           <p className="text-sm font-semibold uppercase tracking-[0.22em] text-red-600">
             Coach selezionati per te
@@ -476,6 +477,15 @@ export default async function CoachesPage({
               {resultsSubtitle}
             </p>
           ) : null}
+        </div>
+        {showMatchHelper && (
+          <CoachMatchDialog
+            sports={categories.map((s) => ({ key: s.key, label: s.label }))}
+            levels={(levels ?? []).map((l) => ({ key: l.key, label: l.label }))}
+            known={knownProfile}
+            askBudget={SHOW_COACH_HOURLY_RATE}
+          />
+        )}
         </div>
 
         <div className="mt-5 space-y-3">
@@ -502,19 +512,6 @@ export default async function CoachesPage({
           </summary>
 
           <div className="border-t border-gray-100 px-5 pb-5 pt-4">
-            {showMatchHelper && (
-              <div className="mb-4 flex flex-col gap-3 rounded-xl bg-gray-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-gray-600">
-                  Preferisci non scegliere i filtri? Rispondi a poche domande e ti proponiamo i coach più adatti a te.
-                </p>
-                <CoachMatchDialog
-                  sports={categories.map((s) => ({ key: s.key, label: s.label }))}
-                  levels={(levels ?? []).map((l) => ({ key: l.key, label: l.label }))}
-                  known={knownProfile}
-                  askBudget={SHOW_COACH_HOURLY_RATE}
-                />
-              </div>
-            )}
             <CoachesFilterForm className="flex flex-wrap items-end gap-3">
               {selectedNeedIds.map((needId) => (
                 <input key={needId} type="hidden" name="need" value={needId} />
