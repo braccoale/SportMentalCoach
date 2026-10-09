@@ -4,6 +4,8 @@ import { useActionState, useRef, useState } from 'react';
 import { CalendarDays, Coins, Save, TicketCheck } from 'lucide-react';
 import type { ActionState } from '@/lib/auth/middleware';
 import { saveSingleSessionPriceAction } from './actions';
+import { RateHint } from '@/components/rate-hint';
+import type { RateLevel } from '@/lib/core/rate-suggestion';
 
 /**
  * La scheda «Seduta singola»: il prezzo di UNA seduta, deciso dal coach.
@@ -16,6 +18,7 @@ export function SingleSessionForm({
   minLabel,
   maxLabel,
   validityLabel,
+  rateLevel = null,
 }: {
   /** Già formattato dal server («100,00»), o vuoto se non è impostato. */
   currentPrice: string;
@@ -23,6 +26,8 @@ export function SingleSessionForm({
   maxLabel: string;
   /** «60 giorni»: la durata decisa dalla piattaforma, non dal coach. */
   validityLabel: string;
+  /** Il livello di tariffa suggerito, solo per il coach: mai mostrato agli atleti. */
+  rateLevel?: RateLevel | null;
 }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     saveSingleSessionPriceAction,
@@ -135,6 +140,19 @@ export function SingleSessionForm({
             {pending ? 'Salvataggio…' : 'Salva prezzo'}
           </button>
         </div>
+
+        {enabled && (
+          <div className="mt-2">
+            {/* La seduta singola è di 60 minuti; il prezzo è scritto alla italiana («100,00»). */}
+            <RateHint
+              level={rateLevel}
+              durationMin={60}
+              price={Number(price.replace(',', '.'))}
+              disabled={pending}
+              onUse={(euros) => setPrice(String(euros).replace('.', ','))}
+            />
+          </div>
+        )}
 
         <div id="single-session-hint" className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-gray-500">
           <span className="inline-flex items-center gap-1.5">
