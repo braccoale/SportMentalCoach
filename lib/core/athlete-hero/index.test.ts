@@ -20,11 +20,31 @@ describe('heroImageCandidates', () => {
       HERO_DEFAULT_NEUTRAL,
     ]);
   });
-  it('senza genere dichiarato: solo la riserva, mai una foto indovinata', () => {
-    assert.deepEqual(heroImageCandidates({ gender: null, sport: tennis }), [HERO_DEFAULT_NEUTRAL]);
-    assert.deepEqual(heroImageCandidates({ gender: 'undisclosed', sport: tennis }), [
+  it('senza genere dichiarato ma con uno sport: sceglie a sorte fra uomo e donna', () => {
+    const uomoPrima = ['/athlete-hero/tennis-uomo.webp', '/athlete-hero/tennis-donna.webp', HERO_DEFAULT_NEUTRAL];
+    const donnaPrima = ['/athlete-hero/tennis-donna.webp', '/athlete-hero/tennis-uomo.webp', HERO_DEFAULT_NEUTRAL];
+    assert.deepEqual(heroImageCandidates({ gender: null, sport: tennis, pick: 0.1 }), uomoPrima);
+    assert.deepEqual(heroImageCandidates({ gender: null, sport: tennis, pick: 0.9 }), donnaPrima);
+    assert.deepEqual(heroImageCandidates({ gender: 'undisclosed', sport: tennis, pick: 0.1 }), uomoPrima);
+  });
+  it('il sorteggio non cambia nulla per chi ha dichiarato il genere', () => {
+    assert.deepEqual(heroImageCandidates({ gender: 'female', sport: tennis, pick: 0.1 }), [
+      '/athlete-hero/tennis-donna.webp',
       HERO_DEFAULT_NEUTRAL,
     ]);
+  });
+  it('se dello sport esiste una sola immagine, quella (o la riserva)', () => {
+    assert.deepEqual(
+      heroImageCandidates({
+        gender: null,
+        sport: { heroImageMale: null, heroImageFemale: '/athlete-hero/calcio-donna.webp' },
+        pick: 0.1,
+      }),
+      ['/athlete-hero/calcio-donna.webp', HERO_DEFAULT_NEUTRAL]
+    );
+  });
+  it('senza genere e senza sport: solo la riserva', () => {
+    assert.deepEqual(heroImageCandidates({ gender: null, sport: null, pick: 0.3 }), [HERO_DEFAULT_NEUTRAL]);
   });
   it('senza sport (o sport senza immagini) resta la riserva', () => {
     assert.deepEqual(heroImageCandidates({ gender: 'female', sport: null }), [HERO_DEFAULT_NEUTRAL]);
