@@ -156,7 +156,10 @@ export const completeGoogleSignup = validatedAction(
       marketing: data.marketing === 'on',
       marketplaceRole,
       birthDate: data.birthDate ?? null,
-      gender: isAthleteSignup ? normalizeGender(data.gender) : null,
+      gender:
+        isAthleteSignup || marketplaceRole === 'coach'
+          ? normalizeGender(data.gender)
+          : null,
       isAthleteSignup,
       isProfessional,
       // L'invito di squadra non passa da qui: chi arriva da un invito segue il
