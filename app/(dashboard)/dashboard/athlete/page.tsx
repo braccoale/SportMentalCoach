@@ -604,6 +604,8 @@ export default async function AthleteDashboardPage() {
         heroImageCandidates({
           gender: profile.gender,
           sport: await getSportHeroImages(profile.category),
+          // Senza genere dichiarato si sceglie a sorte fra uomo e donna.
+          pick: Math.random(),
         })
       )
       .catch((error) => {

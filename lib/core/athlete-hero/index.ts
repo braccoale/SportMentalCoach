@@ -12,8 +12,11 @@
  *   2. l'immagine di riserva (`default.webp`), la stessa per tutti.
  *
  * Chi non ha dichiarato il genere (o ha scelto «preferisco non specificare»)
- * vede **solo l'immagine di riserva**: indovinare e mostrare a un uomo la foto
- * di una donna, o il contrario, è peggio di un'immagine generica.
+ * ma ha uno sport vede l'immagine di quello sport **scelta a caso** fra la
+ * versione con l'uomo e quella con la donna (se una sola esiste, quella): il
+ * sito non deduce niente dal nome né dalla foto, tira a sorte. Il sorteggio lo
+ * decide chi chiama (`pick`, un numero fra 0 e 1), così la funzione resta
+ * pura e si prova con un valore fisso.
  *
  * Modulo puro.
  */
@@ -38,6 +41,8 @@ function safeImagePath(value: string | null | undefined): string | null {
 export function heroImageCandidates(params: {
   gender: AthleteGender | null;
   sport: SportHeroImages | null;
+  /** Sorteggio fra 0 (incluso) e 1 (escluso), usato solo se il genere non è dichiarato. */
+  pick?: number;
 }): string[] {
   const male = safeImagePath(params.sport?.heroImageMale);
   const female = safeImagePath(params.sport?.heroImageFemale);
@@ -46,6 +51,8 @@ export function heroImageCandidates(params: {
   const ordered: (string | null)[] = [];
   if (gender === 'male') ordered.push(male);
   else if (gender === 'female') ordered.push(female);
+  else if ((params.pick ?? 0.5) < 0.5) ordered.push(male, female);
+  else ordered.push(female, male);
   ordered.push(HERO_DEFAULT_NEUTRAL);
 
   return [...new Set(ordered.filter((p): p is string => Boolean(p)))];
