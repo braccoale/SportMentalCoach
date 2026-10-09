@@ -117,7 +117,9 @@ export function CoachMarketplace({
           >
             {panel && isDesktop && (
               <div className="max-h-[calc(100vh-7rem)] overflow-y-auto rounded-3xl border border-gray-100 bg-white shadow-lg">
-                <CoachDetailPanel key={panel.providerId} data={panel} onClose={close} />
+                {/* La chiave cambia alla chiusura: il pannello resta a schermo per
+                    l'animazione ma si rimonta, quindi un video in corso si ferma. */}
+                <CoachDetailPanel key={`${panel.providerId}-${open ? 'aperto' : 'chiuso'}`} data={panel} onClose={close} />
               </div>
             )}
           </div>
