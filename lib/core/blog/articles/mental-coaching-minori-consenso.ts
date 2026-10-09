@@ -24,9 +24,9 @@ export const MINORI_CONSENSO: BlogArticle = {
     href: '/chi-siamo',
   },
   image: {
-    src: '/blog/mental-coach-ragazzi.webp',
-    alt: 'Un ragazzo tra i genitori, mano nella mano, davanti a un tramonto',
-    og: '/og/blog-mental-coach-ragazzi.jpg',
+    src: '/blog/mental-coaching-minori-consenso.webp',
+    alt: 'Un ragazzo tra i genitori guarda il tramonto sulla città',
+    og: '/og/blog-mental-coaching-minori-consenso.jpg',
   },
   related: { href: '/famiglie', label: 'KaiPai per le famiglie' },
   tags: ['Minori', 'Consenso dei genitori', 'Privacy'],

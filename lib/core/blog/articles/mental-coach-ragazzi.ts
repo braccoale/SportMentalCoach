@@ -23,7 +23,7 @@ export const MENTAL_COACH_RAGAZZI: BlogArticle = {
   },
   image: {
     src: '/blog/mental-coach-ragazzi.webp',
-    alt: 'Un ragazzo tra i genitori, mano nella mano, davanti a un tramonto',
+    alt: 'Un giovane calciatore seduto sul prato al tramonto, con il pallone',
     og: '/og/blog-mental-coach-ragazzi.jpg',
   },
   related: { href: '/famiglie', label: 'Mental coaching per giovani atleti' },

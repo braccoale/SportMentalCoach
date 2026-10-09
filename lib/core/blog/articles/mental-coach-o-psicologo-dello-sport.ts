@@ -22,9 +22,9 @@ export const MENTAL_COACH_O_PSICOLOGO: BlogArticle = {
     href: '/chi-siamo',
   },
   image: {
-    src: '/blog/ansia-da-prestazione.webp',
-    alt: 'Un atleta seduto da solo nello spogliatoio, prima della gara',
-    og: '/og/blog-ansia-da-prestazione.jpg',
+    src: '/blog/mental-coach-o-psicologo-dello-sport.webp',
+    alt: 'Un atleta seduto di spalle in palestra, in un momento di calma',
+    og: '/og/blog-mental-coach-o-psicologo-dello-sport.jpg',
   },
   related: { href: '/atleti', label: 'Mental coaching per atleti' },
   tags: ['Mental coach', 'Psicologo dello sport', 'Scegliere un professionista'],

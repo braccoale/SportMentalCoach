@@ -23,9 +23,9 @@ export const SEDUTA_ONLINE: BlogArticle = {
     href: '/chi-siamo',
   },
   image: {
-    src: '/blog/ansia-da-prestazione.webp',
-    alt: 'Un atleta seduto da solo nello spogliatoio, prima della gara',
-    og: '/og/blog-ansia-da-prestazione.jpg',
+    src: '/blog/seduta-mental-coaching-online.webp',
+    alt: 'Un atleta in videochiamata con il suo coach, seduto alla scrivania',
+    og: '/og/blog-seduta-mental-coaching-online.jpg',
   },
   related: { href: '/coaches', label: 'Trova il tuo coach' },
   tags: ['Mental coaching online', 'Prima seduta', 'Videochiamata'],

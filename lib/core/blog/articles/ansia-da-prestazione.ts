@@ -24,7 +24,7 @@ export const ANSIA_DA_PRESTAZIONE: BlogArticle = {
   },
   image: {
     src: '/blog/ansia-da-prestazione.webp',
-    alt: 'Un atleta seduto da solo nello spogliatoio, prima della gara',
+    alt: 'Una nuotatrice concentrata, con la cuffia KaiPai, a bordo vasca',
     og: '/og/blog-ansia-da-prestazione.jpg',
   },
   related: { href: '/atleti', label: 'Mental coaching per atleti' },
