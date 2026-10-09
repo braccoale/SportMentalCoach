@@ -330,6 +330,7 @@ export default async function CoachesPage({
         specialties: (c.specialties ?? []).map((k) => labelOf(specialties, k)),
         languages: c.languages ?? [],
         yearsExperience: c.yearsExperience,
+        coachSince: c.coachSince,
         video: coachVideoSource(c.videoUrl),
       } satisfies CoachPanelData,
     ])

@@ -1,5 +1,6 @@
 'use client';
 
+import { experienceLabel } from '@/lib/core/coach-experience';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, BadgeCheck, Briefcase, CalendarCheck, Globe, Play, X } from 'lucide-react';
@@ -25,6 +26,7 @@ export type CoachPanelData = {
   specialties: string[];
   languages: string[];
   yearsExperience: number | null;
+  coachSince: string | null;
   video: CoachVideoSource | null;
 };
 
@@ -260,7 +262,7 @@ export function CoachDetailPanel({
         </div>
       )}
 
-      {(data.languages.length > 0 || data.yearsExperience != null) && (
+      {(data.languages.length > 0 || experienceLabel(data) != null) && (
         <ul className="flex flex-col gap-1.5 text-sm text-gray-600">
           {data.languages.length > 0 && (
             <li className="inline-flex items-center gap-2">
@@ -268,10 +270,10 @@ export function CoachDetailPanel({
               {data.languages.join(', ')}
             </li>
           )}
-          {data.yearsExperience != null && (
+          {experienceLabel(data) && (
             <li className="inline-flex items-center gap-2">
               <Briefcase className="h-4 w-4 text-gray-400" aria-hidden />
-              {data.yearsExperience} {data.yearsExperience === 1 ? 'anno' : 'anni'} di esperienza
+              {experienceLabel(data)}
             </li>
           )}
         </ul>

@@ -103,11 +103,19 @@ export function CoachMarketplace({
             : 'lg:grid-cols-[minmax(0,1fr)_minmax(0,0fr)]'
         )}
       >
-        <div className="flex min-w-0 flex-col gap-4">{children}</div>
+        {/* Col pannello aperto sotto l'elenco resta lo spazio per la sua altezza: così,
+            anche per l'ultima scheda, il pannello sta tutto accanto a lei e non
+            viene spinto in su dalla fine della colonna. */}
+        <div className={cn('flex min-w-0 flex-col gap-4', open && isDesktop && 'lg:pb-[calc(100vh-15rem)]')}>
+          {children}
+        </div>
 
-        {/* `overflow: clip` e non `hidden`: non crea un contenitore di scroll,
+        {/* La colonna è alta quanto l'elenco (`self-stretch`): è lo spazio in cui il
+            pannello, che è sticky, può seguire lo scorrimento e restare accanto alla
+            scheda cliccata. Con l'altezza del solo pannello non avrebbe dove andare.
+            `overflow: clip` e non `hidden`: non crea un contenitore di scroll,
             quindi il pannello resta fisso (sticky) rispetto alla finestra. */}
-        <aside aria-label="Dettagli del coach" className="hidden min-w-0 lg:block [overflow:clip]">
+        <aside aria-label="Dettagli del coach" className="hidden min-w-0 lg:block lg:self-stretch [overflow:clip]">
           <div
             aria-hidden={!(open && isDesktop)}
             className={cn(
