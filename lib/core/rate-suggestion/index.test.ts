@@ -62,9 +62,9 @@ describe('suggestRate', () => {
     const b = suggestRate({ ...empty, yearsExperience: 6, athletesCount: 5 });
     assert.deepEqual(a, b);
   });
-  it('indica cosa far salire per il livello successivo, al massimo due cose', () => {
+  it('indica cosa far salire per il livello successivo, al massimo tre cose', () => {
     const s = suggestRate({ ...empty, yearsExperience: 3 });
-    assert.ok(s.next && s.next.hints.length > 0 && s.next.hints.length <= 2);
+    assert.ok(s.next && s.next.actions.length > 0 && s.next.actions.length <= 3);
   });
 });
 

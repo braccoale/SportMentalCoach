@@ -66,6 +66,8 @@ export type RateFactor = {
   skipped: boolean;
   /** Cosa fare per guadagnare di più, in una frase. */
   hint: string;
+  /** La stessa cosa in poche parole, per l'elenco «Come migliorare il tuo profilo». */
+  action: string;
 };
 
 export type RateSuggestion = {
@@ -74,7 +76,7 @@ export type RateSuggestion = {
   level: RateLevel;
   factors: RateFactor[];
   /** Il livello successivo e quanto manca, se esiste. */
-  next: { level: RateLevel; pointsMissing: number; hints: string[] } | null;
+  next: { level: RateLevel; pointsMissing: number; actions: string[] } | null;
 };
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
@@ -104,6 +106,7 @@ export function suggestRate(input: RateInput): RateSuggestion {
       earned: clamp01((input.yearsExperience ?? 0) / 10) * 20,
       skipped: false,
       hint: 'Indica da quando fai il coach nel tuo profilo: il massimo si raggiunge a 10 anni.',
+      action: (input.yearsExperience ?? 0) > 0 ? 'Completa gli anni di esperienza' : 'Indica da quando fai il coach',
     },
     {
       key: 'hours',
@@ -112,6 +115,7 @@ export function suggestRate(input: RateInput): RateSuggestion {
       earned: clamp01(hours / 100) * 20,
       skipped: false,
       hint: 'Le ore erogate crescono con le sedute: il massimo a 100 ore.',
+      action: 'Aumenta le ore di coaching con nuove sessioni',
     },
     {
       key: 'titles',
@@ -126,6 +130,7 @@ export function suggestRate(input: RateInput): RateSuggestion {
       hint: input.certificationsCount > 0
         ? 'I tuoi titoli contano per metà finché il team KaiPai non li verifica.'
         : 'Elenca i titoli e la formazione che hai: contano per metà, per intero se verificati.',
+      action: input.certificationsCount > 0 ? 'Fai verificare i tuoi titoli' : 'Aggiungi i tuoi titoli e la formazione',
     },
     {
       key: 'rating',
@@ -134,6 +139,7 @@ export function suggestRate(input: RateInput): RateSuggestion {
       earned: ratingCounts ? clamp01(((input.ratingAverage ?? 0) - 3) / 2) * 15 : 0,
       skipped: !ratingCounts,
       hint: `Conta dopo ${MIN_REVIEWS_FOR_RATING} recensioni: una sola, anche da cinque stelle, non basta.`,
+      action: 'Ottieni valutazioni dagli atleti',
     },
     {
       key: 'athletes',
@@ -142,6 +148,7 @@ export function suggestRate(input: RateInput): RateSuggestion {
       earned: clamp01(input.athletesCount / 15) * 10,
       skipped: false,
       hint: 'Il massimo si raggiunge con 15 atleti seguiti.',
+      action: 'Segui più atleti',
     },
     {
       key: 'athleteLevel',
@@ -150,6 +157,7 @@ export function suggestRate(input: RateInput): RateSuggestion {
       earned: athleteLevelFraction(input.athleteLevels) * 10,
       skipped: false,
       hint: 'Lavorare con atleti professionisti o semi-professionisti vale di più: indica i livelli nel profilo.',
+      action: 'Indica i livelli degli atleti nel profilo',
     },
   ];
 
@@ -165,11 +173,11 @@ export function suggestRate(input: RateInput): RateSuggestion {
     ? {
         level: nextLevel,
         pointsMissing: Math.max(0, nextLevel.minScore - score),
-        hints: [...counted, ...factors.filter((f) => f.skipped)]
+        actions: factors
           .filter((f) => f.earned < f.max)
           .sort((a, b) => b.max - b.earned - (a.max - a.earned))
-          .slice(0, 2)
-          .map((f) => f.hint),
+          .slice(0, 3)
+          .map((f) => f.action),
       }
     : null;
 
