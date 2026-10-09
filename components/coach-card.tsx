@@ -7,7 +7,7 @@ import type { DiscoveryCoach } from '@/lib/core/listings';
 import type { BookableDay } from '@/lib/core/availability';
 import { CertifiedBadge } from '@/components/coach-visuals';
 import { CoachOnlineBadge } from '@/components/coach-online-badge';
-import { RatingStars } from '@/components/rating-stars';
+import { CoachReviewsDialog } from '@/components/coach-reviews-dialog';
 import { FavoriteButton } from '@/components/favorite-button';
 import { CoachChatButton } from '@/components/coach-chat-button';
 import { ShareCoachButton } from '@/components/share-coach-button';
@@ -172,11 +172,13 @@ export function CoachCard({
       </div>
 
       <div className="flex flex-1 flex-col justify-between gap-2.5 p-4">
-        <Link href={`/coaches/${coach.slug}`} className="block" data-profile-link>
+        <div className="block">
           <div className="min-w-0 pr-28">
             <div className="flex items-center gap-2">
               <h3 className="truncate text-2xl font-bold tracking-tight text-gray-950">
-                {name}
+                <Link href={`/coaches/${coach.slug}`} data-profile-link className="hover:underline">
+                  {name}
+                </Link>
               </h3>
               <CertifiedBadge
                 certified={coach.certified}
@@ -189,11 +191,12 @@ export function CoachCard({
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
               {coach.rating.count > 0 ? (
-                <span className="flex items-center gap-1.5 text-sm text-gray-700">
-                  <RatingStars value={coach.rating.average ?? 0} />
-                  <span className="font-medium">{coach.rating.average}</span>
-                  <span className="text-gray-400">({coach.rating.count})</span>
-                </span>
+                <CoachReviewsDialog
+                  slug={coach.slug}
+                  coachName={name}
+                  average={coach.rating.average}
+                  count={coach.rating.count}
+                />
               ) : (
                 <span className="text-sm text-gray-400">Nuovo coach</span>
               )}
@@ -250,7 +253,7 @@ export function CoachCard({
               </span>
             )}
           </div>
-        </Link>
+        </div>
 
         {coach.athletesCount > 0 && (
           <div className="flex rounded-2xl bg-gray-50/70">

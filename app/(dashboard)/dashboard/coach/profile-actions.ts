@@ -7,8 +7,11 @@ import {
   updateProviderProfileFields,
   submitProviderForReview,
   setProviderVideoUrl,
+  getProviderProfileByUser,
 } from '@/lib/core/profiles';
 import { getCoachOnboarding } from '@/lib/core/onboarding';
+import { deleteMediaFile, mediaKeyFromPublicUrl } from '@/lib/core/storage';
+import { isOwnVideoKey } from '@/lib/core/coach-video-upload';
 import { getActiveSports, getActiveSpecialties } from '@/lib/core/taxonomies';
 import { getVerticalConfig } from '@/lib/core/config';
 import { normalizeGender } from '@/lib/core/profiles/gender';
@@ -150,7 +153,29 @@ export async function updateVideoAction(
     return { error: 'URL video non valido.' };
   }
 
+  // Un file nel nostro bucket deve essere di questo coach: non si punta il
+  // profilo a un file di un altro.
+  const newKey = raw === '' ? null : mediaKeyFromPublicUrl(raw);
+  if (newKey && !isOwnVideoKey(user.id, newKey)) {
+    return { error: 'Video non valido.' };
+  }
+
+  const before = await getProviderProfileByUser(user.id);
+  const previousUrl = before?.videoUrl ?? null;
+
+  // Prima il nuovo video diventa quello pubblicato, poi si toglie il vecchio:
+  // se qualcosa va storto a metà, il coach non resta senza video.
   await setProviderVideoUrl(user.id, raw === '' ? null : raw);
+
+  if (previousUrl && previousUrl !== raw) {
+    const previousKey = mediaKeyFromPublicUrl(previousUrl);
+    if (previousKey && isOwnVideoKey(user.id, previousKey)) {
+      // Pulizia a buon fine o no: il profilo è già aggiornato, un file orfano non rompe niente.
+      await deleteMediaFile(previousKey).catch((error) =>
+        console.error('[coach-video] file precedente non cancellato', error)
+      );
+    }
+  }
 
   revalidatePath('/dashboard/coach/profile');
   revalidatePath('/coaches');

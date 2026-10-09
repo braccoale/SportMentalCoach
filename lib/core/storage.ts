@@ -2,6 +2,7 @@ import 'server-only';
 import { mkdir, readFile, unlink, writeFile } from 'fs/promises';
 import path from 'path';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { storageKeyFromPublicUrl } from './coach-video-upload';
 
 /**
  * File storage abstraction.
@@ -63,6 +64,49 @@ export async function storeFile(
   await mkdir(dir, { recursive: true });
   await writeFile(path.join(process.cwd(), 'public', 'uploads', key), bytes);
   return `/uploads/${key.split(path.sep).join('/')}`;
+}
+
+/**
+ * Un indirizzo di caricamento firmato per il bucket pubblico: il browser carica
+ * il file direttamente su Supabase Storage, senza passare da una funzione
+ * Vercel (che non accetta richieste oltre i 4,5 MB). Il percorso lo decide il
+ * server, quindi un coach non può scrivere altrove.
+ *
+ * `null` senza Supabase configurato (sviluppo locale): chi chiama ripiega sul
+ * caricamento tramite il server, dove i file piccoli passano.
+ */
+export async function createMediaSignedUpload(
+  key: string
+): Promise<{ signedUrl: string; token: string; path: string; publicUrl: string } | null> {
+  if (!isSupabaseStorageConfigured()) return null;
+  const { createClient } = await import('@supabase/supabase-js');
+  const supabase = createClient(getSupabaseUrl()!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUploadUrl(key);
+  if (error || !data) throw new Error(error?.message ?? 'Indirizzo di caricamento non creato.');
+  const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(key);
+  return { signedUrl: data.signedUrl, token: data.token, path: data.path, publicUrl: pub.publicUrl };
+}
+
+/** Il percorso nel bucket pubblico di un indirizzo pubblico, o `null` se non è di questo bucket. */
+export function mediaKeyFromPublicUrl(url: string): string | null {
+  const base = getSupabaseUrl();
+  return base ? storageKeyFromPublicUrl(url, base, BUCKET) : null;
+}
+
+/** Cancella un file dal bucket pubblico (o dalla cartella locale di sviluppo). Non fallisce se non esiste. */
+export async function deleteMediaFile(key: string): Promise<void> {
+  if (isSupabaseStorageConfigured()) {
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(getSupabaseUrl()!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+    const { error } = await supabase.storage.from(BUCKET).remove([key]);
+    if (error) throw new Error(error.message);
+    return;
+  }
+  try {
+    await unlink(path.join(process.cwd(), 'public', 'uploads', key));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
 }
 
 function assertSafePrivateKey(key: string): void {
