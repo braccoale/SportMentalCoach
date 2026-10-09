@@ -3,7 +3,6 @@ import Link from 'next/link';
 import {
   ChevronDown,
   Flag,
-  Heart,
   Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -134,7 +133,6 @@ export default async function CoachesPage({
   const level = getSingleParam(sp.level);
   const language = getSingleParam(sp.language);
   const certified = getSingleParam(sp.certified);
-  const favorite = getSingleParam(sp.fav);
   const sortParam = getSingleParam(sp.sort);
   const priceMinParam = getSingleParam(sp.priceMin);
   const priceMaxParam = getSingleParam(sp.priceMax);
@@ -166,7 +164,6 @@ export default async function CoachesPage({
     priceMaxCents:
       priceMaxEur != null && !Number.isNaN(priceMaxEur) ? priceMaxEur * 100 : undefined,
   };
-  const onlyFav = favorite === '1';
 
   const loggedIn = !!user;
   const [favoriteIds, isAthlete, knownProfile] = await Promise.all([
@@ -176,7 +173,6 @@ export default async function CoachesPage({
   ]);
 
   let coaches = await getCoachDiscovery(filters, { favoriteIds });
-  if (onlyFav && loggedIn) coaches = coaches.filter((c) => c.isFavorite);
   if (selectedNeeds.length > 0) {
     coaches = filterAndRankCoachesForNeeds(coaches, selectedNeeds);
   }
@@ -187,7 +183,6 @@ export default async function CoachesPage({
     !!filters.level ||
     !!filters.language ||
     filters.certifiedOnly ||
-    onlyFav ||
     priceFilterActive;
   const hasActiveNeed = selectedNeeds.length > 0;
   const activeAdvancedFilterCount = [
@@ -196,7 +191,6 @@ export default async function CoachesPage({
     filters.level,
     filters.language,
     filters.certifiedOnly ? 'certified' : undefined,
-    onlyFav ? 'fav' : undefined,
     priceFilterActive ? 'price' : undefined,
   ].filter(Boolean).length;
 
@@ -321,7 +315,7 @@ export default async function CoachesPage({
       ? selectedNeeds[0].selectedSubtitle
       : selectedNeeds.length > 1
         ? `Una selezione pensata per chi vuole lavorare su ${formatNeedLabels(selectedNeeds)}. I coach che vedi qui danno priorita ai bisogni che hai combinato.`
-        : 'Parti da cio che vuoi migliorare oppure usa i filtri avanzati per affinare la ricerca.';
+        : null;
 
   const clearNeedHref = buildMarketplaceHref(sp, { need: undefined });
   const clearAdvancedFiltersHref = buildMarketplaceHref(sp, {
@@ -369,12 +363,6 @@ export default async function CoachesPage({
           Scegli il tipo di supporto che stai cercando e lascia che KaiPai ti
           accompagni verso i coach piu adatti alla tua situazione sportiva.
         </p>
-        <CoachMatchDialog
-          sports={categories.map((s) => ({ key: s.key, label: s.label }))}
-          levels={(levels ?? []).map((l) => ({ key: l.key, label: l.label }))}
-          known={knownProfile}
-          askBudget={SHOW_COACH_HOURLY_RATE}
-        />
       </header>
 
       {SHOW_UPCOMING_FEATURES && (
@@ -443,145 +431,6 @@ export default async function CoachesPage({
         </section>
       )}
 
-      <details
-        className="group mt-6 rounded-2xl border border-gray-200 bg-white"
-        open
-      >
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
-          <div>
-            <p className="text-sm font-semibold text-gray-900">
-              Filtri avanzati
-            </p>
-            <p className="mt-1 text-sm text-gray-500">
-              Sport, specializzazioni, lingua, esperienza e preferiti.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {activeAdvancedFilterCount > 0 ? (
-              <span className="inline-flex rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600">
-                {activeAdvancedFilterCount} attivi
-              </span>
-            ) : null}
-            <ChevronDown className="h-5 w-5 text-gray-400 transition group-open:rotate-180" />
-          </div>
-        </summary>
-
-        <div className="border-t border-gray-100 px-5 pb-5 pt-4">
-          <CoachesFilterForm className="flex flex-wrap items-end gap-3">
-            {selectedNeedIds.map((needId) => (
-              <input key={needId} type="hidden" name="need" value={needId} />
-            ))}
-
-            <Field
-              label="Sport"
-              name="sport"
-              value={sport}
-              options={categories}
-            />
-            <Field
-              label="Specializzazione"
-              name="specialty"
-              value={specialty}
-              options={specialties}
-            />
-            <Field
-              label="Livello"
-              name="level"
-              value={level}
-              options={levels ?? []}
-            />
-            <div className="flex flex-col">
-              <label
-                htmlFor="language"
-                className="text-xs font-medium text-gray-600"
-              >
-                Lingua
-              </label>
-              <select
-                id="language"
-                name="language"
-                defaultValue={language ?? ''}
-                className={`${fieldCls} mt-1`}
-              >
-                <option value="">Tutte</option>
-                {LANGUAGES.map((language) => (
-                  <option key={language} value={language}>
-                    {language}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col">
-              <label
-                htmlFor="sort"
-                className="text-xs font-medium text-gray-600"
-              >
-                Ordina
-              </label>
-              <select
-                id="sort"
-                name="sort"
-                defaultValue={sort}
-                className={`${fieldCls} mt-1`}
-              >
-                {SORTS.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {SHOW_COACH_HOURLY_RATE && priceRange && priceRangeMinEur != null && priceRangeMaxEur != null ? (
-              <PriceRangeFilter
-                min={priceRangeMinEur}
-                max={priceRangeMaxEur}
-                initialMin={
-                  priceMinEur != null && !Number.isNaN(priceMinEur) ? priceMinEur : undefined
-                }
-                initialMax={
-                  priceMaxEur != null && !Number.isNaN(priceMaxEur) ? priceMaxEur : undefined
-                }
-              />
-            ) : null}
-            <label className="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                name="certified"
-                value="1"
-                defaultChecked={filters.certifiedOnly}
-                className="accent-red-600"
-              />
-              KaiPai Certified
-            </label>
-            {loggedIn ? (
-              <label className="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700">
-                <input
-                  type="checkbox"
-                  name="fav"
-                  value="1"
-                  defaultChecked={onlyFav}
-                  className="accent-red-500"
-                />
-                <Heart className="h-3.5 w-3.5 text-red-500" /> Solo preferiti
-              </label>
-            ) : null}
-
-            <noscript>
-              <Button type="submit" className="rounded-md">
-                Aggiorna i risultati
-              </Button>
-            </noscript>
-
-            {anyAdvancedFilter ? (
-              <Button asChild variant="outline" className="rounded-full">
-                <Link href={clearAdvancedFiltersHref}>
-                  Azzera i filtri avanzati
-                </Link>
-              </Button>
-            ) : null}
-          </CoachesFilterForm>
-        </div>
-      </details>
 
       <section className="mt-8">
         <div className="max-w-3xl">
@@ -591,9 +440,156 @@ export default async function CoachesPage({
           <h2 className="mt-3 text-2xl font-semibold tracking-tight text-gray-950 sm:text-3xl">
             {resultsTitle}
           </h2>
-          <p className="mt-3 text-sm leading-6 text-gray-600 sm:text-base">
-            {resultsSubtitle}
-          </p>
+          {resultsSubtitle ? (
+            <p className="mt-3 text-sm leading-6 text-gray-600 sm:text-base">
+              {resultsSubtitle}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="mt-5 space-y-3">
+          <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">
+                Non sai da dove partire?
+              </p>
+              <p className="mt-1 text-sm text-gray-500">
+                Rispondi a poche domande e ti proponiamo i coach più adatti a te.
+              </p>
+            </div>
+          <CoachMatchDialog
+            sports={categories.map((s) => ({ key: s.key, label: s.label }))}
+            levels={(levels ?? []).map((l) => ({ key: l.key, label: l.label }))}
+            known={knownProfile}
+            askBudget={SHOW_COACH_HOURLY_RATE}
+          />
+          </div>
+        <details
+          className="group rounded-2xl border border-gray-200 bg-white"
+        >
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">
+                Filtri avanzati
+              </p>
+              <p className="mt-1 text-sm text-gray-500">
+                Sport, specializzazioni, livello e lingua.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              {activeAdvancedFilterCount > 0 ? (
+                <span className="inline-flex rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600">
+                  {activeAdvancedFilterCount} attivi
+                </span>
+              ) : null}
+              <ChevronDown className="h-5 w-5 text-gray-400 transition group-open:rotate-180" />
+            </div>
+          </summary>
+
+          <div className="border-t border-gray-100 px-5 pb-5 pt-4">
+            <CoachesFilterForm className="flex flex-wrap items-end gap-3">
+              {selectedNeedIds.map((needId) => (
+                <input key={needId} type="hidden" name="need" value={needId} />
+              ))}
+
+              <Field
+                label="Sport"
+                name="sport"
+                value={sport}
+                options={categories}
+              />
+              <Field
+                label="Specializzazione"
+                name="specialty"
+                value={specialty}
+                options={specialties}
+              />
+              <Field
+                label="Livello"
+                name="level"
+                value={level}
+                options={levels ?? []}
+              />
+              <div className="flex flex-col">
+                <label
+                  htmlFor="language"
+                  className="text-xs font-medium text-gray-600"
+                >
+                  Lingua
+                </label>
+                <select
+                  id="language"
+                  name="language"
+                  defaultValue={language ?? ''}
+                  className={`${fieldCls} mt-1`}
+                >
+                  <option value="">Tutte</option>
+                  {LANGUAGES.map((language) => (
+                    <option key={language} value={language}>
+                      {language}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col">
+                <label
+                  htmlFor="sort"
+                  className="text-xs font-medium text-gray-600"
+                >
+                  Ordina
+                </label>
+                <select
+                  id="sort"
+                  name="sort"
+                  defaultValue={sort}
+                  className={`${fieldCls} mt-1`}
+                >
+                  {SORTS.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {SHOW_COACH_HOURLY_RATE && priceRange && priceRangeMinEur != null && priceRangeMaxEur != null ? (
+                <PriceRangeFilter
+                  min={priceRangeMinEur}
+                  max={priceRangeMaxEur}
+                  initialMin={
+                    priceMinEur != null && !Number.isNaN(priceMinEur) ? priceMinEur : undefined
+                  }
+                  initialMax={
+                    priceMaxEur != null && !Number.isNaN(priceMaxEur) ? priceMaxEur : undefined
+                  }
+                />
+              ) : null}
+              <label className="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  name="certified"
+                  value="1"
+                  defaultChecked={filters.certifiedOnly}
+                  className="accent-red-600"
+                />
+                KaiPai Certified
+              </label>
+
+              <noscript>
+                <Button type="submit" className="rounded-md">
+                  Aggiorna i risultati
+                </Button>
+              </noscript>
+
+              {anyAdvancedFilter ? (
+                <Button asChild variant="outline" className="rounded-full">
+                  <Link href={clearAdvancedFiltersHref}>
+                    Azzera i filtri avanzati
+                  </Link>
+                </Button>
+              ) : null}
+            </CoachesFilterForm>
+          </div>
+        </details>
         </div>
 
         <div className="mt-5 flex flex-col gap-2 border-t border-gray-200 pt-5 sm:flex-row sm:items-center sm:justify-between">

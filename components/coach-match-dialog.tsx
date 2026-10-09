@@ -19,7 +19,7 @@ export function CoachMatchDialog(props: Omit<Props, 'embedded' | 'onClose'>) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" className="mt-5 rounded-full">
+        <Button type="button" className="shrink-0 rounded-full">
           <Sparkles />
           Aiutami a scegliere
         </Button>
