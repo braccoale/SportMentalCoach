@@ -74,6 +74,8 @@ export type RateSuggestion = {
   /** 0–100, riscalato sulle voci che contano. */
   score: number;
   level: RateLevel;
+  /** Tutte le fasce in vigore (dalla configurazione di sistema), per spiegarle al coach. */
+  levels: RateLevel[];
   factors: RateFactor[];
   /** Il livello successivo e quanto manca, se esiste. */
   next: { level: RateLevel; pointsMissing: number; actions: string[] } | null;
@@ -185,7 +187,7 @@ export function suggestRate(input: RateInput, levels: RateLevel[] = RATE_LEVELS)
       }
     : null;
 
-  return { score, level, factors, next };
+  return { score, level, levels, factors, next };
 }
 
 /** Il prezzo suggerito per una seduta di `durationMin` minuti, in euro, arrotondato a 5 (minimo 5). */

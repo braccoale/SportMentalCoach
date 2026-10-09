@@ -6,7 +6,6 @@ import {
   Clock,
   Coins,
   GraduationCap,
-  Info,
   Lightbulb,
   ScrollText,
   Star,
@@ -14,6 +13,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react';
+import { RateExplanationDialog } from '@/components/rate-explanation-dialog';
 import type { RateFactor, RateSuggestion } from '@/lib/core/rate-suggestion';
 
 const euro = (n: number) =>
@@ -36,9 +36,6 @@ const NEXT_ICON: Record<RateFactor['key'], LucideIcon> = {
   athletes: Users,
   athleteLevel: BarChart3,
 };
-
-const INFO_TEXT =
-  'Riferimento KaiPai, non un prezzo di mercato né un obbligo. Usiamo solo fatti sul tuo lavoro: esperienza, ore erogate, titoli, valutazioni, atleti seguiti e loro livello. Non usiamo i prezzi degli altri coach.';
 
 /**
  * Il riquadro «Tariffa suggerita» nelle pagine del coach (Servizi e
@@ -68,8 +65,9 @@ export function CoachRateSuggestion({ suggestion }: { suggestion: RateSuggestion
             <Lightbulb className="h-7 w-7" aria-hidden />
           </span>
           <div className="min-w-0">
-            <h2 id="tariffa-suggerita" className="text-2xl font-bold tracking-tight text-gray-950">
+            <h2 id="tariffa-suggerita" className="flex items-center gap-2 text-2xl font-bold tracking-tight text-gray-950">
               Tariffa suggerita
+              <RateExplanationDialog levels={suggestion.levels} factors={factors} currentLevelKey={level.key} />
             </h2>
             <p className="mt-0.5 text-sm text-gray-600">
               Il tuo livello: <strong className="text-gray-950">{level.label}</strong> · Punteggio {score}/100
@@ -79,9 +77,7 @@ export function CoachRateSuggestion({ suggestion }: { suggestion: RateSuggestion
         <div className="rounded-2xl bg-sky-50 px-4 py-3 sm:min-w-64">
           <div className="flex items-start justify-between gap-3">
             <p className="text-xs text-gray-600">Fascia di riferimento KaiPai</p>
-            <span title={INFO_TEXT} aria-label={INFO_TEXT} role="img" className="text-gray-400">
-              <Info className="h-4 w-4" aria-hidden />
-            </span>
+            <RateExplanationDialog levels={suggestion.levels} factors={factors} currentLevelKey={level.key} size="sm" />
           </div>
           <p className="mt-0.5 text-xl font-bold text-gray-950">
             {euro(level.min)} – {euro(level.max)} <span className="text-base font-medium">/ ora</span>
