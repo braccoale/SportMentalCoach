@@ -12,11 +12,17 @@ export function DemoRequestButton({
   label = 'Richiedi una demo',
   className = '',
   plain = false,
+  subject,
+  arrow = true,
 }: {
   label?: string;
   className?: string;
   /** Senza lo stile del bottone verde: `className` decide tutto (un link di testo). */
   plain?: boolean;
+  /** L'oggetto già scritto nel modulo (di default «Richiesta informazioni»). */
+  subject?: string;
+  /** La freccia dopo il testo. */
+  arrow?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -31,11 +37,13 @@ export function DemoRequestButton({
         }
       >
         {label}
-        <ArrowRight
-          className={`h-4 w-4 transition-transform group-hover:translate-x-1 ${plain ? 'text-kp-red' : ''}`}
-        />
+        {arrow && (
+          <ArrowRight
+            className={`h-4 w-4 transition-transform group-hover:translate-x-1 ${plain ? 'text-kp-red' : ''}`}
+          />
+        )}
       </button>
-      <ContactModal open={open} onClose={() => setOpen(false)} />
+      <ContactModal open={open} onClose={() => setOpen(false)} subject={subject} />
     </>
   );
 }

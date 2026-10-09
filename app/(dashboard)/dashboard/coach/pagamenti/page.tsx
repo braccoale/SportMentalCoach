@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { requireRole } from '@/lib/core/auth';
@@ -28,6 +27,7 @@ import { OnboardingPanel } from './onboarding-panel';
 import { PlanForm } from './plan-form';
 import { SingleSessionForm } from './single-session-form';
 import { getRateSuggestionForCoach } from '@/lib/core/rate-suggestion/server';
+import { DemoRequestButton } from '@/components/landing/demo-request-button';
 import { CoachRateSuggestion } from '@/components/coach-rate-suggestion';
 
 export const dynamic = 'force-dynamic';
@@ -80,12 +80,12 @@ export default async function CoachPaymentsPage({
             L&apos;attivazione la gestisce KaiPai: quando sarà pronta troverai
             qui i piani, il prezzo della seduta singola e i tuoi incassi.
           </p>
-          <Link
-            href="/dashboard/supporto"
-            className="mt-4 inline-flex rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
-          >
-            Scrivi al supporto
-          </Link>
+          <DemoRequestButton
+            label="Scrivi al supporto"
+            subject="Sezione Pagamenti"
+            arrow={false}
+            className="mt-4 !px-4 !py-2 text-sm"
+          />
         </div>
       </section>
     );
