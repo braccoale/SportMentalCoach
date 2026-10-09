@@ -50,7 +50,7 @@ export function VideoEmbed({
         aria-label={`Carica e riproduci: ${title}`}
         className="group flex aspect-video w-full flex-col items-center justify-center gap-3 bg-gray-900 transition-colors hover:bg-gray-800"
       >
-        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-red-600 transition-transform group-hover:scale-105">
+        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 transition-transform group-hover:scale-105">
           <Play className="ml-0.5 h-6 w-6 fill-white text-white" />
         </span>
         <span className="text-sm font-medium text-white">

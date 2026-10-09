@@ -253,6 +253,10 @@ export type DiscoveryCoach = {
   languages: string[] | null;
   athleteLevels: string[] | null;
   hasVideo: boolean;
+  /** Indirizzo del video di presentazione, per il pannello dell'elenco (non per le schede). */
+  videoUrl: string | null;
+  /** La presentazione del coach, per il pannello dell'elenco. */
+  description: string | null;
   rating: { average: number | null; count: number };
   matchReasons: string[];
   recommended: boolean;
@@ -492,6 +496,9 @@ export async function getCoachDiscovery(
       languages: r.languages,
       athleteLevels: r.athleteLevels,
       hasVideo,
+      videoUrl: r.videoUrl,
+      // Tagliata: la presentazione intera sta sulla scheda, qui basta per il pannello.
+      description: r.description ? r.description.slice(0, 1500) : null,
       rating,
       matchReasons: reasons.slice(0, 3),
       recommended: false,

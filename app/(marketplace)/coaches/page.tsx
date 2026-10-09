@@ -33,6 +33,9 @@ import {
 import { getSystemConfigNumber } from '@/lib/core/system-config';
 import { usedIntroSessionProviderIds } from '@/lib/core/services/intro-booking';
 import { CoachCard } from '@/components/coach-card';
+import { CoachCardShell, CoachMarketplace } from '@/components/coach-marketplace';
+import type { CoachPanelData } from '@/components/coach-detail-panel';
+import { coachVideoSource } from '@/lib/core/coach-video';
 import { CoachMatchDialog } from '@/components/coach-match-dialog';
 import { getKnownAthleteProfile } from '@/lib/core/coach-match/known-profile';
 import {
@@ -305,6 +308,32 @@ export default async function CoachesPage({
       total: credits ? credits.total + credits.extraSessions : null,
     });
   }
+
+  // I dati del pannello dei dettagli: solo ciò che il coach ha davvero.
+  const labelOf = (items: { key: string; label: string }[], key: string) =>
+    items.find((i) => i.key === key)?.label ?? key;
+  const panels: Record<number, CoachPanelData> = Object.fromEntries(
+    coaches.map((c) => [
+      c.providerId,
+      {
+        providerId: c.providerId,
+        slug: c.slug,
+        name: c.displayName ?? 'Coach',
+        avatarUrl: c.avatarUrl,
+        headline: c.headline,
+        certified: c.certified,
+        ratingAverage: c.rating.average,
+        ratingCount: c.rating.count,
+        description: c.description,
+        descriptionTruncated: (c.description?.length ?? 0) >= 1500,
+        sports: (c.categories ?? []).map((k) => labelOf(categories, k)),
+        specialties: (c.specialties ?? []).map((k) => labelOf(specialties, k)),
+        languages: c.languages ?? [],
+        yearsExperience: c.yearsExperience,
+        video: coachVideoSource(c.videoUrl),
+      } satisfies CoachPanelData,
+    ])
+  );
 
   const resultsTitle =
     selectedNeeds.length === 1
@@ -624,10 +653,10 @@ export default async function CoachesPage({
             viewerEmail={user?.email}
           />
         ) : (
-          <div className="mt-5 flex flex-col gap-4">
+          <CoachMarketplace panels={panels}>
             {coaches.map((coach) => (
+              <CoachCardShell key={coach.slug} providerId={coach.providerId}>
               <CoachCard
-                key={coach.slug}
                 coach={coach}
                 loggedIn={loggedIn}
                 isAthlete={isAthlete}
@@ -644,8 +673,9 @@ export default async function CoachesPage({
                 isDemo={isDemo}
                 viewerEmail={user?.email}
               />
+              </CoachCardShell>
             ))}
-          </div>
+          </CoachMarketplace>
         )}
       </section>
     </main>
