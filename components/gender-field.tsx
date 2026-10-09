@@ -13,10 +13,13 @@ export function GenderField({
   defaultValue = null,
   id = 'gender',
   className = '',
+  form,
 }: {
   defaultValue?: AthleteGender | null;
   id?: string;
   className?: string;
+  /** Id di un modulo fuori da qui a cui collegare i radio (attributo `form`). */
+  form?: string;
 }) {
   return (
     <fieldset className={className}>
@@ -33,6 +36,7 @@ export function GenderField({
               type="radio"
               id={value === ATHLETE_GENDERS[0] ? id : undefined}
               name="gender"
+              form={form}
               value={value}
               defaultChecked={defaultValue === value}
               className="h-4 w-4 accent-emerald-600"

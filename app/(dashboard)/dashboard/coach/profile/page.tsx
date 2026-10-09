@@ -6,14 +6,13 @@ import {
 import { getCoachServices } from '@/lib/core/services';
 import { getCoachAvailability } from '@/lib/core/availability';
 import { computeProfileCompleteness } from '@/lib/core/coach-profile/completeness';
-import { CoachProfileCompleteness } from '@/components/coach-profile-completeness';
 import { computeCoachOnboarding } from '@/lib/core/onboarding';
 import { getVerticalConfig, t } from '@/lib/core/config';
 import { getActiveSports, getActiveSpecialties } from '@/lib/core/taxonomies';
 import { AccountInfoCard } from '@/components/account-info-card';
 import { normalizeGender } from '@/lib/core/profiles/gender';
 import { PhotoForm } from '../../photo-form';
-import { ProfileEditor } from '../profile-editor';
+import { CoachProfileWorkspace } from '../profile-workspace';
 import { VideoUpload } from '../video-upload';
 import { OnboardingProgress } from '../onboarding-progress';
 
@@ -110,11 +109,7 @@ export default async function CoachProfilePage() {
 
   return (
     <section className="flex flex-col gap-6 p-6">
-      <fieldset
-        disabled={user.isDemo}
-        data-demo-profile-readonly={user.isDemo ? 'true' : undefined}
-        className="contents"
-      >
+      <div className="contents">
         {/* Non-approved states keep the explanatory banner; the "Approved"
             state is shown as a badge inside the photo card instead. */}
         {provider.status !== 'approved' && <StatusBanner status={provider.status} />}
@@ -122,39 +117,38 @@ export default async function CoachProfilePage() {
           <OnboardingProgress onboarding={onboarding} />
         )}
 
-        <CoachProfileCompleteness completeness={completeness} />
-
-        {/* Compact media + account row: keeps the profile editor above the fold. */}
-        <div className="grid items-stretch gap-4 lg:grid-cols-2">
-          <PhotoForm
-            name={[user.name, user.lastName].filter(Boolean).join(' ') || null}
-            avatarUrl={avatarUrl}
-            status={provider.status}
-          />
-          <AccountInfoCard />
-        </div>
-
-        {/* Il video ha la sua scheda a tutta larghezza: registrare e vedere
-            l'anteprima non sta in una colonna stretta. */}
-        <VideoUpload videoUrl={provider.videoUrl} />
-
+        {/* L'ancora che i passi dell'onboarding raggiungono (`#onboarding-profilo`). */}
         <div id="onboarding-profilo">
-          <ProfileEditor
-            headline={provider.headline}
-            description={provider.description}
-            categories={provider.categories ?? []}
-            specialties={provider.specialties ?? []}
+          <CoachProfileWorkspace
+            completeness={completeness}
+            // Il profilo demo si legge ma non si modifica: vale per i campi, non per le schede.
+            readOnly={user.isDemo}
+            values={{
+              headline: provider.headline,
+              description: provider.description,
+              categories: provider.categories ?? [],
+              specialties: provider.specialties ?? [],
+              athleteLevels: provider.athleteLevels ?? [],
+              languages: provider.languages ?? [],
+              certifications: provider.certifications ?? [],
+              coachSince: provider.coachSince,
+              gender: normalizeGender(provider.gender),
+            }}
             sportOptions={sportOptions}
             specialtyOptions={specialtyOptions}
-            coachSince={provider.coachSince}
-            languages={provider.languages ?? []}
-            certifications={provider.certifications ?? []}
-            athleteLevels={provider.athleteLevels ?? []}
             levelOptions={levelOptions}
-            gender={normalizeGender(provider.gender)}
+            photo={
+              <PhotoForm
+                name={[user.name, user.lastName].filter(Boolean).join(' ') || null}
+                avatarUrl={avatarUrl}
+                status={provider.status}
+              />
+            }
+            video={<VideoUpload videoUrl={provider.videoUrl} />}
+            account={<AccountInfoCard />}
           />
         </div>
-      </fieldset>
+      </div>
     </section>
   );
 }
