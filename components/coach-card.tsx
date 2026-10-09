@@ -6,6 +6,7 @@ import { formatPrice, formatTotalHours } from '@/lib/core/format';
 import type { DiscoveryCoach } from '@/lib/core/listings';
 import type { BookableDay } from '@/lib/core/availability';
 import { CertifiedBadge } from '@/components/coach-visuals';
+import { CoachOnlineBadge } from '@/components/coach-online-badge';
 import { RatingStars } from '@/components/rating-stars';
 import { FavoriteButton } from '@/components/favorite-button';
 import { CoachChatButton } from '@/components/coach-chat-button';
@@ -150,6 +151,7 @@ export function CoachCard({
           </div>
         )}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-white/70 via-transparent to-transparent" />
+        <CoachOnlineBadge providerId={coach.providerId} />
       </div>
 
       <div className="flex flex-1 flex-col justify-between gap-2.5 p-4">
