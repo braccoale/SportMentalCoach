@@ -117,3 +117,23 @@ export function slotsToAdd(existing: SlotLike[], presetKeys: string[]): SlotLike
 
 /** Il primo servizio proposto: ciò che quasi tutti i coach offrono. */
 export const DEFAULT_FIRST_SERVICE = { title: 'Sessione individuale', durationMin: 60 } as const;
+
+/**
+ * Il prezzo scritto dal coach in euro («60», «60,50», «60.5»): `null` se vuoto
+ * (nessun prezzo), un numero se valido, `'invalid'` altrimenti (testo, negativo,
+ * assurdo). Il server lo ricontrolla: questo serve a dirlo subito.
+ */
+export function parsePriceEuro(text: string): number | null | 'invalid' {
+  const t = text.trim().replace(',', '.');
+  if (t === '') return null;
+  if (!/^\d+(\.\d{1,2})?$/.test(t)) return 'invalid';
+  const n = Number(t);
+  return Number.isFinite(n) && n <= 1_000_000 ? n : 'invalid';
+}
+
+/** L'importo in centesimi come lo scrive un coach («60,50»; vuoto se non c'è un prezzo). */
+export function priceCentsToInput(cents: number | null | undefined): string {
+  if (cents == null) return '';
+  const euros = cents / 100;
+  return (Number.isInteger(euros) ? String(euros) : euros.toFixed(2)).replace('.', ',');
+}

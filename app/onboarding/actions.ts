@@ -20,7 +20,7 @@ import {
 } from '@/lib/core/onboarding';
 import { revalidatePath } from 'next/cache';
 import { getAvatarUrl } from '@/lib/core/profiles';
-import { getCoachServices } from '@/lib/core/services';
+import { createCoachService, getCoachServices, updateCoachService } from '@/lib/core/services';
 import { addAvailabilitySlot, getCoachAvailability } from '@/lib/core/availability';
 import { slotsToAdd } from '@/lib/core/onboarding/coach-wizard';
 import {
@@ -199,6 +199,59 @@ export async function applyAvailabilityPresets(
   revalidatePath('/dashboard/coach');
   revalidatePath('/coaches');
   return { ok: true, added };
+}
+
+export type WizardService = { id: number; title: string; durationMin: number; price: number | null };
+
+/**
+ * Crea o aggiorna il servizio principale dal wizard. Con `id` modifica quello
+ * del coach (e ne conserva la descrizione: la modifica generica la azzererebbe);
+ * senza, ne crea uno. Stesse regole della pagina dei servizi.
+ */
+export async function saveWizardService(input: {
+  id?: number | null;
+  title: string;
+  durationMin: number;
+  priceEuro: number | null;
+}): Promise<{ ok: true; service: WizardService } | { ok: false; error: string }> {
+  const user = await requireRole('coach');
+  const title = String(input.title ?? '').trim();
+  if (!title) return { ok: false, error: 'Dai un nome al servizio.' };
+  if (title.length > 160) return { ok: false, error: 'Il nome è troppo lungo.' };
+  const durationMin = Math.trunc(Number(input.durationMin));
+  if (!Number.isFinite(durationMin) || durationMin < 1 || durationMin > 1440) {
+    return { ok: false, error: 'Inserisci una durata valida in minuti.' };
+  }
+  let price: number | null = null;
+  if (input.priceEuro != null) {
+    const euros = Number(input.priceEuro);
+    if (!Number.isFinite(euros) || euros < 0 || euros > 1_000_000) {
+      return { ok: false, error: 'Il prezzo non è valido.' };
+    }
+    price = Math.round(euros * 100);
+  }
+
+  let id: number;
+  if (input.id) {
+    const current = (await getCoachServices(user.id)).find((s) => s.id === input.id && !s.isIntro);
+    if (!current) return { ok: false, error: 'Servizio non trovato.' };
+    const result = await updateCoachService(user.id, current.id, {
+      title,
+      durationMin,
+      price,
+      description: current.description,
+    });
+    if (!result.ok) return { ok: false, error: result.error };
+    id = current.id;
+  } else {
+    const result = await createCoachService(user.id, { title, durationMin, price });
+    if (!result.ok) return { ok: false, error: result.error };
+    id = result.id;
+  }
+  revalidatePath('/dashboard/coach/services');
+  revalidatePath('/dashboard/coach');
+  revalidatePath('/coaches');
+  return { ok: true, service: { id, title, durationMin, price } };
 }
 
 export type CoachWizardSummary = {
