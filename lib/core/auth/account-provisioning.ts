@@ -80,7 +80,7 @@ export async function createAccountRecords(params: {
   marketing: boolean;
   marketplaceRole: SignupRole | null;
   birthDate: string | null;
-  /** Genere dichiarato dall'atleta, facoltativo (`normalizeGender` già applicato). */
+  /** Genere dichiarato da atleta o coach, facoltativo (`normalizeGender` già applicato). */
   gender?: AthleteGender | null;
   isAthleteSignup: boolean;
   isProfessional: boolean;
@@ -209,10 +209,17 @@ export async function createAccountRecords(params: {
       // Un `club` non ha una riga in `provider_profiles`: per lui l'età è
       // verificata all'ingresso ma non resta scritta da nessuna parte. È noto
       // e accettato — vedi la specifica dell'età del coach.
-      if (marketplaceRole === 'coach' && birthDate) {
+      //
+      // Qui si scrive anche il genere facoltativo del coach: serve solo a
+      // scegliere l'immagine della sua dashboard (migrazione 0098).
+      if (marketplaceRole === 'coach' && (birthDate || gender)) {
         await tx
           .update(providerProfiles)
-          .set({ birthDate, updatedAt: new Date() })
+          .set({
+            ...(birthDate ? { birthDate } : {}),
+            ...(gender ? { gender } : {}),
+            updatedAt: new Date(),
+          })
           .where(eq(providerProfiles.userId, createdUser.id));
       }
 

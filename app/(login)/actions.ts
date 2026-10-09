@@ -321,7 +321,10 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
     marketing,
     marketplaceRole,
     birthDate: birthDate ?? null,
-    gender: isAthleteSignup ? normalizeGender(data.gender) : null,
+    gender:
+      isAthleteSignup || marketplaceRole === 'coach'
+        ? normalizeGender(data.gender)
+        : null,
     isAthleteSignup,
     isProfessional,
     invitation,
