@@ -17,16 +17,16 @@ export const SELEZIONE_COACH: BlogArticle = {
   seoTitle: 'Come selezioniamo i coach di KaiPai',
   description:
     'Come si entra nell’elenco dei coach di KaiPai: candidatura, profilo, revisione del team prima della pubblicazione e cosa succede dopo l’approvazione.',
-  publishedAt: '2026-10-09',
+  publishedAt: '2026-10-08',
   author: {
     name: 'Francesco Borrelli',
     role: 'Fondatore di KaiPai · Mental coach sportivo',
     href: '/chi-siamo',
   },
   image: {
-    src: '/blog/ansia-da-prestazione.webp',
-    alt: 'Un atleta seduto da solo nello spogliatoio, prima della gara',
-    og: '/og/blog-ansia-da-prestazione.jpg',
+    src: '/blog/come-selezioniamo-i-coach.webp',
+    alt: 'Un atleta si allaccia le scarpe a bordo pista prima di iniziare',
+    og: '/og/blog-come-selezioniamo-i-coach.jpg',
   },
   related: { href: '/diventa-coach', label: 'Diventa coach' },
   tags: ['Coach', 'Qualità', 'Come funziona KaiPai'],

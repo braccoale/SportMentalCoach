@@ -17,16 +17,16 @@ export const MINORI_CONSENSO: BlogArticle = {
   seoTitle: 'Mental coaching per minori: consenso dei genitori',
   description:
     'Mental coaching per un minorenne: da che età, come si dà il consenso dei genitori, cosa viene registrato, la riservatezza e come revocare.',
-  publishedAt: '2026-10-09',
+  publishedAt: '2026-10-01',
   author: {
     name: 'Francesco Borrelli',
     role: 'Fondatore di KaiPai · Mental coach sportivo',
     href: '/chi-siamo',
   },
   image: {
-    src: '/blog/mental-coach-ragazzi.webp',
-    alt: 'Un ragazzo tra i genitori, mano nella mano, davanti a un tramonto',
-    og: '/og/blog-mental-coach-ragazzi.jpg',
+    src: '/blog/mental-coaching-minori-consenso.webp',
+    alt: 'Un ragazzo tra i genitori guarda il tramonto sulla città',
+    og: '/og/blog-mental-coaching-minori-consenso.jpg',
   },
   related: { href: '/famiglie', label: 'KaiPai per le famiglie' },
   tags: ['Minori', 'Consenso dei genitori', 'Privacy'],

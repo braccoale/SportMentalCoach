@@ -27,7 +27,7 @@ export default function BlogPage() {
       <SiteNav />
 
       <main className="flex-1">
-        <section className="mx-auto w-full max-w-7xl px-5 pt-32 pb-20 sm:px-8">
+        <section className="mx-auto w-full max-w-7xl px-5 pt-32 pb-14 sm:px-8">
           <h1 className="kp-eyebrow flex items-center gap-3 text-kp-red">
             <span className="h-px w-10 bg-kp-red" aria-hidden />
             Blog · Mental coaching sportivo
@@ -39,13 +39,16 @@ export default function BlogPage() {
             Articoli pratici su pressione, concentrazione, motivazione e routine:
             per chi fa sport, per chi lo accompagna, per chi lo allena.
           </p>
+        </section>
 
-          <ul className="mt-14 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        {/* La griglia degli articoli su fondo chiaro: le schede si leggono come una rivista. */}
+        <section className="bg-gray-50 py-16 text-gray-900">
+          <ul className="mx-auto grid w-full max-w-7xl gap-8 px-5 sm:px-8 md:grid-cols-2 lg:grid-cols-3">
             {articles.map((article) => (
               <li key={article.slug}>
                 <Link
                   href={`/blog/${article.slug}`}
-                  className="group flex h-full flex-col overflow-hidden rounded-3xl border border-kp-line bg-kp-surface transition-colors hover:border-white/20"
+                  className="group flex h-full flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md"
                 >
                   <div className="relative aspect-[16/10] overflow-hidden">
                     <Image
@@ -60,13 +63,13 @@ export default function BlogPage() {
                     <p className="text-xs font-semibold uppercase tracking-wider text-kp-red">
                       {article.tags[0]}
                     </p>
-                    <h2 className="mt-3 font-display text-xl font-semibold leading-snug text-kp-hi">
+                    <h2 className="mt-3 font-display text-xl font-semibold leading-snug text-gray-950">
                       {article.title}
                     </h2>
-                    <p className="mt-3 flex-1 text-sm leading-relaxed text-kp-mid">
+                    <p className="mt-3 flex-1 text-sm leading-relaxed text-gray-600">
                       {article.description}
                     </p>
-                    <p className="mt-5 flex items-center justify-between gap-3 text-xs text-kp-mid">
+                    <p className="mt-5 flex items-center justify-between gap-3 text-xs text-gray-500">
                       <span>
                         <ArticleDate article={article} /> · <ReadingTime article={article} />
                       </span>

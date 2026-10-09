@@ -16,16 +16,16 @@ export const COME_SCEGLIERE: BlogArticle = {
   seoTitle: 'Come scegliere un mental coach sportivo',
   description:
     'Sette criteri concreti per scegliere un mental coach sportivo: formazione, sport, metodo, chiarezza sui limiti e come provare prima di decidere.',
-  publishedAt: '2026-10-09',
+  publishedAt: '2026-09-29',
   author: {
     name: 'Francesco Borrelli',
     role: 'Fondatore di KaiPai · Mental coach sportivo',
     href: '/chi-siamo',
   },
   image: {
-    src: '/blog/ansia-da-prestazione.webp',
-    alt: 'Un atleta seduto da solo nello spogliatoio, prima della gara',
-    og: '/og/blog-ansia-da-prestazione.jpg',
+    src: '/blog/come-scegliere-mental-coach.webp',
+    alt: 'Un’atleta pensierosa parla con il suo coach durante una seduta',
+    og: '/og/blog-come-scegliere-mental-coach.jpg',
   },
   related: { href: '/coaches', label: 'Scegli un coach' },
   tags: ['Scegliere un coach', 'Mental coach', 'Atleti'],
