@@ -9,20 +9,18 @@
  * successivo (un'immagine mancante non deve mai lasciare un riquadro rotto):
  *
  *   1. sport + genere dell'atleta;
- *   2. l'immagine di riserva per il genere;
- *   3. l'immagine neutra.
+ *   2. l'immagine di riserva (`default.webp`), la stessa per tutti.
  *
  * Chi non ha dichiarato il genere (o ha scelto «preferisco non specificare»)
- * vede **solo l'immagine neutra**: indovinare e mostrare a un uomo la foto di
- * una donna, o il contrario, è peggio di un'immagine generica.
+ * vede **solo l'immagine di riserva**: indovinare e mostrare a un uomo la foto
+ * di una donna, o il contrario, è peggio di un'immagine generica.
  *
  * Modulo puro.
  */
 import type { AthleteGender } from '@/lib/core/profiles/gender';
 
 export const HERO_IMAGE_DIR = '/athlete-hero';
-export const HERO_DEFAULT_MALE = `${HERO_IMAGE_DIR}/default-uomo.webp`;
-export const HERO_DEFAULT_FEMALE = `${HERO_IMAGE_DIR}/default-donna.webp`;
+/** La riserva, uguale per uomo, donna e chi non ha dichiarato il genere. */
 export const HERO_DEFAULT_NEUTRAL = `${HERO_IMAGE_DIR}/default.webp`;
 
 export type SportHeroImages = {
@@ -46,11 +44,8 @@ export function heroImageCandidates(params: {
   const gender = params.gender;
 
   const ordered: (string | null)[] = [];
-  if (gender === 'male') {
-    ordered.push(male, HERO_DEFAULT_MALE);
-  } else if (gender === 'female') {
-    ordered.push(female, HERO_DEFAULT_FEMALE);
-  }
+  if (gender === 'male') ordered.push(male);
+  else if (gender === 'female') ordered.push(female);
   ordered.push(HERO_DEFAULT_NEUTRAL);
 
   return [...new Set(ordered.filter((p): p is string => Boolean(p)))];
