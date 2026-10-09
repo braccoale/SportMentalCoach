@@ -664,7 +664,7 @@ export default async function AthleteDashboardPage() {
           testo e non più accanto, per lasciare libero il lato destro. */}
       <div className="relative">
         <AthleteHeroImage candidates={heroCandidates} />
-        <div className="relative z-10 max-w-xl pb-2 pt-4 md:min-h-[14.5rem]">
+        <div className="relative z-10 max-w-xl pb-2 pt-4 md:min-h-[13rem]">
           <h1 className="text-4xl font-bold leading-[1.08] tracking-tight text-gray-950 sm:text-5xl">
             Il tuo percorso mentale,{' '}
             <span className="whitespace-nowrap">

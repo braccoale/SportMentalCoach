@@ -29,7 +29,7 @@ export function AthleteHeroImage({ candidates }: { candidates: string[] }) {
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute -top-[8.5rem] right-0 hidden h-[26rem] w-[min(58%,48rem)] md:block"
+      className="pointer-events-none absolute -top-[8.5rem] right-0 hidden h-[24rem] w-[min(58%,48rem)] md:block"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
