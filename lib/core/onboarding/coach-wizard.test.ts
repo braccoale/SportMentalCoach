@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   AVAILABILITY_PRESETS,
   COACH_WIZARD_STEPS,
+  DEFAULT_FIRST_SERVICE,
   clampWizardStep,
   coachSinceFromYears,
   parsePriceEuro,
@@ -126,5 +127,12 @@ describe('prezzo scritto a mano', () => {
     assert.equal(priceCentsToInput(0), '0');
     assert.equal(priceCentsToInput(null), '');
     assert.equal(parsePriceEuro(priceCentsToInput(6050)), 60.5);
+  });
+});
+
+describe('primo servizio proposto', () => {
+  it('è «Sessione online», come quello creato con il profilo', () => {
+    assert.equal(DEFAULT_FIRST_SERVICE.title, 'Sessione online');
+    assert.equal(DEFAULT_FIRST_SERVICE.durationMin, 40);
   });
 });

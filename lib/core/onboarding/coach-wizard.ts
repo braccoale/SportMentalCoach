@@ -7,6 +7,8 @@
  * sul server e i test.
  */
 
+import { DEFAULT_COACH_SERVICE } from '@/lib/core/services/defaults';
+
 export type CoachWizardStepKey =
   | 'welcome'
   | 'who'
@@ -115,8 +117,15 @@ export function slotsToAdd(existing: SlotLike[], presetKeys: string[]): SlotLike
   return add;
 }
 
-/** Il primo servizio proposto: ciò che quasi tutti i coach offrono. */
-export const DEFAULT_FIRST_SERVICE = { title: 'Sessione individuale', durationMin: 60 } as const;
+/**
+ * Il primo servizio proposto: lo stesso che nasce con ogni nuovo profilo coach
+ * («Sessione online»), così il wizard non ne inventa uno diverso quando un
+ * profilo, per qualunque motivo, non ce l'ha.
+ */
+export const DEFAULT_FIRST_SERVICE = {
+  title: DEFAULT_COACH_SERVICE.title,
+  durationMin: DEFAULT_COACH_SERVICE.durationMin,
+} as const;
 
 /**
  * Il prezzo scritto dal coach in euro («60», «60,50», «60.5»): `null` se vuoto
