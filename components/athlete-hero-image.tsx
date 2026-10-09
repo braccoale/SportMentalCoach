@@ -24,7 +24,7 @@ export function AthleteHeroImage({ candidates }: { candidates: string[] }) {
   if (!src) return null;
 
   const mask =
-    'linear-gradient(to right, transparent 0%, #000 38%), linear-gradient(to top, transparent 0%, #000 22%)';
+    'linear-gradient(to right, transparent 0%, #000 38%), linear-gradient(to top, transparent 0%, #000 22%), linear-gradient(to bottom, transparent 0%, #000 8%), linear-gradient(to left, transparent 0%, #000 6%)';
 
   return (
     <div
