@@ -28,6 +28,7 @@ import { OnboardingPanel } from './onboarding-panel';
 import { PlanForm } from './plan-form';
 import { SingleSessionForm } from './single-session-form';
 import { getRateSuggestionForCoach } from '@/lib/core/rate-suggestion/server';
+import { CoachRateSuggestion } from '@/components/coach-rate-suggestion';
 
 export const dynamic = 'force-dynamic';
 
@@ -90,10 +91,15 @@ export default async function CoachPaymentsPage({
     );
   }
 
-  const [plans, limits, singleLimits] = await Promise.all([
+  const [plans, limits, singleLimits, rateSuggestion] = await Promise.all([
     listCoachSessionPlans(user.id),
     getPlanLimits(),
     getSingleSessionLimits(),
+    // Solo per il coach, e un guasto qui toglie il riquadro, non la pagina.
+    getRateSuggestionForCoach(user.id).catch((error) => {
+      console.error('[coach] tariffa suggerita non calcolata', error);
+      return null;
+    }),
   ]);
   const visiblePlans = plans.filter((plan) => plan.status !== 'archived');
   const archivedPlans = plans.filter((plan) => plan.status === 'archived');
@@ -263,6 +269,8 @@ export default async function CoachPaymentsPage({
         )}
       </div>
 
+      {rateSuggestion && <CoachRateSuggestion suggestion={rateSuggestion} />}
+
       <SingleSessionForm
         currentPrice={
           profile?.singleSessionPriceCents
@@ -272,14 +280,7 @@ export default async function CoachPaymentsPage({
         minLabel={formatEuroCents(singleLimits.minPriceCents)}
         maxLabel={formatEuroCents(singleLimits.maxPriceCents)}
         validityLabel={formatValidityDays(await getSingleSessionValidityDays())}
-        rateLevel={
-          (
-            await getRateSuggestionForCoach(user.id).catch((error) => {
-              console.error('[coach] tariffa suggerita non calcolata', error);
-              return null;
-            })
-          )?.level ?? null
-        }
+        rateLevel={rateSuggestion?.level ?? null}
       />
 
       <div className="rounded-lg border border-gray-200 bg-white p-4">
