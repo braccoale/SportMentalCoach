@@ -39,6 +39,21 @@ export function targetForItem(key: string): Target | null {
   return TARGETS[key] ?? null;
 }
 
+/**
+ * Le voci ancora da sistemare (mancanti o a metà) che hanno un campo in questa
+ * pagina: i titoli di quei campi si colorano d'arancione, così si capisce dove
+ * mettere mano senza dover leggere l'elenco.
+ */
+export function itemsNeedingAttention(items: Pick<CompletenessItem, 'key' | 'state'>[]): Set<string> {
+  const out = new Set<string>();
+  for (const item of items) {
+    if (item.state === 'done') continue;
+    const target = TARGETS[item.key];
+    if (target && 'section' in target) out.add(item.key);
+  }
+  return out;
+}
+
 /** Le sezioni in cui c'è ancora qualcosa da completare (per i puntini sulle schede). */
 export function sectionsNeedingAttention(items: Pick<CompletenessItem, 'key' | 'state'>[]): Set<ProfileSectionId> {
   const out = new Set<ProfileSectionId>();

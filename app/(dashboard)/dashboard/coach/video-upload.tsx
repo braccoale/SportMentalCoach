@@ -12,6 +12,7 @@ import {
   pickRecorderMimeType,
   validateVideo,
 } from '@/lib/core/coach-video-upload';
+import { VIDEO_GUIDE_STEPS, VIDEO_GUIDE_TIPS, activeGuideStep } from '@/lib/core/coach-video-guide';
 import { updateVideoAction } from './profile-actions';
 
 /**
@@ -60,7 +61,60 @@ function cameraErrorMessage(error: unknown): string {
   return 'Non riusciamo ad avviare la fotocamera. Puoi caricare un video già registrato.';
 }
 
-export function VideoUpload({ videoUrl }: { videoUrl: string | null }) {
+/**
+ * La traccia consigliata: tre passaggi per circa un minuto. Mentre si registra
+ * evidenzia quello in corso, così non serve imparare un testo a memoria né
+ * leggerlo: basta sapere a che punto si è.
+ */
+function VideoGuide({ seconds, recording }: { seconds: number; recording: boolean }) {
+  const current = recording ? activeGuideStep(seconds) : null;
+  return (
+    <div className="mt-4 rounded-xl bg-gray-50 p-4">
+      <p className="text-sm font-semibold text-gray-900">La tua presentazione in 3 passaggi</p>
+      <ol className="mt-3 flex flex-col gap-2.5">
+        {VIDEO_GUIDE_STEPS.map((step) => {
+          const on = current === step.n;
+          return (
+            <li
+              key={step.n}
+              aria-current={on ? 'step' : undefined}
+              className={`flex items-start gap-3 rounded-lg px-2 py-1.5 transition-colors ${on ? 'bg-green-50 ring-1 ring-green-200' : ''}`}
+            >
+              <span
+                className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                  on ? 'bg-green-600 text-white' : 'bg-white text-gray-700 ring-1 ring-gray-200'
+                }`}
+                aria-hidden
+              >
+                {step.n}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-gray-900">
+                  {step.title} <span className="font-normal text-gray-500">({step.seconds} secondi)</span>
+                </span>
+                <span className="block text-xs text-gray-600">{step.hint}</span>
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+      {!recording && (
+        <ul className="mt-3 flex flex-col gap-1 border-t border-gray-200 pt-3 text-xs text-gray-600">
+          {VIDEO_GUIDE_TIPS.map((tip) => (
+            <li key={tip} className="flex gap-2">
+              <span aria-hidden className="text-green-600">
+                •
+              </span>
+              {tip}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+export function VideoUpload({ videoUrl, attention = false }: { videoUrl: string | null; attention?: boolean }) {
   const router = useRouter();
   const [published, setPublished] = useState<string | null>(videoUrl);
   const [panel, setPanel] = useState<'closed' | 'choose' | 'camera'>('closed');
@@ -312,12 +366,18 @@ export function VideoUpload({ videoUrl }: { videoUrl: string | null }) {
 
   return (
     <section className="rounded-lg border border-gray-200 p-4" aria-labelledby="video-presentazione">
-      <h2 id="video-presentazione" className="text-lg font-medium text-gray-900">
+      <h2
+        id="video-presentazione"
+        className={`text-lg font-medium ${attention ? 'font-semibold text-orange-600' : 'text-gray-900'}`}
+      >
         Video di presentazione
+        {attention && <span className="ml-2 text-xs font-medium">· da completare</span>}
       </h2>
       <p className="mt-1 text-sm text-gray-500">
         Un breve video (massimo {maxMinutes} minuti) aiuta gli atleti a conoscerti prima della sessione.
       </p>
+
+      {!draft && (!published || panel !== 'closed') && <VideoGuide seconds={seconds} recording={recording} />}
 
       {/* Il video pubblicato: resta questo finché il nuovo non è caricato. */}
       {published && !draft && panel !== 'camera' && (

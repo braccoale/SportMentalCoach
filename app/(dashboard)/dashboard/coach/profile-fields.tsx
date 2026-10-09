@@ -15,6 +15,19 @@ export const PROFILE_FORM_ID = 'profile-form';
 
 type Option = { key: string; label: string };
 
+/**
+ * Il titolo di un campo. Se la voce corrispondente della completezza non è a
+ * posto diventa arancione e lo dice a parole («da completare»): il colore da
+ * solo non basterebbe a chi non lo distingue.
+ */
+export function fieldLabelCls(attention: boolean): string {
+  return attention ? 'text-sm font-semibold text-orange-600' : 'text-sm font-medium text-gray-700';
+}
+
+function ToComplete({ show }: { show: boolean }) {
+  return show ? <span className="ml-2 text-xs font-medium text-orange-600">· da completare</span> : null;
+}
+
 const inputCls = 'mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm';
 const chipCls =
   'flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-sm has-[:checked]:border-green-500 has-[:checked]:bg-green-50 has-[:checked]:text-green-700';
@@ -22,15 +35,18 @@ const chipCls =
 export function PresentationFields({
   headline,
   description,
+  attention,
 }: {
   headline: string | null;
   description: string | null;
+  attention: Set<string>;
 }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col">
-        <label htmlFor="headline" className="text-sm font-medium text-gray-700">
+        <label htmlFor="headline" className={fieldLabelCls(attention.has('headline'))}>
           Frase di presentazione
+          <ToComplete show={attention.has('headline')} />
         </label>
         <input
           id="headline"
@@ -44,8 +60,9 @@ export function PresentationFields({
         <p className="mt-1 text-xs text-gray-400">Compare sotto il tuo nome nell’elenco dei coach.</p>
       </div>
       <div className="flex flex-col">
-        <label htmlFor="description" className="text-sm font-medium text-gray-700">
+        <label htmlFor="description" className={fieldLabelCls(attention.has('bio'))}>
           Descrizione
+          <ToComplete show={attention.has('bio')} />
         </label>
         <textarea
           id="description"
@@ -68,16 +85,21 @@ function ChipGroup({
   name,
   options,
   selected,
+  attention,
 }: {
   id: string;
   legend: string;
   name: string;
   options: Option[];
   selected: string[];
+  attention: boolean;
 }) {
   return (
     <fieldset id={id}>
-      <legend className="text-sm font-medium text-gray-700">{legend}</legend>
+      <legend className={fieldLabelCls(attention)}>
+        {legend}
+        <ToComplete show={attention} />
+      </legend>
       <div className="mt-2 flex flex-wrap gap-2">
         {options.map((o) => (
           <label key={o.key} className={chipCls}>
@@ -107,6 +129,7 @@ export function SkillsFields({
   sportOptions,
   specialtyOptions,
   levelOptions,
+  attention,
 }: {
   categories: string[];
   specialties: string[];
@@ -117,18 +140,20 @@ export function SkillsFields({
   sportOptions: Option[];
   specialtyOptions: Option[];
   levelOptions: Option[];
+  attention: Set<string>;
 }) {
   const experienceYears = coachSince ? yearsSince(coachSince) : null;
   return (
     <div className="flex flex-col gap-5">
       {/* Prima ciò per cui gli atleti filtrano l'elenco. */}
-      <ChipGroup id="campo-sport" legend="Sport" name="categories" options={sportOptions} selected={categories} />
+      <ChipGroup id="campo-sport" legend="Sport" name="categories" options={sportOptions} selected={categories} attention={attention.has('sports')} />
       <ChipGroup
         id="campo-specializzazioni"
         legend="Specializzazioni"
         name="specialties"
         options={specialtyOptions}
         selected={specialties}
+        attention={attention.has('specialties')}
       />
       {levelOptions.length > 0 && (
         <ChipGroup
@@ -137,13 +162,15 @@ export function SkillsFields({
           name="athleteLevels"
           options={levelOptions}
           selected={athleteLevels}
+          attention={attention.has('levels')}
         />
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col">
-          <label htmlFor="languages" className="text-sm font-medium text-gray-700">
+          <label htmlFor="languages" className={fieldLabelCls(attention.has('languages'))}>
             Lingue
+            <ToComplete show={attention.has('languages')} />
           </label>
           <input
             id="languages"
@@ -156,8 +183,9 @@ export function SkillsFields({
           <p className="mt-1 text-xs text-gray-400">Separa le lingue con una virgola.</p>
         </div>
         <div className="flex flex-col">
-          <label htmlFor="coachSince" className="text-sm font-medium text-gray-700">
+          <label htmlFor="coachSince" className={fieldLabelCls(attention.has('experience'))}>
             Coach dal
+            <ToComplete show={attention.has('experience')} />
           </label>
           <input
             id="coachSince"
@@ -177,8 +205,9 @@ export function SkillsFields({
       </div>
 
       <div className="flex flex-col">
-        <label htmlFor="certifications" className="text-sm font-medium text-gray-700">
+        <label htmlFor="certifications" className={fieldLabelCls(attention.has('certifications'))}>
           Titoli e certificazioni
+          <ToComplete show={attention.has('certifications')} />
         </label>
         <textarea
           id="certifications"

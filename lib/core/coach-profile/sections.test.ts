@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { computeProfileCompleteness } from './completeness';
-import { sectionsNeedingAttention, targetForItem } from './sections';
+import { itemsNeedingAttention, sectionsNeedingAttention, targetForItem } from './sections';
 
 const empty = computeProfileCompleteness({
   hasPhoto: false,
@@ -34,6 +34,15 @@ describe('sezioni del profilo', () => {
   it('senza voci da completare nessuna sezione ha il puntino', () => {
     const done = empty.items.map((i) => ({ key: i.key, state: 'done' as const }));
     assert.equal(sectionsNeedingAttention(done).size, 0);
+  });
+  it('i campi da colorare sono le voci non completate che stanno in questa pagina', () => {
+    const k = itemsNeedingAttention([
+      { key: 'bio', state: 'partial' },
+      { key: 'video', state: 'missing' },
+      { key: 'headline', state: 'done' },
+      { key: 'service', state: 'missing' },
+    ]);
+    assert.deepEqual([...k].sort(), ['bio', 'video']);
   });
   it('servizi e orari portano a un’altra pagina e non accendono nessuna sezione', () => {
     assert.deepEqual(targetForItem('service'), { href: '/dashboard/coach/services' });
