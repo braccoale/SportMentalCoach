@@ -19,9 +19,12 @@ const labelCls = 'mb-1.5 block text-sm font-medium text-kp-mid';
 export function ContactModal({
   open,
   onClose,
+  subject = 'Richiesta informazioni',
 }: {
   open: boolean;
   onClose: () => void;
+  /** L'oggetto proposto: chi scrive da una sezione precisa lo trova già scritto. */
+  subject?: string;
 }) {
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
@@ -209,7 +212,7 @@ export function ContactModal({
                   type="text"
                   required
                   maxLength={160}
-                  defaultValue="Richiesta informazioni"
+                  defaultValue={subject}
                   className={inputCls}
                 />
               </div>
