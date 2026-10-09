@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Menu, PlayCircle, X } from 'lucide-react';
+import { ChevronDown, Menu, PlayCircle, X } from 'lucide-react';
 import useSWR from 'swr';
 import { SignInModal } from './sign-in-modal';
 import { DemoLoginModal } from './demo-login-modal';
@@ -14,18 +14,105 @@ import { NotificationBell } from '@/components/notification-bell';
 import { fetcher } from '@/lib/fetcher';
 import type { SessionUser } from '@/lib/auth/session-user';
 
-const LINKS = [
-  { href: '/#percorsi', label: 'Percorsi' },
-  { href: '/#ecosistema-atleta', label: 'Ecosistema' },
-  { href: '/academy', label: 'Academy' },
-  { href: '/#metodo', label: 'Metodo' },
-  { href: '/coaches', label: 'Coach' },
-  { href: '/chi-siamo', label: 'Chi siamo' },
-  { href: '/blog', label: 'Blog' },
+/**
+ * Il menu, raggruppato: erano otto voci in fila, ora sono quattro.
+ *
+ *  - **Percorsi**: le pagine per chi arriva (atleti, famiglie, società) e per
+ *    chi vuole diventare coach;
+ *  - **Come funziona**: il metodo, l'ecosistema e l'Academy, cioè il prodotto;
+ *  - **Coach**: l'elenco, che è l'azione che porta più lontano, resta a un clic;
+ *  - **Risorse**: il blog, chi siamo e i contatti.
+ *
+ * `contact` non è una pagina ma apre il modulo dei contatti senza perdere il
+ * punto in cui si era.
+ */
+type NavLink = { href: string; label: string } | { contact: true; label: string };
+type NavItem = { label: string; href?: string; children?: NavLink[] };
+
+const MENU: NavItem[] = [
+  {
+    label: 'Percorsi',
+    children: [
+      { href: '/atleti', label: 'Atleti' },
+      { href: '/famiglie', label: 'Famiglie' },
+      { href: '/societa', label: 'Società sportive' },
+      { href: '/diventa-coach', label: 'Diventa coach' },
+    ],
+  },
+  {
+    label: 'Come funziona',
+    children: [
+      { href: '/#metodo', label: 'Il metodo' },
+      { href: '/#ecosistema-atleta', label: 'L’ecosistema' },
+      { href: '/academy', label: 'Academy' },
+    ],
+  },
+  { label: 'Coach', href: '/coaches' },
+  {
+    label: 'Risorse',
+    children: [
+      { href: '/blog', label: 'Blog' },
+      { href: '/chi-siamo', label: 'Chi siamo' },
+      { contact: true, label: 'Contatti' },
+    ],
+  },
 ];
 
 const linkCls =
   'kp-link-wipe text-base font-medium text-kp-mid transition-colors hover:text-kp-hi';
+
+const panelItemCls =
+  'block w-full rounded-lg px-3.5 py-2.5 text-left text-sm font-medium text-kp-mid transition-colors hover:bg-white/5 hover:text-kp-hi focus-visible:bg-white/5 focus-visible:text-kp-hi focus-visible:outline-none';
+
+/**
+ * Una voce con sottomenu. Si apre al passaggio del mouse e alla tastiera
+ * (`focus-within`), senza stato: il pannello sta attaccato al pulsante da un
+ * bordo trasparente, così il puntatore non lo chiude attraversando lo spazio
+ * in mezzo.
+ */
+function NavGroup({
+  item,
+  onContact,
+}: {
+  item: NavItem;
+  onContact: () => void;
+}) {
+  return (
+    <div className="group relative">
+      <button
+        type="button"
+        aria-haspopup="menu"
+        className={`${linkCls} inline-flex items-center gap-1.5`}
+      >
+        {item.label}
+        <ChevronDown
+          className="h-3.5 w-3.5 transition-transform group-hover:rotate-180 group-focus-within:rotate-180"
+          aria-hidden
+        />
+      </button>
+      <div className="invisible absolute left-1/2 top-full z-10 -translate-x-1/2 pt-3 opacity-0 transition-opacity group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
+        <ul
+          role="menu"
+          className="min-w-[13rem] rounded-2xl border border-kp-line bg-kp-ink/95 p-2 shadow-2xl backdrop-blur-xl"
+        >
+          {item.children?.map((child) => (
+            <li key={child.label} role="none">
+              {'contact' in child ? (
+                <button type="button" role="menuitem" onClick={onContact} className={panelItemCls}>
+                  {child.label}
+                </button>
+              ) : (
+                <Link href={child.href} role="menuitem" className={panelItemCls}>
+                  {child.label}
+                </Link>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
 
 function Logo() {
   return (
@@ -87,20 +174,15 @@ export function SiteNav() {
         <Logo />
 
         <div className="hidden items-center gap-8 lg:flex">
-          {LINKS.map((l) => (
-            <Link key={l.href} href={l.href} className={linkCls}>
-              {l.label}
-            </Link>
-          ))}
-          {/* Contatti apre il form invece di puntare a una pagina: la
-              richiesta si scrive senza perdere il punto in cui si era. */}
-          <button
-            type="button"
-            onClick={() => setContactOpen(true)}
-            className={linkCls}
-          >
-            Contatti
-          </button>
+          {MENU.map((item) =>
+            item.children ? (
+              <NavGroup key={item.label} item={item} onContact={() => setContactOpen(true)} />
+            ) : (
+              <Link key={item.label} href={item.href!} className={linkCls}>
+                {item.label}
+              </Link>
+            )
+          )}
         </div>
 
         <div className="hidden items-center gap-3 lg:flex">
@@ -195,27 +277,47 @@ export function SiteNav() {
 
       {/* Mobile overlay */}
       {open && (
-        <div className="fixed inset-0 top-16 z-[64] flex flex-col gap-1 bg-kp-ink/98 px-5 pt-6 backdrop-blur-xl lg:hidden">
-          {LINKS.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              onClick={() => setOpen(false)}
-              className="border-b border-kp-line py-4 font-display text-2xl text-kp-hi"
-            >
-              {l.label}
-            </Link>
-          ))}
-          <button
-            type="button"
-            onClick={() => {
-              setOpen(false);
-              setContactOpen(true);
-            }}
-            className="border-b border-kp-line py-4 text-left font-display text-2xl text-kp-hi"
-          >
-            Contatti
-          </button>
+        <div className="fixed inset-0 top-16 z-[64] flex flex-col gap-1 overflow-y-auto bg-kp-ink/98 px-5 pb-10 pt-4 backdrop-blur-xl lg:hidden">
+          {MENU.map((item) =>
+            item.children ? (
+              <div key={item.label} className="border-b border-kp-line py-3">
+                <p className="kp-eyebrow mb-1 text-[0.65rem] text-kp-low">{item.label}</p>
+                {item.children.map((child) =>
+                  'contact' in child ? (
+                    <button
+                      key={child.label}
+                      type="button"
+                      onClick={() => {
+                        setOpen(false);
+                        setContactOpen(true);
+                      }}
+                      className="block w-full py-2.5 text-left font-display text-xl text-kp-hi"
+                    >
+                      {child.label}
+                    </button>
+                  ) : (
+                    <Link
+                      key={child.label}
+                      href={child.href}
+                      onClick={() => setOpen(false)}
+                      className="block py-2.5 font-display text-xl text-kp-hi"
+                    >
+                      {child.label}
+                    </Link>
+                  )
+                )}
+              </div>
+            ) : (
+              <Link
+                key={item.label}
+                href={item.href!}
+                onClick={() => setOpen(false)}
+                className="border-b border-kp-line py-4 font-display text-2xl text-kp-hi"
+              >
+                {item.label}
+              </Link>
+            )
+          )}
           <div className="mt-6 flex flex-col gap-3">
             {user ? (
               <Link
