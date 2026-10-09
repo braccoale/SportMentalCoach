@@ -12,11 +12,14 @@ export function PhotoForm({
   name,
   avatarUrl,
   status,
+  bare = false,
 }: {
   name: string | null;
   avatarUrl: string | null;
   /** Coach profile status; an "Approved" badge shows when `approved`. */
   status?: string;
+  /** Senza cornice né margini: per metterla dentro un'altra scheda. */
+  bare?: boolean;
 }) {
   const [state, formAction] = useActionState<ActionState, FormData>(
     updatePhotoAction,
@@ -78,7 +81,7 @@ export function PhotoForm({
   }
 
   return (
-    <div className="h-full rounded-lg border border-gray-200 p-3">
+    <div className={bare ? '' : 'h-full rounded-lg border border-gray-200 p-3'}>
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-medium text-gray-700">Foto profilo</h2>
         {status === 'approved' && (
