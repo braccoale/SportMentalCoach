@@ -5,6 +5,8 @@ import {
   COACH_WIZARD_STEPS,
   clampWizardStep,
   coachSinceFromYears,
+  parsePriceEuro,
+  priceCentsToInput,
   slotsToAdd,
   yearsFromCoachSince,
 } from './coach-wizard';
@@ -103,5 +105,26 @@ describe('requisiti per inviare il profilo in revisione', () => {
     assert.equal(computeCoachOnboarding({ ...profile, status: 'pending' }, 1, true).canSubmit, false);
     assert.equal(computeCoachOnboarding({ ...profile, status: 'approved' }, 1, true).canSubmit, false);
     assert.equal(computeCoachOnboarding({ ...profile, status: 'rejected' }, 1, true).canSubmit, true);
+  });
+});
+
+describe('prezzo scritto a mano', () => {
+  it('capisce virgola e punto, e il vuoto come «nessun prezzo»', () => {
+    assert.equal(parsePriceEuro('60'), 60);
+    assert.equal(parsePriceEuro(' 60,50 '), 60.5);
+    assert.equal(parsePriceEuro('60.5'), 60.5);
+    assert.equal(parsePriceEuro('0'), 0);
+    assert.equal(parsePriceEuro(''), null);
+    assert.equal(parsePriceEuro('   '), null);
+  });
+  it('rifiuta testo, negativi, troppi decimali e importi assurdi', () => {
+    for (const bad of ['abc', '-3', '60,555', '6 0', '1e3', '2000000']) assert.equal(parsePriceEuro(bad), 'invalid', bad);
+  });
+  it('dai centesimi al testo e ritorno', () => {
+    assert.equal(priceCentsToInput(6000), '60');
+    assert.equal(priceCentsToInput(6050), '60,50');
+    assert.equal(priceCentsToInput(0), '0');
+    assert.equal(priceCentsToInput(null), '');
+    assert.equal(parsePriceEuro(priceCentsToInput(6050)), 60.5);
   });
 });

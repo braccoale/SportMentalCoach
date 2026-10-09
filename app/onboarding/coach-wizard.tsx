@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { RateHint } from '@/components/rate-hint';
 import { PhotoForm } from '@/app/(dashboard)/dashboard/photo-form';
 import { VideoUpload } from '@/app/(dashboard)/dashboard/coach/video-upload';
-import { createServiceAction } from '@/app/(dashboard)/dashboard/coach/service-actions';
 import { track } from '@/lib/core/analytics';
 import type { RateLevel } from '@/lib/core/rate-suggestion';
 import {
@@ -17,6 +16,8 @@ import {
   DEFAULT_FIRST_SERVICE,
   clampWizardStep,
   coachSinceFromYears,
+  parsePriceEuro,
+  priceCentsToInput,
   type CoachWizardStepKey,
 } from '@/lib/core/onboarding/coach-wizard';
 import {
@@ -24,6 +25,7 @@ import {
   completeCoachOnboarding,
   getCoachWizardSummary,
   saveCoachStep,
+  saveWizardService,
   type CoachWizardSummary,
 } from './actions';
 
@@ -132,10 +134,13 @@ export function CoachWizard({
   const [athleteLevels, setAthleteLevels] = useState<string[]>(initial.athleteLevels);
   const [hasPhoto, setHasPhoto] = useState(!!avatarUrl);
 
+  // Il servizio principale si modifica sempre qui: se ne esiste già uno, il
+  // modulo parte dai suoi valori e lo aggiorna; altrimenti ne crea uno.
   const [serviceList, setServiceList] = useState(existingServices);
-  const [svcTitle, setSvcTitle] = useState<string>(DEFAULT_FIRST_SERVICE.title);
-  const [svcDuration, setSvcDuration] = useState<number>(DEFAULT_FIRST_SERVICE.durationMin);
-  const [svcPrice, setSvcPrice] = useState('');
+  const primary = serviceList[0] ?? null;
+  const [svcTitle, setSvcTitle] = useState<string>(primary?.title || DEFAULT_FIRST_SERVICE.title);
+  const [svcDuration, setSvcDuration] = useState<number>(primary?.durationMin || DEFAULT_FIRST_SERVICE.durationMin);
+  const [svcPrice, setSvcPrice] = useState(priceCentsToInput(primary?.price));
 
   const [presetKeys, setPresetKeys] = useState<string[]>([]);
   const [slotsCount, setSlotsCount] = useState(availabilityCount);
@@ -204,19 +209,19 @@ export function CoachWizard({
     });
   }
 
-  async function createServiceIfNeeded(): Promise<string | null> {
-    // Un servizio c'è già (da prima o creato qui): non se ne crea un altro tornando indietro.
-    if (serviceList.length > 0) return null;
+  async function saveService(): Promise<string | null> {
     const title = svcTitle.trim();
     if (!title) return 'Dai un nome al servizio.';
-    const fd = new FormData();
-    fd.append('title', title);
-    fd.append('durationMin', String(svcDuration));
-    if (svcPrice.trim()) fd.append('price', svcPrice.replace(',', '.'));
-    const res = await createServiceAction({ error: '' }, fd);
-    if (res?.error) return res.error;
-    const price = svcPrice.trim() ? Math.round(Number(svcPrice.replace(',', '.')) * 100) : null;
-    setServiceList([{ id: -1, title, durationMin: svcDuration, price }]);
+    const price = parsePriceEuro(svcPrice);
+    if (price === 'invalid') return 'Scrivi il prezzo in euro, per esempio 60 o 60,50.';
+    const res = await saveWizardService({
+      id: primary && primary.id > 0 ? primary.id : null,
+      title,
+      durationMin: svcDuration,
+      priceEuro: price,
+    });
+    if (!res.ok) return res.error;
+    setServiceList((list) => [res.service, ...list.slice(1)]);
     return null;
   }
 
@@ -258,7 +263,9 @@ export function CoachWizard({
   const isLast = step === steps.length - 1;
   const stepNumber = step; // il Benvenuto non conta: «Chi sei» è il passo 1
   const totalNumbered = steps.length - 1;
-  const priceNumber = Number(svcPrice.replace(',', '.'));
+  const parsedPrice = parsePriceEuro(svcPrice);
+  const priceNumber = typeof parsedPrice === 'number' ? parsedPrice : 0;
+  const durationChoices = Array.from(new Set([...DURATIONS, svcDuration])).sort((x, y) => x - y);
 
   const blockersJump: Record<string, number> = useMemo(
     () => ({
@@ -502,64 +509,73 @@ export function CoachWizard({
         <section className="flex flex-col gap-5">
           <Heading
             title="Il tuo servizio"
-            intro="Il tipo di sessione che offri. Potrai aggiungerne altri e cambiare i prezzi dalla dashboard."
+            intro={
+              primary
+                ? 'Hai già questo servizio: controllalo e, se vuoi, modificalo. Gli altri e i prezzi si cambiano dalla dashboard.'
+                : 'Il tipo di sessione che offri. Potrai aggiungerne altri e cambiare i prezzi dalla dashboard.'
+            }
           />
-          {serviceList.length > 0 ? (
-            <ul className="flex flex-col gap-2">
-              {serviceList.map((s) => (
-                <li key={s.id} className="flex items-center justify-between gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm">
-                  <span className="flex items-center gap-2 font-medium text-gray-900">
-                    <Check className="h-4 w-4 text-green-600" aria-hidden /> {s.title}
-                  </span>
-                  <span className="text-gray-600">
-                    {s.durationMin} min
-                    {s.price != null ? ` · ${(s.price / 100).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}` : ''}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-4">
-              <div>
-                <Label htmlFor="s-title">Nome del servizio</Label>
-                <Input id="s-title" value={svcTitle} onChange={(e) => setSvcTitle(e.target.value)} maxLength={160} className="mt-1 rounded-lg" />
+          <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-4">
+            <div>
+              <Label htmlFor="s-title">Nome del servizio</Label>
+              <Input id="s-title" value={svcTitle} onChange={(e) => setSvcTitle(e.target.value)} maxLength={160} className="mt-1 rounded-lg" />
+            </div>
+            <div>
+              <Label>Durata</Label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {durationChoices.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    aria-pressed={svcDuration === d}
+                    onClick={() => setSvcDuration(d)}
+                    className={`rounded-full border px-3 py-1.5 text-sm ${
+                      svcDuration === d ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {d} min
+                  </button>
+                ))}
               </div>
-              <div>
-                <Label>Durata</Label>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {DURATIONS.map((d) => (
-                    <button
-                      key={d}
-                      type="button"
-                      aria-pressed={svcDuration === d}
-                      onClick={() => setSvcDuration(d)}
-                      className={`rounded-full border px-3 py-1.5 text-sm ${
-                        svcDuration === d ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      {d} min
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="s-price">Prezzo (euro)</Label>
-                <Input
-                  id="s-price"
-                  inputMode="decimal"
-                  value={svcPrice}
-                  onChange={(e) => setSvcPrice(e.target.value)}
-                  className="mt-1 max-w-[10rem] rounded-lg"
-                  placeholder="Es. 60"
-                />
-                <RateHint
-                  level={rateLevel}
-                  durationMin={svcDuration}
-                  price={priceNumber}
-                  disabled={pending}
-                  onUse={(euros) => setSvcPrice(String(euros))}
-                />
-              </div>
+            </div>
+            <div>
+              <Label htmlFor="s-price">Prezzo (euro)</Label>
+              <Input
+                id="s-price"
+                inputMode="decimal"
+                value={svcPrice}
+                onChange={(e) => setSvcPrice(e.target.value)}
+                aria-invalid={parsedPrice === 'invalid'}
+                className="mt-1 max-w-[10rem] rounded-lg"
+                placeholder="Es. 60"
+              />
+              {parsedPrice === 'invalid' && (
+                <p className="mt-1 text-xs text-red-600">Scrivi il prezzo in euro, per esempio 60 o 60,50.</p>
+              )}
+              <RateHint
+                level={rateLevel}
+                durationMin={svcDuration}
+                price={priceNumber}
+                disabled={pending}
+                onUse={(euros) => setSvcPrice(String(euros))}
+              />
+            </div>
+          </div>
+          {serviceList.length > 1 && (
+            <div>
+              <p className="text-sm font-medium text-gray-900">Gli altri tuoi servizi</p>
+              <ul className="mt-2 flex flex-col gap-2">
+                {serviceList.slice(1).map((s) => (
+                  <li key={s.id} className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm">
+                    <span className="font-medium text-gray-900">{s.title}</span>
+                    <span className="text-gray-600">
+                      {s.durationMin} min
+                      {s.price != null ? ` · ${(s.price / 100).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}` : ''}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1 text-xs text-gray-500">Si modificano dalla pagina Servizi della dashboard.</p>
             </div>
           )}
         </section>
@@ -714,7 +730,7 @@ export function CoachWizard({
               onClick={() =>
                 go(
                   step + 1,
-                  key === 'service' ? createServiceIfNeeded : key === 'hours' ? applyHoursIfChosen : undefined
+                  key === 'service' ? saveService : key === 'hours' ? applyHoursIfChosen : undefined
                 )
               }
               disabled={pending}
