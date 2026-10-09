@@ -17,6 +17,7 @@ import {
 import { db } from '@/lib/db/drizzle';
 import {
   bookings,
+  coachAvailability,
   providerProfiles,
   profiles,
   services,
@@ -26,6 +27,14 @@ import { getVerticalConfig, findTaxonomyItem } from '@/lib/core/config';
 import { getRatingSummaries } from '@/lib/core/reviews';
 import { getCoachExperienceStats } from '@/lib/core/bookings';
 import { MAX_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
+import { computeProfileCompleteness } from '@/lib/core/coach-profile/completeness';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
+import {
+  COMPLETENESS_WEIGHT_CONFIG_KEY,
+  DEFAULT_COMPLETENESS_WEIGHT,
+  discoveryRankScore,
+  normalizeCompletenessWeight,
+} from './ranking';
 
 export type CoachListItem = {
   slug: string;
@@ -341,13 +350,20 @@ export async function getCoachDiscovery(
       languages: providerProfiles.languages,
       athleteLevels: providerProfiles.athleteLevels,
       videoUrl: providerProfiles.videoUrl,
+      // Per il punteggio di completezza (non escono dalla funzione).
+      description: providerProfiles.description,
+      certifications: providerProfiles.certifications,
+      certificationsVerified: providerProfiles.certificationsVerified,
+      coachSince: providerProfiles.coachSince,
     })
     .from(providerProfiles)
     .innerJoin(users, eq(users.id, providerProfiles.userId))
     .leftJoin(profiles, eq(profiles.userId, providerProfiles.userId))
     .where(and(...conditions));
 
-  const [ratings, experience, serviceRows] = await Promise.all([
+  const providerIds = rows.map((r) => r.providerId);
+  const [ratings, experience, serviceRows, introRows, availabilityRows, completenessWeightRaw] =
+    await Promise.all([
     getRatingSummaries(rows.map((r) => r.providerId)),
     getCoachExperienceStats(rows.map((r) => r.providerId)),
     db
@@ -371,7 +387,31 @@ export async function getCoachDiscovery(
         )
       )
       .orderBy(services.id),
+    // Chi ha la sessione conoscitiva attiva e chi ha orari pubblicati: due
+    // sole domande «esiste?», per il punteggio di completezza.
+    providerIds.length === 0
+      ? Promise.resolve([] as { providerId: number }[])
+      : db
+          .selectDistinct({ providerId: services.providerId })
+          .from(services)
+          .where(
+            and(
+              inArray(services.providerId, providerIds),
+              eq(services.isActive, true),
+              eq(services.isIntro, true)
+            )
+          ),
+    providerIds.length === 0
+      ? Promise.resolve([] as { providerId: number }[])
+      : db
+          .selectDistinct({ providerId: coachAvailability.providerId })
+          .from(coachAvailability)
+          .where(inArray(coachAvailability.providerId, providerIds)),
+    getSystemConfigNumber(COMPLETENESS_WEIGHT_CONFIG_KEY, DEFAULT_COMPLETENESS_WEIGHT),
   ]);
+  const completenessWeight = normalizeCompletenessWeight(completenessWeightRaw);
+  const withIntro = new Set(introRows.map((r) => r.providerId));
+  const withAvailability = new Set(availabilityRows.map((r) => r.providerId));
   const servicesByProvider = new Map<number, typeof serviceRows>();
   for (const s of serviceRows) {
     const list = servicesByProvider.get(s.providerId) ?? [];
@@ -392,6 +432,39 @@ export async function getCoachDiscovery(
       completedSessions: 0,
     };
     const hasVideo = !!r.videoUrl;
+
+    // Completezza del profilo (0–100): vedi lib/core/coach-profile.
+    const providerServices = servicesByProvider.get(r.providerId) ?? [];
+    const completeness = computeProfileCompleteness({
+      hasPhoto: !!r.avatarUrl,
+      headline: r.headline,
+      description: r.description,
+      categories: r.categories,
+      specialties: r.specialties,
+      athleteLevels: r.athleteLevels,
+      languages: r.languages,
+      coachSince: r.coachSince,
+      yearsExperience: r.yearsExperience,
+      certifications: r.certifications,
+      certificationsVerified: r.certificationsVerified,
+      hasVideo,
+      hasService: providerServices.some((s) => (s.durationMin ?? 0) > 0),
+      hasPricedService: providerServices.some(
+        (s) => (s.durationMin ?? 0) > 0 && (s.price ?? 0) > 0
+      ),
+      hasAvailability: withAvailability.has(r.providerId),
+      hasIntroSession: withIntro.has(r.providerId),
+    }).score;
+    const rankScore = discoveryRankScore(
+      {
+        completeness,
+        totalMinutes: stats.totalMinutes,
+        athletesCount: stats.athletesCount,
+        ratingAverage: rating.average,
+        ratingCount: rating.count,
+      },
+      completenessWeight
+    );
 
     // Quality score (drives "Consigliati" ranking).
     const score =
@@ -444,6 +517,7 @@ export async function getCoachDiscovery(
       completedSessions: stats.completedSessions,
       services: servicesByProvider.get(r.providerId) ?? [],
       _score: score,
+      _rank: rankScore,
     };
   });
 
@@ -477,6 +551,10 @@ export async function getCoachDiscovery(
     switch (sort) {
       case 'activity':
         return (
+          // Con un peso della completezza attivo, l'ordine di default parte dal
+          // punteggio che la mescola con l'attività; a peso 0 resta quello di
+          // sempre (minuti, poi atleti).
+          (completenessWeight > 0 ? b._rank - a._rank : 0) ||
           b.totalMinutes - a.totalMinutes ||
           b.athletesCount - a.athletesCount ||
           b._score - a._score ||
@@ -510,5 +588,5 @@ export async function getCoachDiscovery(
     });
   }
 
-  return priced.map(({ _score, ...c }) => c);
+  return priced.map(({ _score, _rank, ...c }) => c);
 }

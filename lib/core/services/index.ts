@@ -35,6 +35,24 @@ export async function getCoachServices(userId: number): Promise<Service[]> {
     .orderBy(asc(services.id));
 }
 
+/** La sessione conoscitiva gratuita del coach è attiva? (per il punteggio di completezza). */
+export async function hasActiveIntroSession(userId: number): Promise<boolean> {
+  const providerId = await resolveProviderId(userId);
+  if (!providerId) return false;
+  const [row] = await db
+    .select({ id: services.id })
+    .from(services)
+    .where(
+      and(
+        eq(services.providerId, providerId),
+        eq(services.isIntro, true),
+        eq(services.isActive, true)
+      )
+    )
+    .limit(1);
+  return Boolean(row);
+}
+
 export async function createCoachService(
   userId: number,
   input: ServiceInput

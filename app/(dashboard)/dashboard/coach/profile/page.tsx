@@ -3,7 +3,10 @@ import {
   getAvatarUrl,
   getProviderProfileByUser,
 } from '@/lib/core/profiles';
-import { getCoachServices } from '@/lib/core/services';
+import { getCoachServices, hasActiveIntroSession } from '@/lib/core/services';
+import { getCoachAvailability } from '@/lib/core/availability';
+import { computeProfileCompleteness } from '@/lib/core/coach-profile/completeness';
+import { CoachProfileCompleteness } from '@/components/coach-profile-completeness';
 import { computeCoachOnboarding } from '@/lib/core/onboarding';
 import { getVerticalConfig, t } from '@/lib/core/config';
 import { getActiveSports, getActiveSpecialties } from '@/lib/core/taxonomies';
@@ -43,10 +46,12 @@ export default async function CoachProfilePage() {
   const user = await requireRole('coach');
   const config = getVerticalConfig();
 
-  const [provider, services, avatarUrl] = await Promise.all([
+  const [provider, services, avatarUrl, availability, hasIntro] = await Promise.all([
     getProviderProfileByUser(user.id),
     getCoachServices(user.id),
     getAvatarUrl(user.id),
+    getCoachAvailability(user.id),
+    hasActiveIntroSession(user.id),
   ]);
 
   const onboarding = provider
@@ -81,6 +86,30 @@ export default async function CoachProfilePage() {
     );
   }
 
+  // Quanto è completo il profilo e cosa manca: stessi dati e stessa regola che
+  // l'elenco dei coach usa per l'ordine (lib/core/coach-profile).
+  const activeServices = services.filter((service) => service.isActive);
+  const completeness = computeProfileCompleteness({
+    hasPhoto: !!avatarUrl,
+    headline: provider.headline,
+    description: provider.description,
+    categories: provider.categories,
+    specialties: provider.specialties,
+    athleteLevels: provider.athleteLevels,
+    languages: provider.languages,
+    coachSince: provider.coachSince,
+    yearsExperience: provider.yearsExperience,
+    certifications: provider.certifications,
+    certificationsVerified: provider.certificationsVerified,
+    hasVideo: !!provider.videoUrl,
+    hasService: activeServices.some((s) => (s.durationMin ?? 0) > 0),
+    hasPricedService: activeServices.some(
+      (s) => (s.durationMin ?? 0) > 0 && (s.price ?? 0) > 0
+    ),
+    hasAvailability: availability.length > 0,
+    hasIntroSession: hasIntro,
+  });
+
   return (
     <section className="flex flex-col gap-6 p-6">
       <fieldset
@@ -94,6 +123,8 @@ export default async function CoachProfilePage() {
         {onboarding && provider.status !== 'approved' && (
           <OnboardingProgress onboarding={onboarding} />
         )}
+
+        <CoachProfileCompleteness completeness={completeness} />
 
         {/* Compact media + account row: keeps the profile editor above the fold. */}
         <div className="grid items-stretch gap-4 lg:grid-cols-3">
