@@ -322,8 +322,11 @@ export function VideoUpload({ videoUrl }: { videoUrl: string | null }) {
       {/* Il video pubblicato: resta questo finché il nuovo non è caricato. */}
       {published && !draft && panel !== 'camera' && (
         <div className="mt-4">
+          <p className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
+            <span className="h-2 w-2 rounded-full bg-green-500" aria-hidden /> Video pubblicato
+          </p>
           {isPlayableFile(published) ? (
-            <div className="aspect-video w-full max-w-xl overflow-hidden rounded-xl border border-gray-200 bg-black">
+            <div className="aspect-video w-full max-w-sm overflow-hidden rounded-xl border border-gray-200 bg-black">
               <video src={published} controls preload="metadata" playsInline className="h-full w-full object-contain" />
             </div>
           ) : (
@@ -393,8 +396,11 @@ export function VideoUpload({ videoUrl }: { videoUrl: string | null }) {
       {/* Anteprima prima di pubblicare */}
       {draft && (
         <div className="mt-4 max-w-xl">
-          <p className="mb-2 text-sm font-medium text-gray-800">
+          <p className="mb-2 flex flex-wrap items-center gap-2 text-sm font-medium text-gray-800">
             Anteprima {draft.durationSec ? `(${formatClock(draft.durationSec)})` : ''}
+            <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+              In attesa di pubblicazione
+            </span>
           </p>
           <div className="aspect-video overflow-hidden rounded-xl border border-gray-200 bg-black">
             <video src={draft.url} controls playsInline preload="metadata" className="h-full w-full object-contain" />
