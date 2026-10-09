@@ -15,7 +15,7 @@ export const MENTAL_COACH_O_PSICOLOGO: BlogArticle = {
   seoTitle: 'Mental coach o psicologo dello sport: le differenze',
   description:
     'Mental coach o psicologo dello sport? Cosa fa ciascuno, cosa può e non può fare, quando sceglierne uno e come le due figure possono lavorare insieme.',
-  publishedAt: '2026-10-09',
+  publishedAt: '2026-09-22',
   author: {
     name: 'Francesco Borrelli',
     role: 'Fondatore di KaiPai · Mental coach sportivo',

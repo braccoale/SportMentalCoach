@@ -16,7 +16,7 @@ export const SEDUTA_ONLINE: BlogArticle = {
   seoTitle: 'Seduta di mental coaching online: come funziona',
   description:
     'Come si prenota e come si svolge una seduta di mental coaching online: scelta del coach, conferma, videochiamata, sessione conoscitiva gratuita e dopo.',
-  publishedAt: '2026-10-09',
+  publishedAt: '2026-10-06',
   author: {
     name: 'Francesco Borrelli',
     role: 'Fondatore di KaiPai · Mental coach sportivo',

@@ -16,7 +16,7 @@ export const COME_SCEGLIERE: BlogArticle = {
   seoTitle: 'Come scegliere un mental coach sportivo',
   description:
     'Sette criteri concreti per scegliere un mental coach sportivo: formazione, sport, metodo, chiarezza sui limiti e come provare prima di decidere.',
-  publishedAt: '2026-10-09',
+  publishedAt: '2026-09-29',
   author: {
     name: 'Francesco Borrelli',
     role: 'Fondatore di KaiPai · Mental coach sportivo',

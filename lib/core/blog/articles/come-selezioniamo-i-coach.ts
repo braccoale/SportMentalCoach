@@ -17,7 +17,7 @@ export const SELEZIONE_COACH: BlogArticle = {
   seoTitle: 'Come selezioniamo i coach di KaiPai',
   description:
     'Come si entra nell’elenco dei coach di KaiPai: candidatura, profilo, revisione del team prima della pubblicazione e cosa succede dopo l’approvazione.',
-  publishedAt: '2026-10-09',
+  publishedAt: '2026-10-08',
   author: {
     name: 'Francesco Borrelli',
     role: 'Fondatore di KaiPai · Mental coach sportivo',

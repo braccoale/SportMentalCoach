@@ -15,7 +15,7 @@ export const MENTAL_COACH_RAGAZZI: BlogArticle = {
   seoTitle: 'Mental coach per ragazzi: come sceglierlo',
   description:
     'Quando serve un mental coach a un giovane atleta, cosa chiedere prima di sceglierlo, i segnali d’allarme e come funziona con un figlio minorenne.',
-  publishedAt: '2026-09-29',
+  publishedAt: '2026-09-15',
   author: {
     name: 'Francesco Borrelli',
     role: 'Fondatore di KaiPai · Mental coach sportivo',

@@ -16,7 +16,7 @@ export const ANSIA_DA_PRESTAZIONE: BlogArticle = {
   seoTitle: 'Ansia da prestazione nello sport: come si allena',
   description:
     'Cos’è l’ansia da prestazione, come riconoscerla prima di una gara e cinque strumenti concreti per allenarla, dalla respirazione alla routine pre-gara.',
-  publishedAt: '2026-09-29',
+  publishedAt: '2026-09-08',
   author: {
     name: 'Francesco Borrelli',
     role: 'Fondatore di KaiPai · Mental coach sportivo',
