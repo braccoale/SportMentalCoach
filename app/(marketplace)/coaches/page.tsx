@@ -171,6 +171,8 @@ export default async function CoachesPage({
     user ? hasRole(user.id, 'athlete') : Promise.resolve(false),
     user ? getKnownAthleteProfile(user.id) : Promise.resolve(null),
   ]);
+  // L'aiuto alla scelta è per chi cerca un coach: visitatori e atleti, non coach o admin.
+  const showMatchHelper = !user || isAthlete;
 
   let coaches = await getCoachDiscovery(filters, { favoriteIds });
   if (selectedNeeds.length > 0) {
@@ -448,22 +450,24 @@ export default async function CoachesPage({
         </div>
 
         <div className="mt-5 space-y-3">
-          <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-gray-900">
-                Non sai da dove partire?
-              </p>
-              <p className="mt-1 text-sm text-gray-500">
-                Rispondi a poche domande e ti proponiamo i coach più adatti a te.
-              </p>
+          {showMatchHelper && (
+            <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">
+                  Non sai da dove partire?
+                </p>
+                <p className="mt-1 text-sm text-gray-500">
+                  Rispondi a poche domande e ti proponiamo i coach più adatti a te.
+                </p>
+              </div>
+            <CoachMatchDialog
+              sports={categories.map((s) => ({ key: s.key, label: s.label }))}
+              levels={(levels ?? []).map((l) => ({ key: l.key, label: l.label }))}
+              known={knownProfile}
+              askBudget={SHOW_COACH_HOURLY_RATE}
+            />
             </div>
-          <CoachMatchDialog
-            sports={categories.map((s) => ({ key: s.key, label: s.label }))}
-            levels={(levels ?? []).map((l) => ({ key: l.key, label: l.label }))}
-            known={knownProfile}
-            askBudget={SHOW_COACH_HOURLY_RATE}
-          />
-          </div>
+          )}
         <details
           className="group rounded-2xl border border-gray-200 bg-white"
         >
