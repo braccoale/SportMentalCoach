@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { HERO_DEFAULT_NEUTRAL, heroImageCandidates } from './index';
+import {
+  COACH_HERO_FEMALE,
+  COACH_HERO_MALE,
+  HERO_DEFAULT_NEUTRAL,
+  coachHeroCandidates,
+  heroImageCandidates,
+} from './index';
 
 const tennis = {
   heroImageMale: '/athlete-hero/tennis-uomo.webp',
@@ -61,5 +67,13 @@ describe('heroImageCandidates', () => {
       }),
       [HERO_DEFAULT_NEUTRAL]
     );
+  });
+});
+
+describe('coachHeroCandidates', () => {
+  it("uomo o donna a sorte, entrambi per il ripiego, mai l'immagine neutra", () => {
+    assert.deepEqual(coachHeroCandidates(0.1), [COACH_HERO_MALE, COACH_HERO_FEMALE]);
+    assert.deepEqual(coachHeroCandidates(0.9), [COACH_HERO_FEMALE, COACH_HERO_MALE]);
+    assert.ok(!coachHeroCandidates().includes(HERO_DEFAULT_NEUTRAL));
   });
 });

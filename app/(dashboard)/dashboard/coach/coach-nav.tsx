@@ -47,10 +47,13 @@ export function CoachNav({
 
   return (
     <div className="relative border-b border-gray-200">
-      <CoachBadge
-        name={coachName}
-        className="pointer-events-none absolute -top-1 right-10 z-10 hidden md:block"
-      />
+      {/* Nella dashboard il posto è dell'immagine del coach (`AthleteHeroImage`). */}
+      {pathname !== '/dashboard/coach' && (
+        <CoachBadge
+          name={coachName}
+          className="pointer-events-none absolute -top-1 right-10 z-10 hidden md:block"
+        />
+      )}
       <div className="flex items-center gap-3 px-6 pt-6">
         {/* Coach area branding. TODO: replace /logo.jpg with a dedicated
             coach-area icon asset when available. */}

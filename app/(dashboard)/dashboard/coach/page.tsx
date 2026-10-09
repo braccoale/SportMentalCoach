@@ -72,6 +72,8 @@ import {
 } from './actions';
 import { CoachNewAppointmentButton } from './new-appointment-button';
 import { InviteFriendButton } from '@/components/invite/invite-friend-button';
+import { AthleteHeroImage } from '@/components/athlete-hero-image';
+import { coachHeroCandidates } from '@/lib/core/athlete-hero';
 import { countReferredAthletes } from '@/lib/core/referrals';
 import { computeCoachOnboarding } from '@/lib/core/onboarding';
 import { submitForReviewAction } from './profile-actions';
@@ -373,64 +375,70 @@ export default async function CoachDashboardPage() {
     (r) => r.createdAt >= startOfWeek
   ).length;
 
+  // L'immagine in alto: uomo o donna a sorte (il coach non dichiara un genere).
+  const heroCandidates = coachHeroCandidates(Math.random());
+
   return (
     <section className="flex flex-col gap-8 p-6">
       {isApproved && (
         <ProductTour tourKey="coach_dashboard_intro" alreadySeen={tourSeen} />
       )}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="max-w-3xl">
-          <h1 className="text-3xl font-bold tracking-tight text-gray-950">
+      {/* Titolo e pulsanti a sinistra, l'immagine del coach a destra (come per
+          l'atleta): sale dietro la fascia delle schede. */}
+      <div className="relative">
+        <AthleteHeroImage candidates={heroCandidates} />
+        <div className="relative z-10 max-w-xl pb-2 pt-4 md:min-h-[13rem]">
+          <h1 className="text-4xl font-bold leading-[1.08] tracking-tight text-gray-950 sm:text-5xl">
             Ogni richiesta racconta un atleta, non solo una prenotazione.
           </h1>
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {isApproved ? (
-            <CoachNewAppointmentButton
-              athletes={athletes}
-              services={coachServices
-                .filter(
-                  (s) =>
-                    s.isActive &&
-                    // La conoscitiva gratuita ha il suo pulsante: qui non è un servizio.
-                    !s.isIntro &&
-                    s.title &&
-                    Number.isInteger(s.durationMin) &&
-                    (s.durationMin ?? 0) > 0
-                )
-                .map((s) => ({
-                  id: s.id,
-                  title: s.title as string,
-                  durationMin: s.durationMin as number,
-                }))}
-              bookableDays={bookableDays}
-              tourAlreadySeen={createAppointmentTourSeen}
-            />
-          ) : (
-            <div className="flex flex-col items-end gap-1">
-              <Button
-                type="button"
-                disabled
-                className="rounded-full bg-green-600 text-white opacity-50"
-              >
-                <CalendarPlus className="mr-2 h-4 w-4" />
-                Nuovo appuntamento
-              </Button>
-              <p className="text-xs text-gray-400">
-                Disponibile dopo l’approvazione del profilo.
-              </p>
-            </div>
-          )}
-          <InviteFriendButton />
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            {isApproved ? (
+              <CoachNewAppointmentButton
+                athletes={athletes}
+                services={coachServices
+                  .filter(
+                    (s) =>
+                      s.isActive &&
+                      // La conoscitiva gratuita ha il suo pulsante: qui non è un servizio.
+                      !s.isIntro &&
+                      s.title &&
+                      Number.isInteger(s.durationMin) &&
+                      (s.durationMin ?? 0) > 0
+                  )
+                  .map((s) => ({
+                    id: s.id,
+                    title: s.title as string,
+                    durationMin: s.durationMin as number,
+                  }))}
+                bookableDays={bookableDays}
+                tourAlreadySeen={createAppointmentTourSeen}
+              />
+            ) : (
+              <div className="flex flex-col items-end gap-1">
+                <Button
+                  type="button"
+                  disabled
+                  className="rounded-full bg-green-600 text-white opacity-50"
+                >
+                  <CalendarPlus className="mr-2 h-4 w-4" />
+                  Nuovo appuntamento
+                </Button>
+                <p className="text-xs text-gray-400">
+                  Disponibile dopo l’approvazione del profilo.
+                </p>
+              </div>
+            )}
+            <InviteFriendButton />
+          </div>
+          <p className="mt-3 text-sm text-gray-500">
+            {referredAthletes === 0
+              ? 'Nessun atleta si è ancora registrato con il tuo link.'
+              : referredAthletes === 1
+                ? '1 atleta si è registrato con il tuo link.'
+                : `${referredAthletes} atleti si sono registrati con il tuo link.`}
+          </p>
         </div>
       </div>
-      <p className="-mt-4 text-sm text-gray-500 sm:text-right">
-        {referredAthletes === 0
-          ? 'Nessun atleta si è ancora registrato con il tuo link.'
-          : referredAthletes === 1
-            ? '1 atleta si è registrato con il tuo link.'
-            : `${referredAthletes} atleti si sono registrati con il tuo link.`}
-      </p>
 
       {/* Approval gate: not yet submitted (draft/rejected) → prompt to send. */}
       {provider && !isApproved && !isPending && (
@@ -745,14 +753,22 @@ export default async function CoachDashboardPage() {
                         </DropdownMenuItem>
                       </button>
                     </ActionForm>
-                    <ActionForm action={completeBookingAction} className="w-full">
-                      <input type="hidden" name="bookingId" value={booking.id} />
-                      <input type="hidden" name="athleteNoShow" value="1" />
-                      <button type="submit" className="flex w-full">
-                        <DropdownMenuItem className="w-full flex-1 cursor-pointer">
-                          Atleta non presentato
-                        </DropdownMenuItem>
-                      </button>
+                    <ActionForm action={completeBookingAction} className="w-full">
+
+                      <input type="hidden" name="bookingId" value={booking.id} />
+
+                      <input type="hidden" name="athleteNoShow" value="1" />
+
+                      <button type="submit" className="flex w-full">
+
+                        <DropdownMenuItem className="w-full flex-1 cursor-pointer">
+
+                          Atleta non presentato
+
+                        </DropdownMenuItem>
+
+                      </button>
+
                     </ActionForm>
                     </>
                   ) : (
@@ -941,14 +957,22 @@ function ArchiveSection({
                           </DropdownMenuItem>
                         </button>
                       </ActionForm>
-                      <ActionForm action={completeBookingAction} className="w-full">
-                        <input type="hidden" name="bookingId" value={booking.id} />
-                        <input type="hidden" name="athleteNoShow" value="1" />
-                        <button type="submit" className="flex w-full">
-                          <DropdownMenuItem className="w-full flex-1 cursor-pointer">
-                            Atleta non presentato
-                          </DropdownMenuItem>
-                        </button>
+                      <ActionForm action={completeBookingAction} className="w-full">
+
+                        <input type="hidden" name="bookingId" value={booking.id} />
+
+                        <input type="hidden" name="athleteNoShow" value="1" />
+
+                        <button type="submit" className="flex w-full">
+
+                          <DropdownMenuItem className="w-full flex-1 cursor-pointer">
+
+                            Atleta non presentato
+
+                          </DropdownMenuItem>
+
+                        </button>
+
                       </ActionForm>
                       </>
                     ) : (
