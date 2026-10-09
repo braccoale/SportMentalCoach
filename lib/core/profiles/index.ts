@@ -329,6 +329,8 @@ export async function updateProviderProfileFields(
     languages?: string[];
     certifications?: string[];
     athleteLevels?: string[];
+    /** Assente = lascia com'è (altri punti che aggiornano il profilo non lo chiedono). */
+    gender?: AthleteGender | null;
   }
 ) {
   // `coach_since` is the source of truth for experience; keep the legacy
@@ -351,6 +353,7 @@ export async function updateProviderProfileFields(
       languages: fields.languages ?? [],
       certifications: fields.certifications ?? [],
       athleteLevels: fields.athleteLevels ?? [],
+      ...(fields.gender !== undefined ? { gender: fields.gender } : {}),
       updatedAt: new Date(),
       updatedBy: userId,
     })

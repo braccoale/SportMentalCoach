@@ -11,6 +11,7 @@ import {
 import { getCoachOnboarding } from '@/lib/core/onboarding';
 import { getActiveSports, getActiveSpecialties } from '@/lib/core/taxonomies';
 import { getVerticalConfig } from '@/lib/core/config';
+import { normalizeGender } from '@/lib/core/profiles/gender';
 import type { ActionState } from '@/lib/auth/middleware';
 
 const profileSchema = z.object({
@@ -118,9 +119,11 @@ export async function updateProfileAction(
     languages,
     certifications,
     athleteLevels,
+    gender: normalizeGender(formData.get('gender')),
   });
 
   revalidatePath('/dashboard/coach/profile');
+  revalidatePath('/dashboard/coach');
   revalidatePath('/coaches');
 
   return { success: 'Profilo aggiornato.' };

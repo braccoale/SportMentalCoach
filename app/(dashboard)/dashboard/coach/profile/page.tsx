@@ -11,6 +11,7 @@ import { computeCoachOnboarding } from '@/lib/core/onboarding';
 import { getVerticalConfig, t } from '@/lib/core/config';
 import { getActiveSports, getActiveSpecialties } from '@/lib/core/taxonomies';
 import { AccountInfoCard } from '@/components/account-info-card';
+import { normalizeGender } from '@/lib/core/profiles/gender';
 import { PhotoForm } from '../../photo-form';
 import { ProfileEditor } from '../profile-editor';
 import { VideoUpload } from '../video-upload';
@@ -149,6 +150,7 @@ export default async function CoachProfilePage() {
             certifications={provider.certifications ?? []}
             athleteLevels={provider.athleteLevels ?? []}
             levelOptions={levelOptions}
+            gender={normalizeGender(provider.gender)}
           />
         </div>
       </fieldset>

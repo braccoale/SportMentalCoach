@@ -71,9 +71,14 @@ describe('heroImageCandidates', () => {
 });
 
 describe('coachHeroCandidates', () => {
-  it("uomo o donna a sorte, entrambi per il ripiego, mai l'immagine neutra", () => {
-    assert.deepEqual(coachHeroCandidates(0.1), [COACH_HERO_MALE, COACH_HERO_FEMALE]);
-    assert.deepEqual(coachHeroCandidates(0.9), [COACH_HERO_FEMALE, COACH_HERO_MALE]);
-    assert.ok(!coachHeroCandidates().includes(HERO_DEFAULT_NEUTRAL));
+  it('senza genere: uomo o donna a sorte, entrambi per il ripiego', () => {
+    assert.deepEqual(coachHeroCandidates({ pick: 0.1 }), [COACH_HERO_MALE, COACH_HERO_FEMALE]);
+    assert.deepEqual(coachHeroCandidates({ pick: 0.9 }), [COACH_HERO_FEMALE, COACH_HERO_MALE]);
+    assert.deepEqual(coachHeroCandidates({ gender: 'undisclosed', pick: 0.1 }), [COACH_HERO_MALE, COACH_HERO_FEMALE]);
+    assert.deepEqual(coachHeroCandidates(), [COACH_HERO_FEMALE, COACH_HERO_MALE]);
+  });
+  it("con il genere dichiarato non si mostra mai l'immagine dell'altro", () => {
+    assert.deepEqual(coachHeroCandidates({ gender: 'female', pick: 0.1 }), [COACH_HERO_FEMALE, HERO_DEFAULT_NEUTRAL]);
+    assert.deepEqual(coachHeroCandidates({ gender: 'male', pick: 0.9 }), [COACH_HERO_MALE, HERO_DEFAULT_NEUTRAL]);
   });
 });
