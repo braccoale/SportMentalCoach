@@ -694,6 +694,13 @@
       "when": 1791550238505,
       "tag": "0098_genere-coach",
       "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1791556025298,
+      "tag": "0099_fasce-tariffa-suggerita",
+      "breakpoints": true
     }
   ]
 }

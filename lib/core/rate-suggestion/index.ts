@@ -88,13 +88,17 @@ function athleteLevelFraction(levels: string[]): number {
   return 0;
 }
 
-export function levelForScore(score: number): RateLevel {
-  let current = RATE_LEVELS[0];
-  for (const level of RATE_LEVELS) if (score >= level.minScore) current = level;
+export function levelForScore(score: number, levels: RateLevel[] = RATE_LEVELS): RateLevel {
+  let current = levels[0];
+  for (const level of levels) if (score >= level.minScore) current = level;
   return current;
 }
 
-export function suggestRate(input: RateInput): RateSuggestion {
+/**
+ * `levels` sono le fasce in vigore (dalla configurazione di sistema, vedi
+ * `resolveRateLevels`); senza, valgono i predefiniti `RATE_LEVELS`.
+ */
+export function suggestRate(input: RateInput, levels: RateLevel[] = RATE_LEVELS): RateSuggestion {
   const hours = Math.max(0, input.totalMinutes) / 60;
   const ratingCounts = input.ratingAverage != null && input.ratingCount >= MIN_REVIEWS_FOR_RATING;
 
@@ -165,10 +169,10 @@ export function suggestRate(input: RateInput): RateSuggestion {
   const max = counted.reduce((s, f) => s + f.max, 0);
   const earned = counted.reduce((s, f) => s + f.earned, 0);
   const score = max > 0 ? Math.round((earned / max) * 100) : 0;
-  const level = levelForScore(score);
+  const level = levelForScore(score, levels);
 
-  const idx = RATE_LEVELS.findIndex((l) => l.key === level.key);
-  const nextLevel = RATE_LEVELS[idx + 1];
+  const idx = levels.findIndex((l) => l.key === level.key);
+  const nextLevel = levels[idx + 1];
   const next = nextLevel
     ? {
         level: nextLevel,

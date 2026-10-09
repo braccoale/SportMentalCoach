@@ -2,6 +2,8 @@ import 'server-only';
 import { getCoachExperienceStats } from '@/lib/core/bookings';
 import { getProviderProfileByUser } from '@/lib/core/profiles';
 import { getRatingSummaries } from '@/lib/core/reviews';
+import { getSystemConfigNumber } from '@/lib/core/system-config';
+import { RATE_CONFIG_KEYS, resolveRateLevels } from './config';
 import { suggestRate, type RateSuggestion } from './index';
 
 /**
@@ -13,10 +15,15 @@ export async function getRateSuggestionForCoach(userId: number): Promise<RateSug
   const provider = await getProviderProfileByUser(userId);
   if (!provider) return null;
 
-  const [stats, ratings] = await Promise.all([
+  const [stats, ratings, configValues] = await Promise.all([
     getCoachExperienceStats([provider.id]),
     getRatingSummaries([provider.id]),
+    // Le fasce dalla configurazione di sistema; una riga assente vale il predefinito.
+    Promise.all(RATE_CONFIG_KEYS.map((key) => getSystemConfigNumber(key, Number.NaN))),
   ]);
+  const levels = resolveRateLevels(
+    Object.fromEntries(RATE_CONFIG_KEYS.map((key, i) => [key, Number.isNaN(configValues[i]) ? undefined : configValues[i]]))
+  );
   const s = stats.get(provider.id) ?? { athletesCount: 0, totalMinutes: 0, completedSessions: 0 };
   const r = ratings.get(provider.id) ?? { count: 0, average: null };
 
@@ -29,5 +36,5 @@ export async function getRateSuggestionForCoach(userId: number): Promise<RateSug
     certificationsCount: (provider.certifications ?? []).filter((c) => c.trim().length > 0).length,
     certificationsVerified: provider.certificationsVerified,
     athleteLevels: provider.athleteLevels ?? [],
-  });
+  }, levels);
 }
