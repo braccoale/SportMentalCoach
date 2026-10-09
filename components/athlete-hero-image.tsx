@@ -13,7 +13,9 @@ import { useState } from 'react';
  *
  * L'immagine si fonde con lo sfondo: `mix-blend-multiply` rende invisibile un
  * fondo bianco, e la maschera la sfuma a sinistra e in basso, così qualunque
- * foto con il soggetto a destra sta bene senza ritagli. Sotto `md` si
+ * foto con il soggetto a destra sta bene senza ritagli. `object-contain` in
+ * alto a destra: una foto orizzontale e una verticale entrano intere, nessuna
+ * viene tagliata. Sotto `md` si
  * nasconde: su un telefono la foto toglierebbe spazio al titolo.
  */
 export function AthleteHeroImage({ candidates }: { candidates: string[] }) {
@@ -27,7 +29,7 @@ export function AthleteHeroImage({ candidates }: { candidates: string[] }) {
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute -top-[8.5rem] right-0 hidden h-[31rem] w-[min(58%,48rem)] md:block"
+      className="pointer-events-none absolute -top-[8.5rem] right-0 hidden h-[26rem] w-[min(58%,48rem)] md:block"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -36,7 +38,7 @@ export function AthleteHeroImage({ candidates }: { candidates: string[] }) {
         alt=""
         decoding="async"
         onError={() => setIndex((i) => i + 1)}
-        className="h-full w-full object-cover object-[75%_20%] mix-blend-multiply"
+        className="h-full w-full object-contain object-right-top mix-blend-multiply"
         style={{
           WebkitMaskImage: mask,
           maskImage: mask,

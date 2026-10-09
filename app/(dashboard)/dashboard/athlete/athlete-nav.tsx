@@ -54,16 +54,20 @@ export function AthleteNav({
     <div className="relative border-b border-gray-200">
       {/* KaiPai bottle — decorative, same spot as the coach badge. Desktop-only
           (`md:block`), so it's lazy-loaded: mobile never pays for it. */}
-      <Image
-        src="/BorracciaAI.jpg"
-        alt=""
-        aria-hidden
-        width={268}
-        height={320}
-        loading="lazy"
-        sizes="121px"
-        className="pointer-events-none absolute -top-1 right-10 z-10 hidden h-36 w-auto rotate-6 rounded-xl object-cover shadow-xl ring-1 ring-black/10 md:block"
-      />
+      {/* Nella dashboard il posto è dell'immagine per sport e genere
+          (`AthleteHeroImage`): la borraccia resterebbe sotto di essa. */}
+      {pathname !== '/dashboard/athlete' && (
+        <Image
+            src="/BorracciaAI.jpg"
+            alt=""
+            aria-hidden
+            width={268}
+            height={320}
+            loading="lazy"
+            sizes="121px"
+            className="pointer-events-none absolute -top-1 right-10 z-10 hidden h-36 w-auto rotate-6 rounded-xl object-cover shadow-xl ring-1 ring-black/10 md:block"
+          />
+      )}
       <div className="flex items-center gap-3 px-6 pt-6">
         <Link href="/" aria-label="KaiPai — home">
           <img
