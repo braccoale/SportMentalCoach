@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   CalendarDays,
   MessageSquare,
-  CircleHelp,
   Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -32,11 +31,6 @@ const TABS = [
     href: '/dashboard/athlete/abbonamenti',
     label: 'Abbonamenti',
     icon: Wallet,
-  },
-  {
-    href: '/dashboard/supporto',
-    label: 'Supporto',
-    icon: CircleHelp,
   },
 ];
 

@@ -9,7 +9,6 @@ import {
   GraduationCap,
   MessageSquare,
   Users2,
-  CircleHelp,
   Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -29,7 +28,6 @@ const TABS = [
     label: 'Pagamenti',
     icon: Wallet,
   },
-  { href: '/dashboard/supporto', label: 'Supporto', icon: CircleHelp },
 ];
 
 export function CoachNav({
