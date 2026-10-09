@@ -9,6 +9,7 @@ import { CoachProfileCompleteness } from '@/components/coach-profile-completenes
 import type { ProfileCompleteness } from '@/lib/core/coach-profile/completeness';
 import {
   PROFILE_SECTIONS,
+  itemsNeedingAttention,
   sectionsNeedingAttention,
   targetForItem,
   type ProfileSectionId,
@@ -70,6 +71,7 @@ export function CoachProfileWorkspace({
   const [dirty, setDirty] = useState(false);
   const [state, formAction, pending] = useActionState<ActionState, FormData>(updateProfileAction, { error: '' });
   const attention = sectionsNeedingAttention(completeness.items);
+  const fieldAttention = itemsNeedingAttention(completeness.items);
 
   // Salvato: la barra sparisce e un messaggio lo conferma.
   useEffect(() => {
@@ -222,7 +224,7 @@ export function CoachProfileWorkspace({
                   <div id="foto-profilo" tabIndex={-1} className="outline-none">
                     {photo}
                   </div>
-                  <PresentationFields headline={values.headline} description={values.description} />
+                  <PresentationFields headline={values.headline} description={values.description} attention={fieldAttention} />
                   {saveRow()}
                 </div>
                 {video}
@@ -241,6 +243,7 @@ export function CoachProfileWorkspace({
                   sportOptions={sportOptions}
                   specialtyOptions={specialtyOptions}
                   levelOptions={levelOptions}
+                  attention={fieldAttention}
                 />
                 <div className="mt-5">{saveRow()}</div>
               </div>

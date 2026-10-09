@@ -14,6 +14,7 @@ export function PhotoForm({
   status,
   bare = false,
   onChange,
+  attention = false,
 }: {
   name: string | null;
   avatarUrl: string | null;
@@ -23,6 +24,8 @@ export function PhotoForm({
   bare?: boolean;
   /** Chiamata quando la foto viene caricata (nuovo indirizzo) o rimossa (`null`). */
   onChange?: (url: string | null) => void;
+  /** La voce «foto» della completezza non è a posto: il titolo diventa arancione. */
+  attention?: boolean;
 }) {
   const [state, formAction] = useActionState<ActionState, FormData>(
     updatePhotoAction,
@@ -87,7 +90,10 @@ export function PhotoForm({
   return (
     <div className={bare ? '' : 'h-full rounded-lg border border-gray-200 p-3'}>
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium text-gray-700">Foto profilo</h2>
+        <h2 className={attention ? 'text-sm font-semibold text-orange-600' : 'text-sm font-medium text-gray-700'}>
+          Foto profilo
+          {attention && <span className="ml-2 text-xs font-medium">· da completare</span>}
+        </h2>
         {status === 'approved' && (
           <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700 ring-1 ring-green-200">
             <BadgeCheck className="h-4 w-4" />

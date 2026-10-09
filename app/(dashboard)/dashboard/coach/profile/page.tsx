@@ -6,6 +6,7 @@ import {
 import { getCoachServices } from '@/lib/core/services';
 import { getCoachAvailability } from '@/lib/core/availability';
 import { computeProfileCompleteness } from '@/lib/core/coach-profile/completeness';
+import { itemsNeedingAttention } from '@/lib/core/coach-profile/sections';
 import { computeCoachOnboarding } from '@/lib/core/onboarding';
 import { getVerticalConfig, t } from '@/lib/core/config';
 import { getActiveSports, getActiveSpecialties } from '@/lib/core/taxonomies';
@@ -107,6 +108,7 @@ export default async function CoachProfilePage() {
     ),
     hasAvailability: availability.length > 0,
   });
+  const attention = itemsNeedingAttention(completeness.items);
 
   return (
     <section className="flex flex-col gap-6 p-6">
@@ -144,9 +146,10 @@ export default async function CoachProfilePage() {
                 name={[user.name, user.lastName].filter(Boolean).join(' ') || null}
                 avatarUrl={avatarUrl}
                 status={provider.status}
+                attention={attention.has('photo')}
               />
             }
-            video={<VideoUpload videoUrl={provider.videoUrl} />}
+            video={<VideoUpload videoUrl={provider.videoUrl} attention={attention.has('video')} />}
             account={<AccountInfoCard />}
           />
         </div>
