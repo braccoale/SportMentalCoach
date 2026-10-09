@@ -666,6 +666,20 @@
       "when": 1791390135310,
       "tag": "0094_cambio-piano-programmato",
       "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1791537650862,
+      "tag": "0095_dashboard-atleta-immagine",
+      "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1791538297814,
+      "tag": "0096_immagini-dashboard-nomi-italiani",
+      "breakpoints": true
     }
   ]
 }

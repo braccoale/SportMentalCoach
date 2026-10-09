@@ -18,6 +18,7 @@ import {
 } from '@/lib/db/schema';
 import { recordPlatformTermsAcceptance } from '@/lib/core/legal/acceptance';
 import { ensureOnboarding } from '@/lib/core/onboarding';
+import type { AthleteGender } from '@/lib/core/profiles/gender';
 import {
   ensureProfile,
   provisionMarketplaceRole,
@@ -79,6 +80,8 @@ export async function createAccountRecords(params: {
   marketing: boolean;
   marketplaceRole: SignupRole | null;
   birthDate: string | null;
+  /** Genere dichiarato dall'atleta, facoltativo (`normalizeGender` già applicato). */
+  gender?: AthleteGender | null;
   isAthleteSignup: boolean;
   isProfessional: boolean;
   invitation: typeof invitations.$inferSelect | null;
@@ -93,6 +96,7 @@ export async function createAccountRecords(params: {
     marketing,
     marketplaceRole,
     birthDate,
+    gender,
     isAthleteSignup,
     isProfessional,
     invitation,
@@ -178,13 +182,22 @@ export async function createAccountRecords(params: {
       // Persist the declared birth date: the guardian gate reads it back from
       // the athlete profile, so it has to land in the same transaction that
       // creates the account rather than waiting for a profile edit.
-      if (isAthleteSignup && birthDate) {
+      if (isAthleteSignup && (birthDate || gender)) {
         await tx
           .insert(clientProfiles)
-          .values({ userId: createdUser.id, birthDate, createdBy: createdUser.id })
+          .values({
+            userId: createdUser.id,
+            birthDate: birthDate ?? null,
+            gender: gender ?? null,
+            createdBy: createdUser.id,
+          })
           .onConflictDoUpdate({
             target: clientProfiles.userId,
-            set: { birthDate, updatedAt: new Date() }
+            set: {
+              ...(birthDate ? { birthDate } : {}),
+              ...(gender ? { gender } : {}),
+              updatedAt: new Date(),
+            }
           });
       }
 

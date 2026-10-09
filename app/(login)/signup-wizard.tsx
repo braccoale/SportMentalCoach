@@ -19,6 +19,7 @@ import {
 } from '@/lib/core/guardians/age';
 import { signUp } from './actions';
 import { GoogleButton } from '@/components/auth/google-button';
+import { GenderField } from '@/components/gender-field';
 import type { ActionState } from '@/lib/auth/middleware';
 import { track } from '@/lib/core/analytics';
 
@@ -379,6 +380,8 @@ export function SignupWizard() {
                 </div>
               </div>
             )}
+
+            {isAthlete && <GenderField />}
 
             {underMin && (
               <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm">

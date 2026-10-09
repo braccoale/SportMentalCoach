@@ -26,6 +26,7 @@ import {
 } from '@/lib/core/profiles';
 import { createAccountRecords } from '@/lib/core/auth/account-provisioning';
 import { SIGNUP_ROLE_COOKIE } from '@/lib/core/auth/signup-role-cookie';
+import { normalizeGender } from '@/lib/core/profiles/gender';
 
 /**
  * La seconda meta' di una registrazione con Google.
@@ -46,6 +47,7 @@ const completeSchema = z.object({
   lastName: z.string().trim().min(1, 'Inserisci il tuo cognome.').max(100),
   role: z.enum(['athlete', 'coach', 'club']).optional(),
   birthDate: z.string().optional(),
+  gender: z.string().optional(),
   acceptTerms: z.string().optional(),
   acceptPrivacy: z.string().optional(),
   acceptVexatious: z.string().optional(),
@@ -154,6 +156,7 @@ export const completeGoogleSignup = validatedAction(
       marketing: data.marketing === 'on',
       marketplaceRole,
       birthDate: data.birthDate ?? null,
+      gender: isAthleteSignup ? normalizeGender(data.gender) : null,
       isAthleteSignup,
       isProfessional,
       // L'invito di squadra non passa da qui: chi arriva da un invito segue il

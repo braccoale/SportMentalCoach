@@ -63,6 +63,10 @@ import { VideoCallButton } from '@/components/video-call-button';
 import { DEFAULT_SERVICE_DURATION_MIN } from '@/lib/core/services/validation';
 import { hasSeenTour } from '@/lib/core/tours/state';
 import { ProductTour } from '@/components/product-tour';
+import { AthleteHeroImage } from '@/components/athlete-hero-image';
+import { heroImageCandidates } from '@/lib/core/athlete-hero';
+import { getClientProfile } from '@/lib/core/profiles';
+import { getSportHeroImages } from '@/lib/core/taxonomies';
 
 /** Sort key for the archive: when the session actually happened, newest first. */
 function archiveRecency(b: AthleteBooking): number {
@@ -584,6 +588,7 @@ export default async function AthleteDashboardPage() {
     guardianStatus,
     nextSteps,
     dashboardTourSeen,
+    heroCandidates,
   ] = await Promise.all([
     getAthleteBookings(user.id),
     getReviewedBookingIds(user.id),
@@ -592,6 +597,19 @@ export default async function AthleteDashboardPage() {
     getGuardianStatus(user.id),
     getAthleteNextSteps(user.id),
     hasSeenTour(user.id, 'athlete_dashboard_intro'),
+    // L'immagine in alto: dipende dallo sport e dal genere dichiarati. Un
+    // guasto qui toglie l'immagine, non la dashboard.
+    getClientProfile(user.id)
+      .then(async (profile) =>
+        heroImageCandidates({
+          gender: profile.gender,
+          sport: await getSportHeroImages(profile.category),
+        })
+      )
+      .catch((error) => {
+        console.error('[athlete] immagine della dashboard non scelta', error);
+        return [] as string[];
+      }),
   ]);
 
   const waiting = requests.filter((b) => b.status === 'requested');
@@ -641,19 +659,26 @@ export default async function AthleteDashboardPage() {
           adults, so it can sit here unconditionally. */}
       <GuardianBanner status={guardianStatus} action={inviteGuardianAction} />
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="max-w-3xl">
-          <h1 className="text-3xl font-bold tracking-tight text-gray-950">
-            Il tuo percorso mentale, una sessione alla volta.
+      {/* Titolo e pulsanti a sinistra, l'immagine (sport e genere) a destra,
+          che sale dietro la fascia delle schede. I pulsanti stanno sotto il
+          testo e non più accanto, per lasciare libero il lato destro. */}
+      <div className="relative">
+        <AthleteHeroImage candidates={heroCandidates} />
+        <div className="relative z-10 max-w-xl pb-2 pt-4 md:min-h-[17rem]">
+          <h1 className="text-4xl font-bold leading-[1.08] tracking-tight text-gray-950 sm:text-5xl">
+            Il tuo percorso mentale,{' '}
+            <span className="whitespace-nowrap">
+              una sessione <span className="text-red-600">alla volta.</span>
+            </span>
           </h1>
-          <p className="mt-3 text-base leading-7 text-gray-600">
+          <p className="mt-4 text-base leading-7 text-gray-600">
             Tieni sotto controllo richieste, sessioni confermate e messaggi con
             i tuoi coach. I tuoi dati personali sono nella scheda “Atleta”.
           </p>
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <NewAppointmentButton coaches={relationshipCoaches} />
-          <InviteFriendButton />
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <NewAppointmentButton coaches={relationshipCoaches} />
+            <InviteFriendButton />
+          </div>
         </div>
       </div>
 
