@@ -114,6 +114,20 @@ export default async function CoachPaymentsPage({
         </p>
       </header>
 
+      {rateSuggestion && <CoachRateSuggestion suggestion={rateSuggestion} />}
+
+      <SingleSessionForm
+        currentPrice={
+          profile?.singleSessionPriceCents
+            ? formatEuroCents(profile.singleSessionPriceCents).replace(' €', '')
+            : ''
+        }
+        minLabel={formatEuroCents(singleLimits.minPriceCents)}
+        maxLabel={formatEuroCents(singleLimits.maxPriceCents)}
+        validityLabel={formatValidityDays(await getSingleSessionValidityDays())}
+        rateLevel={rateSuggestion?.level ?? null}
+      />
+
       {state === 'active' && process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY && (
         <EarningsPanel
           publishableKey={process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
@@ -268,20 +282,6 @@ export default async function CoachPaymentsPage({
           </p>
         )}
       </div>
-
-      {rateSuggestion && <CoachRateSuggestion suggestion={rateSuggestion} />}
-
-      <SingleSessionForm
-        currentPrice={
-          profile?.singleSessionPriceCents
-            ? formatEuroCents(profile.singleSessionPriceCents).replace(' €', '')
-            : ''
-        }
-        minLabel={formatEuroCents(singleLimits.minPriceCents)}
-        maxLabel={formatEuroCents(singleLimits.maxPriceCents)}
-        validityLabel={formatValidityDays(await getSingleSessionValidityDays())}
-        rateLevel={rateSuggestion?.level ?? null}
-      />
 
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         <h3 className="mb-4 text-sm font-semibold text-gray-900">Nuovo piano</h3>
