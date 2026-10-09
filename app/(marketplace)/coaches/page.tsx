@@ -366,6 +366,12 @@ export default async function CoachesPage({
           Scegli il tipo di supporto che stai cercando e lascia che KaiPai ti
           accompagni verso i coach piu adatti alla tua situazione sportiva.
         </p>
+        <Button asChild className="mt-5 rounded-full">
+          <Link href="/coaches/aiutami-a-scegliere">
+            <Sparkles />
+            Aiutami a scegliere
+          </Link>
+        </Button>
       </header>
 
       {SHOW_UPCOMING_FEATURES && (

@@ -39,6 +39,9 @@ export type OpenAiResponsesRequest = {
   instructions: string;
   input: string;
   store: false;
+  /** Facoltativi: chi li omette lascia i valori predefiniti del modello. */
+  reasoning?: { effort: 'minimal' | 'low' | 'medium' | 'high' };
+  max_output_tokens?: number;
   text: {
     format: {
       type: 'json_schema';
