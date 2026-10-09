@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Globe, Users, Clock, CalendarCheck, ArrowRight, BadgeCheck, Briefcase } from 'lucide-react';
+import { Globe, Users, Clock, CalendarCheck, ArrowRight, BadgeCheck, Briefcase, Play } from 'lucide-react';
 import { getVerticalConfig, findTaxonomyItem } from '@/lib/core/config';
 import type { TaxonomyItem } from '@/lib/core/config/types';
 import { formatPrice, formatTotalHours } from '@/lib/core/format';
@@ -119,7 +119,10 @@ export function CoachCard({
   const primaryService = coach.services?.[0];
 
   return (
-    <div className="relative flex overflow-hidden rounded-3xl border border-gray-200/80 bg-white shadow-md ring-1 ring-black/[0.03] transition hover:border-red-200 hover:shadow-xl">
+    <div
+      data-coach-card={coach.providerId}
+      className="group/card relative flex overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm ring-1 ring-black/[0.03] transition duration-200 ease-out hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+    >
       {/* Icone azione: fuori dal <Link> di sotto, sono bottoni veri (chat apre
           un form, condividi e conoscitiva aprono un dialog) — annidarli in un
           <a> sarebbe HTML non valido e il click aprirebbe anche la scheda. */}
@@ -151,14 +154,28 @@ export function CoachCard({
           </div>
         )}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-white/70 via-transparent to-transparent" />
+        {/* Solo se c'è un video, e solo come anteprima visiva: il clic sulla
+            scheda apre il pannello, l'hover non apre niente. Nessun video viene
+            caricato qui. */}
+        {coach.hasVideo && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/35 text-white opacity-0 transition-opacity duration-200 group-focus-within/card:opacity-100 group-hover/card:opacity-100 motion-reduce:transition-none"
+          >
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/95 text-emerald-700 shadow-lg">
+              <Play className="h-5 w-5 translate-x-0.5 fill-current" />
+            </span>
+            <span className="text-sm font-semibold drop-shadow">Guarda presentazione</span>
+          </div>
+        )}
         <CoachOnlineBadge providerId={coach.providerId} />
       </div>
 
       <div className="flex flex-1 flex-col justify-between gap-2.5 p-4">
-        <Link href={`/coaches/${coach.slug}`} className="block">
+        <Link href={`/coaches/${coach.slug}`} className="block" data-profile-link>
           <div className="min-w-0 pr-28">
             <div className="flex items-center gap-2">
-              <h3 className="truncate text-xl font-bold tracking-tight text-gray-950">
+              <h3 className="truncate text-2xl font-bold tracking-tight text-gray-950">
                 {name}
               </h3>
               <CertifiedBadge
@@ -220,24 +237,23 @@ export function CoachCard({
             )}
           </div>
 
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-gray-100 pt-2 text-sm text-gray-600">
-            {sportLabels.length > 0 && <span>{sportLabels.join(' · ')}</span>}
+          <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-gray-700">
+            {sportLabels.map((label) => (
+              <span key={label} className="rounded-full bg-gray-100 px-2.5 py-1 font-medium">
+                {label}
+              </span>
+            ))}
             {coach.languages && coach.languages.length > 0 && (
-              <>
-                {sportLabels.length > 0 && (
-                  <span className="h-4 w-px bg-gray-200" />
-                )}
-                <span className="inline-flex items-center gap-1.5">
-                  <Globe className="h-4 w-4 text-gray-400" />
-                  {coach.languages.join(', ')}
-                </span>
-              </>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-50 px-2.5 py-1 ring-1 ring-gray-100">
+                <Globe className="h-3.5 w-3.5 text-gray-400" />
+                {coach.languages.join(', ')}
+              </span>
             )}
           </div>
         </Link>
 
         {coach.athletesCount > 0 && (
-          <div className="flex divide-x divide-gray-100 rounded-xl border border-gray-100 bg-gray-50/60">
+          <div className="flex rounded-2xl bg-gray-50/70">
             <StatCell
               icon={Users}
               value={coach.athletesCount}
@@ -262,9 +278,9 @@ export function CoachCard({
           </div>
         )}
 
-        <div className="flex flex-col gap-2 border-t border-gray-100 pt-2.5 sm:flex-row sm:items-center sm:justify-end">
+        <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-end">
           {coach.yearsExperience != null && (
-            <span className="inline-flex items-center gap-1.5 text-xs text-gray-500 sm:mr-auto">
+            <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-gray-500 sm:mr-auto">
               <Briefcase className="h-3.5 w-3.5 text-gray-400" />
               {coach.yearsExperience}{' '}
               {coach.yearsExperience === 1 ? 'anno' : 'anni'} di esperienza
@@ -275,6 +291,7 @@ export function CoachCard({
               solo figlio lo appoggia a sinistra invece che a destra — i
               bottoni devono restare a destra sempre, indipendentemente. */}
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            <span data-coach-action="intro" className="contents">
             <IntroSessionButton
               slug={coach.slug}
               coachName={name}
@@ -287,6 +304,8 @@ export function CoachCard({
               alreadyUsed={introAlreadyUsed}
               isDemo={isDemo}
             />
+            </span>
+            <span data-coach-action="book" className="contents">
             {isDemo ? (
               <span
                 className="inline-flex cursor-not-allowed items-center gap-2 whitespace-nowrap rounded-full bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-500"
@@ -350,6 +369,7 @@ export function CoachCard({
                 Prenota un incontro <ArrowRight className="h-4 w-4" />
               </Link>
             )}
+            </span>
           </div>
         </div>
       </div>
