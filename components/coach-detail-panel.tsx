@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, BadgeCheck, Briefcase, CalendarCheck, Globe, Play, X } from 'lucide-react';
-import { RatingStars } from '@/components/rating-stars';
+import { CoachReviewsDialog } from '@/components/coach-reviews-dialog';
 import { VideoEmbed } from '@/components/video-embed';
 import type { CoachVideoSource } from '@/lib/core/coach-video';
 import { cn } from '@/lib/utils';
@@ -185,13 +185,12 @@ export function CoachDetailPanel({
           </div>
           <div className="mt-1 text-sm text-gray-700">
             {data.ratingCount > 0 ? (
-              <span className="inline-flex items-center gap-1.5">
-                <RatingStars value={data.ratingAverage ?? 0} />
-                <span className="font-medium">{data.ratingAverage}</span>
-                <span className="text-gray-400">
-                  ({data.ratingCount} {data.ratingCount === 1 ? 'recensione' : 'recensioni'})
-                </span>
-              </span>
+              <CoachReviewsDialog
+                slug={data.slug}
+                coachName={data.name}
+                average={data.ratingAverage}
+                count={data.ratingCount}
+              />
             ) : (
               <span className="text-gray-400">Nuovo coach</span>
             )}

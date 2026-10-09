@@ -479,10 +479,13 @@ export default async function CoachDetailPage({
                 </div>
               ) : uploadedVideo ? (
                 <div className="mt-3 aspect-video overflow-hidden rounded-lg border border-gray-200 bg-black">
+                  {/* Foto come anteprima e niente caricamento finché non si preme Play. */}
                   <video
                     src={uploadedVideo}
                     controls
-                    preload="metadata"
+                    preload="none"
+                    playsInline
+                    poster={coach.avatarUrl ?? undefined}
                     className="h-full w-full object-contain"
                   />
                 </div>

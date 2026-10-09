@@ -227,3 +227,33 @@ export async function createReview(params: {
 
   return { ok: true };
 }
+
+/**
+ * Le recensioni pubbliche di un coach dall'indirizzo del suo profilo, per la
+ * finestra che si apre dalle stelline. Stesse regole dell'elenco: solo un coach
+ * approvato e non demo; per tutti gli altri `null`. Sono le stesse recensioni
+ * che il profilo pubblico già mostra.
+ */
+export async function getPublicCoachReviewsBySlug(
+  slug: string,
+  limit = 30
+): Promise<{ summary: ReviewSummary; reviews: ReviewView[] } | null> {
+  const [provider] = await db
+    .select({ id: providerProfiles.id })
+    .from(providerProfiles)
+    .innerJoin(users, eq(users.id, providerProfiles.userId))
+    .where(
+      and(
+        eq(providerProfiles.slug, slug),
+        eq(providerProfiles.status, 'approved'),
+        eq(users.isDemo, false)
+      )
+    )
+    .limit(1);
+  if (!provider) return null;
+  const [summary, list] = await Promise.all([
+    getReviewSummary(provider.id),
+    getCoachReviews(provider.id, limit),
+  ]);
+  return { summary, reviews: list };
+}

@@ -125,17 +125,18 @@ export default async function CoachProfilePage() {
         <CoachProfileCompleteness completeness={completeness} />
 
         {/* Compact media + account row: keeps the profile editor above the fold. */}
-        <div className="grid items-stretch gap-4 lg:grid-cols-3">
+        <div className="grid items-stretch gap-4 lg:grid-cols-2">
           <PhotoForm
             name={[user.name, user.lastName].filter(Boolean).join(' ') || null}
             avatarUrl={avatarUrl}
             status={provider.status}
           />
-          <div className="h-full rounded-lg border border-gray-200 p-3">
-            <VideoUpload videoUrl={provider.videoUrl} />
-          </div>
           <AccountInfoCard />
         </div>
+
+        {/* Il video ha la sua scheda a tutta larghezza: registrare e vedere
+            l'anteprima non sta in una colonna stretta. */}
+        <VideoUpload videoUrl={provider.videoUrl} />
 
         <div id="onboarding-profilo">
           <ProfileEditor
