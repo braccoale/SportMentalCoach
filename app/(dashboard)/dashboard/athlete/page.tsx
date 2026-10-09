@@ -671,10 +671,6 @@ export default async function AthleteDashboardPage() {
               una sessione <span className="text-red-600">alla volta.</span>
             </span>
           </h1>
-          <p className="mt-4 text-base leading-7 text-gray-600">
-            Tieni sotto controllo richieste, sessioni confermate e messaggi con
-            i tuoi coach. I tuoi dati personali sono nella scheda “Atleta”.
-          </p>
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <NewAppointmentButton coaches={relationshipCoaches} />
             <InviteFriendButton />
