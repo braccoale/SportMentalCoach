@@ -680,6 +680,13 @@
       "when": 1791538297814,
       "tag": "0096_immagini-dashboard-nomi-italiani",
       "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1791543819406,
+      "tag": "0097_peso-completezza-profilo",
+      "breakpoints": true
     }
   ]
 }
