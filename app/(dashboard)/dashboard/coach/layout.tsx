@@ -3,6 +3,8 @@ import { getPendingRequestCount } from '@/lib/core/bookings';
 import { getUnreadCountForType } from '@/lib/core/notifications';
 import { listSessionsForUser } from '@/lib/core/academy/sessions';
 import { countCoursesWithUpcomingSessions } from '@/lib/core/academy/upcoming-sessions';
+import { getProviderProfileByUser } from '@/lib/core/profiles';
+import { CoachPresenceTracker } from '@/components/coach-presence-tracker';
 import { CoachNav } from './coach-nav';
 
 // Il badge Academy deve riflettere lo stato reale a ogni apertura — non solo
@@ -20,17 +22,20 @@ export default async function CoachAreaLayout({
   // Tab badges: pending requests (Dashboard) + unread messages (Messaggi) +
   // corsi Academy con almeno una sessione futura pianificata.
   const user = await getUser();
-  const [pendingCount, unreadMessages, academySessions] = user
+  const [pendingCount, unreadMessages, academySessions, provider] = user
     ? await Promise.all([
         getPendingRequestCount(user.id),
         getUnreadCountForType(user.id, 'new_message'),
         listSessionsForUser(user.id),
+        getProviderProfileByUser(user.id),
       ])
-    : [0, 0, []];
+    : [0, 0, [], null];
   const academyCourseCount = countCoursesWithUpcomingSessions(academySessions);
 
   return (
     <div className="flex flex-col">
+      {/* Solo i coach approvati compaiono nell'elenco: solo loro segnalano la presenza. */}
+      {provider?.status === 'approved' && <CoachPresenceTracker providerId={provider.id} />}
       <CoachNav
         pendingCount={pendingCount}
         unreadMessages={unreadMessages}
