@@ -13,6 +13,7 @@ export function PhotoForm({
   avatarUrl,
   status,
   bare = false,
+  onChange,
 }: {
   name: string | null;
   avatarUrl: string | null;
@@ -20,6 +21,8 @@ export function PhotoForm({
   status?: string;
   /** Senza cornice né margini: per metterla dentro un'altra scheda. */
   bare?: boolean;
+  /** Chiamata quando la foto viene caricata (nuovo indirizzo) o rimossa (`null`). */
+  onChange?: (url: string | null) => void;
 }) {
   const [state, formAction] = useActionState<ActionState, FormData>(
     updatePhotoAction,
@@ -38,6 +41,7 @@ export function PhotoForm({
     const fd = new FormData();
     fd.append('avatarUrl', url);
     startTransition(() => formAction(fd));
+    onChange?.(url || null);
   }
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {

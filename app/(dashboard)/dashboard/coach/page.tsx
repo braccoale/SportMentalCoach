@@ -29,7 +29,7 @@ import {
 } from '@/lib/core/availability';
 import { busyIntervalsAt } from '@/lib/core/availability/validation';
 import { getSystemConfigNumber } from '@/lib/core/system-config';
-import { getProviderProfileByUser } from '@/lib/core/profiles';
+import { getAvatarUrl, getProviderProfileByUser } from '@/lib/core/profiles';
 import {
   FEATURE_CODES,
   hasFeatureEntitlement,
@@ -150,6 +150,7 @@ export default async function CoachDashboardPage() {
     hasAiSessionNotes,
     academySessions,
     referredAthletes,
+    avatarUrl,
   ] = await Promise.all([
     getProviderProfileByUser(user.id),
     getCoachBookings(user.id),
@@ -160,6 +161,7 @@ export default async function CoachDashboardPage() {
     hasFeatureEntitlement(user.id, FEATURE_CODES.AI_SESSION_NOTES),
     listSessionsForUser(user.id),
     countReferredAthletes(user.id),
+    getAvatarUrl(user.id),
   ]);
 
   const upcomingAcademySessions = academySessions.filter((session) =>
@@ -259,7 +261,8 @@ export default async function CoachDashboardPage() {
             service.isActive &&
             Number.isInteger(service.durationMin) &&
             (service.durationMin ?? 0) > 0
-        ).length
+        ).length,
+        !!avatarUrl
       )
     : null;
   const isApproved = provider?.status === 'approved';
