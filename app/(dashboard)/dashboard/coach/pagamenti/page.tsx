@@ -27,6 +27,7 @@ import { EarningsPanel } from './earnings-panel';
 import { OnboardingPanel } from './onboarding-panel';
 import { PlanForm } from './plan-form';
 import { SingleSessionForm } from './single-session-form';
+import { getRateSuggestionForCoach } from '@/lib/core/rate-suggestion/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -271,6 +272,14 @@ export default async function CoachPaymentsPage({
         minLabel={formatEuroCents(singleLimits.minPriceCents)}
         maxLabel={formatEuroCents(singleLimits.maxPriceCents)}
         validityLabel={formatValidityDays(await getSingleSessionValidityDays())}
+        rateLevel={
+          (
+            await getRateSuggestionForCoach(user.id).catch((error) => {
+              console.error('[coach] tariffa suggerita non calcolata', error);
+              return null;
+            })
+          )?.level ?? null
+        }
       />
 
       <div className="rounded-lg border border-gray-200 bg-white p-4">
