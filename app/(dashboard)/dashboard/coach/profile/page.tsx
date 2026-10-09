@@ -139,6 +139,7 @@ export default async function CoachProfilePage() {
             levelOptions={levelOptions}
             photo={
               <PhotoForm
+                bare
                 name={[user.name, user.lastName].filter(Boolean).join(' ') || null}
                 avatarUrl={avatarUrl}
                 status={provider.status}

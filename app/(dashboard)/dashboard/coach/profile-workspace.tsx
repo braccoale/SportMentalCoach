@@ -117,6 +117,33 @@ export function CoachProfileWorkspace({
     setDirty(false);
   }
 
+  /**
+   * Il pulsante di salvataggio, uguale in ogni scheda: salva tutti i campi del
+   * profilo (sono un solo modulo), anche quelli di un'altra scheda. Se c'è
+   * qualcosa di modificato lo dice e permette di annullare.
+   */
+  const saveRow = (label = 'Salva modifiche') => (
+    <div className="flex flex-wrap items-center gap-3 border-t border-gray-100 pt-4">
+      <Button type="submit" form={PROFILE_FORM_ID} disabled={pending} className="rounded-full">
+        {pending ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" /> Salvo…
+          </>
+        ) : (
+          label
+        )}
+      </Button>
+      {dirty && !pending && (
+        <>
+          <span className="text-sm text-amber-700">Hai modifiche non salvate.</span>
+          <Button type="button" variant="ghost" onClick={resetChanges} className="rounded-full">
+            Annulla
+          </Button>
+        </>
+      )}
+    </div>
+  );
+
   const panelClass = (id: ProfileSectionId) =>
     `${mobileOpen.has(id) ? 'block' : 'hidden'} ${active === id ? 'lg:block' : 'lg:hidden'}`;
 
@@ -190,14 +217,13 @@ export function CoachProfileWorkspace({
               className="contents"
             >
             {s.id === 'presentazione' && (
-              <div className="flex flex-col gap-4">
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+              <div className="grid items-start gap-4 lg:grid-cols-2">
+                <div className="flex flex-col gap-5 rounded-xl border border-gray-200 bg-white p-4 sm:p-5">
                   <div id="foto-profilo" tabIndex={-1} className="outline-none">
                     {photo}
                   </div>
-                  <div className="rounded-xl border border-gray-200 bg-white p-4">
-                    <PresentationFields headline={values.headline} description={values.description} />
-                  </div>
+                  <PresentationFields headline={values.headline} description={values.description} />
+                  {saveRow()}
                 </div>
                 {video}
               </div>
@@ -216,6 +242,7 @@ export function CoachProfileWorkspace({
                   specialtyOptions={specialtyOptions}
                   levelOptions={levelOptions}
                 />
+                <div className="mt-5">{saveRow()}</div>
               </div>
             )}
 
@@ -224,6 +251,7 @@ export function CoachProfileWorkspace({
                 {account}
                 <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-4">
                   <AccountProfileFields gender={values.gender} />
+                  {saveRow('Salva genere')}
                   <p className="text-sm text-gray-600">
                     Per cambiare la password o gestire l’accesso vai in{' '}
                     <Link href="/dashboard/coach/security" className="font-medium text-emerald-700 underline-offset-2 hover:underline">
@@ -243,31 +271,6 @@ export function CoachProfileWorkspace({
         <p role="alert" className="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">
           {state.error}
         </p>
-      )}
-
-      {/* Una sola barra di salvataggio, solo quando serve. */}
-      {dirty && (
-        <div
-          role="region"
-          aria-label="Modifiche non salvate"
-          className="fixed inset-x-4 bottom-4 z-40 mx-auto flex max-w-xl items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-xl"
-        >
-          <span className="text-sm text-gray-700">Hai modifiche non salvate.</span>
-          <span className="flex items-center gap-2">
-            <Button type="button" variant="ghost" onClick={resetChanges} disabled={pending} className="rounded-full">
-              Annulla
-            </Button>
-            <Button type="submit" form={PROFILE_FORM_ID} disabled={pending} className="rounded-full">
-              {pending ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Salvo…
-                </>
-              ) : (
-                'Salva modifiche'
-              )}
-            </Button>
-          </span>
-        </div>
       )}
     </div>
   );
