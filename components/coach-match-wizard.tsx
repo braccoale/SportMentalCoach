@@ -62,13 +62,19 @@ export function CoachMatchWizard({
   levels,
   known,
   askBudget,
+  embedded = false,
+  onClose,
 }: {
   sports: Option[];
   levels: Option[];
   /** Sport e livello dal profilo dell'atleta, se c'è: quel passo si salta. */
   known: { sport: string | null; level: string | null } | null;
   askBudget: boolean;
+  /** Dentro una finestra: niente link «Tutti i coach» e titoli di secondo livello. */
+  embedded?: boolean;
+  onClose?: () => void;
 }) {
+  const Heading = embedded ? 'h2' : 'h1';
   const profileKnown = !!known && (!!known.sport || !!known.level);
   const steps = useMemo<StepId[]>(() => {
     const list: StepId[] = profileKnown ? [] : ['profile'];
@@ -144,20 +150,29 @@ export function CoachMatchWizard({
         result={result}
         onRestart={restart}
         sportLabel={sports.find((s) => s.key === sport)?.label ?? null}
+        embedded={embedded}
+        onClose={onClose}
       />
     );
   }
 
   return (
     <div>
-      <Link
-        href="/coaches"
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800"
-      >
-        <ArrowLeft className="h-4 w-4" /> Tutti i coach
-      </Link>
+      {!embedded && (
+        <Link
+          href="/coaches"
+          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800"
+        >
+          <ArrowLeft className="h-4 w-4" /> Tutti i coach
+        </Link>
+      )}
 
-      <div className="mt-4 flex items-center gap-2 text-sm font-medium text-gray-500">
+      <div
+        className={cn(
+          'flex items-center gap-2 text-sm font-medium text-gray-500',
+          !embedded && 'mt-4'
+        )}
+      >
         <Sparkles className="h-4 w-4" aria-hidden />
         Aiutami a scegliere
       </div>
@@ -196,9 +211,9 @@ export function CoachMatchWizard({
       <section className="mt-6" aria-live="polite">
         {step === 'profile' && (
           <div className="space-y-4">
-            <h1 className="text-2xl font-semibold tracking-tight text-gray-950">
+            <Heading className="text-2xl font-semibold tracking-tight text-gray-950">
               Prima, due cose su di te
-            </h1>
+            </Heading>
             <label className="block space-y-1.5 text-sm text-gray-700">
               Che sport pratichi?
               <select
@@ -235,9 +250,9 @@ export function CoachMatchWizard({
         {step === 'theme' && (
           <div className="space-y-6">
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-gray-950">
+              <Heading className="text-2xl font-semibold tracking-tight text-gray-950">
                 Cosa vuoi migliorare?
-              </h1>
+              </Heading>
               <p className="mt-1 text-sm text-gray-500">Scegli fino a {MAX_THEMES_SELECTED} cose.</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {MATCH_THEMES.map((t) => (
@@ -272,9 +287,9 @@ export function CoachMatchWizard({
 
         {step === 'text' && (
           <div className="space-y-3">
-            <h1 className="text-2xl font-semibold tracking-tight text-gray-950">
+            <Heading className="text-2xl font-semibold tracking-tight text-gray-950">
               Raccontaci con parole tue
-            </h1>
+            </Heading>
             <p className="text-sm text-gray-500">
               Cosa ti sta succedendo e cosa vorresti che cambiasse? È facoltativo, ma è ciò che ci
               aiuta di più a trovare chi ti somiglia.
@@ -299,9 +314,9 @@ export function CoachMatchWizard({
 
         {step === 'style' && (
           <div className="space-y-3">
-            <h1 className="text-2xl font-semibold tracking-tight text-gray-950">
+            <Heading className="text-2xl font-semibold tracking-tight text-gray-950">
               Che tipo di coach preferisci?
-            </h1>
+            </Heading>
             <p className="text-sm text-gray-500">Scegline fino a 2, oppure salta.</p>
             <div className="flex flex-wrap gap-2">
               {MATCH_STYLES.map((s) => (
@@ -319,9 +334,9 @@ export function CoachMatchWizard({
 
         {step === 'budget' && (
           <div className="space-y-3">
-            <h1 className="text-2xl font-semibold tracking-tight text-gray-950">
+            <Heading className="text-2xl font-semibold tracking-tight text-gray-950">
               Hai un budget a seduta?
-            </h1>
+            </Heading>
             <div className="flex flex-wrap gap-2">
               {BUDGETS.map((b) => (
                 <Chip key={b.label} selected={budget === b.cents} onClick={() => setBudget(b.cents)}>
@@ -377,20 +392,25 @@ function Results({
   result,
   onRestart,
   sportLabel,
+  embedded,
+  onClose,
 }: {
   result: MatchResult;
   onRestart: () => void;
   sportLabel: string | null;
+  embedded: boolean;
+  onClose?: () => void;
 }) {
+  const Heading = embedded ? 'h2' : 'h1';
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight text-gray-950">
+      <Heading className="text-2xl font-semibold tracking-tight text-gray-950">
         {result.coaches.length === 0
           ? 'Nessun coach corrisponde del tutto'
           : result.coaches.length === 1
             ? 'Il coach più adatto a te'
             : `I ${result.coaches.length} coach più adatti a te`}
-      </h1>
+      </Heading>
 
       {result.distress && (
         <div
@@ -472,9 +492,15 @@ function Results({
         <Button type="button" variant="outline" onClick={onRestart}>
           Cambia le risposte
         </Button>
-        <Button asChild variant="ghost">
-          <Link href="/coaches">Vedi tutti i coach</Link>
-        </Button>
+        {onClose ? (
+          <Button type="button" variant="ghost" onClick={onClose}>
+            Vedi tutti i coach
+          </Button>
+        ) : (
+          <Button asChild variant="ghost">
+            <Link href="/coaches">Vedi tutti i coach</Link>
+          </Button>
+        )}
       </div>
     </div>
   );

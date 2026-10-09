@@ -34,6 +34,8 @@ import {
 import { getSystemConfigNumber } from '@/lib/core/system-config';
 import { usedIntroSessionProviderIds } from '@/lib/core/services/intro-booking';
 import { CoachCard } from '@/components/coach-card';
+import { CoachMatchDialog } from '@/components/coach-match-dialog';
+import { getKnownAthleteProfile } from '@/lib/core/coach-match/known-profile';
 import {
   formatEuroCents,
   getBookingCreditContexts,
@@ -167,9 +169,10 @@ export default async function CoachesPage({
   const onlyFav = favorite === '1';
 
   const loggedIn = !!user;
-  const [favoriteIds, isAthlete] = await Promise.all([
+  const [favoriteIds, isAthlete, knownProfile] = await Promise.all([
     user ? getFavoriteProviderIds(user.id) : Promise.resolve(new Set<number>()),
     user ? hasRole(user.id, 'athlete') : Promise.resolve(false),
+    user ? getKnownAthleteProfile(user.id) : Promise.resolve(null),
   ]);
 
   let coaches = await getCoachDiscovery(filters, { favoriteIds });
@@ -366,12 +369,12 @@ export default async function CoachesPage({
           Scegli il tipo di supporto che stai cercando e lascia che KaiPai ti
           accompagni verso i coach piu adatti alla tua situazione sportiva.
         </p>
-        <Button asChild className="mt-5 rounded-full">
-          <Link href="/coaches/aiutami-a-scegliere">
-            <Sparkles />
-            Aiutami a scegliere
-          </Link>
-        </Button>
+        <CoachMatchDialog
+          sports={categories.map((s) => ({ key: s.key, label: s.label }))}
+          levels={(levels ?? []).map((l) => ({ key: l.key, label: l.label }))}
+          known={knownProfile}
+          askBudget={SHOW_COACH_HOURLY_RATE}
+        />
       </header>
 
       {SHOW_UPCOMING_FEATURES && (
