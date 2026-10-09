@@ -57,3 +57,18 @@ export function heroImageCandidates(params: {
 
   return [...new Set(ordered.filter((p): p is string => Boolean(p)))];
 }
+
+/**
+ * L'immagine in alto a destra nella dashboard del coach: `coach-uomo.webp` o
+ * `coach-donna.webp`, nella stessa cartella. Il coach non dichiara un genere
+ * (non c'è un campo), quindi la scelta è a sorte, come per l'atleta senza
+ * genere: chi chiama passa `pick` (0–1) e la funzione resta pura. Se il primo
+ * file non c'è, chi mostra passa al secondo; se mancano entrambi non si vede
+ * niente, senza una riserva: l'immagine neutra è di un atleta.
+ */
+export const COACH_HERO_MALE = `${HERO_IMAGE_DIR}/coach-uomo.webp`;
+export const COACH_HERO_FEMALE = `${HERO_IMAGE_DIR}/coach-donna.webp`;
+
+export function coachHeroCandidates(pick = 0.5): string[] {
+  return pick < 0.5 ? [COACH_HERO_MALE, COACH_HERO_FEMALE] : [COACH_HERO_FEMALE, COACH_HERO_MALE];
+}
