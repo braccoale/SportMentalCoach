@@ -304,6 +304,10 @@ export const providerProfiles = pgTable('provider_profiles', {
   // before this check have none — see the spec
   // docs/superpowers/specs/2026-08-26-eta-coach-registrazione-design.md.
   birthDate: date('birth_date'),
+  // Genere dichiarato (`male` | `female` | `undisclosed`), facoltativo: serve
+  // soltanto a scegliere l'immagine della dashboard del coach
+  // (lib/core/athlete-hero). Vedi migrazione 0098.
+  gender: varchar('gender', { length: 16 }),
   languages: text('languages').array(),
   certifications: text('certifications').array(),
   athleteLevels: text('athlete_levels').array(),

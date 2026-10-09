@@ -74,6 +74,7 @@ import { CoachNewAppointmentButton } from './new-appointment-button';
 import { InviteFriendButton } from '@/components/invite/invite-friend-button';
 import { AthleteHeroImage } from '@/components/athlete-hero-image';
 import { coachHeroCandidates } from '@/lib/core/athlete-hero';
+import { normalizeGender } from '@/lib/core/profiles/gender';
 import { countReferredAthletes } from '@/lib/core/referrals';
 import { computeCoachOnboarding } from '@/lib/core/onboarding';
 import { submitForReviewAction } from './profile-actions';
@@ -375,8 +376,11 @@ export default async function CoachDashboardPage() {
     (r) => r.createdAt >= startOfWeek
   ).length;
 
-  // L'immagine in alto: uomo o donna a sorte (il coach non dichiara un genere).
-  const heroCandidates = coachHeroCandidates(Math.random());
+  // L'immagine in alto: segue il genere dichiarato, altrimenti uomo o donna a sorte.
+  const heroCandidates = coachHeroCandidates({
+    gender: normalizeGender(provider?.gender),
+    pick: Math.random(),
+  });
 
   return (
     <section className="flex flex-col gap-8 p-6">

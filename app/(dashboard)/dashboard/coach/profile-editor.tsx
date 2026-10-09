@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { updateProfileAction } from './profile-actions';
 import { yearsSince } from '@/lib/core/format';
 import type { ActionState } from '@/lib/auth/middleware';
+import { GenderField } from '@/components/gender-field';
+import type { AthleteGender } from '@/lib/core/profiles/gender';
 
 type Option = { key: string; label: string };
 
@@ -22,6 +24,7 @@ export function ProfileEditor({
   certifications,
   athleteLevels,
   levelOptions,
+  gender,
 }: {
   headline: string | null;
   description: string | null;
@@ -34,6 +37,7 @@ export function ProfileEditor({
   certifications: string[];
   athleteLevels: string[];
   levelOptions: Option[];
+  gender: AthleteGender | null;
 }) {
   const experienceYears = coachSince ? yearsSince(coachSince) : null;
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
@@ -106,6 +110,8 @@ export function ProfileEditor({
               : 'Gli anni di esperienza vengono calcolati automaticamente.'}
           </p>
         </div>
+
+        <GenderField defaultValue={gender} />
 
         <div className="flex flex-col">
           <label htmlFor="languages" className="text-sm font-medium text-gray-700">
