@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { experienceLabel } from '@/lib/core/coach-experience';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
@@ -362,10 +363,10 @@ export default async function CoachDetailPage({
                 <ShieldCheck className="h-4 w-4" /> Identità verificata
               </span>
             )}
-            {coach.yearsExperience != null && (
+            {experienceLabel(coach) && (
               <span className="inline-flex items-center gap-1.5">
                 <Briefcase className="h-4 w-4 text-gray-400" />
-                {coach.yearsExperience} anni di esperienza
+                {experienceLabel(coach)}
               </span>
             )}
             {coach.languages && coach.languages.length > 0 && (

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { experienceLabel } from '@/lib/core/coach-experience';
 import { Globe, Users, Clock, CalendarCheck, ArrowRight, BadgeCheck, Briefcase, Play } from 'lucide-react';
 import { getVerticalConfig, findTaxonomyItem } from '@/lib/core/config';
 import type { TaxonomyItem } from '@/lib/core/config/types';
@@ -282,11 +283,10 @@ export function CoachCard({
         )}
 
         <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-end">
-          {coach.yearsExperience != null && (
+          {experienceLabel(coach) && (
             <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-gray-500 sm:mr-auto">
               <Briefcase className="h-3.5 w-3.5 text-gray-400" />
-              {coach.yearsExperience}{' '}
-              {coach.yearsExperience === 1 ? 'anno' : 'anni'} di esperienza
+              {experienceLabel(coach)}
             </span>
           )}
           {/* sm:mr-auto sopra, non justify-between sul contenitore: con

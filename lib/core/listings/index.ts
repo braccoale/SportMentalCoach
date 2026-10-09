@@ -104,6 +104,7 @@ export type CoachDetail = CoachListItem & {
   description: string | null;
   videoUrl: string | null;
   yearsExperience: number | null;
+  coachSince: string | null;
   languages: string[] | null;
   certifications: string[] | null;
   athleteLevels: string[] | null;
@@ -166,6 +167,7 @@ export async function getCoachBySlug(
       certified: providerProfiles.isKaipaiCertified,
       videoUrl: providerProfiles.videoUrl,
       yearsExperience: providerProfiles.yearsExperience,
+      coachSince: providerProfiles.coachSince,
       languages: providerProfiles.languages,
       certifications: providerProfiles.certifications,
       athleteLevels: providerProfiles.athleteLevels,
@@ -250,6 +252,7 @@ export type DiscoveryCoach = {
   currency: string;
   certified: boolean;
   yearsExperience: number | null;
+  coachSince: string | null;
   languages: string[] | null;
   athleteLevels: string[] | null;
   hasVideo: boolean;
@@ -351,13 +354,13 @@ export async function getCoachDiscovery(
       currency: providerProfiles.currency,
       certified: providerProfiles.isKaipaiCertified,
       yearsExperience: providerProfiles.yearsExperience,
+      coachSince: providerProfiles.coachSince,
       languages: providerProfiles.languages,
       athleteLevels: providerProfiles.athleteLevels,
       videoUrl: providerProfiles.videoUrl,
       // Per il punteggio di completezza (non escono dalla funzione).
       description: providerProfiles.description,
       certifications: providerProfiles.certifications,
-      coachSince: providerProfiles.coachSince,
     })
     .from(providerProfiles)
     .innerJoin(users, eq(users.id, providerProfiles.userId))
@@ -493,6 +496,7 @@ export async function getCoachDiscovery(
       currency: r.currency,
       certified: r.certified,
       yearsExperience: r.yearsExperience,
+      coachSince: r.coachSince,
       languages: r.languages,
       athleteLevels: r.athleteLevels,
       hasVideo,
