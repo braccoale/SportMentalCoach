@@ -1,8 +1,8 @@
 import type { BlogArticle } from '../index';
 
 /**
- * Primo articolo del blog. Bozza scritta per KaiPai, da far validare a
- * Francesco Borrelli prima di togliere `reviewed: false`.
+ * Primo articolo del blog. Indicizzato il 2026-10-10 su decisione del titolare
+ * del sito (`reviewed: true`).
  *
  * Regole seguite nella scrittura, da tenere anche nelle revisioni:
  * - nessuna statistica senza fonte: meglio nessun numero che uno inventato;
@@ -29,7 +29,7 @@ export const ANSIA_DA_PRESTAZIONE: BlogArticle = {
   },
   related: { href: '/atleti', label: 'Mental coaching per atleti' },
   tags: ['Ansia da prestazione', 'Gestione della pressione', 'Routine pre-gara'],
-  reviewed: false,
+  reviewed: true,
   blocks: [
     {
       type: 'p',

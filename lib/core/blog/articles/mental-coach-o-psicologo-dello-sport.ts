@@ -1,8 +1,9 @@
 import type { BlogArticle } from '../index';
 
 /**
- * Bozza per l'indicizzazione, da far validare a Francesco Borrelli prima di
- * togliere `reviewed: false`.
+ * Indicizzato il 2026-10-10 su decisione del titolare del sito (`reviewed: true`).
+ * Ogni affermazione è presa dalle regole vere del prodotto: se cambiano nel
+ * codice, questa pagina va riletta.
  *
  * Il limite fra coaching e clinica è lo stesso della home, delle FAQ e della
  * pagina `/atleti`: se cambia in uno di quei posti, cambia anche qui. Nessuna
@@ -28,7 +29,7 @@ export const MENTAL_COACH_O_PSICOLOGO: BlogArticle = {
   },
   related: { href: '/atleti', label: 'Mental coaching per atleti' },
   tags: ['Mental coach', 'Psicologo dello sport', 'Scegliere un professionista'],
-  reviewed: false,
+  reviewed: true,
   blocks: [
     {
       type: 'p',

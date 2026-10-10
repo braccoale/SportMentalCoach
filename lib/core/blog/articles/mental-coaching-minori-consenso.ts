@@ -1,8 +1,9 @@
 import type { BlogArticle } from '../index';
 
 /**
- * Bozza per l'indicizzazione, da far validare a Francesco Borrelli prima di
- * togliere `reviewed: false`.
+ * Indicizzato il 2026-10-10 su decisione del titolare del sito (`reviewed: true`).
+ * Ogni affermazione è presa dalle regole vere del prodotto: se cambiano nel
+ * codice, questa pagina va riletta.
  *
  * Su minori e consenso un testo sbagliato è peggio di nessun testo: ogni
  * affermazione qui sotto è presa dalle regole vere del prodotto
@@ -30,7 +31,7 @@ export const MINORI_CONSENSO: BlogArticle = {
   },
   related: { href: '/famiglie', label: 'KaiPai per le famiglie' },
   tags: ['Minori', 'Consenso dei genitori', 'Privacy'],
-  reviewed: false,
+  reviewed: true,
   blocks: [
     {
       type: 'p',

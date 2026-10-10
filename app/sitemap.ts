@@ -12,7 +12,7 @@ export const revalidate = 3600;
  * che la pagina cambia sempre, cioè niente. Va aggiornata quando cambiano i
  * testi.
  */
-const CONTENT_REVISED = new Date('2026-09-29');
+const CONTENT_REVISED = new Date('2026-10-10');
 
 const publicPages: MetadataRoute.Sitemap = [
   {
