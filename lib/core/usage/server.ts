@@ -291,7 +291,9 @@ export async function handleCollect(request: Request): Promise<Response> {
       await recordAccountPageView(route, h);
     }
 
-    if (Array.isArray(body.m)) {
+    // Le pagine dell'amministrazione non sono l'esperienza di chi usa il sito: niente misure.
+    const isAdminPage = route === '/dashboard/admin' || route.startsWith('/dashboard/admin/');
+    if (Array.isArray(body.m) && !isAdminPage) {
       const rows = body.m
         .slice(0, MAX_METRICS)
         .map((item) => {

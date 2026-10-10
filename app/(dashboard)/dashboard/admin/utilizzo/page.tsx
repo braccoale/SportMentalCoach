@@ -627,6 +627,11 @@ function perfByRoute(report: UsageReport) {
 
 function Sections({ report }: { report: UsageReport }) {
   const routes = perfByRoute(report).slice(0, 10);
+  // Per pagina, il tempo di apertura (LCP): è quello che chi aspetta sente di più.
+  const waits = report.perfRoutes
+    .filter((p) => p.metric === 'LCP')
+    .sort((a, b) => b.p75 - a.p75)
+    .slice(0, 12);
   const maxViews = Math.max(1, ...report.visits.topRoutes.map((r) => r.views));
   return (
     <div className="space-y-4">
@@ -671,7 +676,27 @@ function Sections({ report }: { report: UsageReport }) {
           </ul>
         )}
       </Card>
-      <Card title="Quanto ci mette una pagina ad aprirsi" hint="Il segno scuro è il valore sotto cui sta il 75% delle persone, il cerchio è il tipico. Verde = buono, giallo = da migliorare, rosso = scarso (le soglie di Google). Con poche misure i valori sono rumorosi: guarda il numero.">
+      <Card title="Dove si aspetta di più" hint="Le pagine del sito ordinate per quanto fa attendere chi le apre (il tempo di apertura sotto cui sta il 75% delle persone). Le pagine dell'amministrazione non sono incluse.">
+        {waits.length === 0 ? (
+          <Empty>Ancora nessuna misura: arrivano da chi apre il sito dopo il rilascio.</Empty>
+        ) : (
+          <ul className="divide-y divide-gray-100 text-sm">
+            {waits.map((w) => {
+              const rating = rateVital('LCP', w.p75);
+              return (
+                <li key={w.route} className="flex items-center justify-between gap-3 py-2">
+                  <span className="min-w-0">
+                    <span className="font-medium text-gray-900">{pageLabel(w.route)}</span>
+                    <span className="ml-2 text-xs text-gray-400">{w.n} {w.n === 1 ? 'misura' : 'misure'}</span>
+                  </span>
+                  <span className={`shrink-0 font-semibold tabular-nums ${rating ? RATING_TEXT[rating] : ''}`}>{formatValue('LCP', w.p75)}</span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Card>
+      <Card title="Il dettaglio per pagina" hint="Il segno scuro è il valore sotto cui sta il 75% delle persone, il cerchio è il tipico. Verde = buono, giallo = da migliorare, rosso = scarso (le soglie di Google). Con poche misure i valori sono rumorosi: guarda il numero.">
         {routes.length === 0 ? (
           <Empty>Ancora nessuna misura: arrivano da chi apre il sito dopo il rilascio.</Empty>
         ) : (
@@ -679,8 +704,11 @@ function Sections({ report }: { report: UsageReport }) {
             {routes.map((route) => (
               <div key={route.route} className="rounded-xl border border-gray-200 p-4">
                 <div className="flex items-baseline justify-between gap-3">
-                  <p className="font-mono text-xs font-semibold text-gray-900">{route.route}</p>
-                  <p className="text-xs text-gray-500">{route.samples} misure</p>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900">{pageLabel(route.route)}</p>
+                    <p className="truncate font-mono text-[11px] text-gray-400">{route.route}</p>
+                  </div>
+                  <p className="shrink-0 text-xs text-gray-500">{route.samples} {route.samples === 1 ? 'misura' : 'misure'}</p>
                 </div>
                 <ul className="mt-3 space-y-3">
                   {route.items.map((p) => (
@@ -747,7 +775,7 @@ function Problems({ report }: { report: UsageReport }) {
             <ul className="divide-y divide-gray-100 text-sm">
               {slow.map((p) => (
                 <li key={`${p.route}-${p.metric}`} className="flex items-center justify-between gap-3 py-2">
-                  <span><span className="font-mono text-xs">{p.route}</span> <span className="text-gray-500">· {METRIC_LABEL[p.metric] ?? p.metric}</span></span>
+                  <span><span className="font-medium text-gray-900">{pageLabel(p.route)}</span> <span className="text-gray-500">· {METRIC_LABEL[p.metric] ?? p.metric}</span></span>
                   <span className="font-semibold tabular-nums text-red-700">{formatValue(p.metric, p.p75)} <span className="text-xs font-normal text-gray-500">({p.n})</span></span>
                 </li>
               ))}

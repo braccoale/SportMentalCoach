@@ -151,6 +151,8 @@ const PAGE_LABELS: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/dashboard/athlete': 'Dashboard atleta',
   '/dashboard/coach': 'Dashboard coach',
+  '/dashboard/admin': 'Panoramica (amministrazione)',
+  '/dashboard/admin/utilizzo': 'Utilizzo (amministrazione)',
   '/dashboard/coach/calendar': 'Calendario (coach)',
   '/dashboard/coach/profile': 'Profilo (coach)',
   '/dashboard/coach/services': 'Disponibilità (coach)',
