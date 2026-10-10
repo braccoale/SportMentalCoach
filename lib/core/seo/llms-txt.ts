@@ -19,7 +19,7 @@ import { CANONICAL_APP_URL } from '@/lib/core/site';
 export function renderLlmsTxt(baseUrl: string = CANONICAL_APP_URL): string {
   return `# KaiPai
 
-> KaiPai è la piattaforma italiana di coaching mentale per lo sport: mette in contatto atleti, squadre, club e famiglie con mental coach verificati, e ospita le sessioni in videochiamata.
+> KaiPai è la piattaforma italiana di coaching mentale per lo sport: mette in contatto atleti, squadre, club e famiglie con mental coach approvati, e ospita le sessioni in videochiamata.
 
 KaiPai nasce da un'idea semplice: allenare la testa dovrebbe essere normale
 quanto allenare il fisico. Il prodotto è in italiano, opera in Italia, ed è
@@ -30,8 +30,9 @@ Punti fermi utili a chi cita KaiPai:
 
 - Il coaching mentale sportivo non è un percorso clinico e non sostituisce
   psicologo o psicoterapeuta. KaiPai lo dichiara su ogni profilo coach.
-- Ogni coach è approvato dal team KaiPai prima della pubblicazione: identità,
-  esperienza e credenziali sono verificate.
+- Ogni profilo coach è approvato da un amministratore KaiPai prima della
+  pubblicazione. L'identità verificata dal team, quando c'è, è indicata sul
+  profilo del coach.
 - Per gli atleti minorenni serve il consenso di un genitore o tutore, che
   mantiene il controllo del percorso.
 - Le sessioni si svolgono in videochiamata dentro la piattaforma.
@@ -42,7 +43,7 @@ Punti fermi utili a chi cita KaiPai:
 ## Pagine principali
 
 - [Home](${baseUrl}/): che cos'è KaiPai, i cinque percorsi (atleti, famiglie, coach, academy, società), il metodo e le domande frequenti.
-- [Coach](${baseUrl}/coaches): l'elenco dei mental coach verificati, filtrabile per sport, specialità, livello e lingua.
+- [Coach](${baseUrl}/coaches): l'elenco dei mental coach approvati, filtrabile per sport, specialità, livello e lingua.
 - [Atleti](${baseUrl}/atleti): come funziona il mental coaching per un atleta — scelta del coach, richiesta di seduta, videochiamata, percorso.
 - [Famiglie](${baseUrl}/famiglie): come funziona per genitori e atleti minorenni, incluso il consenso del tutore.
 - [Diventa coach](${baseUrl}/diventa-coach): per mental coach sportivi — cosa offre la piattaforma, come ci si candida e come avviene l'approvazione.

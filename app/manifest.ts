@@ -10,7 +10,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'KaiPai — Mental Coaching',
     short_name: 'KaiPai',
     description:
-      'Il tuo percorso di mental coaching sportivo: coach verificati, sessioni e videochiamate.',
+      'Il tuo percorso di mental coaching sportivo: coach approvati, sessioni e videochiamate.',
     start_url: '/dashboard',
     scope: '/',
     display: 'standalone',

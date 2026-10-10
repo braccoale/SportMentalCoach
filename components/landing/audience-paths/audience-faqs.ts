@@ -70,7 +70,7 @@ export const FAMILY_FAQ: FaqItem[] = [
   },
   {
     q: 'Come scelgo il coach più adatto?',
-    a: 'Nella lista dei coach puoi filtrare per sport, specializzazione, livello e lingua, e leggere il profilo di ognuno. Ogni coach è approvato dal team KaiPai prima di comparire. Se hai un dubbio, scrivici: ti aiutiamo a orientarti.',
+    a: 'Nella lista dei coach puoi filtrare per sport, specializzazione, livello e lingua, e leggere il profilo di ognuno. Ogni profilo è approvato da un amministratore KaiPai prima di comparire. Se hai un dubbio, scrivici: ti aiutiamo a orientarti.',
     link: { href: '/coaches', label: 'Vai alla lista dei coach' },
   },
   {
@@ -116,7 +116,7 @@ export const COACH_FAQ: FaqItem[] = [
   },
   {
     q: 'Come funziona la revisione del profilo?',
-    a: 'Il team KaiPai controlla il profilo prima della pubblicazione: completezza delle informazioni, chiarezza della presentazione e documentazione di identità e certificazioni che indichi, di cui resti garante. Se manca qualcosa te lo diciamo, e puoi correggerlo.',
+    a: 'Un amministratore KaiPai controlla il profilo prima della pubblicazione: completezza delle informazioni, chiarezza della presentazione e documentazione di identità e certificazioni che indichi, di cui resti garante. Non è previsto un colloquio né una selezione sul tuo metodo. Se manca qualcosa te lo diciamo, e puoi correggerlo.',
   },
   {
     q: 'Quanto costa usare KaiPai?',

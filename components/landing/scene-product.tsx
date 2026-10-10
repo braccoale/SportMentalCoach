@@ -21,7 +21,7 @@ gsap.registerPlugin(ScrollTrigger, useGSAP);
  */
 
 const STEPS = [
-  { n: '01', t: 'Trova il professionista', b: 'Coach selezionati e certificati.' },
+  { n: '01', t: 'Trova il professionista', b: 'Profili approvati dal team.' },
   { n: '02', t: 'Prenota', b: 'Scegli l’orario. Nessuna telefonata.' },
   { n: '03', t: 'Allenati', b: 'In videochiamata, ovunque tu sia.' },
   { n: '04', t: 'Costruisci il percorso', b: 'Ogni sessione lascia una traccia.' },

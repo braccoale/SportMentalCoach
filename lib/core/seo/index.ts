@@ -56,7 +56,7 @@ export function organizationJsonLd(): JsonLdNode {
     logo: absoluteUrl('/logo.jpg'),
     image: absoluteUrl('/logo.jpg'),
     description:
-      'KaiPai è la piattaforma italiana di coaching mentale per lo sport: mette in contatto atleti, squadre e famiglie con mental coach verificati e ospita le sessioni in videochiamata.',
+      'KaiPai è la piattaforma italiana di coaching mentale per lo sport: mette in contatto atleti, squadre e famiglie con mental coach approvati e ospita le sessioni in videochiamata.',
     email: 'info@kaipaicoaching.com',
     address: {
       '@type': 'PostalAddress',
