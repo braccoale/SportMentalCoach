@@ -49,21 +49,45 @@ export function clampWizardStep(step: number | null | undefined): number {
   return Math.min(Math.max(Math.trunc(step), 0), COACH_WIZARD_STEPS.length - 1);
 }
 
-/**
- * Da «da quanti anni fai il coach» a «Coach dal»: il primo gennaio dell'anno in
- * cui ha cominciato. Con 0 anni è l'inizio di quest'anno, mai una data futura.
- */
-export function coachSinceFromYears(years: number, now: Date = new Date()): string | null {
-  if (!Number.isFinite(years) || years < 0 || years > 70) return null;
-  return `${now.getFullYear() - Math.floor(years)}-01-01`;
+/** I mesi, per la scelta di quando si è cominciato (1 = gennaio). */
+export const WIZARD_MONTHS = [
+  'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
+  'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre',
+] as const;
+
+/** Gli anni fra cui scegliere, dal più recente: da quest'anno a cinquant'anni fa. */
+export function wizardYearOptions(now: Date = new Date()): number[] {
+  const current = now.getFullYear();
+  return Array.from({ length: 51 }, (_, i) => current - i);
 }
 
-/** L'operazione inversa, per mostrare gli anni già salvati: anni interi dall'inizio dell'anno indicato. */
-export function yearsFromCoachSince(coachSince: string | null | undefined, now: Date = new Date()): number | null {
+/**
+ * «Coach dal» da mese e anno scelti: il primo del mese (`YYYY-MM-01`). Nessun
+ * valore se manca uno dei due o se il mese è nel futuro: una data inventata è
+ * peggio di nessuna data.
+ */
+export function coachSinceFromMonthYear(
+  year: number | null,
+  month: number | null,
+  now: Date = new Date()
+): string | null {
+  if (year == null || month == null) return null;
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) return null;
+  if (year < now.getFullYear() - 70) return null;
+  if (year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth() + 1)) return null;
+  return `${year}-${String(month).padStart(2, '0')}-01`;
+}
+
+/** L'operazione inversa, per riproporre ciò che il coach aveva già scelto. */
+export function monthYearFromCoachSince(
+  coachSince: string | null | undefined
+): { year: number; month: number } | null {
   if (!coachSince) return null;
-  const year = Number(coachSince.slice(0, 4));
-  if (!Number.isInteger(year) || year > now.getFullYear()) return null;
-  return now.getFullYear() - year;
+  const m = coachSince.match(/^(\d{4})-(\d{2})/);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  return month >= 1 && month <= 12 ? { year, month } : null;
 }
 
 export type SlotLike = { weekday: number; startMinute: number; endMinute: number };

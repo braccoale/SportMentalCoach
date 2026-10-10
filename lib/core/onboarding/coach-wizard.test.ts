@@ -5,11 +5,12 @@ import {
   COACH_WIZARD_STEPS,
   DEFAULT_FIRST_SERVICE,
   clampWizardStep,
-  coachSinceFromYears,
+  coachSinceFromMonthYear,
   parsePriceEuro,
   priceCentsToInput,
   slotsToAdd,
-  yearsFromCoachSince,
+  monthYearFromCoachSince,
+  wizardYearOptions,
 } from './coach-wizard';
 
 describe('passi del wizard', () => {
@@ -29,24 +30,31 @@ describe('passi del wizard', () => {
   });
 });
 
-describe('anni di esperienza e «Coach dal»', () => {
-  const now = new Date('2026-10-12T10:00:00Z');
-  it('gli anni diventano il primo gennaio di quell’anno, mai una data futura', () => {
-    assert.equal(coachSinceFromYears(5, now), '2021-01-01');
-    assert.equal(coachSinceFromYears(0, now), '2026-01-01');
-    assert.equal(coachSinceFromYears(2.7, now), '2024-01-01');
+describe('«Coach dal» da mese e anno', () => {
+  const now = new Date('2026-10-12T10:00:00');
+  it('mese e anno diventano il primo del mese', () => {
+    assert.equal(coachSinceFromMonthYear(2021, 3, now), '2021-03-01');
+    assert.equal(coachSinceFromMonthYear(2026, 10, now), '2026-10-01');
   });
-  it('valori assurdi non producono una data', () => {
-    assert.equal(coachSinceFromYears(-1, now), null);
-    assert.equal(coachSinceFromYears(200, now), null);
-    assert.equal(coachSinceFromYears(NaN, now), null);
+  it('senza uno dei due, nel futuro o assurdo non c’è una data', () => {
+    assert.equal(coachSinceFromMonthYear(2021, null, now), null);
+    assert.equal(coachSinceFromMonthYear(null, 3, now), null);
+    assert.equal(coachSinceFromMonthYear(2026, 11, now), null);
+    assert.equal(coachSinceFromMonthYear(2027, 1, now), null);
+    assert.equal(coachSinceFromMonthYear(2021, 13, now), null);
+    assert.equal(coachSinceFromMonthYear(1900, 1, now), null);
   });
-  it('l’operazione inversa restituisce gli anni, e ignora ciò che non è una data', () => {
-    assert.equal(yearsFromCoachSince('2021-01-01', now), 5);
-    assert.equal(yearsFromCoachSince('2015-06-30', now), 11);
-    assert.equal(yearsFromCoachSince(null, now), null);
-    assert.equal(yearsFromCoachSince('boh', now), null);
-    assert.equal(yearsFromCoachSince('2030-01-01', now), null);
+  it('l’operazione inversa restituisce anno e mese, e ignora ciò che non è una data', () => {
+    assert.deepEqual(monthYearFromCoachSince('2021-03-01'), { year: 2021, month: 3 });
+    assert.deepEqual(monthYearFromCoachSince('2015-01-01'), { year: 2015, month: 1 });
+    assert.equal(monthYearFromCoachSince(null), null);
+    assert.equal(monthYearFromCoachSince('boh'), null);
+    assert.equal(monthYearFromCoachSince('2021-14-01'), null);
+  });
+  it('gli anni proposti partono da quest’anno', () => {
+    const years = wizardYearOptions(now);
+    assert.equal(years[0], 2026);
+    assert.equal(years.length, 51);
   });
 });
 
