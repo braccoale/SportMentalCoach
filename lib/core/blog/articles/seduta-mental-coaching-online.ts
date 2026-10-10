@@ -1,8 +1,9 @@
 import type { BlogArticle } from '../index';
 
 /**
- * Bozza per l'indicizzazione, da far validare a Francesco Borrelli prima di
- * togliere `reviewed: false`.
+ * Indicizzato il 2026-10-10 su decisione del titolare del sito (`reviewed: true`).
+ * Ogni affermazione è presa dalle regole vere del prodotto: se cambiano nel
+ * codice, questa pagina va riletta.
  *
  * Ogni passo descritto è quello che il prodotto fa davvero (prenotazione su
  * richiesta e conferma del coach, videochiamata dentro KaiPai, Appunti AI solo
@@ -29,7 +30,7 @@ export const SEDUTA_ONLINE: BlogArticle = {
   },
   related: { href: '/coaches', label: 'Trova il tuo coach' },
   tags: ['Mental coaching online', 'Prima seduta', 'Videochiamata'],
-  reviewed: false,
+  reviewed: true,
   blocks: [
     {
       type: 'p',

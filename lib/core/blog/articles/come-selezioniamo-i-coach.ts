@@ -1,8 +1,9 @@
 import type { BlogArticle } from '../index';
 
 /**
- * Bozza per l'indicizzazione, da far validare a Francesco Borrelli prima di
- * togliere `reviewed: false`.
+ * Indicizzato il 2026-10-10 su decisione del titolare del sito (`reviewed: true`).
+ * Ogni affermazione è presa dalle regole vere del prodotto: se cambiano nel
+ * codice, questa pagina va riletta.
  *
  * ATTENZIONE: descrive solo il **processo** che il prodotto fa davvero
  * (candidatura, profilo completo, revisione del team, pubblicazione,
@@ -30,7 +31,7 @@ export const SELEZIONE_COACH: BlogArticle = {
   },
   related: { href: '/diventa-coach', label: 'Diventa coach' },
   tags: ['Coach', 'Qualità', 'Come funziona KaiPai'],
-  reviewed: false,
+  reviewed: true,
   blocks: [
     {
       type: 'p',
@@ -39,7 +40,7 @@ export const SELEZIONE_COACH: BlogArticle = {
     { type: 'h2', id: 'candidatura', text: '1. La candidatura' },
     {
       type: 'p',
-      text: 'Il coach crea il suo account e completa il profilo: una presentazione, gli sport che segue, le specialità, almeno un servizio con la sua durata e la disponibilità settimanale. Un profilo incompleto non può essere inviato.',
+      text: 'Il coach crea il suo account e completa il profilo: una foto, una presentazione, gli sport che segue, almeno una specialità e un servizio con la sua durata. Un profilo incompleto non può essere inviato. Gli orari in cui riceve li indica nella sua area, perché gli atleti possano scegliere uno spazio libero.',
     },
     { type: 'h2', id: 'revisione', text: '2. La revisione del team' },
     {

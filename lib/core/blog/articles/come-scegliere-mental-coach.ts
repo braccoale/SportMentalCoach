@@ -1,8 +1,9 @@
 import type { BlogArticle } from '../index';
 
 /**
- * Bozza per l'indicizzazione, da far validare a Francesco Borrelli prima di
- * togliere `reviewed: false`.
+ * Indicizzato il 2026-10-10 su decisione del titolare del sito (`reviewed: true`).
+ * Ogni affermazione è presa dalle regole vere del prodotto: se cambiano nel
+ * codice, questa pagina va riletta.
  *
  * È la guida generale per l'atleta adulto o il giovane che sceglie da sé; per
  * il genitore c'è già `mental-coach-per-ragazzi-come-sceglierlo`, a cui questa
@@ -29,7 +30,7 @@ export const COME_SCEGLIERE: BlogArticle = {
   },
   related: { href: '/coaches', label: 'Scegli un coach' },
   tags: ['Scegliere un coach', 'Mental coach', 'Atleti'],
-  reviewed: false,
+  reviewed: true,
   blocks: [
     {
       type: 'p',

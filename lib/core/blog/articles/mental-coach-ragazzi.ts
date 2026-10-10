@@ -1,8 +1,8 @@
 import type { BlogArticle } from '../index';
 
 /**
- * Secondo articolo del blog, per i genitori. Bozza da far validare a
- * Francesco Borrelli prima di togliere `reviewed: false`.
+ * Secondo articolo del blog, per i genitori. Indicizzato il 2026-10-10 su
+ * decisione del titolare del sito (`reviewed: true`).
  *
  * Le regole sui minori citate qui sono quelle di `lib/core/guardians`
  * (registrazione dai 15 anni, autorizzazione del genitore fra 15 e 17 per
@@ -28,7 +28,7 @@ export const MENTAL_COACH_RAGAZZI: BlogArticle = {
   },
   related: { href: '/famiglie', label: 'Mental coaching per giovani atleti' },
   tags: ['Genitori', 'Giovani atleti', 'Scegliere un coach'],
-  reviewed: false,
+  reviewed: true,
   blocks: [
     {
       type: 'p',
