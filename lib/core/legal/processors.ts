@@ -60,9 +60,9 @@ export const SUB_PROCESSORS: SubProcessor[] = [
   {
     name: 'OpenAI',
     purpose:
-      'Generazione della bozza di report della sessione a partire dalla trascrizione, solo se gli Appunti AI sono attivi',
+      'Generazione della bozza di report della sessione a partire dalla trascrizione, solo se gli Appunti AI sono attivi; proposta dei coach più adatti dalle risposte al questionario «Aiutami a scegliere», solo se lo usi',
     data:
-      'Testo della trascrizione. I dati non vengono usati per addestrare modelli',
+      'Testo della trascrizione; risposte al questionario (sport, livello, obiettivi, momenti, stile ed eventuale testo libero) senza nome né email. I dati non vengono usati per addestrare modelli',
     location: 'Stati Uniti (clausole contrattuali standard)',
   },
   {
@@ -111,7 +111,7 @@ export const SUB_PROCESSORS: SubProcessor[] = [
  * different dates for the same revision looks like an oversight, because it
  * usually is one.
  */
-export const LEGAL_LAST_UPDATED = '6 ottobre 2026';
+export const LEGAL_LAST_UPDATED = '10 ottobre 2026';
 
 /**
  * The address cited across every legal document — informativa, Termini and
@@ -130,7 +130,7 @@ export const LEGAL_CONTACT_EMAIL = 'privacy@kaipaicoaching.com';
  * changes substantively: users who accepted an older version are then asked to
  * accept again, and the old rows keep proving what they actually agreed to.
  */
-export const LEGAL_VERSION = '2026-08-18';
+export const LEGAL_VERSION = '2026-10-10';
 
 /**
  * After how many months without any activity an account is treated as closed,

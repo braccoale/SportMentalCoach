@@ -167,7 +167,16 @@ export default function TermsPage() {
         certificazioni indicate sul profilo sono effettuate sulla base della
         documentazione fornita dal Coach, che ne garantisce la veridicità. Il
         profilo pubblico riporta inoltre indicatori di esperienza calcolati
-        automaticamente dalla Piattaforma sulle sole Sessioni completate.
+        automaticamente dalla Piattaforma sulle sole Sessioni completate, e
+        l’esperienza dichiarata dal Coach espressa in mesi o in anni. Mentre un
+        Coach ha aperta la propria area, sulla sua foto compare il bollino
+        «Online», visibile a chiunque consulti l’elenco.
+      </p>
+      <p>
+        Il questionario «Aiutami a scegliere» propone alcuni Coach in base alle
+        risposte che dai: è un aiuto alla ricerca, non una valutazione
+        professionale né una raccomandazione di KaiPai su quale Coach scegliere.
+        La scelta e la responsabilità di avviare il percorso restano tue.
       </p>
       <p>
         KaiPai seleziona i Coach con cura ma non garantisce l’esito del percorso
@@ -399,6 +408,12 @@ export default function TermsPage() {
         rimuovendo il contenuto o chiudendo l’account. Garantisci di avere i
         diritti necessari sul materiale che pubblichi, comprese le liberatorie
         delle persone eventualmente ritratte.
+      </p>
+      <p>
+        Il video di presentazione di un Coach, registrato dal browser o caricato
+        come file, è visibile a chiunque consulti il profilo finché è pubblicato.
+        Il Coach può sostituirlo o eliminarlo in qualsiasi momento dal proprio
+        profilo: il file precedente viene cancellato dalla Piattaforma.
       </p>
 
       <h2>17. Proprietà intellettuale di KaiPai</h2>

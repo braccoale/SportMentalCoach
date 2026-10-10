@@ -307,7 +307,7 @@ export function CoachMatchWizard({
             <p className="text-xs leading-5 text-gray-500">
               Il testo serve solo a cercare i coach: non lo salviamo. Per confrontarlo con i profili
               lo inviamo, senza il tuo nome, a un servizio di intelligenza artificiale (OpenAI).
-              Evita dati che non vuoi condividere.
+              Evita dettagli sulla tua salute e dati che non vuoi condividere.
             </p>
           </div>
         )}
