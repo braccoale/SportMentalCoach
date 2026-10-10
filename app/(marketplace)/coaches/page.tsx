@@ -54,6 +54,7 @@ import {
 import { cn } from '@/lib/utils';
 import { JsonLd } from '@/components/json-ld';
 import { breadcrumbJsonLd, coachListJsonLd } from '@/lib/core/seo';
+import { getSportPages } from '@/lib/core/sport-pages-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -119,6 +120,7 @@ export default async function CoachesPage({
   const { levels } = config.taxonomies;
   // Letture indipendenti: partono insieme invece di una dopo l'altra (ognuna
   // è un viaggio al database, e in fila si sommano).
+  const sportPages = await getSportPages().catch(() => []);
   const [categories, specialties, priceRange, user] = await Promise.all([
     getActiveSports(),
     getActiveSpecialties(),
@@ -671,6 +673,24 @@ export default async function CoachesPage({
           </CoachMarketplace>
         )}
       </section>
+
+      {sportPages.length > 0 && (
+        <nav aria-label="Mental coach per sport" className="mt-10 border-t border-gray-300 pt-6">
+          <p className="text-sm font-semibold text-gray-900">Mental coach per sport</p>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {sportPages.map((page) => (
+              <li key={page.key}>
+                <Link
+                  href={`/mental-coach/${page.slug}`}
+                  className="inline-flex rounded-full bg-white px-3 py-1.5 text-sm text-gray-700 ring-1 ring-gray-200 hover:text-gray-950"
+                >
+                  {page.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
     </main>
   );
 }

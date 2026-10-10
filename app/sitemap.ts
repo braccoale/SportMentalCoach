@@ -1,5 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { getApprovedCoaches } from '@/lib/core/listings';
+import { eligibleSportPages } from '@/lib/core/sport-pages';
+import { getActiveSports } from '@/lib/core/taxonomies';
 import { CANONICAL_APP_URL as SITE_URL } from '@/lib/core/site';
 import { indexableArticles } from '@/lib/core/blog';
 import { BLOG_ARTICLES } from '@/lib/core/blog/articles';
@@ -108,7 +110,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     }));
 
-    return [...publicPages, ...coachPages];
+    // Una pagina per sport, solo dove ci sono abbastanza coach (stessa regola della pagina).
+    const sportPages: MetadataRoute.Sitemap = eligibleSportPages(
+      await getActiveSports(),
+      coaches.map((c) => c.categories)
+    ).map((page) => ({
+      url: `${SITE_URL}/mental-coach/${page.slug}`,
+      changeFrequency: 'weekly',
+      priority: 0.7,
+    }));
+
+    return [...publicPages, ...sportPages, ...coachPages];
   } catch (error) {
     // Keep the core sitemap available even during a temporary database outage.
     console.error('Unable to add coach profiles to sitemap', error);
