@@ -18,16 +18,19 @@ What is actually installed. Check `package.json` before adding to this list, and
 - UI primitives in `components/ui/` — shadcn-style components on **Radix**, copied into the repo, not a dependency
 - **PostgreSQL on Supabase**, **Drizzle ORM** (`db:generate` / `db:migrate`)
 - **Supabase Auth** — users carry an `auth_id` linking to the Supabase user; `auth:migrate` backfills it
-- **Supabase Realtime** — Broadcast, for the incoming-call popup (`components/incoming-call-listener.tsx`)
+- **Supabase Realtime** — Broadcast for the incoming-call popup (`components/incoming-call-listener.tsx`) and Presence for the «Online» badge on coach photos (`components/coach-presence-tracker.tsx`, `lib/core/coach-presence`; visible to everyone, web only)
+- **Supabase Storage** — public `media` bucket for photos and the coach presentation video, uploaded straight from the browser with a signed URL (a Vercel function caps requests at 4.5 MB). The coach video limit is 120 s / 45 MB (`lib/core/coach-video-upload.ts`) because the project-wide upload ceiling is 50 MB
+- **next-intl** — copy and language preference (`messages/`, `lib/i18n/`). Only Italian ships today, but anything new is written so a second language can be added without rework
 - **LiveKit** — `@livekit/components-react` on the web, `@livekit/react-native` in the app
-- **Stripe** — Checkout and Billing Portal for subscriptions, in `lib/payments/`. **Stripe Connect is not implemented**; there is no marketplace payout flow yet.
-- **OpenAI** — called over plain `fetch`, model `gpt-5-mini`. The `openai` package is **not** installed.
+- **Stripe** — Checkout and Billing Portal in `lib/payments/`, and **Stripe Connect** for coach payouts (`lib/payments/connect.ts`, `lib/core/billing/`, the coach «Pagamenti» area: identity verification, monthly plans, single session). It runs in **test mode** and is enabled for a single coach: it is not live for anyone else. Before it goes live the legal side must be closed: the Stripe line in the privacy policy and `processors.ts`, `LEGAL_VERSION` (everyone re-accepts), withdrawal rights, invoicing.
+- **OpenAI** — called over plain `fetch`. The `openai` package is **not** installed. Used for the AI session notes, for the «Aiutami a scegliere» coach match (`lib/core/coach-match`, which sends the athlete's answers and free text — no name or email) and for the Academy recap.
 - **Resend** — called over plain `fetch` from `lib/core/email/`. The `resend` package is **not** installed.
 - **Deepgram** — transcription, via `lib/core/ai-session-notes/providers.ts`
 - **Cal.com is not used.** The name survives only as a legacy column in `lib/db/schema.ts`. Booking, availability and scheduling are entirely ours, in `lib/core/`.
 
 ## Development principles
 
+- Work in one folder, `C:\Dati\SportMentalCoach`: no git worktrees.
 - Keep the project modular.
 - Build reusable marketplace components.
 - Prefer clean architecture.
@@ -54,7 +57,7 @@ Ogni push su un branch crea una build di anteprima, ogni merge in `main` una di 
 
 ## Tests
 
-`npm test` runs the pure-logic suite through `tsx --test` — around seventy files, mostly `lib/core/`, including one mobile module. Scripts named `test:ai-notes:*` reach real infrastructure (RLS, schema, live pipeline) and are not part of the default run; they cost real calls and touch the production project.
+`npm test` runs the pure-logic suite through `tsx --test` — close to two hundred files, mostly `lib/core/`, plus some component tests and a few mobile modules. A `pretest` step runs the i18n checks first. Scripts named `test:ai-notes:*` reach real infrastructure (RLS, schema, live pipeline) and are not part of the default run; they cost real calls and touch the production project.
 
 When adding a pure module, add it to the `test` script. `npm run test:inventory` reports what exists but is not wired in.
 
@@ -123,19 +126,26 @@ Never let a clean typecheck imply device behaviour was confirmed. State the leve
 
 ## Web development
 
-The web app is the larger half of the product — around fifty API routes, fifty components, and the whole of `lib/core/`. It is where reading, reviewing and planning happen, and it is not covered by the mobile skills.
+The web app is the larger half of the product — over seventy API routes, over two hundred components, and the whole of `lib/core/`. It is where reading, reviewing and planning happen, and it is not covered by the mobile skills.
 
 - `vercel-react-best-practices` for React and Next.js work on the web. **It applies to the web only.** The web is React 19; `mobile/` is React 18, where `use`, `useActionState` and the React Compiler do not exist and memoization is manual. Applying the same advice to both sides is a mistake in one of them.
 - `frontend-design` for visual craft on the web.
+- `kaipai-brand-design` when editing public marketing pages (landing, brand sections, typography, motion), and `web-creative-director` before designing or substantially redesigning a landing page.
+- **No red buttons, anywhere.** Red is an accent for badges, text and borders; actions are green.
 - Colours and typography come from the tokens in `app/globals.css` (dark, red accent). A literal hex in a component is the same defect on the web as in the app.
 
 ## Where the project actually stands
 
 The MVP is long done: registration, the three dashboards, coach profiles and listing, booking, and admin all exist and are in production use. Do not treat the product as early-stage, and do not propose a simplification whose real justification is that this is a first version.
 
-Current work is downstream of that, and most of it lives in the AI session notes: the session report, the compass, the mental journey, commitments, coach bookmarks, recording coverage and the retry policy — alongside guardian consent for minors, referrals, legal acceptance hashing, and the transactional email templates.
+Current work is downstream of that. Two threads:
 
-Two consequences:
+- **The coach side of the marketplace** (October 2026): a guided 9-step onboarding wizard, a three-section profile with a completeness bar, the presentation video (record or upload), the suggested hourly rate (admin-editable bands in system config), the coach listing with a side detail panel, reviews, the «Online» badge, and the coach payments area (test mode). The «Servizi» tab now holds only weekly availability: a coach's service is created with the profile («Sessione online», 40 min) and edited in the wizard.
+- **The AI session notes**: the session report, the compass, the mental journey, commitments, coach bookmarks, recording coverage and the retry policy — alongside guardian consent for minors, referrals, legal acceptance hashing, and the transactional email templates.
 
-- **Prefer extending an existing rule in `lib/core/` to inventing a parallel one.** With 155 modules there, the rule you need usually already exists; a second one that disagrees is the defect pattern this repository has already paid for repeatedly.
+Three consequences:
+
+- **Prefer extending an existing rule in `lib/core/` to inventing a parallel one.** With this many modules there, the rule you need usually already exists; a second one that disagrees is the defect pattern this repository has already paid for repeatedly.
+- **Public content makes claims, so every claim comes from the code.** The blog (`lib/core/blog/articles/`) and the per-sport pages (`/mental-coach/<sport>`, `lib/core/sport-pages.ts`) say things like «the intro session is free and lasts 20 minutes» or «registration from age 15»: take them from the constants that enforce them, never from memory, and re-read the page when the rule changes. A sport page exists only with at least two approved coaches — with one it would be the same page repeated. An article with `reviewed: false` is visible but `noindex` and out of the sitemap.
+- **The legal documents follow the system.** A new kind of personal data (a new field, a new provider, text sent to a third party) means updating the privacy policy and `lib/core/legal/processors.ts` in the same change. Changing the legal text bumps `LEGAL_VERSION` and makes every user accept again: agree on it before doing it, never as a side effect.
 - **Prompt changes are product changes.** The provider prompts (`openai-session-report-provider.ts`, `openai-session-compass-provider.ts`, and `house-guidelines.ts`) shape what a coach reads about a real client. A worse prompt throws no exception and fails no test — so a change there is justified in the response and checked against its contract test, never adjusted by feel.

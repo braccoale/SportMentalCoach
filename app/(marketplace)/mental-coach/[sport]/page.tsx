@@ -26,7 +26,8 @@ type Params = { sport: string };
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { sport } = await params;
   const page = findSportPage(await getSportPages(), sport);
-  if (!page) return { robots: { index: false, follow: false } };
+  // 404 vero già dai metadati: a risposta iniziata lo stato resterebbe 200 (falso 404).
+  if (!page) notFound();
   const title = `Mental coach per ${page.phrase}: coach verificati`;
   const description = `${page.coachCount} mental coach approvati da KaiPai seguono ${page.phrase}. Sedute in videochiamata e sessione conoscitiva gratuita di ${INTRO_SESSION.durationMin} minuti.`;
   return {

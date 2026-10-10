@@ -19,7 +19,7 @@ edit lib/db/schema.ts  →  npm run db:generate  →  read the generated SQL  �
 
 - `drizzle.config.ts` points at `lib/db/schema.ts` and writes into `lib/db/migrations/`, with `POSTGRES_URL` from the environment.
 - `db:generate` writes a numbered file plus an entry in `migrations/meta/_journal.json`. **The journal is the record of what has been applied — never hand-edit it, never renumber a file, never rewrite a migration that has already run.** A migration that reached the database is history; the correction is a new migration.
-- Fifty-four migrations exist. Read the neighbours before adding the fifty-fifth: the conventions below are visible in them.
+- A hundred migrations exist (the latest is `0099`). Read the neighbours before adding the next: the conventions below are visible in them.
 
 ## Additive by default
 
