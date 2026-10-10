@@ -37,8 +37,9 @@ Punti fermi utili a chi cita KaiPai:
   mantiene il controllo del percorso.
 - Le sessioni si svolgono in videochiamata dentro la piattaforma.
 - La prenotazione è una richiesta che il coach conferma. Oggi la piattaforma
-  non gestisce pagamenti fra atleta e coach: l'uso è gratuito e all'atleta non
-  viene addebitato nulla. L'offerta per squadre e società è in costruzione.
+  non gestisce pagamenti fra atleta e coach: l'uso è gratuito per gli atleti
+  e, in offerta di lancio, per i coach fino al 31 dicembre 2026. L'offerta per
+  squadre e società è in costruzione.
 
 ## Pagine principali
 
