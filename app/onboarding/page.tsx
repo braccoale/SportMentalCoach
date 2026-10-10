@@ -6,7 +6,7 @@ import { getAvatarUrl, getClientProfile, getProviderProfileByUser } from '@/lib/
 import { getCoachServices } from '@/lib/core/services';
 import { getCoachAvailability } from '@/lib/core/availability';
 import { getRateSuggestionForCoach } from '@/lib/core/rate-suggestion/server';
-import { COACH_WIZARD_STEPS, clampWizardStep, yearsFromCoachSince } from '@/lib/core/onboarding/coach-wizard';
+import { COACH_WIZARD_STEPS, clampWizardStep } from '@/lib/core/onboarding/coach-wizard';
 import { getCoachWizardSummary } from './actions';
 import { getActiveSports, getActiveSpecialties } from '@/lib/core/taxonomies';
 import { getVerticalConfig } from '@/lib/core/config';
@@ -67,7 +67,7 @@ export default async function OnboardingPage() {
           lastName,
           headline: provider?.headline ?? '',
           description: provider?.description ?? '',
-          yearsExperience: yearsFromCoachSince(provider?.coachSince) ?? provider?.yearsExperience ?? null,
+          coachSince: provider?.coachSince ?? null,
           languages: provider?.languages ?? [],
           categories: provider?.categories ?? [],
           specialties: provider?.specialties ?? [],

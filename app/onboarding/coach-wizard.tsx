@@ -15,7 +15,10 @@ import {
   COACH_WIZARD_STEPS,
   DEFAULT_FIRST_SERVICE,
   clampWizardStep,
-  coachSinceFromYears,
+  WIZARD_MONTHS,
+  coachSinceFromMonthYear,
+  monthYearFromCoachSince,
+  wizardYearOptions,
   parsePriceEuro,
   priceCentsToInput,
   type CoachWizardStepKey,
@@ -36,7 +39,8 @@ export type CoachInitial = {
   lastName: string;
   headline: string;
   description: string;
-  yearsExperience: number | null;
+  /** «Coach dal» già salvato (YYYY-MM-DD). */
+  coachSince: string | null;
   languages: string[];
   categories: string[];
   specialties: string[];
@@ -126,7 +130,15 @@ export function CoachWizard({
 
   const [headline, setHeadline] = useState(initial.headline);
   const [description, setDescription] = useState(initial.description);
-  const [years, setYears] = useState(initial.yearsExperience != null ? String(initial.yearsExperience) : '');
+  const savedStart = monthYearFromCoachSince(initial.coachSince);
+  const [startYear, setStartYear] = useState(savedStart ? String(savedStart.year) : '');
+  const [startMonth, setStartMonth] = useState(savedStart ? String(savedStart.month) : '');
+  const coachSince = coachSinceFromMonthYear(
+    startYear ? Number(startYear) : null,
+    startMonth ? Number(startMonth) : null
+  );
+  const startPartial = (startYear === '') !== (startMonth === '');
+  const startInvalid = startYear !== '' && startMonth !== '' && coachSince == null;
   const [languages, setLanguages] = useState(initial.languages.join(', '));
   const [certifications, setCertifications] = useState(initial.certifications.join('\n'));
   const [categories, setCategories] = useState<string[]>(initial.categories);
@@ -172,12 +184,11 @@ export function CoachWizard({
   }, [key, summaryFresh]);
 
   function payload() {
-    const n = years.trim() === '' ? null : Number(years);
     return {
       headline,
       description,
-      yearsExperience: n,
-      ...(n != null ? { coachSince: coachSinceFromYears(n) } : {}),
+      // Gli anni li ricava il server dalla data: nessun secondo dato da tenere allineato.
+      ...(coachSince ? { coachSince } : {}),
       languages: languages.split(',').map((l) => l.trim()).filter(Boolean),
       certifications: certifications.split(/\r?\n/).map((c) => c.trim()).filter(Boolean),
       categories,
@@ -447,19 +458,44 @@ export function CoachWizard({
         <section className="flex flex-col gap-5">
           <Heading title="La tua esperienza" intro="Facoltativo, ma dà fiducia. Scrivi solo ciò che puoi dimostrare." />
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="c-years">Da quanti anni fai il coach</Label>
-              <Input
-                id="c-years"
-                type="number"
-                min={0}
-                max={70}
-                value={years}
-                onChange={(e) => setYears(e.target.value)}
-                className="mt-1 rounded-lg"
-                placeholder="Es. 5 (0 se sei all’inizio)"
-              />
-            </div>
+            <fieldset>
+              <legend className="text-sm font-medium leading-none">Da quando fai il coach</legend>
+              <div className="mt-1 grid grid-cols-2 gap-2">
+                <select
+                  aria-label="Mese di inizio"
+                  value={startMonth}
+                  onChange={(e) => setStartMonth(e.target.value)}
+                  className="h-9 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900"
+                >
+                  <option value="">Mese</option>
+                  {WIZARD_MONTHS.map((m, i) => (
+                    <option key={m} value={i + 1}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Anno di inizio"
+                  value={startYear}
+                  onChange={(e) => setStartYear(e.target.value)}
+                  className="h-9 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900"
+                >
+                  <option value="">Anno</option>
+                  {wizardYearOptions().map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p className={`mt-1 text-xs ${startPartial || startInvalid ? 'text-amber-700' : 'text-gray-500'}`}>
+                {startInvalid
+                  ? 'Questo mese è nel futuro: scegli quando hai cominciato davvero.'
+                  : startPartial
+                    ? 'Scegli sia il mese sia l’anno, oppure lascia vuoto.'
+                    : 'Mese e anno in cui hai iniziato: se sei all’inizio, quello di quest’anno.'}
+              </p>
+            </fieldset>
             <div>
               <Label htmlFor="c-lang">Lingue in cui lavori</Label>
               <Input
