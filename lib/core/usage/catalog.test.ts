@@ -13,6 +13,7 @@ import {
   isUiErrorKind,
   isUsageEvent,
   normalizeIp,
+  parseWidgetSpec,
   rateVital,
   referrerKind,
   routeTemplate,
@@ -207,5 +208,25 @@ describe('di chi si registra la navigazione', () => {
     assert.equal(isNavigationTrackedFor({ isAdmin: false, hasAthleteProfile: true, age: 18 }), true);
     assert.equal(isNavigationTrackedFor({ isAdmin: false, hasAthleteProfile: true, age: 34 }), true);
     assert.equal(isNavigationTrackedFor({ isAdmin: false, hasAthleteProfile: false, age: null }), true);
+  });
+});
+
+describe('elenchi dietro i numeri', () => {
+  it('riconosce solo le richieste previste', () => {
+    assert.deepEqual(parseWidgetSpec('active7'), { kind: 'active7' });
+    assert.deepEqual(parseWidgetSpec('signups_invited'), { kind: 'signups_invited' });
+    assert.deepEqual(parseWidgetSpec('signup_day:2026-10-09'), { kind: 'signup_day', day: '2026-10-09' });
+    assert.deepEqual(parseWidgetSpec('active_day:2026-10-01'), { kind: 'active_day', day: '2026-10-01' });
+    assert.deepEqual(parseWidgetSpec('funnel:booking_requested'), { kind: 'funnel', event: 'booking_requested' });
+    assert.deepEqual(parseWidgetSpec('event:demo_opened'), { kind: 'event', event: 'demo_opened' });
+  });
+  it('scarta tutto il resto: giorni inventati, eventi sconosciuti, testo libero', () => {
+    assert.equal(parseWidgetSpec('signup_day:ieri'), null);
+    assert.equal(parseWidgetSpec('signup_day:2026-13-45'), null);
+    assert.equal(parseWidgetSpec('funnel:qualcosa_di_inventato'), null);
+    assert.equal(parseWidgetSpec("active7'; drop table users; --"), null);
+    assert.equal(parseWidgetSpec(''), null);
+    assert.equal(parseWidgetSpec(undefined), null);
+    assert.equal(parseWidgetSpec('x'.repeat(200)), null);
   });
 });

@@ -10,9 +10,7 @@ import {
   CreditCard,
   GraduationCap,
   LayoutDashboard,
-  Package,
   Settings,
-  ShieldCheck,
   Sliders,
   UserRound,
   Users,
@@ -89,11 +87,6 @@ export function AdminNav({
       icon: BrainCircuit,
     },
     {
-      href: '/dashboard/admin/audit',
-      label: 'Sicurezza e audit',
-      icon: ShieldCheck,
-    },
-    {
       href: '/dashboard/admin/ai-notes',
       label: 'Configurazione',
       icon: Sliders,
@@ -102,11 +95,6 @@ export function AdminNav({
       href: '/dashboard/admin/academy',
       label: 'Academy',
       icon: GraduationCap,
-    },
-    {
-      href: '/dashboard/admin/packages',
-      label: 'Pacchetti',
-      icon: Package,
     },
     {
       href: '/dashboard/admin/system-config',

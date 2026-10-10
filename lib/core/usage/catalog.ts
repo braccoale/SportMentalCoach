@@ -151,6 +151,8 @@ const PAGE_LABELS: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/dashboard/athlete': 'Dashboard atleta',
   '/dashboard/coach': 'Dashboard coach',
+  '/dashboard/admin': 'Panoramica (amministrazione)',
+  '/dashboard/admin/utilizzo': 'Utilizzo (amministrazione)',
   '/dashboard/coach/calendar': 'Calendario (coach)',
   '/dashboard/coach/profile': 'Profilo (coach)',
   '/dashboard/coach/services': 'Disponibilità (coach)',
@@ -362,4 +364,37 @@ export function sanitizeErrorCode(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
   return /^[A-Za-z0-9_.:-]{1,60}$/.test(trimmed) ? trimmed : null;
+}
+
+/* ------------------------------ elenchi dietro i numeri ------------------------------ */
+
+export type WidgetSpec =
+  | { kind: 'active7' }
+  | { kind: 'median' }
+  | { kind: 'signups' }
+  | { kind: 'signups_invited' }
+  | { kind: 'signups_direct' }
+  | { kind: 'demo' }
+  | { kind: 'signup_day'; day: string }
+  | { kind: 'active_day'; day: string }
+  | { kind: 'funnel'; event: UsageEvent }
+  | { kind: 'event'; event: UsageEvent };
+
+const SIMPLE_WIDGETS = ['active7', 'median', 'signups', 'signups_invited', 'signups_direct', 'demo'] as const;
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Che cosa si può chiedere cliccando un numero o un grafico della pagina
+ * «Utilizzo». La richiesta arriva dal browser come testo, quindi si riconosce
+ * soltanto ciò che è in questo elenco: niente di libero finisce in una query.
+ */
+export function parseWidgetSpec(input: unknown): WidgetSpec | null {
+  if (typeof input !== 'string' || input.length > 60) return null;
+  if ((SIMPLE_WIDGETS as readonly string[]).includes(input)) return { kind: input as (typeof SIMPLE_WIDGETS)[number] };
+  const [kind, arg] = input.split(':');
+  if ((kind === 'signup_day' || kind === 'active_day') && arg && DAY.test(arg) && !Number.isNaN(Date.parse(arg))) {
+    return { kind, day: arg };
+  }
+  if ((kind === 'funnel' || kind === 'event') && isUsageEvent(arg)) return { kind, event: arg };
+  return null;
 }

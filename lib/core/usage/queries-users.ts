@@ -1,6 +1,7 @@
 import 'server-only';
 import { sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
+import type { WidgetSpec } from './catalog';
 
 /**
  * Le letture sulle persone: chi usa la piattaforma, cosa ha fatto, come è
@@ -172,4 +173,129 @@ export async function getSignupSources(days: number): Promise<SignupSources> {
     invited: num(invited[0]?.n),
     perDay: perDay.map((r) => ({ day: String(r.day), n: num(r.n) })),
   };
+}
+
+/* ------------------------------ gli elenchi dietro i numeri ------------------------------ */
+
+export type WidgetUserRow = {
+  /** `null` per le righe anonime (un'apertura della demo). */
+  id: number | null;
+  name: string;
+  roles: string;
+  detail: string;
+};
+
+export type WidgetList = { rows: WidgetUserRow[]; note: string | null };
+
+const when = (value: unknown): string =>
+  value
+    ? new Date(value as string | Date).toLocaleString('it-IT', {
+        timeZone: 'Europe/Rome',
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '—';
+
+const NOT_ADMIN = sql`not exists (select 1 from user_roles ur where ur.user_id = u.id and ur.role_key = 'admin')`;
+const NAME = sql`coalesce(nullif(trim(concat(coalesce(u.name,''),' ',coalesce(u.last_name,''))),''), 'Senza nome')`;
+const ROLES = sql`coalesce((select string_agg(ur.role_key, ', ' order by ur.role_key) from user_roles ur where ur.user_id = u.id), '')`;
+
+/**
+ * Chi c'è dietro un numero o una barra. Solo account veri (niente demo né
+ * amministratori), al massimo duecento righe, e solo ciò che la pagina ha già
+ * mostrato in forma aggregata: nome, ruolo e un dettaglio.
+ */
+export async function getUsersForWidget(spec: WidgetSpec, days: number): Promise<WidgetList> {
+  const since = sql`now() - (${days}::int * interval '1 day')`;
+  const toRows = (list: Row[], detail: (r: Row) => string): WidgetUserRow[] =>
+    list.map((r) => ({ id: num(r.id), name: String(r.name), roles: String(r.roles || '—'), detail: detail(r) }));
+
+  const activity = (condition: ReturnType<typeof sql>) =>
+    rows(sql`select u.id, ${NAME} as name, ${ROLES} as roles,
+        (count(e.id) filter (where e.event <> 'page_view'))::int as events,
+        (count(e.id) filter (where e.event = 'page_view'))::int as pages,
+        max(e.occurred_at) as last_at
+      from users u join usage_events e on e.user_id = u.id and e.is_demo = false
+      where u.is_demo = false and u.deleted_at is null and ${NOT_ADMIN} and ${condition}
+      group by u.id order by last_at desc limit 200`);
+  const activityDetail = (r: Row) =>
+    `${num(r.events)} ${num(r.events) === 1 ? 'gesto' : 'gesti'} · ${num(r.pages)} ${num(r.pages) === 1 ? 'pagina' : 'pagine'} · ultimo ${when(r.last_at)}`;
+
+  switch (spec.kind) {
+    case 'active7':
+      return { rows: toRows(await activity(sql`e.occurred_at >= now() - interval '7 days'`), activityDetail), note: null };
+    case 'active_day':
+      return {
+        rows: toRows(await activity(sql`(e.occurred_at at time zone 'Europe/Rome')::date = ${spec.day}::date`), activityDetail),
+        note: null,
+      };
+    case 'median': {
+      const overview = await getUsersOverview(days);
+      return {
+        rows: overview.users
+          .filter((u) => u.events + u.pages > 0)
+          .sort((a, b) => b.activeDays - a.activeDays)
+          .map((u) => ({
+            id: u.id,
+            name: u.name,
+            roles: u.roles,
+            detail: `${u.activeDays} ${u.activeDays === 1 ? 'giorno attivo' : 'giorni attivi'}`,
+          })),
+        note: null,
+      };
+    }
+    case 'signups':
+    case 'signups_invited':
+    case 'signups_direct':
+    case 'signup_day': {
+      const filter =
+        spec.kind === 'signups_invited'
+          ? sql`and r.id is not null`
+          : spec.kind === 'signups_direct'
+            ? sql`and r.id is null`
+            : spec.kind === 'signup_day'
+              ? sql`and (u.created_at at time zone 'Europe/Rome')::date = ${spec.day}::date`
+              : sql``;
+      const list = await rows(sql`select u.id, ${NAME} as name, ${ROLES} as roles, u.created_at as created_at,
+          nullif(trim(concat(coalesce(i.name,''),' ',coalesce(i.last_name,''))),'') as inviter
+        from users u
+        left join referrals r on r.referred_user_id = u.id
+        left join users i on i.id = r.inviter_user_id
+        where u.is_demo = false and u.deleted_at is null and u.created_at >= ${since} and ${NOT_ADMIN} ${filter}
+        order by u.created_at desc limit 200`);
+      return {
+        rows: toRows(list, (r) => `iscritto ${when(r.created_at)}${r.inviter ? ` · invitato da ${r.inviter}` : ''}`),
+        note: null,
+      };
+    }
+    case 'funnel':
+    case 'event': {
+      const list = await rows(sql`select u.id, ${NAME} as name, ${ROLES} as roles,
+          count(e.id)::int as n, max(e.occurred_at) as last_at
+        from users u join usage_events e on e.user_id = u.id and e.is_demo = false
+        where u.is_demo = false and u.deleted_at is null and ${NOT_ADMIN}
+          and e.event = ${spec.event} and e.occurred_at >= ${since}
+        group by u.id order by last_at desc limit 200`);
+      return {
+        rows: toRows(list, (r) => `${num(r.n)} ${num(r.n) === 1 ? 'volta' : 'volte'} · ultima ${when(r.last_at)}`),
+        note: null,
+      };
+    }
+    case 'demo': {
+      const list = await rows(sql`select occurred_at as at, coalesce(role, 'sconosciuto') as role, device_class as device
+        from usage_events where event = 'demo_opened' and occurred_at >= ${since}
+        order by occurred_at desc limit 200`);
+      return {
+        rows: list.map((r) => ({
+          id: null,
+          name: `Demo ${r.role === 'coach' ? 'coach' : r.role === 'athlete' ? 'atleta' : String(r.role)}`,
+          roles: '',
+          detail: `${when(r.at)}${r.device ? ` · ${r.device === 'mobile' ? 'telefono' : r.device === 'tablet' ? 'tablet' : 'computer'}` : ''}`,
+        })),
+        note: 'Chi apre la demo non ha un account: per scelta non sappiamo chi sia, vediamo solo quando e da che tipo di dispositivo.',
+      };
+    }
+  }
 }
