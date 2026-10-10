@@ -4,14 +4,14 @@ import { ArrowDownRight, ArrowUpRight, CheckCircle2, Eye, EyeOff, Minus, Refresh
 import { requireRole } from '@/lib/core/auth';
 import { recordAdminAudit } from '@/lib/core/admin/audit-log';
 import { EmptyBlock, ErrorBlock } from '@/components/admin/control-room';
+import { ReferrerChart, Sparkline, VisitsChart } from '@/components/admin/usage-charts';
 import {
-  ActivityChart,
-  CountBars,
-  DailyBars,
-  ReferrerChart,
-  Sparkline,
-  VisitsChart,
-} from '@/components/admin/usage-charts';
+  ClickableActivityChart,
+  ClickableCountBars,
+  ClickableSignupsChart,
+  UsersTrigger,
+} from '@/components/admin/usage-users-dialog';
+import { DailyBars } from '@/components/admin/usage-charts';
 import { formatDateTime } from '@/lib/core/format';
 import { clientIpFromHeaders, isExcludedIp, pageLabel, rateVital, thresholdsFor, type VitalRating } from '@/lib/core/usage/catalog';
 import { funnelRates, gaugePosition, gaugeZones, trend, type Trend } from '@/lib/core/usage/series';
@@ -167,9 +167,27 @@ function Delta({ t, goodWhenUp = true }: { t: Trend; goodWhenUp?: boolean }) {
   );
 }
 
-function KpiTile({ label, value, note, delta, spark }: { label: string; value: React.ReactNode; note?: string; delta?: React.ReactNode; spark?: React.ReactNode }) {
-  return (
-    <div className="flex flex-col rounded-2xl border border-gray-200 bg-white p-4">
+function KpiTile({
+  label,
+  value,
+  note,
+  delta,
+  spark,
+  users,
+  href: link,
+}: {
+  label: string;
+  value: React.ReactNode;
+  note?: string;
+  delta?: React.ReactNode;
+  spark?: React.ReactNode;
+  /** Se c'è, il riquadro apre l'elenco di chi c'è dietro il numero. */
+  users?: { spec: string; title: string; days: number };
+  /** Se c'è, il riquadro porta alla scheda che lo spiega. */
+  href?: string;
+}) {
+  const body = (
+    <div className="flex h-full flex-col rounded-2xl border border-gray-200 bg-white p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</p>
       <div className="mt-1.5 flex items-baseline gap-2">
         <p className="text-3xl font-bold tabular-nums text-gray-950">{value}</p>
@@ -179,15 +197,31 @@ function KpiTile({ label, value, note, delta, spark }: { label: string; value: R
       {spark ? <div className="mt-2">{spark}</div> : null}
     </div>
   );
+  if (users) {
+    return (
+      <UsersTrigger spec={users.spec} title={users.title} days={users.days} className="rounded-2xl">
+        {body}
+      </UsersTrigger>
+    );
+  }
+  if (link) {
+    return (
+      <Link href={link} className="block rounded-2xl transition-shadow hover:shadow-sm">
+        {body}
+      </Link>
+    );
+  }
+  return body;
 }
 
-function FunnelBars({ steps }: { steps: { event: string; users: number }[] }) {
+function FunnelBars({ steps, days }: { steps: { event: string; users: number }[]; days: number }) {
   const rows = funnelRates(steps);
   const max = Math.max(1, ...rows.map((r) => r.users));
   return (
     <ul className="space-y-3">
       {rows.map((row) => (
         <li key={row.event}>
+          <UsersTrigger spec={`funnel:${row.event}`} title={FUNNEL_LABEL[row.event]} days={days} className="rounded-lg p-1 -m-1 hover:bg-gray-50">
           <div className="flex items-baseline justify-between gap-3 text-sm">
             <span className="text-gray-800">{FUNNEL_LABEL[row.event]}</span>
             <span className="tabular-nums">
@@ -202,6 +236,7 @@ function FunnelBars({ steps }: { steps: { event: string; users: number }[] }) {
           <div className="mt-1 h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
             <div className="h-full rounded-full bg-green-500" style={{ width: `${Math.max(2, (row.users / max) * 100)}%` }} />
           </div>
+          </UsersTrigger>
         </li>
       ))}
     </ul>
@@ -360,12 +395,12 @@ export default async function AdminUsagePage({
             ))}
           </nav>
 
-          {view === 'panoramica' && <Overview report={report} />}
+          {view === 'panoramica' && <Overview report={report} days={days} />}
           {view === 'utenti' && <UsersTable users={users} days={days} />}
           {view === 'attivita' && <UserActivity users={users} selectedId={selectedId} timeline={timeline} days={days} />}
           {view === 'sezioni' && <Sections report={report} />}
           {view === 'problemi' && <Problems report={report} />}
-          {view === 'provenienza' && <Sources report={report} signups={signups} />}
+          {view === 'provenienza' && <Sources report={report} signups={signups} days={days} />}
         </>
       )}
 
@@ -408,21 +443,21 @@ function Kpis({ report, users, days }: { report: UsageReport; users: UsersOvervi
   const errors = sum('errors');
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-      <KpiTile label="Utenti attivi 7 giorni" value={users.active7} note="almeno un gesto registrato" delta={<Delta t={trend(s.map((p) => p.users))} />} />
-      <KpiTile label="Visitatori" value={sum('uniques')} note="persone diverse al giorno, sommate" delta={<Delta t={trend(s.map((p) => p.uniques))} />} spark={<Sparkline data={s} dataKey="uniques" />} />
-      <KpiTile label="Giorni attivi mediani" value={users.medianActiveDays} note={`per utente attivo, ultimi ${days} giorni`} />
-      <KpiTile label="Demo aperte" value={sum('demo')} note={report.demo.byRole.map((r) => `${r.n} ${r.role === 'coach' ? 'coach' : r.role === 'athlete' ? 'atleta' : r.role}`).join(' · ') || 'nessuna ancora'} delta={<Delta t={trend(s.map((p) => p.demo))} />} spark={<Sparkline data={s} dataKey="demo" />} />
-      <KpiTile label="Problemi visti" value={errors} note={errors === 0 ? 'nessuno: bene' : 'schermate d’errore, anche del server'} delta={<Delta t={trend(s.map((p) => p.errors))} goodWhenUp={false} />} spark={<Sparkline data={s} dataKey="errors" color="#b45309" />} />
+      <KpiTile label="Utenti attivi 7 giorni" value={users.active7} note="almeno un gesto registrato" delta={<Delta t={trend(s.map((p) => p.users))} />} users={{ spec: 'active7', title: 'Utenti attivi negli ultimi 7 giorni', days }} />
+      <KpiTile label="Visitatori" value={sum('uniques')} note="anonimi: persone diverse al giorno, sommate" delta={<Delta t={trend(s.map((p) => p.uniques))} />} spark={<Sparkline data={s} dataKey="uniques" />} />
+      <KpiTile label="Giorni attivi mediani" value={users.medianActiveDays} note={`per utente attivo, ultimi ${days} giorni`} users={{ spec: 'median', title: 'Giorni attivi per utente', days }} />
+      <KpiTile label="Demo aperte" value={sum('demo')} note={report.demo.byRole.map((r) => `${r.n} ${r.role === 'coach' ? 'coach' : r.role === 'athlete' ? 'atleta' : r.role}`).join(' · ') || 'nessuna ancora'} delta={<Delta t={trend(s.map((p) => p.demo))} />} spark={<Sparkline data={s} dataKey="demo" />} users={{ spec: 'demo', title: 'Aperture della demo', days }} />
+      <KpiTile label="Problemi visti" value={errors} note={errors === 0 ? 'nessuno: bene' : 'schermate d’errore, anche del server'} delta={<Delta t={trend(s.map((p) => p.errors))} goodWhenUp={false} />} spark={<Sparkline data={s} dataKey="errors" color="#b45309" />} href={`/dashboard/admin/utilizzo?vista=problemi&giorni=${days}`} />
     </div>
   );
 }
 
-function Overview({ report }: { report: UsageReport }) {
+function Overview({ report, days }: { report: UsageReport; days: number }) {
   const s = report.series;
   const hasVisits = s.some((p) => p.views > 0);
   const hasActivity = s.some((p) => p.events > 0);
   const funnelSteps = FUNNEL_ORDER.map((event) => ({ event, users: report.funnel.find((f) => f.event === event)?.users ?? 0 })).filter((f) => f.users > 0);
-  const bookingBars = Object.keys(BOOKING_LABEL).map((event) => ({ label: BOOKING_LABEL[event], n: report.bookings.find((b) => b.event === event)?.n ?? 0 }));
+  const bookingBars = Object.keys(BOOKING_LABEL).map((event) => ({ label: BOOKING_LABEL[event], event, n: report.bookings.find((b) => b.event === event)?.n ?? 0 }));
   const hasBookings = bookingBars.some((b) => b.n > 0);
   const nothing = !hasVisits && !hasActivity && report.demo.recent.length === 0 && report.perfRoutes.length === 0 && report.errors.length === 0;
   return (
@@ -430,7 +465,7 @@ function Overview({ report }: { report: UsageReport }) {
       {nothing && <EmptyBlock title="Ancora nessun dato" detail="Le visite e le misure arrivano da chi apre il sito dopo il rilascio; gli eventi dai gesti degli utenti. Torna fra qualche ora." />}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Utenti e azioni per giorno" hint="Le barre sono i gesti compiuti, la linea le persone con un account che hanno fatto qualcosa.">
-          {hasActivity ? <ActivityChart data={s} /> : <Empty>Ancora nessun gesto registrato.</Empty>}
+          {hasActivity ? <ClickableActivityChart data={s} days={days} /> : <Empty>Ancora nessun gesto registrato.</Empty>}
         </Card>
         <Card title="Visite al sito pubblico" hint="Le barre sono le pagine viste, la linea i visitatori diversi.">
           {hasVisits ? <VisitsChart data={s} /> : <Empty>Nessuna visita registrata nel periodo.</Empty>}
@@ -438,10 +473,10 @@ function Overview({ report }: { report: UsageReport }) {
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Il percorso" hint="Persone diverse che hanno fatto ogni passo; la percentuale è sul passo prima.">
-          {funnelSteps.length === 0 ? <Empty>Ancora nessun passo registrato.</Empty> : <FunnelBars steps={funnelSteps} />}
+          {funnelSteps.length === 0 ? <Empty>Ancora nessun passo registrato.</Empty> : <FunnelBars steps={funnelSteps} days={days} />}
         </Card>
         <Card title="Prenotazioni" hint="Cosa è successo alle richieste di seduta nel periodo.">
-          {hasBookings ? <CountBars data={bookingBars} /> : <Empty>Nessuna richiesta registrata.</Empty>}
+          {hasBookings ? <ClickableCountBars data={bookingBars} days={days} /> : <Empty>Nessuna richiesta registrata.</Empty>}
           {report.joinDenied.length > 0 && (
             <p className="mt-3 text-xs text-gray-500">Ingressi in seduta negati: {report.joinDenied.map((d) => `${d.n} per «${d.reason}»`).join(', ')}.</p>
           )}
@@ -802,7 +837,7 @@ function Problems({ report }: { report: UsageReport }) {
   );
 }
 
-function Sources({ report, signups }: { report: UsageReport; signups: SignupSources | null }) {
+function Sources({ report, signups, days }: { report: UsageReport; signups: SignupSources | null; days: number }) {
   const referrer = report.visits.byReferrer.map((r) => ({ label: REFERRER_LABEL[r.kind] ?? r.kind, uniques: r.uniques, views: r.views }));
   return (
     <div className="space-y-4">
@@ -816,15 +851,22 @@ function Sources({ report, signups }: { report: UsageReport; signups: SignupSour
           ) : (
             <>
               <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="rounded-xl bg-gray-50 p-3"><p className="text-2xl font-bold tabular-nums">{signups.total}</p><p className="text-xs text-gray-500">iscritti</p></div>
-                <div className="rounded-xl bg-gray-50 p-3"><p className="text-2xl font-bold tabular-nums">{signups.invited}</p><p className="text-xs text-gray-500">con un invito</p></div>
-                <div className="rounded-xl bg-gray-50 p-3"><p className="text-2xl font-bold tabular-nums">{signups.total - signups.invited}</p><p className="text-xs text-gray-500">senza invito</p></div>
+                {[
+                  { spec: 'signups', title: 'Iscritti nel periodo', value: signups.total, label: 'iscritti' },
+                  { spec: 'signups_invited', title: 'Iscritti con un invito', value: signups.invited, label: 'con un invito' },
+                  { spec: 'signups_direct', title: 'Iscritti senza invito', value: signups.total - signups.invited, label: 'senza invito' },
+                ].map((t) => (
+                  <UsersTrigger key={t.spec} spec={t.spec} title={t.title} days={days} className="rounded-xl bg-gray-50 p-3 text-center hover:bg-gray-100">
+                    <p className="text-2xl font-bold tabular-nums">{t.value}</p>
+                    <p className="text-xs text-gray-500">{t.label}</p>
+                  </UsersTrigger>
+                ))}
               </div>
               {signups.byRole.length > 0 && (
                 <p className="mt-3 text-sm text-gray-600">{signups.byRole.map((r) => `${r.n} ${r.role === 'coach' ? 'coach' : r.role === 'athlete' ? 'atleti' : r.role}`).join(' · ')}</p>
               )}
               {signups.perDay.length > 0 ? (
-                <div className="mt-4"><DailyBars data={signups.perDay.map((d) => ({ day: d.day, value: d.n }))} label="Iscritti" /></div>
+                <div className="mt-4"><ClickableSignupsChart data={signups.perDay.map((d) => ({ day: d.day, value: d.n }))} days={days} /></div>
               ) : (
                 <p className="mt-4 text-sm text-gray-500">Nessuna iscrizione nel periodo.</p>
               )}

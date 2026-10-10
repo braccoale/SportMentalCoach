@@ -38,6 +38,20 @@ type DayPoint = { day: string };
 
 const dayTick = (day: string) => shortDay(day);
 
+/**
+ * Il clic vale su tutta la colonna del giorno, non solo sulla barra: le barre
+ * sono sottili e la linea sopra le coprirebbe. `activeLabel` è il valore
+ * dell'asse (il giorno, o l'etichetta della voce) sotto il puntatore.
+ */
+function columnClick(onValue: (value: string) => void) {
+  return (state: unknown) => {
+    const label = (state as { activeLabel?: string | number } | undefined)?.activeLabel;
+    if (label !== undefined && label !== null && label !== '') onValue(String(label));
+  };
+}
+
+const POINTER = { cursor: 'pointer' } as const;
+
 /** Visite (barre) e visitatori diversi (linea), un punto per giorno. */
 export function VisitsChart({ data }: { data: (DayPoint & { views: number; uniques: number })[] }) {
   return (
@@ -57,11 +71,11 @@ export function VisitsChart({ data }: { data: (DayPoint & { views: number; uniqu
 }
 
 /** Gesti compiuti (barre) e persone attive (linea) per giorno. */
-export function ActivityChart({ data }: { data: (DayPoint & { events: number; users: number })[] }) {
+export function ActivityChart({ data, onDayClick }: { data: (DayPoint & { events: number; users: number })[]; onDayClick?: (day: string) => void }) {
   return (
     <div className="h-56 w-full" role="img" aria-label="Attività e persone attive per giorno">
       <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+        <ComposedChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 0 }} style={onDayClick ? POINTER : undefined} onClick={onDayClick ? columnClick(onDayClick) : undefined}>
           <CartesianGrid strokeDasharray="2 4" stroke="#f3f4f6" vertical={false} />
           <XAxis dataKey="day" tickFormatter={dayTick} tick={AXIS} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} minTickGap={28} />
           <YAxis tick={AXIS} tickLine={false} axisLine={false} allowDecimals={false} width={34} />
@@ -107,12 +121,18 @@ export function Sparkline({ data, dataKey, color = GREEN }: { data: DayPoint[]; 
 }
 
 /** Le barre dei contatori (prenotazioni): una per voce, con il numero dentro il tooltip. */
-export function CountBars({ data }: { data: { label: string; n: number }[] }) {
+export function CountBars<T extends { label: string; n: number }>({ data, onBarClick }: { data: T[]; onBarClick?: (item: T) => void }) {
   const height = Math.max(120, data.length * 38 + 12);
   return (
     <div className="w-full" style={{ height }} role="img" aria-label="Conteggi">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} layout="vertical" margin={{ top: 0, right: 24, bottom: 0, left: 8 }}>
+        <BarChart
+          data={data}
+          layout="vertical"
+          margin={{ top: 0, right: 24, bottom: 0, left: 8 }}
+          style={onBarClick ? POINTER : undefined}
+          onClick={onBarClick ? columnClick((label) => { const item = data.find((d) => d.label === label); if (item) onBarClick(item); }) : undefined}
+        >
           <XAxis type="number" hide allowDecimals={false} />
           <YAxis type="category" dataKey="label" tick={{ fontSize: 12, fill: '#374151' }} tickLine={false} axisLine={false} width={96} />
           <Tooltip {...TOOLTIP} />
@@ -128,15 +148,17 @@ export function DailyBars({
   data,
   label,
   color = GREEN,
+  onDayClick,
 }: {
   data: { day: string; value: number }[];
   label: string;
   color?: string;
+  onDayClick?: (day: string) => void;
 }) {
   return (
     <div className="h-52 w-full" role="img" aria-label={`${label} per giorno`}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+        <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 0 }} style={onDayClick ? POINTER : undefined} onClick={onDayClick ? columnClick(onDayClick) : undefined}>
           <CartesianGrid strokeDasharray="2 4" stroke="#f3f4f6" vertical={false} />
           <XAxis dataKey="day" tickFormatter={dayTick} tick={AXIS} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} minTickGap={28} />
           <YAxis tick={AXIS} tickLine={false} axisLine={false} allowDecimals={false} width={34} />

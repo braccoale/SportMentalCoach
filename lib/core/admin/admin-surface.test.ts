@@ -194,9 +194,11 @@ test('la navigazione esiste in due forme: schede sul telefono, colonna sul deskt
     '/dashboard/admin/utenti',
     '/dashboard/admin/sessioni',
     '/dashboard/admin/ai',
-    '/dashboard/admin/audit',
     '/dashboard/admin/ai-notes',
+    '/dashboard/admin/utilizzo',
   ]) {
+    // «Sicurezza e audit» e «Pacchetti» sono stati tolti dal menu su richiesta del
+    // titolare: le pagine esistono ancora, raggiungibili dall'indirizzo.
     assert.ok(nav.includes(`'${area}'`), `manca l’area ${area}`);
   }
 });

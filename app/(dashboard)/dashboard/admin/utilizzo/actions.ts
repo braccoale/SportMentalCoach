@@ -6,6 +6,8 @@ import { requireRole } from '@/lib/core/auth';
 import { recordAdminAudit } from '@/lib/core/admin/audit-log';
 import { clientIpFromHeaders } from '@/lib/core/usage/catalog';
 import { addExcludedIp, removeExcludedIp } from '@/lib/core/usage/server';
+import { parseWidgetSpec } from '@/lib/core/usage/catalog';
+import { getUsersForWidget, type WidgetList } from '@/lib/core/usage/queries-users';
 
 /**
  * Esclude dal tracciamento l'indirizzo da cui l'amministratore sta guardando la
@@ -45,4 +47,25 @@ export async function removeExcludedIpAction(formData: FormData): Promise<void> 
     detail: { chiave: 'usage_excluded_ips', operazione: 'rimosso' },
   });
   revalidatePath('/dashboard/admin/utilizzo');
+}
+
+/**
+ * L'elenco di chi c'è dietro un numero o un grafico della pagina «Utilizzo».
+ * Solo per l'amministratore, e solo per le richieste previste (`parseWidgetSpec`):
+ * quello che arriva dal browser è testo e non finisce mai in una query.
+ */
+export async function listUsersForWidgetAction(
+  spec: string,
+  days: number
+): Promise<{ ok: true; list: WidgetList } | { ok: false; error: string }> {
+  await requireRole('admin');
+  const parsed = parseWidgetSpec(spec);
+  if (!parsed) return { ok: false, error: 'Richiesta non valida.' };
+  const period = [7, 30, 90].includes(days) ? days : 30;
+  try {
+    return { ok: true, list: await getUsersForWidget(parsed, period) };
+  } catch (error) {
+    console.error('[usage] elenco non letto', error instanceof Error ? error.message : error);
+    return { ok: false, error: 'Non riesco a leggere l’elenco. Riprova.' };
+  }
 }
