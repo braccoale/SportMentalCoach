@@ -111,7 +111,7 @@ export const AUDIENCE_CARDS: AudienceCard[] = [
     description:
       'Aiuta i tuoi figli a crescere nello sport con un supporto mentale qualificato, in un ambiente sicuro e adatto alla loro età.',
     benefits: [
-      { icon: ShieldCheck, label: 'Coach verificati' },
+      { icon: ShieldCheck, label: 'Profili approvati' },
       { icon: Sprout, label: "Percorso adatto all'età" },
       { icon: HeartHandshake, label: 'Più fiducia e serenità' },
       { icon: Users, label: 'Supporto anche ai genitori' },

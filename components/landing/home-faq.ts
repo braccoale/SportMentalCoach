@@ -42,7 +42,7 @@ export const HOME_FAQ: FaqItem[] = [
   },
   {
     q: 'Come si diventa coach KaiPai?',
-    a: 'Con la candidatura: crei l’account da coach, completi il profilo e lo invii in revisione. Il team lo controlla prima di pubblicarlo, e l’Academy accompagna la formazione.',
+    a: 'Con la candidatura: crei l’account da coach, completi il profilo e lo invii in revisione. Un amministratore lo controlla prima di pubblicarlo, e l’Academy accompagna la formazione.',
     link: { href: '/diventa-coach', label: 'Diventa coach' },
   },
   {

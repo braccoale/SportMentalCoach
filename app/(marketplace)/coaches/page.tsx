@@ -67,15 +67,15 @@ export const dynamic = 'force-dynamic';
  * uguali; il canonical li fa convergere su una sola.
  */
 export const metadata: Metadata = {
-  title: 'Mental coach sportivi verificati — KaiPai',
+  title: 'Mental coach sportivi — KaiPai',
   description:
-    'Trova il mental coach giusto per il tuo sport e il tuo momento: profili verificati da KaiPai, filtrabili per sport, specialità, livello e lingua. Sessioni in videochiamata.',
+    'Trova il mental coach giusto per il tuo sport e il tuo momento: profili approvati da KaiPai, filtrabili per sport, specialità, livello e lingua. Sessioni in videochiamata.',
   alternates: { canonical: '/coaches' },
   openGraph: {
     type: 'website',
-    title: 'Mental coach sportivi verificati — KaiPai',
+    title: 'Mental coach sportivi — KaiPai',
     description:
-      'Profili verificati, filtrabili per sport, specialità, livello e lingua. Sessioni di coaching mentale in videochiamata.',
+      'Profili approvati, filtrabili per sport, specialità, livello e lingua. Sessioni di coaching mentale in videochiamata.',
     url: '/coaches',
   },
 };

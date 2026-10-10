@@ -14,8 +14,8 @@ import type { BlogArticle } from '../index';
  */
 export const SELEZIONE_COACH: BlogArticle = {
   slug: 'come-selezioniamo-i-coach-kaipai',
-  title: 'Come selezioniamo i coach di KaiPai',
-  seoTitle: 'Come selezioniamo i coach di KaiPai',
+  title: 'Come si entra nell’elenco dei coach di KaiPai',
+  seoTitle: 'Come si entra nell’elenco dei coach KaiPai',
   description:
     'Come si entra nell’elenco dei coach di KaiPai: candidatura, profilo, revisione del team prima della pubblicazione e cosa succede dopo l’approvazione.',
   publishedAt: '2026-10-08',
@@ -35,17 +35,17 @@ export const SELEZIONE_COACH: BlogArticle = {
   blocks: [
     {
       type: 'p',
-      text: 'Non esiste un albo dei mental coach: chiunque può usare il titolo. Per questo, sull’elenco di KaiPai nessun profilo compare in automatico. Ecco il percorso che ogni coach fa prima di essere visibile agli atleti e cosa succede dopo.',
+      text: 'Non esiste un albo dei mental coach: chiunque può usare il titolo. Per questo, sull’elenco di KaiPai nessun profilo compare in automatico. Ecco il percorso che ogni coach fa prima di essere visibile agli atleti, cosa controlliamo e cosa no.',
     },
     { type: 'h2', id: 'candidatura', text: '1. La candidatura' },
     {
       type: 'p',
       text: 'Il coach crea il suo account e completa il profilo: una foto, una presentazione, gli sport che segue, almeno una specialità e un servizio con la sua durata. Un profilo incompleto non può essere inviato. Gli orari in cui riceve li indica nella sua area, perché gli atleti possano scegliere uno spazio libero.',
     },
-    { type: 'h2', id: 'revisione', text: '2. La revisione del team' },
+    { type: 'h2', id: 'revisione', text: '2. L’approvazione del profilo' },
     {
       type: 'p',
-      text: 'Il profilo non viene pubblicato finché il team KaiPai non lo ha controllato. Il team può approvarlo o rifiutarlo; solo dopo l’approvazione il coach compare nell’[elenco dei coach](/coaches) e può ricevere richieste.',
+      text: 'Il profilo non viene pubblicato finché un amministratore KaiPai non lo ha controllato: completezza delle informazioni, chiarezza della presentazione e documenti che il coach invia a sostegno di identità e titoli. Non c’è un colloquio e non si valuta il metodo del coach: è un controllo del profilo, che può essere approvato o rifiutato. Solo dopo l’approvazione il coach compare nell’[elenco dei coach](/coaches) e può ricevere richieste.',
     },
     { type: 'h2', id: 'dopo', text: '3. Dopo l’approvazione' },
     {
@@ -60,23 +60,23 @@ export const SELEZIONE_COACH: BlogArticle = {
     { type: 'h2', id: 'academy', text: 'La formazione continua: l’Academy' },
     {
       type: 'p',
-      text: 'La [KaiPai Academy](/academy) accompagna la formazione dei coach. La selezione non finisce con l’approvazione del profilo: il lavoro di un coach si vede nelle sedute e nei riscontri degli atleti.',
+      text: 'La [KaiPai Academy](/academy) accompagna la formazione dei coach. L’approvazione del profilo non dice come lavora un coach: lo si capisce dalle sedute e dai riscontri degli atleti.',
     },
     {
       type: 'callout',
       title: 'I limiti che valgono per tutti',
-      text: 'Tutti i coach di KaiPai fanno mental coaching, non terapia: se emerge un bisogno clinico, lo dicono chiaramente e indirizzano verso un professionista sanitario. Nessun coach può garantire un risultato.',
+      text: 'Le regole della piattaforma valgono per tutti i coach: fanno mental coaching, non terapia, e se emerge un bisogno clinico devono dirlo chiaramente e indirizzare verso un professionista sanitario. Nessun coach può garantire un risultato.',
     },
     { type: 'h2', id: 'scegliere', text: 'La scelta resta tua' },
     {
       type: 'p',
-      text: 'La revisione toglie una parte del rischio, ma non sostituisce la tua valutazione. Per sapere cosa chiedere e come capire se un coach fa per te, leggi la guida su [come scegliere un mental coach sportivo](/blog/come-scegliere-un-mental-coach-sportivo). E se vuoi provare, [la sessione conoscitiva è gratuita](/atleti).',
+      text: 'L’approvazione del profilo non sostituisce la tua valutazione. Per sapere cosa chiedere e come capire se un coach fa per te, leggi la guida su [come scegliere un mental coach sportivo](/blog/come-scegliere-un-mental-coach-sportivo). E se vuoi provare, [la sessione conoscitiva è gratuita](/atleti).',
     },
   ],
   faq: [
     {
       q: 'Chiunque può diventare coach su KaiPai?',
-      a: 'No: ogni profilo viene controllato dal team prima della pubblicazione e può essere rifiutato. Solo i profili approvati compaiono nell’elenco.',
+      a: 'Ogni profilo viene controllato da un amministratore prima della pubblicazione e può essere rifiutato. Solo i profili approvati compaiono nell’elenco. Non c’è un colloquio di selezione.',
     },
     {
       q: 'Cosa succede dopo l’approvazione?',

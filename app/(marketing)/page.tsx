@@ -45,7 +45,7 @@ export const metadata: Metadata = {
   // hero («Allena la mente…») non lo dice.
   title: 'Mental coaching sportivo per atleti, famiglie e club | KaiPai',
   description:
-    'Mental coaching sportivo con coach verificati: concentrazione, pressione e motivazione per atleti, famiglie e società. La prima sessione conoscitiva è gratis.',
+    'Mental coaching sportivo con coach approvati: concentrazione, pressione e motivazione per atleti, famiglie e società. La prima sessione conoscitiva è gratis.',
   alternates: { canonical: '/' },
   openGraph: {
     title: 'KaiPai — Mental coaching sportivo',
@@ -254,7 +254,7 @@ function Method() {
 /* ── Trust + how it works · one page ── */
 function TrustHowItWorks() {
   const pillars = [
-    { icon: ShieldCheck, t: 'Identità verificata', b: 'Ogni coach è approvato dal nostro team prima della pubblicazione.' },
+    { icon: ShieldCheck, t: 'Profili approvati', b: 'Ogni profilo è approvato da un amministratore KaiPai prima della pubblicazione.' },
     { icon: BadgeCheck, t: 'Guide certificate', b: 'Credenziali ed esperienza controllate, formazione continua.' },
     { icon: Star, t: 'Recensioni verificate', b: 'Solo da atleti che hanno svolto sessioni reali.' },
     { icon: HeartHandshake, t: 'Tutela dei minori & GDPR', b: 'Consenso dei genitori per gli under 18. Dati riservati.' },

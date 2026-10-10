@@ -16,8 +16,8 @@ export function TrustAndSafeguarding() {
   const items = [
     {
       icon: ShieldCheck,
-      title: 'Coach verificati',
-      body: `Ogni coach su ${brand} è approvato dal nostro team: identità, esperienza e credenziali controllate prima della pubblicazione.`,
+      title: 'Profili approvati',
+      body: `Ogni profilo su ${brand} è approvato da un amministratore prima della pubblicazione. Quando il team ha verificato l’identità di un coach, lo indichiamo sul suo profilo.`,
     },
     {
       icon: HeartHandshake,

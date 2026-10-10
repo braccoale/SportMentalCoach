@@ -39,7 +39,7 @@ export function renderPricingMarkdown(
     '# Prezzi — KaiPai',
     '',
     'KaiPai è una piattaforma italiana di coaching mentale per lo sport: mette',
-    'in contatto atleti, squadre e famiglie con mental coach verificati, e',
+    'in contatto atleti, squadre e famiglie con mental coach approvati, e',
     'ospita le sessioni in videochiamata.',
     '',
     'Il modello commerciale è per club e società sportive, con pacchetti ad',

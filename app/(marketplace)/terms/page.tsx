@@ -179,7 +179,7 @@ export default function TermsPage() {
         La scelta e la responsabilità di avviare il percorso restano tue.
       </p>
       <p>
-        KaiPai seleziona i Coach con cura ma non garantisce l’esito del percorso
+        KaiPai approva i profili dei Coach prima della pubblicazione ma non garantisce l’esito del percorso
         né l’idoneità del singolo Coach alle tue esigenze specifiche. Se il
         rapporto non funziona puoi interromperlo in qualsiasi momento e
         rivolgerti a un altro Coach.
