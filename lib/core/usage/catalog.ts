@@ -267,7 +267,7 @@ export function sanitizeMetric(name: unknown, value: unknown): { metric: string;
 
 export type VitalRating = 'good' | 'needs-improvement' | 'poor';
 
-/** Le soglie pubbliche di Google (Core Web Vitals) per giudicare un valore. */
+/** Le soglie pubbliche di Google (Core Web Vitals) per giudicare un valore: [buono fino a, scarso oltre]. */
 const THRESHOLDS: Record<string, [number, number]> = {
   LCP: [2500, 4000],
   INP: [200, 500],
@@ -276,8 +276,16 @@ const THRESHOLDS: Record<string, [number, number]> = {
   FCP: [1800, 3000],
 };
 
+/** Una finestra «pronta» entro un secondo è buona; oltre tre secondi si fa attendere troppo. */
+const READY_THRESHOLDS: [number, number] = [1000, 3000];
+
+export function thresholdsFor(metric: string): [number, number] | null {
+  if (READY_METRIC.test(metric)) return READY_THRESHOLDS;
+  return THRESHOLDS[metric] ?? null;
+}
+
 export function rateVital(metric: string, value: number): VitalRating | null {
-  const t = THRESHOLDS[metric];
+  const t = thresholdsFor(metric);
   if (!t) return null;
   if (value <= t[0]) return 'good';
   if (value <= t[1]) return 'needs-improvement';
@@ -286,7 +294,8 @@ export function rateVital(metric: string, value: number): VitalRating | null {
 
 /* ------------------------------ errori visti dall'utente ------------------------------ */
 
-export const UI_ERROR_KINDS = ['offline', 'caricamento', 'applicazione', 'azione', 'rete'] as const;
+/** `server` è un errore lanciato dal server (lo registra `instrumentation.ts`): chi lo ha visto ha trovato una pagina rotta. */
+export const UI_ERROR_KINDS = ['offline', 'caricamento', 'applicazione', 'azione', 'rete', 'server'] as const;
 export type UiErrorKind = (typeof UI_ERROR_KINDS)[number];
 
 export function isUiErrorKind(value: unknown): value is UiErrorKind {

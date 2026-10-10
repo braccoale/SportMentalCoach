@@ -297,6 +297,43 @@ export async function handleCollect(request: Request): Promise<Response> {
   return done();
 }
 
+/* ------------------------------ errori del server ------------------------------ */
+
+type PlainHeaders = Record<string, string | string[] | undefined>;
+
+/**
+ * Un errore lanciato dal server mentre serviva una pagina, un'azione o una
+ * rotta (lo chiama `instrumentation.ts`). Si registra il tipo, il percorso come
+ * modello e l'identificativo di Next, mai il messaggio: può contenere dati. Chi
+ * sta nell'elenco delle esclusioni non lascia traccia, come per tutto il resto.
+ */
+export async function recordServerError(
+  error: { name?: string; digest?: string },
+  request: { path: string; headers: PlainHeaders },
+  context: { routePath?: string; routeType?: string }
+): Promise<void> {
+  try {
+    const headers = new Headers();
+    for (const [key, value] of Object.entries(request.headers)) {
+      if (typeof value === 'string') headers.set(key, value);
+      else if (Array.isArray(value) && value[0]) headers.set(key, value[0]);
+    }
+    if (await shouldIgnore(headers)) return;
+    const route = routeTemplate(context.routePath || request.path);
+    const code = sanitizeErrorCode(`${context.routeType ?? 'server'}:${error.name ?? 'Error'}`);
+    await db.insert(uiErrors).values({
+      route,
+      kind: 'server',
+      code,
+      digest: sanitizeErrorCode(error.digest)?.slice(0, 40) ?? null,
+      deviceClass: deviceClassFromUserAgent(headers.get('user-agent')),
+      release: RELEASE,
+    });
+  } catch (cause) {
+    console.error('[usage] errore del server non registrato', cause instanceof Error ? cause.message : cause);
+  }
+}
+
 /* ------------------------------ pulizia ------------------------------ */
 
 /** Cancella ciò che ha passato la sua scadenza. Restituisce quante righe ha tolto per tabella. */
