@@ -34,6 +34,8 @@ export const USAGE_EVENTS = [
   'booking_declined',
   'booking_cancelled',
   'booking_completed',
+  // Navigazione di chi ha un account (solo adulti, mai gli amministratori)
+  'page_view',
   // Sedute
   'session_joined',
   // Contenuti e funzioni
@@ -119,6 +121,59 @@ export function routeTemplate(input: string | null | undefined): string {
     }
   }
   return `/${out.join('/')}`.slice(0, MAX_ROUTE_LENGTH);
+}
+
+/** Dove non si registra la navigazione di una persona: interfacce tecniche e pagine dell'amministrazione. */
+const UNTRACKED_PREFIXES = ['/api', '/auth', '/_next', '/dashboard/admin', '/qa', '/video'];
+
+export function isTrackablePageRoute(template: string): boolean {
+  return !UNTRACKED_PREFIXES.some((prefix) => template === prefix || template.startsWith(`${prefix}/`));
+}
+
+/**
+ * Di chi si registra la navigazione. Mai di un amministratore (guarda il sito,
+ * non lo usa) e mai di chi è minorenne o di cui non si conosce l'età: per i
+ * ragazzi bastano i gesti. Chi non ha un profilo atleta (un coach) conta come
+ * adulto: si registra solo da maggiorenne.
+ */
+export function isNavigationTrackedFor(input: { isAdmin: boolean; hasAthleteProfile: boolean; age: number | null }): boolean {
+  if (input.isAdmin) return false;
+  if (!input.hasAthleteProfile) return true;
+  return input.age !== null && input.age >= 18;
+}
+
+/** I nomi che l'amministratore legge al posto dei percorsi. Un percorso che non c'è qui si mostra com'è. */
+const PAGE_LABELS: Record<string, string> = {
+  '/': 'Home',
+  '/coaches': 'Elenco coach',
+  '/coaches/:slug': 'Scheda di un coach',
+  '/coaches/aiutami-a-scegliere': 'Aiutami a scegliere',
+  '/dashboard': 'Dashboard',
+  '/dashboard/athlete': 'Dashboard atleta',
+  '/dashboard/coach': 'Dashboard coach',
+  '/dashboard/coach/calendar': 'Calendario (coach)',
+  '/dashboard/coach/profile': 'Profilo (coach)',
+  '/dashboard/coach/services': 'Disponibilità (coach)',
+  '/dashboard/coach/pagamenti': 'Pagamenti (coach)',
+  '/dashboard/coach/athletes': 'I miei atleti',
+  '/dashboard/coach/athletes/:id': 'Scheda di un atleta',
+  '/dashboard/coach/academy': 'Academy (coach)',
+  '/dashboard/coach/messages': 'Messaggi (coach)',
+  '/dashboard/coach/appunti-ai': 'Appunti AI',
+  '/dashboard/coach/security': 'Sicurezza (coach)',
+  '/dashboard/athlete/calendar': 'Calendario (atleta)',
+  '/dashboard/messages': 'Messaggi',
+  '/dashboard/supporto': 'Supporto',
+  '/dashboard/settings': 'Impostazioni',
+  '/dashboard/appointments/:id': 'Dettaglio appuntamento',
+  '/onboarding': 'Guida di benvenuto',
+  '/blog': 'Blog',
+  '/blog/:slug': 'Articolo del blog',
+  '/mental-coach/:sport': 'Pagina di uno sport',
+};
+
+export function pageLabel(route: string): string {
+  return PAGE_LABELS[route] ?? route;
 }
 
 /** Le pagine pubbliche di cui si contano le visite (le altre stanno dietro l'accesso e non servono). */

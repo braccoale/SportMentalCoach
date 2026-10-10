@@ -7,6 +7,9 @@ import {
   isBotUserAgent,
   isExcludedIp,
   isPublicPageRoute,
+  isNavigationTrackedFor,
+  isTrackablePageRoute,
+  pageLabel,
   isUiErrorKind,
   isUsageEvent,
   normalizeIp,
@@ -170,5 +173,39 @@ describe('errori', () => {
     assert.equal(sanitizeErrorCode('Mario Rossi non ha un profilo'), null);
     assert.equal(sanitizeErrorCode(''), null);
     assert.equal(sanitizeErrorCode(7), null);
+  });
+});
+
+describe('navigazione di chi ha un account', () => {
+  it('non si registra dove sarebbe rumore o terreno dell’amministrazione', () => {
+    assert.equal(isTrackablePageRoute('/dashboard/admin'), false);
+    assert.equal(isTrackablePageRoute('/dashboard/admin/utilizzo'), false);
+    assert.equal(isTrackablePageRoute('/api/usage/collect'), false);
+    assert.equal(isTrackablePageRoute('/auth/callback'), false);
+    assert.equal(isTrackablePageRoute('/video/:room'), false);
+  });
+  it('si registra il resto, compreso ciò che somiglia a un prefisso', () => {
+    assert.equal(isTrackablePageRoute('/dashboard/coach/calendar'), true);
+    assert.equal(isTrackablePageRoute('/coaches/:slug'), true);
+    assert.equal(isTrackablePageRoute('/dashboard/administrator'), true);
+    assert.equal(isTrackablePageRoute('/'), true);
+  });
+  it('i nomi sono leggibili, e un percorso sconosciuto resta com’è', () => {
+    assert.equal(pageLabel('/dashboard/coach/calendar'), 'Calendario (coach)');
+    assert.equal(pageLabel('/boh/qualcosa'), '/boh/qualcosa');
+  });
+});
+
+describe('di chi si registra la navigazione', () => {
+  it('mai un amministratore, mai un minorenne o chi ha l’età ignota', () => {
+    assert.equal(isNavigationTrackedFor({ isAdmin: true, hasAthleteProfile: false, age: null }), false);
+    assert.equal(isNavigationTrackedFor({ isAdmin: false, hasAthleteProfile: true, age: 16 }), false);
+    assert.equal(isNavigationTrackedFor({ isAdmin: false, hasAthleteProfile: true, age: 17 }), false);
+    assert.equal(isNavigationTrackedFor({ isAdmin: false, hasAthleteProfile: true, age: null }), false);
+  });
+  it('un adulto sì, e un coach (senza profilo atleta) conta come adulto', () => {
+    assert.equal(isNavigationTrackedFor({ isAdmin: false, hasAthleteProfile: true, age: 18 }), true);
+    assert.equal(isNavigationTrackedFor({ isAdmin: false, hasAthleteProfile: true, age: 34 }), true);
+    assert.equal(isNavigationTrackedFor({ isAdmin: false, hasAthleteProfile: false, age: null }), true);
   });
 });

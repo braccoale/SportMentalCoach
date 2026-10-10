@@ -18,7 +18,7 @@ const num = (v: unknown): number => Number(v ?? 0);
 const iso = (v: unknown) => (v ? new Date(v as string | Date).toISOString() : null);
 
 /** Gli eventi che non dicono che la persona abbia fatto qualcosa di utile: accesso, uscita, registrazione. */
-export const NON_MEANINGFUL_EVENTS = ['auth_sign_in', 'auth_sign_out', 'signup_completed'] as const;
+export const NON_MEANINGFUL_EVENTS = ['auth_sign_in', 'auth_sign_out', 'signup_completed', 'page_view'] as const;
 
 export type UserRow = {
   id: number;
@@ -26,6 +26,8 @@ export type UserRow = {
   roles: string;
   createdAt: string;
   events: number;
+  /** Le pagine aperte nel periodo. */
+  pages: number;
   meaningful: number;
   activeDays: number;
   lastAt: string | null;
@@ -54,8 +56,9 @@ export async function getUsersOverview(days: number, now: Date = new Date()): Pr
       coalesce(nullif(trim(concat(coalesce(u.name,''),' ',coalesce(u.last_name,''))),''), 'Senza nome') as name,
       coalesce((select string_agg(ur.role_key, ', ' order by ur.role_key) from user_roles ur where ur.user_id = u.id), '') as roles,
       u.created_at as created_at,
-      count(e.id)::int as events,
-      (count(e.id) filter (where e.event not in ('auth_sign_in','auth_sign_out','signup_completed')))::int as meaningful,
+      (count(e.id) filter (where e.event <> 'page_view'))::int as events,
+      (count(e.id) filter (where e.event = 'page_view'))::int as pages,
+      (count(e.id) filter (where e.event not in ('auth_sign_in','auth_sign_out','signup_completed','page_view')))::int as meaningful,
       count(distinct (e.occurred_at at time zone 'Europe/Rome')::date)::int as active_days,
       (select max(x.occurred_at) from usage_events x where x.user_id = u.id and x.is_demo = false) as last_at
     from users u
@@ -74,6 +77,7 @@ export async function getUsersOverview(days: number, now: Date = new Date()): Pr
       roles: String(r.roles || '—'),
       createdAt: iso(r.created_at) ?? '',
       events: num(r.events),
+      pages: num(r.pages),
       meaningful: num(r.meaningful),
       activeDays: num(r.active_days),
       lastAt,
@@ -82,7 +86,7 @@ export async function getUsersOverview(days: number, now: Date = new Date()): Pr
   });
 
   const sevenDaysAgo = now.getTime() - 7 * 86_400_000;
-  const activeInPeriod = users.filter((u) => u.events > 0);
+  const activeInPeriod = users.filter((u) => u.events + u.pages > 0);
   return {
     users,
     active7: users.filter((u) => u.lastAt && new Date(u.lastAt).getTime() >= sevenDaysAgo).length,
@@ -105,7 +109,7 @@ export type TimelineEvent = {
 };
 
 /** Gli ultimi gesti di una persona, dal più recente. Chi guarda viene registrato nel registro dell'amministrazione. */
-export async function getUserTimeline(userId: number, limit = 150): Promise<{ name: string; roles: string; events: TimelineEvent[] } | null> {
+export async function getUserTimeline(userId: number, limit = 300): Promise<{ name: string; roles: string; events: TimelineEvent[]; pages: { route: string; n: number }[] } | null> {
   const [user] = await rows(sql`
     select coalesce(nullif(trim(concat(coalesce(u.name,''),' ',coalesce(u.last_name,''))),''), 'Senza nome') as name,
       coalesce((select string_agg(ur.role_key, ', ' order by ur.role_key) from user_roles ur where ur.user_id = u.id), '') as roles
@@ -117,9 +121,14 @@ export async function getUserTimeline(userId: number, limit = 150): Promise<{ na
     select occurred_at, event, outcome, entity_type, entity_id, props, device_class
     from usage_events where user_id = ${userId} and is_demo = false
     order by occurred_at desc limit ${limit}`);
+  // Le pagine che questa persona apre di più (su tutta la storia che abbiamo, non solo sugli ultimi gesti).
+  const pages = await rows(sql`select props->>'route' as route, count(*)::int as n from usage_events
+    where user_id = ${userId} and event = 'page_view' and is_demo = false
+    group by 1 order by 2 desc limit 8`);
   return {
     name: String(user.name),
     roles: String(user.roles || '—'),
+    pages: pages.map((r) => ({ route: String(r.route ?? ''), n: num(r.n) })),
     events: events.map((e) => ({
       at: iso(e.occurred_at) ?? '',
       event: String(e.event),
