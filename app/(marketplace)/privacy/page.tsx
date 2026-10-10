@@ -88,6 +88,23 @@ export default function PrivacyPage() {
           pagine e per la sicurezza.
         </li>
         <li>
+          <strong>Dati di funzionamento e di utilizzo</strong>, trattati per far
+          funzionare e tenere in ordine il servizio (interesse legittimo): i
+          gesti principali compiuti da chi ha
+          un account — accesso, richiesta o annullamento di una sessione,
+          ingresso in una sessione, completamento della guida di benvenuto,
+          apertura della demo — registrati <strong>senza indirizzo IP</strong>;
+          e, in forma anonima, quanto ci mette una pagina ad aprirsi, gli errori
+          mostrati sullo schermo e il numero di visite alle pagine pubbliche
+          con la categoria di provenienza (ricerca, social, diretto). Queste
+          ultime misure non portano con sé nessun utente e non usano cookie:
+          per contare i visitatori diversi di un giorno si usa un’impronta che
+          cambia ogni giorno e non permette di risalire alla persona, cancellata
+          dopo due giorni. Non li usiamo per profilarti né per decidere
+          qualcosa su di te; l’amministrazione li legge in forma aggregata, per
+          capire se il servizio funziona.
+        </li>
+        <li>
           <strong>Dati analytics</strong>, solo se presti il consenso: pagine
           visitate, eventi di utilizzo, informazioni sul browser e dispositivo,
           area geografica approssimativa e identificativi pseudonimi conservati
@@ -523,6 +540,13 @@ export default function PrivacyPage() {
           fino a quando il servizio push segnala il dispositivo come non più
           raggiungibile — nel qual caso l’iscrizione viene rimossa
           automaticamente.
+        </li>
+        <li>
+          <strong>Dati di funzionamento e di utilizzo</strong>: i gesti
+          registrati con un account si conservano 13 mesi; le misure dei tempi e
+          gli errori mostrati (anonimi) 90 giorni; le visite alle pagine
+          pubbliche restano come semplici contatori giornalieri, senza dati
+          personali. Poi si cancellano da soli.
         </li>
         <li>
           <strong>Google Analytics</strong>: i cookie analytics scadono dopo 6

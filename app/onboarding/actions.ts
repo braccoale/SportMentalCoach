@@ -27,6 +27,7 @@ import {
   COMPLETENESS_LEVEL_LABEL,
   computeProfileCompleteness,
 } from '@/lib/core/coach-profile/completeness';
+import { trackUsage } from '@/lib/core/usage/server';
 
 export type AthleteOnboardingInput = {
   name?: string;
@@ -96,6 +97,7 @@ export async function completeAthleteOnboarding(
   const user = await requireRole('athlete');
   await persistFields(user.id, input);
   await completeOnboarding(user.id);
+  await trackUsage({ event: 'onboarding_completed', userId: user.id, role: 'athlete' });
   redirect('/coaches');
 }
 
@@ -175,8 +177,10 @@ export async function completeCoachOnboarding(
       };
     }
     await submitProviderForReview(user.id);
+    await trackUsage({ event: 'coach_profile_submitted', userId: user.id, role: 'coach', props: { via: 'wizard' } });
   }
   await completeOnboarding(user.id);
+  await trackUsage({ event: 'onboarding_completed', userId: user.id, role: 'coach' });
   redirect('/dashboard/coach');
 }
 

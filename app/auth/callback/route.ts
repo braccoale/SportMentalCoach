@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createSupabaseServer } from '@/lib/auth/supabase';
 import { safeRedirectPath } from '@/lib/core/auth/safe-redirect';
+import { trackSignInByAuthId } from '@/lib/core/usage/server';
 import { COMPLETE_SIGNUP_PATH } from '@/lib/core/auth/signup-completion';
 import { SIGNUP_ROLE_COOKIE } from '@/lib/core/auth/signup-role-cookie';
 
@@ -62,8 +63,9 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createSupabaseServer();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) return fail();
+    await trackSignInByAuthId(data.user?.id, 'google', request);
   }
 
   return NextResponse.redirect(new URL(next, url.origin));

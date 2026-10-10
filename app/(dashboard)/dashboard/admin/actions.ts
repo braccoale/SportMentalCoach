@@ -10,6 +10,7 @@ import {
 import { recordAdminAudit } from '@/lib/core/admin/audit-log';
 import { setCoachPaymentsEnabled } from '@/lib/core/billing';
 import type { ActionState } from '@/lib/auth/middleware';
+import { trackUsage } from '@/lib/core/usage/server';
 
 /**
  * Le decisioni sui profili coach.
@@ -49,6 +50,14 @@ async function review(
   if (!result.ok) {
     return { error: result.error };
   }
+
+  await trackUsage({
+    event: decision === 'approved' ? 'coach_profile_approved' : 'coach_profile_rejected',
+    userId: admin.id,
+    role: 'admin',
+    entityType: 'provider_profile',
+    entityId: providerId,
+  });
 
   // Refresh the queue and the public listing (approval changes visibility).
   revalidatePath('/dashboard/admin');

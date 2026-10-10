@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { reportUiError } from '@/lib/core/usage/client';
 import {
   classifyClientFailure,
   type ClientFailure,
@@ -49,6 +50,14 @@ export function ClientFailureScreen({
     digest: error.digest,
     online,
   });
+
+  // Si segnala una volta sola per tipo: chi vede la schermata non deve accorgersene, noi sì.
+  const reported = useRef<string | null>(null);
+  useEffect(() => {
+    if (online === undefined || reported.current === failure.kind) return;
+    reported.current = failure.kind;
+    reportUiError(failure.kind, error.name, error.digest);
+  }, [online, failure.kind, error.name, error.digest]);
 
   /*
    * Il gesto giusto per il caso giusto.

@@ -90,6 +90,7 @@ import {
 } from './duration';
 import { buildCancellationMessage } from './cancellation-message';
 import { NO_SHOW_MESSAGE } from './no-show';
+import { trackUsage } from '@/lib/core/usage/server';
 
 async function hasOpenBookingConflict(
   exec: DbOrTx,
@@ -539,6 +540,15 @@ export async function createBookingRequest(params: {
       ...(params.startingNow ? { audience: 'coach' as const } : {}),
     }
   );
+
+  await trackUsage({
+    event: 'booking_requested',
+    userId: params.clientUserId,
+    role: 'athlete',
+    entityType: 'booking',
+    entityId: creation.bookingId,
+    props: { by: 'athlete' },
+  });
 
   return { ok: true, bookingId: creation.bookingId };
 }
@@ -1332,6 +1342,15 @@ export async function createCoachBookingRequest(params: {
     }
   );
 
+  await trackUsage({
+    event: 'booking_requested',
+    userId: params.coachUserId,
+    role: 'coach',
+    entityType: 'booking',
+    entityId: creation.bookingId,
+    props: { by: 'coach' },
+  });
+
   return { ok: true, bookingId: creation.bookingId };
 }
 
@@ -1701,6 +1720,14 @@ export async function decideBooking(params: {
     });
   }
 
+  await trackUsage({
+    event: params.decision === 'accepted' ? 'booking_accepted' : 'booking_declined',
+    userId: params.coachUserId,
+    role: 'coach',
+    entityType: 'booking',
+    entityId: booking.id,
+  });
+
   return { ok: true };
 }
 
@@ -1805,6 +1832,14 @@ export async function completeBooking(params: {
     reason: 'booking_completed',
   }, liveKit);
   await notify('booking_completed', booking.clientId, { bookingId: booking.id });
+
+  await trackUsage({
+    event: 'booking_completed',
+    userId: params.coachUserId,
+    role: 'coach',
+    entityType: 'booking',
+    entityId: booking.id,
+  });
 
   return { ok: true };
 }
@@ -1946,6 +1981,14 @@ export async function cancelBooking(params: {
       actorUserId: params.userId,
     });
   }
+
+  await trackUsage({
+    event: 'booking_cancelled',
+    userId: params.userId,
+    entityType: 'booking',
+    entityId: params.bookingId,
+    props: { late: isLate },
+  });
 
   return { ok: true, lateCancellation: isLate };
 }

@@ -14,6 +14,8 @@ import {
   date,
   uuid,
   real,
+  doublePrecision,
+  primaryKey,
   pgView,
   foreignKey,
   type AnyPgColumn,
@@ -4439,3 +4441,124 @@ export const sessionCredits = pgTable(
 );
 
 export type SessionCredit = typeof sessionCredits.$inferSelect;
+
+
+/* -------------------------------------------------------------------------- */
+/* Utilizzo, tempi ed errori (migrazione 0100)                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Che cosa fanno le persone sulla piattaforma: un evento per gesto che conta
+ * (accesso, richiesta di seduta, demo aperta…), scritto solo dal server.
+ *
+ * Niente indirizzo IP: serve a capire l'uso, non a sorvegliare qualcuno. L'elenco
+ * degli eventi è chiuso nel codice (`lib/core/usage/catalog.ts`) e non in un
+ * CHECK: aggiungerne uno non deve richiedere una migrazione. Si conserva 13 mesi.
+ */
+export const usageEvents = pgTable(
+  'usage_events',
+  {
+    id: serial('id').primaryKey(),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
+    userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+    role: varchar('role', { length: 20 }),
+    /** Account demo: si contano a parte, non fra gli utenti veri. */
+    isDemo: boolean('is_demo').notNull().default(false),
+    event: varchar('event', { length: 60 }).notNull(),
+    entityType: varchar('entity_type', { length: 30 }),
+    entityId: integer('entity_id'),
+    outcome: varchar('outcome', { length: 10 }).notNull().default('ok'),
+    props: jsonb('props').$type<Record<string, string | number | boolean>>(),
+    source: varchar('source', { length: 10 }).notNull().default('server'),
+    deviceClass: varchar('device_class', { length: 10 }),
+    release: varchar('release', { length: 12 }),
+  },
+  (table) => [
+    index('usage_events_occurred_idx').on(table.occurredAt),
+    index('usage_events_event_idx').on(table.event, table.occurredAt),
+    index('usage_events_user_idx').on(table.userId, table.occurredAt),
+    check('usage_events_outcome_check', sql`${table.outcome} in ('ok', 'denied', 'error')`),
+    check('usage_events_source_check', sql`${table.source} in ('web', 'app', 'server')`),
+  ]
+);
+
+/** Un tempo misurato nel browser di chi usa il sito: nessun utente, nessun IP. Si conserva 90 giorni. */
+export const perfSamples = pgTable(
+  'perf_samples',
+  {
+    id: serial('id').primaryKey(),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
+    /** Il percorso come modello (`/coaches/:slug`), mai l'indirizzo vero. */
+    route: varchar('route', { length: 120 }).notNull(),
+    metric: varchar('metric', { length: 24 }).notNull(),
+    value: doublePrecision('value').notNull(),
+    deviceClass: varchar('device_class', { length: 10 }),
+    connection: varchar('connection', { length: 10 }),
+    release: varchar('release', { length: 12 }),
+  },
+  (table) => [
+    index('perf_samples_route_idx').on(table.route, table.metric, table.occurredAt),
+    index('perf_samples_occurred_idx').on(table.occurredAt),
+  ]
+);
+
+/** Un errore che l'utente ha visto: il tipo e un codice, mai il testo (può contenere nomi). Si conserva 90 giorni. */
+export const uiErrors = pgTable(
+  'ui_errors',
+  {
+    id: serial('id').primaryKey(),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
+    route: varchar('route', { length: 120 }).notNull(),
+    kind: varchar('kind', { length: 20 }).notNull(),
+    code: varchar('code', { length: 60 }),
+    /** L'identificativo dell'errore di Next: collega la riga ai log di Vercel. */
+    digest: varchar('digest', { length: 40 }),
+    deviceClass: varchar('device_class', { length: 10 }),
+    release: varchar('release', { length: 12 }),
+  },
+  (table) => [
+    index('ui_errors_occurred_idx').on(table.occurredAt),
+    index('ui_errors_kind_idx').on(table.kind, table.code, table.occurredAt),
+  ]
+);
+
+/**
+ * Le visite alle pagine pubbliche, contate per giorno, percorso e provenienza:
+ * nessuna persona, nessun cookie, nessun IP. Serve a vedere se arriva gente nuova.
+ */
+export const pageViewsDaily = pgTable(
+  'page_views_daily',
+  {
+    day: date('day').notNull(),
+    route: varchar('route', { length: 120 }).notNull(),
+    /** `diretto`, `ricerca`, `social`, `altro` o `interno`: mai l'indirizzo di provenienza. */
+    referrerKind: varchar('referrer_kind', { length: 12 }).notNull(),
+    views: integer('views').notNull().default(0),
+    /** Visitatori diversi nel giorno, stimati con un'impronta che cambia ogni giorno. */
+    uniques: integer('uniques').notNull().default(0),
+  },
+  (table) => [primaryKey({ columns: [table.day, table.route, table.referrerKind] })]
+);
+
+/**
+ * Le impronte dei visitatori del giorno, per contare i visitatori diversi senza
+ * cookie. L'impronta si calcola con un segreto diverso ogni giorno: ieri non si
+ * ricollega a oggi. Si cancella dopo due giorni.
+ */
+export const visitorDays = pgTable(
+  'visitor_days',
+  {
+    day: date('day').notNull(),
+    fingerprint: varchar('fingerprint', { length: 32 }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.day, table.fingerprint] })]
+);
+
+/** Gli indirizzi da non tracciare mai (l'amministratore che prova il sito): sarebbero rumore di fondo. */
+export const usageExcludedIps = pgTable('usage_excluded_ips', {
+  id: serial('id').primaryKey(),
+  ip: varchar('ip', { length: 45 }).notNull().unique(),
+  label: varchar('label', { length: 80 }),
+  createdBy: integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});

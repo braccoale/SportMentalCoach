@@ -1,5 +1,6 @@
 import { matchCoaches } from '@/lib/core/coach-match';
 import { createRateLimiter } from '@/lib/core/coach-match/rate-limit';
+import { trackUsage } from '@/lib/core/usage/server';
 
 /**
  * «Aiutami a scegliere»: riceve le risposte del wizard e restituisce i coach
@@ -34,7 +35,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    return Response.json(await matchCoaches(payload));
+    const result = await matchCoaches(payload);
+    // Solo che è stato usato: le risposte non si salvano da nessuna parte.
+    await trackUsage({ event: 'coach_match_used' }, request);
+    return Response.json(result);
   } catch (error) {
     console.error('[coach-match] errore:', error instanceof Error ? error.message : 'errore');
     return Response.json(

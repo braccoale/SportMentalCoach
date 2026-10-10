@@ -3,6 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { sendAllDueReminders } from '@/lib/core/notifications/reminders';
 import { sendRenewalReminders } from '@/lib/core/billing/renewal-reminders';
 import { syncCoachAccountsDue } from '@/lib/core/billing/account-sync';
+import { cleanupUsageData } from '@/lib/core/usage/server';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -49,7 +50,16 @@ export async function GET(request: Request) {
       console.error('[reminders] allineamento account coach non riuscito:', error);
       return null;
     });
-    return Response.json({ ok: true, results, renewals, accounts });
+    // La pulizia dei dati d'uso passa dallo stesso cron, una volta al giorno
+    // (alle 3 UTC), con la stessa regola: un guasto qui non ferma il resto.
+    const usageCleanup =
+      new Date().getUTCHours() === 3
+        ? await cleanupUsageData().catch((error) => {
+            console.error('[reminders] pulizia dei dati d’uso non riuscita:', error);
+            return null;
+          })
+        : null;
+    return Response.json({ ok: true, results, renewals, accounts, usageCleanup });
   } catch (error) {
     console.error('[reminders] run failed:', error);
     return Response.json(

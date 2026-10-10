@@ -10,6 +10,7 @@ import {
 } from '@/lib/db/schema';
 import type { Result } from '@/lib/core/result';
 import { notify } from '@/lib/core/notifications';
+import { trackUsage } from '@/lib/core/usage/server';
 
 export type ReviewSummary = { count: number; average: number | null };
 
@@ -218,6 +219,15 @@ export async function createReview(params: {
   if (!created) {
     return { ok: false, error: 'Hai già recensito questa sessione.' };
   }
+
+  await trackUsage({
+    event: 'review_left',
+    userId: params.authorUserId,
+    role: 'athlete',
+    entityType: 'booking',
+    entityId: booking.id,
+    props: { rating: params.rating },
+  });
 
   await notify('review_received', booking.coachUserId, {
     rating: params.rating,

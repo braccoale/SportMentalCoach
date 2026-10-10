@@ -24,6 +24,7 @@ import {
   provisionMarketplaceRole,
   type SignupRole,
 } from '@/lib/core/profiles';
+import { trackUsage } from '@/lib/core/usage/server';
 
 /**
  * Come nasce un account, indipendentemente da come e' entrata la persona.
@@ -109,7 +110,7 @@ export async function createAccountRecords(params: {
   // percorsi, e cosi' non puo' divergere fra i due.
   const fullName = `${name} ${lastName}`.trim();
 
-  return db
+  const created = await db
     .transaction(async (tx) => {
       const newUser: NewUser = {
         email,
@@ -240,6 +241,16 @@ export async function createAccountRecords(params: {
       console.error('Sign-up transaction failed:', error);
       return null;
     });
+
+  if (created) {
+    await trackUsage({
+      event: 'signup_completed',
+      userId: created.user.id,
+      role: marketplaceRole,
+      props: marketplaceRole ? { role: marketplaceRole } : undefined,
+    });
+  }
+  return created;
 
 }
 

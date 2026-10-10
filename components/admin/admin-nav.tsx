@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Activity,
+  BarChart3,
   BrainCircuit,
   CalendarClock,
   CreditCard,
@@ -70,6 +71,7 @@ export function AdminNav({
       badge: pendingCoaches || undefined,
     },
     { href: '/dashboard/admin/utenti', label: 'Utenti', icon: Users },
+    { href: '/dashboard/admin/utilizzo', label: 'Utilizzo', icon: BarChart3 },
     {
       href: '/dashboard/admin/sessioni',
       label: 'Sessioni',

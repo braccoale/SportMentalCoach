@@ -16,6 +16,7 @@ import { getActiveSports, getActiveSpecialties } from '@/lib/core/taxonomies';
 import { getVerticalConfig } from '@/lib/core/config';
 import { normalizeGender } from '@/lib/core/profiles/gender';
 import type { ActionState } from '@/lib/auth/middleware';
+import { trackUsage } from '@/lib/core/usage/server';
 
 const profileSchema = z.object({
   headline: z.string().max(160),
@@ -177,6 +178,8 @@ export async function updateVideoAction(
     }
   }
 
+  if (raw !== '') await trackUsage({ event: 'coach_video_published', userId: user.id, role: 'coach' });
+
   revalidatePath('/dashboard/coach/profile');
   revalidatePath('/coaches');
 
@@ -190,6 +193,7 @@ export async function submitForReviewAction(_formData: FormData) {
   const onboarding = await getCoachOnboarding(user.id);
   if (onboarding?.canSubmit) {
     await submitProviderForReview(user.id);
+    await trackUsage({ event: 'coach_profile_submitted', userId: user.id, role: 'coach', props: { via: 'profile' } });
     revalidatePath('/dashboard/coach');
     revalidatePath('/coaches');
   }

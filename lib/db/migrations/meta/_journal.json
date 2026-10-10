@@ -701,6 +701,13 @@
       "when": 1791556025298,
       "tag": "0099_fasce-tariffa-suggerita",
       "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1791646279771,
+      "tag": "0100_utilizzo-tempi-errori",
+      "breakpoints": true
     }
   ]
 }
