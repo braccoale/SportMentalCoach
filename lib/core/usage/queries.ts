@@ -44,6 +44,8 @@ export type UsageReport = {
   bookings: { event: string; n: number }[];
   /** Un punto per ogni giorno (giorni di Roma), con zero dove non è successo niente. */
   series: { day: string; views: number; uniques: number; events: number; users: number; demo: number; errors: number }[];
+  /** Le pagine aperte da chi ha un account: quante volte e da quante persone diverse. */
+  accountSections: { route: string; views: number; users: number }[];
   perfRoutes: {
     route: string;
     metric: string;
@@ -59,7 +61,7 @@ export type UsageReport = {
 export async function getUsageReport(days = 30): Promise<UsageReport> {
   const since = sql`now() - (${days}::int * interval '1 day')`;
 
-  const [first, perDay, byReferrer, topRoutes, uniquesTotal, demoByRole, demoRecent, newUsers, active, funnel, bookings, perf, errors, denied, eventsPerDay, errorsPerDay] =
+  const [first, perDay, byReferrer, topRoutes, uniquesTotal, demoByRole, demoRecent, newUsers, active, funnel, bookings, perf, errors, denied, eventsPerDay, errorsPerDay, sections] =
     await runLimited([
       () => rows(sql`select least(
           (select min(occurred_at) from usage_events),
@@ -113,7 +115,7 @@ export async function getUsageReport(days = 30): Promise<UsageReport> {
         where event = 'session_joined' and outcome = 'denied' and occurred_at >= ${since}
         group by 1 order by 2 desc limit 8`),
       () => rows(sql`select (occurred_at at time zone 'Europe/Rome')::date::text as day,
-          count(*)::int as events,
+          (count(*) filter (where event <> 'page_view'))::int as events,
           (count(distinct user_id) filter (where user_id is not null and is_demo = false))::int as users,
           (count(*) filter (where event = 'demo_opened'))::int as demo
         from usage_events
@@ -121,6 +123,9 @@ export async function getUsageReport(days = 30): Promise<UsageReport> {
         group by 1`),
       () => rows(sql`select (occurred_at at time zone 'Europe/Rome')::date::text as day, count(*)::int as n
         from ui_errors where occurred_at >= ${since} group by 1`),
+      () => rows(sql`select props->>'route' as route, count(*)::int as views, count(distinct user_id)::int as users
+        from usage_events where event = 'page_view' and is_demo = false and occurred_at >= ${since}
+        group by 1 order by 2 desc limit 15`),
     ], 4);
 
   const days30 = lastDays(days, romeToday());
@@ -174,6 +179,7 @@ export async function getUsageReport(days = 30): Promise<UsageReport> {
     funnel: funnel.map((r) => ({ event: String(r.event), users: num(r.users) })),
     bookings: bookings.map((r) => ({ event: String(r.event), n: num(r.n) })),
     series,
+    accountSections: sections.map((r) => ({ route: String(r.route ?? ''), views: num(r.views), users: num(r.users) })),
     perfRoutes: perf.map((r) => ({
       route: String(r.route),
       metric: String(r.metric),

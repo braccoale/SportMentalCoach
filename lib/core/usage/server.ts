@@ -5,6 +5,8 @@ import { headers as nextHeaders } from 'next/headers';
 import { asc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { pageViewsDaily, perfSamples, uiErrors, usageEvents, usageExcludedIps, users, visitorDays } from '@/lib/db/schema';
+import { getUser } from '@/lib/db/queries';
+import { isNavigationTracked } from './tracking-policy';
 import { ttlMemo } from '@/lib/core/cache/ttl-memo';
 import {
   type UsageEvent,
@@ -15,6 +17,7 @@ import {
   isBotUserAgent,
   isExcludedIp,
   isPublicPageRoute,
+  isTrackablePageRoute,
   isUiErrorKind,
   normalizeIp,
   referrerKind,
@@ -242,6 +245,22 @@ async function countPageView(route: string, ref: unknown, internal: boolean, h: 
     });
 }
 
+async function recordAccountPageView(route: string, h: HeaderReader): Promise<void> {
+  const user = await getUser({ allowDemoMutation: true });
+  if (!user || user.isDemo) return;
+  if (!(await isNavigationTracked(user.id))) return;
+  const role = route.startsWith('/dashboard/coach') ? 'coach' : route.startsWith('/dashboard/athlete') ? 'athlete' : null;
+  await db.insert(usageEvents).values({
+    userId: user.id,
+    role,
+    event: 'page_view',
+    props: { route: route.slice(0, 60) },
+    source: 'web',
+    deviceClass: deviceClassFromUserAgent(h.get('user-agent')),
+    release: RELEASE,
+  });
+}
+
 /**
  * Riceve ciò che il browser ha misurato. Risponde sempre 204: chi lo manda non
  * deve mai accorgersi di niente, e un errore qui non è un suo problema.
@@ -266,6 +285,10 @@ export async function handleCollect(request: Request): Promise<Response> {
 
     if (body.pv === 1 && isPublicPageRoute(route)) {
       await countPageView(route, body.ref, body.n === 1, h);
+    }
+
+    if (body.pv === 1 && isTrackablePageRoute(route)) {
+      await recordAccountPageView(route, h);
     }
 
     if (Array.isArray(body.m)) {

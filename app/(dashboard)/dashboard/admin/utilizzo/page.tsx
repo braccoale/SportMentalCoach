@@ -13,7 +13,7 @@ import {
   VisitsChart,
 } from '@/components/admin/usage-charts';
 import { formatDateTime } from '@/lib/core/format';
-import { clientIpFromHeaders, isExcludedIp, rateVital, thresholdsFor, type VitalRating } from '@/lib/core/usage/catalog';
+import { clientIpFromHeaders, isExcludedIp, pageLabel, rateVital, thresholdsFor, type VitalRating } from '@/lib/core/usage/catalog';
 import { funnelRates, gaugePosition, gaugeZones, trend, type Trend } from '@/lib/core/usage/series';
 import { getExcludedIps } from '@/lib/core/usage/server';
 import { getExcludedIpRows, getUsageReport, type UsageReport } from '@/lib/core/usage/queries';
@@ -112,6 +112,7 @@ const EVENT_LABEL: Record<string, { label: string; tone: 'auth' | 'good' | 'info
   coach_video_published: { label: 'Video pubblicato', tone: 'info' },
   coach_match_used: { label: 'Aiutami a scegliere', tone: 'info' },
   review_left: { label: 'Recensione', tone: 'good' },
+  page_view: { label: 'Pagina aperta', tone: 'info' },
 };
 const TONE_CLASS = {
   auth: 'bg-sky-50 text-sky-700',
@@ -481,6 +482,7 @@ function UsersTable({ users, days }: { users: UsersOverview; days: number }) {
                 <th className="py-1.5 font-medium">Ruolo</th>
                 <th className="py-1.5 font-medium">Iscritto il</th>
                 <th className="py-1.5 text-right font-medium">Gesti</th>
+                <th className="py-1.5 text-right font-medium">Pagine</th>
                 <th className="py-1.5 text-right font-medium">Giorni attivi</th>
                 <th className="py-1.5 text-right font-medium">Ultimo gesto</th>
                 <th className="py-1.5" />
@@ -498,6 +500,7 @@ function UsersTable({ users, days }: { users: UsersOverview; days: number }) {
                   <td className="py-2 text-gray-600">{roleLabel(u.roles)}</td>
                   <td className="py-2 text-gray-600">{formatDateTime(new Date(u.createdAt))}</td>
                   <td className="py-2 text-right tabular-nums">{u.events}</td>
+                  <td className="py-2 text-right tabular-nums">{u.pages}</td>
                   <td className="py-2 text-right tabular-nums">{u.activeDays}</td>
                   <td className="py-2 text-right text-gray-500">{u.lastAt ? formatDateTime(new Date(u.lastAt)) : 'mai'}</td>
                   <td className="py-2 text-right">
@@ -530,6 +533,7 @@ function eventDetail(e: TimelineEvent): string {
   if (e.outcome === 'error') parts.push('errore');
   if (e.entityType === 'booking' && e.entityId) parts.push(`prenotazione n. ${e.entityId}`);
   if (e.entityType === 'provider_profile' && e.entityId) parts.push(`profilo n. ${e.entityId}`);
+  if (e.event === 'page_view' && typeof e.props?.route === 'string') return pageLabel(e.props.route);
   for (const [k, v] of Object.entries(e.props ?? {})) {
     const text = PROP_TEXT[k] ? PROP_TEXT[k](v) : `${k.replace(/_/g, ' ')}: ${String(v)}`;
     if (text) parts.push(text);
@@ -572,6 +576,18 @@ function UserActivity({ users, selectedId, timeline, days }: { users: UsersOverv
           <Empty>Nessun gesto registrato per questa persona: o non ha ancora fatto niente, o si è iscritta prima del tracciamento.</Empty>
         ) : (
           <div className="space-y-5">
+            {timeline.pages.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Le pagine che apre di più</p>
+                <ul className="mt-2 flex flex-wrap gap-2">
+                  {timeline.pages.map((p) => (
+                    <li key={p.route} className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700">
+                      {pageLabel(p.route)} <span className="font-semibold tabular-nums text-gray-900">{p.n}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {[...byDay.entries()].map(([day, events]) => (
               <div key={day}>
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{romeDayTitle(events[0].at)}</p>
@@ -614,6 +630,28 @@ function Sections({ report }: { report: UsageReport }) {
   const maxViews = Math.max(1, ...report.visits.topRoutes.map((r) => r.views));
   return (
     <div className="space-y-4">
+      <Card title="Sezioni usate da chi ha un account" hint="Le pagine aperte da persone con un account (adulti, senza amministratori e demo): quante volte e da quante persone diverse.">
+        {report.accountSections.length === 0 ? (
+          <Empty>Ancora nessuna pagina registrata: si registra da quando le persone con un account navigano il sito.</Empty>
+        ) : (
+          <ul className="space-y-3 text-sm">
+            {report.accountSections.map((r) => (
+              <li key={r.route}>
+                <div className="flex justify-between gap-3">
+                  <span>
+                    <span className="font-medium text-gray-900">{pageLabel(r.route)}</span>
+                    {pageLabel(r.route) !== r.route && <span className="ml-2 font-mono text-xs text-gray-400">{r.route}</span>}
+                  </span>
+                  <span className="tabular-nums text-gray-600">{r.views} aperture · {r.users} {r.users === 1 ? 'persona' : 'persone'}</span>
+                </div>
+                <div className="mt-1 h-2 w-full rounded-full bg-gray-100">
+                  <div className="h-full rounded-full bg-green-500" style={{ width: `${(r.views / Math.max(1, report.accountSections[0].views)) * 100}%` }} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
       <Card title="Le pagine più visitate" hint="Le pagine pubbliche, per numero di visite.">
         {report.visits.topRoutes.length === 0 ? (
           <Empty>Nessuna visita registrata.</Empty>
