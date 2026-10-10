@@ -228,16 +228,16 @@ export default function TermsPage() {
 
       <h2>9. Accesso al servizio e corrispettivi</h2>
       <p>
-        Alla data di ultimo aggiornamento di questi Termini, l’accesso alle
-        Sessioni avviene attraverso accordi stipulati con Club e organizzazioni,
-        e{' '}
+        Alla data di ultimo aggiornamento di questi Termini la Piattaforma è in{' '}
+        <strong>offerta di lancio</strong>: l’uso è gratuito per gli Atleti e le
+        famiglie e, per i Coach, fino al <strong>31 dicembre 2026</strong>. Inoltre{' '}
         <strong>
           la Piattaforma non gestisce pagamenti diretti da parte degli utenti
         </strong>
         : non sono richiesti dati di pagamento né sono previsti addebiti
-        all’Atleta o alla famiglia. Qualora venissero introdotte funzioni di
-        pagamento, queste condizioni saranno aggiornate e la modifica comunicata
-        prima dell’attivazione.
+        all’Atleta o alla famiglia. Qualora venissero introdotte funzioni a
+        pagamento, o terminasse l’offerta di lancio, queste condizioni saranno
+        aggiornate e la modifica comunicata prima dell’attivazione.
       </p>
 
       <h2>10. Videochiamate e messaggi</h2>

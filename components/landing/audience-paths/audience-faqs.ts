@@ -120,7 +120,7 @@ export const COACH_FAQ: FaqItem[] = [
   },
   {
     q: 'Quanto costa usare KaiPai?',
-    a: 'Oggi candidarsi e usare la piattaforma non ha costi per il coach, e non ti chiediamo dati di pagamento. Se in futuro verranno introdotte funzioni a pagamento, le condizioni saranno aggiornate e comunicate prima dell’attivazione.',
+    a: 'KaiPai è in offerta di lancio: candidarsi e usare la piattaforma è gratuito per i coach fino al 31 dicembre 2026, e non ti chiediamo dati di pagamento. Prima della fine dell’offerta ti comunicheremo le condizioni successive: nessuna funzione a pagamento viene attivata senza preavviso.',
   },
   {
     q: 'Come vengo pagato per le sedute?',
