@@ -64,7 +64,7 @@ export default async function SportCoachesPage({ params }: { params: Promise<Par
     },
     {
       q: 'Dove si svolgono le sedute?',
-      a: 'In videochiamata dentro KaiPai, dal browser o dall’app, senza link esterni da cercare.',
+      a: 'In videochiamata dentro KaiPai, dal browser, senza link esterni da cercare.',
     },
     {
       q: 'Il mental coaching è una terapia?',

@@ -94,7 +94,7 @@ export type SlotLike = { weekday: number; startMinute: number; endMinute: number
 
 /**
  * Modelli di orario per chi non vuole disegnare la settimana: si scelgono, si
- * applicano, e poi si rifiniscono dalla pagina Servizi. I giorni seguono
+ * applicano, e poi si rifiniscono dalla pagina Disponibilità. I giorni seguono
  * l'archivio (0 = domenica … 6 = sabato).
  */
 export const AVAILABILITY_PRESETS: { key: string; label: string; hint: string; slots: SlotLike[] }[] = [

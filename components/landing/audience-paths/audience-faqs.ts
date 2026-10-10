@@ -41,7 +41,7 @@ export const ATHLETE_FAQ: FaqItem[] = [
   },
   {
     q: 'Come vengono monitorati i miei progressi?',
-    a: 'Nella tua pagina del percorso trovi gli obiettivi concordati con il coach, le azioni prese seduta dopo seduta e l’andamento nel tempo. I riepiloghi li scrive e li approva il coach.',
+    a: 'Nella tua pagina del percorso trovi gli obiettivi concordati con il coach, le azioni prese seduta dopo seduta e l’andamento nel tempo. Se attivi gli Appunti AI, la bozza del riepilogo è assistita dall’intelligenza artificiale e la rivede e approva il coach.',
   },
   {
     q: 'Si paga qualcosa, e posso spostare un appuntamento?',
@@ -87,7 +87,7 @@ export const FAMILY_FAQ: FaqItem[] = [
   },
   {
     q: 'Come vengono monitorati i progressi?',
-    a: 'Nella pagina del percorso ci sono gli obiettivi concordati con il coach, le azioni prese seduta dopo seduta e l’andamento nel tempo. I riepiloghi li scrive e li approva il coach.',
+    a: 'Nella pagina del percorso ci sono gli obiettivi concordati con il coach, le azioni prese seduta dopo seduta e l’andamento nel tempo. Se attivi gli Appunti AI, la bozza del riepilogo è assistita dall’intelligenza artificiale e la rivede e approva il coach.',
   },
   {
     q: 'Cosa succede se emergono difficoltà che vanno oltre lo sport?',

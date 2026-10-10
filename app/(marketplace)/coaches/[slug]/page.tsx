@@ -703,8 +703,8 @@ export default async function CoachDetailPage({
                       Richiesta inviata a {firstName}!
                     </p>
                     <p className="text-sm leading-relaxed text-gray-600">
-                      Riceve subito una notifica e di solito risponde entro 24
-                      ore. Ti avvisiamo appena accetta.
+                      Riceve subito una notifica e ha 48 ore per rispondere. Ti
+                      avvisiamo appena accetta.
                     </p>
                     <Button asChild variant="outline" className="mt-1 rounded-full">
                       <Link href="/dashboard/athlete">

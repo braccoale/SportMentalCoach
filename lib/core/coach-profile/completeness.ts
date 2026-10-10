@@ -145,11 +145,11 @@ const SPECS: Spec[] = [
   },
   {
     key: 'service',
-    label: 'Servizio con durata e prezzo',
+    label: 'Servizio attivo',
     weight: 6,
-    hint: 'Crea almeno un servizio attivo con la durata e il prezzo.',
-    why: 'Senza un servizio con una durata nessuno può chiederti una seduta; con il prezzo compari anche nel filtro prezzo.',
-    fraction: (p) => (p.hasPricedService ? 1 : p.hasService ? 0.5 : 0),
+    hint: 'Serve almeno un servizio attivo: ne viene creato uno con il profilo («Sessione online»). Se manca, scrivi al supporto.',
+    why: 'Senza un servizio con una durata nessuno può chiederti una seduta.',
+    fraction: (p) => (p.hasService ? 1 : 0),
   },
   {
     key: 'availability',

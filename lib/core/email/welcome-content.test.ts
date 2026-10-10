@@ -11,7 +11,7 @@ test('la mail al nuovo coach spiega tutti i passaggi e l’approvazione admin', 
   const copy = content.paragraphs.join(' ');
 
   assert.match(copy, /1\. Completa il profilo professionale/);
-  assert.match(copy, /2\. Controlla la sezione Servizi/);
+  assert.match(copy, /2\. Controlla il servizio/);
   assert.match(copy, /Sessione online/);
   assert.match(copy, /40 minuti/);
   assert.match(copy, /0 €/);
