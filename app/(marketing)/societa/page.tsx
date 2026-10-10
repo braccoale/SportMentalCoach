@@ -116,6 +116,10 @@ export default function SocietaPage() {
             <h2 className="kp-display mt-4 max-w-2xl text-[clamp(1.75rem,4vw,3rem)] text-kp-hi">
               Tre livelli, dalla prima squadra al vivaio.
             </h2>
+            <p className="mt-4 max-w-2xl leading-relaxed text-kp-mid">
+              L’offerta per le società è in costruzione: livelli e importi sono indicativi e li definiamo
+              insieme a ogni club. Scrivici per parlarne.
+            </p>
             <div className="mt-14 grid gap-px overflow-hidden rounded-3xl bg-kp-line md:grid-cols-3">
               {COACHING_PACKAGES.map((pkg) => (
                 <article key={pkg.key} className="flex flex-col bg-kp-ink p-8">

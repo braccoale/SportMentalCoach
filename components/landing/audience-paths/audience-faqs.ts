@@ -45,7 +45,7 @@ export const ATHLETE_FAQ: FaqItem[] = [
   },
   {
     q: 'Si paga qualcosa, e posso spostare un appuntamento?',
-    a: 'La prima sessione conoscitiva è gratis. Oggi KaiPai non ti addebita nulla e non chiede dati di pagamento: l’accesso alle sedute passa da accordi con club e organizzazioni. Se verranno introdotti pagamenti, le condizioni saranno aggiornate e comunicate prima. Un appuntamento non ancora svolto puoi spostarlo tu o il coach, su un orario libero del suo calendario.',
+    a: 'La prima sessione conoscitiva è gratis. Oggi KaiPai non ti addebita nulla e non chiede dati di pagamento: per ora l’uso è gratuito, mentre l’offerta per le squadre e le società è in costruzione. Se verranno introdotti pagamenti, le condizioni saranno aggiornate e comunicate prima. Un appuntamento non ancora svolto puoi spostarlo tu o il coach, su un orario libero del suo calendario.',
   },
 ];
 
@@ -99,7 +99,7 @@ export const FAMILY_FAQ: FaqItem[] = [
   },
   {
     q: 'Si paga qualcosa, e posso spostare un appuntamento?',
-    a: 'La prima sessione conoscitiva è gratis. Oggi KaiPai non addebita nulla e non chiede dati di pagamento: l’accesso alle sedute passa da accordi con club e organizzazioni. Se verranno introdotti pagamenti, le condizioni saranno aggiornate e comunicate prima. Un appuntamento non ancora svolto si può spostare su un orario libero del calendario del coach.',
+    a: 'La prima sessione conoscitiva è gratis. Oggi KaiPai non addebita nulla e non chiede dati di pagamento: per ora l’uso è gratuito, mentre l’offerta per le squadre e le società è in costruzione. Se verranno introdotti pagamenti, le condizioni saranno aggiornate e comunicate prima. Un appuntamento non ancora svolto si può spostare su un orario libero del calendario del coach.',
   },
 ];
 
@@ -124,7 +124,7 @@ export const COACH_FAQ: FaqItem[] = [
   },
   {
     q: 'Come vengo pagato per le sedute?',
-    a: 'KaiPai oggi non incassa né gira pagamenti fra atleta e coach: l’accesso alle sedute passa da accordi con club e organizzazioni. Il rapporto professionale resta fra te e chi segui, e sei tu il professionista indipendente che lo gestisce. Quando la piattaforma introdurrà i pagamenti, le regole saranno pubblicate prima.',
+    a: 'KaiPai oggi non incassa né gira pagamenti fra atleta e coach: per ora l’uso è gratuito, e l’offerta per le squadre e le società è in costruzione. Il rapporto professionale resta fra te e chi segui, e sei tu il professionista indipendente che lo gestisce. Quando la piattaforma introdurrà i pagamenti, le regole saranno pubblicate prima.',
   },
   {
     q: 'Quando inizio a ricevere richieste dagli atleti?',
