@@ -79,8 +79,8 @@ describe('computeProfileCompleteness', () => {
     assert.equal(s.earned, 4);
     assert.equal(s.state, 'partial');
   });
-  it('il servizio vale metà senza prezzo', () => {
-    assert.equal(item({ ...empty, hasService: true }, 'service').earned, 3);
+  it('basta un servizio attivo: il prezzo non si chiede più', () => {
+    assert.equal(item({ ...empty, hasService: true }, 'service').earned, 6);
   });
   it('stringhe vuote o spazi non contano come informazione', () => {
     const c = computeProfileCompleteness({

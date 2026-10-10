@@ -24,7 +24,7 @@ export const HOME_FAQ: FaqItem[] = [
   },
   {
     q: 'Come funziona una seduta?',
-    a: 'Scegli un coach nell’elenco, chiedi un orario libero e aspetti la conferma. La seduta si svolge in videochiamata dentro KaiPai, dal browser o dall’app.',
+    a: 'Scegli un coach nell’elenco, chiedi un orario libero e aspetti la conferma. La seduta si svolge in videochiamata dentro KaiPai, dal browser.',
     link: { href: '/coaches', label: 'Trova il tuo coach' },
   },
   {

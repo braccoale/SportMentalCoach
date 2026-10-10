@@ -54,7 +54,7 @@ export const SEDUTA_ONLINE: BlogArticle = {
     { type: 'h2', id: 'videochiamata', text: '4. La videochiamata, dentro KaiPai' },
     {
       type: 'p',
-      text: 'La seduta si svolge in videochiamata dentro KaiPai, dal browser o dall’app, senza link esterni da cercare. Puoi entrare pochi minuti prima dell’orario. La durata si concorda con il coach e può andare da 10 a 60 minuti.',
+      text: 'La seduta si svolge in videochiamata dentro KaiPai, dal browser, senza link esterni da cercare. Puoi entrare pochi minuti prima dell’orario. La durata si concorda con il coach e può andare da 10 a 60 minuti.',
     },
     {
       type: 'p',

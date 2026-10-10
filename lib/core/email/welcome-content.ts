@@ -33,7 +33,7 @@ export function buildWelcomeEmailContent(input: {
         greeting,
         'Per rendere pubblico il tuo profilo e ricevere richieste dagli atleti, completa questi passaggi:',
         '1. Completa il profilo professionale: titolo, biografia, sport e specializzazioni.',
-        '2. Controlla la sezione Servizi. Abbiamo già creato “Sessione online”: dura 40 minuti, costa 0 € e ha la descrizione “Sport Mental Coach”. Modificala prima dell’invio se vuoi cambiare durata, prezzo o descrizione.',
+        '2. Controlla il servizio. Abbiamo già creato “Sessione online”: dura 40 minuti, costa 0 € e ha la descrizione “Sport Mental Coach”. Puoi cambiarne durata e prezzo nel passo «Il tuo servizio» della guida di benvenuto.',
         '3. Quando profilo e servizi sono corretti, premi “Invia per la revisione” nella tua area coach.',
         '4. L’amministratore di KaiPai controllerà le informazioni. Fino all’approvazione, il profilo non sarà pubblico e gli atleti non potranno prenotare le tue sessioni.',
         'Riceverai un’altra comunicazione quando il profilo sarà approvato oppure se serviranno modifiche.',

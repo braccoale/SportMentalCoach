@@ -611,7 +611,7 @@ export function CoachWizard({
                   </li>
                 ))}
               </ul>
-              <p className="mt-1 text-xs text-gray-500">Si modificano dalla pagina Servizi della dashboard.</p>
+              <p className="mt-1 text-xs text-gray-500">Gli altri servizi restano come sono: da qui non si modificano.</p>
             </div>
           )}
         </section>
@@ -621,7 +621,7 @@ export function CoachWizard({
         <section className="flex flex-col gap-5">
           <Heading
             title="Quando ricevi"
-            intro="Scegli una o più fasce tipiche: le potrai cambiare, o disegnare la tua settimana, dalla pagina Servizi."
+            intro="Scegli una o più fasce tipiche: le potrai cambiare, o disegnare la tua settimana, dalla pagina Disponibilità."
           />
           {slotsCount > 0 && (
             <p className="flex items-center gap-2 rounded-xl bg-green-50 px-4 py-2.5 text-sm text-green-800">

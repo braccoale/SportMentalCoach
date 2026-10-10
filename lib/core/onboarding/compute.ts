@@ -71,7 +71,7 @@ export function computeCoachOnboarding(
     {
       key: 'services',
       label: 'Servizi',
-      description: 'Crea almeno un servizio attivo con titolo e durata.',
+      description: 'Serve almeno un servizio attivo: ne viene creato uno con il profilo.',
       anchor: '/dashboard/coach/services',
       done: servicesDone,
     },

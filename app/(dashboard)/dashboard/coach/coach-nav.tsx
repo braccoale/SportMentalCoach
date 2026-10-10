@@ -20,7 +20,7 @@ const TABS = [
   { href: '/dashboard/coach/calendar', label: 'Calendario', icon: CalendarDays },
   { href: '/dashboard/coach/academy', label: 'Academy', icon: GraduationCap },
   { href: '/dashboard/coach/messages', label: 'Messaggi', icon: MessageSquare },
-  { href: '/dashboard/coach/services', label: 'Servizi', icon: Briefcase },
+  { href: '/dashboard/coach/services', label: 'Disponibilità', icon: Briefcase },
   // Sempre visibile: se l'admin non ha ancora attivato i pagamenti la pagina
   // lo spiega, invece di far credere al coach che la sezione non esista.
   {

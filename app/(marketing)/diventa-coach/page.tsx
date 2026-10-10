@@ -60,7 +60,7 @@ const FEATURES = [
   },
   {
     t: 'Videochiamata integrata',
-    b: 'Le sedute si svolgono dentro KaiPai, dal browser o dall’app. Nessun link esterno da mandare.',
+    b: 'Le sedute si svolgono dentro KaiPai, dal browser. Nessun link esterno da mandare.',
   },
   {
     t: 'Appunti AI, con il consenso dell’atleta',
