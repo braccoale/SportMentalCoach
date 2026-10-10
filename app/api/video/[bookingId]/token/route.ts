@@ -1,5 +1,6 @@
 import { getApiUser } from '@/lib/auth/api-user';
 import { createRoomToken } from '@/lib/core/video';
+import { trackUsage } from '@/lib/core/usage/server';
 
 /**
  * Token LiveKit per entrare in una stanza, dall'app.
@@ -25,10 +26,32 @@ export async function POST(
 
   const result = await createRoomToken(id, user.id);
   if (!result.ok) {
+    await trackUsage(
+      {
+        event: 'session_joined',
+        userId: user.id,
+        entityType: 'booking',
+        entityId: id,
+        outcome: 'denied',
+        props: { reason: String(result.reason).slice(0, 50) },
+      },
+      request
+    );
     // Il motivo viene inoltrato così com'è: l'app deve poter distinguere
     // «sei arrivato presto» da «non sei di questa sessione», e mostrarlo.
     return Response.json({ error: result.reason }, { status: 403 });
   }
+
+  await trackUsage(
+    {
+      event: 'session_joined',
+      userId: user.id,
+      role: result.viewerIsCoach ? 'coach' : 'athlete',
+      entityType: 'booking',
+      entityId: id,
+    },
+    request
+  );
 
   return Response.json({
     token: result.token,

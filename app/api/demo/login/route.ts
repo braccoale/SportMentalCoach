@@ -10,6 +10,7 @@ import {
   isInteractiveDemoIdentity,
   parseDemoLoginRole,
 } from '@/lib/auth/demo-login';
+import { trackUsage } from '@/lib/core/usage/server';
 
 const buckets = new Map<string, { count: number; resetAt: number }>();
 const WINDOW_MS = 60_000;
@@ -127,6 +128,13 @@ export async function POST(request: Request) {
       { status: 503 }
     );
   }
+
+  // Qualcuno ha aperto la demo: è proprio il segnale che interessa. Chi sta
+  // nell'elenco delle esclusioni (l'amministratore) non lascia traccia.
+  await trackUsage(
+    { event: 'demo_opened', userId: appUser.id, role, isDemo: true, props: { role } },
+    request
+  );
 
   return Response.json({ ok: true, destination: account.destination });
 }

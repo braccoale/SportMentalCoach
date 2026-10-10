@@ -7,6 +7,7 @@ import { getSessionUser } from '@/lib/db/queries';
 import { SWRConfig } from 'swr';
 import { Toaster } from 'sonner';
 import { GoogleAnalytics } from '@/components/google-analytics';
+import { UsageReporter } from '@/components/usage-reporter';
 import { getClientMessages } from '@/lib/i18n/client-messages';
 import { JsonLd } from '@/components/json-ld';
 import { organizationJsonLd, websiteJsonLd } from '@/lib/core/seo';
@@ -76,6 +77,7 @@ export default async function RootLayout({
           {googleAnalyticsId && (
             <GoogleAnalytics measurementId={googleAnalyticsId} />
           )}
+          <UsageReporter />
         </NextIntlClientProvider>
         <Toaster theme="system" position="top-center" richColors closeButton />
       </body>

@@ -49,6 +49,7 @@ import {
 import { safeRedirectPath } from '@/lib/core/auth/safe-redirect';
 import { passwordRejectionMessage } from '@/lib/core/auth/password-rejection';
 import { normalizeGender } from '@/lib/core/profiles/gender';
+import { trackUsage } from '@/lib/core/usage/server';
 
 const signInSchema = z.object({
   email: z.string().email().min(3).max(255),
@@ -109,6 +110,12 @@ export const signIn = validatedAction(signInSchema, async (data, formData) => {
   if (!foundUser.isDemo) {
     await logActivity(userWithTeam?.teamId, foundUser.id, ActivityType.SIGN_IN);
   }
+  await trackUsage({
+    event: 'auth_sign_in',
+    userId: foundUser.id,
+    isDemo: foundUser.isDemo,
+    props: { method: 'password' },
+  });
 
   const redirectTo = formData.get('redirect') as string | null;
   if (redirectTo === 'checkout') {
@@ -415,6 +422,7 @@ export async function signOut() {
     const userWithTeam = await getUserWithTeam(user.id);
     await logActivity(userWithTeam?.teamId, user.id, ActivityType.SIGN_OUT);
   }
+  if (user) await trackUsage({ event: 'auth_sign_out', userId: user.id, isDemo: user.isDemo });
   const supabase = await createSupabaseServer();
   await supabase.auth.signOut();
 }
