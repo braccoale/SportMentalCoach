@@ -154,7 +154,10 @@ describe('misure dei tempi', () => {
     assert.equal(rateVital('LCP', 5000), 'poor');
     assert.equal(rateVital('INP', 200), 'good');
     assert.equal(rateVital('CLS', 0.3), 'poor');
-    assert.equal(rateVital('ready:x', 1), null);
+    assert.equal(rateVital('ready:x', 800), 'good');
+    assert.equal(rateVital('ready:x', 2000), 'needs-improvement');
+    assert.equal(rateVital('ready:x', 9000), 'poor');
+    assert.equal(rateVital('BOH', 1), null);
   });
 });
 

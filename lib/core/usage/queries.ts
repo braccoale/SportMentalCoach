@@ -1,6 +1,7 @@
 import 'server-only';
 import { sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
+import { fillSeries, lastDays, romeToday } from './series';
 
 /**
  * Le letture della pagina «Utilizzo» dell'amministrazione.
@@ -41,6 +42,8 @@ export type UsageReport = {
   activeUsers: { role: string; users: number }[];
   funnel: { event: string; users: number }[];
   bookings: { event: string; n: number }[];
+  /** Un punto per ogni giorno (giorni di Roma), con zero dove non è successo niente. */
+  series: { day: string; views: number; uniques: number; events: number; users: number; demo: number; errors: number }[];
   perfRoutes: {
     route: string;
     metric: string;
@@ -56,7 +59,7 @@ export type UsageReport = {
 export async function getUsageReport(days = 30): Promise<UsageReport> {
   const since = sql`now() - (${days}::int * interval '1 day')`;
 
-  const [first, perDay, byReferrer, topRoutes, uniquesTotal, demoByRole, demoRecent, newUsers, active, funnel, bookings, perf, errors, denied] =
+  const [first, perDay, byReferrer, topRoutes, uniquesTotal, demoByRole, demoRecent, newUsers, active, funnel, bookings, perf, errors, denied, eventsPerDay, errorsPerDay] =
     await runLimited([
       () => rows(sql`select least(
           (select min(occurred_at) from usage_events),
@@ -65,7 +68,7 @@ export async function getUsageReport(days = 30): Promise<UsageReport> {
         ) as since`),
       () => rows(sql`select day::text as day, sum(views)::int as views, sum(uniques)::int as uniques
         from page_views_daily where day >= (now() - (${days}::int * interval '1 day'))::date
-        group by day order by day desc limit 14`),
+        group by day order by day desc`),
       () => rows(sql`select referrer_kind as kind, sum(views)::int as views, sum(uniques)::int as uniques
         from page_views_daily where day >= (now() - (${days}::int * interval '1 day'))::date
         group by referrer_kind order by 3 desc, 2 desc`),
@@ -109,7 +112,43 @@ export async function getUsageReport(days = 30): Promise<UsageReport> {
       () => rows(sql`select coalesce(props->>'reason','sconosciuto') as reason, count(*)::int as n from usage_events
         where event = 'session_joined' and outcome = 'denied' and occurred_at >= ${since}
         group by 1 order by 2 desc limit 8`),
+      () => rows(sql`select (occurred_at at time zone 'Europe/Rome')::date::text as day,
+          count(*)::int as events,
+          (count(distinct user_id) filter (where user_id is not null and is_demo = false))::int as users,
+          (count(*) filter (where event = 'demo_opened'))::int as demo
+        from usage_events
+        where occurred_at >= ${since} and (is_demo = false or event = 'demo_opened')
+        group by 1`),
+      () => rows(sql`select (occurred_at at time zone 'Europe/Rome')::date::text as day, count(*)::int as n
+        from ui_errors where occurred_at >= ${since} group by 1`),
     ], 4);
+
+  const days30 = lastDays(days, romeToday());
+  const viewsSeries = perDay.map((r) => ({ day: String(r.day), views: num(r.views), uniques: num(r.uniques) }));
+  const eventsSeries = eventsPerDay.map((r) => ({
+    day: String(r.day),
+    events: num(r.events),
+    users: num(r.users),
+    demo: num(r.demo),
+  }));
+  const errorsSeries = errorsPerDay.map((r) => ({ day: String(r.day), errors: num(r.n) }));
+  const byDay = <T extends { day: string }>(list: T[]) => new Map(list.map((x) => [x.day, x]));
+  const v = byDay(viewsSeries);
+  const e = byDay(eventsSeries);
+  const er = byDay(errorsSeries);
+  const series = fillSeries(
+    days30.map((day) => ({
+      day,
+      views: v.get(day)?.views ?? 0,
+      uniques: v.get(day)?.uniques ?? 0,
+      events: e.get(day)?.events ?? 0,
+      users: e.get(day)?.users ?? 0,
+      demo: e.get(day)?.demo ?? 0,
+      errors: er.get(day)?.errors ?? 0,
+    })),
+    days30,
+    ['views', 'uniques', 'events', 'users', 'demo', 'errors']
+  );
 
   const iso = (v: unknown) => (v ? new Date(v as string | Date).toISOString() : '');
   return {
@@ -134,6 +173,7 @@ export async function getUsageReport(days = 30): Promise<UsageReport> {
     activeUsers: active.map((r) => ({ role: String(r.role), users: num(r.users) })),
     funnel: funnel.map((r) => ({ event: String(r.event), users: num(r.users) })),
     bookings: bookings.map((r) => ({ event: String(r.event), n: num(r.n) })),
+    series,
     perfRoutes: perf.map((r) => ({
       route: String(r.route),
       metric: String(r.metric),
