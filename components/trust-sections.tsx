@@ -76,7 +76,7 @@ export const MARKETPLACE_FAQS = [
   },
   {
     q: 'Quanto costa?',
-    a: 'La prima sessione conoscitiva, di 20 minuti, è gratis. Oggi KaiPai non ti addebita nulla e non chiede dati di pagamento: l’accesso alle sedute passa da accordi con club e organizzazioni. Se verranno introdotti pagamenti, le condizioni saranno aggiornate e comunicate prima.',
+    a: 'La prima sessione conoscitiva, di 20 minuti, è gratis. Oggi KaiPai non ti addebita nulla e non chiede dati di pagamento: per ora l’uso è gratuito, mentre l’offerta per le squadre e le società è in costruzione. Se verranno introdotti pagamenti, le condizioni saranno aggiornate e comunicate prima.',
   },
   {
     q: 'Posso annullare?',
