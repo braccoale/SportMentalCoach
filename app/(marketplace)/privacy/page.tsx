@@ -39,6 +39,25 @@ export default function PrivacyPage() {
           livello e obiettivi che scegli di indicare; per i Coach, le
           informazioni professionali pubblicate volontariamente (biografia,
           certificazioni, specializzazioni, foto e video di presentazione).
+          Per gli uni e per gli altri puoi indicare, <strong>se vuoi</strong>,
+          il genere: è facoltativo, lo usiamo solo per scegliere le immagini
+          della tua area personale, non incide su ricerca, ordinamento o
+          tariffe e lo puoi cambiare o togliere in qualsiasi momento dal
+          profilo.
+        </li>
+        <li>
+          <strong>Risposte al questionario «Aiutami a scegliere»</strong>: lo
+          sport, il livello, ciò che vuoi migliorare, i momenti in cui senti
+          più la pressione, lo stile che preferisci e, se li scrivi, le tue
+          parole. Servono soltanto a proporti i Coach più adatti in quel
+          momento e <strong>non vengono salvate</strong> da KaiPai (vedi la
+          sezione 3 e la sezione 12).
+        </li>
+        <li>
+          <strong>Presenza dei Coach</strong>: finché un Coach ha aperta la
+          propria area, sulla sua foto compare il bollino «Online», visibile a
+          chiunque consulti l’elenco. È uno stato del momento: non viene
+          registrato né conservato come storico.
         </li>
         <li>
           <strong>Dati d’uso</strong>: richieste di sessione, appuntamenti,
@@ -96,6 +115,18 @@ export default function PrivacyPage() {
         gli abusi (legittimo interesse) e per adempiere a obblighi di legge.
       </p>
       <p>
+        Se usi «Aiutami a scegliere», le tue risposte vengono elaborate da{' '}
+        <strong>OpenAI</strong> (responsabile del trattamento, sezione 12) per
+        valutare quali Coach si adattano meglio a ciò che hai indicato, su tua
+        richiesta e prima di qualunque prenotazione (misure precontrattuali).
+        Insieme alle risposte non inviamo il tuo nome, la tua email né altri
+        identificativi del tuo account; a OpenAI chiediamo di non conservare la
+        richiesta, i contenuti non sono usati per addestrare i suoi modelli e
+        KaiPai non li salva.
+        Il risultato è un aiuto alla ricerca: nessuna decisione automatizzata
+        produce effetti su di te, e la scelta del Coach resta tua.
+      </p>
+      <p>
         <strong>Non trattiamo i tuoi dati per finalità di marketing</strong> e
         non inviamo comunicazioni commerciali o newsletter: tutte le email che
         riceverai sono legate a un fatto che ti riguarda. Non profiliamo gli
@@ -148,7 +179,10 @@ export default function PrivacyPage() {
       <p>
         I campi liberi della piattaforma — obiettivi, note alla richiesta,
         messaggi in chat — servono a descrivere il tuo momento sportivo e su
-        cosa vuoi lavorare: concentrazione, gestione della pressione, fiducia.{' '}
+        cosa vuoi lavorare: concentrazione, gestione della pressione, fiducia.
+        Vale anche per lo spazio di testo libero di «Aiutami a scegliere», che
+        va a un fornitore esterno (sezione 12): lì scrivi soltanto ciò che ti
+        serve per trovare un Coach, senza dettagli sanitari.{' '}
         <strong>Non vanno usati per diagnosi, terapie, farmaci o altre
         informazioni cliniche</strong>, né tue né di terzi.
       </p>
